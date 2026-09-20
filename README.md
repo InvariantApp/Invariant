@@ -32,9 +32,10 @@ The demo holds end to end (`pnpm e2e`):
    location, and it is exactly the one test that fails until that site is dealt
    with.
 
-The release gate is wired up as `invariant check`. Still to come: the
-differential verifier, signed evolution bundles, the Jev evaluation harness, and
-the GitHub App that delivers migrations as pull requests.
+The release gate is wired up as `invariant check`, and it runs every
+verification layer the design calls for short of the signed bundle. Still to
+come: signed evolution bundles and the registry, and the GitHub App that
+delivers migrations as pull requests.
 
 ## Layout
 
@@ -52,6 +53,7 @@ packages/runtime-hono Hono bindings for the runtime
 packages/migrate-ts   type-aware indexing and codemods for consumer repositories
 packages/proposer     drafts candidate Changes; proposals only, never decisions
 packages/eval         measures each judge against a labelled corpus
+packages/verifier     lens laws, chain equivalence, differential, conformance
 packages/cli          the invariant command, run in the provider's own CI
 eval/                 the corpus, recorded answers, and the ownership verdict
 ```
@@ -77,8 +79,49 @@ Contract 2026-03-01 -> 2026-09-20
 
 Historical contracts still served: 2026-01-15, 2026-03-01
 
+What was checked:
+  + the Changes explain the whole breaking diff
+  + each schema's Changes round trip on generated values
+  + one pass equals applying each step in turn
+
 Release status: PASS
 ```
+
+Every layer says what it actually proved, because a verdict on its own hides
+the thing that matters: which layers ran. "The model was confident" is not one
+of the kinds a record can have.
+
+`invariant check --full` adds the two layers that need the provider's code
+running. It starts the old build and the new one from the `build:` section of
+`invariant.yaml`, on ephemeral ports with fresh state, and asks both the
+scenarios in `invariant/scenarios`. Production traffic is never replayed.
+
+Equivalence is measured, not configured. The old build is run twice first, with
+a clock tick between the runs, and any path that fails to reproduce itself is
+compared by shape rather than by value from then on. Identifiers and timestamps
+fall out of that automatically, with no list of fields to ignore and no list to
+go stale.
+
+```
+  + the old build and the new build plus adapter agree
+      2026-01-15: create, retrieve and list a charge: 3 requests answered the same
+      by both builds, ignoring 6 generated values the old build did not keep stable
+  + the running code matches its own specification
+      2026-09-20: 4 responses match what contract 2026-09-20 describes
+```
+
+The layers catch different things, and the tests say which is which rather than
+implying each covers the others:
+
+| Fault | Caught by | Why not the others |
+|---|---|---|
+| A breaking delta nobody declared | closure | - |
+| A wrong scale exponent | closure, via `multipleOf` | Scaling up and back down is the identity, so the laws see nothing, and an old caller sends 49.99 and reads 49.99 back, so the differential sees nothing either. What is wrong is the amount stored. |
+| A restore or default value outside its contract | the lens laws | The constant lives in the Change, not in either specification, so no comparison of the two can reach it. |
+| A conversion that refuses a legal value | the lens laws | A schema comparison never runs a value. |
+| A value map whose pairs are swapped | the differential | A swapped bijection round trips perfectly and preserves the set of allowed values. |
+| A handler that changed behaviour | the differential | Nothing in either specification moved. |
+| A specification that has drifted from the code | conformance | Every other layer is reasoning about that document. |
 
 `invariant compile` then writes the program into the build, where it ships with
 the code it belongs to. A blocked release compiles nothing, because an adapter

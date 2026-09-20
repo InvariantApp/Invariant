@@ -1,0 +1,23 @@
+{
+  "name": "@invariant/verifier",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Proves a release is safe: lens laws, chain equivalence, differential base-vs-head, conformance, and the evidence records for each",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@invariant/compiler": "workspace:*",
+    "@invariant/contract": "workspace:*",
+    "@invariant/decimal": "workspace:*",
+    "@invariant/diff": "workspace:*",
+    "@invariant/ir": "workspace:*",
+    "@invariant/runtime": "workspace:*",
+    "fast-check": "^4.10.1",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@fixtures/provider-acme": "workspace:*"
+  }
+}

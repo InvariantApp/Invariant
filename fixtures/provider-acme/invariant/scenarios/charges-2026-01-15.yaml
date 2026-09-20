@@ -1,0 +1,34 @@
+# Written in the shapes of contract 2026-01-15, because that is the traffic
+# whose meaning has to survive. A create followed by a read followed by a list
+# is the shortest sequence that exercises an identifier minted by one request
+# and understood by the next.
+name: create, retrieve and list a charge
+contract: "2026-01-15"
+steps:
+  - id: create
+    request:
+      method: post
+      path: /v1/charges
+      headers:
+        authorization: Bearer sk_test_alpha
+      body:
+        amount: 49.99
+        currency: usd
+        source: tok_visa
+        description: A coffee subscription
+    capture:
+      id: /id
+
+  - id: retrieve
+    request:
+      method: get
+      path: /v1/charges/${create.id}
+      headers:
+        authorization: Bearer sk_test_alpha
+
+  - id: list
+    request:
+      method: get
+      path: /v1/charges?limit=10
+      headers:
+        authorization: Bearer sk_test_alpha

@@ -15,12 +15,14 @@ import { renderProposals, runPropose } from "./propose.ts";
 const USAGE = `invariant <command>
 
   check     Does this release's declared Changes explain what the API did?
+            With --full, also starts both builds and compares what they do.
   propose   Draft Change files for whatever this release has not explained.
   compile   Write the compiled program into the build.
 
 Options
   --config <path>   Path to invariant.yaml (default: ./invariant.yaml)
   --out <path>      Where compile writes (default: invariant/compiled/program.json)
+  --full            check: also start the real builds and compare them
   --write           propose: write the drafts into invariant/changes
   --offline         propose: deterministic rules only, no model calls
   --context <text>  propose: notes about this release, weighed as evidence
@@ -41,7 +43,7 @@ async function main(argv: string[]): Promise<number> {
   const config = await loadConfig(resolve(flag(argv, "config") ?? "invariant.yaml"));
 
   if (command === "check") {
-    const report = await check(config);
+    const report = await check(config, { full: argv.includes("--full") });
     process.stdout.write(`${renderReport(report)}\n`);
     return report.result === "block" ? 1 : 0;
   }

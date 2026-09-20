@@ -128,4 +128,68 @@ ops:
     );
     expect(rendered).toContain("Release status: PASS");
   });
+  it("reports what each layer actually checked, not just a verdict", async () => {
+    const report = await check(await loadConfig(`${FIXTURE}invariant.yaml`));
+
+    const kinds = new Set(report.evidence.map((entry) => entry.kind));
+    expect(kinds).toContain("E2-closure");
+    expect(kinds).toContain("E4-laws");
+    expect(kinds).toContain("E5-chain");
+    // Every record names the inputs it ran against, so a stale one cannot be
+    // passed off as evidence about a later release.
+    expect(
+      report.evidence.every((entry) => entry.inputsDigest.startsWith("sha256:")),
+    ).toBe(true);
+
+    const rendered = renderReport(report);
+    expect(rendered).toContain("What was checked:");
+    expect(rendered).toContain("the Changes explain the whole breaking diff");
+    expect(rendered).toContain("round trip on");
+  });
+
+  /**
+   * Closure is not the only thing that can block.
+   *
+   * This Change closes perfectly. The predicted specification is identical to
+   * the real one, because an `add` takes the field's shape from the new
+   * contract and only the default lives in the Change. The default is the part
+   * that is wrong, and it is in neither document for a comparison to find. Run
+   * it and every request from a caller who predates the field arrives at the
+   * provider's own handler carrying a value that handler will refuse.
+   */
+  it("blocks on a default the new contract does not allow, which closure accepts", async () => {
+    const root = await copyProvider();
+    await writeFile(
+      join(root, "invariant/changes/chg_capture_method.yaml"),
+      `irVersion: 1
+id: chg_capture_method
+summary: Capture method became explicit.
+scopes:
+  - schema: "#/components/schemas/PaymentCreateParams"
+  - schema: "#/components/schemas/Payment"
+ops:
+  - op: add
+    path: /capture_method
+    value: auto
+assertions:
+  same_concept: true
+  side_effects_unchanged: true
+  loss_acknowledged: true
+`,
+      "utf8",
+    );
+
+    const report = await check(await loadConfig(join(root, "invariant.yaml")));
+
+    // Closure is satisfied: nothing in the diff is left unexplained.
+    expect(report.steps.flatMap((step) => step.unexplained)).toEqual([]);
+    const closure = report.evidence.filter((entry) => entry.kind === "E2-closure");
+    expect(closure.every((entry) => entry.result !== "fail")).toBe(true);
+
+    // The laws are not, and the gate blocks.
+    expect(report.result).toBe("block");
+    expect(report.problems.join("\n")).toContain('"auto" is not one of');
+    expect(report.program).toBeUndefined();
+    expect(renderReport(report)).toContain("a verification layer found something");
+  });
 });

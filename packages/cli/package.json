@@ -15,7 +15,8 @@
     "@invariant/contract": "workspace:*",
     "@invariant/diff": "workspace:*",
     "@invariant/ir": "workspace:*",
-    "yaml": "^2.8.2",
-    "@invariant/proposer": "workspace:*"
+    "@invariant/proposer": "workspace:*",
+    "@invariant/verifier": "workspace:*",
+    "yaml": "^2.8.2"
   }
 }

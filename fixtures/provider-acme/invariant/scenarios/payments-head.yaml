@@ -1,0 +1,46 @@
+# Written in the current contract's own shapes. This is the one scenario set
+# that is not about compatibility at all: it asks the running code the
+# questions its own specification claims to answer, so that a specification
+# which has drifted from the code is caught before anything else is built on it.
+name: create, retrieve and list a payment
+contract: head
+steps:
+  - id: create
+    request:
+      method: post
+      path: /v1/payments
+      headers:
+        authorization: Bearer sk_test_delta
+      body:
+        amount_cents: 4999
+        currency: usd
+        payment_method:
+          token: tok_visa
+        capture_method: automatic
+        description: A coffee subscription
+    capture:
+      id: /id
+
+  - id: retrieve
+    request:
+      method: get
+      path: /v1/payments/${create.id}
+      headers:
+        authorization: Bearer sk_test_delta
+
+  - id: list
+    request:
+      method: get
+      path: /v1/payments?limit=10
+      headers:
+        authorization: Bearer sk_test_delta
+
+  - id: refund
+    request:
+      method: post
+      path: /v1/refunds
+      headers:
+        authorization: Bearer sk_test_delta
+      body:
+        payment: ${create.id}
+        amount_cents: 525

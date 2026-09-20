@@ -57,16 +57,29 @@ function outcomeFor(token: string): PaymentStatus {
 export class AcmeStore {
   readonly #payments = new Map<string, Payment>();
   readonly #refunds = new Map<string, Refund>();
+  readonly #instance: string;
   #seq = 0;
   #clock: number;
 
-  constructor(options: { startClock?: number } = {}) {
-    this.#clock = options.startClock ?? 1_760_000_000;
+  /**
+   * Identifiers and timestamps differ between two runs, the way a real API's
+   * do. That is not incidental: the differential verifier decides which paths
+   * to compare by value and which only by shape, and it decides it by running
+   * the old build twice and seeing what fails to reproduce. A store that minted
+   * `pay_000001` every time would report nothing as volatile and the calibration
+   * would go untested, which is how it would come to be trusted without ever
+   * having worked.
+   *
+   * Pin both with the options when a test needs the same answer twice.
+   */
+  constructor(options: { startClock?: number; instance?: string } = {}) {
+    this.#clock = options.startClock ?? Math.floor(Date.now() / 1000);
+    this.#instance = options.instance ?? Math.random().toString(36).slice(2, 10);
   }
 
   #nextId(prefix: string): string {
     this.#seq += 1;
-    return `${prefix}_${String(this.#seq).padStart(6, "0")}`;
+    return `${prefix}_${this.#instance}${String(this.#seq).padStart(4, "0")}`;
   }
 
   #tick(): number {

@@ -919,11 +919,68 @@ the next person to touch these areas should know why they look the way they do.
   into an assembled string cannot be migrated safely. The demo proves the claim
   matches the outcome: exactly one test fails, at exactly the flagged site.
 
+### Phase 4, the verifier
+
+- **The layers do not catch what the plan said they caught.** Section 14
+  promised that a wrong scale exponent and a swapped value map would both be
+  caught by the lens laws, and a side-effect bug by the differential. Two of
+  those three were wrong, and each is now a passing test that says so:
+  - a **wrong exponent** is caught by *closure*, through the `multipleOf`
+    derivation. The laws cannot see it, because scaling up by a thousand and
+    back down by a thousand is the identity. Neither can the differential: the
+    request and the response are scaled by the same factor, so an old caller
+    sends 49.99 and reads 49.99 back. What is wrong is the amount the provider
+    stored, and that is not on the old contract's surface at all.
+  - a **swapped value map** is caught only by the *differential*. The map is
+    still a bijection, so the round trip holds, and the set of allowed values
+    is unchanged, so closure holds.
+  - a **handler whose behaviour changed** is caught only by the differential,
+    as planned.
+- **What the lens laws do earn their place on** is a class the plan did not
+  name: the things that are in neither specification, so no comparison of the
+  two can reach them. A `remove` op's restore constant and an `add` op's
+  default both live in the Change. A restore value outside the old contract's
+  vocabulary hands an old consumer a value it has never heard of. Underneath
+  all of it sits one property: the compiler transforms schemas in one place and
+  values in another, and the laws are what keep those two agreeing.
+- **A Change is not checked alone.** Running one Change by itself against the
+  full contract fails, because half the release is missing from the result. It
+  is the composition per schema that has to land inside the target contract,
+  and that composition is exactly what gets projected onto a site.
+- **Object key order is not a difference.** A move deletes a field and writes
+  it back, so a round trip returns the same fields in a different order.
+  Comparing serialized text reported that as a failure on every Change that
+  renames anything.
+- **Volatility has to be given a chance to show itself.** Calibration works by
+  running the old build twice and seeing what fails to reproduce. The fixture
+  minted sequential identifiers from a fixed clock, so nothing was volatile and
+  the calibration was never exercised. Worse, a timestamp at second resolution
+  reproduces across two runs milliseconds apart, looks stable, and then differs
+  whenever the real comparison straddles a tick - a test that fails once a
+  minute for no reason. The two calibration runs are now separated across a
+  clock tick, which makes anything derived from time reveal itself without a
+  list of field names to maintain.
+- **Prose cannot be versioned by a shape transform.** An error's `param` is
+  mapped back to the name the old contract used, because it is a value in a
+  known place. The sentence beside it names the canonical field, and the IR has
+  no expressions to rewrite it with. Excluding message text from the comparison
+  would have hidden the next real fault there too, so the provider names the
+  exact path and writes down why, and the reason travels in the evidence record.
+- **The fixture's own server never shipped the compiled program**, and served
+  through the router rather than around it, so stage one never ran. Nothing
+  caught it until a check started the build as a real process, which is the
+  argument for E6 existing at all.
+
 ### Still to build
 
-Phase 2 (Jev evaluation harness and the proposer), Phase 4 (differential
-verifier and the release gate), Phase 5 (signed bundles, registry, control
-plane), Phase 7 (GitHub App delivery), Phase 8 (demo hardening and drills).
-Consumers B and C have no migration path yet: B needs generated types
-regenerated from the new contract, C is raw HTTP and belongs behind the Judge
-interface with a review flag.
+Phase 5 (signed bundles, registry, control plane), Phase 7 (GitHub App
+delivery), Phase 8 (demo hardening and drills). Consumers B and C have no
+migration path yet: B needs generated types regenerated from the new contract,
+C is raw HTTP and belongs behind the Judge interface with a review flag.
+
+Two evidence kinds are defined but not yet produced. E8 needs the release step
+to read the merge commit, which arrives with the signed bundle in Phase 5. E9
+is post-deploy, and the runtime already emits the counters it will be built
+from. The corpus behind the ownership verdicts is 29 cases against a design
+target of 240, which is enough to separate the judges and not enough to certify
+either; `eval/ownership.yaml` says so where the verdicts are recorded.

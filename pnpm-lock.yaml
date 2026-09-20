@@ -35,6 +35,9 @@ importers:
       '@invariant/runtime':
         specifier: workspace:*
         version: link:packages/runtime
+      '@invariant/verifier':
+        specifier: workspace:*
+        version: link:packages/verifier
       '@types/node':
         specifier: ^22.20.4
         version: 22.20.4
@@ -129,6 +132,9 @@ importers:
       '@invariant/proposer':
         specifier: workspace:*
         version: link:../proposer
+      '@invariant/verifier':
+        specifier: workspace:*
+        version: link:../verifier
       yaml:
         specifier: ^2.8.2
         version: 2.9.1
@@ -229,6 +235,37 @@ importers:
       hono:
         specifier: ^4
         version: 4.13.8
+
+  packages/verifier:
+    dependencies:
+      '@invariant/compiler':
+        specifier: workspace:*
+        version: link:../compiler
+      '@invariant/contract':
+        specifier: workspace:*
+        version: link:../contract
+      '@invariant/decimal':
+        specifier: workspace:*
+        version: link:../decimal
+      '@invariant/diff':
+        specifier: workspace:*
+        version: link:../diff
+      '@invariant/ir':
+        specifier: workspace:*
+        version: link:../ir
+      '@invariant/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+      fast-check:
+        specifier: ^4.10.1
+        version: 4.10.1
+      yaml:
+        specifier: ^2.8.1
+        version: 2.9.1
+    devDependencies:
+      '@fixtures/provider-acme':
+        specifier: workspace:*
+        version: link:../../fixtures/provider-acme
 
 packages:
 

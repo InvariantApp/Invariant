@@ -1,0 +1,54 @@
+# A refund refers to the thing it refunds, so this is where a rename that
+# crosses two objects shows up. The last step is a deliberate error: an old
+# caller has to keep receiving errors in the shape its own contract describes,
+# naming the field its own contract calls it.
+name: refund a charge, then fail a validation
+contract: "2026-01-15"
+steps:
+  - id: create
+    request:
+      method: post
+      path: /v1/charges
+      headers:
+        authorization: Bearer sk_test_alpha
+      body:
+        amount: 20.00
+        currency: usd
+        source: tok_visa
+    capture:
+      id: /id
+
+  - id: refund
+    request:
+      method: post
+      path: /v1/refunds
+      headers:
+        authorization: Bearer sk_test_alpha
+      body:
+        charge: ${create.id}
+        amount: 5.25
+
+  - id: rejected
+    expectStatus: 400
+    request:
+      method: post
+      path: /v1/charges
+      headers:
+        authorization: Bearer sk_test_alpha
+      body:
+        amount: -1
+        currency: usd
+        source: tok_visa
+
+# The `param` an error points at is mapped back to the name this contract uses,
+# because that is a value in a known place. The sentence beside it is not: the
+# IR has no expressions, by design, and rewriting prose is not a shape
+# transform. So this one difference is named here rather than excluded from the
+# comparison, which would also have hidden whatever goes wrong there next.
+acknowledged:
+  - step: rejected
+    pointer: /error/message
+    reason: >-
+      The message text names the canonical field. The machine-readable `param`
+      is mapped back to `amount`, which is what a client branches on; the prose
+      is for a human reading a log, and no transform can rewrite a sentence.

@@ -23,16 +23,17 @@
     "@fixtures/provider-acme": "workspace:*",
     "@hono/node-server": "^2.1.1",
     "@invariant/contract": "workspace:*",
+    "@invariant/eval": "workspace:*",
     "@invariant/migrate-ts": "workspace:*",
+    "@invariant/proposer": "workspace:*",
     "@invariant/runtime": "workspace:*",
+    "@invariant/verifier": "workspace:*",
     "@types/node": "^22.20.4",
     "@typesafe-ai/sdk": "^0.6.0",
     "dotenv": "^18.0.1",
     "fast-check": "^4.10.1",
     "tsx": "^4.23.13",
     "typescript": "6.0.3",
-    "vitest": "^5.0.1",
-    "@invariant/eval": "workspace:*",
-    "@invariant/proposer": "workspace:*"
+    "vitest": "^5.0.1"
   }
 }

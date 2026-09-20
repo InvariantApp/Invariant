@@ -158,6 +158,26 @@ function backwardInstrs(op: DataOp, prefix: string, changeId: string): Instr[] {
   return [];
 }
 
+/**
+ * One Change's primitives, in both directions, at a given pointer prefix.
+ *
+ * The verifier uses this to run a Change on its own: the whole point of the
+ * lens laws is to test a single declaration against its own schema, before it
+ * is concatenated with anything else.
+ */
+export function instrsFor(
+  change: Change,
+  prefix = "",
+): { forward: Instr[]; backward: Instr[] } {
+  const dataOps = change.ops.filter(isDataOp);
+  return {
+    forward: dataOps.flatMap((op) => forwardInstrs(op, prefix, change.id)),
+    backward: [...dataOps]
+      .reverse()
+      .flatMap((op) => backwardInstrs(op, prefix, change.id)),
+  };
+}
+
 interface SiteAccumulator {
   request: Instr[];
   response: Map<string, Instr[]>;

@@ -1,0 +1,244 @@
+/**
+ * What the lens laws do and do not catch, stated as tests.
+ *
+ * The negative cases matter as much as the positive one. A verification layer
+ * that is believed to catch more than it does is worse than one whose limits
+ * are written down, because the belief is what stops anyone building the layer
+ * that would actually catch it.
+ */
+import { predictDocument } from "@invariant/compiler";
+import type { OpenApiDocument } from "@invariant/contract";
+import type { Change } from "@invariant/ir";
+import { describe, expect, it } from "vitest";
+import { checkLaws } from "./laws.ts";
+
+/** A pair of contracts small enough to reason about by hand. */
+function contracts(): { old: OpenApiDocument; head: OpenApiDocument } {
+  const base: OpenApiDocument = {
+    openapi: "3.1.0",
+    info: { title: "money", version: "1" },
+    // The schema has to reach the wire somewhere. A Change is scoped to a
+    // schema, but everything downstream is keyed by the operations that schema
+    // serves, so a contract with no paths would exercise nothing real.
+    paths: {
+      "/v1/payments": {
+        post: {
+          operationId: "payments.create",
+          requestBody: {
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/Payment" },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "the payment",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Payment" },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    components: {
+      schemas: {
+        Payment: {
+          type: "object",
+          required: ["id", "amount", "status"],
+          additionalProperties: false,
+          properties: {
+            id: { type: "string" },
+            amount: { type: "number", multipleOf: 0.01 },
+            status: { type: "string", enum: ["succeeded", "failed", "pending"] },
+          },
+        },
+      },
+    },
+  };
+  return { old: base, head: structuredClone(base) };
+}
+
+const MONEY: Change = {
+  irVersion: 1,
+  id: "chg_minor_units",
+  summary: "Money crosses the wire in minor units.",
+  scopes: [{ schema: "#/components/schemas/Payment" }],
+  ops: [
+    { op: "move", from: "/amount", to: "/amount_cents" },
+    {
+      op: "convert",
+      path: "/amount_cents",
+      codec: { kind: "scale10", exponent: 2, onInexact: "reject" },
+    },
+  ],
+};
+
+function laws(old: OpenApiDocument, head: OpenApiDocument, changes: Change[]) {
+  const predicted = predictDocument(old, head, changes);
+  return checkLaws(old, predicted.document, changes, { runs: 300, seed: 7 });
+}
+
+describe("the lens laws", () => {
+  it("hold for a rename plus a unit conversion", () => {
+    const { old, head } = contracts();
+    const report = laws(old, head, [MONEY]);
+
+    expect(report.failures).toEqual([]);
+    expect(report.evidence).toHaveLength(1);
+    expect(report.evidence[0]?.result).toBe("pass");
+    expect(report.evidence[0]?.kind).toBe("E4-laws");
+  });
+
+  it("catch a conversion that refuses a value the contract allows", () => {
+    const { old, head } = contracts();
+    // The contract says amounts carry two decimal places. Scaling by ten
+    // leaves the second one behind, and the codec refuses rather than round.
+    const report = laws(old, head, [
+      {
+        ...MONEY,
+        ops: [
+          { op: "move", from: "/amount", to: "/amount_cents" },
+          {
+            op: "convert",
+            path: "/amount_cents",
+            codec: { kind: "scale10", exponent: 1, onInexact: "reject" },
+          },
+        ],
+      },
+    ]);
+
+    expect(report.failures.length).toBeGreaterThan(0);
+    expect(report.failures[0]?.detail).toMatch(/refused a value the contract allows/);
+  });
+
+  /**
+   * A constant is invisible to a schema comparison.
+   *
+   * Closure compares the predicted specification with the real one. A restore
+   * value lives in the Change, not in either specification, so no amount of
+   * comparing them can tell whether it is a value the old contract allows.
+   * Running it is the only way to find out, and an old consumer receiving a
+   * status it has never heard of is exactly the breakage this product exists
+   * to prevent.
+   */
+  it("catch a restore constant the old contract does not allow", () => {
+    const { old, head } = contracts();
+    const report = laws(old, head, [
+      {
+        irVersion: 1,
+        id: "chg_status_dropped",
+        summary: "Status left the payload.",
+        scopes: [{ schema: "#/components/schemas/Payment" }],
+        ops: [{ op: "remove", path: "/status", restore: "done" }],
+        assertions: { loss_acknowledged: true },
+      },
+    ]);
+
+    expect(report.failures.length).toBeGreaterThan(0);
+    expect(report.failures[0]?.detail).toMatch(
+      /backward produced a value the old contract does not allow/,
+    );
+    expect(report.failures[0]?.detail).toMatch(/"done" is not one of/);
+  });
+
+  /** The same blind spot in the other direction: a default nobody validated. */
+  it("catch a default the new contract does not allow", () => {
+    const { old, head } = contracts();
+    const withMethod = structuredClone(head);
+    const schema = (
+      withMethod["components"] as Record<
+        string,
+        Record<string, Record<string, Record<string, unknown>>>
+      >
+    )["schemas"]?.["Payment"] as Record<string, unknown>;
+    (schema["properties"] as Record<string, unknown>)["capture_method"] = {
+      type: "string",
+      enum: ["automatic", "manual"],
+    };
+    schema["required"] = [...(schema["required"] as string[]), "capture_method"];
+
+    const report = laws(old, withMethod, [
+      {
+        irVersion: 1,
+        id: "chg_capture",
+        summary: "Capture method became explicit.",
+        scopes: [{ schema: "#/components/schemas/Payment" }],
+        ops: [{ op: "add", path: "/capture_method", value: "auto" }],
+        assertions: { loss_acknowledged: true },
+      },
+    ]);
+
+    expect(report.failures.length).toBeGreaterThan(0);
+    expect(report.failures[0]?.detail).toMatch(/"auto" is not one of/);
+  });
+
+  it("catch a value map that does not cover the vocabulary", () => {
+    const { old, head } = contracts();
+    const report = laws(old, head, [
+      {
+        irVersion: 1,
+        id: "chg_status",
+        summary: "Status vocabulary changed.",
+        scopes: [{ schema: "#/components/schemas/Payment" }],
+        ops: [
+          {
+            op: "convert",
+            path: "/status",
+            // `pending` is left out, so a payment in that state cannot be
+            // expressed at all.
+            codec: {
+              kind: "enumMap",
+              pairs: [
+                ["succeeded", "paid"],
+                ["failed", "failed"],
+              ],
+            },
+          },
+        ],
+      },
+    ]);
+
+    expect(report.failures.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * The limit, kept as a passing test.
+   *
+   * Two values traded places. The round trip is still the identity, because
+   * undoing a swapped bijection restores the original exactly, and the set of
+   * values the new contract allows is unchanged. Neither the laws nor closure
+   * can see it. Only running the real provider and comparing what it returns
+   * can, which is why the differential check is not optional.
+   */
+  it("do NOT catch a value map whose pairs are swapped", () => {
+    const { old, head } = contracts();
+    const report = laws(old, head, [
+      {
+        irVersion: 1,
+        id: "chg_status",
+        summary: "Status vocabulary changed.",
+        scopes: [{ schema: "#/components/schemas/Payment" }],
+        ops: [
+          {
+            op: "convert",
+            path: "/status",
+            codec: {
+              kind: "enumMap",
+              pairs: [
+                ["succeeded", "processing"],
+                ["failed", "failed"],
+                ["pending", "paid"],
+              ],
+            },
+          },
+        ],
+      },
+    ]);
+
+    expect(report.failures).toEqual([]);
+  });
+});

@@ -13,3 +13,8 @@ ops:
 assertions:
   same_concept: true
   side_effects_unchanged: true
+  # A caller who predates this field never sent one, so every one of their
+  # requests is served with the default below. That the default matches what
+  # the API used to do is a claim about behaviour, not something either
+  # specification states, so it is acknowledged here by a person.
+  loss_acknowledged: true
