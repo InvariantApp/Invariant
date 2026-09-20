@@ -27,6 +27,8 @@ import {
   loadContract,
   loadPendingChanges,
 } from "@invariant/contract";
+import type { Change } from "@invariant/ir";
+import { type Evidence, inputsDigest } from "@invariant/verifier";
 import { stringify as stringifyYaml } from "yaml";
 import { type CheckReport, check } from "./check.ts";
 import type { InvariantConfig } from "./config.ts";
@@ -122,7 +124,7 @@ export async function release(
     to: { label, digest: report.current.digest },
     source: options.source,
     changes: pending,
-    evidence: report.evidence,
+    evidence: [...report.evidence, ...confirmations(pending, options.source)],
     program: report.program,
     gate: {
       result: report.result,
@@ -187,6 +189,34 @@ export async function release(
   );
 
   return { label, digest, bundle, wrote, report };
+}
+
+/**
+ * E8: a person with write access merged it.
+ *
+ * The weakest-looking record in the list and in some ways the most important.
+ * Every other kind says a machine checked something; this one says a human who
+ * could have said no did not. A Change carrying no confirmation is recorded as
+ * unconfirmed rather than left out, because a missing record and a passing one
+ * must not look the same to whoever reads the bundle.
+ */
+function confirmations(changes: readonly Change[], source: BundleSource): Evidence[] {
+  return changes.map((change) => {
+    const confirmed = change.provenance?.confirmed_by;
+    return {
+      kind: "E8-merge" as const,
+      subject: change.id,
+      result: confirmed ? ("pass" as const) : ("skipped" as const),
+      inputsDigest: inputsDigest(change),
+      tool: "git",
+      summary: confirmed
+        ? `merged in ${confirmed.commit.slice(0, 7)}` +
+          (confirmed.reviewer ? ` by ${confirmed.reviewer}` : "") +
+          `, released from ${source.repo}@${source.commit.slice(0, 7)}`
+        : "this Change carries no record of who merged it, so nobody is " +
+          "recorded as having confirmed it",
+    };
+  });
 }
 
 async function digestOfSpec(path: string): Promise<string> {

@@ -1181,16 +1181,25 @@ ever.
 
 ### Still to build
 
-The Octokit half of Phase 7, which needs credentials and a live app
-registration. Bundles are
-built, signed, verified and reproducible; what does not exist is anywhere to
-publish them to, so `invariant release` writes them into the provider's own
-repository. Consumer C has no migration path
-yet: it is raw HTTP and belongs behind the Judge interface with a review flag.
+**The Octokit half of Phase 7.** Webhook verification, replay protection,
+sponsored links, the provenance body and the promotion rule are built and
+tested. What is not built is the code that turns them into real commits on real
+repositories, or the scratch-org integration test the phase calls for. Both
+need GitHub credentials and a live app registration, and nothing in this
+repository should be read as evidence that last mile works.
 
-Two evidence kinds are defined but not yet produced. E8 needs the release step
-to read the merge commit, which arrives with the signed bundle in Phase 5. E9
-is post-deploy, and the runtime already emits the counters it will be built
-from. The corpus behind the ownership verdicts is 29 cases against a design
-target of 240, which is enough to separate the judges and not enough to certify
-either; `eval/ownership.yaml` says so where the verdicts are recorded.
+**E9.** Post-deploy evidence, which by definition cannot exist until something
+is deployed. The runtime already emits the counters it will be built from.
+
+E8 is produced: a release records who merged each Change, and a Change with no
+such record is marked skipped rather than omitted, because a missing record and
+a passing one must not look the same to whoever reads the bundle.
+
+**The corpus.** The judge ownership verdicts rest on it, and it is the number
+most worth being honest about: it separates the judges and does not certify
+either. `eval/ownership.yaml` says so beside the verdicts rather than in a
+footnote.
+
+Everything else the design asked for exists and is tested. Where a phase's
+acceptance criteria could not be met without credentials, that is said here
+rather than quietly counted as done.

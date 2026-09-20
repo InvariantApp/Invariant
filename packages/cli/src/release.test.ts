@@ -211,4 +211,41 @@ describe.skipIf(!hasOasdiff)("releasing", () => {
 
     expect(after.digest).not.toBe(before.digest);
   });
+  /**
+   * E8 is the weakest-looking record in a bundle and in some ways the most
+   * important: every other kind says a machine checked something, and this one
+   * says a person who could have said no did not.
+   */
+  it("records who confirmed each Change, and says so when nobody did", async () => {
+    const root = await copyProvider();
+    const path = join(root, "invariant/changes/chg_capture_method.yaml");
+    await writeFile(
+      path,
+      `${await readFile(path, "utf8")}provenance:
+  confirmed_by:
+    kind: provider-merge
+    commit: 9f2c1a4bb0
+    reviewer: dana
+`,
+      "utf8",
+    );
+
+    const config = await loadConfig(join(root, "invariant.yaml"));
+    const result = await release(config, { source: SOURCE, dryRun: true });
+
+    const merges = result.bundle.evidence.filter((entry) => entry.kind === "E8-merge");
+    expect(merges).toHaveLength(3);
+
+    const confirmed = merges.find((entry) => entry.subject === "chg_capture_method");
+    expect(confirmed?.result).toBe("pass");
+    expect(confirmed?.summary).toContain("merged in 9f2c1a4");
+    expect(confirmed?.summary).toContain("dana");
+
+    // A Change with no record is marked skipped rather than left out. A
+    // missing record and a passing one must not look the same to whoever
+    // reads the bundle.
+    const unconfirmed = merges.filter((entry) => entry.result === "skipped");
+    expect(unconfirmed).toHaveLength(2);
+    expect(unconfirmed[0]?.summary).toContain("nobody is recorded");
+  });
 });
