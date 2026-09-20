@@ -7,6 +7,10 @@
  * printed follows a request that was actually made or a suite that was actually
  * run.
  */
+
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { ACME_PROGRAM } from "@fixtures/provider-acme";
 import {
   appendLedger,
@@ -17,9 +21,6 @@ import {
   renderRetirement,
 } from "@invariant/cli";
 import type { UsageEvent } from "@invariant/runtime";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import {
   REPO_ROOT,
   runConsumerSuite,
