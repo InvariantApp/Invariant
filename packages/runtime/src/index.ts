@@ -83,6 +83,13 @@ export interface RuntimeOptions {
   numbers?: NumberFidelity;
   flags?: () => RuntimeFlags;
   onUsage?: (event: UsageEvent) => void;
+  /**
+   * Where the fate of each adapted request and response is reported.
+   *
+   * This is what E9 evidence is built from. Without it a release can say what
+   * was proved before deploying and nothing at all about what happened after.
+   */
+  onOutcome?: (event: OutcomeEvent) => void;
 }
 
 export class UnsupportedContractError extends Error {
@@ -121,6 +128,31 @@ export class UnknownBehaviorError extends Error {
   }
 }
 
+/**
+ * What happened to one adapted request or response.
+ *
+ * Separate from `UsageEvent`, which counts how often each Change was applied.
+ * This counts attempts and how they ended, and the distinction is the whole
+ * point: an error count with no denominator is a number nobody can act on.
+ * "Fourteen failures" means nothing until you know whether it is fourteen out
+ * of twenty or fourteen out of four million.
+ */
+export interface OutcomeEvent {
+  contract: string;
+  operation: string;
+  consumer: string | undefined;
+  direction: "request" | "response";
+  /**
+   * `adapted`: the body was rewritten and the caller got their own shape.
+   * `refused`: the request never reached the handler, so nothing happened.
+   * `failed`: the operation ran and its result could not be expressed in the
+   * caller's contract, which is the one that costs somebody something.
+   */
+  outcome: "adapted" | "refused" | "failed";
+  /** Why, when it was not `adapted`. Never a body or a field value. */
+  reason?: string;
+}
+
 /** Where a behaviour question is being asked from, for counting. */
 export interface BehaviorContext {
   /** The contract this request is served under, from `resolve`. */
@@ -149,6 +181,7 @@ export class InvariantRuntime {
   readonly #fidelity: NumberFidelity;
   readonly #flags: () => RuntimeFlags;
   readonly #onUsage: ((event: UsageEvent) => void) | undefined;
+  readonly #onOutcome: ((event: OutcomeEvent) => void) | undefined;
   readonly #behaviors: readonly string[];
 
   constructor(options: RuntimeOptions) {
@@ -164,6 +197,7 @@ export class InvariantRuntime {
     this.#fidelity = options.numbers ?? "double";
     this.#flags = options.flags ?? (() => ({}));
     this.#onUsage = options.onUsage;
+    this.#onOutcome = options.onOutcome;
   }
 
   get currentLabel(): string {
@@ -328,7 +362,33 @@ export class InvariantRuntime {
    * current contract, or on an operation that never changed, costs a map lookup
    * and no body is read.
    */
-  siteFor(label: string, method: string, path: string): DecodedSite | undefined {
+  siteFor(
+    label: string,
+    method: string,
+    path: string,
+    context?: { operation?: string; consumer?: string | undefined },
+  ): DecodedSite | undefined {
+    try {
+      return this.#siteFor(label, method, path);
+    } catch (error) {
+      if (error instanceof UnsupportedContractError) {
+        // A caller turned away entirely. Counted, because a kill switch left on
+        // by accident looks like silence from exactly the consumers it is
+        // refusing, and silence is what retirement reads as "nobody is left".
+        this.#onOutcome?.({
+          contract: label,
+          operation: context?.operation ?? `${method.toLowerCase()} ${path}`,
+          consumer: context?.consumer,
+          direction: "request",
+          outcome: "refused",
+          reason: "UnsupportedContractError",
+        });
+      }
+      throw error;
+    }
+  }
+
+  #siteFor(label: string, method: string, path: string): DecodedSite | undefined {
     if (label === this.#program.currentLabel) return undefined;
 
     const flags = this.#flags();
@@ -394,11 +454,13 @@ export class InvariantRuntime {
     text: string,
     context: { contract: string; operation: string; consumer?: string | undefined },
   ): string {
-    return this.#run(site.request, site.numeric, text, {
-      contract: context.contract,
-      operation: context.operation,
-      consumer: context.consumer,
-    });
+    return this.#reporting("request", context, () =>
+      this.#run(site.request, site.numeric, text, {
+        contract: context.contract,
+        operation: context.operation,
+        consumer: context.consumer,
+      }),
+    );
   }
 
   transformResponse(
@@ -412,11 +474,50 @@ export class InvariantRuntime {
       .find((found) => found !== undefined);
     if (!instrs) return text;
 
-    return this.#run(instrs, site.numeric, text, {
+    return this.#reporting("response", context, () =>
+      this.#run(instrs, site.numeric, text, {
+        contract: context.contract,
+        operation: context.operation,
+        consumer: context.consumer,
+      }),
+    );
+  }
+
+  /**
+   * Runs a transform and reports how it ended.
+   *
+   * Reported here rather than in each framework binding, so a provider gets
+   * the same evidence whatever they mounted the runtime in, and so a binding
+   * cannot forget. A failure on the way in refused the request and nothing
+   * happened; a failure on the way out means the operation already ran and
+   * somebody is getting an error for work that succeeded, which is the number
+   * that actually matters.
+   */
+  #reporting(
+    direction: "request" | "response",
+    context: { contract: string; operation: string; consumer?: string | undefined },
+    run: () => string,
+  ): string {
+    if (!this.#onOutcome) return run();
+
+    const base = {
       contract: context.contract,
       operation: context.operation,
       consumer: context.consumer,
-    });
+      direction,
+    };
+    try {
+      const result = run();
+      this.#onOutcome({ ...base, outcome: "adapted" });
+      return result;
+    } catch (error) {
+      this.#onOutcome({
+        ...base,
+        outcome: direction === "request" ? "refused" : "failed",
+        reason: error instanceof Error ? error.name : "Error",
+      });
+      throw error;
+    }
   }
 
   /** True when this status has compiled response work, so the body must be read. */

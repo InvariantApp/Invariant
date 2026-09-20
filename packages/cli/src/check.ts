@@ -33,6 +33,7 @@ import {
 import type { Change, CompiledProgram } from "@invariant/ir";
 import { type Evidence, inputsDigest } from "@invariant/verifier";
 import type { InvariantConfig } from "./config.ts";
+import { outcomeEvidence, readOutcomes } from "./outcomes.ts";
 import { type VerifyOptions, verify } from "./verify.ts";
 
 export type GateResult = "pass" | "warn" | "block";
@@ -275,6 +276,23 @@ export async function check(
 
   const verified = await verify(config, steps, current.label, current.document, options);
   evidence.push(...verified.evidence);
+
+  // E9. The only evidence here that is an observation rather than a prediction,
+  // and the only one that can say the predictions held. It never blocks: a
+  // release is very often the fix for what this is reporting.
+  if (options.outcomes !== undefined) {
+    const served = [...config.releasedSpecs.keys()].sort();
+    const observed = outcomeEvidence(served, await readOutcomes(options.outcomes));
+    evidence.push(...observed);
+    for (const entry of observed) {
+      if (entry.result !== "fail") continue;
+      warnings.push(
+        `Production is failing transforms for contract ${entry.subject}: ${entry.summary}. ` +
+          "The operation had already run each time, so those callers were charged " +
+          "for work whose result they never got.",
+      );
+    }
+  }
 
   const chained = chainProgram(config.api, current.label, current.digest, steps);
   for (const issue of chained.issues) {

@@ -316,6 +316,35 @@ It only ever proposes. A contract with no records at all is reported separately
 from an idle one, because no telemetry is far more likely to mean the sink was
 never wired up than that every consumer left.
 
+### And what production has reported since
+
+The adapter also reports how each adapted request and response ended. Point the
+gate at that ledger and every later release tells you how the last one is
+actually doing:
+
+```ts
+createRuntime({ program, identity, onOutcome: (event) => log.append(event) });
+```
+
+```sh
+invariant check --outcomes invariant/outcomes.jsonl
+```
+
+```
+  x what production has reported since
+      2026-01-15: 18422 requests and 18422 responses adapted, 31 responses failed (0.17%)
+      2026-03-01: 902 requests and 902 responses adapted, 0 responses failed (0.00%)
+```
+
+It is a rate rather than a count, because a count has nothing to act on: 31
+failures out of 18,422 is a real problem and 31 out of 40 is a different one.
+A failed response is measured against an objective of 0.01% and a refused
+request is not, because a refusal happens before your handler and costs a
+retry, while a failed response means the work was done and the caller got an
+error for it.
+
+This never blocks. The release you are running is quite possibly the fix.
+
 ---
 
 ## What each step actually commits you to

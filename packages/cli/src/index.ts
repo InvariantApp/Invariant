@@ -1,6 +1,7 @@
 export * from "./check.ts";
 export * from "./comment.ts";
 export * from "./config.ts";
+export * from "./outcomes.ts";
 export * from "./propose.ts";
 export * from "./release.ts";
 export * from "./retire.ts";

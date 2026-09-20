@@ -1290,6 +1290,31 @@ read a document that has fallen behind. A failing generator is reported as a
 failing generator, never as a stale specification, because the two are fixed in
 different places.
 
+**E9 is a rate, not a count.** Built after the rest, and the shape it had to
+take was decided by asking what a provider could act on. "Fourteen failed
+responses" is not actionable: fourteen out of twenty is an emergency and
+fourteen out of four million is a rounding error, and nothing in a bare count
+says which. So the runtime reports attempts alongside failures, from inside the
+transform rather than from each framework binding, and the evidence carries the
+denominator.
+
+Two asymmetries are kept rather than flattened. A request that will not
+translate is refused before the handler, so it costs a retry; a response that
+will not translate means the operation already ran and somebody is being handed
+an error for work that succeeded. Only the second is measured against the 0.01%
+objective. And a contract with no records at all is reported as `skipped`, never
+as passing, because a sink that was never wired up and a contract nobody calls
+produce the same empty file.
+
+Writing the test for that found the inverse bug: a contract where every request
+was refused has no successes, and the first version read it as having heard
+nothing. It is the loudest thing the ledger can say, and it is exactly what a
+kill switch left on by accident looks like.
+
+E9 never blocks. A release is very often the fix for what it is reporting, and
+a gate that refused to let a fix through because production was unhealthy would
+be actively harmful.
+
 ### Still to build
 
 **The Octokit half of Phase 7.** Webhook verification, replay protection,
@@ -1298,9 +1323,6 @@ tested. What is not built is the code that turns them into real commits on real
 repositories, or the scratch-org integration test the phase calls for. Both
 need GitHub credentials and a live app registration, and nothing in this
 repository should be read as evidence that last mile works.
-
-**E9.** Post-deploy evidence, which by definition cannot exist until something
-is deployed. The runtime already emits the counters it will be built from.
 
 E8 is produced: a release records who merged each Change, and a Change with no
 such record is marked skipped rather than omitted, because a missing record and

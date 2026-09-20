@@ -33,6 +33,13 @@ export interface VerifyOptions {
   full?: boolean;
   /** Generated values per property. */
   runs?: number;
+  /**
+   * Ledger of what the deployed runtime reported, for E9.
+   *
+   * Absent, the gate says nothing about production rather than implying it
+   * looked and found nothing wrong.
+   */
+  outcomes?: string;
 }
 
 export interface VerifyReport {

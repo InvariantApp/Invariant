@@ -39,6 +39,8 @@ export interface CreateAcmeAppOptions {
    */
   program?: unknown;
   onUsage?: (event: UsageEvent) => void;
+  /** Where the fate of each adapted request and response is reported, for E9. */
+  onOutcome?: Parameters<typeof createRuntime>[0]["onOutcome"];
   flags?: Parameters<typeof createRuntime>[0]["flags"];
 }
 
@@ -66,6 +68,7 @@ export function createAcmeApp(options: CreateAcmeAppOptions = {}): AcmeApp {
           { kind: "default", label: "2026-01-15" },
         ],
         ...(options.onUsage ? { onUsage: options.onUsage } : {}),
+        ...(options.onOutcome ? { onOutcome: options.onOutcome } : {}),
         ...(options.flags ? { flags: options.flags } : {}),
       })
     : undefined;
