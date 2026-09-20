@@ -147,6 +147,18 @@ export class JevJudge implements Judge {
     this.#concurrency = options.concurrency ?? 6;
   }
 
+  /**
+   * Built once, and deliberately outside the per-question `try`.
+   *
+   * A request that fails is an outage and abstaining is the right answer. A
+   * client that cannot be constructed is a missing credential, and abstaining
+   * on that produces a whole run of rules-only numbers wearing the hybrid
+   * judge's name. That happened: a run of 686 real pairs reported identical
+   * totals with and without the model, because the key never reached it.
+   *
+   * An outage is something to survive. A misconfiguration is something to be
+   * told about, and the two must not look alike.
+   */
   #clientOrThrow(): TypeSafeClient {
     this.#client ??= this.#makeClient();
     return this.#client;
@@ -239,11 +251,14 @@ export class JevJudge implements Judge {
       );
     });
 
+    // Outside the catch on purpose: see `#clientOrThrow`.
+    const client = this.#clientOrThrow();
+
     let model = this.#model;
     let answers: Record<string, Answer> = {};
     let inputTokens = 0;
     try {
-      const response = await this.#clientOrThrow().systemOne({
+      const response = await client.systemOne({
         state,
         questions,
         model: this.#model,

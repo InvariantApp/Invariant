@@ -1581,6 +1581,38 @@ step accounts for 4299 of them on its own, which is worth knowing before
 reading any aggregate: totals over real providers are dominated by a few
 documents that change their vocabulary wholesale.
 
+### The model over 686 pairs, and a run that lied about having asked it
+
+Counting first: **206 alignment questions across all 686 pairs, about a penny.**
+The corpus grew elevenfold and the model's share of the work grew by a factor
+of 1.4. That is the clearest statement yet of where the difficulty actually
+lives. On real providers the expensive part is structural coverage, which is
+prefix moves, retirements, parameters and endpoint alignment, and all of it is
+deterministic code. The model handles a small residue at the edges and stays
+small as the data grows.
+
+Running it: drafts rise from 2117 to 2166, open questions fall from 1625 to
+1570, and unexplained deltas rise from 10375 to 10383. The same pattern as
+before, for the same reason: explaining a rename makes the renamed field
+comparable and surfaces whatever else changed about it.
+
+**The first attempt at that measurement reported identical totals with and
+without the model, and it was wrong.** The credential never reached the run, so
+the hybrid judge answered from rules alone and the report said "with the model"
+over rules-only numbers. The cause was in `JevJudge`: the client was
+constructed inside the same `try` that turns a failed request into an
+abstention. Abstaining on an outage is right, because an outage must not be
+read as the model saying there is no successor and the pipeline has a next
+stage for exactly that. Abstaining on a missing key is not, because it makes a
+misconfiguration indistinguishable from a judgement.
+
+The client is now built outside that catch, so an outage still abstains and a
+misconfiguration throws. This is the third time the same shape of bug has been
+worth fixing here, after the evaluation cache keyed only on a judge's name and
+the differ reporting every failure as "not installed". A stale pass is worse
+than no result, because the run goes green while the numbers describe
+something that did not happen.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no
