@@ -1,0 +1,10 @@
+{
+  "name": "@fixtures/consumer-c-rawfetch-v2",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Donation widget calling Acme contract 2026-03-01 over raw fetch",
+  "devDependencies": {
+    "@fixtures/provider-acme": "workspace:*"
+  }
+}

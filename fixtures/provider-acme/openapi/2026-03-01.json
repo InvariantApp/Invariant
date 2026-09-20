@@ -1,0 +1,221 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Acme Payments API",
+    "version": "2026-03-01"
+  },
+  "servers": [{ "url": "https://api.acme.test" }],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer" }
+    },
+    "schemas": {
+      "PaymentMethod": {
+        "type": "object",
+        "required": ["token"],
+        "properties": {
+          "token": { "type": "string" }
+        }
+      },
+      "Payment": {
+        "type": "object",
+        "required": [
+          "id",
+          "object",
+          "amount",
+          "currency",
+          "payment_method",
+          "status",
+          "description",
+          "created"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "object": { "type": "string", "enum": ["payment"] },
+          "amount": { "type": "number", "multipleOf": 0.01, "exclusiveMinimum": 0 },
+          "currency": { "type": "string", "enum": ["usd", "eur", "gbp"] },
+          "payment_method": { "$ref": "#/components/schemas/PaymentMethod" },
+          "status": { "type": "string", "enum": ["succeeded", "failed", "pending"] },
+          "description": { "type": ["string", "null"] },
+          "created": { "type": "integer" }
+        }
+      },
+      "PaymentCreateParams": {
+        "type": "object",
+        "required": ["amount", "currency", "payment_method"],
+        "properties": {
+          "amount": { "type": "number", "multipleOf": 0.01, "exclusiveMinimum": 0 },
+          "currency": { "type": "string", "enum": ["usd", "eur", "gbp"] },
+          "payment_method": { "$ref": "#/components/schemas/PaymentMethod" },
+          "description": { "type": ["string", "null"] }
+        }
+      },
+      "PaymentList": {
+        "type": "object",
+        "required": ["object", "data", "has_more"],
+        "properties": {
+          "object": { "type": "string", "enum": ["list"] },
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Payment" }
+          },
+          "has_more": { "type": "boolean" }
+        }
+      },
+      "Refund": {
+        "type": "object",
+        "required": ["id", "object", "payment", "amount", "status", "created"],
+        "properties": {
+          "id": { "type": "string" },
+          "object": { "type": "string", "enum": ["refund"] },
+          "payment": { "type": "string" },
+          "amount": { "type": "number", "multipleOf": 0.01, "exclusiveMinimum": 0 },
+          "status": { "type": "string", "enum": ["succeeded"] },
+          "created": { "type": "integer" }
+        }
+      },
+      "RefundCreateParams": {
+        "type": "object",
+        "required": ["payment"],
+        "properties": {
+          "payment": { "type": "string" },
+          "amount": { "type": "number", "multipleOf": 0.01, "exclusiveMinimum": 0 }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["type", "message"],
+            "properties": {
+              "type": { "type": "string" },
+              "message": { "type": "string" },
+              "param": { "type": "string", "x-invariant-error-param": true }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid request",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+        }
+      },
+      "Unauthorized": {
+        "description": "Authentication failed",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+        }
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/v1/payments": {
+      "post": {
+        "operationId": "payments.create",
+        "summary": "Create a payment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PaymentCreateParams" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created payment",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Payment" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "get": {
+        "operationId": "payments.list",
+        "summary": "List payments",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 10 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of payments",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PaymentList" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/v1/payments/{id}": {
+      "get": {
+        "operationId": "payments.retrieve",
+        "summary": "Retrieve a payment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The payment",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Payment" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/v1/refunds": {
+      "post": {
+        "operationId": "refunds.create",
+        "summary": "Refund a payment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RefundCreateParams" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created refund",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Refund" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  }
+}

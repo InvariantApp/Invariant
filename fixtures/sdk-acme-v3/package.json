@@ -1,0 +1,10 @@
+{
+  "name": "@acme/sdk-v3",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Acme SDK pinned to the current API contract",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

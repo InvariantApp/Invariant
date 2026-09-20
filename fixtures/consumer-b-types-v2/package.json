@@ -1,0 +1,17 @@
+{
+  "name": "@fixtures/consumer-b-types-v2",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Invoice checkout integrated with Acme contract 2026-03-01 via generated types",
+  "scripts": {
+    "gen": "openapi-typescript ../provider-acme/openapi/2026-03-01.json -o src/acme-types.ts"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
+  },
+  "devDependencies": {
+    "@fixtures/provider-acme": "workspace:*",
+    "openapi-typescript": "^7.13.0"
+  }
+}

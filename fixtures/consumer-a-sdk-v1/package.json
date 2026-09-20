@@ -1,0 +1,13 @@
+{
+  "name": "@fixtures/consumer-a-sdk-v1",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Subscription biller integrated with Acme contract 2026-01-15",
+  "dependencies": {
+    "@acme/sdk-v1": "workspace:*"
+  },
+  "devDependencies": {
+    "@fixtures/provider-acme": "workspace:*"
+  }
+}

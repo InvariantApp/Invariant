@@ -1,0 +1,211 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Acme Payments API",
+    "version": "2026-01-15"
+  },
+  "servers": [{ "url": "https://api.acme.test" }],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer" }
+    },
+    "schemas": {
+      "Charge": {
+        "type": "object",
+        "required": [
+          "id",
+          "object",
+          "amount",
+          "currency",
+          "source",
+          "status",
+          "description",
+          "created"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "object": { "type": "string", "enum": ["charge"] },
+          "amount": { "type": "number", "multipleOf": 0.01, "exclusiveMinimum": 0 },
+          "currency": { "type": "string", "enum": ["usd", "eur", "gbp"] },
+          "source": { "type": "string" },
+          "status": { "type": "string", "enum": ["succeeded", "failed", "pending"] },
+          "description": { "type": ["string", "null"] },
+          "created": { "type": "integer" }
+        }
+      },
+      "ChargeCreateParams": {
+        "type": "object",
+        "required": ["amount", "currency", "source"],
+        "properties": {
+          "amount": { "type": "number", "multipleOf": 0.01, "exclusiveMinimum": 0 },
+          "currency": { "type": "string", "enum": ["usd", "eur", "gbp"] },
+          "source": { "type": "string" },
+          "description": { "type": ["string", "null"] }
+        }
+      },
+      "ChargeList": {
+        "type": "object",
+        "required": ["object", "data", "has_more"],
+        "properties": {
+          "object": { "type": "string", "enum": ["list"] },
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Charge" } },
+          "has_more": { "type": "boolean" }
+        }
+      },
+      "Refund": {
+        "type": "object",
+        "required": ["id", "object", "charge", "amount", "status", "created"],
+        "properties": {
+          "id": { "type": "string" },
+          "object": { "type": "string", "enum": ["refund"] },
+          "charge": { "type": "string" },
+          "amount": { "type": "number", "multipleOf": 0.01, "exclusiveMinimum": 0 },
+          "status": { "type": "string", "enum": ["succeeded"] },
+          "created": { "type": "integer" }
+        }
+      },
+      "RefundCreateParams": {
+        "type": "object",
+        "required": ["charge"],
+        "properties": {
+          "charge": { "type": "string" },
+          "amount": { "type": "number", "multipleOf": 0.01, "exclusiveMinimum": 0 }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["type", "message"],
+            "properties": {
+              "type": { "type": "string" },
+              "message": { "type": "string" },
+              "param": { "type": "string", "x-invariant-error-param": true }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid request",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+        }
+      },
+      "Unauthorized": {
+        "description": "Authentication failed",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+        }
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/v1/charges": {
+      "post": {
+        "operationId": "charges.create",
+        "summary": "Create a charge",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ChargeCreateParams" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created charge",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Charge" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "get": {
+        "operationId": "charges.list",
+        "summary": "List charges",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 10 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of charges",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ChargeList" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/v1/charges/{id}": {
+      "get": {
+        "operationId": "charges.retrieve",
+        "summary": "Retrieve a charge",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The charge",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Charge" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/v1/refunds": {
+      "post": {
+        "operationId": "refunds.create",
+        "summary": "Refund a charge",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RefundCreateParams" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created refund",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Refund" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  }
+}
