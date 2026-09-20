@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "assignee_id",
+    "confidence": 1,
+    "scores": {
+      "assignee_id": 0.9,
+      "assigned_at": 0.2625,
+      "assignee_email": 0.1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.027020999999990636,
+  "inputTokens": 0,
+  "costUsd": 0
+}

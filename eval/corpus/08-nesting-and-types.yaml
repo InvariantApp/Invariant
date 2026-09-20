@@ -1,0 +1,246 @@
+# Fields that moved a level, and fields that changed shape. A name can survive
+# a move or a re-typing, and it can also be handed to something else entirely,
+# so spelling is the wrong evidence here twice over. A judge that fails these
+# either flattens objects it should not, or trusts a reused name and quietly
+# points a migration at the field that took it over.
+- id: nest_postal_code_into_destination
+  tags: [nesting, ambiguous]
+  schema: Shipment
+  operations: ["shipments.create request"]
+  removed: { name: destination_postal_code, type: string, required: true, description: "Postal code the parcel is going to." }
+  candidates:
+    - { name: destination, type: object, required: true, description: "Where the parcel is going: street, city, postal code and country." }
+    - { name: origin, type: object, required: true, description: "Where the parcel is collected from." }
+  successor: destination
+  rationale: The postal code did not go away, it moved inside the destination object; origin is the other end of the journey.
+
+- id: nest_card_last4_into_card
+  tags: [nesting, ambiguous]
+  schema: PaymentIntent
+  operations: ["payment_intents.retrieve response 200"]
+  removed: { name: card_last4, type: string, required: false, description: "Last four digits of the card that was charged." }
+  candidates:
+    - { name: card, type: object, required: false, description: "The card that was charged: brand, last four digits and expiry." }
+    - { name: billing_details, type: object, required: false, description: "Name and address the cardholder gave." }
+  successor: card
+  rationale: The digits are now a property of the card; billing details never carried them.
+
+- id: unnest_retry_config_to_max_attempts
+  tags: [nesting, ambiguous]
+  schema: WebhookEndpoint
+  operations: ["webhook_endpoints.create request"]
+  removed: { name: retry_config, type: object, required: false, description: "Delivery retry settings. Only ever held a maximum attempt count." }
+  candidates:
+    - { name: max_delivery_attempts, type: integer, required: false, description: "How many times a failed delivery is retried." }
+    - { name: timeout_seconds, type: integer, required: false, description: "How long one delivery may take before it counts as failed." }
+  successor: max_delivery_attempts
+  rationale: A wrapper around a single value was flattened into that value; the timeout is a separate new setting.
+
+- id: unnest_customer_object_to_id
+  tags: [nesting]
+  schema: Order
+  operations: ["orders.retrieve response 200"]
+  removed: { name: customer, type: object, required: true, description: "The customer who placed the order, expanded inline." }
+  candidates:
+    - { name: customer_id, type: string, required: true, description: "Identifier of the customer who placed the order." }
+    - { name: customer_email, type: string, required: false, description: "Where the confirmation was sent." }
+  successor: customer_id
+  rationale: The expanded object collapsed into a reference to it; the email is one field that used to be inside.
+
+- id: nest_trial_end_into_trial
+  tags: [nesting, decoy]
+  schema: Membership
+  operations: ["memberships.create request"]
+  removed: { name: trial_end, type: integer, required: false, description: "When the free trial stops, as a Unix timestamp." }
+  candidates:
+    - { name: trial, type: object, required: false, description: "Trial settings: when it ends and how many seats it covers." }
+    - { name: trial_end_behavior, type: string, required: false, description: "What happens when the trial ends: cancel or convert to paid." }
+  successor: trial
+  rationale: The longer name shares the whole prefix but decides an action, while the timestamp itself moved into the trial object.
+
+- id: type_quantity_string_to_integer
+  tags: [type-change]
+  schema: UsageRecord
+  operations: ["usage.report request"]
+  removed: { name: quantity, type: string, required: true, description: "Units consumed, sent as a decimal string." }
+  candidates:
+    - { name: quantity, type: integer, required: true, description: "Units consumed." }
+    - { name: unit, type: string, required: false, description: "What the units are counted in." }
+  successor: quantity
+  rationale: The same field stopped being string encoded; the unit is a new label for it.
+
+- id: type_account_number_to_string
+  tags: [type-change]
+  schema: BankAccount
+  operations: ["bank_accounts.create request"]
+  removed: { name: account_number, type: integer, required: true, description: "The account number." }
+  candidates:
+    - { name: account_number, type: string, required: true, description: "The account number, string encoded so leading zeros survive." }
+    - { name: routing_number, type: string, required: true, description: "Which bank the account is held at." }
+  successor: account_number
+  rationale: Same field, re-typed because an integer lost leading zeros; the routing number identifies the bank instead.
+
+- id: type_expires_object_shadows_timestamp
+  tags: [type-change, adversarial, ambiguous]
+  schema: SigningKey
+  operations: ["signing_keys.create response 201"]
+  removed: { name: expires, type: integer, required: true, description: "When the key stops being accepted, as a Unix timestamp." }
+  candidates:
+    - { name: expires, type: object, required: false, description: "Expiry policy, which is new: whether the key expires at all and how long it lives." }
+    - { name: expires_at, type: integer, required: true, description: "When the key stops being accepted, as a Unix timestamp." }
+  successor: expires_at
+  rationale: The old name was handed to a policy object, so the timestamp is carried by expires_at rather than by the field that kept its spelling.
+
+- id: type_queue_object_shadows_identifier
+  tags: [nesting, adversarial, ambiguous]
+  schema: QueueConsumer
+  operations: ["consumers.create request"]
+  removed: { name: queue, type: string, required: true, description: "Identifier of the queue being consumed." }
+  candidates:
+    - { name: queue, type: object, required: false, description: "Queue settings applied on creation: visibility timeout and dead letter target." }
+    - { name: queue_id, type: string, required: true, description: "Identifier of the queue being consumed." }
+  successor: queue_id
+  rationale: The name now holds settings, and the identifier it used to hold is queue_id.
+
+- id: type_timeout_object_shadows_scalar
+  tags: [type-change, adversarial, ambiguous]
+  schema: IngestPipeline
+  operations: ["pipelines.update request"]
+  removed: { name: timeout, type: integer, required: false, description: "How long to wait for the upstream, in milliseconds." }
+  candidates:
+    - { name: timeout, type: object, required: false, description: "Per phase timeouts, which are new: one for connect and one for read." }
+    - { name: timeout_ms, type: integer, required: false, description: "How long to wait for the upstream, in milliseconds." }
+  successor: timeout_ms
+  rationale: The overall wait is still one number and its description is unchanged; the object is a finer grained control that did not exist before.
+
+- id: type_email_to_email_array
+  tags: [type-change, ambiguous]
+  schema: AlertPolicy
+  operations: ["alert_policies.create request"]
+  removed: { name: email, type: string, required: false, description: "Address alerts are sent to." }
+  candidates:
+    - { name: emails, type: array, required: false, description: "Addresses alerts are sent to." }
+    - { name: webhook_url, type: string, required: false, description: "Endpoint alerts are posted to." }
+  successor: emails
+  rationale: One recipient became a list of them; the webhook is a different delivery channel.
+
+- id: type_waypoints_array_to_itinerary
+  tags: [type-change, nesting, ambiguous]
+  schema: Route
+  operations: ["routes.create request"]
+  removed: { name: waypoints, type: array, required: true, description: "Ordered list of stops the driver must make." }
+  candidates:
+    - { name: itinerary, type: object, required: true, description: "The planned journey: its ordered stops and the legs between them." }
+    - { name: distance_meters, type: integer, required: false, description: "Total driving distance." }
+  successor: itinerary
+  rationale: The list of stops is now a field of the itinerary; the distance is something computed from it.
+
+- id: type_metrics_array_to_map
+  tags: [type-change]
+  schema: AnalyticsReport
+  operations: ["reports.run response 200"]
+  removed: { name: metrics, type: array, required: true, description: "Metric values, in the order they were requested." }
+  candidates:
+    - { name: metrics, type: object, required: true, description: "Metric values, keyed by metric name." }
+    - { name: dimensions, type: array, required: false, description: "Dimensions the report was grouped by." }
+  successor: metrics
+  rationale: The same values, keyed instead of ordered; dimensions are what the values are broken down by.
+
+- id: type_verified_boolean_to_status
+  tags: [type-change, ambiguous]
+  schema: Account
+  operations: ["accounts.retrieve response 200"]
+  removed: { name: verified, type: boolean, required: true, description: "Whether the account holder has been verified." }
+  candidates:
+    - { name: verification_status, type: string, required: true, description: "How far verification has got. One of: unverified, pending, verified." }
+    - { name: risk_level, type: string, required: false, description: "How risky the account looks. One of: low, elevated, high." }
+  successor: verification_status
+  rationale: A yes or no became a three value vocabulary answering the same question; risk is a separate judgement.
+
+- id: type_expedited_boolean_to_service_level
+  tags: [type-change, decoy, ambiguous]
+  schema: ShippingLabel
+  operations: ["labels.create request"]
+  removed: { name: expedited, type: boolean, required: false, description: "Whether the parcel goes by a faster service." }
+  candidates:
+    - { name: service_level, type: string, required: true, description: "Which service the parcel goes by. One of: standard, expedited, overnight." }
+    - { name: expedited_surcharge_cents, type: integer, required: false, description: "Extra charged when a faster service is chosen." }
+  successor: service_level
+  rationale: The flag became one value inside a larger vocabulary; the surcharge borrows the word but holds a price.
+
+- id: nest_ssh_key_has_no_home
+  tags: [nesting, removal]
+  schema: Cluster
+  operations: ["clusters.create request"]
+  removed: { name: ssh_public_key, type: string, required: false, description: "Key installed on every node so operators can log in." }
+  candidates:
+    - { name: networking, type: object, required: true, description: "VPC, subnets, and whether the control plane is reachable publicly." }
+    - { name: observability, type: object, required: false, description: "Where logs and metrics are shipped." }
+  successor: null
+  rationale: Neither object has anywhere to put a login key; direct node access was withdrawn rather than moved.
+
+- id: nest_refresh_interval_dropped
+  tags: [nesting, removal]
+  schema: Dashboard
+  operations: ["dashboards.create request"]
+  removed: { name: refresh_interval_seconds, type: integer, required: false, description: "How often the dashboard reloads its data." }
+  candidates:
+    - { name: layout, type: object, required: true, description: "Tile positions and sizes." }
+    - { name: filters, type: array, required: false, description: "Saved filter expressions applied to every tile." }
+  successor: null
+  rationale: Refreshing became the client's business; neither layout nor filters carries a schedule.
+
+- id: unnest_bank_account_to_id
+  tags: [nesting]
+  schema: Settlement
+  operations: ["settlements.retrieve response 200"]
+  removed: { name: bank_account, type: object, required: true, description: "The account the money was settled into, expanded inline." }
+  candidates:
+    - { name: bank_account_id, type: string, required: true, description: "Identifier of the account the money was settled into." }
+    - { name: bank_name, type: string, required: false, description: "Name of the receiving bank." }
+  successor: bank_account_id
+  rationale: The expanded object became a reference; the bank name is one field that used to be inside it.
+
+- id: nest_sender_into_from
+  tags: [nesting, decoy, ambiguous]
+  schema: Message
+  operations: ["messages.send request"]
+  removed: { name: sender, type: string, required: true, description: "Phone number the message is sent from, in E.164." }
+  candidates:
+    - { name: from, type: object, required: true, description: "Where the message is sent from: a phone number, a short code, or a messaging service." }
+    - { name: sender_name, type: string, required: false, description: "Display name shown above the message on handsets that support one." }
+  successor: from
+  rationale: The sending number is now one of several sender identities inside from; sender_name shares the stem but is cosmetic.
+
+- id: type_document_number_to_string
+  tags: [type-change, ambiguous]
+  schema: CreditNote
+  operations: ["credit_notes.create response 201"]
+  removed: { name: invoice_number, type: integer, required: true, description: "Sequential number printed on the document." }
+  candidates:
+    - { name: number, type: string, required: true, description: "Number printed on the document, now with a prefix, for example CN-0042." }
+    - { name: reference, type: string, required: false, description: "Free text reference the customer supplied." }
+  successor: number
+  rationale: The same printed number, shortened in name and widened in type; the reference is the customer's own text.
+
+- id: type_total_string_to_minor
+  tags: [type-change]
+  schema: Cart
+  operations: ["carts.retrieve response 200"]
+  removed: { name: total, type: string, required: true, description: "Cart total as a decimal string, for example 19.99." }
+  candidates:
+    - { name: total_minor, type: integer, required: true, description: "Cart total in minor units." }
+    - { name: subtotal_minor, type: integer, required: true, description: "Cart total before tax and shipping, in minor units." }
+  successor: total_minor
+  rationale: The same total re-encoded into minor units; the subtotal is a different figure that happens to share the unit.
+
+- id: nest_contact_phone_dropped
+  tags: [nesting, removal]
+  schema: Warehouse
+  operations: ["warehouses.create request"]
+  removed: { name: contact_phone, type: string, required: false, description: "Number to call when a delivery cannot be completed." }
+  candidates:
+    - { name: address, type: object, required: true, description: "Street address of the warehouse: line, city, postal code and country." }
+    - { name: operating_hours, type: object, required: false, description: "When the dock accepts deliveries, by day of the week." }
+  successor: null
+  rationale: A phone number is neither part of an address nor part of a schedule; the contact was dropped when exceptions moved to the carrier.

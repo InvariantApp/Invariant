@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "max_cpc_micros",
+    "confidence": 1,
+    "scores": {
+      "max_cpc_micros": 1,
+      "daily_budget_micros": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 179.84626700000013,
+  "inputTokens": 1116,
+  "costUsd": 0.000046872
+}

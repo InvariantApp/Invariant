@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "seat_count",
+    "confidence": 1,
+    "scores": {
+      "seats_changed_at": 0.02,
+      "seat_count": 1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 163.81008399999996,
+  "inputTokens": 1099,
+  "costUsd": 0.000046158
+}

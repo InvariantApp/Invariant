@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "service_level",
+    "confidence": 0.75,
+    "scores": {
+      "service_level": 0.75,
+      "expedited_surcharge_cents": 0.145
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 180.4049090000001,
+  "inputTokens": 1120,
+  "costUsd": 0.00004704
+}

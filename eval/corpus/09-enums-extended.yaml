@@ -1,0 +1,203 @@
+# Vocabulary changes beyond the simple ones: values renamed, added, merged, and
+# value sets that survive intact while the field they belong to moves. The
+# vocabulary is written into the description, because that is where a provider
+# usually says it and it is the only place a judge can read it back.
+# A judge that fails these either treats any shared value list as the same
+# field, or loses a field the moment its values are relabelled.
+- id: enum_state_to_status_renamed_values
+  tags: [enum, rename, ambiguous]
+  schema: Chargeback
+  operations: ["chargebacks.retrieve response 200"]
+  removed: { name: state, type: string, required: true, description: "Where the chargeback has got to. One of: open, won, lost." }
+  candidates:
+    - { name: status, type: string, required: true, description: "Where the chargeback has got to. One of: needs_response, won, lost." }
+    - { name: outcome, type: string, required: false, description: "Why it closed, once it has. One of: accepted, refuted, expired." }
+  successor: status
+  rationale: The lifecycle field was renamed and its first value relabelled; outcome only exists after that lifecycle ends.
+
+- id: enum_delivery_status_values_added
+  tags: [enum]
+  schema: Delivery
+  operations: ["deliveries.retrieve response 200"]
+  removed: { name: status, type: string, required: true, description: "One of: pending, shipped, delivered." }
+  candidates:
+    - { name: status, type: string, required: true, description: "One of: pending, shipped, out_for_delivery, delivered, returned." }
+    - { name: delivery_attempts, type: integer, required: false, description: "How many times the courier has tried." }
+  successor: status
+  rationale: The same field gained two more states; the attempt count is new detail beside it.
+
+- id: enum_failure_codes_merged
+  tags: [enum]
+  schema: Disbursement
+  operations: ["disbursements.retrieve response 200"]
+  removed: { name: failure_code, type: string, required: false, description: "Why the disbursement failed. One of: account_closed, invalid_account_number, no_account." }
+  candidates:
+    - { name: failure_code, type: string, required: false, description: "Why the disbursement failed. One of: account_invalid, declined, unsupported_currency. The three account errors collapsed into account_invalid." }
+    - { name: failure_message, type: string, required: false, description: "The same failure written out for a support agent to read." }
+  successor: failure_code
+  rationale: Three values merging into one is a vocabulary change, not a new field; the message is a rendering of it.
+
+- id: enum_decline_reason_to_code
+  tags: [enum, rename, ambiguous]
+  schema: Transfer
+  operations: ["transfers.create response 201"]
+  removed: { name: decline_reason, type: string, required: false, description: "Why the network declined. One of: insufficient_funds, card_expired, card_lost, card_stolen." }
+  candidates:
+    - { name: decline_code, type: string, required: false, description: "Why the network declined. One of: insufficient_funds, expired_card, card_unusable. Lost and stolen were merged so the response leaks less." }
+    - { name: network_message, type: string, required: false, description: "Raw response text from the card network." }
+  successor: decline_code
+  rationale: The same question answered from a narrower vocabulary; the raw network text is passed through rather than structured.
+
+- id: enum_interval_moved_into_recurring
+  tags: [enum, nesting, ambiguous]
+  schema: BillingPlan
+  operations: ["plans.create request"]
+  removed: { name: interval, type: string, required: true, description: "How often the plan charges. One of: day, week, month, year." }
+  candidates:
+    - { name: recurring, type: object, required: true, description: "How the price repeats: the same interval vocabulary, plus how many intervals to skip between charges." }
+    - { name: interval_count, type: integer, required: false, description: "How many intervals between charges." }
+  successor: recurring
+  rationale: The value set is untouched and only its home moved; interval_count is the multiplier that sits beside the interval, not the interval.
+
+- id: enum_channel_moved_into_transport
+  tags: [enum, nesting, ambiguous]
+  schema: MessageDelivery
+  operations: ["messages.send response 202"]
+  removed: { name: channel, type: string, required: true, description: "How the message was carried. One of: sms, mms, whatsapp." }
+  candidates:
+    - { name: transport, type: object, required: true, description: "How the message was carried: the same channel vocabulary, plus which sender identity was used." }
+    - { name: carrier, type: string, required: false, description: "The mobile network that accepted the message." }
+  successor: transport
+  rationale: Identical values one level deeper; the carrier is who delivered it rather than which channel it went by.
+
+- id: enum_condition_renamed_same_values
+  tags: [enum, rename, ambiguous]
+  schema: Return
+  operations: ["returns.create request"]
+  removed: { name: condition, type: string, required: true, description: "What state the item came back in. One of: new, opened, damaged." }
+  candidates:
+    - { name: item_condition, type: string, required: true, description: "What state the item came back in. One of: new, opened, damaged." }
+    - { name: restocking_fee_cents, type: integer, required: false, description: "Fee deducted from the refund." }
+  successor: item_condition
+  rationale: Only the name changed; the fee is a consequence of the condition rather than the condition.
+
+- id: enum_fulfillment_status_narrowed
+  tags: [enum, decoy, split-merge]
+  schema: Fulfillment
+  operations: ["fulfillments.retrieve response 200"]
+  removed: { name: status, type: string, required: true, description: "One of: unfulfilled, partially_fulfilled, fulfilled, cancelled." }
+  candidates:
+    - { name: status, type: string, required: true, description: "One of: open, closed, cancelled." }
+    - { name: fulfilled_quantity, type: integer, required: true, description: "How many items have shipped, which partially_fulfilled used to imply." }
+  successor: status
+  rationale: The field kept its job with a shorter vocabulary, and the detail the dropped value implied became a counter beside it.
+
+- id: enum_locale_has_no_successor
+  tags: [enum, removal]
+  schema: NotificationPreference
+  operations: ["preferences.update request"]
+  removed: { name: locale, type: string, required: false, description: "Language notifications are written in. One of: en_US, fr_FR, de_DE." }
+  candidates:
+    - { name: timezone, type: string, required: false, description: "IANA timezone name, used to decide when to send." }
+    - { name: currency, type: string, required: false, description: "Three letter code for amounts shown in the notification." }
+  successor: null
+  rationale: Both survivors are short vocabularies about the same person, but neither says what language to write in.
+
+- id: enum_severity_has_no_successor
+  tags: [enum, removal, decoy]
+  schema: AuditLog
+  operations: ["audit_logs.list response 200"]
+  removed: { name: severity, type: string, required: true, description: "How serious the entry is. One of: debug, info, warn, error." }
+  candidates:
+    - { name: actor_type, type: string, required: true, description: "Who caused the entry. One of: user, api_key, system." }
+    - { name: resource_type, type: string, required: true, description: "What kind of object the entry is about. One of: account, key, policy." }
+  successor: null
+  rationale: Two new small vocabularies arrived in the same release and neither grades anything; the severity was dropped.
+
+- id: enum_capture_method_moved_not_copied
+  tags: [enum, decoy, ambiguous]
+  schema: Authorization
+  operations: ["authorizations.create request"]
+  removed: { name: capture_method, type: string, required: false, description: "When funds are taken. One of: automatic, manual." }
+  candidates:
+    - { name: confirmation_method, type: string, required: false, description: "When the customer is asked to confirm. One of: automatic, manual." }
+    - { name: capture, type: object, required: false, description: "Capture settings: the same automatic or manual choice, plus how long an uncaptured hold survives." }
+  successor: capture
+  rationale: An identical value set on confirmation_method is a coincidence of vocabulary; the capture choice moved into the capture object.
+
+- id: enum_priority_values_added
+  tags: [enum, decoy]
+  schema: Ticket
+  operations: ["tickets.create request"]
+  removed: { name: priority, type: string, required: false, description: "One of: low, normal, high." }
+  candidates:
+    - { name: priority, type: string, required: false, description: "One of: low, normal, high, urgent." }
+    - { name: priority_score, type: integer, required: false, description: "Zero to one hundred, computed from the SLA and the customer tier." }
+  successor: priority
+  rationale: The field gained a fourth value; the score is derived and no caller sets it.
+
+- id: enum_funding_values_split_out
+  tags: [enum, split-merge]
+  schema: PaymentMethod
+  operations: ["payment_methods.retrieve response 200"]
+  removed: { name: funding, type: string, required: true, description: "What the card draws on. One of: credit, debit, prepaid, unknown." }
+  candidates:
+    - { name: funding, type: string, required: true, description: "What the card draws on. One of: credit, debit." }
+    - { name: prepaid, type: boolean, required: false, description: "Whether the card is topped up in advance, which used to be one of the funding values." }
+  successor: funding
+  rationale: The field survives with two of its values; one value was promoted to its own flag without taking the field with it.
+
+- id: enum_cancel_reason_to_churn_reason
+  tags: [enum, rename, ambiguous]
+  schema: Cancellation
+  operations: ["subscriptions.cancel request"]
+  removed: { name: cancel_reason, type: string, required: false, description: "Why the customer left. One of: too_expensive, missing_features, switched_service." }
+  candidates:
+    - { name: churn_reason, type: string, required: false, description: "Why the customer left. One of: price, features, competitor." }
+    - { name: cancelled_at, type: integer, required: false, description: "When the cancellation takes effect." }
+  successor: churn_reason
+  rationale: Every value has a one to one counterpart under a shorter name; the timestamp says when, not why.
+
+- id: enum_status_collapsed_to_boolean
+  tags: [enum, type-change, ambiguous]
+  schema: ApiKey
+  operations: ["api_keys.retrieve response 200"]
+  removed: { name: status, type: string, required: true, description: "One of: active, revoked." }
+  candidates:
+    - { name: revoked, type: boolean, required: true, description: "Whether the key has been revoked." }
+    - { name: last_used_at, type: integer, required: false, description: "When the key was last presented." }
+  successor: revoked
+  rationale: A two value vocabulary is a boolean with ceremony, and the flag keeps exactly that distinction.
+
+- id: enum_payment_status_moved_into_payment
+  tags: [enum, nesting, decoy, ambiguous]
+  schema: Checkout
+  operations: ["checkouts.retrieve response 200"]
+  removed: { name: payment_status, type: string, required: true, description: "Whether the customer has paid. One of: unpaid, paid, refunded." }
+  candidates:
+    - { name: status, type: string, required: true, description: "Where the checkout page itself has got to. One of: open, complete, expired." }
+    - { name: payment, type: object, required: false, description: "The payment attached to this checkout: whether it is unpaid, paid or refunded, and how much was captured." }
+  successor: payment
+  rationale: The shorter name is about the page rather than the money; the payment vocabulary moved intact into the payment object.
+
+- id: enum_vehicle_type_to_class
+  tags: [enum, rename, decoy, ambiguous]
+  schema: Driver
+  operations: ["drivers.create request"]
+  removed: { name: vehicle_type, type: string, required: true, description: "What the driver drives. One of: car, van." }
+  candidates:
+    - { name: vehicle_plate, type: string, required: true, description: "Licence plate of the vehicle." }
+    - { name: vehicle_class, type: string, required: true, description: "What the driver drives. One of: bike, car, van, box_truck." }
+  successor: vehicle_class
+  rationale: Spelling puts vehicle_plate closer, but the vocabulary and the question it answers both live on vehicle_class.
+
+- id: enum_format_to_format_array
+  tags: [enum, type-change, ambiguous]
+  schema: ExportJob
+  operations: ["exports.create request"]
+  removed: { name: format, type: string, required: true, description: "What the export is written as. One of: csv, json, parquet." }
+  candidates:
+    - { name: formats, type: array, required: true, description: "What the export is written as. Any of: csv, json, parquet, with one file produced per entry." }
+    - { name: compression, type: string, required: false, description: "One of: none, gzip." }
+  successor: formats
+  rationale: The same vocabulary, now chosen more than once; compression is a separate choice made after the format.

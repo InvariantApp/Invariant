@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "transport",
+    "confidence": 0.7,
+    "scores": {
+      "transport": 0.7,
+      "carrier": 0.04
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 164.3998210000002,
+  "inputTokens": 1111,
+  "costUsd": 0.000046662
+}

@@ -19,20 +19,48 @@ import {
   type JudgeResult,
 } from "./judge.ts";
 
-/** Suffixes that encode a unit or representation rather than a different thing. */
-export const UNIT_SUFFIXES: ReadonlyMap<string, { kind: string; detail: string }> =
-  new Map([
-    ["cents", { kind: "scale10", detail: "minor currency units, exponent 2" }],
-    ["minor", { kind: "scale10", detail: "minor currency units, exponent 2" }],
-    ["ms", { kind: "scale10", detail: "milliseconds" }],
-    ["millis", { kind: "scale10", detail: "milliseconds" }],
-    ["seconds", { kind: "scale10", detail: "seconds" }],
-    ["at", { kind: "timestamp", detail: "a timestamp" }],
-    ["id", { kind: "identifier", detail: "an identifier" }],
-    ["token", { kind: "identifier", detail: "an opaque token" }],
-    ["str", { kind: "cast", detail: "string encoded" }],
-    ["string", { kind: "cast", detail: "string encoded" }],
-  ]);
+/**
+ * Suffixes, and whether they change what a field *is*.
+ *
+ * Two kinds were conflated here and the difference turns out to matter a great
+ * deal. `amount` to `amount_cents` re-encodes one quantity: same thing, new
+ * units. `seats` to `seats_at` does not - seats is a count and `seats_at` is a
+ * time, and they are no more the same field than `price` and `price_changed_by`.
+ *
+ * Treating both as a stem match let the judge strip `_at` off any candidate,
+ * declare a perfect match with the removed field, and answer at full
+ * confidence. Against `lag` with candidates `lag_seconds` and `lag_messages`,
+ * it confidently picked the duration for a field counting messages. Against
+ * `seats` with `seats_at` and `seat_count`, it picked the timestamp.
+ *
+ * So only re-encoding suffixes reduce a stem now. A concept-changing suffix
+ * contributes a little, and never enough on its own to cross the threshold
+ * this judge answers above.
+ */
+export type SuffixKind = "encoding" | "concept";
+
+export const UNIT_SUFFIXES: ReadonlyMap<
+  string,
+  { kind: string; detail: string; changes: SuffixKind }
+> = new Map([
+  [
+    "cents",
+    { kind: "scale10", detail: "minor currency units, exponent 2", changes: "encoding" },
+  ],
+  [
+    "minor",
+    { kind: "scale10", detail: "minor currency units, exponent 2", changes: "encoding" },
+  ],
+  ["ms", { kind: "scale10", detail: "milliseconds", changes: "encoding" }],
+  ["millis", { kind: "scale10", detail: "milliseconds", changes: "encoding" }],
+  ["seconds", { kind: "scale10", detail: "seconds", changes: "encoding" }],
+  ["str", { kind: "cast", detail: "string encoded", changes: "encoding" }],
+  ["string", { kind: "cast", detail: "string encoded", changes: "encoding" }],
+  // A timestamp of a thing is not that thing, and nor is its identifier.
+  ["at", { kind: "timestamp", detail: "a timestamp", changes: "concept" }],
+  ["id", { kind: "identifier", detail: "an identifier", changes: "concept" }],
+  ["token", { kind: "identifier", detail: "an opaque token", changes: "concept" }],
+]);
 
 const NUMERIC = new Set(["integer", "number"]);
 
@@ -44,12 +72,17 @@ function parts(name: string): string[] {
     .filter((part) => part !== "");
 }
 
-/** A field's name with any trailing unit or representation marker removed. */
+/**
+ * A field's name with any trailing *re-encoding* marker removed.
+ *
+ * Concept-changing suffixes are deliberately left on. Stripping them is what
+ * let a timestamp be mistaken for the thing it is a timestamp of.
+ */
 export function stemOf(name: string): string {
   const segments = parts(name);
   while (segments.length > 1) {
     const last = segments[segments.length - 1] as string;
-    if (!UNIT_SUFFIXES.has(last)) break;
+    if (UNIT_SUFFIXES.get(last)?.changes !== "encoding") break;
     segments.pop();
   }
   return segments.join("_");
@@ -115,6 +148,20 @@ export function scorePair(removed: FieldShape, candidate: FieldShape): RuleScore
   }
 
   const suffix = parts(candidate.name).at(-1);
+  // The same sentence describing both is the strongest evidence available
+  // here, and it is evidence about meaning rather than about spelling. It is
+  // what lets `created` and `created_at` be recognised as one field while
+  // `seats` and `seats_at` are not: whoever wrote the specification said they
+  // were the same thing.
+  if (
+    removed.description !== undefined &&
+    removed.description.trim() !== "" &&
+    removed.description.trim() === candidate.description?.trim()
+  ) {
+    score += 0.45;
+    reasons.push("both fields carry the same description");
+  }
+
   const unit = suffix === undefined ? undefined : UNIT_SUFFIXES.get(suffix);
   if (unit && removedStem === candidateStem) {
     score += 0.2;
@@ -147,6 +194,14 @@ export function scorePair(removed: FieldShape, candidate: FieldShape): RuleScore
   return { score: Math.min(1, score), reasons };
 }
 
+/** Whether `candidate` is `removed` with something appended, token by token. */
+function extendsName(removed: string, candidate: string): boolean {
+  const left = parts(removed);
+  const right = parts(candidate);
+  if (right.length <= left.length) return false;
+  return left.every((segment, index) => right[index] === segment);
+}
+
 /** Threshold above which the rules judge is willing to answer at all. */
 export const RULES_ANSWER_THRESHOLD = 0.6;
 
@@ -159,6 +214,25 @@ export class RulesJudge implements Judge {
 
   #one(question: AlignmentQuestion): JudgeResult {
     const started = performance.now();
+
+    // Several candidates that all extend the removed field's name is the one
+    // situation morphology genuinely cannot settle. `lag` with `lag_seconds`
+    // and `lag_messages` beside it could be a duration or a count, and the
+    // only reason to prefer one is that this judge happens to recognise its
+    // suffix - which is a fact about the suffix table, not about the API.
+    //
+    // An exact name match is excluded, because then the field simply kept its
+    // name and the others are new fields that happen to be named after it.
+    const siblings = question.candidates.filter((candidate) =>
+      extendsName(question.removed.name, candidate.name),
+    );
+    if (
+      siblings.length > 1 &&
+      !question.candidates.some((candidate) => candidate.name === question.removed.name)
+    ) {
+      return { ...abstention("rules"), latencyMs: performance.now() - started };
+    }
+
     const scores: Record<string, number> = {};
     for (const candidate of question.candidates) {
       scores[candidate.name] = scorePair(question.removed, candidate).score;

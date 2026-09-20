@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "default_carrier_code",
+    "confidence": 0.9099999999999998,
+    "scores": {
+      "default_carrier_code": 0.7,
+      "carrier_account_id": 0.1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.2947700000000282,
+  "inputTokens": 0,
+  "costUsd": 0
+}

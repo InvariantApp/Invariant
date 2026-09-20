@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "max_delivery_attempts",
+    "confidence": 0.98,
+    "scores": {
+      "max_delivery_attempts": 0.99,
+      "timeout_seconds": 0.045
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 502.611397,
+  "inputTokens": 1117,
+  "costUsd": 0.000046914
+}

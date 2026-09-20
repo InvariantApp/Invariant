@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": "product_code",
+    "confidence": 1,
+    "scores": {
+      "product_code": 1,
+      "variant_id": 0.1,
+      "quantity": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 494.141023,
+  "inputTokens": 1332,
+  "costUsd": 0.000055944000000000005
+}

@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "carrier_code",
+    "confidence": 0.95,
+    "scores": {
+      "carrier_code": 0.995,
+      "service_level": 0.02
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 164.7300449999998,
+  "inputTokens": 1112,
+  "costUsd": 0.000046704
+}

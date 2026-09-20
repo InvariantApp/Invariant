@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "push_credential",
+    "confidence": 1,
+    "scores": {
+      "platform": 0.005,
+      "push_credential": 1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 193.20771400000012,
+  "inputTokens": 1153,
+  "costUsd": 0.000048426
+}

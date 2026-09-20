@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "vehicle_class",
+    "confidence": 0.99,
+    "scores": {
+      "vehicle_plate": 0.015,
+      "vehicle_class": 0.99
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 200.23777799999993,
+  "inputTokens": 1104,
+  "costUsd": 0.000046368
+}

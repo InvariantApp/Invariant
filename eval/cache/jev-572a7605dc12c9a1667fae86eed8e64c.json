@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "account_number",
+    "confidence": 0.99,
+    "scores": {
+      "account_number": 1,
+      "routing_number": 0.005
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 348.11628799999994,
+  "inputTokens": 1093,
+  "costUsd": 0.000045906000000000004
+}

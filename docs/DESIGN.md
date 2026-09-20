@@ -1179,6 +1179,43 @@ adding, because a runtime reports a running total: adding would let a retried
 batch drift a counter upward, and a counter that drifts upward retires nothing,
 ever.
 
+### The corpus grew, and found a bug in the judge it was measuring
+
+From 29 cases to 155, of which 82 are tagged adversarial or ambiguous. The
+verdicts held: rules still assists, Jev still owns at a 0.6 confidence
+threshold, and at that threshold it is right on 100% of the 91.6% it answers.
+Its two errors both sit below the threshold, which is what makes the threshold
+a mechanism rather than a decoration. Against 36 adversarial cases - forged
+system markers, fabricated sign-offs, instructions in four languages, claims
+that the descriptions are stale - it followed none of them.
+
+The corpus also found something, which is what a corpus is for. The rules judge
+was **confidently wrong, at 1.0**, on two shapes:
+
+- `seats` with candidates `seats_at` and `seat_count`. The suffix table
+  treated `at` as a re-encoding, so `seats_at` stripped to `seats`, matched
+  exactly, and won. But `seats` is a count and `seats_at` is a time; a
+  timestamp of a thing is not that thing. Encoding suffixes (`cents`, `ms`) and
+  concept-changing ones (`at`, `id`, `token`) are now separate, and only the
+  first reduces a stem.
+- `lag` with candidates `lag_seconds` and `lag_messages`. Both extend the
+  removed name and either could be right. The only reason to prefer the first
+  was that the judge recognised `seconds`, which is a fact about its suffix
+  table rather than about the API. Several candidates extending the removed
+  name is now an abstention.
+
+That cost the judge the plain `created` to `created_at` rename, which it should
+get. It gets it back from the descriptions: the same sentence describing both
+fields is evidence about meaning rather than spelling, and it is exactly what
+separates `created`/`created_at` from `seats`/`seats_at`. Without descriptions
+it abstains, which is the right answer, because without them the match really
+is a guess.
+
+Worth recording about the process: the case that exposed this was written, and
+then **softened** to let the judge pass, before it reached me. The harder
+version is back and the judge was fixed instead. A corpus reshaped to fit the
+thing it measures measures nothing.
+
 ### Still to build
 
 **The Octokit half of Phase 7.** Webhook verification, replay protection,
@@ -1195,10 +1232,10 @@ E8 is produced: a release records who merged each Change, and a Change with no
 such record is marked skipped rather than omitted, because a missing record and
 a passing one must not look the same to whoever reads the bundle.
 
-**The corpus.** The judge ownership verdicts rest on it, and it is the number
-most worth being honest about: it separates the judges and does not certify
-either. `eval/ownership.yaml` says so beside the verdicts rather than in a
-footnote.
+**The corpus**, at 155 cases against a design target of 240. It is written for
+the purpose rather than mined from production, and the feedback loop the design
+asks for - every provider disagreement and every edited draft added back - does
+not exist yet. `eval/ownership.yaml` says so beside the verdicts.
 
 Everything else the design asked for exists and is tested. Where a phase's
 acceptance criteria could not be met without credentials, that is said here

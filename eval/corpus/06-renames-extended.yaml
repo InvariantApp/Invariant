@@ -1,0 +1,281 @@
+# More renames, drawn from the shapes a real release diff actually contains:
+# abbreviations opened up, prefixes dropped, a word swapped for a synonym, and
+# fields that were simply deleted. Several are traps for spelling: the
+# closest-looking name is the wrong one, and the right one shares no stem at
+# all. A judge that fails these files confident pull requests that move a
+# customer's data into a field it does not belong in.
+- id: rename_ext_url_to_endpoint_url
+  tags: [rename, ambiguous]
+  schema: WebhookEndpoint
+  operations: ["webhook_endpoints.create request"]
+  removed: { name: url, type: string, required: true, description: "The HTTPS address events are POSTed to." }
+  candidates:
+    - { name: endpoint_url, type: string, required: true, description: "The HTTPS address events are POSTed to." }
+    - { name: callback_url, type: string, required: false, description: "Where a user is returned after authorising the app." }
+  successor: endpoint_url
+  rationale: Both end in url, but only one is the delivery address; the callback belongs to the authorisation flow.
+
+- id: rename_ext_sender_to_from_address
+  tags: [rename, ambiguous, decoy]
+  schema: MessageEnvelope
+  operations: ["messages.send request"]
+  removed: { name: sender, type: string, required: true, description: "The address the message is sent from." }
+  candidates:
+    - { name: from_address, type: string, required: true, description: "The address the message is sent from." }
+    - { name: sender_name, type: string, required: false, description: "Display name shown next to the address." }
+    - { name: reply_to, type: string, required: false }
+  successor: from_address
+  rationale: sender_name inherits the stem but holds the display name; the address itself moved to from_address.
+
+- id: rename_ext_eta_expanded
+  tags: [rename, ambiguous]
+  schema: DeliveryRoute
+  operations: ["routes.retrieve response 200"]
+  removed: { name: eta, type: integer, required: true, description: "Estimated arrival, as a Unix timestamp." }
+  candidates:
+    - { name: estimated_arrival_at, type: integer, required: true, description: "Estimated arrival, as a Unix timestamp." }
+    - { name: departed_at, type: integer, required: false, description: "When the vehicle left the depot." }
+  successor: estimated_arrival_at
+  rationale: An acronym written out; the two share no characters worth matching but exactly one description.
+
+- id: rename_ext_api_key_id_to_id
+  tags: [rename, decoy]
+  schema: ApiKey
+  operations: ["api_keys.create response 201"]
+  removed: { name: api_key_id, type: string, required: true, description: "Identifier of the key." }
+  candidates:
+    - { name: id, type: string, required: true, description: "Identifier of the key." }
+    - { name: api_key_prefix, type: string, required: false, description: "First eight characters, shown in the dashboard so a key can be recognised." }
+  successor: id
+  rationale: The object dropped its own name from its own field; the prefix shares more spelling and carries less.
+
+- id: rename_ext_display_name_to_full_name
+  tags: [rename, ambiguous]
+  schema: UserProfile
+  operations: ["users.update request"]
+  removed: { name: display_name, type: string, required: false, description: "The name shown on the member's profile." }
+  candidates:
+    - { name: full_name, type: string, required: false, description: "The name shown on the member's profile." }
+    - { name: legal_name, type: string, required: false, description: "Name as it appears on government identification." }
+    - { name: username, type: string, required: true, description: "Unique handle used in URLs." }
+  successor: full_name
+  rationale: Three candidates end in a name; only one is the name that gets shown.
+
+- id: rename_ext_sku_to_product_code
+  tags: [rename, ambiguous]
+  schema: CartLineItem
+  operations: ["carts.add_item request"]
+  removed: { name: sku, type: string, required: true, description: "Stock keeping unit of the item being added." }
+  candidates:
+    - { name: product_code, type: string, required: true, description: "Stock keeping unit of the item being added." }
+    - { name: variant_id, type: string, required: false, description: "Identifier of the chosen size and colour." }
+    - { name: quantity, type: integer, required: true }
+  successor: product_code
+  rationale: A trade abbreviation replaced by plain words; the variant is a narrower thing than the SKU.
+
+- id: rename_ext_conversion_rate_dropped
+  tags: [rename, removal]
+  schema: FunnelStep
+  operations: ["funnels.retrieve response 200"]
+  removed: { name: conversion_rate, type: number, required: false, description: "Share of sessions reaching this step that went on to the next one." }
+  candidates:
+    - { name: entered_count, type: integer, required: true, description: "Sessions that reached this step." }
+    - { name: exited_count, type: integer, required: true, description: "Sessions that left the funnel at this step." }
+  successor: null
+  rationale: The rate is no longer returned; the counts it used to be computed from are, but neither is the rate.
+
+- id: rename_ext_host_to_host_id
+  tags: [rename]
+  schema: ContainerInstance
+  operations: ["instances.retrieve response 200"]
+  removed: { name: host, type: string, required: true, description: "Identifier of the machine the container runs on." }
+  candidates:
+    - { name: host_id, type: string, required: true, description: "Identifier of the machine the container runs on." }
+    - { name: hostname, type: string, required: false, description: "DNS name of the machine." }
+    - { name: host_region, type: string, required: false, description: "Region the machine sits in." }
+  successor: host_id
+  rationale: Same stem, and the suffix marks an identifier; the hostname is a different way to refer to the machine.
+
+- id: rename_ext_account_holder_name
+  tags: [rename, decoy]
+  schema: BankAccount
+  operations: ["bank_accounts.create request"]
+  removed: { name: account_holder, type: string, required: true, description: "Name of the person or business that owns the account." }
+  candidates:
+    - { name: account_holder_name, type: string, required: true, description: "Name of the person or business that owns the account." }
+    - { name: account_holder_type, type: string, required: false, description: "Either individual or company." }
+  successor: account_holder_name
+  rationale: Two candidates extend the removed name by one word; only one of the two words is what the field held.
+
+- id: rename_ext_assignee_to_assignee_id
+  tags: [rename]
+  schema: SupportTicket
+  operations: ["tickets.update request"]
+  removed: { name: assignee, type: string, required: false, description: "Identifier of the agent handling the ticket." }
+  candidates:
+    - { name: assignee_id, type: string, required: false, description: "Identifier of the agent handling the ticket." }
+    - { name: assigned_at, type: integer, required: false, description: "When the ticket was assigned." }
+    - { name: assignee_email, type: string, required: false, description: "Contact address of the agent." }
+  successor: assignee_id
+  rationale: Same stem with an identifier suffix; the timestamp only looks close because the words share a root.
+
+- id: rename_ext_push_token_to_notification_token
+  tags: [rename, ambiguous]
+  schema: Device
+  operations: ["devices.register request"]
+  removed: { name: push_token, type: string, required: true, description: "Platform token used to deliver push notifications." }
+  candidates:
+    - { name: notification_token, type: string, required: true, description: "Platform token used to deliver push notifications." }
+    - { name: device_id, type: string, required: true, description: "Identifier of the device." }
+    - { name: push_enabled, type: boolean, required: false, description: "Whether the device accepts push notifications." }
+  successor: notification_token
+  rationale: The word push moved to the other end of the pair; the surviving push_ field is a switch, not a token.
+
+- id: rename_ext_user_to_actor_id
+  tags: [rename, ambiguous, decoy]
+  schema: AuditEvent
+  operations: ["audit_events.list response 200"]
+  removed: { name: user, type: string, required: true, description: "Identifier of whoever performed the action." }
+  candidates:
+    - { name: actor_id, type: string, required: true, description: "Identifier of whoever performed the action; may be a person or a service account." }
+    - { name: user_agent, type: string, required: false, description: "Browser string sent with the request." }
+    - { name: target_id, type: string, required: false, description: "What the action was performed on." }
+  successor: actor_id
+  rationale: user_agent keeps the stem and means something unrelated; the field widened to cover machines and was renamed for it.
+
+- id: rename_ext_return_url_to_success_url
+  tags: [rename, ambiguous]
+  schema: CheckoutSession
+  operations: ["checkout_sessions.create request"]
+  removed: { name: return_url, type: string, required: true, description: "Where the buyer is sent after a successful payment." }
+  candidates:
+    - { name: success_url, type: string, required: true, description: "Where the buyer is sent after a successful payment." }
+    - { name: cancel_url, type: string, required: true, description: "Where the buyer is sent if they abandon checkout." }
+  successor: success_url
+  rationale: The pair was split by outcome and the old field is the success half, which only the descriptions say.
+
+- id: rename_ext_ttl_dropped
+  tags: [rename, removal]
+  schema: DnsRecord
+  operations: ["dns_records.create request"]
+  removed: { name: ttl, type: integer, required: false, description: "How long resolvers may cache the record, in seconds." }
+  candidates:
+    - { name: proxied, type: boolean, required: false, description: "Whether traffic is routed through the edge network." }
+    - { name: record_type, type: string, required: true, description: "A, AAAA, CNAME, and so on." }
+  successor: null
+  rationale: The platform now fixes the cache lifetime; neither candidate carries a duration at all.
+
+- id: rename_ext_jurisdiction_code
+  tags: [rename]
+  schema: TaxRate
+  operations: ["tax_rates.create request"]
+  removed: { name: jurisdiction, type: string, required: true, description: "The taxing authority this rate belongs to." }
+  candidates:
+    - { name: jurisdiction_code, type: string, required: true, description: "Standard code of the taxing authority this rate belongs to." }
+    - { name: country, type: string, required: false, description: "Two-letter country code." }
+    - { name: inclusive, type: boolean, required: false, description: "Whether the rate is included in displayed prices." }
+  successor: jurisdiction_code
+  rationale: Same value, now constrained to a code list; country is a coarser thing that happens to look similar.
+
+- id: rename_ext_carrier_camel_to_snake
+  tags: [rename]
+  schema: FulfillmentCenter
+  operations: ["fulfillment_centers.create request"]
+  removed: { name: defaultCarrierCode, type: string, required: false, description: "Carrier used when a shipment does not name one." }
+  candidates:
+    - { name: default_carrier_code, type: string, required: false, description: "Carrier used when a shipment does not name one." }
+    - { name: carrier_account_id, type: string, required: false, description: "The account billed for the shipment." }
+  successor: default_carrier_code
+  rationale: Only the naming convention changed; the account identifier is a different field that mentions carriers.
+
+- id: rename_ext_starts_to_starts_at
+  tags: [rename]
+  schema: Campaign
+  operations: ["campaigns.create request"]
+  removed: { name: starts, type: integer, required: true, description: "When the campaign starts running, as a Unix timestamp." }
+  candidates:
+    - { name: starts_at, type: integer, required: true, description: "When the campaign starts running, as a Unix timestamp." }
+    - { name: ends_at, type: integer, required: false, description: "When the campaign stops running." }
+  successor: starts_at
+  rationale: Same stem, same description, and the suffix marks a timestamp.
+
+- id: rename_ext_scope_dropped
+  tags: [rename, removal]
+  schema: AccessGrant
+  operations: ["access_grants.create request"]
+  removed: { name: scope, type: string, required: true, description: "Space-separated list of permissions the grant requests." }
+  candidates:
+    - { name: granted_at, type: integer, required: true, description: "When the grant was issued." }
+    - { name: revoked_at, type: integer, required: false, description: "When the grant was revoked, if it was." }
+  successor: null
+  rationale: Permissions now come from the grant type rather than the request; two timestamps carry no permission list.
+
+- id: rename_ext_handle_to_username
+  tags: [rename, ambiguous]
+  schema: ThreadParticipant
+  operations: ["threads.add_participant request"]
+  removed: { name: handle, type: string, required: true, description: "The participant's handle, written with a leading at sign." }
+  candidates:
+    - { name: username, type: string, required: true, description: "The participant's handle, without the leading at sign." }
+    - { name: display_name, type: string, required: false, description: "Free-text name the participant chose." }
+    - { name: user_id, type: string, required: false, description: "Stable identifier that survives a handle change." }
+  successor: username
+  rationale: The same string with one character of formatting dropped; the identifier is stable precisely because it is not this.
+
+- id: rename_ext_nickname_to_internal_name
+  tags: [rename, ambiguous, decoy]
+  schema: PricePlan
+  operations: ["plans.create request"]
+  removed: { name: nickname, type: string, required: false, description: "Internal label for the plan, never shown to customers." }
+  candidates:
+    - { name: internal_name, type: string, required: false, description: "Internal label for the plan, never shown to customers." }
+    - { name: display_name, type: string, required: false, description: "Label shown to customers on the pricing page." }
+  successor: internal_name
+  rationale: A nickname reads like something you display, and the one you display is the wrong answer here.
+
+- id: rename_ext_algorithm_to_balancing_policy
+  tags: [rename, ambiguous, decoy]
+  schema: LoadBalancer
+  operations: ["load_balancers.update request"]
+  removed: { name: algorithm, type: string, required: true, description: "How requests are distributed across targets." }
+  candidates:
+    - { name: balancing_policy, type: string, required: true, description: "How requests are distributed across targets." }
+    - { name: algorithm_version, type: integer, required: false, description: "Internal version of the distribution implementation." }
+    - { name: health_check_path, type: string, required: false, description: "Path polled to decide whether a target is up." }
+  successor: balancing_policy
+  rationale: algorithm_version keeps the whole word and means the implementation, not the choice the caller makes.
+
+- id: rename_ext_batch_id_dropped
+  tags: [rename, removal]
+  schema: Reconciliation
+  operations: ["reconciliations.retrieve response 200"]
+  removed: { name: batch_id, type: string, required: false, description: "Identifier of the nightly batch that produced this record." }
+  candidates:
+    - { name: created_at, type: integer, required: true, description: "When the record was produced." }
+    - { name: source, type: string, required: true, description: "Which upstream system the record came from." }
+  successor: null
+  rationale: Reconciliation stopped running in batches, so nothing on offer identifies one.
+
+- id: rename_ext_expiry_to_expires_at
+  tags: [rename, decoy]
+  schema: InventoryLot
+  operations: ["inventory_lots.create request"]
+  removed: { name: expiry, type: string, required: true, description: "Date the lot expires, as an ISO 8601 date." }
+  candidates:
+    - { name: expires_at, type: string, required: true, description: "Date the lot expires, as an ISO 8601 date." }
+    - { name: expiry_reason, type: string, required: false, description: "Why the lot was written off." }
+    - { name: received_at, type: string, required: false, description: "Date the lot arrived at the warehouse." }
+  successor: expires_at
+  rationale: expiry_reason keeps the removed name exactly and describes a write-off; the date moved to a verb form.
+
+- id: rename_ext_number_to_document_number
+  tags: [rename, ambiguous, decoy]
+  schema: IdentityDocument
+  operations: ["identity_documents.create request"]
+  removed: { name: number, type: string, required: true, description: "The document number, as printed on the document." }
+  candidates:
+    - { name: document_number, type: string, required: true, description: "The document number, as printed on the document." }
+    - { name: number_last4, type: string, required: false, description: "Last four characters, safe to show in a dashboard." }
+    - { name: document_type, type: string, required: true, description: "passport, drivers_license, or national_id." }
+  successor: document_number
+  rationale: number_last4 starts with the removed name and holds a truncation of it, which is not the same value.

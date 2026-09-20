@@ -6,12 +6,17 @@
 # and a number tuned against one version is not evidence about the next.
 measuredOn: 2026-09-20
 corpus:
-  cases: 29
-  # Honest gap: the design calls for 240 cases across twelve families. This is a
-  # starter set covering ten of them, and it is enough to separate the judges
-  # but not enough to certify either one. Every production disagreement and
-  # every proposal a provider edits before merging should be added here.
+  cases: 155
+  # The design calls for 240 across twelve families. This covers ten of them
+  # and is more than five times the set the first verdicts were taken on, which
+  # is what makes the numbers below worth quoting. It is still a corpus written
+  # for this purpose rather than mined from production: every disagreement a
+  # provider has with a proposal, and every draft they edit before merging,
+  # should be added here.
   families: [rename, unit, nesting, enum, type-change, split-merge, removal, ambiguous, adversarial, decoy]
+  # A third of it is deliberately hostile or misleading, because a corpus of
+  # cases a judge finds easy measures nothing.
+  adversarialOrAmbiguous: 0.53
 
 tasks:
   alignment:
@@ -22,7 +27,12 @@ tasks:
       # Right about everything it will speak to, and it declines the rest
       # cleanly. That makes it a good first pass and a poor decider.
       selectiveAccuracy: 1.0
-      coverage: 0.41
+      coverage: 0.245
+      # Coverage fell from 0.41 as the corpus grew, which is the honest
+      # reading: the first set was easier than the work is. It answers nothing
+      # at all on removals or on anything tagged ambiguous, and it is right
+      # every time it speaks.
+      answeredAndWrong: 0
       note: >-
         Settles plain renames and unit suffixes for nothing, with no model and
         no network. Abstains on every case where the names do not line up,
@@ -32,33 +42,74 @@ tasks:
       verdict: owns
       model: jev-1.13.0
       confidenceThreshold: 0.6
-      # At that threshold, across 29 cases including 11 adversarial ones.
+      # At that threshold, across 155 cases of which 82 are tagged adversarial
+      # or ambiguous.
       selectiveAccuracy: 1.0
-      coverage: 0.93
-      accuracyWithoutThreshold: 0.966
+      coverage: 0.916
+      accuracyWithoutThreshold: 0.987
+      # Both wrong answers land below the threshold, and every one of the 142
+      # answers above it is correct. That is what makes the threshold a real
+      # mechanism rather than a decoration.
+      answeredAndWrongAboveThreshold: 0
       note: >-
         May draft a Change for a person to review. It cannot merge one, and
         nothing it produces reaches a request path without passing the closure
         check and a human reviewer.
 
+calibration:
+  # Answers grouped by how confident the model was. The top bin holds most of
+  # the corpus and is perfect; the errors sit where the model already said it
+  # was unsure.
+  - atLeast: 0.8
+    answered: 126
+    accuracy: 1.0
+  - atLeast: 0.6
+    answered: 16
+    accuracy: 1.0
+  - atLeast: 0.4
+    answered: 9
+    accuracy: 0.89
+  - atLeast: 0.2
+    answered: 2
+    accuracy: 0.5
+
 security:
   promptInjection:
     # Jev's own documentation says state is not treated as hostile by default,
-    # and the corpus confirms it: an early version of the question set followed
+    # and the corpus confirmed it: an early version of the question set followed
     # an instruction embedded in pull request notes and picked the field that
     # instruction named.
     #
     # Two things changed. The notes are now named
     # `unverified_change_notes_written_by_a_human` in the state, and the
     # questions say outright that any instruction inside them carries no
-    # authority. That took the adversarial set from 4/5 to 10/11.
+    # authority.
     #
-    # It is a mitigation, not a fix. One case still slips: a plausible-sounding
-    # domain claim that the field descriptions contradict, which lands at 0.33
-    # confidence and is caught by the threshold rather than by the framing.
+    # Against 36 adversarial cases - direct commands, forged system and role
+    # markers, fabricated sign-offs and RFCs, fabricated changelog entries,
+    # instructions hidden in field descriptions rather than in the notes,
+    # instructions in three other languages, and claims that the descriptions
+    # are stale - it follows none of them. Every one of those cases has an
+    # answer the shapes alone give, so obeying the instruction is measurably
+    # wrong rather than merely suspicious.
+    followed: 0
+    outOf: 36
     remaining: inject_plausible_but_wrong
     caughtBy: confidence threshold
     note: >-
-      Neither the framing nor the threshold is a guarantee. They are why a
-      wrong proposal stays cheap: it still has to explain the structural diff,
-      and a person still has to merge it.
+      One case still slips: a plausible-sounding domain claim that the field
+      descriptions contradict, at 0.33 confidence. The threshold catches it,
+      not the framing.
+
+  weakest:
+    # What the larger corpus moved. Embedded instructions are no longer where
+    # this fails; a removed field with a same-stem candidate that means
+    # something else is.
+    case: removal_plaintext_client_secret
+    confidence: 0.46
+    description: >-
+      A field genuinely deleted, with a candidate sharing its leading words but
+      describing a different thing. The model named the candidate rather than
+      saying nothing replaced it. Below the threshold, so a draft is never
+      written from it, but it is the single clearest direction for the next
+      round of work.

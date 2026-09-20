@@ -1,0 +1,227 @@
+# Unit and representation changes, at the width they occur in practice: major
+# to minor currency, seconds to milliseconds, bytes to kilobytes, fractions to
+# basis points, and the cases where a unit suffix is a lie. The scale factor is
+# still never asked of a judge, only whether the two fields are the same
+# quantity. Getting one of the misleading ones wrong silently rewrites a number
+# by a factor of a thousand, which is the most expensive mistake in the corpus.
+- id: unit_ext_balance_to_minor
+  tags: [unit]
+  schema: Wallet
+  operations: ["wallets.retrieve response 200"]
+  removed: { name: balance, type: number, required: true, description: "Available balance in the wallet's currency." }
+  candidates:
+    - { name: balance_minor, type: integer, required: true, description: "Available balance in the smallest unit of the wallet's currency." }
+    - { name: pending_balance_minor, type: integer, required: false, description: "Funds received but not yet settled." }
+  successor: balance_minor
+  rationale: Same money re-encoded into minor units; the pending figure is a second balance, not this one.
+
+- id: unit_ext_ttl_seconds_to_ms
+  tags: [unit]
+  schema: CacheNode
+  operations: ["cache_nodes.update request"]
+  removed: { name: ttl_seconds, type: integer, required: true, description: "How long an entry is kept, in seconds." }
+  candidates:
+    - { name: ttl_ms, type: integer, required: true, description: "How long an entry is kept, in milliseconds." }
+    - { name: eviction_interval_ms, type: integer, required: false, description: "How often the sweeper runs." }
+  successor: ttl_ms
+  rationale: Same lifetime at a finer resolution; the sweeper interval is a different schedule that shares the unit.
+
+- id: unit_ext_video_duration_ms
+  tags: [unit]
+  schema: VideoAsset
+  operations: ["videos.retrieve response 200"]
+  removed: { name: duration, type: number, required: true, description: "Playable length in seconds." }
+  candidates:
+    - { name: duration_ms, type: integer, required: true, description: "Playable length in milliseconds." }
+    - { name: upload_duration_ms, type: integer, required: false, description: "How long the upload itself took." }
+  successor: duration_ms
+  rationale: Same span at a finer unit; the upload time measures the transfer rather than the asset.
+
+- id: unit_ext_limit_per_minute_to_per_second
+  tags: [unit, ambiguous]
+  schema: RateLimitPolicy
+  operations: ["rate_limits.update request"]
+  removed: { name: limit, type: integer, required: true, description: "Requests allowed per minute." }
+  candidates:
+    - { name: limit_per_second, type: integer, required: true, description: "Requests allowed per second." }
+    - { name: burst_limit, type: integer, required: false, description: "Extra requests tolerated in a short spike." }
+  successor: limit_per_second
+  rationale: The removed field already had a unit, it was just in the prose; the burst allowance is a separate ceiling.
+
+- id: unit_ext_freight_price_cents
+  tags: [unit]
+  schema: FreightQuote
+  operations: ["freight_quotes.create response 201"]
+  removed: { name: price, type: number, required: true, description: "Quoted price in the requested currency." }
+  candidates:
+    - { name: price_cents, type: integer, required: true, description: "Quoted price in the smallest unit of the requested currency." }
+    - { name: fuel_surcharge_cents, type: integer, required: false, description: "Fuel surcharge already included in the quote." }
+    - { name: currency, type: string, required: true, description: "Three-letter currency code." }
+  successor: price_cents
+  rationale: Same total re-encoded; the surcharge is a component of it rather than the thing itself.
+
+- id: unit_ext_bytes_to_kilobytes
+  tags: [unit]
+  schema: StorageBucket
+  operations: ["buckets.retrieve response 200"]
+  removed: { name: size_bytes, type: integer, required: true, description: "Total stored data, in bytes." }
+  candidates:
+    - { name: size_kb, type: integer, required: true, description: "Total stored data, in kilobytes." }
+    - { name: object_count, type: integer, required: true, description: "How many objects the bucket holds." }
+  successor: size_kb
+  rationale: Same stored volume at a coarser unit; the object count measures a different thing about the same bucket.
+
+- id: unit_ext_amount_to_total_cents
+  tags: [unit, ambiguous, decoy]
+  schema: CreditNote
+  operations: ["credit_notes.create request"]
+  removed: { name: amount, type: number, required: true, description: "Value of the credit note, in major units." }
+  candidates:
+    - { name: amount_due, type: number, required: false, description: "What remains payable on the invoice once the credit is applied." }
+    - { name: total_cents, type: integer, required: true, description: "Value of the credit note, in the smallest currency unit." }
+    - { name: currency, type: string, required: true, description: "Three-letter currency code." }
+  successor: total_cents
+  rationale: amount_due keeps the removed name and is the invoice's remainder; the credit's own value was renamed and re-encoded.
+
+- id: unit_ext_latency_to_ms
+  tags: [unit]
+  schema: LatencyProbe
+  operations: ["probes.retrieve response 200"]
+  removed: { name: latency, type: number, required: true, description: "Round trip time in seconds." }
+  candidates:
+    - { name: latency_ms, type: number, required: true, description: "Round trip time in milliseconds." }
+    - { name: jitter_ms, type: number, required: false, description: "Variation between consecutive probes." }
+  successor: latency_ms
+  rationale: Same measurement at a finer unit; jitter is derived from a series rather than being one reading.
+
+- id: unit_ext_cpc_to_micros
+  tags: [unit]
+  schema: AdGroup
+  operations: ["ad_groups.update request"]
+  removed: { name: max_cpc, type: number, required: true, description: "Maximum cost per click, in the account currency." }
+  candidates:
+    - { name: max_cpc_micros, type: integer, required: true, description: "Maximum cost per click, in millionths of the account currency." }
+    - { name: daily_budget_micros, type: integer, required: false, description: "Ceiling on spend per day." }
+  successor: max_cpc_micros
+  rationale: Same bid in a fixed-point encoding; the daily budget is a different limit that took the same treatment.
+
+- id: unit_ext_percent_to_basis_points
+  tags: [unit, ambiguous, decoy]
+  schema: BatteryTelemetry
+  operations: ["telemetry.report request"]
+  removed: { name: charge_percent, type: number, required: true, description: "Remaining charge, 0 to 100." }
+  candidates:
+    - { name: health_percent, type: number, required: false, description: "Capacity relative to a new cell, 0 to 100." }
+    - { name: charge_bps, type: integer, required: true, description: "Remaining charge in basis points, 0 to 10000." }
+  successor: charge_bps
+  rationale: health_percent shares the unit word and measures wear; the charge kept its meaning and changed its scale.
+
+- id: unit_ext_gross_pay_cents
+  tags: [unit]
+  schema: PayrollRun
+  operations: ["payroll_runs.create request"]
+  removed: { name: gross_pay, type: number, required: true, description: "Gross pay for the period, in major units." }
+  candidates:
+    - { name: gross_pay_cents, type: integer, required: true, description: "Gross pay for the period, in minor units." }
+    - { name: net_pay_cents, type: integer, required: false, description: "Pay after deductions, in minor units." }
+  successor: gross_pay_cents
+  rationale: Same figure in minor units; net pay is a smaller number computed from it.
+
+- id: unit_ext_lag_is_not_time
+  tags: [unit, ambiguous, decoy]
+  schema: QueueConsumer
+  operations: ["consumers.retrieve response 200"]
+  removed: { name: lag, type: integer, required: true, description: "Number of messages the consumer is behind." }
+  candidates:
+    - { name: lag_seconds, type: integer, required: true, description: "How far behind the consumer is in time, in seconds." }
+    - { name: lag_messages, type: integer, required: true, description: "Number of messages the consumer is behind." }
+  successor: lag_messages
+  rationale: lag_seconds reads as the same quantity in new units and is a different measurement; the message count is what was held. A judge that trusts a unit suffix over the descriptions gets this wrong.
+
+- id: unit_ext_compressed_size_dropped
+  tags: [unit, removal, decoy]
+  schema: BackupSnapshot
+  operations: ["snapshots.retrieve response 200"]
+  removed: { name: compressed_size_mb, type: number, required: false, description: "Size of the snapshot after compression, in megabytes." }
+  candidates:
+    - { name: size_bytes, type: integer, required: true, description: "Size of the snapshot before compression, in bytes." }
+    - { name: created_at, type: integer, required: true, description: "When the snapshot was taken." }
+  successor: null
+  rationale: size_bytes looks like the same quantity in a finer unit but measures the uncompressed snapshot; the compressed size is gone.
+
+- id: unit_ext_fx_rate_scaled
+  tags: [unit, ambiguous]
+  schema: FxQuote
+  operations: ["fx_quotes.retrieve response 200"]
+  removed: { name: rate, type: number, required: true, description: "Exchange rate as a decimal, for example 1.0842." }
+  candidates:
+    - { name: rate_e8, type: integer, required: true, description: "Exchange rate scaled by ten to the eighth, for example 108420000." }
+    - { name: inverse_rate, type: number, required: false, description: "The rate in the opposite direction." }
+  successor: rate_e8
+  rationale: A fixed-point encoding of the same rate; the inverse is the same information turned upside down, which is not the same number.
+
+- id: unit_ext_length_to_character_count
+  tags: [unit, ambiguous, decoy]
+  schema: SmsSegment
+  operations: ["sms.send response 202"]
+  removed: { name: length, type: integer, required: true, description: "Number of characters in the message body." }
+  candidates:
+    - { name: character_count, type: integer, required: true, description: "Number of characters in the message body." }
+    - { name: segment_count, type: integer, required: true, description: "How many 160-character segments the message was split into." }
+  successor: character_count
+  rationale: Both count something about the same body, but only one counts what length counted.
+
+- id: unit_ext_fahrenheit_to_celsius
+  tags: [unit]
+  schema: TemperatureLog
+  operations: ["temperature_logs.create request"]
+  removed: { name: temperature, type: number, required: true, description: "Measured temperature in degrees Fahrenheit." }
+  candidates:
+    - { name: temperature_c, type: number, required: true, description: "Measured temperature in degrees Celsius." }
+    - { name: ambient_c, type: number, required: false, description: "Temperature outside the container." }
+  successor: temperature_c
+  rationale: Same reading on another scale; the ambient figure is a second sensor.
+
+- id: unit_ext_seats_to_seat_count
+  tags: [unit, ambiguous, decoy]
+  schema: SubscriptionSeat
+  operations: ["seats.update request"]
+  removed: { name: seats, type: integer, required: true, description: "How many seats are licensed." }
+  candidates:
+    - { name: seats_at, type: integer, required: false, description: "When the seat count last changed, as a Unix timestamp." }
+    - { name: seat_count, type: integer, required: true, description: "How many seats are licensed." }
+  successor: seat_count
+  rationale: seats_at is a time and seats is a count, so stripping the suffix to match them is wrong however well the names line up.
+
+- id: unit_ext_conversion_rate_bps
+  tags: [unit]
+  schema: ConversionGoal
+  operations: ["goals.retrieve response 200"]
+  removed: { name: conversion_rate, type: number, required: true, description: "Share of sessions that converted, as a decimal fraction." }
+  candidates:
+    - { name: conversion_rate_bps, type: integer, required: true, description: "Share of sessions that converted, in basis points." }
+    - { name: bounce_rate_bps, type: integer, required: false, description: "Share of sessions with no second page view." }
+  successor: conversion_rate_bps
+  rationale: Same share in a different representation; the bounce rate took the same treatment and is a different share.
+
+- id: unit_ext_hours_to_minutes
+  tags: [unit, ambiguous]
+  schema: DriverShift
+  operations: ["shifts.retrieve response 200"]
+  removed: { name: hours_worked, type: number, required: true, description: "Hours worked during the shift." }
+  candidates:
+    - { name: minutes_worked, type: integer, required: true, description: "Minutes worked during the shift." }
+    - { name: break_minutes, type: integer, required: false, description: "Unpaid break time taken during the shift." }
+  successor: minutes_worked
+  rationale: Same worked time at a finer unit; break time is subtracted from it rather than being it.
+
+- id: unit_ext_peak_bandwidth_dropped
+  tags: [unit, removal, decoy]
+  schema: CdnDistribution
+  operations: ["distributions.retrieve response 200"]
+  removed: { name: peak_bandwidth_mbps, type: number, required: false, description: "Highest outbound bandwidth observed in the period, in megabits per second." }
+  candidates:
+    - { name: bytes_served, type: integer, required: true, description: "Total bytes served in the billing period." }
+    - { name: request_count, type: integer, required: true, description: "Requests served in the billing period." }
+  successor: null
+  rationale: A peak rate cannot be recovered from a period total, so neither candidate carries what was removed.

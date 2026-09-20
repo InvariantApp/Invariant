@@ -1,0 +1,230 @@
+# Fields that went away, and fields that stopped being one field.
+#
+# "Nothing replaced it" is an answer, and it is the one a judge that wants to
+# be helpful gets wrong. Several of these put a candidate with the same leading
+# word next to the removed field, so the tempting answer is always on offer. A
+# split is the same trap from the other side: the information survives, spread
+# across two fields, and no single candidate carries it.
+#
+# A judge that invents a successor here writes a migration that silently moves
+# the wrong value.
+- id: removal_beta_thumbnail_url
+  tags: [removal]
+  schema: ImageUpload
+  operations: ["uploads.create response 201"]
+  removed: { name: thumbnail_url, type: string, required: false, description: "Deprecated preview URL, generated during the beta." }
+  candidates:
+    - { name: content_type, type: string, required: true, description: "MIME type of the upload." }
+    - { name: byte_size, type: integer, required: true, description: "Size of the upload, in bytes." }
+  successor: null
+  rationale: Preview generation was dropped; neither candidate holds a URL.
+
+- id: removal_shipping_address_same_stem
+  tags: [removal, decoy]
+  schema: ShippingLabel
+  operations: ["labels.create request"]
+  removed: { name: shipping_address, type: object, required: true, description: "Where the parcel is delivered." }
+  candidates:
+    - { name: shipping_method, type: string, required: true, enum: [ground, express], description: "Service used to ship the parcel." }
+    - { name: shipping_cost_minor, type: integer, required: true, description: "Cost of shipping, in minor units." }
+  successor: null
+  rationale: Three fields share a leading word and only one of them was ever an address; the destination now comes from the order.
+
+- id: removal_plaintext_client_secret
+  tags: [removal, decoy]
+  schema: OAuthClient
+  operations: ["clients.create response 201"]
+  removed: { name: client_secret_plaintext, type: string, required: false, description: "Deprecated. The client secret in clear text." }
+  candidates:
+    - { name: client_secret_last_four, type: string, required: false, description: "Last four characters of the secret, for display only." }
+    - { name: redirect_uris, type: array, required: true, description: "Allowed redirect targets." }
+  successor: null
+  rationale: The secret is no longer returned at all; four characters for a UI label is a hint, not the secret.
+
+- id: removal_poll_interval
+  tags: [removal]
+  schema: BatchJob
+  operations: ["jobs.create response 202"]
+  removed: { name: poll_interval_seconds, type: integer, required: false, description: "How often a client should poll for completion." }
+  candidates:
+    - { name: status, type: string, required: true, enum: [queued, running, done], description: "Job state." }
+    - { name: completed_at, type: integer, required: false, description: "When the job finished." }
+  successor: null
+  rationale: Polling advice went away with the move to webhooks; neither candidate tells a client how often to ask.
+
+- id: removal_legacy_experiment_bucket
+  tags: [removal]
+  schema: ExperimentAssignment
+  operations: ["assignments.retrieve response 200"]
+  removed: { name: bucket, type: string, required: false, description: "Which A/B bucket the user landed in, from the legacy splitter." }
+  candidates:
+    - { name: experiment_id, type: string, required: true, description: "Experiment this assignment belongs to." }
+    - { name: assigned_at, type: integer, required: true, description: "When the assignment was made." }
+  successor: null
+  rationale: The splitter was retired; which experiment and when are not which bucket.
+
+- id: removal_burst_limit
+  tags: [removal, decoy]
+  schema: ApiQuota
+  operations: ["quotas.retrieve response 200"]
+  removed: { name: burst_limit, type: integer, required: false, description: "Deprecated. Extra requests allowed in a short spike." }
+  candidates:
+    - { name: rate_limit_per_minute, type: integer, required: true, description: "Requests allowed each minute." }
+    - { name: quota_period, type: string, required: true, enum: [minute, hour, day], description: "Window the quota is measured over." }
+  successor: null
+  rationale: Bursting was removed outright; the steady allowance is a different number that was always there.
+
+- id: removal_internal_note
+  tags: [removal, decoy]
+  schema: PurchaseOrder
+  operations: ["purchase_orders.create request"]
+  removed: { name: internal_note, type: string, required: false, description: "Free text for the buying team, never shown to the supplier." }
+  candidates:
+    - { name: supplier_note, type: string, required: false, description: "Free text shown to the supplier." }
+    - { name: reference, type: string, required: false, description: "The buyer's own reference for the order." }
+  successor: null
+  rationale: Both are free text, but one is private and one is published, so moving the value would leak it.
+
+- id: removal_store_latitude
+  tags: [removal]
+  schema: StoreLocation
+  operations: ["locations.create request"]
+  removed: { name: latitude, type: number, required: true, description: "Latitude of the store, in decimal degrees." }
+  candidates:
+    - { name: postal_code, type: string, required: true, description: "Postal code of the store." }
+    - { name: timezone, type: string, required: true, description: "IANA timezone of the store." }
+  successor: null
+  rationale: Coordinates are no longer accepted and are derived from the address; a postal code is not a latitude.
+
+- id: removal_device_fingerprint
+  tags: [removal]
+  schema: LoginAttempt
+  operations: ["login_attempts.list response 200"]
+  removed: { name: device_fingerprint, type: string, required: false, description: "Browser fingerprint hash, collected by the legacy SDK." }
+  candidates:
+    - { name: ip_address, type: string, required: false, description: "Source IP of the attempt." }
+    - { name: user_agent, type: string, required: false, description: "Raw user agent string." }
+  successor: null
+  rationale: Fingerprinting was removed; the other two signals were always collected alongside it, not in its place.
+
+- id: removal_fx_rate
+  tags: [removal]
+  schema: Remittance
+  operations: ["remittances.create response 201"]
+  removed: { name: fx_rate, type: number, required: false, description: "Rate used to convert at the time of transfer." }
+  candidates:
+    - { name: source_currency, type: string, required: true, description: "Currency the funds left in." }
+    - { name: target_currency, type: string, required: true, description: "Currency the funds arrive in." }
+  successor: null
+  rationale: The rate stopped being returned; two currency codes name the pair but are not the rate between them.
+
+- id: removal_archived_at_timestamp
+  tags: [removal, decoy]
+  schema: KnowledgeArticle
+  operations: ["articles.retrieve response 200"]
+  removed: { name: archived_at, type: integer, required: false, description: "When the article was archived." }
+  candidates:
+    - { name: archived_by, type: string, required: false, description: "Who archived the article." }
+    - { name: updated_at, type: integer, required: true, description: "When the article last changed." }
+  successor: null
+  rationale: One candidate shares the stem but holds a person, and the other is any change rather than the archiving.
+
+- id: removal_delivery_retry_count
+  tags: [removal]
+  schema: DeliveryAttempt
+  operations: ["delivery_attempts.list response 200"]
+  removed: { name: retry_count, type: integer, required: true, description: "How many times delivery was retried." }
+  candidates:
+    - { name: response_status, type: integer, required: false, description: "HTTP status the endpoint returned." }
+    - { name: delivered_at, type: integer, required: false, description: "When delivery succeeded." }
+  successor: null
+  rationale: Attempts are now separate rows, so the count has no field; a status code and a success time do not carry it.
+
+- id: removal_email_opt_in
+  tags: [removal, decoy]
+  schema: MarketingContact
+  operations: ["contacts.create request"]
+  removed: { name: email_opt_in, type: boolean, required: true, description: "Whether the contact agreed to marketing email." }
+  candidates:
+    - { name: email_address, type: string, required: true, description: "Where marketing email is sent." }
+    - { name: sms_opt_in, type: boolean, required: false, description: "Whether the contact agreed to marketing SMS." }
+  successor: null
+  rationale: Consent moved out to a separate service; an address is not consent and SMS is a different channel.
+
+- id: split_full_name_into_parts
+  tags: [split-merge, removal]
+  schema: ContactRecord
+  operations: ["contacts.create request"]
+  removed: { name: full_name, type: string, required: true, description: "The person's name as a single string." }
+  candidates:
+    - { name: given_name, type: string, required: true, description: "The part of the name that comes first in most locales." }
+    - { name: family_name, type: string, required: true, description: "The inherited part of the name." }
+  successor: null
+  rationale: Neither half carries the whole name and neither is the primary one, so the split has no single successor.
+
+- id: split_instant_into_local_date_and_zone
+  tags: [split-merge, removal]
+  schema: CalendarEvent
+  operations: ["events.create request"]
+  removed: { name: starts_at, type: integer, required: true, description: "When the event starts, as a Unix timestamp." }
+  candidates:
+    - { name: start_date, type: string, format: date, required: true, description: "Local calendar date the event starts." }
+    - { name: start_time, type: string, format: time, required: true, description: "Local wall clock time the event starts." }
+    - { name: start_time_zone, type: string, required: true, description: "IANA zone the local date and time are read in." }
+  successor: null
+  rationale: An instant became three fields that only identify it together; picking one would drop the rest.
+
+- id: split_total_into_net_and_tax
+  tags: [split-merge, removal]
+  schema: Receipt
+  operations: ["receipts.retrieve response 200"]
+  removed: { name: total_minor, type: integer, required: true, description: "Amount charged, in minor units." }
+  candidates:
+    - { name: net_minor, type: integer, required: true, description: "Amount before tax, in minor units." }
+    - { name: tax_minor, type: integer, required: true, description: "Tax charged, in minor units." }
+  successor: null
+  rationale: The total is now the sum of two fields, and a sum is not one of its addends.
+
+- id: split_duration_into_two_timestamps
+  tags: [split-merge, removal]
+  schema: PageView
+  operations: ["page_views.track request"]
+  removed: { name: duration_ms, type: integer, required: true, description: "How long the page was open, in milliseconds." }
+  candidates:
+    - { name: entered_at, type: integer, required: true, description: "When the page was opened, in Unix milliseconds." }
+    - { name: exited_at, type: integer, required: true, description: "When the page was closed, in Unix milliseconds." }
+  successor: null
+  rationale: A span became its two endpoints; the difference between them is the old value and no field holds it.
+
+- id: merge_country_code_into_e164
+  tags: [split-merge, ambiguous]
+  schema: CustomerProfile
+  operations: ["customers.create request"]
+  removed: { name: country_code, type: string, required: true, description: "Dialling country code, without the leading plus." }
+  candidates:
+    - { name: phone_e164, type: string, required: true, description: "Full phone number in E.164, which includes the dialling country code." }
+    - { name: locale, type: string, required: false, description: "Preferred language for the customer." }
+  successor: phone_e164
+  rationale: Two fields merged and the description says outright that the new one contains the old value.
+
+- id: merge_unit_number_into_address_line
+  tags: [split-merge, ambiguous]
+  schema: PickupPoint
+  operations: ["pickup_points.create request"]
+  removed: { name: unit_number, type: string, required: false, description: "Apartment or suite number." }
+  candidates:
+    - { name: address_line, type: string, required: true, description: "Full street address, including any unit number." }
+    - { name: access_code, type: string, required: false, description: "Door code for the courier." }
+  successor: address_line
+  rationale: The overflow line was folded back into the street address, which now says it carries the unit.
+
+- id: merge_length_into_dimensions_object
+  tags: [split-merge, nesting, ambiguous]
+  schema: Parcel
+  operations: ["parcels.create request"]
+  removed: { name: length_cm, type: number, required: true, description: "Parcel length, in centimetres." }
+  candidates:
+    - { name: dimensions_cm, type: object, required: true, description: "Parcel length, width and height, in centimetres." }
+    - { name: weight_grams, type: integer, required: true, description: "Parcel weight, in grams." }
+  successor: dimensions_cm
+  rationale: Three scalars became one object and the length still lives inside it; weight was never one of them.

@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "revoked",
+    "confidence": 0.96,
+    "scores": {
+      "revoked": 0.96,
+      "last_used_at": 0.005
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 222.5064769999999,
+  "inputTokens": 1095,
+  "costUsd": 0.000045990000000000005
+}

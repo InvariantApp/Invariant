@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": "assignee_id",
+    "confidence": 0.97,
+    "scores": {
+      "assignee_id": 0.995,
+      "assigned_at": 0.015,
+      "assignee_email": 0.215
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 162.49668599999995,
+  "inputTokens": 1346,
+  "costUsd": 0.000056532
+}

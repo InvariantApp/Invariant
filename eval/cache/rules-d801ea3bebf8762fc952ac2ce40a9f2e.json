@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "ttl_seconds",
+    "confidence": 1,
+    "scores": {
+      "record_type": 0,
+      "ttl_seconds": 0.9
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.007206999999993968,
+  "inputTokens": 0,
+  "costUsd": 0
+}
