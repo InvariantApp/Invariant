@@ -855,3 +855,75 @@ Phase 0 is done when CI is green on that red-by-design demonstration. Phase 1 st
 - The statement that must be true at the end: "I made a breaking API change here, deployed it, and every old integration kept working while the connected codebases received the correct migration."
 
 
+
+---
+
+## 21. Build log: what implementation changed about this design
+
+Kept as a record because each entry was forced by a test rather than chosen, and
+the next person to touch these areas should know why they look the way they do.
+
+### Phase 1, the compiler
+
+- **Closure cannot catch a wrong constant.** Swapping two pairs of an enum
+  mapping preserves the set of values, so the predicted specification matches
+  the real one exactly. Recorded as a passing test asserting the limit, with
+  differential testing named as the layer that does catch it.
+- **`multipleOf` makes an exponent checkable.** A major-unit amount declared
+  `multipleOf: 0.01` states its precision. Scaling it by the wrong power of ten
+  leaves either a coarser step than the new contract states or a fractional one,
+  so both a too-large and a too-small exponent are compile errors. This is why
+  the compiler does decimal arithmetic at all.
+- **Ops across two Changes have no inherent order.** Files load in whatever
+  order they load in. The compiler now proves a pair does not interfere and asks
+  for an explicit order only when the result would actually depend on it.
+- **Error bodies name request fields.** Added `x-invariant-error-param` and a
+  lenient enum instruction so a validation error points at the field name the
+  caller's contract uses. Cadwyn is the only prior system found that versions
+  error bodies at all; everyone else leaves the old client reading about a field
+  it has never heard of.
+
+### Phase 3, the runtime
+
+- **Preserving exact source digits is not worth it by default.** Node's
+  source-text reviver costs 1.9x a plain parse, because passing any reviver to
+  `JSON.parse` leaves V8's fast path, and it preserves precision the provider's
+  own handler discards on its next ordinary parse. Exactness where it matters
+  comes from doing the arithmetic on the decimal text, and `String(value)`
+  recovers that text for every amount a double holds. Now an option, defaulting
+  off.
+- **The stated latency budget was optimistic.** Measured numbers are in 5.2 and
+  in `packages/runtime/src/bench.test.ts`.
+- **Writing through a wildcard could not create a field.** Slot resolution only
+  found existing keys, so a default could not be inserted into list elements.
+- **A program naming `__proto__` could reach a shared prototype.** The pointer
+  layer now refuses those keys and the decoder rejects a program containing one,
+  so it can never load.
+
+### Phase 6, the migration engine
+
+- **Ops on one field must compose into one edit.** A rename and a unit
+  conversion arriving separately fought over the same span. Edits also nest,
+  because call sites nest, and a write whose value is a migrated read cancels
+  the conversion rather than wrapping it twice.
+- **Renaming a destructured binding is not enough.** The local would hold the
+  new unit while every use of it still meant the old one, so the engine binds
+  the new name and converts once.
+- **Every edit must be scoped to the repository being migrated.** The type
+  checker loads the whole import graph; an early version edited the provider's
+  own source through it. Asserted, not assumed.
+- **Import decisions belong after the edits.** Deciding which helpers a file
+  needs before running the transforms left an unused import, which is a new type
+  error in a pull request meant to introduce none.
+- **A value with no type behind it is reported, not rewritten.** A status baked
+  into an assembled string cannot be migrated safely. The demo proves the claim
+  matches the outcome: exactly one test fails, at exactly the flagged site.
+
+### Still to build
+
+Phase 2 (Jev evaluation harness and the proposer), Phase 4 (differential
+verifier and the release gate), Phase 5 (signed bundles, registry, control
+plane), Phase 7 (GitHub App delivery), Phase 8 (demo hardening and drills).
+Consumers B and C have no migration path yet: B needs generated types
+regenerated from the new contract, C is raw HTTP and belongs behind the Judge
+interface with a review flag.
