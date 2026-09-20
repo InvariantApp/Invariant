@@ -9,7 +9,8 @@
   },
   "scripts": {
     "start": "tsx src/server.ts",
-    "compile": "tsx scripts/compile.ts"
+    "compile": "invariant compile",
+    "check": "invariant check"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
@@ -18,7 +19,7 @@
     "@invariant/runtime-hono": "workspace:*"
   },
   "devDependencies": {
-    "@invariant/compiler": "workspace:*",
-    "@invariant/contract": "workspace:*"
+    "@invariant/contract": "workspace:*",
+    "@invariant/cli": "workspace:*"
   }
 }

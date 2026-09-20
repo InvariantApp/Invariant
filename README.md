@@ -32,9 +32,9 @@ The demo holds end to end (`pnpm e2e`):
    location, and it is exactly the one test that fails until that site is dealt
    with.
 
-Still to come: the release gate and differential verifier, signed evolution
-bundles, the Jev evaluation harness, and the GitHub App that delivers
-migrations as pull requests.
+The release gate is wired up as `invariant check`. Still to come: the
+differential verifier, signed evolution bundles, the Jev evaluation harness, and
+the GitHub App that delivers migrations as pull requests.
 
 ## Layout
 
@@ -50,7 +50,37 @@ packages/compiler     type checking, the closure check, and program projection
 packages/runtime      the compatibility interpreter and provider middleware
 packages/runtime-hono Hono bindings for the runtime
 packages/migrate-ts   type-aware indexing and codemods for consumer repositories
+packages/cli          the invariant command, run in the provider's own CI
 ```
+
+## The release gate
+
+A provider runs this on every pull request that touches the API:
+
+```sh
+invariant check
+```
+
+It answers one question: do the Changes in this pull request completely explain
+what the API actually did? Anything left over is a change nobody wrote down, and
+the release does not pass with one outstanding.
+
+```
+API release check - acme-payments
+
+Contract 2026-03-01 -> 2026-09-20
+  3 declared changes
+  0 additive or otherwise compatible deltas
+
+Historical contracts still served: 2026-01-15, 2026-03-01
+
+Release status: PASS
+```
+
+`invariant compile` then writes the program into the build, where it ships with
+the code it belongs to. A blocked release compiles nothing, because an adapter
+built from Changes that do not explain the release would serve the old contract
+incorrectly.
 
 ## Requirements
 

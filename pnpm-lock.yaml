@@ -89,9 +89,9 @@ importers:
         specifier: ^4.13.8
         version: 4.13.8
     devDependencies:
-      '@invariant/compiler':
+      '@invariant/cli':
         specifier: workspace:*
-        version: link:../../packages/compiler
+        version: link:../../packages/cli
       '@invariant/contract':
         specifier: workspace:*
         version: link:../../packages/contract
@@ -99,6 +99,24 @@ importers:
   fixtures/sdk-acme-v1: {}
 
   fixtures/sdk-acme-v3: {}
+
+  packages/cli:
+    dependencies:
+      '@invariant/compiler':
+        specifier: workspace:*
+        version: link:../compiler
+      '@invariant/contract':
+        specifier: workspace:*
+        version: link:../contract
+      '@invariant/diff':
+        specifier: workspace:*
+        version: link:../diff
+      '@invariant/ir':
+        specifier: workspace:*
+        version: link:../ir
+      yaml:
+        specifier: ^2.8.2
+        version: 2.9.1
 
   packages/compiler:
     dependencies:

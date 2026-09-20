@@ -1,0 +1,20 @@
+{
+  "name": "@invariant/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The invariant command, run by a provider in their own CI",
+  "bin": {
+    "invariant": "./src/main.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@invariant/compiler": "workspace:*",
+    "@invariant/contract": "workspace:*",
+    "@invariant/diff": "workspace:*",
+    "@invariant/ir": "workspace:*",
+    "yaml": "^2.8.2"
+  }
+}
