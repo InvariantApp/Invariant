@@ -1492,6 +1492,39 @@ that can be said for it. Drafting parameter Changes before the compiler could
 apply them produced eighteen drafts that would not compile, and they appeared
 under the report's own highest-priority heading on the next run.
 
+### Asking the model about real APIs
+
+Across the sixty pairs the proposer asks 148 alignment questions, which costs
+about a penny. That is a small number for a reason worth noticing: most real
+breaking changes are endpoints and parameters moving, not fields being renamed,
+and the model is only consulted about the last of those.
+
+**The measurement found that our confidence threshold was decorative.** The
+proposer marked a low-confidence answer for attention and drafted it anyway,
+while `eval/ownership.yaml` claimed no draft was ever written from one. On one
+Adyen pair every alignment came back between 23% and 45% confident, pairing
+`paymentInstrumentGroupId` with `aggregationLevel` among others, and each
+became a `move` that rewrote the predicted document on a guess. A wrong
+alignment is not a harmless suggestion: it relocates a value, so a merged one
+would send real data to the wrong field. Sub-threshold answers are now reported
+as open questions. What survives on that same corpus is `code` becoming
+`kycCheckCode` and `description` becoming `kycCheckDescription`, both at full
+confidence, both obviously right.
+
+**A third instance of the same pattern**, after the prefix moves and the
+parameters: `cast` had always existed and `opsFor` emitted a note saying the
+type change was not expressed instead of using it. So an alignment explained
+the rename and left the type difference behind as a fresh delta.
+
+**And the totals still rise: 1781 unexplained without the model, 1817 with it.**
+That is not a regression, and it is the same phenomenon as the path alignment.
+Explaining that a field was renamed makes the renamed field comparable, and
+what surfaces is whatever else changed about it: its optionality, its
+vocabulary. One unexplained removal becomes one unexplained optionality change,
+which is a more specific statement of a real problem rather than a new problem.
+The report shows both columns rather than a single number, because a single
+number here would be read as the model making things worse.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no

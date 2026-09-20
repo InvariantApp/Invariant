@@ -10,7 +10,7 @@
 import { predictDocument } from "@invariant/compiler";
 import { loadContract } from "@invariant/contract";
 import { breakingEntries, describeEntry, diffDocuments } from "@invariant/diff";
-import { propose, RulesJudge } from "@invariant/proposer";
+import { HybridJudge, JevJudge, propose, RulesJudge } from "@invariant/proposer";
 
 const [oldPath, newPath] = process.argv.slice(2);
 if (!oldPath || !newPath) throw new Error("usage: probe.mts <old.json> <new.json>");
@@ -41,13 +41,30 @@ for (const [id, count] of [...byId].sort((a, b) => b[1] - a[1]).slice(0, 12)) {
 }
 
 mark = performance.now();
-const drafted = await propose(before.document, after.document, {
-  judge: new RulesJudge(),
-});
+const judge =
+  process.argv[4] === "hybrid"
+    ? new HybridJudge(new RulesJudge(), new JevJudge())
+    : new RulesJudge();
+const drafted = await propose(before.document, after.document, { judge });
 console.log(
   `proposed in ${since(mark)}: ${drafted.proposals.length} drafts, ` +
     `${drafted.unresolved.length} unresolved, ${drafted.impasses.length} impasses`,
 );
+
+// What it actually decided, so a person can judge the alignments rather than
+// only the counts. On real documents there are no labels, and reading a dozen
+// is the only way to tell a useful draft from a confident guess.
+const aligned = drafted.proposals.filter((proposal) =>
+  proposal.change.ops.some((op) => op.op === "move"),
+);
+if (aligned.length > 0) {
+  console.log(`\nfield alignments (${aligned.length}):`);
+  for (const proposal of aligned.slice(0, 20)) {
+    console.log(
+      `  ${(proposal.confidence * 100).toFixed(0).padStart(3)}%  ${proposal.change.summary}`,
+    );
+  }
+}
 
 mark = performance.now();
 const predicted = predictDocument(

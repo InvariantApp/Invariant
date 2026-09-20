@@ -10,7 +10,7 @@
  * which; whether that is a rename, a unit change or an enum remapping, and
  * what the scale factor is, comes from the declared shapes.
  */
-import type { Change, Op } from "@invariant/ir";
+import type { Change, Op, ScalarType } from "@invariant/ir";
 import { type FieldShape, type SchemaDelta, schemaDeltas } from "./candidates.ts";
 import {
   parameterChanges,
@@ -35,6 +35,9 @@ export interface Proposal {
   /** Why the ops came out the way they did, in a reviewer's words. */
   notes: string[];
 }
+
+/** What `cast` can move between. Anything structural is out of scope. */
+const SCALARS = new Set(["string", "integer", "number", "boolean"]);
 
 const MINOR_UNIT_EXPONENTS: ReadonlyMap<string, number> = new Map([
   ["cents", 2],
@@ -86,10 +89,31 @@ export function opsFor(
         "Check that against the contract's declared precision before merging.",
     );
   } else if (removed.type !== successor.type && removed.type && successor.type) {
-    notes.push(
-      `the type changed from ${removed.type} to ${successor.type}, which this draft does not express. ` +
-        "Add the right codec, or say why no conversion is needed.",
-    );
+    // `cast` has always existed and this emitted a note instead of using it,
+    // which is why aligning a renamed field left the type difference behind as
+    // a fresh unexplained delta. Scalars only: nothing converts an object into
+    // an array, and claiming otherwise would be worse than saying nothing.
+    if (SCALARS.has(removed.type) && SCALARS.has(successor.type)) {
+      ops.push({
+        op: "convert",
+        path: successor.pointer,
+        codec: {
+          kind: "cast",
+          from: removed.type as ScalarType,
+          to: successor.type as ScalarType,
+        },
+      });
+      notes.push(
+        `the type changed from ${removed.type} to ${successor.type}, which this ` +
+          "draft converts. Check that every value the old contract allowed " +
+          "survives the conversion.",
+      );
+    } else {
+      notes.push(
+        `the type changed from ${removed.type} to ${successor.type}, which no codec ` +
+          "expresses. This is a reshaping rather than a re-encoding.",
+      );
+    }
   }
 
   const before = removed.enumValues;
@@ -335,6 +359,31 @@ export async function propose(
     );
     if (!successor) return;
 
+    // Below the threshold is not a draft, it is a guess, and it is reported as
+    // an open question instead.
+    //
+    // This used to mark such answers for attention and draft them anyway,
+    // while `eval/ownership.yaml` claimed no draft was ever written from one.
+    // Running real APIs showed what the difference cost: on one Adyen pair
+    // every alignment came back between 23% and 45% confident, pairing
+    // `paymentInstrumentGroupId` with `aggregationLevel` among others, and each
+    // one became a `move` that rewrote the predicted document on a guess.
+    //
+    // A wrong alignment is not a harmless suggestion. It relocates a value, so
+    // a merged one would send real data to the wrong field.
+    if (result.answer.confidence < threshold) {
+      unresolved.push({
+        schema: question.schema,
+        field: question.removed.name,
+        reason:
+          `the best guess was \`${successor.name}\` at ` +
+          `${(result.answer.confidence * 100).toFixed(0)}% confidence, which is ` +
+          "below the threshold. Decide it yourself rather than reviewing a guess.",
+        side: "removed",
+      });
+      return;
+    }
+
     const { ops, notes } = opsFor(question.removed, successor);
     if (ops.length === 0) {
       unresolved.push({
@@ -366,14 +415,8 @@ export async function propose(
       },
       judge: result.judge,
       confidence,
-      attention: confidence >= threshold ? "normal" : "explicit",
-      notes:
-        confidence >= threshold
-          ? notes
-          : [
-              `the judge was only ${(confidence * 100).toFixed(0)}% sure this pairing is right. Check it yourself.`,
-              ...notes,
-            ],
+      attention: "normal",
+      notes,
     });
   });
 

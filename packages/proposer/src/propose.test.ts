@@ -74,9 +74,34 @@ describe("deriving ops from the shapes", () => {
     expect(notes.join(" ")).toContain("Pair them up by hand");
   });
 
-  it("says so when a type changed in a way it cannot express", () => {
+  /**
+   * This used to assert that a scalar type change produced no ops, which
+   * pinned a gap rather than a property: `cast` has always existed and this
+   * emitted a note instead of using it. Running real APIs made the cost
+   * visible. Aligning a renamed field explained the removal and left the type
+   * difference behind as a fresh unexplained delta, so asking the model made
+   * the totals worse rather than better.
+   */
+  it("converts a scalar type change rather than describing it", () => {
     const { ops, notes } = opsFor(field("ref", "integer"), field("ref", "string"));
+
+    expect(ops).toEqual([
+      {
+        op: "convert",
+        path: "/ref",
+        codec: { kind: "cast", from: "integer", to: "string" },
+      },
+    ]);
+    // A cast is not free of judgement, so the note says what to check.
+    expect(notes.join(" ")).toContain("survives the conversion");
+  });
+
+  it("says so when a type changed in a way no codec expresses", () => {
+    // Nothing converts an object into an array. This is a reshaping, and the
+    // right answer is to say so rather than to invent a codec for it.
+    const { ops, notes } = opsFor(field("payload", "object"), field("payload", "array"));
+
     expect(ops).toEqual([]);
-    expect(notes.join(" ")).toContain("does not express");
+    expect(notes.join(" ")).toContain("reshaping rather than a re-encoding");
   });
 });

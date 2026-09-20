@@ -19,7 +19,7 @@
     "app:register": "node --import tsx scripts/register-app.mts",
     "app:status": "node --import tsx scripts/app-status.mts",
     "real:fetch": "node --import tsx eval/real/fetch.mts",
-    "real": "node --import tsx eval/real/run.mts"
+    "real": "node --env-file-if-exists=.env --import tsx eval/real/run.mts"
   },
   "devDependencies": {
     "@acme/sdk-v3": "workspace:*",

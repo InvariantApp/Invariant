@@ -71,6 +71,17 @@ tasks:
         nothing it produces reaches a request path without passing the closure
         check and a human reviewer.
 
+        The threshold filters rather than annotates, which it did not always
+        do. It used to mark a low-confidence answer for attention and draft it
+        anyway, while this file claimed no draft was ever written from one.
+        Running real APIs showed the cost: on one Adyen pair every alignment
+        came back between 23% and 45% confident, pairing
+        `paymentInstrumentGroupId` with `aggregationLevel` among others, and
+        each became a `move` that rewrote the predicted document on a guess. A
+        wrong alignment relocates a value, so a merged one sends real data to
+        the wrong field. Below the threshold is now reported as an open
+        question instead.
+
     byProvenance:
       mined: { cases: 45, selectiveAccuracy: 0.91 }
       written: { cases: 195, selectiveAccuracy: 0.97 }
