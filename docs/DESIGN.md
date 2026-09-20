@@ -971,10 +971,36 @@ the next person to touch these areas should know why they look the way they do.
   caught it until a check started the build as a real process, which is the
   argument for E6 existing at all.
 
+### Phase 5, the bundle
+
+- **A blocked release gets no bundle, and neither does an empty one.** A
+  signature says "this is what we released" to everyone downstream, so putting
+  one on an object whose own gate says it must not ship would be the one thing
+  a signature must never do.
+- **Reproducibility is a property of the shape, not a promise about the
+  process.** Nothing derived from the moment of building is allowed inside the
+  digested part. The one that nearly got in was evidence ordering: records
+  arrive in whatever order the layers finished, which can depend on the
+  filesystem, so they are sorted by their own content before digesting. Without
+  that, two builds of one release disagree and "rebuild it and compare" is
+  worthless, leaving the signature as the only checkable thing.
+- **Three separate checks on opening, because each catches something the others
+  do not.** A trusted key signed it. The statement says it is an evolution
+  bundle, so a signature over a different kind of attestation cannot be
+  presented as one. And the digest the statement names matches the bundle
+  inside it, so a payload cannot be swapped underneath a subject that still
+  looks right.
+- **A contract label looks exactly like a date.** Written unquoted, a YAML 1.1
+  parser hands back a timestamp where every caller expects a string. The
+  released manifest quotes them, and the test asserts the round trip rather
+  than the quoting.
+
 ### Still to build
 
-Phase 5 (signed bundles, registry, control plane), Phase 7 (GitHub App
-delivery), Phase 8 (demo hardening and drills). Consumers B and C have no
+The registry and control plane (the hosted half of Phase 5), Phase 7 (GitHub
+App delivery), Phase 8 (demo hardening and drills). Bundles are built, signed,
+verified and reproducible; what does not exist yet is anywhere to publish them
+to, so `invariant release` writes them into the provider's own repository. Consumers B and C have no
 migration path yet: B needs generated types regenerated from the new contract,
 C is raw HTTP and belongs behind the Judge interface with a review flag.
 

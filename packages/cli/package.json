@@ -11,6 +11,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@invariant/bundle": "workspace:*",
     "@invariant/compiler": "workspace:*",
     "@invariant/contract": "workspace:*",
     "@invariant/diff": "workspace:*",

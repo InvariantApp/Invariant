@@ -115,8 +115,23 @@ importers:
 
   fixtures/sdk-acme-v3: {}
 
+  packages/bundle:
+    dependencies:
+      '@invariant/contract':
+        specifier: workspace:*
+        version: link:../contract
+      '@invariant/ir':
+        specifier: workspace:*
+        version: link:../ir
+      '@invariant/verifier':
+        specifier: workspace:*
+        version: link:../verifier
+
   packages/cli:
     dependencies:
+      '@invariant/bundle':
+        specifier: workspace:*
+        version: link:../bundle
       '@invariant/compiler':
         specifier: workspace:*
         version: link:../compiler

@@ -1,0 +1,15 @@
+{
+  "name": "@invariant/bundle",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The signed release envelope: changes, contract digests, evidence and compiled digests, content addressed and reproducible",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@invariant/contract": "workspace:*",
+    "@invariant/ir": "workspace:*",
+    "@invariant/verifier": "workspace:*"
+  }
+}

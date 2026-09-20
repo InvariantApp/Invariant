@@ -6,12 +6,13 @@
  * touches the API. `compile` writes the program into the build, where it ships
  * with the code it belongs to.
  */
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { check, renderReport } from "./check.ts";
 import { renderComment } from "./comment.ts";
 import { loadConfig } from "./config.ts";
 import { renderProposals, runPropose } from "./propose.ts";
+import { release, renderRelease, verifyRelease } from "./release.ts";
 
 const USAGE = `invariant <command>
 
@@ -19,6 +20,8 @@ const USAGE = `invariant <command>
             With --full, also starts both builds and compares what they do.
   propose   Draft Change files for whatever this release has not explained.
   compile   Write the compiled program into the build.
+  release   Mint the contract, move the Changes, and sign the evolution bundle.
+  verify    Open a published bundle and check who signed it.
 
 Options
   --config <path>   Path to invariant.yaml (default: ./invariant.yaml)
@@ -28,6 +31,14 @@ Options
   --write           propose: write the drafts into invariant/changes
   --offline         propose: deterministic rules only, no model calls
   --context <text>  propose: notes about this release, weighed as evidence
+  --dry-run         release: say what would happen and write nothing
+  --repo <name>     release: the repository this release came from
+  --commit <sha>    release: the commit this release came from
+  --pr <number>     release: the pull request it was merged in
+  --key <path>      verify: a trusted ed25519 public key, in PEM form
+
+Environment
+  INVARIANT_SIGNING_KEY   release: the ed25519 private key, in PEM form
 `;
 
 function flag(argv: readonly string[], name: string): string | undefined {
@@ -59,6 +70,60 @@ async function main(argv: string[]): Promise<number> {
       ...(context === undefined ? {} : { context }),
     });
     process.stdout.write(`${renderProposals(result)}\n`);
+    return 0;
+  }
+
+  if (command === "release") {
+    const dryRun = argv.includes("--dry-run");
+    const pr = flag(argv, "pr");
+    const signingKeyPem = process.env["INVARIANT_SIGNING_KEY"];
+
+    const result = await release(config, {
+      dryRun,
+      full: argv.includes("--full"),
+      ...(signingKeyPem ? { signingKeyPem } : {}),
+      source: {
+        repo: flag(argv, "repo") ?? "unknown",
+        commit: flag(argv, "commit") ?? "unknown",
+        ...(pr === undefined ? {} : { pr: Number(pr) }),
+      },
+    });
+
+    process.stdout.write(`${renderRelease(result, dryRun)}\n`);
+    return 0;
+  }
+
+  if (command === "verify") {
+    const envelope = argv[1];
+    if (!envelope) {
+      process.stderr.write("verify needs the path to a bundle\n");
+      return 1;
+    }
+
+    const keys = await Promise.all(
+      argv
+        .flatMap((entry, index) => (entry === "--key" ? [argv[index + 1] as string] : []))
+        .map((path) => readFile(resolve(path), "utf8")),
+    );
+    if (keys.length === 0) {
+      process.stderr.write(
+        "verify needs at least one --key, or it cannot tell you anything\n",
+      );
+      return 1;
+    }
+
+    const opened = await verifyRelease(resolve(envelope), keys);
+    process.stdout.write(
+      [
+        `${opened.bundle.api} ${opened.bundle.from.label} -> ${opened.bundle.to.label}`,
+        `  signed by  ${opened.keyid}`,
+        `  digest     ${opened.digest}`,
+        `  changes    ${opened.bundle.changes.map((change) => change.id).join(", ")}`,
+        `  evidence   ${opened.bundle.evidence.length} records`,
+        `  source     ${opened.bundle.source.repo}@${opened.bundle.source.commit}`,
+        "",
+      ].join("\n"),
+    );
     return 0;
   }
 
