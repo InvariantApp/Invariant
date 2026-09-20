@@ -283,6 +283,27 @@ export function checkLaws(
     }
 
     failures.push(...found);
+
+    // Totality is a property of its own, even though one pass checks it
+    // alongside the rest: every value the contract allows has to make it
+    // through the transform at all. Recording it separately is what stops the
+    // report claiming the check never ran when it plainly did.
+    const refused = found.filter((failure) =>
+      failure.detail.includes("refused a value the contract allows"),
+    );
+    evidence.push({
+      kind: "E3-totality",
+      subject: entry.scope,
+      result: refused.length > 0 ? "fail" : "pass",
+      inputsDigest: digest,
+      tool: "fast-check",
+      summary:
+        refused.length > 0
+          ? `the transform refused ${refused.length} ${refused.length === 1 ? "value" : "values"} the contract allows`
+          : `no generated value of ${entry.scope} was refused, in either direction`,
+      ...(refused.length > 0 ? { detail: refused.map((failure) => failure.detail) } : {}),
+    });
+
     evidence.push({
       kind: "E4-laws",
       subject: entry.scope,

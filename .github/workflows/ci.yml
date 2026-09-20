@@ -48,3 +48,11 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      # The layers that need the provider's code running. They start real
+      # processes, so they are not part of `pnpm test`, and leaving them out of
+      # CI would mean the only checks that can catch a swapped value map or a
+      # drifted specification never run anywhere but a laptop.
+      - name: Release gate, including the differential and conformance checks
+        working-directory: fixtures/provider-acme
+        run: pnpm exec invariant check --full

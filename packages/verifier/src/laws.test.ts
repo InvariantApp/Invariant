@@ -88,9 +88,13 @@ describe("the lens laws", () => {
     const report = laws(old, head, [MONEY]);
 
     expect(report.failures).toEqual([]);
-    expect(report.evidence).toHaveLength(1);
-    expect(report.evidence[0]?.result).toBe("pass");
-    expect(report.evidence[0]?.kind).toBe("E4-laws");
+    // One pass produces two records, because two different properties were
+    // established: that nothing was refused, and that the round trips hold.
+    expect(report.evidence.map((entry) => entry.kind)).toEqual([
+      "E3-totality",
+      "E4-laws",
+    ]);
+    expect(report.evidence.every((entry) => entry.result === "pass")).toBe(true);
   });
 
   it("catch a conversion that refuses a value the contract allows", () => {

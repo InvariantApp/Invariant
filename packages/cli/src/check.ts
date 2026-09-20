@@ -189,6 +189,21 @@ export async function check(
     }
   }
 
+  // E1. Every Change in this release parsed as this version of the IR, which
+  // happened during loading: an unknown op kind or an unknown field is a hard
+  // error there, so reaching this line is the proof.
+  const declared = steps.flatMap((step) => step.changes);
+  evidence.push({
+    kind: "E1-schema",
+    subject: `${config.api} ${current.label}`,
+    result: "pass",
+    inputsDigest: inputsDigest(declared),
+    tool: "typebox",
+    summary:
+      `${declared.length} Change ${declared.length === 1 ? "file" : "files"} parsed as ` +
+      "IR version 1, with no unknown op kinds and no unknown fields",
+  });
+
   const verified = await verify(config, steps, current.label, current.document, options);
   evidence.push(...verified.evidence);
 

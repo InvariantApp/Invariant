@@ -1,0 +1,102 @@
+name: Invariant release check
+description: >-
+  Checks that this pull request's declared Changes explain what the API
+  actually did, and posts the result as a comment.
+author: Invariant
+
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  config:
+    description: Path to invariant.yaml, relative to the repository root.
+    required: false
+    default: invariant.yaml
+  full:
+    description: >-
+      Start the provider's own builds and compare what they do. This is what
+      catches a value map whose pairs are swapped and a specification that has
+      drifted from the code; nothing else can. Needs a build section in
+      invariant.yaml.
+    required: false
+    default: "false"
+  comment:
+    description: >-
+      Post the report on the pull request, editing the previous one rather than
+      adding another on every push.
+    required: false
+    default: "true"
+
+outputs:
+  result:
+    description: pass, warn or block.
+    value: ${{ steps.check.outputs.result }}
+
+runs:
+  using: composite
+  steps:
+    # oasdiff does the structural comparison. Without it the closure check
+    # cannot run, and a check that silently does less than it claims is worse
+    # than one that fails.
+    - name: Install oasdiff
+      shell: bash
+      run: |
+        if ! command -v oasdiff > /dev/null; then
+          go install github.com/oasdiff/oasdiff@v1.32.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+        fi
+
+    - name: Check the release
+      id: check
+      shell: bash
+      run: |
+        set +e
+        npx --yes @invariant/cli check \
+          --config "${{ inputs.config }}" \
+          ${{ inputs.full == 'true' && '--full' || '' }} \
+          --format markdown > "$RUNNER_TEMP/invariant-comment.md"
+        status=$?
+        set -e
+
+        # The report is the point, so it goes to the log whatever happened.
+        cat "$RUNNER_TEMP/invariant-comment.md"
+
+        if [ "$status" -eq 0 ]; then
+          echo "result=pass" >> "$GITHUB_OUTPUT"
+        else
+          echo "result=block" >> "$GITHUB_OUTPUT"
+        fi
+
+        {
+          echo "## Invariant"
+          cat "$RUNNER_TEMP/invariant-comment.md"
+        } >> "$GITHUB_STEP_SUMMARY"
+
+        exit "$status"
+
+    # Runs even when the check failed, because a blocked release is exactly
+    # when the author needs to read why.
+    - name: Comment on the pull request
+      if: ${{ always() && inputs.comment == 'true' && github.event_name == 'pull_request' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+      run: |
+        body="$(cat "$RUNNER_TEMP/invariant-comment.md")"
+        marker="<!-- invariant:release-check -->"
+
+        # One comment per pull request, edited in place. A new comment on every
+        # push buries the history of the thing being reviewed.
+        existing="$(gh api "repos/$REPO/issues/$PR/comments" \
+          --jq "[.[] | select(.body | startswith(\"$marker\"))][0].id // empty")"
+
+        if [ -n "$existing" ]; then
+          gh api --method PATCH "repos/$REPO/issues/comments/$existing" \
+            -f body="$body" > /dev/null
+        else
+          gh api --method POST "repos/$REPO/issues/$PR/comments" \
+            -f body="$body" > /dev/null
+        fi

@@ -123,6 +123,19 @@ implying each covers the others:
 | A handler that changed behaviour | the differential | Nothing in either specification moved. |
 | A specification that has drifted from the code | conformance | Every other layer is reasoning about that document. |
 
+### In a provider's CI
+
+```yaml
+- uses: InvariantApp/Invariant@v0
+  with:
+    full: "true"
+```
+
+The action posts the report on the pull request, editing the same comment on
+every push rather than adding another, and fails the check when the release is
+blocked. `invariant check --format markdown` is the same report if you would
+rather wire it up yourself.
+
 `invariant compile` then writes the program into the build, where it ships with
 the code it belongs to. A blocked release compiles nothing, because an adapter
 built from Changes that do not explain the release would serve the old contract

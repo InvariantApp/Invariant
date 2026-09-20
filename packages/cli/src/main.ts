@@ -9,6 +9,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { check, renderReport } from "./check.ts";
+import { renderComment } from "./comment.ts";
 import { loadConfig } from "./config.ts";
 import { renderProposals, runPropose } from "./propose.ts";
 
@@ -23,6 +24,7 @@ Options
   --config <path>   Path to invariant.yaml (default: ./invariant.yaml)
   --out <path>      Where compile writes (default: invariant/compiled/program.json)
   --full            check: also start the real builds and compare them
+  --format markdown check: write the report as a pull request comment
   --write           propose: write the drafts into invariant/changes
   --offline         propose: deterministic rules only, no model calls
   --context <text>  propose: notes about this release, weighed as evidence
@@ -44,7 +46,8 @@ async function main(argv: string[]): Promise<number> {
 
   if (command === "check") {
     const report = await check(config, { full: argv.includes("--full") });
-    process.stdout.write(`${renderReport(report)}\n`);
+    const markdown = flag(argv, "format") === "markdown";
+    process.stdout.write(markdown ? renderComment(report) : `${renderReport(report)}\n`);
     return report.result === "block" ? 1 : 0;
   }
 
