@@ -17,6 +17,46 @@ import {
 } from "@invariant/runtime";
 import type { Context, MiddlewareHandler, Next } from "hono";
 
+/** Where `adapt` leaves the contract it resolved, for handlers to branch on. */
+const CONTRACT_KEY = "invariantContract";
+
+/**
+ * The contract this request is being served under.
+ *
+ * Throws when `adapt` did not run for this route, because the alternative is
+ * quietly assuming the caller is current. A route reached without the adapter
+ * is a wiring mistake, and a behaviour branch that reads it would take the
+ * wrong side of itself for every old caller.
+ */
+export function contractOf(c: Context): string {
+  const label = c.get(CONTRACT_KEY) as string | undefined;
+  if (label === undefined) {
+    throw new Error(
+      `No contract resolved for ${c.req.method} ${c.req.path}. Mount adapt() on this route before reading it.`,
+    );
+  }
+  return label;
+}
+
+/**
+ * Whether this caller predates the change a behaviour flag marks.
+ *
+ * The provider-code half of everything the IR cannot express. See
+ * `InvariantRuntime.before`, including why this must never gate authorisation.
+ */
+export function before(
+  runtime: InvariantRuntime,
+  c: Context,
+  flag: string,
+  consumerId?: (c: Context) => string | undefined,
+): boolean {
+  return runtime.before(flag, {
+    contract: contractOf(c),
+    operation: `${c.req.method.toLowerCase()} ${c.req.path}`,
+    consumer: consumerId?.(c),
+  });
+}
+
 export type FetchHandler = (
   request: Request,
   ...rest: never[]
@@ -127,6 +167,10 @@ export function adapt(options: HonoBindingOptions): MiddlewareHandler {
       }
       throw error;
     }
+
+    // Set before the handler runs, so a behaviour branch inside it can read it
+    // whether or not this operation has any compiled work of its own.
+    c.set(CONTRACT_KEY, contract);
 
     if (!site) {
       await next();

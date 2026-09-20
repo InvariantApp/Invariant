@@ -58,7 +58,7 @@ a judgement call.
 | `add {path, value}` | insert `value` when the field is absent | delete the field |
 | `remove {path, restore}` | delete the field | set it to `restore` |
 | `route {from, to}` | rewrite method and path | nothing; responses are keyed by the resolved operation |
-| `behavior {flag}` | nothing | nothing |
+| `behavior {flag, covers?}` | nothing | nothing |
 
 `move` covers rename, nest and unnest, because all three are the same
 operation on a pointer. A move whose source is absent does nothing; it must not
@@ -67,6 +67,21 @@ create the target as null.
 `behavior` has no transform at all. It records that provider code branches on
 contract age, which is the honest answer when a change is not about shape. A
 Change containing one is derived as `runtime: none` and cannot be served.
+
+At runtime the branch is reached through `before(flag, { contract })`, which
+answers whether this caller predates the change the flag marks. Asking about a
+flag no Change declares throws, because answering `false` would silently give
+every old caller the new behaviour, which is the one outcome the flag exists to
+prevent. A flag only ever selects a shape or a code path; it must never decide
+what a caller is permitted to do, since the caller chooses their own label.
+
+`covers` is how a `behavior` Change accounts for breaking deltas without
+transforming them. Each entry is one delta, written exactly as the release gate
+prints it. It is a list rather than a wildcard, and the gate refuses a release
+whose real unexplained deltas differ from the list in either direction: one
+nobody claimed, or a claim for something that no longer happens. Either means
+the contract moved underneath an acknowledgement. A release carrying a covered
+delta warns; it never passes.
 
 ### Codecs
 
@@ -193,7 +208,10 @@ contents of an opaque cursor. Authentication scheme changes. Multipart, binary
 and streaming bodies. Non-bijective value maps on a request path.
 
 Each of these makes the compiler report `none`, and the release gate blocks
-unless a `behavior` Change covers it and provider code handles it.
+until a `behavior` Change names the specific deltas in `covers` and provider
+code handles them. That is the whole of the escape hatch: it costs an explicit
+line per delta, it is re-checked on every release, and it downgrades the result
+to a warning rather than clearing it.
 
 ---
 

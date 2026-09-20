@@ -45,7 +45,29 @@ export interface StepReport {
   unexplained: string[];
   /** Problems applying the declared Changes at all. */
   issues: string[];
+  /** Claims a behavior Change makes that this release no longer breaks. */
+  stale: string[];
+  /** Breaking deltas a behavior Change accounts for, with no transform behind them. */
+  accounted: number;
   additive: number;
+}
+
+/**
+ * Every breaking delta a `behavior` Change in this step claims to cover.
+ *
+ * The claims are compared as text against what the gate prints, which is the
+ * point: a provider copies the line, so the thing they acknowledged and the
+ * thing that happened cannot drift apart without the comparison failing.
+ */
+function claimsIn(changes: readonly Change[]): Set<string> {
+  const claims = new Set<string>();
+  for (const change of changes) {
+    for (const op of change.ops) {
+      if (op.op !== "behavior") continue;
+      for (const line of op.covers ?? []) claims.add(line);
+    }
+  }
+  return claims;
 }
 
 export interface CheckReport {
@@ -142,15 +164,34 @@ export async function check(
   for (const step of steps) {
     const prediction = predictDocument(step.from, step.to, step.changes);
     const entries = await diffDocuments(prediction.document, step.to);
-    const breaking = breakingEntries(entries);
+    const breakingAll = breakingEntries(entries);
+
+    const claimed = claimsIn(step.changes);
+    const breaking = breakingAll.filter((entry) => !claimed.has(describeEntry(entry)));
+    const accounted = breakingAll.length - breaking.length;
+
+    // A claim for a delta that is no longer there means the contract moved
+    // under an acknowledgement, so whoever signed it has not seen what they
+    // are now signing. Blocking is the only reading of that which is safe.
+    const stale = [...claimed].filter(
+      (line) => !breakingAll.some((entry) => describeEntry(entry) === line),
+    );
+    for (const line of stale) {
+      warnings.push(
+        `A behavior Change still claims to cover "${line}", which this release no ` +
+          "longer breaks. Remove the line, so what was acknowledged is what is true.",
+      );
+    }
 
     reports.push({
       from: step.parent,
       to: step.label,
       changes: step.changes,
       unexplained: breaking.map(describeEntry),
+      stale,
+      accounted,
       issues: prediction.issues.map((issue) => `${issue.changeId}: ${issue.message}`),
-      additive: entries.length - breaking.length,
+      additive: entries.length - breakingAll.length,
     });
 
     evidence.push({
@@ -162,10 +203,26 @@ export async function check(
       summary:
         breaking.length > 0
           ? `${breaking.length} breaking deltas no Change accounts for`
-          : `the declared Changes explain the whole breaking diff, ` +
-            `alongside ${entries.length - breaking.length} compatible deltas`,
+          : accounted > 0
+            ? `the declared Changes explain the whole breaking diff, of which ` +
+              `${accounted} ${accounted === 1 ? "is" : "are"} acknowledged as ` +
+              "breaking and handled in provider code rather than transformed"
+            : `the declared Changes explain the whole breaking diff, ` +
+              `alongside ${entries.length - breakingAll.length} compatible deltas`,
       ...(breaking.length > 0 ? { detail: breaking.map(describeEntry) } : {}),
     });
+
+    if (accounted > 0) {
+      // Not a failure, and not a pass either. Something here genuinely breaks
+      // for an old caller unless provider code handles it, and no layer of
+      // this tool can check that it does.
+      warnings.push(
+        `${accounted} breaking ${accounted === 1 ? "delta is" : "deltas are"} ` +
+          `acknowledged by a behavior Change on ${step.parent} -> ${step.label}. ` +
+          "Nothing transforms them. Old callers get the new behaviour unless your " +
+          "own code branches on the flag, and only your tests can show that it does.",
+      );
+    }
 
     for (const change of step.changes) {
       if (change.assertions?.side_effects_unchanged !== true) {
@@ -225,8 +282,12 @@ export async function check(
   }
 
   const blocked =
-    reports.some((report) => report.unexplained.length > 0 || report.issues.length > 0) ||
-    verified.problems.length > 0;
+    reports.some(
+      (report) =>
+        report.unexplained.length > 0 ||
+        report.issues.length > 0 ||
+        report.stale.length > 0,
+    ) || verified.problems.length > 0;
 
   return {
     api: config.api,
@@ -251,9 +312,35 @@ export function renderReport(report: CheckReport): string {
     lines.push(`Contract ${pending.from} -> ${pending.to}`);
     lines.push(`  ${pending.changes.length} declared changes`);
     lines.push(`  ${pending.additive} additive or otherwise compatible deltas`);
+    if (pending.accounted > 0) {
+      lines.push(
+        `  ${pending.accounted} breaking ${pending.accounted === 1 ? "delta" : "deltas"} acknowledged by a behavior Change, with no transform behind ${pending.accounted === 1 ? "it" : "them"}`,
+      );
+    }
     if (pending.unexplained.length > 0) {
       lines.push(`  ${pending.unexplained.length} breaking deltas nothing accounts for:`);
       for (const entry of pending.unexplained) lines.push(`    - ${entry}`);
+
+      // A provider whose change genuinely cannot be expressed needs these lines
+      // verbatim, and asking them to retype the gate's own output is how a
+      // discipline turns into a formality.
+      lines.push(
+        "",
+        "  If your own code handles these, say so by copying them exactly into a",
+        "  behavior Change. Nothing will transform them, and this release will",
+        "  warn rather than pass:",
+        "",
+        "    ops:",
+        "      - op: behavior",
+        "        flag: <a slug naming the change>",
+        "        covers:",
+      );
+      for (const entry of pending.unexplained) {
+        lines.push(`          - ${JSON.stringify(entry)}`);
+      }
+    }
+    for (const entry of pending.stale) {
+      lines.push(`  ! a behavior Change covers "${entry}", which no longer happens`);
     }
     for (const issue of pending.issues) lines.push(`  ! ${issue}`);
   }

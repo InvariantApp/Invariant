@@ -129,7 +129,23 @@ export const RouteOp = Type.Object(
 );
 
 export const BehaviorOp = Type.Object(
-  { op: Type.Literal("behavior"), flag: Slug },
+  {
+    op: Type.Literal("behavior"),
+    flag: Slug,
+    /**
+     * The breaking deltas this Change accounts for, each written exactly as the
+     * gate prints it.
+     *
+     * This is the only way anything reaches a release without a transform
+     * behind it, so it is deliberately the most tedious field in the IR. It is
+     * a list, not a wildcard, and the gate refuses a release whose actual
+     * unexplained deltas differ from it in either direction: something new that
+     * nobody claimed, or a claim for something that is no longer there. Either
+     * means the contract moved underneath an acknowledgement, and the person
+     * who signed it has not seen what they are now signing.
+     */
+    covers: Type.Optional(Type.Array(Type.String({ minLength: 1 }), { minItems: 1 })),
+  },
   {
     additionalProperties: false,
     description:

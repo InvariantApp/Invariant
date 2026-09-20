@@ -12,6 +12,7 @@ import { loadContract, loadPendingChanges } from "@invariant/contract";
 import type { Change } from "@invariant/ir";
 import {
   HybridJudge,
+  type Impasse,
   JevJudge,
   type Proposal,
   propose,
@@ -25,6 +26,8 @@ export interface ProposeResult {
   proposals: Proposal[];
   /** Changes the proposer would not draft, with the reason it would not. */
   unresolved: Unresolved[];
+  /** Changes no Change could express, named as one problem each. */
+  impasses: Impasse[];
   /** Ids already declared in the repository, which are left alone. */
   skipped: string[];
   written: string[];
@@ -54,7 +57,9 @@ export async function runPropose(
 ): Promise<ProposeResult> {
   const labels = [...config.releasedSpecs.keys()].sort();
   const latest = labels[labels.length - 1];
-  if (!latest) return { proposals: [], unresolved: [], skipped: [], written: [] };
+  if (!latest) {
+    return { proposals: [], unresolved: [], impasses: [], skipped: [], written: [] };
+  }
 
   const [previous, current, existing] = await Promise.all([
     loadContract(config.releasedSpecs.get(latest) as string, latest),
@@ -67,10 +72,14 @@ export async function runPropose(
     ? new RulesJudge()
     : new HybridJudge(new RulesJudge(), new JevJudge());
 
-  const { proposals, unresolved } = await propose(previous.document, current.document, {
-    judge,
-    ...(options.context === undefined ? {} : { context: options.context }),
-  });
+  const { proposals, unresolved, impasses } = await propose(
+    previous.document,
+    current.document,
+    {
+      judge,
+      ...(options.context === undefined ? {} : { context: options.context }),
+    },
+  );
 
   const declared = new Set(existing.map((change: Change) => change.id));
   const fresh = proposals.filter((proposal) => !declared.has(proposal.change.id));
@@ -87,17 +96,55 @@ export async function runPropose(
     }
   }
 
-  return { proposals: fresh, unresolved, skipped, written };
+  return { proposals: fresh, unresolved, impasses, skipped, written };
+}
+
+/**
+ * The ones there is no Change for, at any confidence, ever.
+ *
+ * Printed above the per-field list and separately from it, because a provider
+ * who reads "three fields are unaccounted for" goes looking for three Changes,
+ * and here there are none to find. Leaving them to work that out from a blocked
+ * release would be the worst first impression this tool could make.
+ */
+function renderImpasses(result: ProposeResult): string[] {
+  if (result.impasses.length === 0) return [];
+
+  const lines = [
+    `${result.impasses.length} ${result.impasses.length === 1 ? "change has" : "changes have"} no Change that could express ${result.impasses.length === 1 ? "it" : "them"}:`,
+    "",
+  ];
+  for (const impasse of result.impasses) {
+    lines.push(`  ${impasse.schema}: a ${impasse.kind}`);
+    lines.push(`    ${impasse.why}`);
+    lines.push("");
+    lines.push("    What you can do:");
+    for (const [index, option] of impasse.options.entries()) {
+      lines.push(`      ${index + 1}. ${option}`);
+    }
+    lines.push("");
+  }
+  return lines;
 }
 
 function renderUnresolved(result: ProposeResult): string[] {
-  if (result.unresolved.length === 0) return [];
+  // Fields already explained as part of an impasse are not separate problems.
+  const claimed = new Set(
+    result.impasses.flatMap((impasse) =>
+      [...impasse.removed, ...impasse.added].map((field) => `${impasse.schema}.${field}`),
+    ),
+  );
+  const rest = result.unresolved.filter(
+    (entry) => !claimed.has(`${entry.schema}.${entry.field}`),
+  );
+  if (rest.length === 0) return [];
+
   // Saying nothing here would leave the provider to discover these from a
   // blocked release instead, with less to go on.
   return [
-    `${result.unresolved.length} changes it would not draft, which you will have to write yourself:`,
+    `${rest.length} changes it would not draft, which you will have to write yourself:`,
     "",
-    ...result.unresolved.flatMap((entry) => [
+    ...rest.flatMap((entry) => [
       `  ${entry.schema}.${entry.field}`,
       `    ${entry.reason}`,
     ]),
@@ -107,7 +154,7 @@ function renderUnresolved(result: ProposeResult): string[] {
 
 export function renderProposals(result: ProposeResult): string {
   if (result.proposals.length === 0) {
-    const nothing = renderUnresolved(result);
+    const nothing = [...renderImpasses(result), ...renderUnresolved(result)];
     if (nothing.length > 0) return nothing.join("\n").trimEnd();
     return result.skipped.length > 0
       ? `Every change this release makes is already declared (${result.skipped.length} of them).`
@@ -125,7 +172,7 @@ export function renderProposals(result: ProposeResult): string {
     for (const note of proposal.notes) lines.push(`    - ${note}`);
     lines.push("");
   }
-  lines.push(...renderUnresolved(result));
+  lines.push(...renderImpasses(result), ...renderUnresolved(result));
 
   if (result.written.length > 0) {
     lines.push(`Wrote ${result.written.length} files into invariant/changes.`);

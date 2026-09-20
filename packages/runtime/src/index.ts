@@ -102,6 +102,33 @@ export class BodyTooLargeError extends Error {
   }
 }
 
+/**
+ * A handler asked about a behaviour flag no Change declares.
+ *
+ * Almost always a typo, and the reason this throws rather than answering
+ * `false`: answering would mean every caller silently gets the new behaviour,
+ * including the ones the flag exists to protect, and nothing would ever say so.
+ */
+export class UnknownBehaviorError extends Error {
+  constructor(flag: string, known: readonly string[]) {
+    super(
+      `No Change declares the behaviour flag "${flag}". ` +
+        (known.length > 0
+          ? `Declared flags: ${known.join(", ")}.`
+          : "This program declares none."),
+    );
+    this.name = "UnknownBehaviorError";
+  }
+}
+
+/** Where a behaviour question is being asked from, for counting. */
+export interface BehaviorContext {
+  /** The contract this request is served under, from `resolve`. */
+  contract: string;
+  operation?: string | undefined;
+  consumer?: string | undefined;
+}
+
 export interface RouteDecision {
   /** The path the canonical handler should see. */
   path: string;
@@ -122,9 +149,15 @@ export class InvariantRuntime {
   readonly #fidelity: NumberFidelity;
   readonly #flags: () => RuntimeFlags;
   readonly #onUsage: ((event: UsageEvent) => void) | undefined;
+  readonly #behaviors: readonly string[];
 
   constructor(options: RuntimeOptions) {
     this.#program = decodeProgram(options.program);
+    this.#behaviors = [
+      ...new Set(
+        [...this.#program.contracts.values()].flatMap((contract) => contract.behaviors),
+      ),
+    ].sort();
     this.#identity = options.identity;
     this.#maxBodyBytes = options.maxBodyBytes ?? 1024 * 1024;
     this.#limits = options.limits ?? DEFAULT_LIMITS;
@@ -143,6 +176,48 @@ export class InvariantRuntime {
 
   knows(label: string): boolean {
     return label === this.#program.currentLabel || this.#program.contracts.has(label);
+  }
+
+  /** Every behaviour flag any Change in this program declares. */
+  get behaviors(): readonly string[] {
+    return this.#behaviors;
+  }
+
+  /**
+   * Whether this caller predates the change a behaviour flag marks.
+   *
+   * The escape hatch for everything the IR deliberately cannot express: a
+   * change of side effect, of timing, of a business rule, or a reshaping no op
+   * in the catalog covers. The provider writes the branch themselves, in their
+   * own code, and this says which side of it a given caller belongs on.
+   *
+   *     if (inv.before("chg_capture_is_deferred", { contract })) {
+   *       await captureImmediately(payment);
+   *     }
+   *
+   * It is a fact about a public contract label and nothing else. It must never
+   * decide what a caller is allowed to do: a label is chosen by the caller, so
+   * branching authorisation on it would let anyone pick their own permissions.
+   */
+  before(flag: string, on: BehaviorContext): boolean {
+    if (!this.#behaviors.includes(flag)) {
+      throw new UnknownBehaviorError(flag, this.#behaviors);
+    }
+
+    // A caller on the current contract is by definition not before anything.
+    const contract = this.#program.contracts.get(on.contract);
+    if (!contract?.behaviors.includes(flag)) return false;
+
+    // Counted the same way an applied op is, so a behaviour branch can be
+    // retired on evidence rather than on a guess that nobody takes it any more.
+    this.#onUsage?.({
+      contract: on.contract,
+      operation: on.operation ?? "behavior",
+      consumer: on.consumer,
+      changes: new Map([[flag, 1]]),
+    });
+
+    return true;
   }
 
   /**

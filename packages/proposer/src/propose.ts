@@ -123,11 +123,105 @@ export interface Unresolved {
   schema: string;
   field: string;
   reason: string;
+  /**
+   * Which side of the diff this field is on. Carried structurally rather than
+   * inferred back out of `reason`, because grouping these is how a split gets
+   * recognised as one thing instead of three.
+   */
+  side: "removed" | "added";
+}
+
+/**
+ * A shape the IR deliberately cannot express, named as one problem.
+ *
+ * Worth separating from the per-field list because the per-field list is
+ * misleading here: a provider reading "these three fields are unaccounted for"
+ * will look for three Changes, and no three Changes exist. One field becoming
+ * two is a single decision, and it is a decision about their own code.
+ */
+export interface Impasse {
+  kind: "split" | "merge";
+  schema: string;
+  removed: string[];
+  added: string[];
+  /** What the catalog cannot do, and why it is not an oversight. */
+  why: string;
+  /** What the provider can actually do, in the order worth trying. */
+  options: string[];
 }
 
 export interface ProposeOutcome {
   proposals: Proposal[];
   unresolved: Unresolved[];
+  /** Unresolved fields that together form a change no op can express. */
+  impasses: Impasse[];
+}
+
+const LIST = (names: readonly string[]): string =>
+  names.map((name) => `\`${name}\``).join(" and ");
+
+/**
+ * Recognises the two shapes the IR has no op for.
+ *
+ * Only these two, and only when the counts are unambiguous. Several fields
+ * removed beside several added is far more likely to be a handful of renames a
+ * judge could not settle than one structural reshaping, and claiming otherwise
+ * would send a provider looking for a problem they do not have.
+ */
+function impassesIn(unresolved: readonly Unresolved[]): Impasse[] {
+  const bySchema = new Map<string, Unresolved[]>();
+  for (const entry of unresolved) {
+    const found = bySchema.get(entry.schema);
+    if (found) found.push(entry);
+    else bySchema.set(entry.schema, [entry]);
+  }
+
+  const impasses: Impasse[] = [];
+  for (const [schema, entries] of [...bySchema].sort()) {
+    const removed = entries.filter((e) => e.side === "removed").map((e) => e.field);
+    const added = entries.filter((e) => e.side === "added").map((e) => e.field);
+
+    const kind =
+      removed.length === 1 && added.length > 1
+        ? "split"
+        : removed.length > 1 && added.length === 1
+          ? "merge"
+          : undefined;
+    if (!kind) continue;
+
+    const one = kind === "split" ? (removed[0] as string) : (added[0] as string);
+    const many = kind === "split" ? added : removed;
+
+    impasses.push({
+      kind,
+      schema,
+      removed,
+      added,
+      why:
+        kind === "split"
+          ? `\`${one}\` became ${LIST(many)}. No op takes one value apart, because a ` +
+            "response has to be put back together for the old caller and there is no " +
+            "general way to rejoin what was separated."
+          : `${LIST(many)} became \`${one}\`. No op joins values, because joining ` +
+            "cannot be undone: the old caller's fields are not recoverable from the " +
+            "one that replaced them.",
+      options: [
+        `Keep serving \`${kind === "split" ? one : one}\` as well. Deriving it ` +
+          "alongside the new fields makes this release additive, and then there is " +
+          "nothing here to explain.",
+        "Declare a `behavior` Change and write the branch yourself. Run " +
+          "`invariant check` and copy the lines it gives you into `covers:`, then " +
+          '`inv.before("chg_...", { contract })` in your handler tells you which ' +
+          "callers predate this. The release warns rather than passes, because " +
+          "nothing transforms anything and only your tests can show the branch works.",
+        "Stop serving the contracts that would break, by removing them from " +
+          "`spec.released`. Honest, and sometimes right, but it is the one option " +
+          "that breaks somebody.",
+      ],
+    });
+  }
+
+  return impasses;
 }
 
 export interface ProposeOptions {
@@ -154,7 +248,9 @@ export async function propose(
   const questions = deltas.flatMap((delta: SchemaDelta) =>
     questionsFor(delta, options.context),
   );
-  if (questions.length === 0) return { proposals: altered.proposals, unresolved };
+  if (questions.length === 0) {
+    return { proposals: altered.proposals, unresolved, impasses: impassesIn(unresolved) };
+  }
 
   const results = await options.judge.align(questions);
   const proposals: Proposal[] = [...altered.proposals];
@@ -169,6 +265,7 @@ export async function propose(
           result?.answer.successor === null && !result.answer.abstained
             ? "nothing in the new contract replaces it, so this is a removal a person has to decide about"
             : "no judge would say which field replaced it",
+        side: "removed",
       });
       return;
     }
@@ -184,6 +281,7 @@ export async function propose(
         schema: question.schema,
         field: question.removed.name,
         reason: `paired with \`${successor.name}\`, but ${notes.join("; ") || "no op expresses the difference"}`,
+        side: "removed",
       });
       return;
     }
@@ -229,12 +327,11 @@ export async function propose(
     ),
   );
 
-  return {
-    proposals,
-    unresolved: unresolved.filter(
-      (entry) => !accountedFor.has(`${entry.schema}.${entry.field}`),
-    ),
-  };
+  const open = unresolved.filter(
+    (entry) => !accountedFor.has(`${entry.schema}.${entry.field}`),
+  );
+
+  return { proposals, unresolved: open, impasses: impassesIn(open) };
 }
 
 /** The schema a proposal is scoped to, for matching against an unresolved field. */
@@ -254,6 +351,7 @@ function additions(deltas: readonly SchemaDelta[]): Unresolved[] {
         field: field.name,
         reason:
           "newly required, and the value a caller who predates it should get is not in the specification",
+        side: "added" as const,
       })),
   );
 }
@@ -271,7 +369,9 @@ function additions(deltas: readonly SchemaDelta[]): Unresolved[] {
  * it needs is not in the specification at all. Those still get written by hand,
  * and the release gate refuses the release until they are.
  */
-function alteredProposals(deltas: readonly SchemaDelta[]): ProposeOutcome {
+function alteredProposals(
+  deltas: readonly SchemaDelta[],
+): Pick<ProposeOutcome, "proposals" | "unresolved"> {
   const proposals: Proposal[] = [];
   const unresolved: Unresolved[] = [];
 
@@ -283,6 +383,7 @@ function alteredProposals(deltas: readonly SchemaDelta[]): ProposeOutcome {
           schema: delta.schema,
           field: pair.old.name,
           reason: notes.join("; ") || "its shape changed in a way no op expresses",
+          side: "removed",
         });
         continue;
       }

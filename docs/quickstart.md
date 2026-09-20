@@ -1,7 +1,55 @@
 # Adding Invariant to an API
 
-This is what a provider actually does. It assumes you have an OpenAPI document
-that describes your API, and a way to start your service.
+This is what a provider actually does. Each step below is useful on its own and
+none of them requires the next one, because the last thing anybody should do is
+put someone else's code in their request path on a promise.
+
+Only the first step is required to get an answer. It needs one thing: an OpenAPI
+document, at two points in time.
+
+---
+
+## 0. Find out what you are about to break
+
+Two specification files and five lines of configuration. No Change files, no
+compiled program, nothing running in your service.
+
+```yaml
+api: acme-payments
+spec:
+  current: openapi/head.json
+  currentLabel: "2026-09-20"
+  released:
+    "2026-03-01": openapi/2026-03-01.json
+```
+
+```console
+$ invariant check
+```
+
+```
+Release status: BLOCK
+
+2026-03-01 -> 2026-09-20
+  0 declared changes
+  1 additive or otherwise compatible delta
+  27 breaking deltas nothing accounts for
+
+  - response-required-property-removed at POST /v1/payments:
+      removed the required property `amount` from the response with the `201` status
+  - new-required-request-property at POST /v1/payments:
+      added the new required request property `capture_method`
+  - response-property-enum-value-removed at GET /v1/payments:
+      removed the `succeeded` enum value from the `data/items/status` response property
+  ...
+```
+
+That is the whole first rung. It is an inventory of what this pull request does
+to everyone already calling you, by operation and by field, and you can put it
+in CI today without changing a line of your service.
+
+Everything after this point is optional, in the order given. Stopping at any
+rung leaves you with something that works.
 
 ---
 
@@ -89,6 +137,71 @@ what it can and says plainly what it will not:
 A draft is a file you read, edit and merge. Merging it is the confirmation;
 there is no separate approval step and no dashboard.
 
+### When no Change could express it
+
+Some changes are not about shape, and some are about shape in a way no op
+covers: one field becoming two, a side effect moving, a union reshaped. The
+catalog is small deliberately, so it has a ceiling, and you will meet it.
+
+`invariant propose` says so by name rather than listing the fields separately:
+
+```
+1 change has no Change that could express it:
+
+  Contact: a split
+    `name` became `first_name` and `last_name`. No op takes one value apart,
+    because a response has to be put back together for the old caller and
+    there is no general way to rejoin what was separated.
+
+    What you can do:
+      1. Keep serving `name` as well. Deriving it alongside the new fields
+         makes this release additive, and then there is nothing to explain.
+      2. Declare a `behavior` Change and write the branch yourself.
+      3. Stop serving the contracts that would break.
+```
+
+Option 2 is the escape hatch, and it is the same one every system that has
+really solved this arrived at. `invariant check` prints the deltas ready to
+paste:
+
+```yaml
+ops:
+  - op: behavior
+    flag: chg_contact_name_split
+    covers:
+      - "request-property-removed at POST /v1/contacts: removed the request property `name`"
+      # ...one line per delta, exactly as the gate printed it
+```
+
+Then your own handler branches:
+
+```ts
+import { before } from "@invariant/runtime-hono";
+
+app.post("/v1/contacts", async (c) => {
+  const body = await c.req.json();
+  const contact = before(inv, c, "chg_contact_name_split")
+    ? splitName(body.name)
+    : { first_name: body.first_name, last_name: body.last_name };
+  // ...
+});
+```
+
+Three things about this, which are the reasons it is not simply a way to
+switch the gate off:
+
+- **It is a list, not a wildcard.** A delta you did not name still blocks, and
+  a delta you named that no longer happens also blocks. An acknowledgement
+  cannot quietly start covering something you have not read.
+- **The release warns; it never passes.** Nothing transforms anything here.
+  Old callers get the new behaviour unless your code branches, and only your
+  tests can show that it does.
+- **Asking about a flag nothing declares throws.** A typo answering `false`
+  would hand every old caller the new behaviour, silently and forever.
+
+A behaviour branch is counted like any other change, so `invariant retire`
+can eventually tell you the branch is dead and you can delete it.
+
 ---
 
 ## 4. Put the adapter in your service
@@ -156,7 +269,7 @@ createRuntime({ program, identity, flags: flags.read });
 
 Three granularities: one change, one contract, or everything. Switching a
 transform off means **refusing** the affected requests, not skipping the
-transform — skipping it would serve an old caller a body in the canonical
+transform. Skipping it would serve an old caller a body in the canonical
 shape under field names their contract has never had, and it would look like a
 success.
 
@@ -188,6 +301,25 @@ Safe to stop serving: 2026-01-15
 It only ever proposes. A contract with no records at all is reported separately
 from an idle one, because no telemetry is far more likely to mean the sink was
 never wired up than that every consumer left.
+
+---
+
+## What each step actually commits you to
+
+Worth being explicit about, because the steps are not the same size and the
+large ones are at the end.
+
+| Step | What you install | What you get | Reversible by |
+|---|---|---|---|
+| 0. Check | nothing | every breaking delta this pull request introduces, named | deleting a file |
+| 1-2. Gate in CI | a CI step | the above, on every pull request, as a failing check | deleting a file |
+| 3. Changes | text files in your repository | the gate can tell an intended break from an accident | deleting them |
+| 4. Adapter | a dependency, two middleware lines | old callers keep working against your new code | reverting a deploy |
+| 5. Release | a signing key in CI | a reproducible, signed record of what changed | not publishing |
+| 6-7. Operate | a usage sink | a kill switch, and evidence for when to stop serving a contract | turning it off |
+
+Step 4 is the only one that touches a production request path, and it is fifth.
+Nothing before it runs anywhere but your CI.
 
 ---
 

@@ -1216,6 +1216,56 @@ then **softened** to let the judge pass, before it reached me. The harder
 version is back and the judge was fixed instead. A corpus reshaped to fit the
 thing it measures measures nothing.
 
+### Looking back at the objections
+
+Three things were argued against during the build rather than designed around.
+Each was taken back up at the end, and what follows is what measurement said
+rather than what the argument concluded.
+
+**"The adoption ask is the real risk, not the technology."** Correct, and the
+answer was already in the code without being documented or defended. A provider
+with two OpenAPI files and a five-line configuration gets the whole breaking
+inventory of their pull request, by operation and by field, with no Change
+files, no compiled program, no adapter and nothing running in their service.
+Measured on the fixture: 27 breaking deltas, each named. That is the first rung,
+it is worth standing on alone, and `packages/cli/src/adopt.test.ts` now pins it
+so it cannot regress into requiring the rest. The steps are documented in the
+order of what they cost, and the only one that touches a production request path
+is fifth.
+
+**"The IR's expressiveness ceiling may bind more often than the fixture
+suggests."** Also correct, and worse than argued, because the escape hatch was
+not real. `ctx.invariant.before()` appeared twice in this document and nowhere
+in the source. Reproduced end to end on a field split: the gate named six
+deltas that read as six unrelated problems, `propose` drafted nothing and
+offered no path, and writing a `behavior` Change by hand changed neither, since
+nothing let one account for anything. A provider meeting the ceiling was simply
+stuck.
+
+Three things were built. `propose` now recognises a split or a merge as one
+problem and states the three real options, because a provider reading "three
+fields are unaccounted for" goes looking for three Changes that do not exist.
+`behavior` ops carry `covers`, a list of the deltas they account for, written
+exactly as the gate prints them. And `before(flag, { contract })` exists at
+runtime, with the Hono binding to reach it from a handler.
+
+`covers` had to be a list rather than a scope or a wildcard. An acknowledgement
+that absorbs whatever is unexplained in a schema is not an escape hatch, it is
+the gate switched off, and the danger is not the release where it is written but
+the one a year later where it silently swallows something nobody read. So the
+gate blocks on a delta nobody claimed and equally on a claim for a delta that no
+longer happens, which is closure's own discipline applied to the hatch itself.
+Such a release warns and never passes: nothing transforms anything, and no layer
+here can check that the provider's branch is correct. Asking about an undeclared
+flag throws rather than answering `false`, because `false` would hand every old
+caller the new behaviour, permanently and without a word.
+
+On frequency, the corpus says 10 of 155 cases are splits or merges and 30 are
+removals, but that is a corpus written for this purpose, so it measures the
+questions asked rather than the work. The number worth quoting is the cost of
+meeting the ceiling, and it is now one line per delta plus a branch, rather than
+a dead end.
+
 ### Still to build
 
 **The Octokit half of Phase 7.** Webhook verification, replay protection,
