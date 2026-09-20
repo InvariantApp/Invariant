@@ -225,6 +225,18 @@ importers:
         specifier: workspace:*
         version: link:../runtime
 
+  packages/github:
+    dependencies:
+      '@invariant/bundle':
+        specifier: workspace:*
+        version: link:../bundle
+      '@invariant/ir':
+        specifier: workspace:*
+        version: link:../ir
+      '@invariant/migrate-ts':
+        specifier: workspace:*
+        version: link:../migrate-ts
+
   packages/ir:
     dependencies:
       '@sinclair/typebox':

@@ -1126,12 +1126,41 @@ And the same insert-anchor bug as the typed engine: a zero-width insert at a
 property's start sits inside the span of the edit that rewrites that property,
 so one of the two is dropped. Second time. Anchored after the brace.
 
+### Phase 7, and what is honestly missing from it
+
+The delivery path is a public, unauthenticated endpoint whose every downstream
+action - cloning a consumer's repository, running a migration, opening a pull
+request - is work a stranger's request can cause. So the security of it is
+built and tested: signature verification against the raw bytes before anything
+is parsed, a delivery log so a retry does not open five pull requests, an
+answer that tells GitHub not to retry a duplicate, and a signed expiring link
+that grants exactly one binding and nothing else.
+
+Two decisions worth naming. The delivery id is recorded only *after* the
+signature verifies, so an unauthenticated caller cannot fill the log with ids
+it invented and suppress real deliveries. And the app asks for `checks: read`
+but never `workflows` or `actions`, because opening a pull request does not
+require the ability to change what runs in someone's pipeline or to read its
+secrets - which is written down in code beside the permissions themselves.
+
+The pull request body puts what nobody could check above what was verified. A
+diff mixing a type-checked rename with a name-matched guess, presented
+identically, teaches the reader to skim both.
+
+**What is not built**: the Octokit wiring that turns all of this into real
+commits on real repositories, and the integration test against a scratch org
+that the phase's acceptance criteria call for. Both need GitHub credentials and
+a live app registration. Everything up to that boundary is tested; the last
+mile is not, and no part of this repository should be read as evidence that it
+works.
+
 ### Still to build
 
-The registry and control plane (the hosted half of Phase 5), Phase 7 (GitHub
-App delivery), Phase 8 (demo hardening and drills). Bundles are built, signed,
-verified and reproducible; what does not exist yet is anywhere to publish them
-to, so `invariant release` writes them into the provider's own repository. Consumer C has no migration path
+The registry and control plane (the hosted half of Phase 5), the Octokit half
+of Phase 7, and the narrated demo and documentation of Phase 8. Bundles are
+built, signed, verified and reproducible; what does not exist is anywhere to
+publish them to, so `invariant release` writes them into the provider's own
+repository. Consumer C has no migration path
 yet: it is raw HTTP and belongs behind the Judge interface with a review flag.
 
 Two evidence kinds are defined but not yet produced. E8 needs the release step

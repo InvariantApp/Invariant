@@ -1,0 +1,15 @@
+{
+  "name": "@invariant/github",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Delivers migrations as pull requests: webhook verification, sponsored links, and provenance bodies",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@invariant/bundle": "workspace:*",
+    "@invariant/ir": "workspace:*",
+    "@invariant/migrate-ts": "workspace:*"
+  }
+}
