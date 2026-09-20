@@ -126,6 +126,9 @@ importers:
       '@invariant/ir':
         specifier: workspace:*
         version: link:../ir
+      '@invariant/proposer':
+        specifier: workspace:*
+        version: link:../proposer
       yaml:
         specifier: ^2.8.2
         version: 2.9.1

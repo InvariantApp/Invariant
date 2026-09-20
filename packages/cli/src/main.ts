@@ -10,15 +10,20 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { check, renderReport } from "./check.ts";
 import { loadConfig } from "./config.ts";
+import { renderProposals, runPropose } from "./propose.ts";
 
 const USAGE = `invariant <command>
 
   check     Does this release's declared Changes explain what the API did?
+  propose   Draft Change files for whatever this release has not explained.
   compile   Write the compiled program into the build.
 
 Options
   --config <path>   Path to invariant.yaml (default: ./invariant.yaml)
   --out <path>      Where compile writes (default: invariant/compiled/program.json)
+  --write           propose: write the drafts into invariant/changes
+  --offline         propose: deterministic rules only, no model calls
+  --context <text>  propose: notes about this release, weighed as evidence
 `;
 
 function flag(argv: readonly string[], name: string): string | undefined {
@@ -39,6 +44,17 @@ async function main(argv: string[]): Promise<number> {
     const report = await check(config);
     process.stdout.write(`${renderReport(report)}\n`);
     return report.result === "block" ? 1 : 0;
+  }
+
+  if (command === "propose") {
+    const context = flag(argv, "context");
+    const result = await runPropose(config, {
+      write: argv.includes("--write"),
+      offline: argv.includes("--offline"),
+      ...(context === undefined ? {} : { context }),
+    });
+    process.stdout.write(`${renderProposals(result)}\n`);
+    return 0;
   }
 
   if (command === "compile") {

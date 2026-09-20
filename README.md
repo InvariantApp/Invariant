@@ -50,7 +50,10 @@ packages/compiler     type checking, the closure check, and program projection
 packages/runtime      the compatibility interpreter and provider middleware
 packages/runtime-hono Hono bindings for the runtime
 packages/migrate-ts   type-aware indexing and codemods for consumer repositories
+packages/proposer     drafts candidate Changes; proposals only, never decisions
+packages/eval         measures each judge against a labelled corpus
 packages/cli          the invariant command, run in the provider's own CI
+eval/                 the corpus, recorded answers, and the ownership verdict
 ```
 
 ## The release gate
@@ -81,6 +84,36 @@ Release status: PASS
 the code it belongs to. A blocked release compiles nothing, because an adapter
 built from Changes that do not explain the release would serve the old contract
 incorrectly.
+
+## Drafting the Changes
+
+`invariant propose` reads the structural diff and drafts what it can:
+
+```
+4 draft changes:
+  chg_payment_amount
+    `amount` became `amount_cents` on Payment.
+    drafted by rules, 100% confident
+  ...
+
+3 changes it would not draft, which you will have to write yourself:
+  Payment.status
+    the allowed values changed (succeeded, pending went, paid, processing
+    arrived). Pair them up by hand: which old value maps to which new one is
+    not derivable from the shapes.
+  Payment.capture_method
+    newly required, and the value a caller who predates it should get is not
+    in the specification
+```
+
+Deterministic rules go first, so a model is only asked what spelling cannot
+settle. The ops are always derived from the declared shapes: a judge says which
+field replaced which, never what the scale factor is.
+
+Which judge is allowed to draft at all is decided by measurement, in
+[`eval/ownership.yaml`](eval/ownership.yaml), against a labelled corpus that
+includes instructions smuggled into pull request notes. Answers are recorded, so
+the evaluation runs in CI offline and for nothing.
 
 ## Requirements
 
