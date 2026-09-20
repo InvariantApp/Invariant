@@ -45,6 +45,16 @@ export interface InvariantConfig {
   api: string;
   /** Absolute path to the current contract's specification. */
   currentSpec: string;
+  /**
+   * What the contract being built is called, before it is released.
+   *
+   * Left out, this falls back to today's date, and that makes the compiled
+   * program depend on the day it was built: the same commit produces a
+   * different artifact tomorrow, which is exactly the property bundles are
+   * signed to rule out. A provider who pins it here gets a build that depends
+   * only on their repository.
+   */
+  currentLabel: string | undefined;
   /** Label to absolute specification path, for every contract still served. */
   releasedSpecs: Map<string, string>;
   /** Where Changes live, absolute. */
@@ -147,6 +157,8 @@ export async function loadConfig(path: string): Promise<InvariantConfig> {
     root,
     api,
     currentSpec: resolve(root, spec["current"]),
+    currentLabel:
+      typeof spec["currentLabel"] === "string" ? spec["currentLabel"] : undefined,
     releasedSpecs: released,
     invariantDir: resolve(root, "invariant"),
     contractHeader: headerStrategy(parsed["identity"]),

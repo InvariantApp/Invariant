@@ -1072,6 +1072,30 @@ about a business - a consumer that calls quarterly is idle for eighty-nine days
 and then very much not - so the window is the provider's, the evidence sits
 beside the recommendation, and the removal is a commit somebody makes.
 
+### The kill switch, and a build that did not depend only on its repository
+
+The rollback path was the one part of the safety story with no test behind it,
+and writing them found nothing wrong with it, which is worth saying plainly:
+six tests passed first time. What they pin down is the property that is easy to
+get wrong later, namely that switching a transform off must mean *refusing the
+request*, not skipping the transform. Skipping it hands an old caller a body in
+the canonical shape under field names its contract has never had, and it looks
+like a success.
+
+The drill did find something else. `invariant compile` named the contract being
+built after the day it ran, so the same commit compiled to a different program
+tomorrow - directly contradicting the reproducibility that bundles are signed
+to guarantee. `spec.currentLabel` now names it, the clock is consulted only
+when a release actually mints a label, and a provider who has not set it gets a
+warning rather than a surprise. The drill asserts the committed artifact is
+exactly what the repository compiles to, which is what makes "revert the
+deploy" mean something.
+
+Flags are read through a source that never throws and never caches beyond a
+bound. A malformed file during an incident keeps serving the last good answer,
+because a typo must not become an outage and must not silently undo a rollback
+in progress.
+
 ### Still to build
 
 The registry and control plane (the hosted half of Phase 5), Phase 7 (GitHub

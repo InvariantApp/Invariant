@@ -5,6 +5,10 @@ api: acme-payments
 # point this at a command that generates the spec from code.
 spec:
   current: openapi/head.json
+  # What the contract being built is called before it is released. Without this
+  # the compiled program is named after the day it was built, so the same
+  # commit produces a different artifact tomorrow.
+  currentLabel: "2026-09-20"
   released:
     "2026-01-15": openapi/2026-01-15.json
     "2026-03-01": openapi/2026-03-01.json

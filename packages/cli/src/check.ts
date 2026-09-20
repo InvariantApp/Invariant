@@ -74,7 +74,11 @@ async function contractsFor(config: InvariantConfig): Promise<{
       contract: await loadContract(config.releasedSpecs.get(label) as string, label),
     })),
   );
-  const currentLabel = new Date().toISOString().slice(0, 10);
+  // The provider's own name for the contract being built, or today's date if
+  // they have not given one. The fallback makes the compiled program depend on
+  // the day it was built, which `invariant check` warns about rather than
+  // leaving for someone to discover from two artifacts that will not match.
+  const currentLabel = config.currentLabel ?? new Date().toISOString().slice(0, 10);
   return { released, current: await loadContract(config.currentSpec, currentLabel) };
 }
 
@@ -203,6 +207,14 @@ export async function check(
       `${declared.length} Change ${declared.length === 1 ? "file" : "files"} parsed as ` +
       "IR version 1, with no unknown op kinds and no unknown fields",
   });
+
+  if (config.currentLabel === undefined) {
+    warnings.push(
+      "spec.currentLabel is not set, so the contract being built is named after " +
+        "today's date. The same commit will compile to a different program " +
+        "tomorrow. Set it to make the build depend only on this repository.",
+    );
+  }
 
   const verified = await verify(config, steps, current.label, current.document, options);
   evidence.push(...verified.evidence);

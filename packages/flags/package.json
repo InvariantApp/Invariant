@@ -1,0 +1,13 @@
+{
+  "name": "@invariant/flags",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Reads kill-switch flags from a file or the environment, with last-known-good semantics",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@invariant/runtime": "workspace:*"
+  }
+}

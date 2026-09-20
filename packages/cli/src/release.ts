@@ -100,7 +100,9 @@ export async function release(
   }
 
   const released = await listReleasedLabels(config.invariantDir);
-  const label = mintLabel(report.current.label, released);
+  // Minted from the clock here and only here. A release is the one moment that
+  // genuinely happens on a particular day; a build is not.
+  const label = mintLabel(new Date().toISOString().slice(0, 10), released);
 
   const parent = released[released.length - 1];
   if (!parent) {

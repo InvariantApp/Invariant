@@ -28,6 +28,7 @@
     "@invariant/contract": "workspace:*",
     "@invariant/diff": "workspace:*",
     "@invariant/eval": "workspace:*",
+    "@invariant/flags": "workspace:*",
     "@invariant/ir": "workspace:*",
     "@invariant/migrate-ts": "workspace:*",
     "@invariant/proposer": "workspace:*",
