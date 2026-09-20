@@ -1,0 +1,17 @@
+{
+  "name": "@invariant/control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The registry: accepts signed bundles, keeps tenants apart, and answers what production is still using",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@invariant/bundle": "workspace:*",
+    "@invariant/contract": "workspace:*",
+    "@invariant/ir": "workspace:*",
+    "@electric-sql/pglite": "^0.5.8",
+    "hono": "^4.13.8"
+  }
+}

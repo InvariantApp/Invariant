@@ -1154,10 +1154,35 @@ a live app registration. Everything up to that boundary is tested; the last
 mile is not, and no part of this repository should be read as evidence that it
 works.
 
+### The registry, and the two rules that shape it
+
+Built against PGlite, which is Postgres, so the isolation the tests exercise is
+the isolation that would hold in production rather than something a mock agreed
+to.
+
+**A token decides the tenant, and nothing a caller sends can override it.** The
+API id is never read from a path, a query or a body. That is a shape rather
+than a defence: there is no code path in which a valid token for one provider
+could name another's rows, so there is nothing to get wrong later. A test sends
+a batch of counters with a different API in the body and watches it be ignored.
+
+**The registry verifies rather than trusts.** A bundle is opened against keys
+the provider registered before the request existed, so what is distributed is
+what a provider signed and not what somebody uploaded. A validly signed bundle
+for the wrong API is still refused, because a signature is a statement about
+authorship and not about authorisation.
+
+Two smaller decisions that follow from what the data is for. Republishing the
+same bundle is success, not a conflict, because it is content addressed and a
+retry carries identical bytes. And ingest takes the *greater* count rather than
+adding, because a runtime reports a running total: adding would let a retried
+batch drift a counter upward, and a counter that drifts upward retires nothing,
+ever.
+
 ### Still to build
 
-The registry and control plane (the hosted half of Phase 5), the Octokit half
-of Phase 7, and the narrated demo and documentation of Phase 8. Bundles are
+The Octokit half of Phase 7, which needs credentials and a live app
+registration. Bundles are
 built, signed, verified and reproducible; what does not exist is anywhere to
 publish them to, so `invariant release` writes them into the provider's own
 repository. Consumer C has no migration path

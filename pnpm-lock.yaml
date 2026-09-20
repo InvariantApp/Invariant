@@ -14,6 +14,9 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.14
         version: 2.5.14
+      '@electric-sql/pglite':
+        specifier: ^0.5.8
+        version: 0.5.8
       '@fixtures/provider-acme':
         specifier: workspace:*
         version: link:fixtures/provider-acme
@@ -80,6 +83,24 @@ importers:
       vitest:
         specifier: ^5.0.1
         version: 5.0.1(@types/node@22.20.4)(vite@8.3.0(@types/node@22.20.4)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1))
+
+  apps/control-plane:
+    dependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.5.8
+        version: 0.5.8
+      '@invariant/bundle':
+        specifier: workspace:*
+        version: link:../../packages/bundle
+      '@invariant/contract':
+        specifier: workspace:*
+        version: link:../../packages/contract
+      '@invariant/ir':
+        specifier: workspace:*
+        version: link:../../packages/ir
+      hono:
+        specifier: ^4.13.8
+        version: 4.13.8
 
   fixtures/consumer-a-sdk-v1:
     dependencies:
@@ -383,6 +404,9 @@ packages:
     engines: {node: '>=14.21.3'}
     cpu: [x64]
     os: [win32]
+
+  '@electric-sql/pglite@0.5.8':
+    resolution: {integrity: sha512-n9tsbUOhwx2epK1V0ZG9Ar4SHWUju04dhmzZXiSBXwBoleOvIfals33NAaWgagQVAL4Rbvx/Ptsu3P+pA09f6Q==}
 
   '@esbuild/aix-ppc64@0.28.2':
     resolution: {integrity: sha512-XExcO+dvLKvVtNTibSTBej1NCAbaGhWn9Ww1ZPx80qsahhPFe/8jgWP0IchNe0F3HwkU7n8ejhH8bjonqht8mQ==}
@@ -1166,6 +1190,8 @@ snapshots:
 
   '@biomejs/cli-win32-x64@2.5.14':
     optional: true
+
+  '@electric-sql/pglite@0.5.8': {}
 
   '@esbuild/aix-ppc64@0.28.2':
     optional: true
