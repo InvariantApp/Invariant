@@ -28,7 +28,7 @@ import {
   runMigratedSuite,
   startProvider,
 } from "./harness.ts";
-import { migrateConsumerA, migrateConsumerB } from "./migrate.ts";
+import { migrateConsumerA, migrateConsumerB, migrateConsumerC } from "./migrate.ts";
 
 const OWN_CONTRACT: Record<ConsumerId, "2026-01-15" | "2026-03-01"> = {
   a: "2026-01-15",
@@ -225,6 +225,65 @@ describe("step 3: the connected codebase moves forward", () => {
 
     const literal = result.manual.find((site) => site.reason.includes("succeeded"));
     expect(lines[(literal?.line ?? 0) - 1]).toContain("succeeded");
+  });
+
+  /**
+   * Consumer C calls the API over raw fetch, with no SDK and no generated
+   * types. The type checker has nothing to say about any of it, so every
+   * rewrite is a name match inside a request to a URL that looked right.
+   *
+   * It happens to get all of them correct, and that is precisely why every one
+   * is still reported: a run that is right by luck and a run that is right by
+   * construction look identical from the outside, and only one of them is
+   * safe to merge without reading.
+   */
+  it("migrates consumer C, and flags every untyped rewrite it made", async () => {
+    const result = await migrateConsumerC();
+
+    expect(result.changedFiles).toContain("src/donations.ts");
+    expect(result.changedFiles).toContain("src/invariant-units.ts");
+
+    // Every edit has a report beside it. Nothing about an untyped call site is
+    // proven, so nothing about it is applied quietly.
+    expect(result.manual.length).toBeGreaterThan(5);
+    expect(
+      result.manual.every((site) =>
+        /untyped|nothing proves|did not come from this codebase|not from this codebase/.test(
+          site.reason,
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps consumer C's rewrites inside the operation they belong to", async () => {
+    const result = await migrateConsumerC();
+    const source = await readFile(join(result.dir, "src/donations.ts"), "utf8");
+
+    // The payment gains the field the contract now requires.
+    expect(source).toContain('capture_method: "automatic"');
+    // The refund does not, because the Change was never scoped to it. A URL
+    // match on its own would have put it in both.
+    expect(source).toContain("body: JSON.stringify({ payment: id })");
+
+    expect(source).toContain("amount_cents: toMinorUnits(amount)");
+    expect(source).toContain('fromMinorUnits(payload["amount_cents"] as number)');
+    expect(source).toContain('payload["status"] === "paid"');
+    // And the caller now declares the contract it actually speaks.
+    expect(source).not.toContain('"acme-version": "2026-03-01"');
+  });
+
+  it("passes against the new canonical API with no adapter at all", async () => {
+    const migrated = await migrateConsumerC();
+    provider = await startProvider({ build: "head" });
+
+    const result = await runMigratedSuite(`${migrated.dir}/src`, {
+      ACME_BASE_URL: provider.baseUrl,
+      ACME_API_KEY: "sk_test_delta",
+    });
+
+    expect(result.ran, result.output).toBe(true);
+    expect(result.passed, result.output).toBe(true);
+    expect(result.succeeded).toBeGreaterThan(0);
   });
 
   it("no longer needs the old contract once it has migrated", async () => {

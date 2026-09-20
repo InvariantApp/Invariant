@@ -7,8 +7,23 @@
  */
 import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
-import { loadPendingChanges, loadReleaseStep } from "@invariant/contract";
-import { buildPlan, migrate, type SymbolMap } from "@invariant/migrate-ts";
+import {
+  loadContract,
+  loadPendingChanges,
+  loadReleaseStep,
+  operationsOf,
+  requestBodySchema,
+} from "@invariant/contract";
+import {
+  applyEdits,
+  buildPlan,
+  type EditScope,
+  groupByFile,
+  migrate,
+  migrateRawCallSites,
+  type SymbolMap,
+} from "@invariant/migrate-ts";
+import { Project } from "ts-morph";
 import { REPO_ROOT } from "./harness.ts";
 
 const PROVIDER = join(REPO_ROOT, "fixtures/provider-acme");
@@ -132,6 +147,36 @@ export async function migrateConsumerA(): Promise<MigratedConsumer> {
  * for them to arrive in and inlining the arithmetic at each call site would put
  * a rounding bug in every price.
  */
+/**
+ * A tsconfig for the migrated copy.
+ *
+ * The original extends a path relative to the consumer's own directory, and
+ * the copy lives one level deeper, so copying the file verbatim leaves an
+ * extends that resolves to nothing.
+ */
+async function writeMigratedTsconfig(out: string): Promise<void> {
+  await writeFile(
+    join(out, "tsconfig.json"),
+    `${JSON.stringify(
+      {
+        extends: "../../../tsconfig.base.json",
+        compilerOptions: {
+          noEmit: true,
+          composite: false,
+          declaration: false,
+          declarationMap: false,
+          allowImportingTsExtensions: true,
+          types: ["node"],
+        },
+        include: ["src/**/*.ts"],
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+}
+
 export async function migrateConsumerB(): Promise<MigratedConsumer> {
   const consumer = join(REPO_ROOT, "fixtures/consumer-b-types-v2");
   const out = join(consumer, ".migrated");
@@ -167,7 +212,7 @@ export async function migrateConsumerB(): Promise<MigratedConsumer> {
     )}\n`,
     "utf8",
   );
-  await cp(join(consumer, "tsconfig.json"), join(out, "tsconfig.json"));
+  await writeMigratedTsconfig(out);
 
   const result = await migrate({
     repoDir: out,
@@ -205,3 +250,130 @@ async function regenerateTypes(spec: string, out: string): Promise<void> {
     cwd: REPO_ROOT,
   });
 }
+
+/**
+ * Migrates consumer C, which calls the API over raw fetch.
+ *
+ * There is no SDK and no generated types, so the type checker has nothing to
+ * say about these call sites and every rewrite is a name match inside a request
+ * to a URL that looked right. That is a weaker claim than the one made
+ * anywhere else in this engine, so every edit is reported for review and the
+ * pull request says so.
+ */
+export async function migrateConsumerC(): Promise<MigratedConsumer> {
+  const consumer = join(REPO_ROOT, "fixtures/consumer-c-rawfetch-v2");
+  const out = join(consumer, ".migrated");
+
+  const pending = await loadPendingChanges(join(PROVIDER, "invariant"));
+  const head = await loadContract(join(PROVIDER, "openapi/head.json"), "2026-09-20");
+
+  await rm(out, { recursive: true, force: true });
+  await mkdir(join(out, "src"), { recursive: true });
+  for (const entry of await readdir(join(consumer, "src"))) {
+    await cp(join(consumer, "src", entry), join(out, "src", entry));
+  }
+  await writeMigratedTsconfig(out);
+  await writeFile(
+    join(out, "package.json"),
+    `${JSON.stringify(
+      { name: "@fixtures/consumer-c-migrated", private: true, type: "module" },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+
+  const project = new Project({ tsConfigFilePath: join(out, "tsconfig.json") });
+  const scope: EditScope = { repoDir: out, generated: [] };
+
+  const raw = migrateRawCallSites(
+    project,
+    buildPlan(pending, CONSUMER_C_SYMBOLS),
+    scope,
+    {
+      operations: operationsOf(head.document).map((operation) => {
+        const schema = requestBodySchema(head.document, operation.operation);
+        const ref =
+          schema && typeof schema === "object" && "$ref" in schema
+            ? String((schema as { $ref: unknown }).$ref)
+            : undefined;
+        return {
+          method: operation.method,
+          path: operation.path,
+          operationId: operation.operationId,
+          ...(ref ? { requestSchema: ref.slice(ref.lastIndexOf("/") + 1) } : {}),
+        };
+      }),
+      contractHeader: { name: "acme-version", from: "2026-03-01", to: "2026-09-20" },
+    },
+  );
+
+  const files = new Map<string, string>();
+  for (const [file, edits] of groupByFile(raw.edits)) {
+    files.set(
+      file,
+      applyEdits(file, project.getSourceFileOrThrow(file).getFullText(), edits),
+    );
+  }
+  for (const [file, text] of files) {
+    project.getSourceFileOrThrow(file).replaceWithText(text);
+    await writeFile(file, text, "utf8");
+  }
+
+  // The helpers the rewritten arithmetic calls, written in the same way
+  // consumer B's are, because this consumer has no SDK either.
+  const units = join(out, "src/invariant-units.ts");
+  await cp(
+    new URL("../packages/migrate-ts/src/templates/units.ts", import.meta.url).pathname,
+    units,
+  );
+  files.set(units, await readFile(units, "utf8"));
+
+  await addUnitsImport(out, files);
+
+  return {
+    dir: out,
+    changedFiles: [...files.keys()].map((file) => relative(out, file)).sort(),
+    manual: raw.manual.map((site) => ({
+      file: relative(out, site.file),
+      line: site.line,
+      reason: site.reason,
+    })),
+    newDiagnostics: [],
+  };
+}
+
+/** Adds the helpers import to any file whose rewritten code now calls them. */
+async function addUnitsImport(root: string, files: Map<string, string>): Promise<void> {
+  for (const [file, text] of files) {
+    if (file.endsWith("invariant-units.ts")) continue;
+    if (!/\b(toMinorUnits|fromMinorUnits)\(/.test(text)) continue;
+    if (text.includes("./invariant-units.ts")) continue;
+
+    const names = ["fromMinorUnits", "toMinorUnits"].filter((name) =>
+      new RegExp(`\\b${name}\\(`).test(text),
+    );
+    const updated = `import { ${names.join(", ")} } from "./invariant-units.ts";\n${text}`;
+    files.set(file, updated);
+    await writeFile(file, updated, "utf8");
+  }
+  void root;
+}
+
+/**
+ * There are no symbols to map, which is the point.
+ *
+ * The engine still needs the conversion helpers named, because a raw rewrite
+ * must not inline the arithmetic any more than a typed one may.
+ */
+export const CONSUMER_C_SYMBOLS: SymbolMap = {
+  package: "",
+  upgradeTo: { package: "", version: "" },
+  types: {},
+  accessors: [],
+  helpers: {
+    toMinor: "toMinorUnits",
+    fromMinor: "fromMinorUnits",
+    from: "./invariant-units.ts",
+  },
+};

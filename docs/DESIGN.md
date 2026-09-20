@@ -1096,6 +1096,36 @@ bound. A malformed file during an incident keeps serving the last good answer,
 because a typo must not become an outage and must not silently undo a rollback
 in progress.
 
+### The third consumer, which has no types at all
+
+Consumer C calls the API over raw `fetch`. There is no SDK and no generated
+types, so the type checker has nothing to say and every rewrite is a name match
+inside a request to a URL that looked right. That is a strictly weaker claim
+than the one made everywhere else, so every edit here is paired with a report
+and a call whose URL cannot be tied to an operation is reported without being
+touched.
+
+It gets all of them right, which is exactly why they are still reported. A run
+that is right by luck and one that is right by construction look identical from
+the outside, and only one is safe to merge without reading.
+
+Two faults found by building it, both about a URL match not being enough on its
+own:
+
+- **A rewrite has to stay inside the schema its Change names.** Matching the
+  URL alone put `capture_method` into a refund, because the field is newly
+  required somewhere and the refund was somewhere. Additions now apply only
+  where the operation's request body is a schema that Change scoped to.
+- **A path ending in an interpolation has no literal tail.** Taking the text
+  after the last interpolation finds nothing for `/v1/payments/${id}`, which is
+  what every retrieve-by-id in a raw client looks like, so those call sites
+  were skipped silently. Paths are matched by segment structure now, with an
+  interpolation standing in for one segment.
+
+And the same insert-anchor bug as the typed engine: a zero-width insert at a
+property's start sits inside the span of the edit that rewrites that property,
+so one of the two is dropped. Second time. Anchored after the brace.
+
 ### Still to build
 
 The registry and control plane (the hosted half of Phase 5), Phase 7 (GitHub

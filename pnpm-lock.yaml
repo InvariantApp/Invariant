@@ -68,6 +68,9 @@ importers:
       fast-check:
         specifier: ^4.10.1
         version: 4.10.1
+      ts-morph:
+        specifier: ^28.0.0
+        version: 28.0.0
       tsx:
         specifier: ^4.23.13
         version: 4.23.13

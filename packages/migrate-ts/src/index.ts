@@ -20,8 +20,9 @@ import {
 import { buildPlan, type MigrationPlan, type SymbolMap } from "./plan.ts";
 
 export * from "./edits.ts";
-export type { ManualSite } from "./engine.ts";
+export type { EditScope, ManualSite } from "./engine.ts";
 export * from "./plan.ts";
+export * from "./raw.ts";
 
 export interface MigrateOptions {
   /** Root of the consumer repository. */
