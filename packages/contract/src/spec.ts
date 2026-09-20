@@ -100,10 +100,16 @@ export function operationsOf(document: OpenApiDocument): OperationRef[] {
     for (const method of HTTP_METHODS) {
       const operation = item[method];
       if (!isJsonObject(operation)) continue;
-      const operationId = operation["operationId"];
-      if (typeof operationId !== "string") {
-        throw new ContractError(`${method.toUpperCase()} ${path} has no operationId`);
-      }
+      // `operationId` is optional in OpenAPI and plenty of real documents
+      // leave it out. Refusing them was a limitation of this code rather than
+      // a fact about the document, and it stopped a real specification dead
+      // the first time one was tried. Method and path already identify an
+      // operation uniquely, so a missing id is derived rather than demanded.
+      const declared = operation["operationId"];
+      const operationId =
+        typeof declared === "string" && declared !== ""
+          ? declared
+          : `${method}${path.replace(/[^a-zA-Z0-9]+/g, "_").replace(/_+$/, "")}`;
       out.push({ operationId, method, path, operation });
     }
   }

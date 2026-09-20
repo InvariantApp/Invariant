@@ -1,0 +1,1295 @@
+[
+  {
+    "api": "adyen.com:AccountService",
+    "fromVersion": "3",
+    "toVersion": "4",
+    "reached": "done",
+    "deltas": 75,
+    "breakingBefore": 36,
+    "breakingAligned": 36,
+    "breakingAfter": 36,
+    "drafts": 1,
+    "unresolved": 1,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "response-property-enum-value-added": 36
+    },
+    "breakingKinds": {
+      "response-property-enum-value-added": 36
+    },
+    "elapsedMs": 259
+  },
+  {
+    "api": "adyen.com:AccountService",
+    "fromVersion": "4",
+    "toVersion": "5",
+    "reached": "done",
+    "deltas": 1008,
+    "breakingBefore": 66,
+    "breakingAligned": 66,
+    "breakingAfter": 66,
+    "drafts": 1,
+    "unresolved": 16,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "new-required-request-property": 3,
+      "request-property-type-changed": 11,
+      "response-required-property-removed": 28,
+      "request-property-removed": 16,
+      "response-required-property-added": 8
+    },
+    "breakingKinds": {
+      "new-required-request-property": 3,
+      "request-property-type-changed": 11,
+      "response-required-property-removed": 28,
+      "request-property-removed": 16,
+      "response-required-property-added": 8
+    },
+    "elapsedMs": 274
+  },
+  {
+    "api": "adyen.com:AccountService",
+    "fromVersion": "5",
+    "toVersion": "6",
+    "reached": "done",
+    "deltas": 127,
+    "breakingBefore": 15,
+    "breakingAligned": 15,
+    "breakingAfter": 15,
+    "drafts": 6,
+    "unresolved": 2,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "response-property-enum-value-added": 15
+    },
+    "breakingKinds": {
+      "response-property-enum-value-added": 15
+    },
+    "elapsedMs": 410
+  },
+  {
+    "api": "adyen.com:BalancePlatformService",
+    "fromVersion": "1",
+    "toVersion": "2",
+    "reached": "done",
+    "deltas": 530,
+    "breakingBefore": 271,
+    "breakingAligned": 271,
+    "breakingAfter": 271,
+    "drafts": 1,
+    "unresolved": 30,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "request-property-enum-value-removed": 34,
+      "response-property-enum-value-added": 76,
+      "response-property-became-optional": 8,
+      "response-property-max-length-unset": 4,
+      "response-required-property-removed": 8,
+      "api-path-removed-without-deprecation": 11,
+      "request-property-became-required": 4,
+      "new-required-request-property": 4,
+      "request-property-removed": 26,
+      "response-property-enum-value-removed": 84,
+      "response-required-property-added": 12
+    },
+    "breakingKinds": {
+      "request-property-enum-value-removed": 34,
+      "response-property-enum-value-added": 76,
+      "response-property-became-optional": 8,
+      "response-property-max-length-unset": 4,
+      "response-required-property-removed": 8,
+      "api-path-removed-without-deprecation": 11,
+      "request-property-became-required": 4,
+      "new-required-request-property": 4,
+      "request-property-removed": 26,
+      "response-property-enum-value-removed": 84,
+      "response-required-property-added": 12
+    },
+    "elapsedMs": 430
+  },
+  {
+    "api": "adyen.com:BinLookupService",
+    "fromVersion": "40",
+    "toVersion": "50",
+    "reached": "done",
+    "deltas": 11,
+    "breakingBefore": 0,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 752
+  },
+  {
+    "api": "adyen.com:BinLookupService",
+    "fromVersion": "50",
+    "toVersion": "52",
+    "reached": "done",
+    "deltas": 2,
+    "breakingBefore": 0,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 314
+  },
+  {
+    "api": "adyen.com:BinLookupService",
+    "fromVersion": "52",
+    "toVersion": "53",
+    "reached": "done",
+    "deltas": 2,
+    "breakingBefore": 0,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 0,
+    "unresolved": 1,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 273
+  },
+  {
+    "api": "adyen.com:BinLookupService",
+    "fromVersion": "53",
+    "toVersion": "54",
+    "reached": "done",
+    "deltas": 1,
+    "breakingBefore": 0,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 224
+  },
+  {
+    "api": "adyen.com:CheckoutService",
+    "fromVersion": "37",
+    "toVersion": "40",
+    "reached": "done",
+    "deltas": 66,
+    "breakingBefore": 19,
+    "breakingAligned": 19,
+    "breakingAfter": 19,
+    "drafts": 0,
+    "unresolved": 7,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "new-required-request-property": 18,
+      "response-required-property-removed": 1
+    },
+    "breakingKinds": {
+      "new-required-request-property": 18,
+      "response-required-property-removed": 1
+    },
+    "elapsedMs": 423
+  },
+  {
+    "api": "adyen.com:CheckoutService",
+    "fromVersion": "40",
+    "toVersion": "41",
+    "reached": "done",
+    "deltas": 3,
+    "breakingBefore": 0,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 428
+  },
+  {
+    "api": "adyen.com:CheckoutService",
+    "fromVersion": "41",
+    "toVersion": "46",
+    "reached": "done",
+    "deltas": 95,
+    "breakingBefore": 0,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 423
+  },
+  {
+    "api": "adyen.com:CheckoutService",
+    "fromVersion": "46",
+    "toVersion": "49",
+    "reached": "done",
+    "deltas": 128,
+    "breakingBefore": 0,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 418
+  },
+  {
+    "api": "adyen.com:CheckoutService",
+    "fromVersion": "49",
+    "toVersion": "50",
+    "reached": "done",
+    "deltas": 21,
+    "breakingBefore": 0,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 442
+  },
+  {
+    "api": "adyen.com:CheckoutService",
+    "fromVersion": "50",
+    "toVersion": "51",
+    "reached": "done",
+    "deltas": 9,
+    "breakingBefore": 4,
+    "breakingAligned": 4,
+    "breakingAfter": 4,
+    "drafts": 0,
+    "unresolved": 1,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "response-required-property-added": 4
+    },
+    "breakingKinds": {
+      "response-required-property-added": 4
+    },
+    "elapsedMs": 415
+  },
+  {
+    "api": "adyen.com:CheckoutService",
+    "fromVersion": "51",
+    "toVersion": "52",
+    "reached": "done",
+    "deltas": 3,
+    "breakingBefore": 0,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 424
+  },
+  {
+    "api": "adyen.com:CheckoutService",
+    "fromVersion": "52",
+    "toVersion": "53",
+    "reached": "done",
+    "deltas": 4,
+    "breakingBefore": 0,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 424
+  },
+  {
+    "api": "adyen.com:CheckoutService",
+    "fromVersion": "53",
+    "toVersion": "64",
+    "reached": "done",
+    "deltas": 35,
+    "breakingBefore": 0,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 480
+  },
+  {
+    "api": "adyen.com:CheckoutService",
+    "fromVersion": "64",
+    "toVersion": "65",
+    "reached": "done",
+    "deltas": 45,
+    "breakingBefore": 5,
+    "breakingAligned": 5,
+    "breakingAfter": 5,
+    "drafts": 0,
+    "unresolved": 2,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "request-property-removed": 5
+    },
+    "breakingKinds": {
+      "request-property-removed": 5
+    },
+    "elapsedMs": 437
+  },
+  {
+    "api": "adyen.com:CheckoutService",
+    "fromVersion": "65",
+    "toVersion": "66",
+    "reached": "done",
+    "deltas": 3,
+    "breakingBefore": 0,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 436
+  },
+  {
+    "api": "adyen.com:CheckoutService",
+    "fromVersion": "66",
+    "toVersion": "67",
+    "reached": "done",
+    "deltas": 64,
+    "breakingBefore": 2,
+    "breakingAligned": 2,
+    "breakingAfter": 2,
+    "drafts": 0,
+    "unresolved": 11,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "response-property-one-of-added": 2
+    },
+    "breakingKinds": {
+      "response-property-one-of-added": 2
+    },
+    "elapsedMs": 422
+  },
+  {
+    "api": "adyen.com:CheckoutService",
+    "fromVersion": "67",
+    "toVersion": "68",
+    "reached": "done",
+    "deltas": 195,
+    "breakingBefore": 2,
+    "breakingAligned": 2,
+    "breakingAfter": 2,
+    "drafts": 0,
+    "unresolved": 5,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "request-property-removed": 1,
+      "response-required-property-added": 1
+    },
+    "breakingKinds": {
+      "request-property-removed": 1,
+      "response-required-property-added": 1
+    },
+    "elapsedMs": 467
+  },
+  {
+    "api": "adyen.com:CheckoutService",
+    "fromVersion": "68",
+    "toVersion": "69",
+    "reached": "done",
+    "deltas": 91,
+    "breakingBefore": 19,
+    "breakingAligned": 19,
+    "breakingAfter": 19,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "response-required-property-removed": 1,
+      "response-required-property-added": 18
+    },
+    "breakingKinds": {
+      "response-required-property-removed": 1,
+      "response-required-property-added": 18
+    },
+    "elapsedMs": 475
+  },
+  {
+    "api": "adyen.com:CheckoutService",
+    "fromVersion": "69",
+    "toVersion": "70",
+    "reached": "done",
+    "deltas": 126,
+    "breakingBefore": 1,
+    "breakingAligned": 1,
+    "breakingAfter": 1,
+    "drafts": 0,
+    "unresolved": 2,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "request-property-removed": 1
+    },
+    "breakingKinds": {
+      "request-property-removed": 1
+    },
+    "elapsedMs": 487
+  },
+  {
+    "api": "adyen.com:FundService",
+    "fromVersion": "3",
+    "toVersion": "5",
+    "reached": "done",
+    "deltas": 81,
+    "breakingBefore": 12,
+    "breakingAligned": 12,
+    "breakingAfter": 12,
+    "drafts": 0,
+    "unresolved": 8,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "new-required-request-property": 2,
+      "request-property-type-changed": 1,
+      "request-property-removed": 1,
+      "response-required-property-added": 8
+    },
+    "breakingKinds": {
+      "new-required-request-property": 2,
+      "request-property-type-changed": 1,
+      "request-property-removed": 1,
+      "response-required-property-added": 8
+    },
+    "elapsedMs": 217
+  },
+  {
+    "api": "adyen.com:FundService",
+    "fromVersion": "5",
+    "toVersion": "6",
+    "reached": "done",
+    "deltas": 0,
+    "breakingBefore": 0,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 178
+  },
+  {
+    "api": "amazonaws.com:appmesh",
+    "fromVersion": "2018-10-01",
+    "toVersion": "2019-01-25",
+    "reached": "done",
+    "deltas": 58,
+    "breakingBefore": 19,
+    "breakingAligned": 19,
+    "breakingAfter": 19,
+    "drafts": 0,
+    "unresolved": 79,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 19
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 19
+    },
+    "elapsedMs": 313
+  },
+  {
+    "api": "amazonaws.com:clouddirectory",
+    "fromVersion": "2016-05-10",
+    "toVersion": "2017-01-11",
+    "reached": "done",
+    "deltas": 1289,
+    "breakingBefore": 600,
+    "breakingAligned": 600,
+    "breakingAfter": 600,
+    "drafts": 0,
+    "unresolved": 1,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "response-body-type-changed": 578,
+      "response-property-max-length-increased": 20,
+      "response-property-enum-value-added": 2
+    },
+    "breakingKinds": {
+      "response-body-type-changed": 578,
+      "response-property-max-length-increased": 20,
+      "response-property-enum-value-added": 2
+    },
+    "elapsedMs": 511
+  },
+  {
+    "api": "amazonaws.com:cloudfront",
+    "fromVersion": "2016-11-25",
+    "toVersion": "2017-03-25",
+    "reached": "done",
+    "deltas": 55,
+    "breakingBefore": 27,
+    "breakingAligned": 21,
+    "breakingAfter": 21,
+    "drafts": 1,
+    "unresolved": 3,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "response-property-enum-value-added": 21
+    },
+    "breakingKinds": {
+      "response-property-enum-value-added": 21
+    },
+    "elapsedMs": 550
+  },
+  {
+    "api": "amazonaws.com:cloudfront",
+    "fromVersion": "2017-03-25",
+    "toVersion": "2017-10-30",
+    "reached": "done",
+    "deltas": 75,
+    "breakingBefore": 28,
+    "breakingAligned": 13,
+    "breakingAfter": 13,
+    "drafts": 1,
+    "unresolved": 2,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 1,
+      "request-property-became-required": 12
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 1,
+      "request-property-became-required": 12
+    },
+    "elapsedMs": 608
+  },
+  {
+    "api": "amazonaws.com:cloudfront",
+    "fromVersion": "2017-10-30",
+    "toVersion": "2018-06-18",
+    "reached": "done",
+    "deltas": 90,
+    "breakingBefore": 45,
+    "breakingAligned": 317,
+    "breakingAfter": 317,
+    "drafts": 1,
+    "unresolved": 2,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "response-body-type-changed": 317
+    },
+    "breakingKinds": {
+      "response-body-type-changed": 317
+    },
+    "elapsedMs": 661
+  },
+  {
+    "api": "amazonaws.com:cloudfront",
+    "fromVersion": "2018-06-18",
+    "toVersion": "2018-11-05",
+    "reached": "done",
+    "deltas": 90,
+    "breakingBefore": 45,
+    "breakingAligned": 3,
+    "breakingAfter": 3,
+    "drafts": 1,
+    "unresolved": 9,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "request-property-became-required": 3
+    },
+    "breakingKinds": {
+      "request-property-became-required": 3
+    },
+    "elapsedMs": 651
+  },
+  {
+    "api": "amazonaws.com:cloudfront",
+    "fromVersion": "2018-11-05",
+    "toVersion": "2019-03-26",
+    "reached": "done",
+    "deltas": 90,
+    "breakingBefore": 45,
+    "breakingAligned": 10,
+    "breakingAfter": 10,
+    "drafts": 1,
+    "unresolved": 2,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "response-property-enum-value-added": 7,
+      "request-property-type-changed": 3
+    },
+    "breakingKinds": {
+      "response-property-enum-value-added": 7,
+      "request-property-type-changed": 3
+    },
+    "elapsedMs": 669
+  },
+  {
+    "api": "amazonaws.com:cloudfront",
+    "fromVersion": "2019-03-26",
+    "toVersion": "2020-05-31",
+    "reached": "done",
+    "deltas": 151,
+    "breakingBefore": 45,
+    "breakingAligned": 79,
+    "breakingAfter": 79,
+    "drafts": 1,
+    "unresolved": 8,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "response-property-became-optional": 46,
+      "response-property-enum-value-added": 28,
+      "request-property-type-changed": 3,
+      "response-required-property-added": 2
+    },
+    "breakingKinds": {
+      "response-property-became-optional": 46,
+      "response-property-enum-value-added": 28,
+      "request-property-type-changed": 3,
+      "response-required-property-added": 2
+    },
+    "elapsedMs": 846
+  },
+  {
+    "api": "amazonaws.com:cloudsearch",
+    "fromVersion": "2011-02-01",
+    "toVersion": "2013-01-01",
+    "reached": "done",
+    "deltas": 625,
+    "breakingBefore": 148,
+    "breakingAligned": 148,
+    "breakingAfter": 148,
+    "drafts": 0,
+    "unresolved": 20,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "request-parameter-enum-value-removed": 22,
+      "response-body-type-changed": 22,
+      "request-parameter-property-enum-value-removed": 1,
+      "response-property-enum-value-added": 68,
+      "request-property-enum-value-removed": 1,
+      "api-path-removed-without-deprecation": 22,
+      "request-property-removed": 6,
+      "response-property-enum-value-removed": 6
+    },
+    "breakingKinds": {
+      "request-parameter-enum-value-removed": 22,
+      "response-body-type-changed": 22,
+      "request-parameter-property-enum-value-removed": 1,
+      "response-property-enum-value-added": 68,
+      "request-property-enum-value-removed": 1,
+      "api-path-removed-without-deprecation": 22,
+      "request-property-removed": 6,
+      "response-property-enum-value-removed": 6
+    },
+    "elapsedMs": 257
+  },
+  {
+    "api": "amazonaws.com:dynamodb",
+    "fromVersion": "2011-12-05",
+    "toVersion": "2012-08-10",
+    "reached": "done",
+    "deltas": 69,
+    "breakingBefore": 13,
+    "breakingAligned": 13,
+    "breakingAfter": 13,
+    "drafts": 0,
+    "unresolved": 63,
+    "impasses": 1,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 13
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 13
+    },
+    "elapsedMs": 306
+  },
+  {
+    "api": "amazonaws.com:lambda",
+    "fromVersion": "2014-11-11",
+    "toVersion": "2015-03-31",
+    "reached": "done",
+    "deltas": 96,
+    "breakingBefore": 10,
+    "breakingAligned": 107,
+    "breakingAfter": 107,
+    "drafts": 2,
+    "unresolved": 4,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 4,
+      "response-success-status-removed": 1,
+      "response-property-enum-value-added": 84,
+      "response-property-max-increased": 3,
+      "response-property-max-length-increased": 3,
+      "response-property-max-unset": 3,
+      "response-property-type-changed": 3,
+      "request-body-added-required": 1,
+      "request-parameter-removed": 5
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 4,
+      "response-success-status-removed": 1,
+      "response-property-enum-value-added": 84,
+      "response-property-max-increased": 3,
+      "response-property-max-length-increased": 3,
+      "response-property-max-unset": 3,
+      "response-property-type-changed": 3,
+      "request-body-added-required": 1,
+      "request-parameter-removed": 5
+    },
+    "elapsedMs": 415
+  },
+  {
+    "api": "amazonaws.com:rds",
+    "fromVersion": "2013-01-10",
+    "toVersion": "2013-02-12",
+    "reached": "done",
+    "deltas": 277,
+    "breakingBefore": 100,
+    "breakingAligned": 100,
+    "breakingAfter": 100,
+    "drafts": 0,
+    "unresolved": 1,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "request-parameter-enum-value-removed": 100
+    },
+    "breakingKinds": {
+      "request-parameter-enum-value-removed": 100
+    },
+    "elapsedMs": 390
+  },
+  {
+    "api": "amazonaws.com:rds",
+    "fromVersion": "2013-02-12",
+    "toVersion": "2013-09-09",
+    "reached": "done",
+    "deltas": 316,
+    "breakingBefore": 104,
+    "breakingAligned": 104,
+    "breakingAfter": 104,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "request-parameter-enum-value-removed": 104
+    },
+    "breakingKinds": {
+      "request-parameter-enum-value-removed": 104
+    },
+    "elapsedMs": 470
+  },
+  {
+    "api": "amazonaws.com:rds",
+    "fromVersion": "2013-09-09",
+    "toVersion": "2014-09-01",
+    "reached": "done",
+    "deltas": 390,
+    "breakingBefore": 138,
+    "breakingAligned": 138,
+    "breakingAfter": 138,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "request-parameter-enum-value-removed": 104,
+      "request-parameter-removed": 34
+    },
+    "breakingKinds": {
+      "request-parameter-enum-value-removed": 104,
+      "request-parameter-removed": 34
+    },
+    "elapsedMs": 473
+  },
+  {
+    "api": "amazonaws.com:rds",
+    "fromVersion": "2014-09-01",
+    "toVersion": "2014-10-31",
+    "reached": "done",
+    "deltas": 2241,
+    "breakingBefore": 118,
+    "breakingAligned": 118,
+    "breakingAfter": 118,
+    "drafts": 0,
+    "unresolved": 547,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "request-parameter-enum-value-removed": 108,
+      "response-property-enum-value-added": 10
+    },
+    "breakingKinds": {
+      "request-parameter-enum-value-removed": 108,
+      "response-property-enum-value-added": 10
+    },
+    "elapsedMs": 812
+  },
+  {
+    "api": "apicurio.local:registry",
+    "fromVersion": "1.3.2.Final",
+    "toVersion": "2.4.x",
+    "reached": "done",
+    "deltas": 122,
+    "breakingBefore": 46,
+    "breakingAligned": 46,
+    "breakingAfter": 46,
+    "drafts": 0,
+    "unresolved": 16,
+    "impasses": 2,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 32,
+      "request-parameter-removed": 2,
+      "response-property-enum-value-removed": 12
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 32,
+      "request-parameter-removed": 2,
+      "response-property-enum-value-removed": 12
+    },
+    "elapsedMs": 221
+  },
+  {
+    "api": "chaingateway.io",
+    "fromVersion": "1.0",
+    "toVersion": "1.0.0",
+    "reached": "done",
+    "deltas": 185,
+    "breakingBefore": 21,
+    "breakingAligned": 21,
+    "breakingAfter": 21,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 21
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 21
+    },
+    "elapsedMs": 885
+  },
+  {
+    "api": "github.com",
+    "fromVersion": "1.1.4",
+    "toVersion": "v0.1",
+    "reached": "done",
+    "deltas": 1457,
+    "breakingBefore": 811,
+    "breakingAligned": 811,
+    "breakingAfter": 811,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 811
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 811
+    },
+    "elapsedMs": 2977
+  },
+  {
+    "api": "googleapis.com:accesscontextmanager",
+    "fromVersion": "v1",
+    "toVersion": "v1beta",
+    "reached": "done",
+    "deltas": 61,
+    "breakingBefore": 20,
+    "breakingAligned": 20,
+    "breakingAfter": 20,
+    "drafts": 0,
+    "unresolved": 2,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 20
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 20
+    },
+    "elapsedMs": 172
+  },
+  {
+    "api": "googleapis.com:adexchangebuyer",
+    "fromVersion": "v1.2",
+    "toVersion": "v1.3",
+    "reached": "done",
+    "deltas": 24,
+    "breakingBefore": 0,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 202
+  },
+  {
+    "api": "googleapis.com:adexchangebuyer",
+    "fromVersion": "v1.3",
+    "toVersion": "v1.4",
+    "reached": "done",
+    "deltas": 116,
+    "breakingBefore": 5,
+    "breakingAligned": 5,
+    "breakingAfter": 5,
+    "drafts": 0,
+    "unresolved": 2,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 2,
+      "request-parameter-removed": 1,
+      "request-property-removed": 2
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 2,
+      "request-parameter-removed": 1,
+      "request-property-removed": 2
+    },
+    "elapsedMs": 192
+  },
+  {
+    "api": "googleapis.com:admin",
+    "fromVersion": "datatransfer_v1",
+    "toVersion": "directory_v1",
+    "reached": "done",
+    "deltas": 164,
+    "breakingBefore": 5,
+    "breakingAligned": 5,
+    "breakingAfter": 5,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 5
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 5
+    },
+    "elapsedMs": 215
+  },
+  {
+    "api": "googleapis.com:admin",
+    "fromVersion": "directory_v1",
+    "toVersion": "reports_v1",
+    "reached": "done",
+    "deltas": 255,
+    "breakingBefore": 122,
+    "breakingAligned": 122,
+    "breakingAfter": 122,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 122
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 122
+    },
+    "elapsedMs": 238
+  },
+  {
+    "api": "googleapis.com:admob",
+    "fromVersion": "v1",
+    "toVersion": "v1beta",
+    "reached": "done",
+    "deltas": 13,
+    "breakingBefore": 6,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 1,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 230
+  },
+  {
+    "api": "googleapis.com:adsense",
+    "fromVersion": "v1.4",
+    "toVersion": "v2",
+    "reached": "done",
+    "deltas": 78,
+    "breakingBefore": 39,
+    "breakingAligned": 39,
+    "breakingAfter": 39,
+    "drafts": 0,
+    "unresolved": 52,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 39
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 39
+    },
+    "elapsedMs": 195
+  },
+  {
+    "api": "googleapis.com:analytics",
+    "fromVersion": "v2.4",
+    "toVersion": "v3",
+    "reached": "done",
+    "deltas": 99,
+    "breakingBefore": 1,
+    "breakingAligned": 1,
+    "breakingAfter": 1,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 1
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 1
+    },
+    "elapsedMs": 202
+  },
+  {
+    "api": "googleapis.com:analyticsadmin",
+    "fromVersion": "v1alpha",
+    "toVersion": "v1beta",
+    "reached": "done",
+    "deltas": 232,
+    "breakingBefore": 60,
+    "breakingAligned": 60,
+    "breakingAfter": 60,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 60
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 60
+    },
+    "elapsedMs": 232
+  },
+  {
+    "api": "googleapis.com:analyticshub",
+    "fromVersion": "v1",
+    "toVersion": "v1beta1",
+    "reached": "load",
+    "deltas": 0,
+    "breakingBefore": 0,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 75,
+    "error": "OasdiffError: Could not run oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@latest\" or set OASDIFF_BIN.\nCommand failed: oasdiff changelog /tmp/invariant-diff-9CDRS6/base.json /tmp/invariant-diff-9CDRS6/revision.json --format json --allow-external-refs=false --flatten-allof\nError: diff failed: dupl"
+  },
+  {
+    "api": "googleapis.com:androidpublisher",
+    "fromVersion": "v1",
+    "toVersion": "v1.1",
+    "reached": "done",
+    "deltas": 1,
+    "breakingBefore": 0,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 135
+  },
+  {
+    "api": "googleapis.com:androidpublisher",
+    "fromVersion": "v1.1",
+    "toVersion": "v2",
+    "reached": "done",
+    "deltas": 62,
+    "breakingBefore": 3,
+    "breakingAligned": 3,
+    "breakingAfter": 3,
+    "drafts": 0,
+    "unresolved": 2,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 3
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 3
+    },
+    "elapsedMs": 177
+  },
+  {
+    "api": "googleapis.com:androidpublisher",
+    "fromVersion": "v2",
+    "toVersion": "v3",
+    "reached": "done",
+    "deltas": 155,
+    "breakingBefore": 58,
+    "breakingAligned": 58,
+    "breakingAfter": 58,
+    "drafts": 0,
+    "unresolved": 5,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 58
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 58
+    },
+    "elapsedMs": 250
+  },
+  {
+    "api": "googleapis.com:apigateway",
+    "fromVersion": "v1",
+    "toVersion": "v1alpha2",
+    "reached": "done",
+    "deltas": 34,
+    "breakingBefore": 15,
+    "breakingAligned": 15,
+    "breakingAfter": 15,
+    "drafts": 0,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 15
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 15
+    },
+    "elapsedMs": 170
+  },
+  {
+    "api": "googleapis.com:apigateway",
+    "fromVersion": "v1alpha2",
+    "toVersion": "v1beta",
+    "reached": "done",
+    "deltas": 23,
+    "breakingBefore": 8,
+    "breakingAligned": 0,
+    "breakingAfter": 0,
+    "drafts": 1,
+    "unresolved": 0,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {},
+    "breakingKinds": {},
+    "elapsedMs": 226
+  },
+  {
+    "api": "googleapis.com:appengine",
+    "fromVersion": "v1",
+    "toVersion": "v1alpha",
+    "reached": "done",
+    "deltas": 107,
+    "breakingBefore": 40,
+    "breakingAligned": 40,
+    "breakingAfter": 40,
+    "drafts": 0,
+    "unresolved": 4,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "api-path-removed-without-deprecation": 40
+    },
+    "breakingKinds": {
+      "api-path-removed-without-deprecation": 40
+    },
+    "elapsedMs": 191
+  },
+  {
+    "api": "googleapis.com:appengine",
+    "fromVersion": "v1alpha",
+    "toVersion": "v1beta",
+    "reached": "done",
+    "deltas": 64,
+    "breakingBefore": 19,
+    "breakingAligned": 30,
+    "breakingAfter": 30,
+    "drafts": 1,
+    "unresolved": 2,
+    "impasses": 0,
+    "compileIssues": [],
+    "unexplainedKinds": {
+      "response-property-enum-value-added": 8,
+      "request-property-enum-value-removed": 6,
+      "request-parameter-removed": 2,
+      "request-property-removed": 2,
+      "response-property-enum-value-removed": 12
+    },
+    "breakingKinds": {
+      "response-property-enum-value-added": 8,
+      "request-property-enum-value-removed": 6,
+      "request-parameter-removed": 2,
+      "request-property-removed": 2,
+      "response-property-enum-value-removed": 12
+    },
+    "elapsedMs": 398
+  }
+]

@@ -14,6 +14,7 @@ import type { Change, Op } from "@invariant/ir";
 import { type FieldShape, type SchemaDelta, schemaDeltas } from "./candidates.ts";
 import type { Judge, JudgeId } from "./judge.ts";
 import { questionsFor } from "./judge.ts";
+import { detectPrefixMove, prefixChange } from "./prefix.ts";
 import { stemOf, UNIT_SUFFIXES } from "./rules.ts";
 
 /** Below this, a draft is marked for explicit attention rather than assumed good. */
@@ -242,7 +243,29 @@ export async function propose(
   const threshold = options.attentionThreshold ?? DEFAULT_ATTENTION_THRESHOLD;
   const deltas = schemaDeltas(oldContract, newContract);
 
+  // Before anything about fields: did the whole API move? Versioning by URL
+  // prefix is how most real APIs express a version, and left undetected it
+  // reports every endpoint as removed and every new one as unrelated.
+  const move = detectPrefixMove(oldContract, newContract);
+  const moved: Proposal[] = move
+    ? [
+        {
+          change: prefixChange(move),
+          judge: "rules",
+          confidence: move.confidence,
+          attention: "explicit",
+          notes: [
+            `every endpoint under \`/${move.from}\` now lives under \`/${move.to}\`` +
+              (move.unexplained > 0
+                ? `, and ${move.unexplained} others went that this does not explain`
+                : ""),
+          ],
+        },
+      ]
+    : [];
+
   const altered = alteredProposals(deltas);
+  altered.proposals.unshift(...moved);
   const unresolved: Unresolved[] = [...altered.unresolved, ...additions(deltas)];
 
   const questions = deltas.flatMap((delta: SchemaDelta) =>

@@ -1420,6 +1420,55 @@ two halves as the successor, while its own rationale said no single answer
 described what happened. The case was inconsistent on its own terms, which is
 the only reason a label may move once an answer has been seen.
 
+### What real specifications said
+
+Everything above was measured against a fixture written for this project and a
+corpus written for this project. Both are useful and neither can answer the
+question that decides whether the design is sound: when a real company changes
+a real API, how much of what they did can this express?
+
+So sixty consecutive published version pairs from real companies (AWS, Google,
+Adyen, GitHub and others, via the APIs.guru directory) were run through
+loading, diffing, drafting, compiling and the closure check. `pnpm real`
+reproduces it and writes `eval/real/REPORT.md`.
+
+**The pipeline survived.** 59 of 60 pairs completed every stage, median 326 ms
+each, on documents up to 765 KB with 170 schemas. Nothing was tuned for them.
+
+**One requirement was a limitation of this code rather than a fact about
+OpenAPI.** `operationId` is optional in the specification and plenty of real
+documents leave it out; requiring it stopped a real API dead. It is now derived
+from the method and path, which already identify an operation uniquely.
+
+**The largest finding was that the commonest real breaking change was invisible
+to us.** `api-path-removed-without-deprecation` came back 1572 times, far ahead
+of everything else. Nothing had been removed. AWS ships `/2017-10-30/distribution`
+and then `/2018-06-18/distribution`; Google ships `/v1/apps` and then
+`/v1alpha/apps`. The version lives in the path, so bumping it moves every
+endpoint at once. The `route` op has always been able to express this and
+nothing proposed it, so the most widespread way of versioning an API in the
+world arrived as a wall of unexplained deltas. `detectPrefixMove` closes it,
+conservatively: a whole-API move is only claimed when one substitution explains
+most of what went missing, because burying real removals under a route change
+that appears to account for them would be worse than not detecting it at all.
+
+**And that revealed something worse.** Lining the endpoints up does not only
+explain the removals, it makes the operations comparable for the first time. On
+one AWS pair the raw diff found 45 breaking deltas and the aligned diff found
+317: `InvalidArgument` had gone from a typed object to `{}`, and every response
+referencing it had quietly lost its schema. A diff that stops at "the path is
+gone" cannot see inside an operation it believes no longer exists. Across the
+sixty pairs, 302 breaking changes were only visible after alignment, and a
+provider versioning by URL prefix would never have been told about any of them.
+
+**Two holes are recorded and not yet closed.** The proposer reads
+`components.schemas` and nothing else, so operation parameters are invisible to
+it: 483 real deltas concern query and path parameters that `enumMap` and
+`remove` could express, against a `ParameterScope` the IR already has. And
+there is no op for removing a whole operation; `remove` works on fields. Both
+are in the report's table with the diagnosis beside them, ranked by how often
+real companies actually do them.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no
