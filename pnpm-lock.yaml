@@ -23,6 +23,9 @@ importers:
       '@invariant/bundle':
         specifier: workspace:*
         version: link:packages/bundle
+      '@invariant/cli':
+        specifier: workspace:*
+        version: link:packages/cli
       '@invariant/compiler':
         specifier: workspace:*
         version: link:packages/compiler

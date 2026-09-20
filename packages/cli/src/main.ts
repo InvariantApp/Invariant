@@ -13,6 +13,8 @@ import { renderComment } from "./comment.ts";
 import { loadConfig } from "./config.ts";
 import { renderProposals, runPropose } from "./propose.ts";
 import { release, renderRelease, verifyRelease } from "./release.ts";
+import { assessRetirement, renderRetirement, retireContracts } from "./retire.ts";
+import { readLedger } from "./usage.ts";
 
 const USAGE = `invariant <command>
 
@@ -22,6 +24,7 @@ const USAGE = `invariant <command>
   compile   Write the compiled program into the build.
   release   Mint the contract, move the Changes, and sign the evolution bundle.
   verify    Open a published bundle and check who signed it.
+  retire    Say which old contracts nobody is using any more.
 
 Options
   --config <path>   Path to invariant.yaml (default: ./invariant.yaml)
@@ -36,6 +39,9 @@ Options
   --commit <sha>    release: the commit this release came from
   --pr <number>     release: the pull request it was merged in
   --key <path>      verify: a trusted ed25519 public key, in PEM form
+  --usage <path>    retire: the usage ledger the runtime's counters wrote
+  --days <n>        retire: how long a contract must be quiet (default 30)
+  --write           retire: remove the retired contracts from invariant.yaml
 
 Environment
   INVARIANT_SIGNING_KEY   release: the ed25519 private key, in PEM form
@@ -124,6 +130,29 @@ async function main(argv: string[]): Promise<number> {
         "",
       ].join("\n"),
     );
+    return 0;
+  }
+
+  if (command === "retire") {
+    const ledger = flag(argv, "usage") ?? "invariant/usage.jsonl";
+    const days = flag(argv, "days");
+    const report = assessRetirement(
+      config,
+      await readLedger(resolve(config.root, ledger)),
+      days === undefined ? {} : { windowDays: Number(days) },
+    );
+
+    process.stdout.write(`${renderRetirement(report)}\n`);
+
+    if (argv.includes("--write") && report.retirable.length > 0) {
+      const { removed } = await retireContracts(
+        resolve(flag(argv, "config") ?? "invariant.yaml"),
+        report.retirable,
+      );
+      process.stdout.write(
+        `\nStopped serving ${removed.join(", ")}. Run "invariant compile" and commit both.\n`,
+      );
+    }
     return 0;
   }
 

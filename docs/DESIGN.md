@@ -1044,6 +1044,34 @@ something else. And the step is bounded, because this is the one layer that
 waits on a process it did not write, and a finished-but-hanging check looks
 exactly like a slow one until something says otherwise.
 
+### Retirement, which is the part that makes the rest affordable
+
+Every version adapter built in production has the same problem: it never stops
+growing. Nobody can prove a consumer stopped needing a transform, so every old
+contract is served forever and each breaking change is paid for again on every
+release after it. The counters are what make an ending possible, because the
+adapter already touches exactly the fields a Change describes.
+
+Three refusals turned out to matter more than the recommendation itself.
+
+- **No records is not the same as no consumers.** A contract with nothing
+  recorded against it almost certainly means the usage sink was never wired up,
+  not that everyone left. `never-seen` is a separate verdict from `idle` and
+  never appears in the retirable list.
+- **Only a prefix retires, and only in order.** A program for an old contract
+  is built by walking every step from it to current, so removing a step from
+  the middle breaks the chain for everything older. The first contract anyone
+  is still using stops the list there, even when something newer is quieter.
+- **The identity default is usually the oldest contract.** Removing it from the
+  served list without moving the default first points every caller who declares
+  nothing at a contract that no longer exists, which is a worse outage than the
+  one retirement was avoiding. It refuses and says what to change.
+
+The tool only ever proposes. Deciding that silence means absence is a judgement
+about a business - a consumer that calls quarterly is idle for eighty-nine days
+and then very much not - so the window is the provider's, the evidence sits
+beside the recommendation, and the removal is a commit somebody makes.
+
 ### Still to build
 
 The registry and control plane (the hosted half of Phase 5), Phase 7 (GitHub

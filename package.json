@@ -23,6 +23,7 @@
     "@fixtures/provider-acme": "workspace:*",
     "@hono/node-server": "^2.1.1",
     "@invariant/bundle": "workspace:*",
+    "@invariant/cli": "workspace:*",
     "@invariant/compiler": "workspace:*",
     "@invariant/contract": "workspace:*",
     "@invariant/diff": "workspace:*",

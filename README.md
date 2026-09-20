@@ -30,7 +30,12 @@ The demo holds end to end (`pnpm e2e`):
    errors, and it then passes against the new API **with no adapter at all**.
    The one site the engine would not guess at is reported with an exact
    location, and it is exactly the one test that fails until that site is dealt
-   with.
+   with. Consumer B, which holds generated types rather than an SDK, migrates
+   through the same engine and one different symbol map.
+4. Once that consumer has stopped calling the old contract, `invariant retire`
+   reads the adapter's own counters and says the contract can stop being
+   served, so the compatibility layer has an ending rather than growing
+   forever.
 
 The release gate is wired up as `invariant check`, and it runs every
 verification layer the design calls for short of the signed bundle. Still to

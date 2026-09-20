@@ -6,13 +6,23 @@
  * Step 2: with the compiled program in the provider's build, the same three
  * consumers pass against that same new API, unmodified.
  */
-import { readFile, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ACME_PROGRAM } from "@fixtures/provider-acme";
+import {
+  appendLedger,
+  assessRetirement,
+  hashConsumer,
+  loadConfig,
+  readLedger,
+  renderRetirement,
+} from "@invariant/cli";
 import type { UsageEvent } from "@invariant/runtime";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   type ConsumerId,
+  REPO_ROOT,
   type RunningProvider,
   runConsumerSuite,
   runMigratedSuite,
@@ -241,5 +251,115 @@ describe("step 3: the connected codebase moves forward", () => {
     // The adapter is still deployed and this consumer no longer touches it.
     // That zero is what eventually retires the old contract.
     expect(usage).toEqual([]);
+  });
+});
+
+/**
+ * Step 4: the compatibility layer ends.
+ *
+ * Every version-adapter built in production has the same problem, which is
+ * that it never stops growing: nobody can prove a consumer stopped needing a
+ * transform, so every old contract is served forever and each breaking change
+ * is paid for again on every release after it.
+ *
+ * The counters are what make an ending possible, and this is the whole loop in
+ * one test: real traffic from a consumer on the oldest contract, through the
+ * adapter, into a ledger, and out as a recommendation that only becomes true
+ * once that consumer has gone.
+ */
+describe("step 4: the old contract is retired", () => {
+  let root: string;
+
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), "invariant-retire-"));
+    for (const entry of ["invariant.yaml", "invariant", "openapi"]) {
+      await cp(join(REPO_ROOT, "fixtures/provider-acme", entry), join(root, entry), {
+        recursive: true,
+      });
+    }
+  });
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  async function recordRealTraffic(): Promise<{ ledger: string; now: number }> {
+    const ledger = join(root, "usage.jsonl");
+    const now = Math.floor(Date.now() / 1000);
+    const events: UsageEvent[] = [];
+
+    provider = await startProvider({
+      build: "head",
+      program: ACME_PROGRAM,
+      onUsage: (event) => events.push(event),
+    });
+
+    // A consumer still written against the oldest contract, using the shapes
+    // that contract described.
+    const created = await fetch(`${provider.baseUrl}/v1/charges`, {
+      method: "POST",
+      headers: {
+        authorization: "Bearer sk_test_alpha",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ amount: 49.99, currency: "usd", source: "tok_visa" }),
+    });
+    expect(created.status).toBe(201);
+
+    await appendLedger(
+      ledger,
+      events.flatMap((event) =>
+        [...event.changes].map(([changeId, count]) => ({
+          consumer: hashConsumer(event.consumer ?? "unknown"),
+          contract: event.contract,
+          changeId,
+          count,
+          lastSeen: now,
+        })),
+      ),
+    );
+
+    expect(events.length).toBeGreaterThan(0);
+    return { ledger, now };
+  }
+
+  it("will not retire a contract while someone is still being served by it", async () => {
+    const { ledger, now } = await recordRealTraffic();
+    const config = await loadConfig(join(root, "invariant.yaml"));
+
+    const report = assessRetirement(config, await readLedger(ledger), { now });
+
+    expect(report.retirable).toEqual([]);
+    expect(report.contracts[0]?.verdict).toBe("active");
+    expect(report.contracts[0]?.reason).toContain("still served");
+  });
+
+  it("recommends retirement once the last consumer has been gone long enough", async () => {
+    const { ledger, now } = await recordRealTraffic();
+    const config = await loadConfig(join(root, "invariant.yaml"));
+
+    // The same evidence, read ninety days later. Nothing about the provider
+    // changed; the only thing that moved is how long the silence has lasted.
+    const report = assessRetirement(config, await readLedger(ledger), {
+      now: now + 90 * 86_400,
+    });
+
+    expect(report.retirable).toEqual(["2026-01-15"]);
+    expect(renderRetirement(report)).toContain("Safe to stop serving: 2026-01-15");
+  });
+
+  it("refuses to read a missing ledger as an empty one", async () => {
+    const config = await loadConfig(join(root, "invariant.yaml"));
+
+    // No counters at all is not evidence that nobody is there, and treating it
+    // as such would retire a contract and break every caller on it.
+    const report = assessRetirement(
+      config,
+      await readLedger(join(root, "nothing.jsonl")),
+      {},
+    );
+
+    expect(report.retirable).toEqual([]);
+    expect(report.contracts[0]?.verdict).toBe("never-seen");
   });
 });
