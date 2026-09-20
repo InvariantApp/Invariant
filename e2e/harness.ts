@@ -64,10 +64,16 @@ export interface SuiteResult {
 
 const SUMMARY = /Tests\s+(?:(\d+) failed\s*\|\s*)?(\d+) passed/;
 
+// Strip ANSI escapes before reading the summary, so the parse does not depend
+// on whether the runner decided to colourize its output.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching ANSI escapes requires ESC
+const ANSI = /\u001B\[[0-9;]*[A-Za-z]/g;
+
 function summarize(output: string): { ran: boolean; failed: number; succeeded: number } {
-  const match = SUMMARY.exec(output);
+  const plain = output.replace(ANSI, "");
+  const match = SUMMARY.exec(plain);
   if (!match) {
-    const onlyFailures = /Tests\s+(\d+) failed\b(?!\s*\|)/.exec(output);
+    const onlyFailures = /Tests\s+(\d+) failed\b(?!\s*\|)/.exec(plain);
     if (onlyFailures) {
       return { ran: true, failed: Number(onlyFailures[1]), succeeded: 0 };
     }
@@ -94,7 +100,11 @@ export function runConsumerSuite(
     ["exec", "vitest", "run", "--reporter=dot", CONSUMERS[consumer]],
     {
       cwd: REPO_ROOT,
-      env: { ...process.env, ...env, CI: "1" },
+      // Colour is forced off so the summary this function parses is plain
+      // text. A CI runner that turns colour on would otherwise hide the
+      // summary behind escape codes, and a suite that really ran would be
+      // mistaken for one that never started.
+      env: { ...process.env, ...env, CI: "1", NO_COLOR: "1", FORCE_COLOR: "0" },
       stdio: ["ignore", "pipe", "pipe"],
     },
   );
