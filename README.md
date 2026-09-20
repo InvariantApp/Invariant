@@ -3,12 +3,24 @@
 **Change your API without breaking anyone.**
 
 When a company changes its API, every app built against the old one stops
-working. Today the company has three bad options: never change anything, break
-their customers and apologise, or hand-build a versioning system. Stripe,
-Intercom and Keygen all took the third option and each spent years on it.
+working. There are three ways to handle that today, and each of them costs
+somebody real work:
 
-Invariant is that system, as a product, plus something none of them have: it
-also sends a pull request to every customer that fixes their code.
+- **Freeze the API.** Cheap this quarter, and paid for in every product
+  decision afterwards.
+- **Write a migration guide.** This is what most companies do, and it is a
+  reasonable thing to do. The provider writes the changelog, the upgrade notes
+  and the deprecation warnings once, and then every customer does the same
+  piece of work separately, at whatever moment is worst for them. The guide is
+  prose, so nothing can check it and nothing can run it.
+- **Build a versioning system in-house.** Stripe, Intercom and Keygen each did.
+  Each of them spent years on it.
+
+Invariant is the third option as a product, plus something none of them have:
+it also sends a pull request to every customer that makes the change for them.
+
+The migration guide does not go away, but it stops being the mechanism. It goes
+back to being an explanation.
 
 ---
 
@@ -201,9 +213,15 @@ where the knowledge of what changed actually lives.
 
 The API company pays. What they get:
 
-- **They can change their API again.** Most companies with customers on an API
-  quietly stop changing it, because the cost of breaking people is too high.
-  That is a real tax on the product, paid forever, and it never appears on a
+- **The same work stops being done a hundred times.** Writing the migration
+  guide is the small half. The large half is every customer reading it and
+  making the same edit separately, each at whatever moment is worst for them.
+  That cost is real and the provider never sees it on a bill, but they do see
+  it as support tickets, as customers stuck on old versions, and occasionally
+  as a customer who leaves.
+- **Changes stop being scheduled around fear.** A change everyone agrees is
+  right gets deferred because the migration is expensive to ask for. That is a
+  tax on the product, paid quarter after quarter, and it never appears on a
   budget line.
 - **They stop maintaining versioning by hand.** The companies that do this
   properly have a team on it. The ones that do not have an ever-growing pile of
