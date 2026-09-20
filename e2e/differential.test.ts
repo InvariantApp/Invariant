@@ -13,11 +13,15 @@ import { type ContractStep, chainProgram, predictDocument } from "@invariant/com
 import { loadContract, loadPendingChanges, loadReleaseStep } from "@invariant/contract";
 import { breakingEntries, diffDocuments } from "@invariant/diff";
 import type { Change } from "@invariant/ir";
+import {
+  checkDifferential,
+  type Launcher,
+  loadScenarios,
+  type Scenario,
+} from "@invariant/verifier";
 import { beforeAll, describe, expect, it } from "vitest";
-import { checkDifferential, type Launcher } from "./differential.ts";
-import { loadScenarios, type Scenario } from "./scenarios.ts";
 
-const FIXTURE = join(import.meta.dirname, "../../../fixtures/provider-acme");
+const FIXTURE = join(import.meta.dirname, "../fixtures/provider-acme");
 const INVARIANT = join(FIXTURE, "invariant");
 
 /**

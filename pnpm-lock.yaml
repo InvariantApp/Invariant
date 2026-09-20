@@ -20,12 +20,24 @@ importers:
       '@hono/node-server':
         specifier: ^2.1.1
         version: 2.1.1(hono@4.13.8)
+      '@invariant/bundle':
+        specifier: workspace:*
+        version: link:packages/bundle
+      '@invariant/compiler':
+        specifier: workspace:*
+        version: link:packages/compiler
       '@invariant/contract':
         specifier: workspace:*
         version: link:packages/contract
+      '@invariant/diff':
+        specifier: workspace:*
+        version: link:packages/diff
       '@invariant/eval':
         specifier: workspace:*
         version: link:packages/eval
+      '@invariant/ir':
+        specifier: workspace:*
+        version: link:packages/ir
       '@invariant/migrate-ts':
         specifier: workspace:*
         version: link:packages/migrate-ts
@@ -277,10 +289,6 @@ importers:
       yaml:
         specifier: ^2.8.1
         version: 2.9.1
-    devDependencies:
-      '@fixtures/provider-acme':
-        specifier: workspace:*
-        version: link:../../fixtures/provider-acme
 
 packages:
 

@@ -50,7 +50,7 @@ beforeAll(async () => {
 
   migrated = await migrate({
     repoDir: CONSUMER,
-    sdkDir: SDK_DIR,
+    generated: [SDK_DIR],
     tsConfigFilePath: `${CONSUMER}tsconfig.json`,
     plan: buildPlan(changes, SYMBOLS),
   });

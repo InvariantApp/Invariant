@@ -18,7 +18,7 @@ import {
   runMigratedSuite,
   startProvider,
 } from "./harness.ts";
-import { migrateConsumerA } from "./migrate.ts";
+import { migrateConsumerA, migrateConsumerB } from "./migrate.ts";
 
 const OWN_CONTRACT: Record<ConsumerId, "2026-01-15" | "2026-03-01"> = {
   a: "2026-01-15",
@@ -153,6 +153,68 @@ describe("step 3: the connected codebase moves forward", () => {
       ACME_API_KEY: "sk_test_delta",
     });
     expect(result.passed, result.output).toBe(true);
+  });
+
+  /**
+   * Consumer B holds generated types rather than an SDK.
+   *
+   * Nothing in the engine differs between the two: the symbol map says the
+   * schemas live under `components.schemas` instead of being exported by name,
+   * and that is the entire adaptation. If migrating a second client style had
+   * needed a second engine, the claim that the type checker does the work
+   * would be false.
+   */
+  it("migrates consumer B, whose schemas are nested inside generated types", async () => {
+    const result = await migrateConsumerB();
+
+    expect(result.changedFiles).toContain("src/checkout.ts");
+    expect(result.changedFiles).toContain("src/checkout.test.ts");
+    // Its types are regenerated from the new contract rather than a package
+    // being bumped, because that is what a types-only dependency is.
+    expect(result.changedFiles).toContain("src/acme-types.ts");
+    // And the exact conversion helpers are written in, because there is no SDK
+    // for them to arrive in and inlining the arithmetic would put a rounding
+    // bug in every price.
+    expect(result.changedFiles).toContain("src/invariant-units.ts");
+  });
+
+  it("rewrites consumer B's money without ever inlining the arithmetic", async () => {
+    const result = await migrateConsumerB();
+    const source = await readFile(join(result.dir, "src/checkout.ts"), "utf8");
+
+    // A literal is resolved exactly at build time: 199.0 is 19900, with no
+    // call left behind and no multiplication to get wrong.
+    expect(source).toContain("amount_cents: 19900");
+    // An expression cannot be, so it goes through the helper.
+    expect(source).toContain("amount_cents: toMinorUnits(invoiceTotal(items))");
+    expect(source).toContain("fromMinorUnits(payment.amount_cents)");
+    expect(source).toContain('status === "paid"');
+    expect(source).toContain('capture_method: "automatic"');
+    // No site the migration wrote does the arithmetic itself. The consumer's
+    // own invoice maths is left exactly as it was: the engine rewrites what
+    // the contract describes and nothing else.
+    for (const line of source
+      .split("\n")
+      .filter((entry) => entry.includes("amount_cents"))) {
+      expect(line).not.toMatch(/[*/]\s*10{2,}/);
+    }
+    expect(source).toContain("Math.round(item.unitPrice * 100)");
+  });
+
+  it("points consumer B at the exact lines it would not rewrite", async () => {
+    const result = await migrateConsumerB();
+    expect(result.manual).toHaveLength(2);
+
+    const text = await readFile(join(result.dir, "src/checkout.test.ts"), "utf8");
+    const lines = text.split("\n");
+
+    // The reported line has to be the line in the file the reviewer opens,
+    // which is not the line it was on before the edits moved it.
+    const optional = result.manual.find((site) => site.reason.includes("optional chain"));
+    expect(lines[(optional?.line ?? 0) - 1]).toContain("fetched?.amount");
+
+    const literal = result.manual.find((site) => site.reason.includes("succeeded"));
+    expect(lines[(literal?.line ?? 0) - 1]).toContain("succeeded");
   });
 
   it("no longer needs the old contract once it has migrated", async () => {

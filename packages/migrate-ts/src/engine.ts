@@ -18,7 +18,13 @@
  * is worse than one that says which call site it could not do.
  */
 import type { DataOp } from "@invariant/ir";
-import { Node, type Project, SyntaxKind } from "ts-morph";
+import {
+  Node,
+  type Project,
+  type PropertySignature,
+  SyntaxKind,
+  type TypeElementTypes,
+} from "ts-morph";
 import type { Edit, Replacement } from "./edits.ts";
 import { exactMinorUnits } from "./numbers.ts";
 import type { MigrationPlan, Role, TargetSymbol } from "./plan.ts";
@@ -30,6 +36,15 @@ export interface ManualSite {
   changeId: string;
   reason: string;
   snippet: string;
+  /**
+   * Byte offset in the file as it was before any edit.
+   *
+   * Kept so the reported line can be moved to where the site ends up. A
+   * migration that inserts an import shifts every line below it, and a report
+   * that points a reviewer one line above the thing it is talking about is
+   * worse than one that points nowhere.
+   */
+  offset: number;
 }
 
 export interface EngineResult {
@@ -71,6 +86,7 @@ function manualFrom(node: Node, changeId: string, reason: string): ManualSite {
     changeId,
     reason,
     snippet: (node.getParent() ?? node).getText().slice(0, 120),
+    offset: node.getStart(),
   };
 }
 
@@ -247,7 +263,28 @@ function applyComposed(
         return;
       }
       const object = parent.getExpression().getText();
-      let text = `${object}.${composed.path.join(".")}`;
+      const optional = parent.hasQuestionDotToken();
+
+      // An optional read yields a value or nothing, and a conversion helper
+      // takes a value. Wrapping it would either drop the `?.` and turn a safe
+      // read into one that throws, or pass `undefined` into arithmetic. Both
+      // are worse than saying so: the shapes of the two expressions genuinely
+      // differ, and which of them the caller wants is not derivable from the
+      // Change.
+      if (optional && composed.wrapRead) {
+        result.manual.push(
+          manualFrom(
+            node,
+            changeId,
+            `this reads ${node.getText()} through an optional chain, and the value ` +
+              "now needs converting. Decide what the result should be when there " +
+              "is nothing there, then convert it.",
+          ),
+        );
+        return;
+      }
+
+      let text = `${object}${optional ? "?." : "."}${composed.path.join(".")}`;
       if (composed.wrapRead) {
         useHelper(result, file, composed.wrapRead);
         text = `${composed.wrapRead}(${text})`;
@@ -476,6 +513,7 @@ function applyContextualEnums(
         column,
         changeId,
         reason: `this text still contains "${stale}", which the contract now calls "${map[stale] ?? ""}"`,
+        offset: template.getStart(),
         snippet: template.getText().slice(0, 120),
       });
     }
@@ -491,17 +529,88 @@ function applyContextualEnums(
  * dependency is not a migration, it is damage.
  */
 export interface EditScope {
+  /** The repository being migrated. Nothing outside it is ever written. */
   repoDir: string;
-  sdkDir: string;
+  /**
+   * Files and directories that describe the contract but are not the
+   * consumer's own code: a generated SDK, or a generated types file.
+   *
+   * Two separate things used to share one name here, and consumer B is where
+   * that broke. A hand-written SDK lives outside the repository, so "where the
+   * declarations are" and "what must not be edited" happened to coincide.
+   * Generated types live inside it, usually in the same directory as the code
+   * that imports them, so treating the whole directory as off limits excluded
+   * every edit and the migration silently did nothing.
+   *
+   * Declarations are read from these paths. They are never written, because
+   * they are regenerated from the new contract instead.
+   */
+  generated: readonly string[];
+}
+
+function isGenerated(path: string, scope: EditScope): boolean {
+  return scope.generated.some((entry) => path.startsWith(entry));
 }
 
 export function editable(node: Node, scope: EditScope): boolean {
   const path = node.getSourceFile().getFilePath();
-  return path.startsWith(scope.repoDir) && !path.startsWith(scope.sdkDir);
+  return path.startsWith(scope.repoDir) && !isGenerated(path, scope);
 }
 
-function inSdk(node: Node, sdkDir: string): boolean {
-  return node.getSourceFile().getFilePath().startsWith(sdkDir);
+/**
+ * Finds the declaration that describes a schema, wherever the generator put it.
+ *
+ * A hand-written SDK exports `interface Payment`. `openapi-typescript` instead
+ * emits one `interface components` with everything nested under
+ * `schemas.Payment`, so the same schema is reachable only by walking a path.
+ * Supporting both is the point: an indexer that only understands one generator
+ * shape is an indexer that works for one customer.
+ *
+ * A dotted name in the symbol map is that path. A bare one is a top-level
+ * declaration, which is what every existing map already contains.
+ */
+function membersOf(
+  project: Project,
+  path: string,
+  scope: EditScope,
+): TypeElementTypes[] | undefined {
+  const [head, ...rest] = path.split(".");
+  if (head === undefined) return undefined;
+
+  for (const source of project.getSourceFiles()) {
+    if (!isGenerated(source.getFilePath(), scope)) continue;
+
+    const root = source.getInterface(head) ?? source.getTypeAlias(head);
+    if (!root) continue;
+
+    let members: TypeElementTypes[] = Node.isInterfaceDeclaration(root)
+      ? root.getMembers()
+      : literalMembers(root.getTypeNode());
+
+    for (const segment of rest) {
+      const property = members.find(
+        (member) => Node.isPropertySignature(member) && member.getName() === segment,
+      );
+      if (!property || !Node.isPropertySignature(property)) return undefined;
+      members = literalMembers(property.getTypeNode());
+    }
+    return members;
+  }
+  return undefined;
+}
+
+function literalMembers(node: Node | undefined): TypeElementTypes[] {
+  return node && Node.isTypeLiteral(node) ? node.getMembers() : [];
+}
+
+function propertyOf(
+  members: readonly TypeElementTypes[] | undefined,
+  name: string,
+): PropertySignature | undefined {
+  const found = members?.find(
+    (member) => Node.isPropertySignature(member) && member.getName() === name,
+  );
+  return found && Node.isPropertySignature(found) ? found : undefined;
 }
 
 export function runEngine(
@@ -509,19 +618,10 @@ export function runEngine(
   plan: MigrationPlan,
   scope: EditScope,
 ): EngineResult {
-  const { sdkDir } = scope;
   const result: EngineResult = { edits: [], manual: [], helpersUsed: new Map() };
 
-  const propertyIn = (typeName: string, property: string) => {
-    for (const source of project.getSourceFiles()) {
-      if (!inSdk(source.getFirstChild() ?? source.getChildren()[0] ?? source, sdkDir)) {
-        if (!source.getFilePath().startsWith(sdkDir)) continue;
-      }
-      const found = source.getInterface(typeName)?.getProperty(property);
-      if (found) return found;
-    }
-    return undefined;
-  };
+  const propertyIn = (typeName: string, property: string) =>
+    propertyOf(membersOf(project, typeName, scope), property);
 
   // One group per field, so every op that touches it composes into one edit.
   const groups = new Map<string, TargetSymbol[]>();
@@ -585,13 +685,13 @@ export function runEngine(
     if (target.op.op !== "add") continue;
     const head = segmentsOf(target.op.path)[0] as string;
 
-    for (const source of project.getSourceFiles()) {
-      if (!source.getFilePath().startsWith(sdkDir)) continue;
-      const declaration = source.getInterface(target.typeName);
-      if (!declaration) continue;
+    {
+      const members = membersOf(project, target.typeName, scope);
+      if (!members) continue;
 
       const literals = new Set<Node>();
-      for (const property of declaration.getProperties()) {
+      for (const property of members) {
+        if (!Node.isPropertySignature(property)) continue;
         for (const reference of property.findReferencesAsNodes()) {
           if (!editable(reference, scope)) continue;
           const parent = reference.getParent();

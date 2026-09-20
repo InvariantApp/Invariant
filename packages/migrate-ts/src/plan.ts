@@ -18,8 +18,23 @@ export interface SymbolMap {
   types: Record<string, string>;
   /** Resource accessor paths that moved, for example charges.create to payments.create. */
   accessors: { from: string[]; to: string[] }[];
-  /** Exact conversion helpers the SDK exports, so no float math is ever inlined. */
-  helpers?: { toMinor: string; fromMinor: string };
+  /**
+   * Exact conversion helpers, so no float math is ever inlined at a call site.
+   *
+   * A generated SDK exports them, and `from` is left out. A consumer holding
+   * only generated types has no SDK to export anything, so `from` names a
+   * module and `emit` asks the migration to write it into the repository. The
+   * alternative is inlining `value * 100` at every site, which is a rounding
+   * bug waiting for the first price ending in a third of a cent.
+   */
+  helpers?: {
+    toMinor: string;
+    fromMinor: string;
+    /** Module specifier to import them from. Defaults to `package`. */
+    from?: string;
+    /** Write the module too, at this path relative to the repository. */
+    emit?: { path: string };
+  };
 }
 
 export type Role =

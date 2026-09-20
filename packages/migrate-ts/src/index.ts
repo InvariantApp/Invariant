@@ -7,7 +7,7 @@
  * not a thing to do on someone else's behalf.
  */
 import { readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { Node, Project, type SourceFile } from "ts-morph";
 import { applyEdits, type Edit, groupByFile } from "./edits.ts";
 import {
@@ -27,7 +27,23 @@ export interface MigrateOptions {
   /** Root of the consumer repository. */
   repoDir: string;
   /** Root of the SDK sources, so the engine never edits the SDK itself. */
-  sdkDir: string;
+  /**
+   * Where the contract's type declarations live: a generated SDK outside the
+   * repository, or generated files inside it. Read, never written.
+   */
+  generated: readonly string[];
+  /**
+   * Generated files to replace once the edits are in, before the result is
+   * checked.
+   *
+   * The order matters and is the whole reason this exists. References are
+   * resolved against the declarations the consumer compiles against *today*,
+   * because those are what its source actually names; regenerating first
+   * deletes the very property the engine anchors on and the migration silently
+   * finds nothing. The new declarations go in afterwards, so the diagnostics
+   * are measured against what the consumer will actually compile against.
+   */
+  regenerate?: readonly { path: string; source: string }[];
   tsConfigFilePath: string;
   plan: MigrationPlan;
   /** Write the result to disk. Off by default, so a dry run stays a dry run. */
@@ -54,14 +70,14 @@ function renameAccessors(
   scope: EditScope,
   result: EngineResult,
 ): void {
-  const { sdkDir } = scope;
+  const { generated } = scope;
   for (const rename of plan.accessorRenames) {
     const [fromHead] = rename.from;
     const [toHead] = rename.to;
     if (!fromHead || !toHead || fromHead === toHead) continue;
 
     for (const source of project.getSourceFiles()) {
-      if (!source.getFilePath().startsWith(sdkDir)) continue;
+      if (!generated.some((entry) => source.getFilePath().startsWith(entry))) continue;
       for (const declaration of source.getClasses()) {
         const property = declaration.getProperty(fromHead);
         if (!property) continue;
@@ -89,11 +105,11 @@ function renameTypes(
   scope: EditScope,
   result: EngineResult,
 ): void {
-  const { sdkDir } = scope;
+  const { generated } = scope;
   for (const [schema, typeName] of Object.entries(plan.symbols.types)) {
     if (schema === typeName) continue;
     for (const source of project.getSourceFiles()) {
-      if (!source.getFilePath().startsWith(sdkDir)) continue;
+      if (!generated.some((entry) => source.getFilePath().startsWith(entry))) continue;
       const declaration = declarationsIn(source, typeName);
       if (!declaration) continue;
       for (const node of declaration.findReferencesAsNodes()) {
@@ -150,27 +166,44 @@ function addHelperImports(
   const helpers = plan.symbols.helpers;
   if (!helpers) return [];
   const names = [helpers.toMinor, helpers.fromMinor];
+  const from = helpers.from ?? plan.symbols.package;
   const edits: Edit[] = [];
 
   for (const file of files) {
     const source = project.getSourceFile(file);
     if (!source) continue;
+
+    const body = source.getFullText();
     const declaration = source
       .getImportDeclarations()
-      .find(
-        (imported) =>
-          imported.getModuleSpecifier().getLiteralValue() === plan.symbols.package,
-      );
-    if (!declaration) continue;
+      .find((imported) => imported.getModuleSpecifier().getLiteralValue() === from);
 
-    const named = declaration.getNamedImports();
+    const named = declaration?.getNamedImports() ?? [];
     const existing = new Set(named.map((entry) => entry.getName()));
-    const body = source.getFullText();
     const missing = names
       .filter((name) => !existing.has(name))
       .filter((name) => new RegExp(`\\b${name}\\(`).test(body))
       .sort();
     if (missing.length === 0) continue;
+
+    // No import to extend means the helpers come from a module this repository
+    // did not use before, which is the ordinary case for a consumer holding
+    // only generated types. The statement goes above the first existing import
+    // so the file still starts with whatever documents it.
+    if (!declaration) {
+      const first = source.getImportDeclarations()[0];
+      const at = first?.getStart() ?? 0;
+      edits.push({
+        file,
+        start: at,
+        end: at,
+        replacement: `import { ${missing.join(", ")} } from "${from}";\n`,
+        changeId: "sdk-upgrade",
+        author: "codemod",
+        reason: "imported the exact conversion helpers",
+      });
+      continue;
+    }
 
     const last = named[named.length - 1];
     if (!last) continue;
@@ -195,12 +228,39 @@ function diagnosticsOf(project: Project): string[] {
   });
 }
 
+/**
+ * Moves each reported site to where the edits left it.
+ *
+ * Only edits that start strictly before the site can move it, and each one
+ * moves it by the difference between what it replaced and what it inserted.
+ */
+function relocateManualSites(manual: ManualSite[], edits: readonly Edit[]): void {
+  for (const site of manual) {
+    let shift = 0;
+    let inserted = "";
+
+    for (const edit of edits) {
+      if (edit.file !== site.file || edit.start >= site.offset) continue;
+      const replacement =
+        typeof edit.replacement === "string" ? edit.replacement : edit.replacement(""); // A transform of an empty span adds no lines.
+      shift += replacement.length - (edit.end - edit.start);
+      inserted += replacement;
+    }
+
+    if (shift === 0) continue;
+    site.line += inserted.split("\n").length - 1;
+  }
+}
+
 export async function migrate(options: MigrateOptions): Promise<MigrationResult> {
   const project = new Project({ tsConfigFilePath: options.tsConfigFilePath });
   const diagnosticsBefore = diagnosticsOf(project);
 
   // First pass: everything that follows from the Changes themselves.
-  const scope: EditScope = { repoDir: options.repoDir, sdkDir: options.sdkDir };
+  const scope: EditScope = {
+    repoDir: options.repoDir,
+    generated: options.generated,
+  };
   const result = runEngine(project, options.plan, scope);
   renameAccessors(project, options.plan, scope, result);
   renameTypes(project, options.plan, scope, result);
@@ -233,6 +293,32 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
     files.set(file, updated);
     project.getSourceFileOrThrow(file).replaceWithText(updated);
   }
+
+  // A consumer with no SDK has nowhere for the exact conversion helpers to
+  // come from, so the migration brings them. The file is real source in this
+  // repository, type-checked and property-tested against an integer oracle,
+  // rather than a string assembled here and hoped over.
+  const emit = options.plan.symbols.helpers?.emit;
+  if (emit) {
+    const path = resolve(options.repoDir, emit.path);
+    const source = await readFile(
+      new URL("./templates/units.ts", import.meta.url),
+      "utf8",
+    );
+    files.set(path, source);
+    project.createSourceFile(path, source, { overwrite: true });
+  }
+
+  for (const entry of options.regenerate ?? []) {
+    const path = resolve(options.repoDir, entry.path);
+    files.set(path, entry.source);
+    project.createSourceFile(path, entry.source, { overwrite: true });
+  }
+
+  // Manual sites were located in the source as it was read. Every edit above
+  // one of them moves it, so the line a reviewer is sent to is recomputed
+  // against the text they will actually open.
+  relocateManualSites(result.manual, result.edits);
 
   // Re-check against the edited text, so the result is measured rather than
   // assumed. A migration that leaves a new type error is not a migration.

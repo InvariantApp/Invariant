@@ -995,14 +995,47 @@ the next person to touch these areas should know why they look the way they do.
   released manifest quotes them, and the test asserts the round trip rather
   than the quoting.
 
+### Phase 6 revisited, the second client style
+
+Consumer B holds generated types rather than an SDK, and migrating it changed
+nothing in the engine beyond one symbol map. That was the claim being tested:
+if a second client shape had needed a second engine, "the type checker does the
+blast-radius analysis" would have been false.
+
+What it did change was three things that were wrong and had not shown up yet.
+
+- **`sdkDir` was two ideas sharing a name**: where the declarations are, and
+  what must not be edited. A hand-written SDK lives outside the repository, so
+  the two coincided by accident. Generated types live *inside* it, next to the
+  code that imports them, so excluding the directory excluded every edit and
+  the migration silently did nothing at all. They are now separate, and the
+  quiet-success failure is the reason it is worth saying twice.
+- **Regenerating the types first deletes what the engine anchors on.**
+  References are resolved against the declarations the consumer compiles
+  against *today*, because those are what its source actually names. The new
+  ones go in after the edits, before the diagnostics are measured.
+- **An optional read cannot be wrapped.** `fetched?.amount` yields a value or
+  nothing, and a conversion helper takes a value; rewriting it either drops the
+  `?.` and turns a safe read into one that throws, or passes `undefined` into
+  arithmetic. Reported with an exact location instead.
+- **A reported line has to be the line the reviewer opens.** Manual sites were
+  located in the source as it was read, and every inserted import moved them
+  down. A report that points one line above the thing it describes is worse
+  than one that points nowhere.
+
+A consumer with no SDK also has nowhere for the exact conversion helpers to
+arrive from, so the migration writes them in. Inlining `value * 100` at each
+site instead would put a rounding bug in every price: `19.99 * 100` is
+`1998.9999999999998`. The module is real source in this repository, property
+tested against an integer oracle, rather than a string assembled at emit time.
+
 ### Still to build
 
 The registry and control plane (the hosted half of Phase 5), Phase 7 (GitHub
 App delivery), Phase 8 (demo hardening and drills). Bundles are built, signed,
 verified and reproducible; what does not exist yet is anywhere to publish them
-to, so `invariant release` writes them into the provider's own repository. Consumers B and C have no
-migration path yet: B needs generated types regenerated from the new contract,
-C is raw HTTP and belongs behind the Judge interface with a review flag.
+to, so `invariant release` writes them into the provider's own repository. Consumer C has no migration path
+yet: it is raw HTTP and belongs behind the Judge interface with a review flag.
 
 Two evidence kinds are defined but not yet produced. E8 needs the release step
 to read the merge commit, which arrives with the signed bundle in Phase 5. E9

@@ -9,12 +9,11 @@ import { join } from "node:path";
 import { createAcmeApp } from "@fixtures/provider-acme";
 import { loadContract } from "@invariant/contract";
 import { isJsonObject, type JsonObject } from "@invariant/ir";
+import type { Target } from "@invariant/verifier";
+import { checkConformance, loadScenarios, type Scenario } from "@invariant/verifier";
 import { describe, expect, it } from "vitest";
-import { checkConformance } from "./conformance.ts";
-import type { Target } from "./differential.ts";
-import { loadScenarios, type Scenario } from "./scenarios.ts";
 
-const FIXTURE = join(import.meta.dirname, "../../../fixtures/provider-acme");
+const FIXTURE = join(import.meta.dirname, "../fixtures/provider-acme");
 
 function headTarget(): Promise<Target> {
   const app = createAcmeApp({ build: "head" });
