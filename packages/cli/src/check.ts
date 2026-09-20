@@ -384,19 +384,61 @@ export function renderReport(report: CheckReport): string {
   }
 
   lines.push("", `Release status: ${report.result.toUpperCase()}`);
-  if (report.result === "block") {
-    const unexplained = report.steps.some((step) => step.unexplained.length > 0);
-    lines.push(
-      unexplained
-        ? "Reason: the declared Changes do not fully explain this release."
-        : "Reason: a verification layer found something that would break an old caller.",
+  if (report.result === "block") lines.push(...reasonFor(report));
+
+  return lines.join("\n");
+}
+
+/**
+ * Why this release is blocked, said accurately.
+ *
+ * Worth the care, because a gate that misdiagnoses is worse than one that only
+ * says no: it sends a provider to read the wrong files. A stale specification
+ * in particular is not a compatibility failure at all, and telling someone
+ * their unchanged code would break an old caller, when what actually happened
+ * is that their OpenAPI document mentions a field their handler does not
+ * return, is the worst first impression this tool could make.
+ */
+function reasonFor(report: CheckReport): string[] {
+  const unexplained = report.steps.some(
+    (step) =>
+      step.unexplained.length > 0 || step.issues.length > 0 || step.stale.length > 0,
+  );
+  if (unexplained) {
+    return [
+      "Reason: the declared Changes do not fully explain this release.",
       "Every breaking delta needs a Change that accounts for it, and every",
       "Change has to hold when it is actually run, or the old contract cannot",
       "be served.",
-    );
+    ];
   }
 
-  return lines.join("\n");
+  const failing = new Set(
+    report.evidence.filter((entry) => entry.result === "fail").map((entry) => entry.kind),
+  );
+  if (failing.size === 1 && failing.has("E7-conformance")) {
+    return [
+      "Reason: the specification does not describe the code that is running.",
+      "",
+      "Nothing here says an old caller would break. It says the document this",
+      "release was checked against is not the one your service implements, and",
+      "every other check in this report reasons about that document. A contract",
+      "that is wrong does not make the rest of this wrong, it makes it",
+      "meaningless, which is why it stops here.",
+      "",
+      "The mismatches are listed above, each naming the operation, the status",
+      "and the field. If your specification is generated from your code,",
+      "regenerate it and run this again. If it is written by hand, either the",
+      "handler has not caught up with it or it describes something that was",
+      "never true.",
+    ];
+  }
+
+  return [
+    "Reason: a verification layer found something that would break an old caller.",
+    "Every Change has to hold when it is actually run, or the old contract",
+    "cannot be served.",
+  ];
 }
 
 const EVIDENCE_ORDER = [

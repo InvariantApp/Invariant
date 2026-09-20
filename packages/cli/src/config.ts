@@ -6,10 +6,15 @@
  * release gate blocks on. Nothing is fetched, so `invariant check` gives the
  * same answer on a laptop with no network as it does in CI.
  */
+import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { promisify } from "node:util";
 import { isJsonObject, type JsonValue } from "@invariant/ir";
 import { parse as parseYaml } from "yaml";
+
+const execFileAsync = promisify(execFile);
 
 export class ConfigError extends Error {
   constructor(message: string) {
@@ -114,6 +119,56 @@ function headerStrategy(raw: JsonValue | undefined): string | undefined {
   return undefined;
 }
 
+/**
+ * Where the current contract's specification comes from.
+ *
+ * A path, for a provider who writes OpenAPI and commits it. Or a command, for
+ * a provider whose specification is generated from their code, which is most
+ * of them.
+ *
+ * The command matters more than it looks. The likeliest thing this tool will
+ * ever tell a code-first provider is that their document does not describe
+ * their service, and by far the commonest reason is that they changed a
+ * handler and did not regenerate. Running the generator here means the gate is
+ * always reading what the code says right now, so that failure stops being a
+ * first impression and starts being a real finding.
+ */
+async function currentSpecOf(
+  raw: JsonValue | undefined,
+  root: string,
+  path: string,
+): Promise<string> {
+  if (typeof raw === "string") return resolve(root, raw);
+  if (!isJsonObject(raw) || typeof raw["command"] !== "string") {
+    throw new ConfigError(`${path} needs spec.current`);
+  }
+  if (typeof raw["out"] !== "string") {
+    throw new ConfigError(
+      `${path}: spec.current.command needs an "out" saying which file it writes`,
+    );
+  }
+
+  const out = resolve(root, raw["out"]);
+  const { command, args } = words(raw["command"]);
+  try {
+    await execFileAsync(command, args, { cwd: root });
+  } catch (error) {
+    // Their generator failing is their problem to fix, but a gate that reported
+    // it as a stale specification would send them looking in the wrong place.
+    throw new ConfigError(
+      `spec.current.command failed: ${raw["command"]}\n` +
+        `${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  if (!existsSync(out)) {
+    throw new ConfigError(
+      `spec.current.command ran but wrote no ${raw["out"]}. Check that "out" names the file it produces.`,
+    );
+  }
+  return out;
+}
+
 function level(value: unknown, field: string): GateLevel {
   if (value === undefined) return "warn";
   if (value === "block" || value === "warn" || value === "allow") return value;
@@ -136,9 +191,8 @@ export async function loadConfig(path: string): Promise<InvariantConfig> {
   if (typeof api !== "string") throw new ConfigError(`${path} needs an "api" name`);
 
   const spec = parsed["spec"];
-  if (!isJsonObject(spec) || typeof spec["current"] !== "string") {
-    throw new ConfigError(`${path} needs spec.current`);
-  }
+  if (!isJsonObject(spec)) throw new ConfigError(`${path} needs spec.current`);
+  const currentSpec = await currentSpecOf(spec["current"], root, path);
 
   const released = new Map<string, string>();
   const releasedSpecs = spec["released"];
@@ -156,7 +210,7 @@ export async function loadConfig(path: string): Promise<InvariantConfig> {
   return {
     root,
     api,
-    currentSpec: resolve(root, spec["current"]),
+    currentSpec,
     currentLabel:
       typeof spec["currentLabel"] === "string" ? spec["currentLabel"] : undefined,
     releasedSpecs: released,

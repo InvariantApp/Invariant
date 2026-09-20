@@ -93,6 +93,20 @@ build:
 The `released` list is the set of contracts you are still willing to serve.
 Removing one is how you stop.
 
+If your specification is generated from your code rather than written by hand,
+name the generator instead of a path and it runs at gate time:
+
+```yaml
+spec:
+  current:
+    command: pnpm gen:openapi
+    out: openapi/head.json
+```
+
+Worth doing. Every check here reasons about the document, so a document that
+has not caught up with a handler makes the gate confident about an API that
+does not exist. Running the generator means it never has to catch up.
+
 ---
 
 ## 2. Run the gate on every pull request

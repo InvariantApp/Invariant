@@ -1266,6 +1266,30 @@ questions asked rather than the work. The number worth quoting is the cost of
 meeting the ceiling, and it is now one line per delta plus a branch, rather than
 a dead end.
 
+**"Closure is only as strong as the spec, and for a code-first provider the
+experience is blocked until you fix your OpenAPI."** Reproduced on the fixture
+by adding a field to the document that no handler returns. E7 itself was fine:
+it named the operation, the status and the pointer for each mismatch. Two other
+things were not.
+
+The gate misdiagnosed it. With closure passing and only conformance failing, it
+still said a verification layer had found something that would break an old
+caller, which is false. The code was unchanged and correct, nobody's
+integration was in danger, and the sentence sends a provider to audit Change
+files that are fine. A gate that misdiagnoses is worse than one that only says
+no. It now distinguishes the three cases and, for drift alone, says that the
+document is not the one the service implements, that nothing here says an old
+caller would break, and that a wrong contract does not make the rest of the
+report wrong so much as meaningless, which is why it stops there.
+
+And `spec.current` only accepted a path, although section 4.1 has always said
+it accepts a command. It does now. That matters more than convenience: the
+commonest cause of this failure is not a mistake but having changed a handler
+and not rerun the generator, and a gate that runs the generator itself cannot
+read a document that has fallen behind. A failing generator is reported as a
+failing generator, never as a stale specification, because the two are fixed in
+different places.
+
 ### Still to build
 
 **The Octokit half of Phase 7.** Webhook verification, replay protection,
