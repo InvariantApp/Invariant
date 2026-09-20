@@ -15,7 +15,8 @@
     "e2e": "vitest run e2e",
     "demo": "tsx e2e/demo.ts",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
-    "eval:record": "node --env-file=.env --import tsx eval/record.mts"
+    "eval:record": "node --env-file=.env --import tsx eval/record.mts",
+    "app:register": "node --import tsx scripts/register-app.mts"
   },
   "devDependencies": {
     "@acme/sdk-v3": "workspace:*",
@@ -42,6 +43,7 @@
     "ts-morph": "^28.0.0",
     "tsx": "^4.23.13",
     "typescript": "6.0.3",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.1",
+    "@invariant/github": "workspace:*"
   }
 }

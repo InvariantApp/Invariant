@@ -3,6 +3,7 @@ dist/
 *.tsbuildinfo
 .DS_Store
 .env
+.secrets/
 .env.local
 coverage/
 .vitest/

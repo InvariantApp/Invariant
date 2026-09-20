@@ -44,6 +44,9 @@ importers:
       '@invariant/flags':
         specifier: workspace:*
         version: link:packages/flags
+      '@invariant/github':
+        specifier: workspace:*
+        version: link:packages/github
       '@invariant/ir':
         specifier: workspace:*
         version: link:packages/ir
