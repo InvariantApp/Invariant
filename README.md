@@ -18,16 +18,23 @@ See [`docs/DESIGN.md`](docs/DESIGN.md) for the full system design, and
 
 ## Status
 
-Phases 0, 1 and 3 complete. The demo's first two steps hold:
+The demo holds end to end (`pnpm e2e`):
 
 1. Three consumer applications pass against the contract each was written for,
    and break against the provider's new canonical API.
 2. With the compiled program in the provider's build, those same three
    consumers pass against that new API **unmodified**, all three contracts
    served at once from one implementation.
+3. Consumer A, two contracts behind, migrates forward: its source and its own
+   tests are rewritten from the provider's confirmed Changes, with no new type
+   errors, and it then passes against the new API **with no adapter at all**.
+   The one site the engine would not guess at is reported with an exact
+   location, and it is exactly the one test that fails until that site is dealt
+   with.
 
 Still to come: the release gate and differential verifier, signed evolution
-bundles, and the consumer migration engine that moves those codebases forward.
+bundles, the Jev evaluation harness, and the GitHub App that delivers
+migrations as pull requests.
 
 ## Layout
 
@@ -42,6 +49,7 @@ packages/diff         structural diff via oasdiff, and the breaking-change polic
 packages/compiler     type checking, the closure check, and program projection
 packages/runtime      the compatibility interpreter and provider middleware
 packages/runtime-hono Hono bindings for the runtime
+packages/migrate-ts   type-aware indexing and codemods for consumer repositories
 ```
 
 ## Requirements

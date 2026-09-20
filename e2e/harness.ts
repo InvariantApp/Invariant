@@ -49,6 +49,19 @@ export const CONSUMERS = {
   c: "fixtures/consumer-c-rawfetch-v2",
 } as const;
 
+/**
+ * Runs a migrated copy of a consumer.
+ *
+ * Through its own config, because the ordinary suite excludes `.migrated` and
+ * an exclusion that quietly matches would look exactly like a passing run.
+ */
+export function runMigratedSuite(
+  path: string,
+  env: Record<string, string>,
+): Promise<SuiteResult> {
+  return runIn(path, env, "a", ["--config", "e2e/migrated.vitest.config.ts"]);
+}
+
 export type ConsumerId = keyof typeof CONSUMERS;
 
 export interface SuiteResult {
@@ -95,9 +108,18 @@ export function runConsumerSuite(
   consumer: ConsumerId,
   env: Record<string, string>,
 ): Promise<SuiteResult> {
+  return runIn(CONSUMERS[consumer], env, consumer, []);
+}
+
+function runIn(
+  path: string,
+  env: Record<string, string>,
+  consumer: ConsumerId,
+  extraArgs: string[],
+): Promise<SuiteResult> {
   const child = spawn(
     "pnpm",
-    ["exec", "vitest", "run", "--reporter=dot", CONSUMERS[consumer]],
+    ["exec", "vitest", "run", "--reporter=dot", ...extraArgs, path],
     {
       cwd: REPO_ROOT,
       // Colour is forced off so the summary this function parses is plain

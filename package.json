@@ -25,6 +25,9 @@
     "fast-check": "^4.10.1",
     "tsx": "^4.23.13",
     "typescript": "6.0.3",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.1",
+    "@acme/sdk-v3": "workspace:*",
+    "@invariant/migrate-ts": "workspace:*",
+    "@invariant/contract": "workspace:*"
   }
 }
