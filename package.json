@@ -16,7 +16,8 @@
     "demo": "tsx e2e/demo.ts",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "eval:record": "node --env-file=.env --import tsx eval/record.mts",
-    "app:register": "node --import tsx scripts/register-app.mts"
+    "app:register": "node --import tsx scripts/register-app.mts",
+    "app:status": "node --import tsx scripts/app-status.mts"
   },
   "devDependencies": {
     "@acme/sdk-v3": "workspace:*",
