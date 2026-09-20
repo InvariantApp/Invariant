@@ -42,6 +42,16 @@ verification layer the design calls for short of the signed bundle. Still to
 come: signed evolution bundles and the registry, and the GitHub App that
 delivers migrations as pull requests.
 
+## Documentation
+
+- [Quickstart](docs/quickstart.md) - what a provider actually does, end to end.
+- [The Change IR](docs/ir-spec.md) - the normative spec, written so an engine
+  in another language can be built from it. Paired with
+  [`conformance/vectors.json`](conformance/vectors.json), which is the same
+  contract as data, refusals included.
+- [Design](docs/DESIGN.md) - every decision and, in section 21, every place
+  building it proved the design wrong.
+
 ## Layout
 
 ```
