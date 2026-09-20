@@ -1,0 +1,15 @@
+irVersion: 1
+id: chg_capture_method
+summary: >-
+  `capture_method` became an explicit field. Every payment made before it
+  existed was captured automatically, so that is the exact default.
+scopes:
+  - schema: "#/components/schemas/PaymentCreateParams"
+  - schema: "#/components/schemas/Payment"
+ops:
+  - op: add
+    path: /capture_method
+    value: automatic
+assertions:
+  same_concept: true
+  side_effects_unchanged: true

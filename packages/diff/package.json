@@ -1,0 +1,14 @@
+{
+  "name": "@invariant/diff",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Structural OpenAPI diff via oasdiff, with Invariant's breaking-change policy",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@invariant/contract": "workspace:*",
+    "@invariant/ir": "workspace:*"
+  }
+}

@@ -1,0 +1,17 @@
+irVersion: 1
+id: chg_payment_status_vocabulary
+summary: Payment status became paid / failed / processing.
+scopes:
+  - schema: "#/components/schemas/Payment"
+ops:
+  - op: convert
+    path: /status
+    codec:
+      kind: enumMap
+      pairs:
+        - ["succeeded", "paid"]
+        - ["failed", "failed"]
+        - ["pending", "processing"]
+assertions:
+  same_concept: true
+  side_effects_unchanged: true

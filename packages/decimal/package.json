@@ -1,0 +1,10 @@
+{
+  "name": "@invariant/decimal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Exact decimal-string arithmetic. No dependencies, no floating point.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

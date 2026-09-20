@@ -1,0 +1,16 @@
+{
+  "name": "@invariant/compiler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Type-checks Changes, proves closure against the new contract, and projects compiled programs",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@invariant/contract": "workspace:*",
+    "@invariant/diff": "workspace:*",
+    "@invariant/ir": "workspace:*",
+    "@invariant/decimal": "workspace:*"
+  }
+}

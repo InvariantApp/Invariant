@@ -1,0 +1,23 @@
+irVersion: 1
+id: chg_money_in_minor_units
+summary: >-
+  Money crosses the wire in minor units. `amount`, a decimal in major units,
+  became `amount_cents`, an integer.
+scopes:
+  - schema: "#/components/schemas/Payment"
+  - schema: "#/components/schemas/PaymentCreateParams"
+  - schema: "#/components/schemas/Refund"
+  - schema: "#/components/schemas/RefundCreateParams"
+ops:
+  - op: move
+    from: /amount
+    to: /amount_cents
+  - op: convert
+    path: /amount_cents
+    codec:
+      kind: scale10
+      exponent: 2
+      onInexact: reject
+assertions:
+  same_concept: true
+  side_effects_unchanged: true

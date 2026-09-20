@@ -1,0 +1,14 @@
+{
+  "name": "@invariant/contract",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Loading, normalizing, digesting and indexing OpenAPI contracts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@invariant/ir": "workspace:*",
+    "yaml": "^2.8.2"
+  }
+}

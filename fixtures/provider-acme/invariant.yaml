@@ -1,0 +1,35 @@
+# Provider configuration for Invariant.
+api: acme-payments
+
+# Where the contract comes from. A committed file here; a real provider can
+# point this at a command that generates the spec from code.
+spec:
+  current: openapi/head.json
+  released:
+    "2026-01-15": openapi/2026-01-15.json
+    "2026-03-01": openapi/2026-03-01.json
+
+# How a request declares which contract it expects. First match wins.
+identity:
+  - kind: header
+    name: acme-version
+  - kind: principal
+    description: The account's pinned contract, set at first authenticated request.
+  - kind: default
+    label: "2026-01-15"
+
+# What the release gate blocks on. Unexplained breaking changes and failed
+# verification are never configurable.
+gate:
+  declaredLossy: warn
+  unmigratableWithActiveConsumers: block
+
+# Commands the differential verifier uses to stand up a base and head build.
+build:
+  head:
+    command: pnpm start
+    env: { ACME_BUILD: head }
+  base:
+    command: pnpm start
+    env: { ACME_BUILD: "${contract}" }
+  healthPath: /__health

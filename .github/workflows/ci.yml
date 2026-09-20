@@ -23,7 +23,22 @@ jobs:
           node-version: 24
           cache: pnpm
 
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+          cache: false
+
+      # The closure check runs the real differ. Without it those tests skip,
+      # which would quietly remove the safety property CI exists to enforce.
+      - name: Install oasdiff
+        run: |
+          go install github.com/oasdiff/oasdiff@v1.32.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
       - run: pnpm install --frozen-lockfile
+
+      - name: Check oasdiff is on PATH
+        run: oasdiff --version
 
       - name: Lint
         run: pnpm lint

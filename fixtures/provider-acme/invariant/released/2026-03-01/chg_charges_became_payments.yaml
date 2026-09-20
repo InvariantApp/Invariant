@@ -1,0 +1,29 @@
+irVersion: 1
+id: chg_charges_became_payments
+summary: >-
+  Charges became payments. The endpoints moved to /v1/payments and the object
+  discriminator changed with them.
+scopes:
+  - schema: "#/components/schemas/Charge"
+ops:
+  - op: route
+    from: { method: post, path: /v1/charges }
+    to: { method: post, path: /v1/payments }
+    operationId: { from: charges.create, to: payments.create }
+  - op: route
+    from: { method: get, path: /v1/charges }
+    to: { method: get, path: /v1/payments }
+    operationId: { from: charges.list, to: payments.list }
+  - op: route
+    from: { method: get, path: "/v1/charges/{id}" }
+    to: { method: get, path: "/v1/payments/{id}" }
+    operationId: { from: charges.retrieve, to: payments.retrieve }
+  - op: convert
+    path: /object
+    codec:
+      kind: enumMap
+      pairs:
+        - ["charge", "payment"]
+assertions:
+  same_concept: true
+  side_effects_unchanged: true

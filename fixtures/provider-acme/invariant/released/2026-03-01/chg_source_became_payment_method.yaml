@@ -1,0 +1,13 @@
+irVersion: 1
+id: chg_source_became_payment_method
+summary: The flat `source` token moved under `payment_method`.
+scopes:
+  - schema: "#/components/schemas/Charge"
+  - schema: "#/components/schemas/ChargeCreateParams"
+ops:
+  - op: move
+    from: /source
+    to: /payment_method/token
+assertions:
+  same_concept: true
+  side_effects_unchanged: true

@@ -1,0 +1,8 @@
+# The Changes released in contract 2026-03-01, in the order they apply going
+# forward. Responses apply their inverses in reverse.
+contract: "2026-03-01"
+parent: "2026-01-15"
+changes:
+  - chg_charges_became_payments
+  - chg_source_became_payment_method
+  - chg_refund_targets_payment

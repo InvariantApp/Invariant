@@ -1,0 +1,13 @@
+irVersion: 1
+id: chg_refund_targets_payment
+summary: Refunds refer to a payment rather than a charge.
+scopes:
+  - schema: "#/components/schemas/Refund"
+  - schema: "#/components/schemas/RefundCreateParams"
+ops:
+  - op: move
+    from: /charge
+    to: /payment
+assertions:
+  same_concept: true
+  side_effects_unchanged: true
