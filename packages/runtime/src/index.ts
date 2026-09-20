@@ -18,7 +18,7 @@ import {
   execute,
   TransformError,
 } from "./interpreter.ts";
-import { parseJson, stringifyJson } from "./json.ts";
+import { type NumberFidelity, parseJson, stringifyJson } from "./json.ts";
 import {
   type DecodedContract,
   type DecodedProgram,
@@ -73,6 +73,14 @@ export interface RuntimeOptions {
   /** Largest body the runtime will buffer on a site that needs transforming. */
   maxBodyBytes?: number;
   limits?: ExecuteLimits;
+  /**
+   * How much numeric precision to carry through a transform. The default is
+   * exact for every amount a double can hold, which is every amount the
+   * provider's own handler can read. Set `preserve` only if bodies are parsed
+   * with arbitrary precision the whole way through; it costs several times a
+   * plain parse.
+   */
+  numbers?: NumberFidelity;
   flags?: () => RuntimeFlags;
   onUsage?: (event: UsageEvent) => void;
 }
@@ -111,6 +119,7 @@ export class InvariantRuntime {
   readonly #identity: readonly IdentityStrategy[];
   readonly #maxBodyBytes: number;
   readonly #limits: ExecuteLimits;
+  readonly #fidelity: NumberFidelity;
   readonly #flags: () => RuntimeFlags;
   readonly #onUsage: ((event: UsageEvent) => void) | undefined;
 
@@ -119,6 +128,7 @@ export class InvariantRuntime {
     this.#identity = options.identity;
     this.#maxBodyBytes = options.maxBodyBytes ?? 1024 * 1024;
     this.#limits = options.limits ?? DEFAULT_LIMITS;
+    this.#fidelity = options.numbers ?? "double";
     this.#flags = options.flags ?? (() => ({}));
     this.#onUsage = options.onUsage;
   }
@@ -289,7 +299,7 @@ export class InvariantRuntime {
     if (instrs.length === 0) return text;
     if (text.length > this.#maxBodyBytes) throw new BodyTooLargeError(this.#maxBodyBytes);
 
-    const parsed = parseJson(text, numeric);
+    const parsed = parseJson(text, numeric ? this.#fidelity : "double");
     const result = execute(parsed, instrs, this.#limits);
 
     if (this.#onUsage && result.applied.size > 0) {

@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import { type CompiledInstr, execute, TransformError } from "./interpreter.ts";
 import { parseJson, stringifyJson } from "./json.ts";
 
-function run(body: string, program: CompiledInstr[], numeric = true): string {
+function run(
+  body: string,
+  program: CompiledInstr[],
+  numeric: "double" | "preserve" = "preserve",
+): string {
   const parsed = parseJson(body, numeric);
   execute(parsed, program);
   return stringifyJson(parsed);
@@ -168,7 +172,7 @@ describe("a body nothing touches", () => {
 
 describe("counting", () => {
   it("counts each Change once per value it actually changed", () => {
-    const parsed = parseJson('{"d":[{"a":1},{"a":2},{"a":3}]}', false);
+    const parsed = parseJson('{"d":[{"a":1},{"a":2},{"a":3}]}', "double");
     const result = execute(parsed, [
       { k: "move", from: seg("/d/*/a"), to: seg("/d/*/b"), c: "chg_one" },
       { k: "del", path: seg("/missing"), c: "chg_two" },
@@ -230,8 +234,8 @@ describe("lens laws", () => {
     fc.assert(
       fc.property(fc.jsonValue({ maxDepth: 3 }), (value) => {
         const body = JSON.stringify({ field: value, other: 1 });
-        const there = run(body, [move("/field", "/nested/inner")], false);
-        const back = run(there, [move("/nested/inner", "/field")], false);
+        const there = run(body, [move("/field", "/nested/inner")], "double");
+        const back = run(there, [move("/nested/inner", "/field")], "double");
         expect(JSON.parse(back)).toEqual(JSON.parse(body));
       }),
       { numRuns: 500 },

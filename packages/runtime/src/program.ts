@@ -20,7 +20,7 @@ export class ProgramError extends Error {
 export interface DecodedSite {
   request: CompiledInstr[];
   response: Map<string, CompiledInstr[]>;
-  /** True when any instruction needs the exact digits of a number. */
+  /** True when any instruction re-encodes a number. */
   numeric: boolean;
 }
 
