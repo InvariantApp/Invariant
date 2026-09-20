@@ -1029,6 +1029,21 @@ site instead would put a rounding bug in every price: `19.99 * 100` is
 `1998.9999999999998`. The module is real source in this repository, property
 tested against an integer oracle, rather than a string assembled at emit time.
 
+### The differential check was not slow
+
+It ran for over ten minutes in CI against six seconds locally, and the
+difference was not performance. A start command is almost never the server:
+`pnpm start` runs a script that runs the server, so signalling the child killed
+the script and left the server running, holding the port and the stderr pipe it
+had inherited. The parent then waited forever for a stream nothing would close.
+The work had finished; the process could not exit.
+
+Two things follow. Each build is started in its own process group and the group
+is signalled, because that is the only way to stop all of something that spawns
+something else. And the step is bounded, because this is the one layer that
+waits on a process it did not write, and a finished-but-hanging check looks
+exactly like a slow one until something says otherwise.
+
 ### Still to build
 
 The registry and control plane (the hosted half of Phase 5), Phase 7 (GitHub

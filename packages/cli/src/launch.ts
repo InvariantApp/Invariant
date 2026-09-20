@@ -132,6 +132,15 @@ async function startOnce(label: string, options: LaunchOptions): Promise<Target>
     // The build's own output would drown the report. Failures surface through
     // the health check, which says what actually went wrong.
     stdio: ["ignore", "ignore", "pipe"],
+    // Its own process group, which is the only way to stop all of it.
+    //
+    // A start command is almost never the server. `pnpm start` runs a script
+    // that runs the server, so signalling the child kills the script and
+    // leaves the server running, holding the port and the inherited stderr
+    // pipe. The parent then waits forever for a stream that nothing will
+    // close, which looks exactly like a slow check and is in fact a finished
+    // one that cannot exit.
+    detached: true,
   });
 
   let stderr = "";
@@ -139,12 +148,22 @@ async function startOnce(label: string, options: LaunchOptions): Promise<Target>
     stderr += chunk.toString();
   });
 
+  const signalGroup = (signal: NodeJS.Signals): void => {
+    if (child.pid === undefined) return;
+    try {
+      // The negative pid is the group, which is the whole point.
+      process.kill(-child.pid, signal);
+    } catch {
+      // Already gone, which is the outcome being asked for.
+    }
+  };
+
   const close = async (): Promise<void> => {
     if (child.exitCode !== null) return;
-    child.kill("SIGTERM");
+    signalGroup("SIGTERM");
     await new Promise<void>((resolve) => {
       const timer = setTimeout(() => {
-        child.kill("SIGKILL");
+        signalGroup("SIGKILL");
         resolve();
       }, 2000);
       child.once("exit", () => {
@@ -152,6 +171,9 @@ async function startOnce(label: string, options: LaunchOptions): Promise<Target>
         resolve();
       });
     });
+    // Nothing else reads this, and leaving it attached keeps a handle open on
+    // a process that is meant to be gone.
+    child.stderr?.destroy();
   };
 
   try {
