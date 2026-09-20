@@ -55,4 +55,8 @@ jobs:
       # drifted specification never run anywhere but a laptop.
       - name: Release gate, including the differential and conformance checks
         working-directory: fixtures/provider-acme
+        # Bounded on purpose. This step starts real processes and waits on
+        # them, so a build that never becomes ready would otherwise sit here
+        # until the whole job times out and say nothing about why.
+        timeout-minutes: 6
         run: pnpm exec invariant check --full

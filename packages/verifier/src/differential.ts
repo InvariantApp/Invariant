@@ -82,6 +82,14 @@ export interface DifferentialOptions {
   contractHeader?: string;
   /** Response headers worth comparing. Everything else is ignored. */
   compareHeaders?: readonly string[];
+  /**
+   * Called as each build is started and each scenario finishes.
+   *
+   * This layer is the only one that costs seconds rather than milliseconds, and
+   * the only one that can stall waiting on something outside the process. A
+   * silent ten minutes is indistinguishable from a hang, so it says where it is.
+   */
+  onProgress?: (message: string) => void;
 }
 
 export interface DifferentialReport {
@@ -405,15 +413,22 @@ export async function checkDifferential(
     let volatile = new Set<string>();
 
     try {
+      const note = options.onProgress ?? (() => {});
+      const started = Date.now();
+
+      note(`${scenario.name}: starting ${scenario.contract} to calibrate`);
       const first = await withTarget(options.launch, scenario.contract, (target) =>
         observe(target, scenario, {}, compared),
       );
+
       await nextTick();
+      note(`${scenario.name}: starting ${scenario.contract} again`);
       const second = await withTarget(options.launch, scenario.contract, (target) =>
         observe(target, scenario, {}, compared),
       );
       volatile = volatilePaths(first, second);
 
+      note(`${scenario.name}: starting the current build`);
       const head = await withTarget(options.launch, "head", (target) =>
         observe(
           target,
@@ -421,6 +436,9 @@ export async function checkDifferential(
           options.contractHeader ? { [options.contractHeader]: scenario.contract } : {},
           compared,
         ),
+      );
+      note(
+        `${scenario.name}: compared in ${((Date.now() - started) / 1000).toFixed(1)}s`,
       );
 
       found.push(...compare(scenario.name, first, head, volatile));

@@ -128,6 +128,9 @@ export async function verify(
       CURRENT_CONTRACT_ALIAS,
       currentLabel,
     ],
+    // Straight to stderr, so it shows up live in a CI log without ending up
+    // inside a report that is meant to be pasted into a pull request.
+    onProgress: (message) => process.stderr.write(`  ${message}\n`),
     ...(config.contractHeader ? { contractHeader: config.contractHeader } : {}),
   });
   evidence.push(...differential.evidence);
