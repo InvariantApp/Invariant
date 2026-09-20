@@ -1315,6 +1315,37 @@ E9 never blocks. A release is very often the fix for what it is reporting, and
 a gate that refused to let a fix through because production was unhealthy would
 be actively harmful.
 
+### Phase 7, and what is actually proved
+
+The delivery path is built and run against real GitHub: a real repository, a
+real tree, a real commit, a real draft pull request carrying the provenance
+body. `packages/github/src/live.test.ts` does it, skipped unless credentials
+are given, and it opened
+`InvariantApp/invariant-delivery-fixture#1` when it was last run.
+
+Authentication is an argument rather than a dependency, which is what let that
+happen at all: the code path from `GitHubApi` inwards is identical whether the
+token is a short-lived App installation token or an ordinary one. Three
+refusals are built into it rather than checked afterwards. It never merges,
+because merging a migration is the consumer's decision. It never force-pushes,
+because a branch that moved may hold work somebody did on top of the draft. And
+it never checks the repository out, so the consumer's code is never executed on
+our side; the commit is assembled from file contents through the Git Data API.
+
+Idempotence is a property rather than an accident, because the same bundle can
+arrive twice: a retry, a redelivered webhook, a backfill when a repository is
+connected later. Identical files produce the tree that is already there, so
+nothing is committed and the pull request already open is returned. An empty
+commit would make a redelivery look like new work to everyone watching.
+
+**What remains untested is the App registration**, and it is worth being exact
+rather than vague. Installation tokens, the sponsored link a consumer redeems,
+and webhook receipt all need a GitHub App, and GitHub has no REST endpoint for
+creating one: the only paths are a browser form and a manifest flow that ends
+in a browser redirect. Everything downstream of the token is proved; the
+minting of the token is not, and nothing here should be read as saying
+otherwise.
+
 ### The corpus, and what mining it found
 
 Taken to the design's 240, with 45 of them mined from changes GitHub, Stripe
@@ -1373,13 +1404,6 @@ described what happened. The case was inconsistent on its own terms, which is
 the only reason a label may move once an answer has been seen.
 
 ### Still to build
-
-**The Octokit half of Phase 7.** Webhook verification, replay protection,
-sponsored links, the provenance body and the promotion rule are built and
-tested. What is not built is the code that turns them into real commits on real
-repositories, or the scratch-org integration test the phase calls for. Both
-need GitHub credentials and a live app registration, and nothing in this
-repository should be read as evidence that last mile works.
 
 E8 is produced: a release records who merged each Change, and a Change with no
 such record is marked skipped rather than omitted, because a missing record and
