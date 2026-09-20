@@ -11,6 +11,7 @@
  * same thing. It abstains there rather than guessing, and abstaining cleanly is
  * what makes it a usable first stage.
  */
+import { createHash } from "node:crypto";
 import type { FieldShape } from "./candidates.ts";
 import {
   type AlignmentQuestion,
@@ -124,10 +125,18 @@ export function scorePair(removed: FieldShape, candidate: FieldShape): RuleScore
   const removedStem = stemOf(removed.name);
   const candidateStem = stemOf(candidate.name);
 
-  // The same name is the same field, whatever else changed about it. This has
-  // to outrank a suffix hint: `reading` -> `reading` beats `reading` ->
-  // `reading_at`, even though the second looks like a tidy rename.
-  if (removed.name === candidate.name) {
+  // The same name is the same field, and it has to outrank a suffix hint:
+  // `reading` -> `reading` beats `reading` -> `reading_at`, even though the
+  // second looks like the tidier rename.
+  //
+  // But only while the two could hold the same value. A name that now belongs
+  // to a structurally different thing has been reused, not kept, and being
+  // certain about it is how this judge came to say at full confidence that a
+  // Unix timestamp became an expiry policy object while the timestamp itself
+  // sat in the next candidate along. Where the types cannot be reconciled this
+  // falls through to ordinary scoring, which weighs the descriptions and lets
+  // the field that actually carries the value win.
+  if (removed.name === candidate.name && typesInterchangeable(removed, candidate)) {
     return {
       score: 1,
       reasons: [`the field is still called "${candidate.name}"`],
@@ -194,6 +203,27 @@ export function scorePair(removed: FieldShape, candidate: FieldShape): RuleScore
   return { score: Math.min(1, score), reasons };
 }
 
+/**
+ * Whether any codec in the catalog could carry one type into the other.
+ *
+ * Deliberately permissive: an unknown type on either side is not evidence of a
+ * mismatch, and `cast` genuinely does move between strings and numbers. What it
+ * refuses is the structural jump, because nothing converts a scalar into an
+ * object or an object into an array, and no amount of shared spelling changes
+ * that.
+ */
+function typesInterchangeable(left: FieldShape, right: FieldShape): boolean {
+  const a = left.type;
+  const b = right.type;
+  if (a === undefined || b === undefined || a === b) return true;
+
+  const structural = (type: string) => type === "object" || type === "array";
+  if (structural(a) || structural(b)) return false;
+
+  // Scalars, which `cast` and `scale10` move between.
+  return true;
+}
+
 /** Whether `candidate` is `removed` with something appended, token by token. */
 function extendsName(removed: string, candidate: string): boolean {
   const left = parts(removed);
@@ -207,6 +237,23 @@ export const RULES_ANSWER_THRESHOLD = 0.6;
 
 export class RulesJudge implements Judge {
   readonly id = "rules" as const;
+
+  /**
+   * The tables and the threshold, which between them decide every answer.
+   *
+   * Computed rather than written down, so it cannot be left stale. Adding a
+   * suffix or moving the threshold changes it, which retires every cached
+   * answer that the old version produced.
+   */
+  readonly fingerprint = `rules:${createHash("sha256")
+    .update(
+      JSON.stringify({
+        suffixes: [...UNIT_SUFFIXES].sort(),
+        threshold: RULES_ANSWER_THRESHOLD,
+      }),
+    )
+    .digest("hex")
+    .slice(0, 16)}`;
 
   align(questions: readonly AlignmentQuestion[]): Promise<JudgeResult[]> {
     return Promise.resolve(questions.map((question) => this.#one(question)));

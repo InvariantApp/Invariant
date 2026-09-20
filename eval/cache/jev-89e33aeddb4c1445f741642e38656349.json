@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "phone_e164",
+    "confidence": 0.7,
+    "scores": {
+      "phone_e164": 0.7,
+      "locale": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 188.54954700000053,
+  "inputTokens": 1273,
+  "costUsd": 0.000053466000000000006
+}

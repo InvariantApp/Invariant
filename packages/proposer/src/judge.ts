@@ -51,6 +51,21 @@ export interface JudgeResult {
 
 export interface Judge {
   readonly id: JudgeId;
+  /**
+   * Everything about this judge that decides what it answers.
+   *
+   * The evaluation harness keys its cache on this, and the reason is a bug it
+   * did not have before: the cache used to be keyed on the judge's name and the
+   * question alone. A change to the rules judge's tables, to the wording Jev is
+   * asked with, or to the pinned model, all left every recorded answer looking
+   * current. Continuous integration replays that cache, so a judge could
+   * regress and the evaluation would stay green while reporting numbers that
+   * described code nobody was running any more.
+   *
+   * It has to cover whatever would change an answer, and nothing that would
+   * not, or the cache is either wrong or useless.
+   */
+  readonly fingerprint: string;
   /** Answers a batch. Batching matters: Jev prices and paces by request. */
   align(questions: readonly AlignmentQuestion[]): Promise<JudgeResult[]>;
 }

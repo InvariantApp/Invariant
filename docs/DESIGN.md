@@ -1315,6 +1315,63 @@ E9 never blocks. A release is very often the fix for what it is reporting, and
 a gate that refused to let a fix through because production was unhealthy would
 be actively harmful.
 
+### The corpus, and what mining it found
+
+Taken to the design's 240, with 45 of them mined from changes GitHub, Stripe
+and Shopify actually shipped. The point was to answer an objection raised
+against the earlier corpus: that a set of cases its author wrote measures the
+questions they thought to ask. It does, and by six points. Jev is 97% right on
+the written half and 91% on the mined one, and several shapes in the mined half
+would not have been invented here: a boolean flag renamed into a string enum,
+two enum values merged so that mapping back cannot be bijective, an object
+replaced by a URL that has to be fetched. The report never adds the two halves
+together.
+
+**The measurement was the thing that was broken.** Recorded judge answers are
+replayed in CI so the evaluation is free and deterministic, and the cache key
+was the judge's name and the question, and nothing else. Not the rules judge's
+tables, not the wording Jev is asked with, not the pinned model. Any of those
+could change and every recorded answer still looked current.
+
+Deleting the cache by hand moved the rules judge from 100% to 96.2%, on a
+corpus and an implementation that had not changed since those answers were
+written. It had been answering two cases at 0.94 and 1.00 confidence and
+getting both wrong, and the harness was reporting a clean hundred per cent. For
+a harness whose whole job is deciding which judge may draft changes, that is
+the worst available failure: not being wrong, but being confidently out of
+date. The key now carries a fingerprint each judge computes from whatever
+decides its answers, and a judge whose fingerprint has moved is reported as
+unmeasured rather than served from cache.
+
+**What the cache had been hiding.** `if (removed.name === candidate.name)
+return { score: 1 }`, with no check that the two could hold the same value. A
+field called `expires` that was a Unix timestamp, beside a new `expires` that
+is an expiry policy object and an `expires_at` that is the timestamp, was
+answered as the object at full confidence. A name that now belongs to a
+structurally different thing has been reused, not kept. The shortcut now
+requires that some codec could carry one type into the other, and falls through
+to ordinary scoring when none could.
+
+**Hardening the injection defence made things worse before it made them
+better.** The framing told the model to decide from "the names, types, and
+descriptions of the fields themselves" while saying only that the change notes
+carried no authority, so an instruction placed inside the removed field's own
+description was followed at 0.82 confidence, above the threshold that decides
+whether a draft is written. Widening the framing to treat all prose as suspect
+fixed that case and cost two points of overall accuracy and seven of the enum
+family, because those cases turn on descriptions being read and believed. The
+wording that worked separates a description saying what a field means, which is
+the best evidence there is, from a sentence telling the reader what to answer,
+which is not evidence about anything. That case now lands at 0.57, below the
+threshold, and nothing above the threshold is wrong.
+
+**A label was corrected after the model disagreed with it**, which needs saying
+out loud given that a subagent was once caught softening cases to make a judge
+pass. `split_range_into_bounds` had one field becoming two and named one of the
+two halves as the successor, while its own rationale said no single answer
+described what happened. The case was inconsistent on its own terms, which is
+the only reason a label may move once an answer has been seen.
+
 ### Still to build
 
 **The Octokit half of Phase 7.** Webhook verification, replay protection,
@@ -1327,11 +1384,6 @@ repository should be read as evidence that last mile works.
 E8 is produced: a release records who merged each Change, and a Change with no
 such record is marked skipped rather than omitted, because a missing record and
 a passing one must not look the same to whoever reads the bundle.
-
-**The corpus**, at 155 cases against a design target of 240. It is written for
-the purpose rather than mined from production, and the feedback loop the design
-asks for - every provider disagreement and every edited draft added back - does
-not exist yet. `eval/ownership.yaml` says so beside the verdicts.
 
 Everything else the design asked for exists and is tested. Where a phase's
 acceptance criteria could not be met without credentials, that is said here

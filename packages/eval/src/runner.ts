@@ -31,14 +31,18 @@ interface CachedResult {
   costUsd: number;
 }
 
-function keyOf(judgeId: string, question: AlignmentQuestion): string {
+function keyOf(judge: Judge, question: AlignmentQuestion): string {
   const shape = JSON.stringify({
+    // What the judge is, not just what it is called. A judge whose tables,
+    // prompt or model have moved is a different judge, and reusing its old
+    // answers reports on code that is no longer there.
+    judge: judge.fingerprint,
     schema: question.schema,
     removed: question.removed,
     candidates: question.candidates,
     context: question.context ?? null,
   });
-  return `${judgeId}-${createHash("sha256").update(shape).digest("hex").slice(0, 32)}`;
+  return `${judge.id}-${createHash("sha256").update(shape).digest("hex").slice(0, 32)}`;
 }
 
 async function readCached(path: string): Promise<CachedResult | undefined> {
@@ -66,7 +70,7 @@ export async function runJudge(
 
   const questions = cases.map(questionOf);
   const paths = questions.map((question) =>
-    join(options.cacheDir, `${keyOf(judge.id, question)}.json`),
+    join(options.cacheDir, `${keyOf(judge, question)}.json`),
   );
   const cached = await Promise.all(paths.map(readCached));
 

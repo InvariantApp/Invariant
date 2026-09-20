@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "gross_pay_cents",
+    "confidence": 1,
+    "scores": {
+      "gross_pay_cents": 1,
+      "net_pay_cents": 0.005
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 176.4269489999997,
+  "inputTokens": 1273,
+  "costUsd": 0.000053466000000000006
+}

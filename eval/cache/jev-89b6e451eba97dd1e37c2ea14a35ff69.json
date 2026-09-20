@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": "document_number",
+    "confidence": 1,
+    "scores": {
+      "document_number": 1,
+      "number_last4": 0.445,
+      "document_type": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 166.20018299999992,
+  "inputTokens": 1586,
+  "costUsd": 0.000066612
+}

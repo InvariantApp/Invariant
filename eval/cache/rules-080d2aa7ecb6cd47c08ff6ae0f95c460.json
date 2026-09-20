@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "selected_repository_ids",
+    "confidence": 1,
+    "scores": {
+      "selected_repository_ids": 1,
+      "selected_repository_names": 0.352
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.1148080000000391,
+  "inputTokens": 0,
+  "costUsd": 0
+}

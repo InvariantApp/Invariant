@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "site_code",
+    "confidence": 0.57,
+    "scores": {
+      "temperature_c": 0.94,
+      "site_code": 0.655
+    },
+    "stated": true,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 181.62328999999954,
+  "inputTokens": 1272,
+  "costUsd": 0.000053424
+}

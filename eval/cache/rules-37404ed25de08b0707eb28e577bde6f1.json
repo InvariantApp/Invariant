@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "type",
+    "confidence": 1,
+    "scores": {
+      "type": 1,
+      "content_type": 0.1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.00834700000001476,
+  "inputTokens": 0,
+  "costUsd": 0
+}

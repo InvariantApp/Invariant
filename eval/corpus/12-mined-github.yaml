@@ -1,0 +1,293 @@
+# Breaking changes GitHub actually shipped in REST API version 2026-03-10.
+#
+# Every case here is a change a real provider made to a real API that real
+# integrations were calling. That is the point: the rest of this corpus measures
+# the questions its author thought to ask, and several of the shapes below are
+# ones nobody here would have invented. A boolean flag becoming a string enum
+# under a different name. Two enum values merged into one, which cannot be
+# undone. A nested object replaced by a URL you have to go and fetch.
+#
+# Source: https://docs.github.com/en/rest/about-the-rest-api/breaking-changes
+
+- id: gh_user_became_owner
+  source: "mined:https://docs.github.com/en/rest/about-the-rest-api/breaking-changes"
+  tags: [rename]
+  schema: Repository
+  operations: ["repos.get response"]
+  removed: { name: user, type: object, required: true, description: "The account that owns this repository." }
+  candidates:
+    - { name: owner, type: object, required: true, description: "The account that owns this repository." }
+    - { name: organization, type: object, required: false, description: "The organization the repository belongs to, if any." }
+  successor: owner
+  rationale: The same description on both, and `organization` is a narrower thing that only sometimes applies.
+
+- id: gh_master_branch_became_default
+  source: "mined:https://docs.github.com/en/rest/about-the-rest-api/breaking-changes"
+  tags: [rename]
+  schema: Repository
+  operations: ["repos.get response"]
+  removed: { name: master_branch, type: string, required: false, description: "The name of the default branch." }
+  candidates:
+    - { name: default_branch, type: string, required: true, description: "The name of the default branch." }
+    - { name: source_branch, type: string, required: false }
+  successor: default_branch
+  rationale: A rename that drops loaded terminology; the descriptions match exactly.
+
+# A rename where the type also changed, which is the combination that catches a
+# judge reasoning from spelling alone. `use_squash_pr_title_as_default` was a
+# boolean; `squash_merge_commit_title` is an enum of PR_TITLE or COMMIT_OR_PR_TITLE.
+# Nothing in the names says they are the same setting.
+- id: gh_squash_title_flag_became_enum
+  source: "mined:https://docs.github.com/en/rest/about-the-rest-api/breaking-changes"
+  tags: [rename, type-change, ambiguous]
+  schema: Repository
+  operations: ["repos.update request"]
+  removed:
+    name: use_squash_pr_title_as_default
+    type: boolean
+    required: false
+    description: "Whether a squash merge commit uses the pull request title as its default commit title."
+  candidates:
+    - name: squash_merge_commit_title
+      type: string
+      enum: [PR_TITLE, COMMIT_OR_PR_TITLE]
+      required: false
+      description: "The default value for a squash merge commit title: the pull request title, or the message of the only commit."
+    - name: squash_merge_commit_message
+      type: string
+      enum: [PR_BODY, COMMIT_MESSAGES, BLANK]
+      required: false
+      description: "The default value for a squash merge commit message."
+  successor: squash_merge_commit_title
+  rationale: >-
+    Both describe the squash commit title; the boolean became the two-valued
+    enum that says the same thing with room for more. `_message` is the sibling
+    setting for a different part of the commit.
+
+# The singular field became a plural one. Not a rename: the old value has to be
+# wrapped in an array going forward, and the array has to be unwrapped coming
+# back, which is only reversible while it holds at most one element.
+- id: gh_assignee_became_assignees
+  source: "mined:https://docs.github.com/en/rest/about-the-rest-api/breaking-changes"
+  tags: [type-change, split-merge]
+  schema: Issue
+  operations: ["issues.create request"]
+  removed: { name: assignee, type: object, required: false, description: "The user this issue is assigned to." }
+  candidates:
+    - { name: assignees, type: array, required: false, description: "The users this issue is assigned to." }
+    - { name: assigner, type: object, required: false, description: "The user who made the assignment." }
+  successor: assignees
+  rationale: >-
+    Singular to plural of the same thing. `assigner` is the near-homograph that
+    means the opposite party, and it is there because the spelling is one letter
+    away.
+
+# The object is gone and only a link to it remains. No transform can serve the
+# old contract from the new one, because the value has to be fetched.
+- id: gh_bundle_became_bundle_url
+  source: "mined:https://docs.github.com/en/rest/about-the-rest-api/breaking-changes"
+  tags: [removal, ambiguous]
+  schema: Attestation
+  operations: ["attestations.list response"]
+  removed: { name: bundle, type: object, required: true, description: "The attestation bundle itself, inline." }
+  candidates:
+    - { name: bundle_url, type: string, format: uri, required: true, description: "A URL the attestation bundle can be downloaded from." }
+    - { name: repository_id, type: integer, required: true }
+  successor: bundle_url
+  rationale: >-
+    The same bundle, by reference rather than by value. Correct as an alignment
+    and still unrepresentable as a Change, because recovering the old field
+    means fetching the URL, and no op in the catalog performs a lookup.
+
+- id: gh_cvss_became_cvss_severities
+  source: "mined:https://docs.github.com/en/rest/about-the-rest-api/breaking-changes"
+  tags: [rename, nesting]
+  schema: SecurityAdvisory
+  operations: ["security-advisories.get response"]
+  removed: { name: cvss, type: object, required: false, description: "The CVSS score and vector string for this advisory." }
+  candidates:
+    - { name: cvss_severities, type: object, required: false, description: "CVSS scores and vector strings, one per CVSS version." }
+    - { name: severity, type: string, enum: [low, medium, high, critical], required: true }
+  successor: cvss_severities
+  rationale: >-
+    One score became a map of scores by version, so the old field is one entry
+    of the new one. `severity` is the coarse label, not the score.
+
+# A field genuinely deleted after being deprecated for more than a decade.
+# Nothing replaced it, and the plausible-looking neighbours are about something
+# else entirely.
+- id: gh_has_downloads_removed
+  source: "mined:https://docs.github.com/en/rest/about-the-rest-api/breaking-changes"
+  tags: [removal, decoy]
+  schema: Repository
+  operations: ["repos.get response"]
+  removed: { name: has_downloads, type: boolean, required: true, description: "Whether the repository has the legacy downloads feature enabled." }
+  candidates:
+    - { name: has_discussions, type: boolean, required: false, description: "Whether Discussions is enabled." }
+    - { name: has_pages, type: boolean, required: true, description: "Whether GitHub Pages is enabled." }
+  successor: null
+  rationale: >-
+    The feature was retired, not renamed. Both candidates are booleans named
+    `has_*` on the same object, which is exactly why a judge that scores on
+    shape will reach for one.
+
+- id: gh_authorizations_url_removed
+  source: "mined:https://docs.github.com/en/rest/about-the-rest-api/breaking-changes"
+  tags: [removal, decoy]
+  schema: Root
+  operations: ["meta.root response"]
+  removed: { name: authorizations_url, type: string, format: uri, required: true, description: "URL of the OAuth Authorizations API." }
+  candidates:
+    - { name: authorizations_url_template, type: string, required: false, description: "Deprecated alias that was never populated." }
+    - { name: user_url, type: string, format: uri, required: true, description: "URL template for a user." }
+  successor: null
+  rationale: >-
+    The whole API it pointed at was removed. The first candidate shares the
+    entire stem and is still not a successor, because it never held a value.
+
+- id: gh_merge_commit_sha_removed
+  source: "mined:https://docs.github.com/en/rest/about-the-rest-api/breaking-changes"
+  tags: [removal, ambiguous]
+  schema: PullRequest
+  operations: ["pulls.get response"]
+  removed: { name: merge_commit_sha, type: string, required: false, description: "The SHA of the test merge commit, which was not the SHA of the merge." }
+  candidates:
+    - { name: merged_commit_sha, type: string, required: false, description: "The SHA of the commit that merged this pull request." }
+    - { name: head_sha, type: string, required: true }
+  successor: null
+  rationale: >-
+    Removed because it was misleading: it named a throwaway test merge, not the
+    merge. A candidate one letter away means something genuinely different, and
+    pairing them would hand an old caller the wrong commit.
+
+- id: gh_rate_moved_under_resources
+  source: "mined:https://docs.github.com/en/rest/about-the-rest-api/breaking-changes"
+  tags: [nesting]
+  schema: RateLimitOverview
+  operations: ["rate-limit.get response"]
+  removed: { name: rate, type: object, required: true, description: "The core rate limit, duplicated at the top level." }
+  candidates:
+    - { name: resources, type: object, required: true, description: "Rate limits for each resource, including `core`." }
+    - { name: message, type: string, required: false }
+  successor: resources
+  rationale: >-
+    The top-level copy of `resources.core` was dropped. The value still exists,
+    one level down, which makes this a relocation rather than a removal.
+
+- id: gh_gist_history_removed
+  source: "mined:https://docs.github.com/en/rest/about-the-rest-api/breaking-changes"
+  tags: [removal]
+  schema: Gist
+  operations: ["gists.list response"]
+  removed: { name: history, type: array, required: false, description: "Every revision of this gist." }
+  candidates:
+    - { name: forks, type: array, required: false, description: "Forks of this gist." }
+    - { name: updated_at, type: string, format: date-time, required: true }
+  successor: null
+  rationale: >-
+    Both `history` and `forks` were dropped from the list response for cost. A
+    timestamp is not a revision list, and neither is the other removed field.
+
+- id: gh_secret_scanning_link_removed
+  source: "mined:https://docs.github.com/en/rest/about-the-rest-api/breaking-changes"
+  tags: [removal, decoy]
+  schema: Organization
+  operations: ["orgs.get response"]
+  removed:
+    name: secret_scanning_push_protection_custom_link_enabled
+    type: boolean
+    required: false
+    description: "Whether a custom link is shown when push protection blocks a push."
+  candidates:
+    - name: secret_scanning_push_protection_custom_link
+      type: string
+      required: false
+      description: "The custom link shown when push protection blocks a push."
+    - name: secret_scanning_push_protection_enabled
+      type: boolean
+      required: false
+      description: "Whether push protection is enabled for the organization."
+  successor: null
+  rationale: >-
+    The flag went and the link stayed, so the nearest-named candidate is the
+    thing the flag was about rather than the flag. A judge pairing them would
+    hand a caller a URL where a boolean belongs.
+
+- id: gh_selected_repository_ids_retyped
+  source: "mined:https://docs.github.com/en/rest/about-the-rest-api/breaking-changes"
+  tags: [type-change]
+  schema: DependabotSecret
+  operations: ["dependabot.set-selected-repos request"]
+  removed:
+    name: selected_repository_ids
+    type: array
+    required: true
+    description: "Repository identifiers, accepted as integers or as strings containing integers."
+  candidates:
+    - name: selected_repository_ids
+      type: array
+      required: true
+      description: "Repository identifiers, as integers."
+    - name: selected_repository_names
+      type: array
+      required: false
+  successor: selected_repository_ids
+  rationale: >-
+    The field kept its name and stopped accepting strings. The same name on
+    both sides is the signal, and a judge that strips to stems and finds two
+    close matches has to prefer the identical one.
+
+- id: gh_emails_became_objects
+  source: "mined:https://docs.github.com/en/rest/about-the-rest-api/breaking-changes"
+  tags: [type-change, nesting]
+  schema: User
+  operations: ["users.get response"]
+  removed: { name: emails, type: array, required: false, description: "The user's email addresses, as plain strings." }
+  candidates:
+    - { name: emails, type: array, required: false, description: "The user's email addresses, each as an object with `email`, `primary` and `verified`." }
+    - { name: email, type: string, required: false, description: "The user's public email address." }
+  successor: emails
+  rationale: >-
+    Same name, same concept, richer element type. The singular `email` is a
+    different field that already existed and is not what the array became.
+
+- id: gh_permission_removed_from_team_create
+  source: "mined:https://docs.github.com/en/rest/about-the-rest-api/breaking-changes"
+  tags: [removal, ambiguous]
+  schema: TeamCreateParams
+  operations: ["teams.create request"]
+  removed: { name: permission, type: string, enum: [pull, push, admin], required: false, description: "The permission the team grants on its repositories." }
+  candidates:
+    - { name: privacy, type: string, enum: [secret, closed], required: false, description: "The level of privacy this team should have." }
+    - { name: notification_setting, type: string, required: false }
+  successor: null
+  rationale: >-
+    Repository permission is now set per repository rather than on the team, so
+    the parameter has no successor on this request at all. `privacy` is the
+    other enum on the same call and means something unrelated.
+
+- id: gh_contents_type_gained_submodule
+  source: "mined:https://docs.github.com/en/rest/about-the-rest-api/breaking-changes"
+  tags: [enum, ambiguous]
+  schema: ContentEntry
+  operations: ["repos.get-content response"]
+  removed:
+    name: type
+    type: string
+    enum: [file, dir, symlink]
+    required: true
+    description: "What this entry is. Submodules were reported as `file`."
+  candidates:
+    - name: type
+      type: string
+      enum: [file, dir, symlink, submodule]
+      required: true
+      description: "What this entry is. Submodules are reported as `submodule`."
+    - name: content_type
+      type: string
+      required: false
+  successor: type
+  rationale: >-
+    The field is the same one; what changed is which value a submodule gets.
+    Mapping the vocabulary back is not possible from the shapes alone, because
+    old `file` covers both new `file` and new `submodule`.

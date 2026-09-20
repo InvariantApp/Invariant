@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "metrics",
+    "confidence": 0.72,
+    "scores": {
+      "metrics": 0.6,
+      "dimensions": 0.1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.00843600000001743,
+  "inputTokens": 0,
+  "costUsd": 0
+}

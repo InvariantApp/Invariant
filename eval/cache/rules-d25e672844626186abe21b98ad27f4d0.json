@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "funding",
+    "confidence": 1,
+    "scores": {
+      "funding": 1,
+      "prepaid": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.006333000000040556,
+  "inputTokens": 0,
+  "costUsd": 0
+}

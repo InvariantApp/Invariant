@@ -1,0 +1,272 @@
+# Breaking changes Stripe actually shipped in 2025-03-31.basil and later.
+#
+# Stripe is the closest thing this problem has to prior art, so what they found
+# they needed is worth more than what anyone would guess. Two shapes here do not
+# appear anywhere else in this corpus and neither was invented for it.
+#
+# The first is a discriminated relocation: `invoice.subscription` became
+# `invoice.parent.subscription_details.subscription`, and it is only there when
+# `invoice.parent.type` is `subscription_details`. Reading the old field back
+# means checking a discriminator first, which the IR cannot do.
+#
+# The second is a real merge: `price` and `plan` both became `pricing`. Two
+# fields, one successor, and no way to tell from the new object which of the two
+# an old caller should be shown.
+#
+# Sources:
+#   https://docs.stripe.com/changelog/basil/2025-03-31/adds-new-parent-field-to-invoicing-objects.md
+#   https://docs.stripe.com/changelog/basil/2025-03-31/invoice-pricing-configurations.md
+#   https://docs.stripe.com/changelog/basil/2025-03-31/deprecate-subscription-current-period-start-and-end.md
+#   https://docs.stripe.com/changelog/basil/2025-03-31/political-exposure-persons-api.md
+#   https://docs.stripe.com/changelog/basil/2025-07-30/balance-settings-delay-days-rename.md
+
+- id: stripe_invoice_subscription_nested_under_parent
+  source: "mined:https://docs.stripe.com/changelog/basil/2025-03-31/adds-new-parent-field-to-invoicing-objects.md"
+  tags: [nesting]
+  schema: Invoice
+  operations: ["invoices.retrieve response"]
+  removed: { name: subscription, type: string, required: false, description: "The subscription that generated this invoice." }
+  candidates:
+    - name: parent
+      type: object
+      required: false
+      description: "Details of the upstream object that generated this invoice. Carries `subscription_details.subscription` when `type` is `subscription_details`."
+    - name: subscription_details
+      type: object
+      required: false
+      description: "Deprecated alongside `subscription`, and removed in the same release."
+  successor: parent
+  rationale: >-
+    The value moved inside `parent`. The decoy is the field that was removed
+    beside it, which is close in spelling and gone in the same breath.
+
+- id: stripe_invoice_quote_nested_under_parent
+  source: "mined:https://docs.stripe.com/changelog/basil/2025-03-31/adds-new-parent-field-to-invoicing-objects.md"
+  tags: [nesting, ambiguous]
+  schema: Invoice
+  operations: ["invoices.retrieve response"]
+  removed: { name: quote, type: string, required: false, description: "The quote that generated this invoice." }
+  candidates:
+    - name: parent
+      type: object
+      required: false
+      description: "Details of the upstream object that generated this invoice. Carries `quote_details.quote` when `type` is `quote_details`."
+    - name: subscription_proration_date
+      type: integer
+      required: false
+      description: "Deprecated in the same release."
+  successor: parent
+  rationale: >-
+    Three top-level fields collapsed into one discriminated object, so all three
+    align to the same candidate and none of them can be read back without first
+    checking `parent.type`.
+
+- id: stripe_line_item_subscription_item_nested
+  source: "mined:https://docs.stripe.com/changelog/basil/2025-03-31/adds-new-parent-field-to-invoicing-objects.md"
+  tags: [nesting]
+  schema: InvoiceLineItem
+  operations: ["invoices.retrieve response"]
+  removed: { name: subscription_item, type: string, required: false, description: "The subscription item that generated this line." }
+  candidates:
+    - name: parent
+      type: object
+      required: false
+      description: "Carries `subscription_item_details.subscription_item` when `type` is `subscription_item_details`."
+    - name: invoice_item
+      type: string
+      required: false
+      description: "Deprecated in the same release."
+  successor: parent
+  rationale: Same relocation, one level deeper, on the line item rather than the invoice.
+
+# Two fields, one successor. This is a merge, and the reason merges are not in
+# the op catalog: from `pricing` alone there is no way to know whether an old
+# caller asked for `price` or for `plan`.
+- id: stripe_price_merged_into_pricing
+  source: "mined:https://docs.stripe.com/changelog/basil/2025-03-31/invoice-pricing-configurations.md"
+  tags: [split-merge, nesting]
+  schema: InvoiceItem
+  operations: ["invoiceitems.retrieve response"]
+  removed: { name: price, type: object, required: false, description: "The Price this invoice item is based on." }
+  candidates:
+    - name: pricing
+      type: object
+      required: false
+      description: "Polymorphic pricing data. Carries `price_details.price` when `type` is `price_details`."
+    - name: unit_amount_decimal
+      type: string
+      required: false
+      description: "Moved inside `pricing` in the same release."
+  successor: pricing
+  rationale: >-
+    Correct as an alignment and still unrepresentable, because `plan` aligns to
+    the same candidate and nothing in the new object says which of the two an
+    old caller had.
+
+- id: stripe_plan_merged_into_pricing
+  source: "mined:https://docs.stripe.com/changelog/basil/2025-03-31/invoice-pricing-configurations.md"
+  tags: [split-merge, nesting, ambiguous]
+  schema: InvoiceItem
+  operations: ["invoiceitems.retrieve response"]
+  removed: { name: plan, type: object, required: false, description: "The Plan this invoice item is based on, for legacy subscriptions." }
+  candidates:
+    - name: pricing
+      type: object
+      required: false
+      description: "Polymorphic pricing data, unifying Price and Plan."
+    - name: price
+      type: object
+      required: false
+      description: "Removed in the same release."
+  successor: pricing
+  rationale: >-
+    The other half of the merge. A judge that pairs `plan` with `price` because
+    they are both pricing objects has picked a field that is also gone.
+
+# The type changed as well as the location: an integer number of minor units
+# became a decimal string, which is a cast and a relocation in one change.
+- id: stripe_unit_amount_became_decimal_string
+  source: "mined:https://docs.stripe.com/changelog/basil/2025-03-31/invoice-pricing-configurations.md"
+  tags: [type-change, unit, nesting]
+  schema: InvoiceItem
+  operations: ["invoiceitems.create request"]
+  removed: { name: unit_amount, type: integer, required: false, description: "Unit amount, in the smallest currency unit." }
+  candidates:
+    - name: unit_amount_decimal
+      type: string
+      required: false
+      description: "Unit amount in the smallest currency unit, as a decimal string with up to twelve places."
+    - name: quantity
+      type: integer
+      required: false
+      description: "How many units."
+  successor: unit_amount_decimal
+  rationale: >-
+    Same quantity, same units, wider representation. `quantity` is the other
+    integer on the object and multiplies this one rather than replacing it.
+
+- id: stripe_subscription_period_moved_to_item
+  source: "mined:https://docs.stripe.com/changelog/basil/2025-03-31/deprecate-subscription-current-period-start-and-end.md"
+  tags: [removal, nesting, ambiguous]
+  schema: Subscription
+  operations: ["subscriptions.retrieve response"]
+  removed:
+    name: current_period_end
+    type: integer
+    required: true
+    description: "End of the current billing period for the whole subscription."
+  candidates:
+    - name: items
+      type: object
+      required: true
+      description: "The subscription's items, each now carrying its own `current_period_end`."
+    - name: billing_cycle_anchor
+      type: integer
+      required: true
+      description: "The timestamp the billing cycle is anchored to."
+  successor: items
+  rationale: >-
+    The period moved down a level because items can now bill on different
+    intervals, which is also why it cannot be read back: with mixed intervals
+    there is no single subscription-level period to return.
+
+- id: stripe_political_exposure_string_to_enum
+  source: "mined:https://docs.stripe.com/changelog/basil/2025-03-31/political-exposure-persons-api.md"
+  tags: [type-change, enum]
+  schema: Person
+  operations: ["accounts.persons.retrieve response"]
+  removed:
+    name: political_exposure
+    type: string
+    required: false
+    description: "Whether the person is politically exposed, as free text."
+  candidates:
+    - name: political_exposure
+      type: string
+      enum: [existing, none]
+      required: false
+      description: "Whether the person is politically exposed."
+    - name: relationship
+      type: object
+      required: false
+      description: "The person's relationship to the account."
+  successor: political_exposure
+  rationale: >-
+    Same field, narrowed from free text to two values. Reading it back is only
+    total if every string the old contract allowed maps to one of the two.
+
+- id: stripe_delay_days_renamed
+  source: "mined:https://docs.stripe.com/changelog/basil/2025-07-30/balance-settings-delay-days-rename.md"
+  tags: [rename, ambiguous]
+  schema: BalanceSettings
+  operations: ["balance-settings.update request"]
+  removed:
+    name: delay_days
+    type: integer
+    required: false
+    description: "How many days to hold funds before paying them out."
+  candidates:
+    - name: minimum_schedule_delay_days
+      type: integer
+      required: false
+      description: "How many days to hold funds before paying them out."
+    - name: interval
+      type: string
+      enum: [daily, weekly, monthly]
+      required: false
+      description: "How often payouts are made."
+  successor: minimum_schedule_delay_days
+  rationale: >-
+    A rename that adds words rather than changing them, and the descriptions
+    are identical. The stem is a suffix of the new name rather than a prefix,
+    which is the direction stem matching usually misses.
+
+- id: stripe_total_count_removed
+  source: "mined:https://docs.stripe.com/changelog/basil/2025-03-31/deprecate-total-count-expansion.md"
+  tags: [removal, decoy]
+  schema: PaymentList
+  operations: ["payments.list response"]
+  removed:
+    name: total_count
+    type: integer
+    required: false
+    description: "The total number of items matching the query, when expanded."
+  candidates:
+    - name: has_more
+      type: boolean
+      required: true
+      description: "Whether there are more items after this page."
+    - name: count
+      type: integer
+      required: false
+      description: "How many items are in this page."
+  successor: null
+  rationale: >-
+    Counting the whole result set stopped being offered at all. Both candidates
+    are about quantity and neither can produce the number, which is why a judge
+    scoring on plausibility rather than meaning will answer anyway.
+
+- id: stripe_checkout_shipping_details_removed
+  source: "mined:https://docs.stripe.com/changelog/basil/2025-03-31/checkout-session-remove-shipping-details.md"
+  tags: [removal, ambiguous]
+  schema: CheckoutSession
+  operations: ["checkout.sessions.retrieve response"]
+  removed:
+    name: shipping
+    type: object
+    required: false
+    description: "The shipping address and name collected during checkout."
+  candidates:
+    - name: collected_information
+      type: object
+      required: false
+      description: "Information collected during checkout, including `shipping_details`."
+    - name: shipping_options
+      type: array
+      required: false
+      description: "The shipping rates offered to the customer."
+  successor: collected_information
+  rationale: >-
+    Moved under a container named for how it was obtained rather than what it
+    is. `shipping_options` shares the stem and is about what was offered, not
+    what was chosen.

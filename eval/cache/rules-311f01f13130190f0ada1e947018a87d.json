@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "expires_at",
+    "confidence": 0.6536,
+    "scores": {
+      "expires": 0.6,
+      "expires_at": 0.76
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.010691000000008444,
+  "inputTokens": 0,
+  "costUsd": 0
+}

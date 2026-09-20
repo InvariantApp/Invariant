@@ -16,6 +16,8 @@ import type { EvalCase } from "./corpus.ts";
 
 export interface Outcome {
   caseId: string;
+  /** `mined:<url>` when a real provider shipped this change, else undefined. */
+  source?: string | undefined;
   tags: string[];
   expected: string | null;
   actual: string | null;
@@ -57,6 +59,7 @@ export function outcomesOf(
     const actual = answer?.abstained ? null : (answer?.successor ?? null);
     return {
       caseId: testCase.id,
+      source: testCase.source,
       tags: testCase.tags,
       expected: testCase.successor,
       actual,
@@ -127,6 +130,23 @@ export function byTag(outcomes: readonly Outcome[]): Map<string, Metrics> {
   for (const tag of [...tags].sort()) {
     out.set(tag, summarize(outcomes.filter((outcome) => outcome.tags.includes(tag))));
   }
+  return out;
+}
+
+/**
+ * The same metrics, split by where the cases came from.
+ *
+ * Reported separately and never added together. A corpus somebody wrote
+ * measures the questions they thought to ask; only changes a provider actually
+ * shipped say anything about how the work really arrives, and a single number
+ * over both would let the easier half carry the harder one.
+ */
+export function bySource(outcomes: readonly Outcome[]): Map<string, Metrics> {
+  const out = new Map<string, Metrics>();
+  const mined = outcomes.filter((outcome) => outcome.source?.startsWith("mined:"));
+  const written = outcomes.filter((outcome) => !outcome.source?.startsWith("mined:"));
+  if (mined.length > 0) out.set("mined from real changelogs", summarize(mined));
+  if (written.length > 0) out.set("written for this corpus", summarize(written));
   return out;
 }
 

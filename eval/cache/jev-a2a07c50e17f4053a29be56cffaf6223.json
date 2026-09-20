@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "referrerUrl",
+    "confidence": 0.51,
+    "scores": {
+      "landingPageDisplayText": 0.26,
+      "referrerUrl": 0.51
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 169.4792580000003,
+  "inputTokens": 1284,
+  "costUsd": 0.000053928
+}

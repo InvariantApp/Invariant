@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "balance_cents",
+    "confidence": 0.91,
+    "scores": {
+      "balance_cents": 1,
+      "nickname": 0.005
+    },
+    "stated": true,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 215.6148209999992,
+  "inputTokens": 1301,
+  "costUsd": 0.00005464200000000001
+}

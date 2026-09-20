@@ -1,0 +1,417 @@
+# Written, not mined, and written because of what the mined half measured.
+#
+# Every error the model made across 182 cases was the same shape: a field that
+# was genuinely deleted, sitting beside a candidate that shares its leading
+# words and means something else. It answered instead of declining, four times
+# out of four, on `gh_authorizations_url_removed`, `gh_merge_commit_sha_removed`
+# and two written cases. All four landed below the confidence threshold, so no
+# draft would have been written from any of them, but four out of four is a
+# failure mode rather than noise.
+#
+# So this file is that failure mode, deliberately, from as many angles as the
+# real changelogs suggested. It also fills the split-merge family, which the
+# design asks to have at least fifteen of and which had thirteen.
+#
+# These are written cases and the report counts them as such. What is real about
+# them is the pattern: every naming convention below was taken from a change
+# some provider in the mined set actually shipped.
+
+# --- Removals whose nearest neighbour is a trap ------------------------------
+
+- id: removal_deprecated_sibling_also_removed
+  tags: [removal, decoy]
+  schema: Webhook
+  operations: ["webhooks.retrieve response"]
+  removed: { name: delivery_url, type: string, format: uri, required: true, description: "Where deliveries were sent." }
+  candidates:
+    - { name: delivery_url_template, type: string, required: false, description: "Removed in the same release; never populated." }
+    - { name: endpoint, type: object, required: true, description: "The endpoint configuration, which does not carry a URL." }
+  successor: null
+  rationale: The closest name by spelling is the field that was deleted beside it, which is a successor to nothing.
+
+- id: removal_flag_kept_its_subject
+  tags: [removal, decoy]
+  schema: Repository
+  operations: ["repos.get response"]
+  removed: { name: custom_banner_enabled, type: boolean, required: false, description: "Whether the custom banner is shown." }
+  candidates:
+    - { name: custom_banner, type: string, required: false, description: "The text of the custom banner." }
+    - { name: banner_dismissed_at, type: integer, required: false }
+  successor: null
+  rationale: >-
+    The flag went and its subject stayed. Pairing them hands a caller a string
+    where a boolean belongs, which type checking would catch and a judge
+    reasoning from names alone would not.
+
+- id: removal_plural_is_not_the_singular
+  tags: [removal, decoy, ambiguous]
+  schema: Deployment
+  operations: ["deployments.get response"]
+  removed: { name: statuses, type: array, required: true, description: "Every status this deployment has had." }
+  candidates:
+    - { name: status, type: string, enum: [queued, in_progress, success, failure], required: true, description: "The current status." }
+    - { name: statuses_url, type: string, format: uri, required: true, description: "Where the status history can be fetched." }
+  successor: null
+  rationale: >-
+    The history was dropped from the payload and left behind a link. Neither the
+    current value nor a URL is the list, and the URL is the more tempting of the
+    two precisely because it is closer in name.
+
+- id: removal_measure_replaced_by_different_measure
+  tags: [removal, ambiguous]
+  schema: Transfer
+  operations: ["transfers.retrieve response"]
+  removed: { name: estimated_arrival, type: integer, required: false, description: "When the transfer was expected to arrive, as an estimate." }
+  candidates:
+    - { name: arrival_date, type: integer, required: false, description: "When the transfer actually arrived. Absent until it does." }
+    - { name: created, type: integer, required: true }
+  successor: null
+  rationale: >-
+    An estimate made before the fact and a record made after it are different
+    quantities, and the second is absent exactly when the first was most useful.
+
+- id: removal_stem_shared_with_unrelated_concept
+  tags: [removal, decoy]
+  schema: Subscription
+  operations: ["subscriptions.retrieve response"]
+  removed: { name: trial_converted, type: boolean, required: false, description: "Whether the trial turned into a paid subscription." }
+  candidates:
+    - { name: trial_end, type: integer, required: false, description: "When the trial ends." }
+    - { name: trial_settings, type: object, required: false, description: "What happens when the trial ends." }
+  successor: null
+  rationale: Three fields share the `trial_` prefix and only one of them was about the outcome.
+
+- id: removal_legacy_id_no_successor
+  tags: [removal, decoy, ambiguous]
+  schema: Customer
+  operations: ["customers.retrieve response"]
+  removed: { name: legacy_customer_id, type: string, required: false, description: "The identifier from the system this account was migrated from." }
+  candidates:
+    - { name: customer_id, type: string, required: true, description: "The identifier of this customer." }
+    - { name: external_id, type: string, required: false, description: "An identifier you set yourself." }
+  successor: null
+  rationale: >-
+    Migration is finished so the old identifier is gone. Both candidates are
+    identifiers for the same customer and neither holds the value that was
+    dropped, which is the most expensive kind of near miss.
+
+- id: removal_computed_field_dropped
+  tags: [removal, ambiguous]
+  schema: Invoice
+  operations: ["invoices.retrieve response"]
+  removed: { name: amount_remaining, type: integer, required: true, description: "How much is still owed, in minor units." }
+  candidates:
+    - { name: amount_due, type: integer, required: true, description: "How much was owed when the invoice was finalised." }
+    - { name: amount_paid, type: integer, required: true, description: "How much has been paid." }
+  successor: null
+  rationale: >-
+    The field was the difference of the other two and was dropped as redundant.
+    A judge is right that the information survives and wrong that any single
+    candidate is the successor, because recovering it takes arithmetic.
+
+- id: removal_enum_member_became_its_own_field
+  tags: [removal, type-change, ambiguous]
+  schema: Payout
+  operations: ["payouts.retrieve response"]
+  removed:
+    name: failure_code
+    type: string
+    enum: [account_closed, insufficient_funds, invalid_account_number]
+    required: false
+    description: "Why the payout failed."
+  candidates:
+    - { name: failure, type: object, required: false, description: "Failure details, with a `code` and a `message`." }
+    - { name: status, type: string, enum: [paid, pending, failed], required: true }
+  successor: failure
+  rationale: >-
+    The code moved inside an object, so this one does have a successor. It is
+    here as the control for the cases around it: the same shape of question
+    with a different right answer.
+
+- id: removal_sunset_capability
+  tags: [removal, decoy]
+  schema: Account
+  operations: ["accounts.retrieve response"]
+  removed: { name: payouts_enabled, type: boolean, required: true, description: "Whether payouts are enabled for this account." }
+  candidates:
+    - { name: capabilities, type: object, required: true, description: "Each capability and its status, including `payouts`." }
+    - { name: charges_enabled, type: boolean, required: true, description: "Whether charges are enabled." }
+  successor: capabilities
+  rationale: >-
+    Another control. The flag became one entry of a capability map, which is a
+    relocation, and the sibling boolean is the trap for a judge matching shape.
+
+- id: removal_timestamps_collapsed
+  tags: [removal, decoy, ambiguous]
+  schema: Dispute
+  operations: ["disputes.retrieve response"]
+  removed: { name: evidence_due_by, type: integer, required: false, description: "When evidence had to be submitted by." }
+  candidates:
+    - { name: evidence_details, type: object, required: false, description: "Evidence state, including `due_by`." }
+    - { name: evidence_submitted_at, type: integer, required: false, description: "When evidence was submitted." }
+  successor: evidence_details
+  rationale: >-
+    The third control in a row, and the hardest: the right answer is an object
+    that contains the value under a shortened key, while the wrong answer is a
+    timestamp about the same evidence.
+
+# --- Merges, which the IR cannot express at all ------------------------------
+
+- id: merge_first_last_into_full_name
+  tags: [split-merge]
+  schema: Person
+  operations: ["persons.create request"]
+  removed: { name: first_name, type: string, required: true, description: "The person's given name." }
+  candidates:
+    - { name: full_name, type: string, required: true, description: "The person's full name, given and family together." }
+    - { name: last_name, type: string, required: true, description: "Removed in the same release." }
+  successor: full_name
+  rationale: >-
+    Right as an alignment and impossible as a Change: `last_name` aligns to the
+    same successor, and splitting a full name back apart is guesswork.
+
+- id: merge_last_into_full_name
+  tags: [split-merge, ambiguous]
+  schema: Person
+  operations: ["persons.create request"]
+  removed: { name: last_name, type: string, required: true, description: "The person's family name." }
+  candidates:
+    - { name: full_name, type: string, required: true, description: "The person's full name, given and family together." }
+    - { name: first_name, type: string, required: true, description: "Removed in the same release." }
+  successor: full_name
+  rationale: The other half of the same merge.
+
+- id: merge_street_lines_into_address
+  tags: [split-merge, nesting]
+  schema: Address
+  operations: ["addresses.create request"]
+  removed: { name: line1, type: string, required: true, description: "The first line of the street address." }
+  candidates:
+    - { name: street, type: string, required: true, description: "The whole street address, newline separated." }
+    - { name: line2, type: string, required: false, description: "Removed in the same release." }
+  successor: street
+  rationale: Two lines became one string with a separator, which is only reversible while the separator is honoured.
+
+- id: merge_currency_into_money_object
+  tags: [split-merge, unit]
+  schema: Charge
+  operations: ["charges.retrieve response"]
+  removed: { name: currency, type: string, required: true, description: "The three-letter currency code." }
+  candidates:
+    - { name: money, type: object, required: true, description: "The amount and its currency together." }
+    - { name: amount_cents, type: integer, required: true, description: "Removed in the same release." }
+  successor: money
+  rationale: >-
+    A merge that is genuinely reversible, because the object keeps both parts
+    under distinct keys. The IR still cannot express it: no op reads two fields
+    to write one.
+
+- id: merge_amount_into_money_object
+  tags: [split-merge, unit]
+  schema: Charge
+  operations: ["charges.retrieve response"]
+  removed: { name: amount_cents, type: integer, required: true, description: "The amount, in the smallest currency unit." }
+  candidates:
+    - { name: money, type: object, required: true, description: "The amount and its currency together." }
+    - { name: currency, type: string, required: true, description: "Removed in the same release." }
+  successor: money
+  rationale: The other half, and the reason this family is listed as unrepresentable rather than merely awkward.
+
+- id: merge_date_parts
+  tags: [split-merge, type-change]
+  schema: Card
+  operations: ["cards.create request"]
+  removed: { name: exp_month, type: integer, required: true, description: "The expiry month, 1 to 12." }
+  candidates:
+    - { name: expiry, type: string, format: date, required: true, description: "The expiry date, as YYYY-MM." }
+    - { name: exp_year, type: integer, required: true, description: "Removed in the same release." }
+  successor: expiry
+  rationale: Two integers became one formatted string, which is reversible by parsing and still not an op.
+
+- id: split_address_out_of_string
+  tags: [split-merge, ambiguous]
+  schema: Shipment
+  operations: ["shipments.create request"]
+  removed: { name: destination, type: string, required: true, description: "The destination address, as one line." }
+  candidates:
+    - { name: destination_address, type: object, required: true, description: "The destination, with `line1`, `city`, `postal_code` and `country`." }
+    - { name: destination_code, type: string, required: false, description: "A warehouse code, where one applies." }
+  successor: destination_address
+  rationale: >-
+    A split rather than a merge: one string became four fields. Putting it back
+    together is easy and taking it apart is not, which is why the direction
+    matters and why the catalog has neither.
+
+# The label here was `period_start` when this file was written, and it was
+# wrong. The model answered "nothing single replaced it" and the disagreement
+# is what surfaced it: `period_start` and `period_end` are symmetric, so
+# naming either one as *the* successor is arbitrary, and the rationale said as
+# much while the label contradicted it.
+#
+# Changed because the case was inconsistent on its own terms, which is the only
+# reason a label may move after an answer is seen. It is not a licence to
+# soften a case the judge found hard; a corpus edited to agree with the thing it
+# measures measures nothing.
+- id: split_range_into_bounds
+  tags: [split-merge]
+  schema: Report
+  operations: ["reports.create request"]
+  removed: { name: period, type: string, required: true, description: "The reporting period, as `YYYY-MM-DD/YYYY-MM-DD`." }
+  candidates:
+    - { name: period_start, type: integer, required: true, description: "The start of the reporting period." }
+    - { name: period_end, type: integer, required: true, description: "The end of the reporting period." }
+  successor: null
+  rationale: >-
+    One field became two, so no single candidate is what it became. Saying so is
+    the right answer at this question's granularity, and recognising the pair is
+    the proposer's job rather than the judge's.
+
+# --- Type changes that look like renames -------------------------------------
+
+- id: type_string_id_became_object
+  tags: [type-change, nesting]
+  schema: Payment
+  operations: ["payments.retrieve response"]
+  removed: { name: customer, type: string, required: true, description: "The identifier of the customer." }
+  candidates:
+    - { name: customer, type: object, required: true, description: "The customer, expanded inline, with `id` among its fields." }
+    - { name: customer_id, type: string, required: false, description: "Deprecated alias." }
+  successor: customer
+  rationale: >-
+    Same name, widened from an identifier to the whole object. The alias named
+    exactly for the old type is the trap, and it is deprecated.
+
+- id: type_seconds_became_iso_string
+  tags: [type-change, unit]
+  schema: Event
+  operations: ["events.retrieve response"]
+  removed: { name: created, type: integer, required: true, description: "When the event happened, as seconds since the epoch." }
+  candidates:
+    - { name: created, type: string, format: date-time, required: true, description: "When the event happened, as an RFC 3339 timestamp." }
+    - { name: created_at, type: integer, required: false, description: "Deprecated alias kept for one release." }
+  successor: created
+  rationale: >-
+    The identical name is the answer and the alias is the decoy, which is the
+    reverse of the usual arrangement and catches a judge that has learned to
+    prefer the field with the suffix.
+
+- id: type_nullable_became_required
+  tags: [type-change, ambiguous]
+  schema: Refund
+  operations: ["refunds.retrieve response"]
+  removed: { name: reason, type: string, required: false, nullable: true, description: "Why the refund was issued, or null." }
+  candidates:
+    - { name: reason, type: string, enum: [duplicate, fraudulent, requested_by_customer, unspecified], required: true, description: "Why the refund was issued. `unspecified` where no reason was given." }
+    - { name: description, type: string, required: false }
+  successor: reason
+  rationale: >-
+    Null became a named value, so the mapping back is total in one direction
+    only: every old null becomes `unspecified`, and `unspecified` cannot tell
+    you whether it was null or chosen.
+
+- id: type_scalar_became_array
+  tags: [type-change, split-merge]
+  schema: Product
+  operations: ["products.create request"]
+  removed: { name: image, type: string, format: uri, required: false, description: "A URL of an image of the product." }
+  candidates:
+    - { name: images, type: array, required: false, description: "URLs of images of the product." }
+    - { name: image_url, type: string, format: uri, required: false, description: "Deprecated alias." }
+  successor: images
+  rationale: >-
+    Wrapping is total and unwrapping is not, so this is only reversible while
+    the array holds at most one element, which nothing in the schema promises.
+
+- id: type_decimal_string_from_float
+  tags: [type-change, unit]
+  schema: LineItem
+  operations: ["line-items.retrieve response"]
+  removed: { name: quantity, type: number, required: true, description: "How many units, which could be fractional." }
+  candidates:
+    - { name: quantity, type: string, required: true, description: "How many units, as a decimal string, to avoid binary rounding." }
+    - { name: quantity_decimal, type: string, required: false, description: "Deprecated alias." }
+  successor: quantity
+  rationale: >-
+    Widened to text so that fractions survive. A conversion that has to happen
+    on the digits rather than on a double, which is the one arithmetic rule the
+    runtime never bends.
+
+# --- Enum changes that cannot be undone --------------------------------------
+
+- id: enum_two_values_merged
+  tags: [enum, split-merge, ambiguous]
+  schema: CodeScanningSetup
+  operations: ["code-scanning.get-default-setup response"]
+  removed:
+    name: languages
+    type: array
+    enum: [javascript, typescript, python, ruby]
+    required: true
+    description: "The languages analysed. JavaScript and TypeScript were separate."
+  candidates:
+    - name: languages
+      type: array
+      enum: [javascript-typescript, python, ruby]
+      required: true
+      description: "The languages analysed. JavaScript and TypeScript are one entry."
+    - name: query_suite
+      type: string
+      enum: [default, extended]
+      required: false
+  successor: languages
+  rationale: >-
+    Taken from a change GitHub shipped. Two values became one, so mapping back
+    cannot be bijective: `javascript-typescript` has to become one of two old
+    values and nothing says which.
+
+- id: enum_value_split_by_meaning
+  tags: [enum, split-merge]
+  schema: Payout
+  operations: ["payouts.retrieve response"]
+  removed:
+    name: status
+    type: string
+    enum: [pending, paid, failed]
+    required: true
+    description: "Payout state. `failed` covered both a rejection and a reversal."
+  candidates:
+    - name: status
+      type: string
+      enum: [pending, paid, failed, reversed]
+      required: true
+      description: "Payout state. A reversal after settlement is now `reversed`."
+    - name: failure_code
+      type: string
+      required: false
+  successor: status
+  rationale: >-
+    Splitting one value into two is total coming back, because both new values
+    map to old `failed`. Going forward it is not, which is why the direction has
+    to be checked separately rather than assumed symmetrical.
+
+- id: enum_renamed_and_reordered
+  tags: [enum, adversarial]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed:
+    name: fulfillment_state
+    type: string
+    enum: [none, partial, complete]
+    required: true
+    description: "How much of the order has shipped."
+  candidates:
+    - name: fulfillment_status
+      type: string
+      enum: [unfulfilled, partially_fulfilled, fulfilled]
+      required: true
+      description: "How much of the order has shipped."
+    - name: financial_status
+      type: string
+      enum: [pending, paid, refunded]
+      required: true
+      description: "Whether the order has been paid for."
+  successor: fulfillment_status
+  rationale: >-
+    The field and every one of its values were renamed at once, so nothing
+    matches lexically and only the descriptions line up. The decoy is the other
+    status enum on the same object, which is the sibling every order API has.

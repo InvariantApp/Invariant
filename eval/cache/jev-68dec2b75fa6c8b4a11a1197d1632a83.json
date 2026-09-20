@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": "actor_id",
+    "confidence": 0.98,
+    "scores": {
+      "actor_id": 0.98,
+      "user_agent": 0,
+      "target_id": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 176.39910599999985,
+  "inputTokens": 1584,
+  "costUsd": 0.000066528
+}

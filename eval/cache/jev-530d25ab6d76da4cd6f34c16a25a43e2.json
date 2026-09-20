@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "localizedFields",
+    "confidence": 1,
+    "scores": {
+      "localizedFields": 1,
+      "currencyCode": 0.045
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 213.70435499999985,
+  "inputTokens": 1273,
+  "costUsd": 0.000053466000000000006
+}

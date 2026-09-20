@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "billing_interval",
+    "confidence": 0.8125,
+    "scores": {
+      "billing_interval": 0.65,
+      "billing_reference": 0.1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.014544000000000779,
+  "inputTokens": 0,
+  "costUsd": 0
+}

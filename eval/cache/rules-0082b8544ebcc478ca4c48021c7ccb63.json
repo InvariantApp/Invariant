@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "created",
+    "confidence": 1,
+    "scores": {
+      "created": 1,
+      "created_at": 0.31
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.03908899999998994,
+  "inputTokens": 0,
+  "costUsd": 0
+}

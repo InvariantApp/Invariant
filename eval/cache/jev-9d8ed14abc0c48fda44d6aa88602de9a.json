@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "customerJourneySummary",
+    "confidence": 0.79,
+    "scores": {
+      "customerJourneySummary": 0.79,
+      "customerAcceptsMarketing": 0.015
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 262.0997929999994,
+  "inputTokens": 1293,
+  "costUsd": 0.000054306000000000005
+}

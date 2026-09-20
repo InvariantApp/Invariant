@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "name",
+    "confidence": 0.77,
+    "scores": {
+      "session_id": 0.135,
+      "name": 0.985
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 211.98262499999964,
+  "inputTokens": 1264,
+  "costUsd": 0.000053088
+}

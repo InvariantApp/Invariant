@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "amount_minor",
+    "confidence": 1,
+    "scores": {
+      "amount_minor": 0.8500000000000001,
+      "fee_minor": 0.05
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.007272000000000389,
+  "inputTokens": 0,
+  "costUsd": 0
+}

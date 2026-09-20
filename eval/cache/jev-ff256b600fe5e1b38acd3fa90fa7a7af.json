@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "queue_id",
+    "confidence": 0.99,
+    "scores": {
+      "queue": 0.055,
+      "queue_id": 1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 140.3697430000002,
+  "inputTokens": 1259,
+  "costUsd": 0.000052878
+}

@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "ttl_ms",
+    "confidence": 1,
+    "scores": {
+      "ttl_ms": 0.9,
+      "eviction_interval_ms": 0.1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.010515999999995529,
+  "inputTokens": 0,
+  "costUsd": 0
+}

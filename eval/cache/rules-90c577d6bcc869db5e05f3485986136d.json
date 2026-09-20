@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "settled_amount_minor",
+    "confidence": 1,
+    "scores": {
+      "settled_amount_minor": 0.8500000000000001,
+      "settlement_fee_minor": 0.05
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.011785000000031687,
+  "inputTokens": 0,
+  "costUsd": 0
+}

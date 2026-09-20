@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "charge_bps",
+    "confidence": 0.99,
+    "scores": {
+      "health_percent": 0.01,
+      "charge_bps": 0.995
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 176.43387799999982,
+  "inputTokens": 1281,
+  "costUsd": 0.000053802000000000004
+}

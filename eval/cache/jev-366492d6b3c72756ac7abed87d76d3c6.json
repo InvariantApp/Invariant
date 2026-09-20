@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.48,
+    "scores": {
+      "secret_scanning_push_protection_custom_link": 0.15,
+      "secret_scanning_push_protection_enabled": 0.03
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 245.16696799999954,
+  "inputTokens": 1304,
+  "costUsd": 0.00005476800000000001
+}

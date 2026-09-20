@@ -29,6 +29,16 @@ export type CaseTag =
 
 export interface EvalCase {
   id: string;
+  /**
+   * Where this case came from.
+   *
+   * `mined:<url>` for a change a real provider actually shipped, absent for one
+   * written for this corpus. Kept because the two measure different things: a
+   * corpus somebody wrote measures the questions they thought to ask, and only
+   * the mined half can say anything about the work as it really arrives. The
+   * report separates them rather than quoting one number.
+   */
+  source?: string;
   tags: CaseTag[];
   schema: string;
   operations: string[];
@@ -103,6 +113,7 @@ function parseCase(raw: unknown, file: string): EvalCase {
 
   return {
     id,
+    ...(typeof value["source"] === "string" ? { source: value["source"] } : {}),
     tags: Array.isArray(value["tags"]) ? (value["tags"] as CaseTag[]) : [],
     schema: typeof value["schema"] === "string" ? value["schema"] : "Unknown",
     operations: Array.isArray(value["operations"])

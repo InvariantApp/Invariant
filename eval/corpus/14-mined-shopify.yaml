@@ -1,0 +1,285 @@
+# Deprecations on Shopify's Admin GraphQL Order object.
+#
+# A deliberate note on what is NOT here. Shopify deprecated thirteen scalar
+# money fields in favour of `<name>Set` MoneyBag objects in one sweep:
+# `totalPrice`, `subtotalPrice`, `totalTax`, `totalRefunded` and nine more, all
+# the same shape of change. Including all thirteen would add thirteen easy,
+# nearly identical cases and move every headline number up without measuring
+# anything new. Six are here, with different decoys each time, and the rest are
+# left out on purpose.
+#
+# What is worth having from this source is the other kind: a real merge
+# (`riskLevel` and `risks` both became `risk`), renames that share no words with
+# what they replaced, and a run of genuine removals, which is where the model is
+# measurably weakest.
+#
+# Source: https://shopify.dev/docs/api/admin-graphql/latest/objects/Order
+
+- id: shopify_total_price_became_money_bag
+  source: "mined:https://shopify.dev/docs/api/admin-graphql/latest/objects/Order"
+  tags: [rename, type-change, unit]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed: { name: totalPrice, type: string, required: true, description: "The total amount of the order, in shop currency." }
+  candidates:
+    - { name: totalPriceSet, type: object, required: true, description: "The total amount of the order, in shop and presentment currencies." }
+    - { name: totalOutstandingSet, type: object, required: true, description: "The amount not yet paid, in shop and presentment currencies." }
+  successor: totalPriceSet
+  rationale: >-
+    One currency became two, so the scalar is one field of the new object.
+    `totalOutstandingSet` is the same new shape for a different quantity.
+
+- id: shopify_subtotal_became_money_bag
+  source: "mined:https://shopify.dev/docs/api/admin-graphql/latest/objects/Order"
+  tags: [rename, type-change, decoy]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed: { name: subtotalPrice, type: string, required: false, description: "The sum of line item prices before taxes, shipping and discounts." }
+  candidates:
+    - { name: subtotalPriceSet, type: object, required: false, description: "The sum of line item prices before taxes, shipping and discounts, in both currencies." }
+    - { name: totalPriceSet, type: object, required: true, description: "The total amount of the order." }
+  successor: subtotalPriceSet
+  rationale: >-
+    The decoy is the same transformation applied to the field one line above,
+    which is the mistake worth catching: the shape match is perfect and the
+    quantity is wrong.
+
+- id: shopify_total_tax_became_money_bag
+  source: "mined:https://shopify.dev/docs/api/admin-graphql/latest/objects/Order"
+  tags: [rename, type-change]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed: { name: totalTax, type: string, required: false, description: "The total tax applied to the order." }
+  candidates:
+    - { name: totalTaxSet, type: object, required: false, description: "The total tax applied to the order, in both currencies." }
+    - { name: taxesIncluded, type: boolean, required: true, description: "Whether taxes are included in the line item prices." }
+  successor: totalTaxSet
+  rationale: A money amount and a boolean about tax are not interchangeable, however close the names.
+
+- id: shopify_total_refunded_became_money_bag
+  source: "mined:https://shopify.dev/docs/api/admin-graphql/latest/objects/Order"
+  tags: [rename, type-change, ambiguous]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed: { name: totalRefunded, type: string, required: true, description: "The total amount refunded on the order." }
+  candidates:
+    - { name: totalRefundedSet, type: object, required: true, description: "The total amount refunded, in both currencies." }
+    - { name: totalRefundedShippingSet, type: object, required: true, description: "The total shipping amount refunded, in both currencies." }
+  successor: totalRefundedSet
+  rationale: >-
+    The second candidate is a strict subset of the first and its name is a
+    strict superset of the removed field's, which is the direction a longest
+    common prefix gets wrong.
+
+- id: shopify_total_capturable_became_money_bag
+  source: "mined:https://shopify.dev/docs/api/admin-graphql/latest/objects/Order"
+  tags: [rename, type-change]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed: { name: totalCapturable, type: string, required: true, description: "The amount authorised and not yet captured." }
+  candidates:
+    - { name: totalCapturableSet, type: object, required: true, description: "The amount authorised and not yet captured, in both currencies." }
+    - { name: totalReceivedSet, type: object, required: true, description: "The amount actually received, in both currencies." }
+  successor: totalCapturableSet
+  rationale: Authorised and received are different stages of the same money and must not be swapped.
+
+- id: shopify_cart_discount_became_money_bag
+  source: "mined:https://shopify.dev/docs/api/admin-graphql/latest/objects/Order"
+  tags: [rename, type-change, decoy]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed: { name: cartDiscountAmount, type: string, required: false, description: "The discount applied to the whole cart." }
+  candidates:
+    - { name: cartDiscountAmountSet, type: object, required: false, description: "The discount applied to the whole cart, in both currencies." }
+    - { name: totalDiscountsSet, type: object, required: false, description: "Every discount on the order, in both currencies." }
+  successor: cartDiscountAmountSet
+  rationale: Cart-level and order-level discounts overlap in meaning and are not the same number.
+
+# A real merge, from a real API. Two fields became one, and from `risk` alone
+# there is no telling which of the two an old caller was reading.
+- id: shopify_risk_level_merged
+  source: "mined:https://shopify.dev/docs/api/admin-graphql/latest/objects/Order"
+  tags: [split-merge, ambiguous]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed:
+    name: riskLevel
+    type: string
+    enum: [LOW, MEDIUM, HIGH]
+    required: true
+    description: "The overall fraud risk of the order."
+  candidates:
+    - { name: risk, type: object, required: true, description: "Fraud risk for the order, with an assessment list and a recommendation." }
+    - { name: risks, type: array, required: true, description: "Deprecated in the same release." }
+  successor: risk
+  rationale: >-
+    Correct as an alignment and unrepresentable as a Change, because `risks`
+    aligns to the same successor. The decoy is the other half of the merge.
+
+- id: shopify_risks_merged
+  source: "mined:https://shopify.dev/docs/api/admin-graphql/latest/objects/Order"
+  tags: [split-merge, ambiguous]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed: { name: risks, type: array, required: true, description: "The individual fraud risk assessments for the order." }
+  candidates:
+    - { name: risk, type: object, required: true, description: "Fraud risk for the order, with an assessment list and a recommendation." }
+    - { name: riskLevel, type: string, enum: [LOW, MEDIUM, HIGH], required: true, description: "Deprecated in the same release." }
+  successor: risk
+  rationale: The other half. A level and a list of assessments both folded into one object.
+
+- id: shopify_physical_location_renamed
+  source: "mined:https://shopify.dev/docs/api/admin-graphql/latest/objects/Order"
+  tags: [rename, ambiguous]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed: { name: physicalLocation, type: object, required: false, description: "The physical location where the order was processed." }
+  candidates:
+    - { name: retailLocation, type: object, required: false, description: "The physical location where the order was processed." }
+    - { name: fulfillmentOrders, type: object, required: true, description: "Where and how the order is being fulfilled." }
+  successor: retailLocation
+  rationale: >-
+    A rename sharing not one word with what it replaced. Only the identical
+    description says they are the same field, which is the case for reading
+    documentation rather than spelling.
+
+- id: shopify_localization_extensions_renamed
+  source: "mined:https://shopify.dev/docs/api/admin-graphql/latest/objects/Order"
+  tags: [rename]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed: { name: localizationExtensions, type: object, required: true, description: "Additional information required for an order in a specific country." }
+  candidates:
+    - { name: localizedFields, type: object, required: true, description: "Additional information required for an order in a specific country." }
+    - { name: currencyCode, type: string, required: true, description: "The currency the shop is in." }
+  successor: localizedFields
+  rationale: Same stem, different ending, same description. The decoy is the other locale-adjacent field.
+
+- id: shopify_customer_journey_renamed
+  source: "mined:https://shopify.dev/docs/api/admin-graphql/latest/objects/Order"
+  tags: [rename, ambiguous]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed: { name: customerJourney, type: object, required: false, description: "The marketing events that led to the order." }
+  candidates:
+    - { name: customerJourneySummary, type: object, required: false, description: "A summary of the marketing events that led to the order, with the first and last visits." }
+    - { name: customerAcceptsMarketing, type: boolean, required: true, description: "Whether the customer agreed to receive marketing." }
+  successor: customerJourneySummary
+  rationale: >-
+    A rename that also narrows: the summary carries less than the full journey
+    did. Right as an alignment, and lossy as a Change, which is a distinction
+    the shapes alone do not draw.
+
+- id: shopify_channel_removed
+  source: "mined:https://shopify.dev/docs/api/admin-graphql/latest/objects/Order"
+  tags: [removal, decoy]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed: { name: channel, type: object, required: false, description: "The sales channel the order came from." }
+  candidates:
+    - { name: channelInformation, type: object, required: false, description: "Deprecated in the same release." }
+    - { name: publication, type: object, required: false, description: "The publication the order was created from." }
+  successor: null
+  rationale: >-
+    Both `channel` and `channelInformation` went, with no replacement named.
+    The nearest candidate by spelling is the one that was removed beside it.
+
+- id: shopify_landing_page_url_removed
+  source: "mined:https://shopify.dev/docs/api/admin-graphql/latest/objects/Order"
+  tags: [removal, decoy]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed: { name: landingPageUrl, type: string, format: uri, required: false, description: "The URL of the first page the customer landed on." }
+  candidates:
+    - { name: landingPageDisplayText, type: string, required: false, description: "Deprecated in the same release." }
+    - { name: referrerUrl, type: string, format: uri, required: false, description: "Deprecated in the same release." }
+  successor: null
+  rationale: >-
+    Three attribution fields removed together and none replaced. Every
+    candidate is a URL or a label from the same group, so shape similarity is
+    at its most misleading and the right answer is still nothing.
+
+- id: shopify_referral_code_removed
+  source: "mined:https://shopify.dev/docs/api/admin-graphql/latest/objects/Order"
+  tags: [removal, ambiguous]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed: { name: referralCode, type: string, required: false, description: "The referral code used when the order was placed." }
+  candidates:
+    - { name: discountCode, type: string, required: false, description: "The discount code applied to the order." }
+    - { name: referrerDisplayText, type: string, required: false, description: "Deprecated in the same release." }
+  successor: null
+  rationale: >-
+    A referral code and a discount code are both short strings a customer
+    types, and they are different things. The other candidate is also gone.
+
+- id: shopify_metafield_definitions_removed
+  source: "mined:https://shopify.dev/docs/api/admin-graphql/latest/objects/Order"
+  tags: [removal]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed: { name: metafieldDefinitions, type: object, required: true, description: "The metafield definitions that apply to this order." }
+  candidates:
+    - { name: metafields, type: object, required: true, description: "The metafield values on this order." }
+    - { name: metafield, type: object, required: false, description: "A single metafield by namespace and key." }
+  successor: null
+  rationale: >-
+    Definitions describe the shape of metafields; `metafields` holds their
+    values. Pairing them would hand a caller the data where the schema belongs.
+
+- id: shopify_net_payment_became_money_bag
+  source: "mined:https://shopify.dev/docs/api/admin-graphql/latest/objects/Order"
+  tags: [rename, type-change, ambiguous]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed: { name: netPayment, type: string, required: true, description: "The net payment for the order, received less refunded." }
+  candidates:
+    - { name: netPaymentSet, type: object, required: true, description: "The net payment for the order, in both currencies." }
+    - { name: totalReceivedSet, type: object, required: true, description: "The total received, before refunds." }
+  successor: netPaymentSet
+  rationale: >-
+    Net and gross differ by exactly the refunds, so the wrong answer is a
+    number that is right whenever nothing was refunded and silently wrong
+    otherwise.
+
+- id: shopify_fulfillment_status_gained_value
+  source: "mined:https://shopify.dev/docs/api/release-notes/2026-10"
+  tags: [enum, ambiguous]
+  schema: Order
+  operations: ["orders.retrieve response"]
+  removed:
+    name: displayFulfillmentStatus
+    type: string
+    enum: [UNFULFILLED, PARTIALLY_FULFILLED, FULFILLED, RESTOCKED]
+    required: true
+    description: "Fulfillment state. Orders with nothing to fulfil reported UNFULFILLED."
+  candidates:
+    - name: displayFulfillmentStatus
+      type: string
+      enum: [UNFULFILLED, PARTIALLY_FULFILLED, FULFILLED, RESTOCKED, FULFILLMENT_NOT_REQUIRED]
+      required: true
+      description: "Fulfillment state. Orders with nothing to fulfil report FULFILLMENT_NOT_REQUIRED."
+    - name: displayFinancialStatus
+      type: string
+      enum: [PENDING, PAID, REFUNDED]
+      required: true
+  successor: displayFulfillmentStatus
+  rationale: >-
+    The same field gained a value that used to be folded into `UNFULFILLED`.
+    Mapping back is not bijective: new `UNFULFILLED` and new
+    `FULFILLMENT_NOT_REQUIRED` both have to become old `UNFULFILLED`.
+
+- id: shopify_draft_order_price_rule_removed
+  source: "mined:https://shopify.dev/docs/api/release-notes/2026-10"
+  tags: [removal, decoy]
+  schema: DraftOrderDiscountNotAppliedWarning
+  operations: ["draftOrders.retrieve response"]
+  removed: { name: priceRule, type: object, required: false, description: "The price rule that was not applied." }
+  candidates:
+    - { name: discountCode, type: string, required: false, description: "The code of the discount that was not applied." }
+    - { name: errorCode, type: string, required: true, description: "Why the discount was not applied." }
+  successor: null
+  rationale: >-
+    Price rules were retired as a concept, so nothing on the warning carries
+    what the field held. The candidates describe the same event from other
+    angles, which is why one of them looks like an answer.

@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "priority",
+    "confidence": 1,
+    "scores": {
+      "priority": 1,
+      "priority_score": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.007656999999994696,
+  "inputTokens": 0,
+  "costUsd": 0
+}

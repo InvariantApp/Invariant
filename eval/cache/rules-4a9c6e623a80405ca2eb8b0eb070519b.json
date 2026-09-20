@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "languages",
+    "confidence": 1,
+    "scores": {
+      "languages": 1,
+      "query_suite": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.009054000000048745,
+  "inputTokens": 0,
+  "costUsd": 0
+}

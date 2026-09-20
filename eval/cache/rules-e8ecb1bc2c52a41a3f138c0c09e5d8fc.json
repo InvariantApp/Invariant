@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "quantity",
+    "confidence": 1,
+    "scores": {
+      "quantity": 1,
+      "unit": 0.1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.0156509999999912,
+  "inputTokens": 0,
+  "costUsd": 0
+}

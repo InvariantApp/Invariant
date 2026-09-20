@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "squash_merge_commit_title",
+    "confidence": 0.92,
+    "scores": {
+      "squash_merge_commit_title": 0.935,
+      "squash_merge_commit_message": 0.035
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 180.15376099999958,
+  "inputTokens": 1345,
+  "costUsd": 0.00005649
+}

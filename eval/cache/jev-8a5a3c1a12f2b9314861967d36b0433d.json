@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "destination_bank_account_id",
+    "confidence": 0.99,
+    "scores": {
+      "destination_bank_account_id": 0.99,
+      "destination_country": 0.055
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 446.93589000000003,
+  "inputTokens": 1254,
+  "costUsd": 0.000052668
+}

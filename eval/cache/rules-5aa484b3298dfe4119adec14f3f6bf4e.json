@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "fulfillment_status",
+    "confidence": 1,
+    "scores": {
+      "fulfillment_status": 0.8166666666666667,
+      "financial_status": 0.1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.016822999999988042,
+  "inputTokens": 0,
+  "costUsd": 0
+}

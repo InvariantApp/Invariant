@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "parent",
+    "confidence": 0.855,
+    "scores": {
+      "parent": 0.855,
+      "subscription_proration_date": 0.01
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 188.78340599999956,
+  "inputTokens": 1275,
+  "costUsd": 0.00005355000000000001
+}

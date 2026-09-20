@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "itinerary",
+    "confidence": 0.885,
+    "scores": {
+      "itinerary": 0.885,
+      "distance_meters": 0.005
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 169.49939700000004,
+  "inputTokens": 1262,
+  "costUsd": 0.00005300400000000001
+}

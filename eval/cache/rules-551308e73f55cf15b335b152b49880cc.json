@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "customer",
+    "confidence": 0.589090909090909,
+    "scores": {
+      "customer": 0.6,
+      "customer_id": 0.3181818181818182
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.017242000000010194,
+  "inputTokens": 0,
+  "costUsd": 0
+}

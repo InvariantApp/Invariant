@@ -114,6 +114,53 @@ describe("the rules judge", () => {
     expect(answer?.abstained).toBe(true);
   });
 
+  /**
+   * A name kept is not always a field kept.
+   *
+   * `expires` was a Unix timestamp; the name now belongs to an expiry policy
+   * object, and the timestamp moved to `expires_at`. An unconditional "same
+   * name wins" said the policy object at full confidence, which is the worst
+   * shape of error this judge can make, because everything downstream treats a
+   * rules answer as settled and never asks the model.
+   *
+   * The evaluation cache had been hiding it: the key did not cover the judge's
+   * own tables, so the recorded answers were from an older implementation.
+   */
+  it("does not treat a reused name as a kept one", async () => {
+    const [result] = await new RulesJudge().align([
+      {
+        kind: "alignment",
+        schema: "SigningKey",
+        operations: ["signing_keys.create response"],
+        removed: field("expires", {
+          type: "integer",
+          description: "When the key stops being accepted, as a Unix timestamp.",
+        }),
+        candidates: [
+          field("expires", {
+            type: "object",
+            description:
+              "Expiry policy: whether the key expires at all and how long it lives.",
+          }),
+          field("expires_at", {
+            type: "integer",
+            description: "When the key stops being accepted, as a Unix timestamp.",
+          }),
+        ],
+      },
+    ]);
+
+    expect(result?.answer.successor).toBe("expires_at");
+  });
+
+  it("still takes a kept name when the value could survive in it", async () => {
+    // The rule this replaced is still the rule. A widened scalar under the same
+    // name is the same field, and the near-named alias is not.
+    const answer = await ask("reading", ["reading_at", "reading"]);
+    expect(answer?.successor).toBe("reading");
+    expect(answer?.confidence).toBe(1);
+  });
+
   it("abstains when nothing resembles the removed field", async () => {
     const answer = await ask("tax_rate", ["shipping_method", "carrier"]);
     expect(answer?.abstained).toBe(true);
