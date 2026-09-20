@@ -86,6 +86,38 @@ export interface LaunchOptions {
 }
 
 /**
+ * Every process group this run has started and not yet stopped.
+ *
+ * Detaching a build is what makes it stoppable, and it is also what stops a
+ * Ctrl-C or a cancelled CI job from reaching it: a detached group is no longer
+ * in the terminal's foreground group, so the signal that would have killed
+ * everything now kills only this process and leaves the builds running. So
+ * this run takes responsibility for them itself.
+ */
+const running = new Set<() => void>();
+let cleanupInstalled = false;
+
+function installCleanup(): void {
+  if (cleanupInstalled) return;
+  cleanupInstalled = true;
+
+  const stopAll = (): void => {
+    for (const stop of running) stop();
+    running.clear();
+  };
+
+  process.once("exit", stopAll);
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
+    process.once(signal, () => {
+      stopAll();
+      // Re-raise with the handler removed, so the exit code says what actually
+      // happened rather than reporting a clean finish.
+      process.kill(process.pid, signal);
+    });
+  }
+}
+
+/**
  * Starts one build and returns something the verifier can send requests to.
  *
  * `head` uses the configured current-build environment; any other value is a
@@ -148,6 +180,18 @@ async function startOnce(label: string, options: LaunchOptions): Promise<Target>
     stderr += chunk.toString();
   });
 
+  installCleanup();
+  const emergencyStop = (): void => {
+    if (child.pid !== undefined) {
+      try {
+        process.kill(-child.pid, "SIGKILL");
+      } catch {
+        // Already gone.
+      }
+    }
+  };
+  running.add(emergencyStop);
+
   const signalGroup = (signal: NodeJS.Signals): void => {
     if (child.pid === undefined) return;
     try {
@@ -159,6 +203,7 @@ async function startOnce(label: string, options: LaunchOptions): Promise<Target>
   };
 
   const close = async (): Promise<void> => {
+    running.delete(emergencyStop);
     if (child.exitCode !== null) return;
     signalGroup("SIGTERM");
     await new Promise<void>((resolve) => {
@@ -185,6 +230,7 @@ async function startOnce(label: string, options: LaunchOptions): Promise<Target>
     );
   } catch (error) {
     await close();
+    running.delete(emergencyStop);
     const detail = stderr.trim().split("\n").slice(-5).join("\n");
     throw new LaunchError(
       `${label}: ${error instanceof Error ? error.message : String(error)}` +
