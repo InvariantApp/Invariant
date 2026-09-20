@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "merchant_id",
+    "confidence": 1,
+    "scores": {
+      "merchant_id": 1,
+      "buyer_id": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 193.01361499999996,
+  "inputTokens": 1088,
+  "costUsd": 0.000045696000000000004
+}

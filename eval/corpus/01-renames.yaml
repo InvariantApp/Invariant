@@ -1,0 +1,66 @@
+# Plain renames. The stem survives, so deterministic rules should settle these
+# without a model. If a judge cannot do these, it cannot do anything.
+- id: rename_created_at
+  tags: [rename]
+  schema: Payment
+  operations: ["payments.create request"]
+  removed: { name: created, type: integer, required: true, description: "When the payment was created, as a Unix timestamp." }
+  candidates:
+    - { name: created_at, type: integer, required: true, description: "When the payment was created, as a Unix timestamp." }
+    - { name: updated_at, type: integer, required: false }
+  successor: created_at
+  rationale: Same stem and same description; the suffix marks a timestamp.
+
+- id: rename_customer_id
+  tags: [rename]
+  schema: Invoice
+  operations: ["invoices.create request"]
+  removed: { name: customer, type: string, required: true, description: "The customer this invoice belongs to." }
+  candidates:
+    - { name: customer_id, type: string, required: true, description: "Identifier of the customer this invoice belongs to." }
+    - { name: account_id, type: string, required: false, description: "The billing account." }
+  successor: customer_id
+  rationale: Stem matches and the suffix marks an identifier.
+
+- id: rename_camel_to_snake
+  tags: [rename]
+  schema: Shipment
+  operations: ["shipments.create request"]
+  removed: { name: trackingNumber, type: string, required: true }
+  candidates:
+    - { name: tracking_number, type: string, required: true }
+    - { name: carrier_code, type: string, required: false }
+  successor: tracking_number
+  rationale: Only the naming convention changed.
+
+- id: rename_abbreviation_expanded
+  tags: [rename, ambiguous]
+  schema: Subscription
+  operations: ["subscriptions.create request"]
+  removed: { name: qty, type: integer, required: true, description: "How many seats." }
+  candidates:
+    - { name: quantity, type: integer, required: true, description: "How many seats." }
+    - { name: quota, type: integer, required: false, description: "Usage ceiling." }
+  successor: quantity
+  rationale: An abbreviation expanded; quota is a different concept with a similar prefix.
+
+- id: rename_no_successor
+  tags: [removal]
+  schema: Charge
+  operations: ["charges.create request"]
+  removed: { name: legacy_receipt_email, type: string, required: false, description: "Deprecated. Email for the receipt." }
+  candidates:
+    - { name: statement_descriptor, type: string, required: false, description: "Text on the customer's statement." }
+  successor: null
+  rationale: The capability was removed outright; the candidate is unrelated.
+
+- id: rename_decoy_similar_prefix
+  tags: [rename, decoy, adversarial]
+  schema: Payout
+  operations: ["payouts.create request"]
+  removed: { name: destination, type: string, required: true, description: "Bank account receiving the payout." }
+  candidates:
+    - { name: destination_bank_account_id, type: string, required: true, description: "Bank account receiving the payout." }
+    - { name: destination_country, type: string, required: false, description: "Country of the receiving bank." }
+  successor: destination_bank_account_id
+  rationale: Both share the prefix, but only one carries the same information.

@@ -1,0 +1,67 @@
+# Unit and representation changes. The scale factor is never asked of a judge:
+# it comes from the declared precision. Only the "same quantity?" half is.
+- id: unit_amount_to_cents
+  tags: [unit]
+  schema: Payment
+  operations: ["payments.create request", "payments.create response 201"]
+  removed: { name: amount, type: number, required: true, description: "Charge amount in dollars." }
+  candidates:
+    - { name: amount_cents, type: integer, required: true, description: "Amount in the smallest currency unit." }
+    - { name: application_fee, type: integer, required: false, description: "Platform fee in cents." }
+  successor: amount_cents
+  rationale: Same money quantity re-encoded into minor units.
+
+- id: unit_duration_to_ms
+  tags: [unit]
+  schema: Job
+  operations: ["jobs.retrieve response 200"]
+  removed: { name: duration, type: number, required: true, description: "How long the job ran, in seconds." }
+  candidates:
+    - { name: duration_ms, type: integer, required: true, description: "How long the job ran, in milliseconds." }
+    - { name: timeout_ms, type: integer, required: false, description: "Configured timeout." }
+  successor: duration_ms
+  rationale: Same measured span at a finer resolution; timeout is a different value.
+
+- id: unit_weight_grams
+  tags: [unit]
+  schema: Parcel
+  operations: ["parcels.create request"]
+  removed: { name: weight, type: number, required: true, description: "Parcel weight in kilograms." }
+  candidates:
+    - { name: weight_grams, type: integer, required: true, description: "Parcel weight in grams." }
+    - { name: volume_cm3, type: integer, required: false }
+  successor: weight_grams
+  rationale: Same physical quantity at a finer unit.
+
+- id: unit_decoy_fee_vs_amount
+  tags: [unit, decoy, adversarial]
+  schema: Transfer
+  operations: ["transfers.create request"]
+  removed: { name: amount, type: number, required: true, description: "Amount to transfer, in major units." }
+  candidates:
+    - { name: fee_cents, type: integer, required: false, description: "Fee charged on the transfer, in minor units." }
+    - { name: amount_cents, type: integer, required: true, description: "Amount to transfer, in minor units." }
+  successor: amount_cents
+  rationale: The fee shares the unit suffix but is a different quantity entirely.
+
+- id: unit_rate_to_basis_points
+  tags: [unit, ambiguous]
+  schema: Loan
+  operations: ["loans.create request"]
+  removed: { name: interest_rate, type: number, required: true, description: "Annual interest rate as a decimal fraction, for example 0.075." }
+  candidates:
+    - { name: interest_rate_bps, type: integer, required: true, description: "Annual interest rate in basis points, for example 750." }
+    - { name: fee_rate_bps, type: integer, required: false, description: "Origination fee in basis points." }
+  successor: interest_rate_bps
+  rationale: Same rate in a different representation; the fee rate is a separate figure.
+
+- id: unit_string_to_integer
+  tags: [type-change]
+  schema: Meter
+  operations: ["meters.report request"]
+  removed: { name: reading, type: string, required: true, description: "Meter reading, sent as a decimal string." }
+  candidates:
+    - { name: reading, type: integer, required: true, description: "Meter reading in whole units." }
+    - { name: reading_at, type: integer, required: true, description: "When the reading was taken." }
+  successor: reading
+  rationale: Same field re-typed; the timestamp is unrelated.

@@ -23,15 +23,27 @@ importers:
       '@invariant/contract':
         specifier: workspace:*
         version: link:packages/contract
+      '@invariant/eval':
+        specifier: workspace:*
+        version: link:packages/eval
       '@invariant/migrate-ts':
         specifier: workspace:*
         version: link:packages/migrate-ts
+      '@invariant/proposer':
+        specifier: workspace:*
+        version: link:packages/proposer
       '@invariant/runtime':
         specifier: workspace:*
         version: link:packages/runtime
       '@types/node':
         specifier: ^22.20.4
         version: 22.20.4
+      '@typesafe-ai/sdk':
+        specifier: ^0.6.0
+        version: 0.6.0
+      dotenv:
+        specifier: ^18.0.1
+        version: 18.0.1
       fast-check:
         specifier: ^4.10.1
         version: 4.10.1
@@ -153,6 +165,15 @@ importers:
         specifier: workspace:*
         version: link:../ir
 
+  packages/eval:
+    dependencies:
+      '@invariant/proposer':
+        specifier: workspace:*
+        version: link:../proposer
+      yaml:
+        specifier: ^2.8.2
+        version: 2.9.1
+
   packages/ir:
     dependencies:
       '@sinclair/typebox':
@@ -174,6 +195,18 @@ importers:
       '@invariant/contract':
         specifier: workspace:*
         version: link:../contract
+
+  packages/proposer:
+    dependencies:
+      '@invariant/contract':
+        specifier: workspace:*
+        version: link:../contract
+      '@invariant/ir':
+        specifier: workspace:*
+        version: link:../ir
+      '@typesafe-ai/sdk':
+        specifier: ^0.6.0
+        version: 0.6.0
 
   packages/runtime:
     dependencies:
@@ -563,6 +596,10 @@ packages:
   '@types/node@22.20.4':
     resolution: {integrity: sha512-zJRE40jpHtKqE/C4fgHrAKQLJuSpzEnP9ff9Y7YtoR3Wd2pwqzlekDeEuUQXjRd+QCYnVnNwuJYmhdk9XV8gvA==}
 
+  '@typesafe-ai/sdk@0.6.0':
+    resolution: {integrity: sha512-IddX+Q0XM+VagOUZFeP7wZjaO4SHMdvnh2zEBdrZZnXedWI3BNK1lKhMx3ayrkFWvVLbVcUHJy6AVZlY+e6Jaw==}
+    engines: {node: '>=20'}
+
   '@vitest/mocker@5.0.1':
     resolution: {integrity: sha512-6K1DoBNAPGvuOcSsGA4D6x+5zEEff/KmOOP3uetT2TrGpVfI+HRHRnJJfKi5ib/g1vx8IYHQD8s0pbJz8WQI7Q==}
     peerDependencies:
@@ -631,6 +668,11 @@ packages:
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
+
+  dotenv@18.0.1:
+    resolution: {integrity: sha512-0eR4m4D/jH5eaI3evo2ZqqMii5mrTCR12v12VChdie6O1gPHs7XAjzTep0CWc1Bd+oNx3vVfbi734dK4zghigw==}
+    engines: {node: '>=12'}
+    hasBin: true
 
   es-module-lexer@2.3.2:
     resolution: {integrity: sha512-poHGpORABojJJucnV9KbOavETW8lBVnphkW77ER5/BQ5Fz7oXSoCNek7IH3vR5nRjdsEz926ibFYX8KtLQmdyw==}
@@ -1219,6 +1261,8 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@typesafe-ai/sdk@0.6.0': {}
+
   '@vitest/mocker@5.0.1(vite@8.3.0(@types/node@22.20.4)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.1))':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
@@ -1265,6 +1309,8 @@ snapshots:
       supports-color: 10.2.2
 
   detect-libc@2.1.2: {}
+
+  dotenv@18.0.1: {}
 
   es-module-lexer@2.3.2: {}
 

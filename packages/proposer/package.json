@@ -1,0 +1,15 @@
+{
+  "name": "@invariant/proposer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Drafts candidate Changes from a structural diff. Proposals only: nothing here can ship.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@invariant/contract": "workspace:*",
+    "@invariant/ir": "workspace:*",
+    "@typesafe-ai/sdk": "^0.6.0"
+  }
+}

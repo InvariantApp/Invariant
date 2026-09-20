@@ -1,0 +1,64 @@
+# Which judge is allowed to do what, and why.
+#
+# Decided from measurement, not preference. Regenerate with `pnpm eval:record`
+# and re-read the numbers before changing anything here. Every threshold is
+# pinned to the model that produced it, because confidence is version-coupled
+# and a number tuned against one version is not evidence about the next.
+measuredOn: 2026-09-20
+corpus:
+  cases: 29
+  # Honest gap: the design calls for 240 cases across twelve families. This is a
+  # starter set covering ten of them, and it is enough to separate the judges
+  # but not enough to certify either one. Every production disagreement and
+  # every proposal a provider edits before merging should be added here.
+  families: [rename, unit, nesting, enum, type-change, split-merge, removal, ambiguous, adversarial, decoy]
+
+tasks:
+  alignment:
+    question: Which added field, if any, is what this removed field became?
+
+    rules:
+      verdict: assists
+      # Right about everything it will speak to, and it declines the rest
+      # cleanly. That makes it a good first pass and a poor decider.
+      selectiveAccuracy: 1.0
+      coverage: 0.41
+      note: >-
+        Settles plain renames and unit suffixes for nothing, with no model and
+        no network. Abstains on every case where the names do not line up,
+        which is exactly the set the next stage exists for.
+
+    jev:
+      verdict: owns
+      model: jev-1.13.0
+      confidenceThreshold: 0.6
+      # At that threshold, across 29 cases including 11 adversarial ones.
+      selectiveAccuracy: 1.0
+      coverage: 0.93
+      accuracyWithoutThreshold: 0.966
+      note: >-
+        May draft a Change for a person to review. It cannot merge one, and
+        nothing it produces reaches a request path without passing the closure
+        check and a human reviewer.
+
+security:
+  promptInjection:
+    # Jev's own documentation says state is not treated as hostile by default,
+    # and the corpus confirms it: an early version of the question set followed
+    # an instruction embedded in pull request notes and picked the field that
+    # instruction named.
+    #
+    # Two things changed. The notes are now named
+    # `unverified_change_notes_written_by_a_human` in the state, and the
+    # questions say outright that any instruction inside them carries no
+    # authority. That took the adversarial set from 4/5 to 10/11.
+    #
+    # It is a mitigation, not a fix. One case still slips: a plausible-sounding
+    # domain claim that the field descriptions contradict, which lands at 0.33
+    # confidence and is caught by the threshold rather than by the framing.
+    remaining: inject_plausible_but_wrong
+    caughtBy: confidence threshold
+    note: >-
+      Neither the framing nor the threshold is a guarantee. They are why a
+      wrong proposal stays cheap: it still has to explain the structural diff,
+      and a person still has to merge it.

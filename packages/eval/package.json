@@ -1,0 +1,17 @@
+{
+  "name": "@invariant/eval",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Measures each judge against a labelled corpus and decides which one owns a question",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@invariant/proposer": "workspace:*",
+    "yaml": "^2.8.2"
+  },
+  "devDependencies": {
+    "@invariant/proposer": "workspace:*"
+  }
+}

@@ -1,0 +1,32 @@
+# Vocabulary changes, where the field stays and its allowed values move.
+- id: enum_status_vocabulary
+  tags: [enum]
+  schema: Payment
+  operations: ["payments.create response 201"]
+  removed: { name: status, type: string, required: true, enum: [succeeded, failed, pending], description: "Payment outcome." }
+  candidates:
+    - { name: status, type: string, required: true, enum: [paid, failed, processing], description: "Payment outcome." }
+    - { name: outcome_reason, type: string, required: false, description: "Detail behind the outcome." }
+  successor: status
+  rationale: Same field and role; only the vocabulary changed.
+
+- id: enum_object_discriminator
+  tags: [enum]
+  schema: Charge
+  operations: ["charges.create response 201"]
+  removed: { name: object, type: string, required: true, enum: [charge], description: "Type discriminator." }
+  candidates:
+    - { name: object, type: string, required: true, enum: [payment], description: "Type discriminator." }
+  successor: object
+  rationale: The resource was renamed, so its discriminator value moved with it.
+
+- id: enum_expanded_not_replaced
+  tags: [enum, decoy]
+  schema: Subscription
+  operations: ["subscriptions.retrieve response 200"]
+  removed: { name: interval, type: string, required: true, enum: [month, year], description: "Billing interval." }
+  candidates:
+    - { name: interval, type: string, required: true, enum: [day, week, month, year], description: "Billing interval." }
+    - { name: interval_count, type: integer, required: false, description: "How many intervals between charges." }
+  successor: interval
+  rationale: The same field gained values; interval_count is a separate new knob.
