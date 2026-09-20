@@ -22,7 +22,23 @@ import type { Change } from "@invariant/ir";
 import { type Judge, propose } from "@invariant/proposer";
 
 /** How far a pair got before something went wrong. */
-export type Stage = "load" | "diff" | "propose" | "compile" | "closure" | "done";
+/**
+ * `budget` is not an error in the pipeline, it is the pipeline being stopped.
+ *
+ * The differ's cost tracks the size of the difference rather than the size of
+ * the documents, and on the largest providers a single step can want more
+ * memory than the machine has. A pair that does that is recorded rather than
+ * allowed to take the run down, because how often it happens is one of the
+ * things running real specifications is meant to find out.
+ */
+export type Stage =
+  | "load"
+  | "diff"
+  | "propose"
+  | "compile"
+  | "closure"
+  | "budget"
+  | "done";
 
 export interface PairInput {
   /** `provider:service`, as the directory names it. */
@@ -116,6 +132,15 @@ export interface AnalyseOptions {
   timeoutMs?: number;
 }
 
+/**
+ * Whether a failure was the differ being stopped rather than the differ
+ * disagreeing. Both diffs in this pipeline can hit it, and the closure diff
+ * hits it on exactly the documents the first one survived.
+ */
+function exhausted(error: string | undefined): boolean {
+  return /ran out of|did not finish within|killed by the system/.test(error ?? "");
+}
+
 export async function analysePair(
   input: PairInput,
   options: AnalyseOptions,
@@ -152,7 +177,17 @@ export async function analysePair(
   const diffed = await stage(() =>
     diffDocuments(loaded.value.from.document, loaded.value.to.document),
   );
-  if (!diffed.ok) return finish({ ...base, reached: "load", error: diffed.error });
+  if (!diffed.ok) {
+    // A differ that ran out of memory or time did not fail to read the
+    // documents, it failed to afford them, and those are different findings.
+    // Filing the second as the first hides how often the largest providers
+    // cost more than a machine has.
+    return finish({
+      ...base,
+      reached: exhausted(diffed.error) ? "budget" : "load",
+      error: diffed.error,
+    });
+  }
 
   const breaking = breakingEntries(diffed.value);
   const afterDiff: PairResult = {
@@ -230,7 +265,16 @@ export async function analysePair(
       await diffDocuments(predicted.value.document, loaded.value.to.document),
     ),
   );
-  if (!residual.ok) return finish({ ...afterCompile, error: residual.error });
+  if (!residual.ok) {
+    // The closure check runs the differ a second time, on the predicted
+    // document against the real one. On the largest providers it is the second
+    // call that gets stopped, having survived the first.
+    return finish({
+      ...afterCompile,
+      ...(exhausted(residual.error) ? { reached: "budget" as const } : {}),
+      error: residual.error,
+    });
+  }
 
   return finish({
     ...afterCompile,
@@ -294,6 +338,7 @@ export function summarizeReal(results: readonly PairResult[]): RealSummary {
     propose: 0,
     compile: 0,
     closure: 0,
+    budget: 0,
     done: 0,
   };
   for (const result of results) stoppedAt[result.reached] += 1;

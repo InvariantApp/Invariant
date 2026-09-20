@@ -58,6 +58,16 @@ export function normalizeDocument(document: OpenApiDocument): OpenApiDocument {
     throw new ContractError(`Only OpenAPI 3.x is supported, got ${String(version)}`);
   }
   if (!isJsonObject(document["paths"])) {
+    // A 3.1 document may describe webhooks instead of paths, and several real
+    // ones do: Adyen publishes its notification contracts that way. Those are
+    // valid documents this system does not cover yet, and saying "no paths
+    // object" reads as if they were malformed.
+    if (isJsonObject(document["webhooks"])) {
+      throw new ContractError(
+        "Document describes webhooks rather than paths. Outbound webhooks are " +
+          "not supported yet, so there is no request path to adapt.",
+      );
+    }
     throw new ContractError("Document has no paths object");
   }
   return document;

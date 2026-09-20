@@ -1525,6 +1525,62 @@ which is a more specific statement of a real problem rather than a new problem.
 The report shows both columns rather than a single number, because a single
 number here would be read as the model making things worse.
 
+### Scaling to the providers that matter, and what it cost
+
+The first real-data run used APIs.guru, and that source has a ceiling worth
+stating plainly: of 2529 APIs only 13 providers publish more than one version,
+and Azure is four fifths of the pairs. A number measured only there is a number
+about Azure's house style.
+
+The providers people actually integrate against publish their specification in
+a git repository and commit to it whenever the API moves. Each commit that
+touches the document is a state the API was really in, so consecutive commits
+are a real step between two of them. That is a closer match to what this system
+sees than a version bump is, because it is one API evolving in place rather
+than a new major version appearing beside the old one. Mining eight of those
+repositories produced 626 pairs from Stripe, GitHub, Twilio, Adyen, Plaid, Box,
+OpenAI and Intercom, which with the original corpus makes 686.
+
+**The differ is unbounded, and that is a bug in the product rather than in the
+harness.** Two 7.6 MB Stripe documents a month apart drove `oasdiff` to 3.1 GB
+resident and nearly six minutes of processor time without finishing, and took
+the development machine down with it. Two 13 MB GitHub documents a day apart
+diff in three seconds, so the cost follows the size of the difference and not
+the size of the files. The gate shells out to the same differ on every pull
+request, which means the providers most worth having are the ones whose release
+could exhaust their own CI machine. The call now carries a time limit and a
+`GOMEMLIMIT`, and the harness runs each pair in its own process so that one
+pair costing too much is one recorded line rather than the end of the run.
+
+**Every way the differ could fail used to be reported as "Could not run
+oasdiff. Install it with ...".** That sentence is what made the first crash
+take so long to understand: the binary was installed, had run, and had been
+killed for using three gigabytes. A message naming the wrong cause sends the
+reader to their PATH while the real problem is still there. The causes are now
+told apart, and saying so immediately paid for itself: a Google document turned
+out to declare the same endpoint twice and an Intercom one to reference a key
+it does not define, both of which had previously been invisible behind the
+install message.
+
+**Seven of 686 pairs cost more than they were given, and all seven are
+Stripe.** That is recorded as its own outcome rather than as a load failure,
+because how often the largest providers exceed a machine is one of the things
+running real specifications is meant to find out.
+
+**Fourteen documents were rejected for having no paths, and none of them were
+malformed.** They are Adyen's notification contracts: valid OpenAPI 3.1
+describing `webhooks` instead of `paths`. Outbound webhooks are deferred by
+this design, so refusing them is right, but the refusal now says which
+unsupported thing it found rather than implying the document is broken.
+
+What the larger corpus changes about the picture: `response-property-enum-value-added`
+is now the commonest breaking change in the wild by a wide margin, and it is
+one this system deliberately cannot fix, because there is nothing to map a new
+value back to. It is a `behavior` change or an accepted break. A single Plaid
+step accounts for 4299 of them on its own, which is worth knowing before
+reading any aggregate: totals over real providers are dominated by a few
+documents that change their vocabulary wholesale.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no
