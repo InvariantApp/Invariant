@@ -12,7 +12,7 @@ or a corpus written for it.
 - 60 version pairs
 - 59 ran every stage (98.3%)
 - 1 stopped after `load`
-- median 415 ms per pair
+- median 371 ms per pair
 
 ### What stopped them
 
@@ -65,7 +65,7 @@ not otherwise have been told about.
 
 ## What we could not explain
 
-20 Changes were drafted, by deterministic rules alone and with no
+1796 Changes were drafted, by deterministic rules alone and with no
 model asked anything. Almost all of them are route changes: the rules judge
 abstains on removals by design, and removals dominate real data, so the
 field-level drafting accounts for very little here. That is the expected
@@ -78,9 +78,7 @@ reachable with ops that exist and are simply not wired up.
 
 | Unexplained | Times | Pairs | What it would take |
 |---|---|---|---|
-| `api-path-removed-without-deprecation` | 1299 | 20 | an endpoint genuinely gone, not moved. No op covers removing a whole operation; `remove` works on fields. **Missing op.** |
 | `response-body-type-changed` | 917 | 3 | a response schema replaced wholesale, often with an empty one. Not expressible and probably should not be: it is a rewrite, not a rename. |
-| `request-parameter-enum-value-removed` | 438 | 5 | allowed values narrowed on a query or path parameter. `enumMap` could express it, but the proposer only reads `components.schemas` and never looks at parameters. **Reachable, not wired up.** |
 | `response-property-enum-value-added` | 355 | 11 | a new value a client switching exhaustively would not know. `enumMap` cannot help, since there is nothing to map it back to; this is a `behavior` change or an accepted break. |
 | `response-property-enum-value-removed` | 114 | 4 | a value a client may still be storing. `enumMap` can express it once someone says what it became, which is exactly the question the model is asked. |
 | `request-property-removed` | 60 | 9 | a field dropped from a request. `remove` expresses it; the rules judge abstains on removals by design, so this needs the model or a person. |
@@ -98,23 +96,25 @@ reachable with ops that exist and are simply not wired up.
 | `response-property-max-unset` | 3 | 1 | not yet diagnosed |
 | `response-property-type-changed` | 3 | 1 | not yet diagnosed |
 | `response-property-one-of-added` | 2 | 1 | not yet diagnosed |
+| `request-body-added-required` | 1 | 1 | not yet diagnosed |
+| `request-parameter-property-enum-value-removed` | 1 | 1 | as above, one level in. **Reachable, not wired up.** |
 
 ## The hardest pairs
 
 | API | Versions | Raw | Aligned | Unexplained | Drafted |
 |---|---|---|---|---|---|
-| github.com | 1.1.4 to v0.1 | 811 | 811 | 811 | 0 |
 | amazonaws.com:clouddirectory | 2016-05-10 to 2017-01-11 | 600 | 600 | 600 | 0 |
 | amazonaws.com:cloudfront | 2017-10-30 to 2018-06-18 | 45 | 317 | 317 | 1 |
-| adyen.com:BalancePlatformService | 1 to 2 | 271 | 271 | 271 | 1 |
-| amazonaws.com:cloudsearch | 2011-02-01 to 2013-01-01 | 148 | 148 | 148 | 0 |
-| amazonaws.com:rds | 2013-09-09 to 2014-09-01 | 138 | 138 | 138 | 0 |
-| googleapis.com:admin | directory_v1 to reports_v1 | 122 | 122 | 122 | 0 |
-| amazonaws.com:rds | 2014-09-01 to 2014-10-31 | 118 | 118 | 118 | 0 |
-| amazonaws.com:lambda | 2014-11-11 to 2015-03-31 | 10 | 107 | 107 | 2 |
-| amazonaws.com:rds | 2013-02-12 to 2013-09-09 | 104 | 104 | 104 | 0 |
-| amazonaws.com:rds | 2013-01-10 to 2013-02-12 | 100 | 100 | 100 | 0 |
+| adyen.com:BalancePlatformService | 1 to 2 | 271 | 271 | 260 | 12 |
+| amazonaws.com:cloudsearch | 2011-02-01 to 2013-01-01 | 148 | 148 | 104 | 44 |
+| amazonaws.com:lambda | 2014-11-11 to 2015-03-31 | 10 | 107 | 103 | 6 |
 | amazonaws.com:cloudfront | 2019-03-26 to 2020-05-31 | 45 | 79 | 79 | 1 |
 | adyen.com:AccountService | 4 to 5 | 66 | 66 | 66 | 1 |
-| googleapis.com:analyticsadmin | v1alpha to v1beta | 60 | 60 | 60 | 0 |
-| googleapis.com:androidpublisher | v2 to v3 | 58 | 58 | 58 | 0 |
+| adyen.com:AccountService | 3 to 4 | 36 | 36 | 36 | 1 |
+| amazonaws.com:rds | 2013-09-09 to 2014-09-01 | 138 | 138 | 34 | 104 |
+| googleapis.com:appengine | v1alpha to v1beta | 19 | 30 | 30 | 1 |
+| amazonaws.com:cloudfront | 2016-11-25 to 2017-03-25 | 27 | 21 | 21 | 1 |
+| adyen.com:CheckoutService | 37 to 40 | 19 | 19 | 19 | 0 |
+| adyen.com:CheckoutService | 68 to 69 | 19 | 19 | 19 | 0 |
+| adyen.com:AccountService | 5 to 6 | 15 | 15 | 15 | 6 |
+| apicurio.local:registry | 1.3.2.Final to 2.4.x | 46 | 46 | 14 | 32 |

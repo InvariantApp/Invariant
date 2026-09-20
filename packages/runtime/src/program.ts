@@ -37,6 +37,8 @@ export interface DecodedContract {
   routes: DecodedRoute[];
   sites: Map<string, DecodedSite>;
   behaviors: string[];
+  /** Endpoints this contract had that the current one does not. */
+  retired: { method: string; path: string; guidance: string | undefined; c: string }[];
 }
 
 export interface DecodedProgram {
@@ -264,7 +266,7 @@ export function decodeProgram(raw: unknown): DecodedProgram {
   )) {
     const where = `program.contracts.${label}`;
     const contract = object(entry, where);
-    expectKeys(contract, ["label", "routes", "sites", "behaviors"], where);
+    expectKeys(contract, ["label", "routes", "sites", "behaviors", "retired"], where);
 
     const sites = new Map<string, DecodedSite>();
     for (const [key, site] of Object.entries(
@@ -282,6 +284,20 @@ export function decodeProgram(raw: unknown): DecodedProgram {
       behaviors: (
         array(contract["behaviors"] ?? [], `${where}.behaviors`) as unknown[]
       ).map((flag, index) => string(flag, `${where}.behaviors[${index}]`)),
+      retired: (array(contract["retired"] ?? [], `${where}.retired`) as unknown[]).map(
+        (entry, index) => {
+          const at = `${where}.retired[${index}]`;
+          const row = object(entry, at);
+          const guidance = row["guidance"];
+          return {
+            method: string(row["method"], `${at}.method`).toLowerCase(),
+            path: string(row["path"], `${at}.path`),
+            guidance:
+              guidance === undefined ? undefined : string(guidance, `${at}.guidance`),
+            c: string(row["c"], `${at}.c`),
+          };
+        },
+      ),
     });
   }
 

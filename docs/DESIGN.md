@@ -1461,13 +1461,36 @@ gone" cannot see inside an operation it believes no longer exists. Across the
 sixty pairs, 302 breaking changes were only visible after alignment, and a
 provider versioning by URL prefix would never have been told about any of them.
 
-**Two holes are recorded and not yet closed.** The proposer reads
-`components.schemas` and nothing else, so operation parameters are invisible to
-it: 483 real deltas concern query and path parameters that `enumMap` and
-`remove` could express, against a `ParameterScope` the IR already has. And
-there is no op for removing a whole operation; `remove` works on fields. Both
-are in the report's table with the diagnosis beside them, ranked by how often
-real companies actually do them.
+**Both holes the first run found are now closed.**
+
+There was no way to say an endpoint was gone. `remove` speaks about a field
+inside a body; nothing spoke about the operation itself, so a provider who
+retired an endpoint deliberately got the same answer as one who broke it by
+accident. `retire` says it, and it is honest about what it cannot do: there is
+no handler left to reach, so no rewriting of a request can serve an old caller.
+What it buys is that the release can be explained at all, and that the runtime
+refuses such a request by name, naming the contract it was retired in and what
+replaced it, rather than returning a bare 404 that is indistinguishable from a
+typo.
+
+And `ParameterScope` had been in the IR the whole time with nothing behind it:
+the proposer read `components.schemas` and the compiler answered "only schema
+scopes are supported" to everything else. Both sides are now built, including
+two details real documents forced. Parameters are frequently `$ref`s to a
+shared component, which is how Google declares `alt` on every operation it has,
+so matching only the literal array missed all of them. And a shared parameter
+is shared: changing it where it is defined would move it for every operation
+pointing at it, so the reference is replaced with a copy belonging to that
+operation alone.
+
+Across the sixty pairs, `api-path-removed-without-deprecation` went from 1572
+unexplained to none, and the parameter categories from 483 to none. Drafts rose
+from 10 to 1796, all from deterministic rules with no model asked anything.
+
+**The harness caught a bug in the work it prompted**, which is the best thing
+that can be said for it. Drafting parameter Changes before the compiler could
+apply them produced eighteen drafts that would not compile, and they appeared
+under the report's own highest-priority heading on the next run.
 
 ### Still to build
 

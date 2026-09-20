@@ -93,6 +93,16 @@ export function derive(change: Change): Derived {
         );
         lossy.forward.push(op.path);
         break;
+      case "retire":
+        runtime = "none";
+        source = "manual";
+        reasons.push(
+          `${op.endpoint.method.toUpperCase()} ${op.endpoint.path} no longer exists, ` +
+            "so there is no handler for a rewritten request to reach. The runtime " +
+            "refuses it by name rather than returning a bare 404, and nothing else " +
+            "can be done for a caller still using it.",
+        );
+        break;
       case "behavior":
         runtime = "none";
         source = "manual";

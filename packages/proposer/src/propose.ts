@@ -12,6 +12,12 @@
  */
 import type { Change, Op } from "@invariant/ir";
 import { type FieldShape, type SchemaDelta, schemaDeltas } from "./candidates.ts";
+import {
+  parameterChanges,
+  parameterDeltas,
+  retireChange,
+  retiredEndpoints,
+} from "./endpoints.ts";
 import type { Judge, JudgeId } from "./judge.ts";
 import { questionsFor } from "./judge.ts";
 import { detectPrefixMove, prefixChange } from "./prefix.ts";
@@ -264,8 +270,39 @@ export async function propose(
       ]
     : [];
 
+  // Endpoints a prefix move already accounts for must not also be reported as
+  // retired, or a version bump produces a route change and a retirement for
+  // every endpoint it touched.
+  const relocated = new Set(
+    (move?.moved ?? []).map((entry) => `${entry.method} ${entry.from}`),
+  );
+  const retired: Proposal[] = retiredEndpoints(oldContract, newContract, relocated).map(
+    (endpoint) => ({
+      change: retireChange(endpoint),
+      judge: "rules" as const,
+      confidence: 1,
+      // Always explicit. Retiring an endpoint cannot be served to anyone still
+      // calling it, and a reviewer should never skim past that.
+      attention: "explicit" as const,
+      notes: [
+        `no transform can serve this: there is no handler left to reach. ` +
+          "Old callers get an explicit refusal naming this change, rather than a 404.",
+      ],
+    }),
+  );
+
+  const parameters: Proposal[] = parameterChanges(
+    parameterDeltas(oldContract, newContract),
+  ).map((change) => ({
+    change,
+    judge: "rules" as const,
+    confidence: 1,
+    attention: "normal" as const,
+    notes: ["the two documents state this mapping between them"],
+  }));
+
   const altered = alteredProposals(deltas);
-  altered.proposals.unshift(...moved);
+  altered.proposals.unshift(...moved, ...retired, ...parameters);
   const unresolved: Unresolved[] = [...altered.unresolved, ...additions(deltas)];
 
   const questions = deltas.flatMap((delta: SchemaDelta) =>

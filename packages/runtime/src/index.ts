@@ -102,6 +102,37 @@ export class UnsupportedContractError extends Error {
   }
 }
 
+/**
+ * A caller reached an endpoint that no longer exists.
+ *
+ * Separate from `UnsupportedContractError` because the answer is different. An
+ * unsupported contract might come back; a retired endpoint will not, and the
+ * caller needs to know that rather than retry. A bare 404 says neither, and is
+ * indistinguishable from a typo in the path.
+ */
+export class RetiredEndpointError extends Error {
+  readonly contract: string;
+  readonly changeId: string;
+  readonly guidance: string | undefined;
+
+  constructor(
+    contract: string,
+    method: string,
+    path: string,
+    changeId: string,
+    guidance?: string,
+  ) {
+    super(
+      `${method.toUpperCase()} ${path} was retired after contract ${contract}` +
+        (guidance ? `. ${guidance}` : ". Nothing replaced it."),
+    );
+    this.name = "RetiredEndpointError";
+    this.contract = contract;
+    this.changeId = changeId;
+    this.guidance = guidance;
+  }
+}
+
 export class BodyTooLargeError extends Error {
   constructor(limit: number) {
     super(`Request body exceeds the ${limit} byte limit for a transformed operation`);
@@ -395,6 +426,18 @@ export class InvariantRuntime {
     const contract = this.#program.contracts.get(label);
     if (!contract) {
       throw new UnsupportedContractError(label, "no compiled program for this contract");
+    }
+
+    // Checked before the kill switch and before any site lookup: a retired
+    // endpoint is gone whatever else is configured, and saying so is more
+    // useful than any of the other answers available here.
+    const gone = contract.retired.find(
+      (entry) =>
+        entry.method === method.toLowerCase() &&
+        matchTemplate(entry.path.split("/"), path) !== undefined,
+    );
+    if (gone) {
+      throw new RetiredEndpointError(label, method, path, gone.c, gone.guidance);
     }
     if (flags.allDisabled) {
       throw new UnsupportedContractError(label, "compatibility is switched off");

@@ -1,4 +1,5 @@
 export * from "./candidates.ts";
+export * from "./endpoints.ts";
 export * from "./jev.ts";
 export * from "./judge.ts";
 export * from "./prefix.ts";

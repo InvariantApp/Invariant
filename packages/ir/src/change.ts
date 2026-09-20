@@ -128,6 +128,35 @@ export const RouteOp = Type.Object(
   },
 );
 
+/**
+ * An operation that no longer exists.
+ *
+ * Added after running real APIs through the gate: whole endpoints disappearing
+ * was the single commonest breaking change in the wild, and there was no way
+ * to say it. `remove` works on a field inside a body; nothing spoke about the
+ * operation itself, so a provider who retired an endpoint on purpose got the
+ * same answer as one who broke it by accident.
+ *
+ * It carries no transform and it never could. There is no handler left to
+ * reach, so an old caller cannot be served by any rewriting of their request.
+ * What it does is let the provider say they meant it, and let the runtime
+ * answer with something better than a bare 404: the contract the endpoint was
+ * retired in, and what replaced it if anything.
+ */
+export const RetireOp = Type.Object(
+  {
+    op: Type.Literal("retire"),
+    endpoint: Endpoint,
+    /** What callers should use instead, in a sentence. Shown in the refusal. */
+    guidance: Type.Optional(Type.String({ minLength: 1, maxLength: 300 })),
+  },
+  {
+    additionalProperties: false,
+    description:
+      "An operation that is gone. No transform can serve it; the runtime refuses it by name instead of returning a bare 404.",
+  },
+);
+
 export const BehaviorOp = Type.Object(
   {
     op: Type.Literal("behavior"),
@@ -153,7 +182,15 @@ export const BehaviorOp = Type.Object(
   },
 );
 
-export const Op = Type.Union([MoveOp, ConvertOp, AddOp, RemoveOp, RouteOp, BehaviorOp]);
+export const Op = Type.Union([
+  MoveOp,
+  ConvertOp,
+  AddOp,
+  RemoveOp,
+  RouteOp,
+  RetireOp,
+  BehaviorOp,
+]);
 
 /**
  * Where a Change's data ops apply. A schema scope names the schema in the OLD
@@ -248,6 +285,7 @@ export type ConvertOp = Static<typeof ConvertOp>;
 export type AddOp = Static<typeof AddOp>;
 export type RemoveOp = Static<typeof RemoveOp>;
 export type RouteOp = Static<typeof RouteOp>;
+export type RetireOp = Static<typeof RetireOp>;
 export type BehaviorOp = Static<typeof BehaviorOp>;
 export type Op = Static<typeof Op>;
 export type SchemaScope = Static<typeof SchemaScope>;

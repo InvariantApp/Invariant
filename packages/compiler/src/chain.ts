@@ -105,6 +105,7 @@ export function chainContract(
   const sites = new Map<string, SiteProgram>();
   const routes: RouteRule[] = [];
   const behaviors: string[] = [];
+  const retired: ContractProgram["retired"] = [];
 
   // Route rules for the whole chain, expressed from the historical contract's
   // endpoint straight to the current one.
@@ -150,6 +151,9 @@ export function chainContract(
       ),
       sites: Object.fromEntries([...sites.entries()].sort()),
       behaviors: [...new Set(behaviors)].sort(),
+      retired: [
+        ...new Map(retired.map((e) => [`${e.method} ${e.path}`, e])).values(),
+      ].sort((a, b) => `${a.method} ${a.path}`.localeCompare(`${b.method} ${b.path}`)),
     },
     issues,
   };

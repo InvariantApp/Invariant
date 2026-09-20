@@ -18,7 +18,7 @@
     "breakingKinds": {
       "response-property-enum-value-added": 36
     },
-    "elapsedMs": 259
+    "elapsedMs": 306
   },
   {
     "api": "adyen.com:AccountService",
@@ -47,7 +47,7 @@
       "request-property-removed": 16,
       "response-required-property-added": 8
     },
-    "elapsedMs": 274
+    "elapsedMs": 266
   },
   {
     "api": "adyen.com:AccountService",
@@ -68,7 +68,7 @@
     "breakingKinds": {
       "response-property-enum-value-added": 15
     },
-    "elapsedMs": 410
+    "elapsedMs": 275
   },
   {
     "api": "adyen.com:BalancePlatformService",
@@ -78,8 +78,8 @@
     "deltas": 530,
     "breakingBefore": 271,
     "breakingAligned": 271,
-    "breakingAfter": 271,
-    "drafts": 1,
+    "breakingAfter": 260,
+    "drafts": 12,
     "unresolved": 30,
     "impasses": 0,
     "compileIssues": [],
@@ -89,7 +89,6 @@
       "response-property-became-optional": 8,
       "response-property-max-length-unset": 4,
       "response-required-property-removed": 8,
-      "api-path-removed-without-deprecation": 11,
       "request-property-became-required": 4,
       "new-required-request-property": 4,
       "request-property-removed": 26,
@@ -109,7 +108,7 @@
       "response-property-enum-value-removed": 84,
       "response-required-property-added": 12
     },
-    "elapsedMs": 430
+    "elapsedMs": 346
   },
   {
     "api": "adyen.com:BinLookupService",
@@ -126,7 +125,7 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 752
+    "elapsedMs": 189
   },
   {
     "api": "adyen.com:BinLookupService",
@@ -143,7 +142,7 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 314
+    "elapsedMs": 149
   },
   {
     "api": "adyen.com:BinLookupService",
@@ -160,7 +159,7 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 273
+    "elapsedMs": 181
   },
   {
     "api": "adyen.com:BinLookupService",
@@ -177,7 +176,7 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 224
+    "elapsedMs": 149
   },
   {
     "api": "adyen.com:CheckoutService",
@@ -200,7 +199,7 @@
       "new-required-request-property": 18,
       "response-required-property-removed": 1
     },
-    "elapsedMs": 423
+    "elapsedMs": 416
   },
   {
     "api": "adyen.com:CheckoutService",
@@ -217,7 +216,7 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 428
+    "elapsedMs": 406
   },
   {
     "api": "adyen.com:CheckoutService",
@@ -234,7 +233,7 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 423
+    "elapsedMs": 424
   },
   {
     "api": "adyen.com:CheckoutService",
@@ -251,7 +250,7 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 418
+    "elapsedMs": 443
   },
   {
     "api": "adyen.com:CheckoutService",
@@ -268,7 +267,7 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 442
+    "elapsedMs": 452
   },
   {
     "api": "adyen.com:CheckoutService",
@@ -289,7 +288,7 @@
     "breakingKinds": {
       "response-required-property-added": 4
     },
-    "elapsedMs": 415
+    "elapsedMs": 418
   },
   {
     "api": "adyen.com:CheckoutService",
@@ -306,7 +305,7 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 424
+    "elapsedMs": 447
   },
   {
     "api": "adyen.com:CheckoutService",
@@ -323,7 +322,7 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 424
+    "elapsedMs": 483
   },
   {
     "api": "adyen.com:CheckoutService",
@@ -340,7 +339,7 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 480
+    "elapsedMs": 469
   },
   {
     "api": "adyen.com:CheckoutService",
@@ -361,7 +360,7 @@
     "breakingKinds": {
       "request-property-removed": 5
     },
-    "elapsedMs": 437
+    "elapsedMs": 436
   },
   {
     "api": "adyen.com:CheckoutService",
@@ -378,7 +377,7 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 436
+    "elapsedMs": 433
   },
   {
     "api": "adyen.com:CheckoutService",
@@ -399,7 +398,7 @@
     "breakingKinds": {
       "response-property-one-of-added": 2
     },
-    "elapsedMs": 422
+    "elapsedMs": 419
   },
   {
     "api": "adyen.com:CheckoutService",
@@ -422,7 +421,7 @@
       "request-property-removed": 1,
       "response-required-property-added": 1
     },
-    "elapsedMs": 467
+    "elapsedMs": 451
   },
   {
     "api": "adyen.com:CheckoutService",
@@ -445,7 +444,7 @@
       "response-required-property-removed": 1,
       "response-required-property-added": 18
     },
-    "elapsedMs": 475
+    "elapsedMs": 499
   },
   {
     "api": "adyen.com:CheckoutService",
@@ -466,7 +465,7 @@
     "breakingKinds": {
       "request-property-removed": 1
     },
-    "elapsedMs": 487
+    "elapsedMs": 488
   },
   {
     "api": "adyen.com:FundService",
@@ -493,7 +492,7 @@
       "request-property-removed": 1,
       "response-required-property-added": 8
     },
-    "elapsedMs": 217
+    "elapsedMs": 179
   },
   {
     "api": "adyen.com:FundService",
@@ -510,7 +509,7 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 178
+    "elapsedMs": 197
   },
   {
     "api": "amazonaws.com:appmesh",
@@ -520,18 +519,16 @@
     "deltas": 58,
     "breakingBefore": 19,
     "breakingAligned": 19,
-    "breakingAfter": 19,
-    "drafts": 0,
+    "breakingAfter": 0,
+    "drafts": 19,
     "unresolved": 79,
     "impasses": 0,
     "compileIssues": [],
-    "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 19
-    },
+    "unexplainedKinds": {},
     "breakingKinds": {
       "api-path-removed-without-deprecation": 19
     },
-    "elapsedMs": 313
+    "elapsedMs": 388
   },
   {
     "api": "amazonaws.com:clouddirectory",
@@ -556,7 +553,7 @@
       "response-property-max-length-increased": 20,
       "response-property-enum-value-added": 2
     },
-    "elapsedMs": 511
+    "elapsedMs": 546
   },
   {
     "api": "amazonaws.com:cloudfront",
@@ -577,7 +574,7 @@
     "breakingKinds": {
       "response-property-enum-value-added": 21
     },
-    "elapsedMs": 550
+    "elapsedMs": 539
   },
   {
     "api": "amazonaws.com:cloudfront",
@@ -587,20 +584,19 @@
     "deltas": 75,
     "breakingBefore": 28,
     "breakingAligned": 13,
-    "breakingAfter": 13,
-    "drafts": 1,
+    "breakingAfter": 12,
+    "drafts": 2,
     "unresolved": 2,
     "impasses": 0,
     "compileIssues": [],
     "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 1,
       "request-property-became-required": 12
     },
     "breakingKinds": {
       "api-path-removed-without-deprecation": 1,
       "request-property-became-required": 12
     },
-    "elapsedMs": 608
+    "elapsedMs": 610
   },
   {
     "api": "amazonaws.com:cloudfront",
@@ -621,7 +617,7 @@
     "breakingKinds": {
       "response-body-type-changed": 317
     },
-    "elapsedMs": 661
+    "elapsedMs": 659
   },
   {
     "api": "amazonaws.com:cloudfront",
@@ -642,7 +638,7 @@
     "breakingKinds": {
       "request-property-became-required": 3
     },
-    "elapsedMs": 651
+    "elapsedMs": 642
   },
   {
     "api": "amazonaws.com:cloudfront",
@@ -665,7 +661,7 @@
       "response-property-enum-value-added": 7,
       "request-property-type-changed": 3
     },
-    "elapsedMs": 669
+    "elapsedMs": 649
   },
   {
     "api": "amazonaws.com:cloudfront",
@@ -692,7 +688,7 @@
       "request-property-type-changed": 3,
       "response-required-property-added": 2
     },
-    "elapsedMs": 846
+    "elapsedMs": 886
   },
   {
     "api": "amazonaws.com:cloudsearch",
@@ -702,18 +698,16 @@
     "deltas": 625,
     "breakingBefore": 148,
     "breakingAligned": 148,
-    "breakingAfter": 148,
-    "drafts": 0,
+    "breakingAfter": 104,
+    "drafts": 44,
     "unresolved": 20,
     "impasses": 0,
     "compileIssues": [],
     "unexplainedKinds": {
-      "request-parameter-enum-value-removed": 22,
       "response-body-type-changed": 22,
       "request-parameter-property-enum-value-removed": 1,
       "response-property-enum-value-added": 68,
       "request-property-enum-value-removed": 1,
-      "api-path-removed-without-deprecation": 22,
       "request-property-removed": 6,
       "response-property-enum-value-removed": 6
     },
@@ -727,7 +721,7 @@
       "request-property-removed": 6,
       "response-property-enum-value-removed": 6
     },
-    "elapsedMs": 257
+    "elapsedMs": 297
   },
   {
     "api": "amazonaws.com:dynamodb",
@@ -737,18 +731,16 @@
     "deltas": 69,
     "breakingBefore": 13,
     "breakingAligned": 13,
-    "breakingAfter": 13,
-    "drafts": 0,
+    "breakingAfter": 0,
+    "drafts": 13,
     "unresolved": 63,
     "impasses": 1,
     "compileIssues": [],
-    "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 13
-    },
+    "unexplainedKinds": {},
     "breakingKinds": {
       "api-path-removed-without-deprecation": 13
     },
-    "elapsedMs": 306
+    "elapsedMs": 333
   },
   {
     "api": "amazonaws.com:lambda",
@@ -758,13 +750,12 @@
     "deltas": 96,
     "breakingBefore": 10,
     "breakingAligned": 107,
-    "breakingAfter": 107,
-    "drafts": 2,
+    "breakingAfter": 103,
+    "drafts": 6,
     "unresolved": 4,
     "impasses": 0,
     "compileIssues": [],
     "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 4,
       "response-success-status-removed": 1,
       "response-property-enum-value-added": 84,
       "response-property-max-increased": 3,
@@ -785,7 +776,7 @@
       "request-body-added-required": 1,
       "request-parameter-removed": 5
     },
-    "elapsedMs": 415
+    "elapsedMs": 442
   },
   {
     "api": "amazonaws.com:rds",
@@ -795,18 +786,16 @@
     "deltas": 277,
     "breakingBefore": 100,
     "breakingAligned": 100,
-    "breakingAfter": 100,
-    "drafts": 0,
+    "breakingAfter": 0,
+    "drafts": 100,
     "unresolved": 1,
     "impasses": 0,
     "compileIssues": [],
-    "unexplainedKinds": {
-      "request-parameter-enum-value-removed": 100
-    },
+    "unexplainedKinds": {},
     "breakingKinds": {
       "request-parameter-enum-value-removed": 100
     },
-    "elapsedMs": 390
+    "elapsedMs": 389
   },
   {
     "api": "amazonaws.com:rds",
@@ -816,18 +805,16 @@
     "deltas": 316,
     "breakingBefore": 104,
     "breakingAligned": 104,
-    "breakingAfter": 104,
-    "drafts": 0,
+    "breakingAfter": 0,
+    "drafts": 104,
     "unresolved": 0,
     "impasses": 0,
     "compileIssues": [],
-    "unexplainedKinds": {
-      "request-parameter-enum-value-removed": 104
-    },
+    "unexplainedKinds": {},
     "breakingKinds": {
       "request-parameter-enum-value-removed": 104
     },
-    "elapsedMs": 470
+    "elapsedMs": 371
   },
   {
     "api": "amazonaws.com:rds",
@@ -837,20 +824,19 @@
     "deltas": 390,
     "breakingBefore": 138,
     "breakingAligned": 138,
-    "breakingAfter": 138,
-    "drafts": 0,
+    "breakingAfter": 34,
+    "drafts": 104,
     "unresolved": 0,
     "impasses": 0,
     "compileIssues": [],
     "unexplainedKinds": {
-      "request-parameter-enum-value-removed": 104,
       "request-parameter-removed": 34
     },
     "breakingKinds": {
       "request-parameter-enum-value-removed": 104,
       "request-parameter-removed": 34
     },
-    "elapsedMs": 473
+    "elapsedMs": 387
   },
   {
     "api": "amazonaws.com:rds",
@@ -860,20 +846,19 @@
     "deltas": 2241,
     "breakingBefore": 118,
     "breakingAligned": 118,
-    "breakingAfter": 118,
-    "drafts": 0,
+    "breakingAfter": 10,
+    "drafts": 108,
     "unresolved": 547,
     "impasses": 0,
     "compileIssues": [],
     "unexplainedKinds": {
-      "request-parameter-enum-value-removed": 108,
       "response-property-enum-value-added": 10
     },
     "breakingKinds": {
       "request-parameter-enum-value-removed": 108,
       "response-property-enum-value-added": 10
     },
-    "elapsedMs": 812
+    "elapsedMs": 780
   },
   {
     "api": "apicurio.local:registry",
@@ -883,13 +868,12 @@
     "deltas": 122,
     "breakingBefore": 46,
     "breakingAligned": 46,
-    "breakingAfter": 46,
-    "drafts": 0,
+    "breakingAfter": 14,
+    "drafts": 32,
     "unresolved": 16,
     "impasses": 2,
     "compileIssues": [],
     "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 32,
       "request-parameter-removed": 2,
       "response-property-enum-value-removed": 12
     },
@@ -898,7 +882,7 @@
       "request-parameter-removed": 2,
       "response-property-enum-value-removed": 12
     },
-    "elapsedMs": 221
+    "elapsedMs": 234
   },
   {
     "api": "chaingateway.io",
@@ -908,18 +892,16 @@
     "deltas": 185,
     "breakingBefore": 21,
     "breakingAligned": 21,
-    "breakingAfter": 21,
-    "drafts": 0,
+    "breakingAfter": 0,
+    "drafts": 21,
     "unresolved": 0,
     "impasses": 0,
     "compileIssues": [],
-    "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 21
-    },
+    "unexplainedKinds": {},
     "breakingKinds": {
       "api-path-removed-without-deprecation": 21
     },
-    "elapsedMs": 885
+    "elapsedMs": 874
   },
   {
     "api": "github.com",
@@ -929,18 +911,16 @@
     "deltas": 1457,
     "breakingBefore": 811,
     "breakingAligned": 811,
-    "breakingAfter": 811,
-    "drafts": 0,
+    "breakingAfter": 0,
+    "drafts": 845,
     "unresolved": 0,
     "impasses": 0,
     "compileIssues": [],
-    "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 811
-    },
+    "unexplainedKinds": {},
     "breakingKinds": {
       "api-path-removed-without-deprecation": 811
     },
-    "elapsedMs": 2977
+    "elapsedMs": 2617
   },
   {
     "api": "googleapis.com:accesscontextmanager",
@@ -950,18 +930,16 @@
     "deltas": 61,
     "breakingBefore": 20,
     "breakingAligned": 20,
-    "breakingAfter": 20,
-    "drafts": 0,
+    "breakingAfter": 0,
+    "drafts": 20,
     "unresolved": 2,
     "impasses": 0,
     "compileIssues": [],
-    "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 20
-    },
+    "unexplainedKinds": {},
     "breakingKinds": {
       "api-path-removed-without-deprecation": 20
     },
-    "elapsedMs": 172
+    "elapsedMs": 183
   },
   {
     "api": "googleapis.com:adexchangebuyer",
@@ -978,7 +956,7 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 202
+    "elapsedMs": 173
   },
   {
     "api": "googleapis.com:adexchangebuyer",
@@ -988,13 +966,12 @@
     "deltas": 116,
     "breakingBefore": 5,
     "breakingAligned": 5,
-    "breakingAfter": 5,
-    "drafts": 0,
+    "breakingAfter": 3,
+    "drafts": 2,
     "unresolved": 2,
     "impasses": 0,
     "compileIssues": [],
     "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 2,
       "request-parameter-removed": 1,
       "request-property-removed": 2
     },
@@ -1003,7 +980,7 @@
       "request-parameter-removed": 1,
       "request-property-removed": 2
     },
-    "elapsedMs": 192
+    "elapsedMs": 242
   },
   {
     "api": "googleapis.com:admin",
@@ -1013,18 +990,16 @@
     "deltas": 164,
     "breakingBefore": 5,
     "breakingAligned": 5,
-    "breakingAfter": 5,
-    "drafts": 0,
+    "breakingAfter": 0,
+    "drafts": 5,
     "unresolved": 0,
     "impasses": 0,
     "compileIssues": [],
-    "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 5
-    },
+    "unexplainedKinds": {},
     "breakingKinds": {
       "api-path-removed-without-deprecation": 5
     },
-    "elapsedMs": 215
+    "elapsedMs": 216
   },
   {
     "api": "googleapis.com:admin",
@@ -1034,18 +1009,16 @@
     "deltas": 255,
     "breakingBefore": 122,
     "breakingAligned": 122,
-    "breakingAfter": 122,
-    "drafts": 0,
+    "breakingAfter": 0,
+    "drafts": 122,
     "unresolved": 0,
     "impasses": 0,
     "compileIssues": [],
-    "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 122
-    },
+    "unexplainedKinds": {},
     "breakingKinds": {
       "api-path-removed-without-deprecation": 122
     },
-    "elapsedMs": 238
+    "elapsedMs": 220
   },
   {
     "api": "googleapis.com:admob",
@@ -1062,7 +1035,7 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 230
+    "elapsedMs": 253
   },
   {
     "api": "googleapis.com:adsense",
@@ -1072,18 +1045,16 @@
     "deltas": 78,
     "breakingBefore": 39,
     "breakingAligned": 39,
-    "breakingAfter": 39,
-    "drafts": 0,
+    "breakingAfter": 0,
+    "drafts": 39,
     "unresolved": 52,
     "impasses": 0,
     "compileIssues": [],
-    "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 39
-    },
+    "unexplainedKinds": {},
     "breakingKinds": {
       "api-path-removed-without-deprecation": 39
     },
-    "elapsedMs": 195
+    "elapsedMs": 177
   },
   {
     "api": "googleapis.com:analytics",
@@ -1093,18 +1064,16 @@
     "deltas": 99,
     "breakingBefore": 1,
     "breakingAligned": 1,
-    "breakingAfter": 1,
-    "drafts": 0,
+    "breakingAfter": 0,
+    "drafts": 6,
     "unresolved": 0,
     "impasses": 0,
     "compileIssues": [],
-    "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 1
-    },
+    "unexplainedKinds": {},
     "breakingKinds": {
       "api-path-removed-without-deprecation": 1
     },
-    "elapsedMs": 202
+    "elapsedMs": 219
   },
   {
     "api": "googleapis.com:analyticsadmin",
@@ -1114,18 +1083,16 @@
     "deltas": 232,
     "breakingBefore": 60,
     "breakingAligned": 60,
-    "breakingAfter": 60,
-    "drafts": 0,
+    "breakingAfter": 0,
+    "drafts": 60,
     "unresolved": 0,
     "impasses": 0,
     "compileIssues": [],
-    "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 60
-    },
+    "unexplainedKinds": {},
     "breakingKinds": {
       "api-path-removed-without-deprecation": 60
     },
-    "elapsedMs": 232
+    "elapsedMs": 222
   },
   {
     "api": "googleapis.com:analyticshub",
@@ -1142,8 +1109,8 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 75,
-    "error": "OasdiffError: Could not run oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@latest\" or set OASDIFF_BIN.\nCommand failed: oasdiff changelog /tmp/invariant-diff-9CDRS6/base.json /tmp/invariant-diff-9CDRS6/revision.json --format json --allow-external-refs=false --flatten-allof\nError: diff failed: dupl"
+    "elapsedMs": 76,
+    "error": "OasdiffError: Could not run oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@latest\" or set OASDIFF_BIN.\nCommand failed: oasdiff changelog /tmp/invariant-diff-Llp3WJ/base.json /tmp/invariant-diff-Llp3WJ/revision.json --format json --allow-external-refs=false --flatten-allof\nError: diff failed: dupl"
   },
   {
     "api": "googleapis.com:androidpublisher",
@@ -1160,7 +1127,7 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 135
+    "elapsedMs": 137
   },
   {
     "api": "googleapis.com:androidpublisher",
@@ -1170,18 +1137,16 @@
     "deltas": 62,
     "breakingBefore": 3,
     "breakingAligned": 3,
-    "breakingAfter": 3,
-    "drafts": 0,
+    "breakingAfter": 0,
+    "drafts": 3,
     "unresolved": 2,
     "impasses": 0,
     "compileIssues": [],
-    "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 3
-    },
+    "unexplainedKinds": {},
     "breakingKinds": {
       "api-path-removed-without-deprecation": 3
     },
-    "elapsedMs": 177
+    "elapsedMs": 181
   },
   {
     "api": "googleapis.com:androidpublisher",
@@ -1191,18 +1156,16 @@
     "deltas": 155,
     "breakingBefore": 58,
     "breakingAligned": 58,
-    "breakingAfter": 58,
-    "drafts": 0,
+    "breakingAfter": 0,
+    "drafts": 58,
     "unresolved": 5,
     "impasses": 0,
     "compileIssues": [],
-    "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 58
-    },
+    "unexplainedKinds": {},
     "breakingKinds": {
       "api-path-removed-without-deprecation": 58
     },
-    "elapsedMs": 250
+    "elapsedMs": 272
   },
   {
     "api": "googleapis.com:apigateway",
@@ -1212,18 +1175,16 @@
     "deltas": 34,
     "breakingBefore": 15,
     "breakingAligned": 15,
-    "breakingAfter": 15,
-    "drafts": 0,
+    "breakingAfter": 0,
+    "drafts": 15,
     "unresolved": 0,
     "impasses": 0,
     "compileIssues": [],
-    "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 15
-    },
+    "unexplainedKinds": {},
     "breakingKinds": {
       "api-path-removed-without-deprecation": 15
     },
-    "elapsedMs": 170
+    "elapsedMs": 161
   },
   {
     "api": "googleapis.com:apigateway",
@@ -1240,7 +1201,7 @@
     "compileIssues": [],
     "unexplainedKinds": {},
     "breakingKinds": {},
-    "elapsedMs": 226
+    "elapsedMs": 302
   },
   {
     "api": "googleapis.com:appengine",
@@ -1250,18 +1211,16 @@
     "deltas": 107,
     "breakingBefore": 40,
     "breakingAligned": 40,
-    "breakingAfter": 40,
-    "drafts": 0,
+    "breakingAfter": 0,
+    "drafts": 40,
     "unresolved": 4,
     "impasses": 0,
     "compileIssues": [],
-    "unexplainedKinds": {
-      "api-path-removed-without-deprecation": 40
-    },
+    "unexplainedKinds": {},
     "breakingKinds": {
       "api-path-removed-without-deprecation": 40
     },
-    "elapsedMs": 191
+    "elapsedMs": 243
   },
   {
     "api": "googleapis.com:appengine",
@@ -1290,6 +1249,6 @@
       "request-property-removed": 2,
       "response-property-enum-value-removed": 12
     },
-    "elapsedMs": 398
+    "elapsedMs": 348
   }
 ]

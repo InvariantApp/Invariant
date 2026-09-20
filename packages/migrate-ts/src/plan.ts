@@ -102,7 +102,10 @@ export function buildPlan(changes: readonly Change[], symbols: SymbolMap): Migra
         }
         continue;
       }
-      if (op.op === "behavior") continue;
+      // Neither speaks about a field, so neither has a source edit. A retired
+      // endpoint is reported to the consumer in the pull request body instead,
+      // because there is nothing to rewrite it into.
+      if (op.op === "behavior" || op.op === "retire") continue;
 
       for (const scope of change.scopes ?? []) {
         if (!("schema" in scope)) continue;

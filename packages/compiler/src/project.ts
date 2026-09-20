@@ -217,9 +217,23 @@ export function projectStep(
   }));
 
   const behaviors: string[] = [];
+  const retired: {
+    method: string;
+    path: string;
+    guidance?: string;
+    c: string;
+  }[] = [];
   for (const change of changes) {
     for (const op of change.ops) {
       if (op.op === "behavior") behaviors.push(op.flag);
+      if (op.op === "retire") {
+        retired.push({
+          method: op.endpoint.method,
+          path: op.endpoint.path,
+          ...(op.guidance === undefined ? {} : { guidance: op.guidance }),
+          c: change.id,
+        });
+      }
     }
   }
 
@@ -248,7 +262,7 @@ export function projectStep(
   }
 
   return {
-    program: { label, routes: routeRules, sites: out, behaviors },
+    program: { label, routes: routeRules, sites: out, behaviors, retired },
     issues,
   };
 }

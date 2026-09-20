@@ -128,6 +128,25 @@ export const ContractProgram = Type.Object(
     sites: Type.Record(Type.String(), SiteProgram),
     /** Changes on this step that no transform can express. */
     behaviors: Type.Array(Type.String()),
+    /**
+     * Endpoints this contract had and the current one does not.
+     *
+     * Carried so the runtime can refuse them by name. A caller on an old
+     * contract hitting a retired endpoint would otherwise get a bare 404,
+     * which is indistinguishable from a typo and says nothing about what to
+     * do next.
+     */
+    retired: Type.Array(
+      Type.Object(
+        {
+          method: Type.String(),
+          path: Type.String(),
+          guidance: Type.Optional(Type.String()),
+          c: Type.String(),
+        },
+        { additionalProperties: false },
+      ),
+    ),
   },
   { additionalProperties: false },
 );
