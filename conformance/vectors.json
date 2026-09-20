@@ -1,0 +1,451 @@
+{
+  "irVersion": 1,
+  "about": "Golden vectors for the Invariant compiled-program IR. Any engine claiming to run this IR must produce these outputs, including the refusals. A refusal is part of the contract: an engine that rounds where this one rejects is not compatible.",
+  "vectors": [
+    {
+      "name": "move renames a field",
+      "why": "The simplest op, and the one every other case is built on.",
+      "instrs": [
+        {
+          "k": "move",
+          "from": "/amount",
+          "to": "/amount_cents",
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "amount": 100,
+        "currency": "usd"
+      },
+      "expect": {
+        "output": {
+          "currency": "usd",
+          "amount_cents": 100
+        }
+      }
+    },
+    {
+      "name": "move into a nested object creates the parent",
+      "why": "Unnesting and nesting are the same op, so the target may not exist.",
+      "instrs": [
+        {
+          "k": "move",
+          "from": "/source",
+          "to": "/payment_method/token",
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "source": "tok_visa"
+      },
+      "expect": {
+        "output": {
+          "payment_method": {
+            "token": "tok_visa"
+          }
+        }
+      }
+    },
+    {
+      "name": "move out of a nested object prunes the empty parent",
+      "why": "Leaving `payment_method: {}` behind would not match the old contract.",
+      "instrs": [
+        {
+          "k": "move",
+          "from": "/payment_method/token",
+          "to": "/source",
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "payment_method": {
+          "token": "tok_visa"
+        },
+        "id": "pay_1"
+      },
+      "expect": {
+        "output": {
+          "id": "pay_1",
+          "source": "tok_visa"
+        }
+      }
+    },
+    {
+      "name": "move does nothing when the field is absent",
+      "why": "An optional field a caller did not send must not appear as null.",
+      "instrs": [
+        {
+          "k": "move",
+          "from": "/amount",
+          "to": "/amount_cents",
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "currency": "usd"
+      },
+      "expect": {
+        "output": {
+          "currency": "usd"
+        }
+      }
+    },
+    {
+      "name": "scale moves the decimal point right",
+      "why": "Multiplying by a hundred is wrong: 19.99 * 100 is 1998.9999999999998.",
+      "instrs": [
+        {
+          "k": "scale",
+          "path": "/amount",
+          "exp": 2,
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "amount": 19.99
+      },
+      "expect": {
+        "output": {
+          "amount": 1999
+        }
+      }
+    },
+    {
+      "name": "scale moves the decimal point left",
+      "why": "The inverse has to be exact too, or a round trip loses money.",
+      "instrs": [
+        {
+          "k": "scale",
+          "path": "/amount",
+          "exp": -2,
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "amount": 1999
+      },
+      "expect": {
+        "output": {
+          "amount": 19.99
+        }
+      }
+    },
+    {
+      "name": "scale refuses a value it cannot represent exactly",
+      "why": "Three decimal places scaled by two leaves a fraction of a minor unit. Rounding here would be silent data loss in money, so it refuses.",
+      "instrs": [
+        {
+          "k": "scale",
+          "path": "/amount",
+          "exp": 2,
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "amount": 49.999
+      },
+      "expect": {
+        "refuses": "chg_vector"
+      }
+    },
+    {
+      "name": "scale keeps a large integer exact",
+      "why": "A value beyond double precision must not be rounded on the way through.",
+      "instrs": [
+        {
+          "k": "scale",
+          "path": "/amount",
+          "exp": 2,
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "amount": 12345678901
+      },
+      "expect": {
+        "output": {
+          "amount": 1234567890100
+        }
+      }
+    },
+    {
+      "name": "enum maps a known value",
+      "why": "The ordinary vocabulary change.",
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/status",
+          "map": {
+            "paid": "succeeded"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "status": "paid"
+      },
+      "expect": {
+        "output": {
+          "status": "succeeded"
+        }
+      }
+    },
+    {
+      "name": "enum refuses a value it has no mapping for",
+      "why": "Passing an unmapped value through would hand the caller a word its contract never defined, and it would look like a success.",
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/status",
+          "map": {
+            "paid": "succeeded"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "status": "disputed"
+      },
+      "expect": {
+        "refuses": "chg_vector"
+      }
+    },
+    {
+      "name": "a lenient enum passes an unmapped value through",
+      "why": "Only for a field naming another field, such as an error's `param`. An unfamiliar name there is harmless; failing the response is not.",
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/param",
+          "map": {
+            "amount_cents": "amount"
+          },
+          "lenient": true,
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "param": "currency"
+      },
+      "expect": {
+        "output": {
+          "param": "currency"
+        }
+      }
+    },
+    {
+      "name": "set fills a field the caller omitted",
+      "why": "A caller written before a required field existed never sends one.",
+      "instrs": [
+        {
+          "k": "set",
+          "path": "/capture_method",
+          "value": "automatic",
+          "ifAbsent": true,
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "amount": 1
+      },
+      "expect": {
+        "output": {
+          "amount": 1,
+          "capture_method": "automatic"
+        }
+      }
+    },
+    {
+      "name": "set leaves a value the caller did supply",
+      "why": "A default must never overwrite an explicit choice.",
+      "instrs": [
+        {
+          "k": "set",
+          "path": "/capture_method",
+          "value": "automatic",
+          "ifAbsent": true,
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "capture_method": "manual"
+      },
+      "expect": {
+        "output": {
+          "capture_method": "manual"
+        }
+      }
+    },
+    {
+      "name": "del removes a field",
+      "why": "The old contract never had it, so it must not be in the response.",
+      "instrs": [
+        {
+          "k": "del",
+          "path": "/capture_method",
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "amount": 1,
+        "capture_method": "automatic"
+      },
+      "expect": {
+        "output": {
+          "amount": 1
+        }
+      }
+    },
+    {
+      "name": "a wildcard applies to every element of a list",
+      "why": "A list envelope is the common shape and the one with a fan-out cost.",
+      "instrs": [
+        {
+          "k": "scale",
+          "path": "/data/*/amount",
+          "exp": -2,
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "data": [
+          {
+            "amount": 1999
+          },
+          {
+            "amount": 500
+          }
+        ]
+      },
+      "expect": {
+        "output": {
+          "data": [
+            {
+              "amount": 19.99
+            },
+            {
+              "amount": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a wildcard over an empty list does nothing",
+      "why": "No elements is not an error, and must not be one.",
+      "instrs": [
+        {
+          "k": "scale",
+          "path": "/data/*/amount",
+          "exp": -2,
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "data": []
+      },
+      "expect": {
+        "output": {
+          "data": []
+        }
+      }
+    },
+    {
+      "name": "a wildcard move creates the target in each element",
+      "why": "Creating a slot per element is where a naive implementation goes wrong.",
+      "instrs": [
+        {
+          "k": "move",
+          "from": "/data/*/amount_cents",
+          "to": "/data/*/amount",
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "data": [
+          {
+            "amount_cents": 100
+          },
+          {
+            "amount_cents": 250
+          }
+        ]
+      },
+      "expect": {
+        "output": {
+          "data": [
+            {
+              "amount": 100
+            },
+            {
+              "amount": 250
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "cast turns a number into a string",
+      "why": "Some contracts carry identifiers as one and some as the other.",
+      "instrs": [
+        {
+          "k": "cast",
+          "path": "/id",
+          "to": "string",
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "id": 42
+      },
+      "expect": {
+        "output": {
+          "id": "42"
+        }
+      }
+    },
+    {
+      "name": "instructions apply in order",
+      "why": "A rename followed by a conversion targets the new name. Applying them in any other order finds nothing and silently does half the work.",
+      "instrs": [
+        {
+          "k": "move",
+          "from": "/amount",
+          "to": "/amount_cents",
+          "c": "chg_vector"
+        },
+        {
+          "k": "scale",
+          "path": "/amount_cents",
+          "exp": 2,
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "amount": 19.99
+      },
+      "expect": {
+        "output": {
+          "amount_cents": 1999
+        }
+      }
+    },
+    {
+      "name": "a program naming a prototype key is refused",
+      "why": "`__proto__` reaches an object every other object shares. A program is data from a build, and a build can be wrong; this must not be reachable.",
+      "instrs": [
+        {
+          "k": "set",
+          "path": "/__proto__/polluted",
+          "value": 1,
+          "ifAbsent": false,
+          "c": "chg_vector"
+        }
+      ],
+      "input": {},
+      "expect": {
+        "refuses": "decode"
+      }
+    }
+  ]
+}
