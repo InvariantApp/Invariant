@@ -1338,13 +1338,30 @@ connected later. Identical files produce the tree that is already there, so
 nothing is committed and the pull request already open is returned. An empty
 commit would make a redelivery look like new work to everyone watching.
 
-**What remains untested is the App registration**, and it is worth being exact
-rather than vague. Installation tokens, the sponsored link a consumer redeems,
-and webhook receipt all need a GitHub App, and GitHub has no REST endpoint for
-creating one: the only paths are a browser form and a manifest flow that ends
-in a browser redirect. Everything downstream of the token is proved; the
-minting of the token is not, and nothing here should be read as saying
-otherwise.
+**The App half is now proved too.** `Invariant Updater` (app id 5010296) exists
+under `InvariantApp`, installed on one repository, and `live-app.test.ts` runs
+the same delivery through an installation token rather than a personal one.
+
+The test that matters is not that it opens a pull request. It is that the token
+cannot reach `InvariantApp/Invariant`, which a personal token belonging to the
+same person reaches without trouble. That is the whole reason for an App
+instead of a token, it is a claim about GitHub's enforcement rather than about
+this code, and the only way to establish it is to ask GitHub. It answers 404
+rather than 403, so a leaked token cannot even be used to discover which
+private repositories exist.
+
+Two smaller things the live run settled. Commits arrive as
+`invariant-updater[bot]` rather than wearing a person's name, and the suffix is
+reserved by GitHub so nothing can be created that blends in with it. And the
+permissions GitHub reports back are the four that were asked for and none of
+the refused set, which `pnpm app:status` re-asks rather than assuming, because
+a grant can widen later and the first anyone would otherwise notice is the
+first time it was used.
+
+What is still untested is webhook receipt and the sponsored link a consumer
+redeems, both of which need somewhere to deliver to. The app was deliberately
+created with webhooks inactive rather than pointed at a URL that does not
+exist.
 
 ### The corpus, and what mining it found
 
