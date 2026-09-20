@@ -20,6 +20,7 @@
     "@biomejs/biome": "2.5.14",
     "@fixtures/provider-acme": "workspace:*",
     "@hono/node-server": "^2.1.1",
+    "@invariant/runtime": "workspace:*",
     "@types/node": "^22.20.4",
     "fast-check": "^4.10.1",
     "tsx": "^4.23.13",

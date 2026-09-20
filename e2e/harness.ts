@@ -15,6 +15,7 @@ export interface RunningProvider {
   baseUrl: string;
   store: AcmeStore;
   build: AcmeBuild;
+  runtime: ReturnType<typeof createAcmeApp>["runtime"];
   close: () => Promise<void>;
 }
 
@@ -23,12 +24,10 @@ export async function startProvider(
   options: CreateAcmeAppOptions = {},
 ): Promise<RunningProvider> {
   const store = options.store ?? new AcmeStore();
-  const { app, build } = createAcmeApp({ ...options, store });
+  const { fetch: handler, build, runtime } = createAcmeApp({ ...options, store });
 
   const server = await new Promise<ReturnType<typeof serve>>((resolve) => {
-    const s = serve({ fetch: app.fetch, port: 0, hostname: "127.0.0.1" }, () =>
-      resolve(s),
-    );
+    const s = serve({ fetch: handler, port: 0, hostname: "127.0.0.1" }, () => resolve(s));
   });
   const { port } = server.address() as AddressInfo;
 
@@ -36,6 +35,7 @@ export async function startProvider(
     baseUrl: `http://127.0.0.1:${port}`,
     store,
     build,
+    runtime,
     close: () =>
       new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),

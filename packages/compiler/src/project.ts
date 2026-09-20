@@ -5,7 +5,12 @@
  * list of primitives per site, already inverted where inversion was needed. All
  * of the reasoning happens here, once, at build time.
  */
-import { findSchemaSites, type OpenApiDocument, type Site } from "@invariant/contract";
+import {
+  findSchemaSites,
+  type OpenApiDocument,
+  operationsOf,
+  type Site,
+} from "@invariant/contract";
 import {
   type Change,
   type ContractProgram,
@@ -19,6 +24,7 @@ import {
   type SiteProgram,
   siteKey,
 } from "@invariant/ir";
+import { errorParamTargets, paramRenames } from "./error-params.ts";
 import { findInterference } from "./independence.ts";
 import { mapEndpoint, type RouteMapping, routeMappings } from "./predict.ts";
 
@@ -178,6 +184,7 @@ export function projectStep(
   label: string,
   oldContract: OpenApiDocument,
   changes: readonly Change[],
+  newContract?: OpenApiDocument,
 ): Projection {
   const issues: ProjectionIssue[] = [...findInterference(changes)];
   const routes = routeMappings(changes);
@@ -202,6 +209,10 @@ export function projectStep(
   }
   for (const change of [...changes].reverse()) {
     collectBackward(change, oldContract, routes, sites, issues);
+  }
+
+  if (newContract) {
+    collectErrorParams(oldContract, newContract, changes, routes, sites);
   }
 
   const out: Record<string, SiteProgram> = {};
@@ -284,5 +295,54 @@ function collectBackward(
     for (const op of [...dataOps].reverse()) {
       instrs.push(...backwardInstrs(op, site.prefix, change.id));
     }
+  }
+}
+
+/**
+ * Maps the parameter name an error points at back to what the old contract
+ * called it, using the renames the step already declared.
+ */
+function collectErrorParams(
+  oldContract: OpenApiDocument,
+  newContract: OpenApiDocument,
+  changes: readonly Change[],
+  routes: readonly RouteMapping[],
+  sites: Map<string, SiteAccumulator>,
+): void {
+  const renames = paramRenames(oldContract, changes);
+  if (renames.size === 0) return;
+
+  // An operation may have been renamed along with its fields, so match the
+  // new contract's operations by where the old ones ended up.
+  const canonicalId = new Map<string, string>();
+  for (const { operationId, method, path } of operationsOf(oldContract)) {
+    const target = mapEndpoint(routes, method, path);
+    const match = operationsOf(newContract).find(
+      (candidate) => candidate.method === target.method && candidate.path === target.path,
+    );
+    if (match) canonicalId.set(match.operationId, operationId);
+  }
+
+  for (const target of errorParamTargets(newContract)) {
+    const originalId = canonicalId.get(target.operationId) ?? target.operationId;
+    const list = renames.get(originalId);
+    if (!list || list.length === 0) continue;
+
+    const entry = accumulatorFor(sites, siteKey(target.method, target.path));
+    let instrs = entry.response.get(target.status);
+    if (!instrs) {
+      instrs = [];
+      entry.response.set(target.status, instrs);
+    }
+
+    const map: Record<string, string> = {};
+    for (const rename of list) map[rename.from] = rename.to;
+    instrs.push({
+      k: "enum",
+      path: target.pointer,
+      map,
+      lenient: true,
+      c: list[0]?.changeId ?? "",
+    });
   }
 }

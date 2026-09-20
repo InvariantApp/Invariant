@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createAcmeApp, sign } from "./index.ts";
 
 function post(
-  app: { fetch: (req: Request) => Response | Promise<Response> },
+  app: (req: Request) => Response | Promise<Response>,
   path: string,
   body: unknown,
   init: { key?: string; signed?: boolean; headers?: Record<string, string> } = {},
@@ -15,15 +15,13 @@ function post(
   };
   if (init.signed) headers["acme-signature"] = sign(raw);
   return Promise.resolve(
-    app.fetch(
-      new Request(`http://acme.test${path}`, { method: "POST", headers, body: raw }),
-    ),
+    app(new Request(`http://acme.test${path}`, { method: "POST", headers, body: raw })),
   );
 }
 
 describe("provider fixture builds", () => {
   it("serves charges with major-unit amounts at contract 2026-01-15", async () => {
-    const { app } = createAcmeApp({ build: "2026-01-15" });
+    const { fetch: app } = createAcmeApp({ build: "2026-01-15" });
     const res = await post(app, "/v1/charges", {
       amount: 49.99,
       currency: "usd",
@@ -40,7 +38,7 @@ describe("provider fixture builds", () => {
   });
 
   it("serves payments with a nested payment method at contract 2026-03-01", async () => {
-    const { app } = createAcmeApp({ build: "2026-03-01" });
+    const { fetch: app } = createAcmeApp({ build: "2026-03-01" });
     const res = await post(app, "/v1/payments", {
       amount: 49.99,
       currency: "usd",
@@ -56,7 +54,7 @@ describe("provider fixture builds", () => {
   });
 
   it("serves minor units, the new status vocabulary and capture_method at head", async () => {
-    const { app } = createAcmeApp({ build: "head" });
+    const { fetch: app } = createAcmeApp({ build: "head" });
     const res = await post(app, "/v1/payments", {
       amount_cents: 4999,
       currency: "usd",
@@ -73,7 +71,7 @@ describe("provider fixture builds", () => {
   });
 
   it("rejects a head request that omits capture_method", async () => {
-    const { app } = createAcmeApp({ build: "head" });
+    const { fetch: app } = createAcmeApp({ build: "head" });
     const res = await post(app, "/v1/payments", {
       amount_cents: 4999,
       currency: "usd",
@@ -86,7 +84,7 @@ describe("provider fixture builds", () => {
   });
 
   it("verifies a body signature over the bytes the client sent", async () => {
-    const { app } = createAcmeApp({ build: "head" });
+    const { fetch: app } = createAcmeApp({ build: "head" });
     const body = {
       amount_cents: 4999,
       currency: "usd",
@@ -96,7 +94,7 @@ describe("provider fixture builds", () => {
     const ok = await post(app, "/v1/payments", body, { signed: true });
     expect(ok.status).toBe(201);
 
-    const tampered = await app.fetch(
+    const tampered = await app(
       new Request("http://acme.test/v1/payments", {
         method: "POST",
         headers: {
@@ -111,15 +109,13 @@ describe("provider fixture builds", () => {
   });
 
   it("rejects an unauthenticated request", async () => {
-    const { app } = createAcmeApp({ build: "head" });
-    const res = await app.fetch(
-      new Request("http://acme.test/v1/payments", { method: "GET" }),
-    );
+    const { fetch: app } = createAcmeApp({ build: "head" });
+    const res = await app(new Request("http://acme.test/v1/payments", { method: "GET" }));
     expect(res.status).toBe(401);
   });
 
   it("reuses one store across reads and refunds", async () => {
-    const { app } = createAcmeApp({ build: "head" });
+    const { fetch: app } = createAcmeApp({ build: "head" });
     const created = (await (
       await post(app, "/v1/payments", {
         amount_cents: 2500,
@@ -130,7 +126,7 @@ describe("provider fixture builds", () => {
     ).json()) as { id: string; status: string };
     expect(created.status).toBe("processing");
 
-    const fetched = await app.fetch(
+    const fetched = await app(
       new Request(`http://acme.test/v1/payments/${created.id}`, {
         headers: { authorization: "Bearer sk_test_delta" },
       }),

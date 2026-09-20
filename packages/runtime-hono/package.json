@@ -1,0 +1,16 @@
+{
+  "name": "@invariant/runtime-hono",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hono bindings for the Invariant compatibility runtime",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@invariant/runtime": "workspace:*"
+  },
+  "peerDependencies": {
+    "hono": "^4"
+  }
+}

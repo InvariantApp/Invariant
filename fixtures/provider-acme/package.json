@@ -8,10 +8,17 @@
     "./store": "./src/store.ts"
   },
   "scripts": {
-    "start": "tsx src/server.ts"
+    "start": "tsx src/server.ts",
+    "compile": "tsx scripts/compile.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
-    "hono": "^4.13.8"
+    "hono": "^4.13.8",
+    "@invariant/runtime": "workspace:*",
+    "@invariant/runtime-hono": "workspace:*"
+  },
+  "devDependencies": {
+    "@invariant/compiler": "workspace:*",
+    "@invariant/contract": "workspace:*"
   }
 }

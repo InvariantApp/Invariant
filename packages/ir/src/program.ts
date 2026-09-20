@@ -35,6 +35,16 @@ export const EnumInstr = Type.Object(
     k: Type.Literal("enum"),
     path: Pointer,
     map: Type.Record(Type.String(), Type.String()),
+    /**
+     * Leaves an unmapped value alone instead of refusing.
+     *
+     * Only set for a field that names another field, such as the `param` an
+     * error points at. For a value that is part of the contract, an unmappable
+     * one means the response cannot be expressed and must fail; for a
+     * diagnostic label, passing an unfamiliar name through is harmless and
+     * failing the whole response over it would not be.
+     */
+    lenient: Type.Optional(Type.Boolean()),
     c: ChangeId,
   },
   { additionalProperties: false },

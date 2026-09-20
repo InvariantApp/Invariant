@@ -1,0 +1,575 @@
+{
+  "irVersion": 1,
+  "api": "acme-payments",
+  "current": "sha256:915cbd712ab605cd065ba5bc05da3db032e75fb5c66ac602b8c192dd3e1373b2",
+  "currentLabel": "2026-09-20",
+  "contracts": {
+    "2026-01-15": {
+      "label": "2026-01-15",
+      "routes": [
+        {
+          "from": {
+            "method": "get",
+            "path": "/v1/charges"
+          },
+          "to": {
+            "method": "get",
+            "path": "/v1/payments"
+          },
+          "c": "chg_charges_became_payments"
+        },
+        {
+          "from": {
+            "method": "get",
+            "path": "/v1/charges/{id}"
+          },
+          "to": {
+            "method": "get",
+            "path": "/v1/payments/{id}"
+          },
+          "c": "chg_charges_became_payments"
+        },
+        {
+          "from": {
+            "method": "post",
+            "path": "/v1/charges"
+          },
+          "to": {
+            "method": "post",
+            "path": "/v1/payments"
+          },
+          "c": "chg_charges_became_payments"
+        }
+      ],
+      "sites": {
+        "get /v1/payments": {
+          "response": {
+            "200": [
+              {
+                "k": "enum",
+                "path": "/data/*/status",
+                "map": {
+                  "paid": "succeeded",
+                  "failed": "failed",
+                  "processing": "pending"
+                },
+                "c": "chg_payment_status_vocabulary"
+              },
+              {
+                "k": "scale",
+                "path": "/data/*/amount_cents",
+                "exp": -2,
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "move",
+                "from": "/data/*/amount_cents",
+                "to": "/data/*/amount",
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "del",
+                "path": "/data/*/capture_method",
+                "c": "chg_capture_method"
+              },
+              {
+                "k": "move",
+                "from": "/data/*/payment_method/token",
+                "to": "/data/*/source",
+                "c": "chg_source_became_payment_method"
+              },
+              {
+                "k": "enum",
+                "path": "/data/*/object",
+                "map": {
+                  "payment": "charge"
+                },
+                "c": "chg_charges_became_payments"
+              }
+            ]
+          }
+        },
+        "get /v1/payments/{id}": {
+          "response": {
+            "200": [
+              {
+                "k": "enum",
+                "path": "/status",
+                "map": {
+                  "paid": "succeeded",
+                  "failed": "failed",
+                  "processing": "pending"
+                },
+                "c": "chg_payment_status_vocabulary"
+              },
+              {
+                "k": "scale",
+                "path": "/amount_cents",
+                "exp": -2,
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "move",
+                "from": "/amount_cents",
+                "to": "/amount",
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "del",
+                "path": "/capture_method",
+                "c": "chg_capture_method"
+              },
+              {
+                "k": "move",
+                "from": "/payment_method/token",
+                "to": "/source",
+                "c": "chg_source_became_payment_method"
+              },
+              {
+                "k": "enum",
+                "path": "/object",
+                "map": {
+                  "payment": "charge"
+                },
+                "c": "chg_charges_became_payments"
+              }
+            ]
+          }
+        },
+        "post /v1/payments": {
+          "request": [
+            {
+              "k": "move",
+              "from": "/source",
+              "to": "/payment_method/token",
+              "c": "chg_source_became_payment_method"
+            },
+            {
+              "k": "set",
+              "path": "/capture_method",
+              "value": "automatic",
+              "ifAbsent": true,
+              "c": "chg_capture_method"
+            },
+            {
+              "k": "move",
+              "from": "/amount",
+              "to": "/amount_cents",
+              "c": "chg_money_in_minor_units"
+            },
+            {
+              "k": "scale",
+              "path": "/amount_cents",
+              "exp": 2,
+              "c": "chg_money_in_minor_units"
+            }
+          ],
+          "response": {
+            "201": [
+              {
+                "k": "enum",
+                "path": "/status",
+                "map": {
+                  "paid": "succeeded",
+                  "failed": "failed",
+                  "processing": "pending"
+                },
+                "c": "chg_payment_status_vocabulary"
+              },
+              {
+                "k": "scale",
+                "path": "/amount_cents",
+                "exp": -2,
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "move",
+                "from": "/amount_cents",
+                "to": "/amount",
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "del",
+                "path": "/capture_method",
+                "c": "chg_capture_method"
+              },
+              {
+                "k": "move",
+                "from": "/payment_method/token",
+                "to": "/source",
+                "c": "chg_source_became_payment_method"
+              },
+              {
+                "k": "enum",
+                "path": "/object",
+                "map": {
+                  "payment": "charge"
+                },
+                "c": "chg_charges_became_payments"
+              }
+            ],
+            "400": [
+              {
+                "k": "enum",
+                "path": "/error/param",
+                "map": {
+                  "amount_cents": "amount"
+                },
+                "lenient": true,
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "enum",
+                "path": "/error/param",
+                "map": {
+                  "payment_method.token": "source"
+                },
+                "lenient": true,
+                "c": "chg_source_became_payment_method"
+              }
+            ],
+            "401": [
+              {
+                "k": "enum",
+                "path": "/error/param",
+                "map": {
+                  "amount_cents": "amount"
+                },
+                "lenient": true,
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "enum",
+                "path": "/error/param",
+                "map": {
+                  "payment_method.token": "source"
+                },
+                "lenient": true,
+                "c": "chg_source_became_payment_method"
+              }
+            ]
+          }
+        },
+        "post /v1/refunds": {
+          "request": [
+            {
+              "k": "move",
+              "from": "/charge",
+              "to": "/payment",
+              "c": "chg_refund_targets_payment"
+            },
+            {
+              "k": "move",
+              "from": "/amount",
+              "to": "/amount_cents",
+              "c": "chg_money_in_minor_units"
+            },
+            {
+              "k": "scale",
+              "path": "/amount_cents",
+              "exp": 2,
+              "c": "chg_money_in_minor_units"
+            }
+          ],
+          "response": {
+            "201": [
+              {
+                "k": "scale",
+                "path": "/amount_cents",
+                "exp": -2,
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "move",
+                "from": "/amount_cents",
+                "to": "/amount",
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "move",
+                "from": "/payment",
+                "to": "/charge",
+                "c": "chg_refund_targets_payment"
+              }
+            ],
+            "400": [
+              {
+                "k": "enum",
+                "path": "/error/param",
+                "map": {
+                  "amount_cents": "amount"
+                },
+                "lenient": true,
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "enum",
+                "path": "/error/param",
+                "map": {
+                  "payment": "charge"
+                },
+                "lenient": true,
+                "c": "chg_refund_targets_payment"
+              }
+            ],
+            "401": [
+              {
+                "k": "enum",
+                "path": "/error/param",
+                "map": {
+                  "amount_cents": "amount"
+                },
+                "lenient": true,
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "enum",
+                "path": "/error/param",
+                "map": {
+                  "payment": "charge"
+                },
+                "lenient": true,
+                "c": "chg_refund_targets_payment"
+              }
+            ],
+            "404": [
+              {
+                "k": "enum",
+                "path": "/error/param",
+                "map": {
+                  "amount_cents": "amount"
+                },
+                "lenient": true,
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "enum",
+                "path": "/error/param",
+                "map": {
+                  "payment": "charge"
+                },
+                "lenient": true,
+                "c": "chg_refund_targets_payment"
+              }
+            ]
+          }
+        }
+      },
+      "behaviors": []
+    },
+    "2026-03-01": {
+      "label": "2026-03-01",
+      "routes": [],
+      "sites": {
+        "get /v1/payments": {
+          "response": {
+            "200": [
+              {
+                "k": "enum",
+                "path": "/data/*/status",
+                "map": {
+                  "paid": "succeeded",
+                  "failed": "failed",
+                  "processing": "pending"
+                },
+                "c": "chg_payment_status_vocabulary"
+              },
+              {
+                "k": "scale",
+                "path": "/data/*/amount_cents",
+                "exp": -2,
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "move",
+                "from": "/data/*/amount_cents",
+                "to": "/data/*/amount",
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "del",
+                "path": "/data/*/capture_method",
+                "c": "chg_capture_method"
+              }
+            ]
+          }
+        },
+        "get /v1/payments/{id}": {
+          "response": {
+            "200": [
+              {
+                "k": "enum",
+                "path": "/status",
+                "map": {
+                  "paid": "succeeded",
+                  "failed": "failed",
+                  "processing": "pending"
+                },
+                "c": "chg_payment_status_vocabulary"
+              },
+              {
+                "k": "scale",
+                "path": "/amount_cents",
+                "exp": -2,
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "move",
+                "from": "/amount_cents",
+                "to": "/amount",
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "del",
+                "path": "/capture_method",
+                "c": "chg_capture_method"
+              }
+            ]
+          }
+        },
+        "post /v1/payments": {
+          "request": [
+            {
+              "k": "set",
+              "path": "/capture_method",
+              "value": "automatic",
+              "ifAbsent": true,
+              "c": "chg_capture_method"
+            },
+            {
+              "k": "move",
+              "from": "/amount",
+              "to": "/amount_cents",
+              "c": "chg_money_in_minor_units"
+            },
+            {
+              "k": "scale",
+              "path": "/amount_cents",
+              "exp": 2,
+              "c": "chg_money_in_minor_units"
+            }
+          ],
+          "response": {
+            "201": [
+              {
+                "k": "enum",
+                "path": "/status",
+                "map": {
+                  "paid": "succeeded",
+                  "failed": "failed",
+                  "processing": "pending"
+                },
+                "c": "chg_payment_status_vocabulary"
+              },
+              {
+                "k": "scale",
+                "path": "/amount_cents",
+                "exp": -2,
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "move",
+                "from": "/amount_cents",
+                "to": "/amount",
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "del",
+                "path": "/capture_method",
+                "c": "chg_capture_method"
+              }
+            ],
+            "400": [
+              {
+                "k": "enum",
+                "path": "/error/param",
+                "map": {
+                  "amount_cents": "amount"
+                },
+                "lenient": true,
+                "c": "chg_money_in_minor_units"
+              }
+            ],
+            "401": [
+              {
+                "k": "enum",
+                "path": "/error/param",
+                "map": {
+                  "amount_cents": "amount"
+                },
+                "lenient": true,
+                "c": "chg_money_in_minor_units"
+              }
+            ]
+          }
+        },
+        "post /v1/refunds": {
+          "request": [
+            {
+              "k": "move",
+              "from": "/amount",
+              "to": "/amount_cents",
+              "c": "chg_money_in_minor_units"
+            },
+            {
+              "k": "scale",
+              "path": "/amount_cents",
+              "exp": 2,
+              "c": "chg_money_in_minor_units"
+            }
+          ],
+          "response": {
+            "201": [
+              {
+                "k": "scale",
+                "path": "/amount_cents",
+                "exp": -2,
+                "c": "chg_money_in_minor_units"
+              },
+              {
+                "k": "move",
+                "from": "/amount_cents",
+                "to": "/amount",
+                "c": "chg_money_in_minor_units"
+              }
+            ],
+            "400": [
+              {
+                "k": "enum",
+                "path": "/error/param",
+                "map": {
+                  "amount_cents": "amount"
+                },
+                "lenient": true,
+                "c": "chg_money_in_minor_units"
+              }
+            ],
+            "401": [
+              {
+                "k": "enum",
+                "path": "/error/param",
+                "map": {
+                  "amount_cents": "amount"
+                },
+                "lenient": true,
+                "c": "chg_money_in_minor_units"
+              }
+            ],
+            "404": [
+              {
+                "k": "enum",
+                "path": "/error/param",
+                "map": {
+                  "amount_cents": "amount"
+                },
+                "lenient": true,
+                "c": "chg_money_in_minor_units"
+              }
+            ]
+          }
+        }
+      },
+      "behaviors": []
+    }
+  }
+}

@@ -17,6 +17,9 @@ importers:
       '@hono/node-server':
         specifier: ^2.1.1
         version: 2.1.1(hono@4.13.8)
+      '@invariant/runtime':
+        specifier: workspace:*
+        version: link:packages/runtime
       '@types/node':
         specifier: ^22.20.4
         version: 22.20.4
@@ -67,9 +70,22 @@ importers:
       '@hono/node-server':
         specifier: ^2.1.1
         version: 2.1.1(hono@4.13.8)
+      '@invariant/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      '@invariant/runtime-hono':
+        specifier: workspace:*
+        version: link:../../packages/runtime-hono
       hono:
         specifier: ^4.13.8
         version: 4.13.8
+    devDependencies:
+      '@invariant/compiler':
+        specifier: workspace:*
+        version: link:../../packages/compiler
+      '@invariant/contract':
+        specifier: workspace:*
+        version: link:../../packages/contract
 
   fixtures/sdk-acme-v1: {}
 
@@ -115,6 +131,25 @@ importers:
       '@sinclair/typebox':
         specifier: ^0.34.52
         version: 0.34.52
+
+  packages/runtime:
+    dependencies:
+      '@invariant/decimal':
+        specifier: workspace:*
+        version: link:../decimal
+    devDependencies:
+      '@invariant/ir':
+        specifier: workspace:*
+        version: link:../ir
+
+  packages/runtime-hono:
+    dependencies:
+      '@invariant/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+      hono:
+        specifier: ^4
+        version: 4.13.8
 
 packages:
 

@@ -1,0 +1,16 @@
+{
+  "name": "@invariant/runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The compatibility interpreter and provider middleware. Deterministic, dependency-free, no model inference.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@invariant/decimal": "workspace:*"
+  },
+  "devDependencies": {
+    "@invariant/ir": "workspace:*"
+  }
+}

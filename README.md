@@ -18,18 +18,43 @@ See [`docs/DESIGN.md`](docs/DESIGN.md) for the full system design, and
 
 ## Status
 
-Phase 0 complete: the fixture provider, its three historical contracts, three
-unmodified consumer applications, and an executable demo that proves the break
-is real before anything tries to fix it.
+Phases 0, 1 and 3 complete. The demo's first two steps hold:
+
+1. Three consumer applications pass against the contract each was written for,
+   and break against the provider's new canonical API.
+2. With the compiled program in the provider's build, those same three
+   consumers pass against that new API **unmodified**, all three contracts
+   served at once from one implementation.
+
+Still to come: the release gate and differential verifier, signed evolution
+bundles, and the consumer migration engine that moves those codebases forward.
 
 ## Layout
 
 ```
-docs/         design and the planning brief
-fixtures/     the sample provider, its SDKs, and three consumer applications
-e2e/          the demo, as an executable test
-packages/     the compiler, runtime, verifier and migration engine
+docs/                 design and the planning brief
+fixtures/             the sample provider, its SDKs, and three consumer applications
+e2e/                  the demo, as an executable test
+packages/ir           the Change IR and compiled program schemas
+packages/decimal      exact decimal arithmetic, no dependencies
+packages/contract     OpenAPI loading, digests, and schema site resolution
+packages/diff         structural diff via oasdiff, and the breaking-change policy
+packages/compiler     type checking, the closure check, and program projection
+packages/runtime      the compatibility interpreter and provider middleware
+packages/runtime-hono Hono bindings for the runtime
 ```
+
+## Requirements
+
+Node 22.12 or newer, pnpm, and [oasdiff](https://github.com/oasdiff/oasdiff) for
+the closure check:
+
+```sh
+go install github.com/oasdiff/oasdiff@latest
+```
+
+Without it the closure tests skip locally and fail on CI, because a skipped
+safety check reads the same as a passing one.
 
 ## Development
 

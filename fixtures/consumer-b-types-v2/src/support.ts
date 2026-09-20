@@ -12,10 +12,10 @@ export function connectAcme(): AcmeClient {
     });
   }
 
-  const { app } = createAcmeApp({ build: "2026-03-01" });
+  const { fetch: acme } = createAcmeApp({ build: "2026-03-01" });
   return createAcmeClient({
     apiKey: CONSUMER_B_KEY,
     baseUrl: "http://acme.test",
-    fetch: async (input, init) => app.fetch(new Request(input as string | URL, init)),
+    fetch: async (input, init) => acme(new Request(input as string | URL, init)),
   });
 }

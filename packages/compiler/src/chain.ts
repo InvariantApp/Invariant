@@ -111,7 +111,7 @@ export function chainContract(
   const laterRoutes: RouteMapping[][] = steps.map((step) => routeMappings(step.changes));
 
   steps.forEach((step, index) => {
-    const projected = projectStep(step.label, step.from, step.changes);
+    const projected = projectStep(step.label, step.from, step.changes, step.to);
     issues.push(...projected.issues);
     behaviors.push(...projected.program.behaviors);
 

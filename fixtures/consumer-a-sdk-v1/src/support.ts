@@ -23,10 +23,10 @@ export function connectAcme(): AcmeConnection {
     };
   }
 
-  const { app } = createAcmeApp({ build: "2026-01-15" });
+  const { fetch: acme } = createAcmeApp({ build: "2026-01-15" });
   return {
     apiKey: CONSUMER_A_KEY,
     baseUrl: "http://acme.test",
-    fetch: async (input, init) => app.fetch(new Request(input as string | URL, init)),
+    fetch: async (input, init) => acme(new Request(input as string | URL, init)),
   };
 }

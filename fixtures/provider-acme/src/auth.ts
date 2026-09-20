@@ -10,7 +10,7 @@ export const API_KEYS: Record<string, { account: string; pinned: string }> = {
   sk_test_alpha: { account: "acct_alpha", pinned: "2026-01-15" },
   sk_test_bravo: { account: "acct_bravo", pinned: "2026-03-01" },
   sk_test_charlie: { account: "acct_charlie", pinned: "2026-03-01" },
-  sk_test_delta: { account: "acct_delta", pinned: "current" },
+  sk_test_delta: { account: "acct_delta", pinned: "2026-09-20" },
 };
 
 export const SIGNING_SECRET = "whsec_fixture_acme";

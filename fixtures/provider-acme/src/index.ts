@@ -1,4 +1,10 @@
-import { Hono, type MiddlewareHandler } from "hono";
+import {
+  createRuntime,
+  type InvariantRuntime,
+  type UsageEvent,
+} from "@invariant/runtime";
+import { adapt, wrapFetch } from "@invariant/runtime-hono";
+import { Hono } from "hono";
 import { acmeAuth } from "./auth.ts";
 import { buildHead } from "./builds/head.ts";
 import { buildV1 } from "./builds/v1.ts";
@@ -6,6 +12,7 @@ import { buildV2 } from "./builds/v2.ts";
 import { AcmeStore } from "./store.ts";
 
 export { API_KEYS, SIGNING_SECRET, sign } from "./auth.ts";
+export { ACME_PROGRAM } from "./program.ts";
 export { AcmeStore } from "./store.ts";
 
 /**
@@ -25,26 +32,58 @@ export function isAcmeBuild(value: string): value is AcmeBuild {
 export interface CreateAcmeAppOptions {
   build?: AcmeBuild;
   store?: AcmeStore;
-  /** Runs before routing, so it may rewrite the request path. */
-  preRouting?: MiddlewareHandler;
-  /** Runs after authentication, so it may rewrite an authenticated body. */
-  postAuth?: MiddlewareHandler;
+  /**
+   * The compiled program, as it would ship inside the provider's build. Only
+   * meaningful alongside `head`, since the historical builds already speak
+   * their own contract.
+   */
+  program?: unknown;
+  onUsage?: (event: UsageEvent) => void;
+  flags?: Parameters<typeof createRuntime>[0]["flags"];
 }
 
-export function createAcmeApp(options: CreateAcmeAppOptions = {}): {
+export interface AcmeApp {
   app: Hono;
+  /** Use this rather than `app.fetch`: stage one has to sit outside routing. */
+  fetch: (request: Request) => Response | Promise<Response>;
   store: AcmeStore;
   build: AcmeBuild;
-} {
+  runtime: InvariantRuntime | undefined;
+}
+
+export function createAcmeApp(options: CreateAcmeAppOptions = {}): AcmeApp {
   const build = options.build ?? "head";
   const store = options.store ?? new AcmeStore();
+
+  const runtime = options.program
+    ? createRuntime({
+        program: options.program,
+        // How a request says which contract it expects: the explicit header
+        // first, then the contract pinned to the account at first use.
+        identity: [
+          { kind: "header", name: "acme-version" },
+          { kind: "principal" },
+          { kind: "default", label: "2026-01-15" },
+        ],
+        ...(options.onUsage ? { onUsage: options.onUsage } : {}),
+        ...(options.flags ? { flags: options.flags } : {}),
+      })
+    : undefined;
 
   const app = new Hono();
   app.get("/__health", (c) => c.json({ ok: true, build }));
 
-  if (options.preRouting) app.use("*", options.preRouting);
   app.use("/v1/*", acmeAuth);
-  if (options.postAuth) app.use("/v1/*", options.postAuth);
+  if (runtime) {
+    app.use(
+      "/v1/*",
+      adapt({
+        runtime,
+        pinnedContract: (c) => c.get("principal")?.pinned,
+        consumerId: (c) => c.get("principal")?.account,
+      }),
+    );
+  }
 
   const routes =
     build === "head"
@@ -54,5 +93,12 @@ export function createAcmeApp(options: CreateAcmeAppOptions = {}): {
         : buildV1(store);
   app.route("/", routes);
 
-  return { app, store, build };
+  const fetch = runtime
+    ? wrapFetch((request) => app.fetch(request), {
+        runtime,
+        skip: (path) => !path.startsWith("/v1/"),
+      })
+    : (request: Request) => app.fetch(request);
+
+  return { app, fetch, store, build, runtime };
 }
