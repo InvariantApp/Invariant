@@ -46,39 +46,78 @@ are derived from the same ops.
 
 ## Architecture
 
-```mermaid
-flowchart TB
-  subgraph PROVIDER["Provider's trust domain - their repo, CI and production"]
-    PR["Pull request<br/>code + openapi + invariant/changes/*.yaml"]
-    GATE["invariant check<br/>diff, closure, laws, differential, conformance"]
-    APP["Their service, written once against the current API"]
-    RT["@invariant/runtime<br/>in-process, after auth"]
-    PR --> GATE -->|"PASS / WARN / BLOCK"| PR
-    GATE -->|"compiled program, inside their build"| RT
-    RT --- APP
-  end
+### What actually happens
 
-  subgraph HOSTED["Invariant - one service and a database"]
-    PROP["Proposer<br/>rules, then a model, never a decider"]
-    REG["Registry of signed release bundles"]
-    MIG["Migration engine"]
-    GH["GitHub App"]
-  end
+```
+        The provider makes a breaking change, and declares it once
+                                 |
+                                 v
+                  +--------------------------------+
+                  |        invariant check         |
+                  |                                |
+                  |  Do the declared changes       |
+                  |  explain everything that       |
+                  |  actually changed?             |
+                  +--------------------------------+
+                                 |
+                                 | yes, and they hold under test
+                                 v
+            +--------------------+--------------------+
+            |                                         |
+            v                                         v
+   OLD CALLERS KEEP WORKING              CONNECTED REPOS GET A PR
 
-  subgraph CONSUMER["Consumers"]
-    OLD["Old integrations, unmodified"]
-    REPO["Connected repositories"]
-  end
-
-  GATE -->|"diff + spec fragments, never source"| PROP --> GATE
-  GATE -->|"on release"| REG --> MIG --> GH -->|"draft PR"| REPO
-  OLD -->|"old-contract requests"| RT
-  RT -->|"per-change counters"| REG
+   An adapter ships inside the           Their source is rewritten
+   provider's own build. Their           from the same declaration.
+   customers do nothing at all.          They review it and merge.
 ```
 
-Trust boundaries are the point. Provider source never leaves provider CI.
-Consumer source is read only under the consumer's own GitHub App grant, and the
-provider sees migration status and nothing else.
+Both outputs come from the same declaration, so they cannot disagree with each
+other. That is the whole design in one sentence.
+
+### Where each piece runs
+
+```
++-- PROVIDER ------------------------------------------------------+
+|  their repository, their CI, their production                    |
+|                                                                  |
+|  pull request:  code + openapi.json + invariant/changes/*.yaml   |
+|         |                                                        |
+|         v                                                        |
+|  invariant check  -->  PASS / WARN / BLOCK on the pull request   |
+|         |                                                        |
+|         v  compiles to program.json, shipped inside their build  |
+|  @invariant/runtime, inside their service, after their auth      |
++------------------------------------------------------------------+
+         |                                     ^
+         | on release: a signed bundle,        | drafted Changes,
+         | and counters saying how often       | for a human to read
+         | each Change was applied             | and merge
+         v                                     |
++-- INVARIANT -----------------------------------------------------+
+|  one service and a database                                      |
+|                                                                  |
+|  proposer   |   registry   |   migration engine   |   GitHub App |
++------------------------------------------------------------------+
+         |
+         | draft pull request
+         v
++-- CONSUMERS -----------------------------------------------------+
+|  connected repositories                                          |
+|  their own CI decides whether the pull request is ready          |
+|                                                                  |
+|  everyone else keeps calling the provider, unmodified,           |
+|  and never learns that anything changed                          |
++------------------------------------------------------------------+
+```
+
+**What crosses the provider's boundary:** the structural diff and small schema
+fragments when a draft is requested, a signed bundle on release, and counters
+saying how often each Change was applied. Never their source code.
+
+**What crosses the consumer's boundary:** nothing, unless they install the
+GitHub App on repositories they choose. Their source is never sent to the
+provider, who sees migration status and nothing else.
 
 ### The two-stage runtime
 
@@ -88,9 +127,26 @@ computed over the bytes a client sent still verifies against those bytes. One
 middleware cannot do both.
 
 ```
-old client → [stage 1: route] → provider auth → [stage 2: adapt] → handler
-                                                                      ↓
-old client ← [stage 2: adapt back] ←──────────────────────────── response
+  a request from a client on an old contract
+        |
+        v
+  [ stage 1: rewrite the path ]   before routing, so an old URL
+        |                         reaches the current handler
+        v
+  [ the provider's own auth ]     the body is still the exact bytes
+        |                         the client sent, so a signature
+        |                         over it still verifies
+        v
+  [ stage 2: rewrite the body ]   after auth
+        |
+        v
+  the handler, which only ever knows today's API
+        |
+        v
+  [ stage 2: rewrite it back ]    into the shape that client expects
+        |
+        v
+  a response the old client understands
 ```
 
 A caller on the current contract, or on an operation that never changed, costs a
