@@ -183,6 +183,21 @@ export function classify(
 
 const TOKEN = process.env["GITHUB_TOKEN"] ?? "";
 
+/**
+ * The API said to come back later than this run is willing to wait. A
+ * workflow's token allows about a thousand requests an hour, and sleeping
+ * until the reset used to run the job into its timeout with nothing written.
+ */
+class RateLimited extends Error {}
+
+/** A fallback for a request that failed, except a rate limit, which ends the run. */
+const orElse =
+  <T,>(fallback: T) =>
+  (error: unknown): T => {
+    if (error instanceof RateLimited) throw error;
+    return fallback;
+  };
+
 async function github<T>(path: string, attempt = 0): Promise<T> {
   const response = await fetch(`https://api.github.com${path}`, {
     headers: {
@@ -191,11 +206,15 @@ async function github<T>(path: string, attempt = 0): Promise<T> {
       ...(TOKEN ? { authorization: `Bearer ${TOKEN}` } : {}),
     },
   });
-  if ((response.status === 403 || response.status === 429) && attempt < 5) {
-    // Rate limited, most often the search API's thirty a minute.
+  if (response.status === 403 || response.status === 429) {
+    // The search API's thirty a minute resets within the minute and is worth
+    // waiting for; an hourly limit is not, and ends the run.
     const reset = Number(response.headers.get("x-ratelimit-reset") ?? 0) * 1000;
     const retryAfter = Number(response.headers.get("retry-after") ?? 0) * 1000;
-    await sleep(Math.min(Math.max(reset - Date.now(), retryAfter, 5_000), 120_000));
+    const wait = Math.max(reset - Date.now(), retryAfter, 5_000);
+    if (wait > 90_000 || attempt >= 3)
+      throw new RateLimited(`rate limited for ${Math.round(wait / 1000)}s`);
+    await sleep(wait);
     return github(path, attempt + 1);
   }
   if (response.status >= 500 && attempt < 3) {
@@ -248,86 +267,102 @@ async function mine(): Promise<void> {
   const monthCount = Number(option("months") ?? 24);
   const limit = Number(option("limit") ?? 200);
   const only = option("package");
+  // Stops in time to write what it found, whatever else happens.
+  const deadline = Date.now() + Number(option("minutes") ?? 40) * 60_000;
 
   const index = await readIndex();
   const known = new Set(index.cases.map((entry) => entry.id));
   const licences = new Map<string, { license: string; fork: boolean }>();
   let added = 0;
 
-  for (const target of TARGETS.filter((entry) => !only || entry.package === only)) {
-    for (const window of months(monthCount)) {
-      for (const phrase of target.titles) {
-        if (added >= limit) break;
-        const query = `"${phrase}" in:title is:pr is:merged created:${window.from}..${window.to}`;
-        const found = await github<{ items: SearchItem[] }>(
-          `/search/issues?per_page=100&q=${encodeURIComponent(query)}`,
-        );
-        for (const item of found.items) {
-          if (added >= limit) break;
-          const repo = item.repository_url.replace("https://api.github.com/repos/", "");
-          const id = `${repo}#${item.number}`;
-          if (known.has(id)) continue;
-          const bump = parseBump(item.title, target);
-          if (!bump || !isMajor(bump.from, bump.to)) continue;
-
-          let owner = licences.get(repo);
-          if (!owner) {
-            const meta = await github<{
-              license: { spdx_id: string } | null;
-              fork: boolean;
-            }>(`/repos/${repo}`).catch(() => undefined);
-            owner = {
-              license: meta?.license?.spdx_id ?? "NOASSERTION",
-              fork: meta?.fork ?? true,
-            };
-            licences.set(repo, owner);
+  let stopped = "";
+  try {
+    search: for (const target of TARGETS.filter(
+      (entry) => !only || entry.package === only,
+    )) {
+      for (const window of months(monthCount)) {
+        for (const phrase of target.titles) {
+          if (added >= limit) break search;
+          if (Date.now() > deadline) {
+            stopped = "out of time";
+            break search;
           }
-          if (owner.fork || !PERMISSIVE.has(owner.license)) continue;
-
-          const files = await github<{ filename: string }[]>(
-            `/repos/${repo}/pulls/${item.number}/files?per_page=100`,
-          ).catch(() => []);
-          const kind = classify(
-            files.map((file) => file.filename),
-            target.ecosystems,
+          const query = `"${phrase}" in:title is:pr is:merged created:${window.from}..${window.to}`;
+          const found = await github<{ items: SearchItem[] }>(
+            `/search/issues?per_page=100&q=${encodeURIComponent(query)}`,
           );
-          if (!kind || kind.sources.length === 0 || kind.sources.length > 50) continue;
+          for (const item of found.items) {
+            if (added >= limit) break;
+            const repo = item.repository_url.replace("https://api.github.com/repos/", "");
+            const id = `${repo}#${item.number}`;
+            if (known.has(id)) continue;
+            const bump = parseBump(item.title, target);
+            if (!bump || !isMajor(bump.from, bump.to)) continue;
 
-          const pull = await github<{
-            base: { sha: string };
-            head: { sha: string };
-            merged_at: string | null;
-          }>(`/repos/${repo}/pulls/${item.number}`).catch(() => undefined);
-          if (!pull?.merged_at) continue;
+            let owner = licences.get(repo);
+            if (!owner) {
+              const meta = await github<{
+                license: { spdx_id: string } | null;
+                fork: boolean;
+              }>(`/repos/${repo}`).catch(orElse(undefined));
+              owner = {
+                license: meta?.license?.spdx_id ?? "NOASSERTION",
+                fork: meta?.fork ?? true,
+              };
+              licences.set(repo, owner);
+            }
+            if (owner.fork || !PERMISSIVE.has(owner.license)) continue;
 
-          index.cases.push({
-            id,
-            repo,
-            pr: item.number,
-            base: pull.base.sha,
-            head: pull.head.sha,
-            package: target.package,
-            ecosystem: kind.ecosystem,
-            from: bump.from,
-            to: bump.to,
-            license: owner.license,
-            mergedAt: pull.merged_at,
-            files: kind.sources,
-          });
-          known.add(id);
-          added += 1;
-          process.stdout.write(
-            `${id} ${target.package} ${bump.from} -> ${bump.to} (${kind.sources.length} files)\n`,
-          );
+            const files = await github<{ filename: string }[]>(
+              `/repos/${repo}/pulls/${item.number}/files?per_page=100`,
+            ).catch(orElse([] as { filename: string }[]));
+            const kind = classify(
+              files.map((file) => file.filename),
+              target.ecosystems,
+            );
+            if (!kind || kind.sources.length === 0 || kind.sources.length > 50) continue;
+
+            const pull = await github<{
+              base: { sha: string };
+              head: { sha: string };
+              merged_at: string | null;
+            }>(`/repos/${repo}/pulls/${item.number}`).catch(orElse(undefined));
+            if (!pull?.merged_at) continue;
+
+            index.cases.push({
+              id,
+              repo,
+              pr: item.number,
+              base: pull.base.sha,
+              head: pull.head.sha,
+              package: target.package,
+              ecosystem: kind.ecosystem,
+              from: bump.from,
+              to: bump.to,
+              license: owner.license,
+              mergedAt: pull.merged_at,
+              files: kind.sources,
+            });
+            known.add(id);
+            added += 1;
+            process.stdout.write(
+              `${id} ${target.package} ${bump.from} -> ${bump.to} (${kind.sources.length} files)\n`,
+            );
+          }
+          // The search API allows thirty requests a minute.
+          await sleep(2_100);
         }
-        // The search API allows thirty requests a minute.
-        await sleep(2_100);
       }
     }
+  } catch (error) {
+    if (!(error instanceof RateLimited)) throw error;
+    stopped = error.message;
+  } finally {
+    // Whatever was found is kept, so the next run starts from it.
+    index.cases.sort((a, b) => a.id.localeCompare(b.id));
+    await writeFile(INDEX, `${JSON.stringify(index, null, 2)}\n`, "utf8");
   }
-
-  index.cases.sort((a, b) => a.id.localeCompare(b.id));
-  await writeFile(INDEX, `${JSON.stringify(index, null, 2)}\n`, "utf8");
+  if (stopped) process.stdout.write(`stopped early: ${stopped}\n`);
   const byEcosystem = new Map<string, number>();
   for (const entry of index.cases) {
     byEcosystem.set(entry.ecosystem, (byEcosystem.get(entry.ecosystem) ?? 0) + 1);

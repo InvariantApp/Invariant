@@ -13,7 +13,9 @@
       "to": "22.6.1",
       "license": "Apache-2.0",
       "mergedAt": "2026-09-09T10:28:09Z",
-      "files": ["packages/module-ee/src/stripe/client.ts"]
+      "files": [
+        "packages/module-ee/src/stripe/client.ts"
+      ]
     },
     {
       "id": "CleanExpo/NodeJS-Starter-V1#60",
@@ -27,7 +29,9 @@
       "to": "22.3.1",
       "license": "MIT",
       "mergedAt": "2026-07-16T01:58:16Z",
-      "files": ["apps/web/lib/api/stripe.ts"]
+      "files": [
+        "apps/web/lib/api/stripe.ts"
+      ]
     },
     {
       "id": "KeepSoftwareSimple/compass-calendar#3603",
@@ -60,7 +64,9 @@
       "to": "22.3.0",
       "license": "MIT",
       "mergedAt": "2026-07-27T03:50:23Z",
-      "files": ["packages/stripe/src/services/stripe.service.ts"]
+      "files": [
+        "packages/stripe/src/services/stripe.service.ts"
+      ]
     }
   ]
 }

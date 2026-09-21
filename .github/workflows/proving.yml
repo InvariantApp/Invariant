@@ -192,7 +192,7 @@ jobs:
       - name: Find where humans migrated code across an SDK's major release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node --import tsx proving/replay/mine.mts --months 36 --limit 150
+        run: node --import tsx proving/replay/mine.mts --months 36 --limit 150 --minutes 40
 
       - name: Record the index
         if: github.event_name == 'schedule'

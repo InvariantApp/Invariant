@@ -12,6 +12,9 @@
       "!**/*.tsbuildinfo",
       "!fixtures/consumer-b-types-v2/src/acme-types.ts",
       "!conformance/vectors.json",
+      "!proving/**/results*.json",
+      "!proving/corpus/manifest.json",
+      "!proving/replay/index.json",
       "!packages/action/bundle"
     ]
   },
