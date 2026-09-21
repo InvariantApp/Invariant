@@ -21,7 +21,12 @@ function run(vector: EnvelopeVector): { request?: unknown; refusedBy?: string } 
           old: {
             label: "old",
             routes: [],
-            sites: { [`post ${vector.template}`]: { envelope: vector.envelope } },
+            sites: {
+              [`post ${vector.template}`]: {
+                envelope: vector.envelope,
+                ...(vector.form ? { form: vector.form } : {}),
+              },
+            },
             behaviors: [],
             retired: [],
           },

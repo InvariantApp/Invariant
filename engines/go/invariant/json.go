@@ -14,9 +14,12 @@ import (
 	"strings"
 )
 
-// Object is a JSON object that keeps its keys in the order they were written
-// or added, as the reference runtime does. A caller reading a body sees the
-// fields where they expect them, and a renamed field moves to the end.
+// Object is a JSON object that keeps its keys in the order the reference
+// runtime does, which is JavaScript's: keys that are array indexes first, in
+// ascending order, then every other key in the order it was written or added.
+// A caller reading a body sees the fields where they expect them, a renamed
+// field moves to the end, and `{"b":1,"2":2}` comes out as `{"2":2,"b":1}`
+// from either engine.
 type Object struct {
 	keys   []string
 	values map[string]any
@@ -31,12 +34,44 @@ func (o *Object) Get(key string) (any, bool) {
 	return value, ok
 }
 
-// Set writes a value, adding the key at the end when it is new.
+// Set writes a value. A new key goes at the end, or among the index keys in
+// its numeric place when it is one.
 func (o *Object) Set(key string, value any) {
 	if _, ok := o.values[key]; !ok {
-		o.keys = append(o.keys, key)
+		index, isIndex := arrayIndex(key)
+		at := len(o.keys)
+		if isIndex {
+			at = 0
+			for at < len(o.keys) {
+				other, otherIsIndex := arrayIndex(o.keys[at])
+				if !otherIsIndex || other > index {
+					break
+				}
+				at++
+			}
+		}
+		o.keys = append(o.keys, "")
+		copy(o.keys[at+1:], o.keys[at:])
+		o.keys[at] = key
 	}
 	o.values[key] = value
+}
+
+// arrayIndex reads a key JavaScript treats as an array index: the canonical
+// decimal text of an integer below 2^32 - 1.
+func arrayIndex(key string) (uint64, bool) {
+	if key == "" || len(key) > 10 || (len(key) > 1 && key[0] == '0') {
+		return 0, false
+	}
+	var n uint64
+	for index := 0; index < len(key); index++ {
+		c := key[index]
+		if c < '0' || c > '9' {
+			return 0, false
+		}
+		n = n*10 + uint64(c-'0')
+	}
+	return n, n < 4294967295
 }
 
 // Delete removes a key.

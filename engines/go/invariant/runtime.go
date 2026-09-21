@@ -2,12 +2,23 @@ package invariant
 
 import (
 	"errors"
+	"strconv"
+	"strings"
 )
+
+func itoa(n int) string { return strconv.Itoa(n) }
 
 // Site is the compiled work for one operation of one contract.
 type Site struct {
 	Request  []*Instr
 	Response map[string][]*Instr
+	// Envelope is the program over the whole request, where a Change reaches
+	// a parameter.
+	Envelope *Envelope
+	// Template is the site's path, split on "/", as the contract writes it.
+	Template []string
+	// Form is how the request body is written when it arrives form-encoded.
+	Form *Form
 }
 
 // Contract is one historical contract, compiled straight to current.
@@ -114,12 +125,36 @@ func decodeProgram(raw any) (*Program, error) {
 		}
 		for _, key := range sites.Keys() {
 			siteWhere := where + ".sites." + key
+			// Only the method is case-insensitive; a path is not.
+			separator := strings.IndexByte(key, ' ')
+			if separator <= 0 {
+				return nil, programError("%s.sites has a key %q that is not \"method path\"", where, key)
+			}
+			method, path := strings.ToLower(key[:separator]), key[separator+1:]
 			rawSite, _ := sites.Get(key)
 			site, err := asObject(rawSite, siteWhere)
 			if err != nil {
 				return nil, err
 			}
-			out := &Site{Response: map[string][]*Instr{}}
+			if err := expectKeys(site, []string{"form", "request", "envelope", "response"}, siteWhere); err != nil {
+				return nil, err
+			}
+			_, hasRequest := site.Get("request")
+			_, hasEnvelope := site.Get("envelope")
+			if hasRequest && hasEnvelope {
+				return nil, programError("%s has both request and envelope; one list keeps the order", siteWhere)
+			}
+			out := &Site{Response: map[string][]*Instr{}, Template: strings.Split(path, "/")}
+			if form, present := site.Get("form"); present {
+				if out.Form, err = decodeForm(form, siteWhere+".form"); err != nil {
+					return nil, err
+				}
+			}
+			if hasEnvelope {
+				if out.Envelope, err = decodeEnvelope(field(site, "envelope"), siteWhere+".envelope", named); err != nil {
+					return nil, err
+				}
+			}
 			if request, present := site.Get("request"); present {
 				if out.Request, err = decodeBlock(request, siteWhere+".request", 0, named, false); err != nil {
 					return nil, err
@@ -137,7 +172,7 @@ func decodeProgram(raw any) (*Program, error) {
 					}
 				}
 			}
-			decoded.Sites[key] = out
+			decoded.Sites[method+" "+path] = out
 		}
 		program.Contracts[label] = decoded
 	}
@@ -155,6 +190,46 @@ func (r *Runtime) TransformRequest(contract, siteKey string, body []byte) ([]byt
 		return nil, nil, err
 	}
 	return r.run(site.Request, body)
+}
+
+// TransformEnvelope rewrites a whole request for a caller on contract, where
+// the site's program reaches its parameters: its path, query string, headers
+// and, where the program reads it, its body. request.Path is the routed path
+// without any base path. Nothing the program does not name is changed, down
+// to the bytes and order of an untouched query string.
+func (r *Runtime) TransformEnvelope(contract, siteKey string, request EnvelopeRequest) (EnvelopeRequest, *Result, error) {
+	site, err := r.site(contract, siteKey)
+	if err != nil {
+		return request, nil, err
+	}
+	return runEnvelope(site, request, r.limits)
+}
+
+// TransformRequestForm rewrites a form-encoded request body for a caller on
+// contract: the fields the site's program names are decoded, transformed and
+// written back, and every other pair of the form is passed on as it came.
+func (r *Runtime) TransformRequestForm(contract, siteKey, text string) (string, *Result, error) {
+	site, err := r.site(contract, siteKey)
+	if err != nil {
+		return text, nil, err
+	}
+	if site.Form == nil || len(site.Request) == 0 {
+		return text, &Result{Applied: map[string]int{}, Folded: map[string]bool{}}, nil
+	}
+	roots := formRoots(site.Request, 0)
+	tree, err := openForm(site.Form, roots, text)
+	if err != nil {
+		return text, nil, err
+	}
+	result, err := Execute(tree, site.Request, r.limits)
+	if err != nil {
+		return text, nil, err
+	}
+	out, err := closeForm(site.Form, roots, text, tree, site.Request, 0)
+	if err != nil {
+		return text, nil, err
+	}
+	return out, result, nil
 }
 
 func (r *Runtime) site(contract, siteKey string) (*Site, error) {

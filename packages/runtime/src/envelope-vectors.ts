@@ -7,7 +7,7 @@
  * that has to refuse it. `decode` means the program itself must be refused
  * before any request is seen.
  */
-import type { EnvelopeProgram } from "@invariant/ir";
+import type { EnvelopeProgram, FormProgram } from "@invariant/ir";
 
 export interface EnvelopeVector {
   name: string;
@@ -15,11 +15,15 @@ export interface EnvelopeVector {
   /** The site's path template, as the contract writes it. */
   template: string;
   envelope: EnvelopeProgram;
+  /** The site's form declaration, for a body that may arrive form-encoded. */
+  form?: FormProgram;
   request: {
     path: string;
     search: string;
     headers: [string, string][];
     body?: string;
+    /** True when the body is form-encoded rather than JSON. */
+    form?: boolean;
   };
   expect:
     | {
@@ -431,5 +435,45 @@ export const ENVELOPE_VECTORS: EnvelopeVector[] = [
     },
     request: { path: "/items", search: "a=1", headers: [] },
     expect: { refuses: "decode" },
+  },
+  {
+    name: "a query parameter moves into a form body, beside changes inside it",
+    why:
+      "Stripe takes form bodies, and a parameter that moves into one has to be " +
+      "written the way the form writes it, with every pair nobody named kept.",
+    template: "/charges",
+    form: {
+      fields: { metadata: { style: "deepObject", explode: true } },
+      types: { "/amount": "integer" },
+    },
+    envelope: {
+      instrs: [
+        { k: "move", from: "/@query/currency", to: "/@body/currency", c: "chg_a" },
+        {
+          k: "move",
+          from: "/@body/metadata/order",
+          to: "/@body/metadata/order_id",
+          c: "chg_b",
+        },
+        { k: "scale", path: "/@body/amount", exp: 2, c: "chg_c" },
+      ],
+      params: { old: [query("currency")], new: [] },
+      body: true,
+    },
+    request: {
+      path: "/charges",
+      search: "currency=usd&expand=x",
+      headers: [["content-type", "application/x-www-form-urlencoded"]],
+      body: "amount=15&metadata[order]=6735&description=a+b",
+      form: true,
+    },
+    expect: {
+      request: {
+        path: "/charges",
+        search: "expand=x",
+        headers: [["content-type", "application/x-www-form-urlencoded"]],
+        body: "description=a+b&metadata[order_id]=6735&amount=1500&currency=usd",
+      },
+    },
   },
 ];

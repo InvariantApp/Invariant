@@ -30,6 +30,13 @@ interface Line {
   evidence: string;
 }
 
+/** The sections of the conformance vector file, counted. */
+export interface VectorCounts {
+  vectors: unknown[];
+  envelopes: unknown[];
+  forms: unknown[];
+}
+
 function read<T>(path: string): T | undefined {
   const full = join(ROOT, path);
   return existsSync(full) ? (JSON.parse(readFileSync(full, "utf8")) as T) : undefined;
@@ -46,6 +53,7 @@ export function scoreboard(inputs: {
   replay: ReplayIndex | undefined;
   fuzz: string | undefined;
   chains?: (ChainCost & { budget: typeof BUDGET }) | undefined;
+  vectors?: VectorCounts | undefined;
 }): Line[] {
   const lines: Line[] = [];
   const unmeasured = (id: string, claim: string, why: string): Line => ({
@@ -240,9 +248,12 @@ export function scoreboard(inputs: {
     {
       id: "L12",
       claim: "The Go engine passes every conformance vector.",
-      status: "not met",
-      value:
-        "all 69 body vectors pass; the 19 request-envelope and 10 form vectors are not yet ported",
+      // The Go tests read every section of the vector file and fail on any
+      // vector they do not pass, so the counts are the file's own.
+      status: inputs.vectors ? "met" : "not measured",
+      value: inputs.vectors
+        ? `all ${inputs.vectors.vectors.length} body, ${inputs.vectors.envelopes.length} request-envelope and ${inputs.vectors.forms.length} form vectors pass`
+        : "",
       evidence: "engines/go/invariant/vectors_test.go, in CI on every commit",
     },
     unmeasured(
@@ -343,6 +354,7 @@ if (process.argv[1]?.endsWith("scoreboard.mts")) {
     replay: read<ReplayIndex>("proving/replay/index.json"),
     fuzz: process.env["FUZZ_RESULT"],
     chains: read<ChainCost & { budget: typeof BUDGET }>("proving/chains/results.json"),
+    vectors: read<VectorCounts>("conformance/vectors.json"),
   });
   const page = render(lines);
   await writeFile(join(ROOT, "proving/SCOREBOARD.md"), page, "utf8");

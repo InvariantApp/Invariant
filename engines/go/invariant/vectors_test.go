@@ -148,3 +148,178 @@ func equalJSON(a, b any) bool {
 		return a == b
 	}
 }
+
+type envelopeRequest struct {
+	Path    string      `json:"path"`
+	Search  string      `json:"search"`
+	Headers [][2]string `json:"headers"`
+	Body    *string     `json:"body,omitempty"`
+	Form    bool        `json:"form,omitempty"`
+}
+
+type envelopeVector struct {
+	Name     string          `json:"name"`
+	Template string          `json:"template"`
+	Envelope json.RawMessage `json:"envelope"`
+	Form     json.RawMessage `json:"form,omitempty"`
+	Request  envelopeRequest `json:"request"`
+	Expect   struct {
+		Request *envelopeRequest `json:"request,omitempty"`
+		Refuses string           `json:"refuses,omitempty"`
+	} `json:"expect"`
+}
+
+// runEnvelopeVector builds the program the TypeScript harness builds: one
+// site at the vector's template, whose envelope is the vector's.
+func runEnvelopeVector(v envelopeVector) (*envelopeRequest, string) {
+	site := map[string]any{"envelope": v.Envelope}
+	if len(v.Form) > 0 {
+		site["form"] = v.Form
+	}
+	program, _ := json.Marshal(map[string]any{
+		"irVersion":    2,
+		"api":          "conformance",
+		"current":      "sha256:0",
+		"currentLabel": "current",
+		"contracts": map[string]any{"old": map[string]any{
+			"label":     "old",
+			"routes":    []any{},
+			"sites":     map[string]any{"post " + v.Template: site},
+			"behaviors": []any{},
+			"retired":   []any{},
+		}},
+	})
+	runtime, err := Load(program, Options{})
+	if err != nil {
+		return nil, "decode"
+	}
+	out, _, err := runtime.TransformEnvelope("old", "post "+v.Template, EnvelopeRequest{
+		Path:    v.Request.Path,
+		Search:  v.Request.Search,
+		Headers: v.Request.Headers,
+		Body:    v.Request.Body,
+		Form:    v.Request.Form,
+	})
+	if err != nil {
+		var transform *TransformError
+		if errors.As(err, &transform) {
+			return nil, transform.ChangeID
+		}
+		return nil, "error"
+	}
+	headers := out.Headers
+	if headers == nil {
+		headers = [][2]string{}
+	}
+	return &envelopeRequest{Path: out.Path, Search: out.Search, Headers: headers, Body: out.Body}, ""
+}
+
+func TestEnvelopeVectors(t *testing.T) {
+	text, err := os.ReadFile(filepath.Join("..", "..", "..", "conformance", "vectors.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var file struct {
+		Envelopes []envelopeVector `json:"envelopes"`
+	}
+	if err := json.Unmarshal(text, &file); err != nil {
+		t.Fatal(err)
+	}
+	if len(file.Envelopes) == 0 {
+		t.Fatal("no envelope vectors")
+	}
+	for _, v := range file.Envelopes {
+		t.Run(v.Name, func(t *testing.T) {
+			got, refusedBy := runEnvelopeVector(v)
+			if v.Expect.Refuses != "" {
+				if refusedBy != v.Expect.Refuses {
+					t.Fatalf("expected a refusal by %s, got %q with %+v", v.Expect.Refuses, refusedBy, got)
+				}
+				return
+			}
+			if refusedBy != "" {
+				t.Fatalf("refused by %s", refusedBy)
+			}
+			want, _ := json.Marshal(v.Expect.Request)
+			have, _ := json.Marshal(got)
+			if string(want) != string(have) {
+				t.Fatalf("got  %s\nwant %s", have, want)
+			}
+		})
+	}
+}
+
+type formVector struct {
+	Name   string          `json:"name"`
+	Form   json.RawMessage `json:"form"`
+	Instrs json.RawMessage `json:"instrs"`
+	Input  string          `json:"input"`
+	Expect struct {
+		Output  *string `json:"output,omitempty"`
+		Refuses string  `json:"refuses,omitempty"`
+	} `json:"expect"`
+}
+
+// runFormVector builds the program the TypeScript harness builds: one site
+// with the vector's form declaration and instructions.
+func runFormVector(v formVector) (string, string) {
+	program, _ := json.Marshal(map[string]any{
+		"irVersion":    2,
+		"api":          "conformance",
+		"current":      "sha256:0",
+		"currentLabel": "current",
+		"contracts": map[string]any{"old": map[string]any{
+			"label":     "old",
+			"routes":    []any{},
+			"sites":     map[string]any{"post /v": map[string]any{"form": v.Form, "request": v.Instrs}},
+			"behaviors": []any{},
+			"retired":   []any{},
+		}},
+	})
+	runtime, err := Load(program, Options{})
+	if err != nil {
+		return "", "decode"
+	}
+	out, _, err := runtime.TransformRequestForm("old", "post /v", v.Input)
+	if err != nil {
+		var transform *TransformError
+		if errors.As(err, &transform) {
+			return "", transform.ChangeID
+		}
+		return "", "error"
+	}
+	return out, ""
+}
+
+func TestFormVectors(t *testing.T) {
+	text, err := os.ReadFile(filepath.Join("..", "..", "..", "conformance", "vectors.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var file struct {
+		Forms []formVector `json:"forms"`
+	}
+	if err := json.Unmarshal(text, &file); err != nil {
+		t.Fatal(err)
+	}
+	if len(file.Forms) == 0 {
+		t.Fatal("no form vectors")
+	}
+	for _, v := range file.Forms {
+		t.Run(v.Name, func(t *testing.T) {
+			got, refusedBy := runFormVector(v)
+			if v.Expect.Refuses != "" {
+				if refusedBy != v.Expect.Refuses {
+					t.Fatalf("expected a refusal by %s, got %q with %q", v.Expect.Refuses, refusedBy, got)
+				}
+				return
+			}
+			if refusedBy != "" {
+				t.Fatalf("refused by %s", refusedBy)
+			}
+			if got != *v.Expect.Output {
+				t.Fatalf("got  %s\nwant %s", got, *v.Expect.Output)
+			}
+		})
+	}
+}
