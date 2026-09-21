@@ -21,6 +21,7 @@ import {
   type RouteOp,
   type Scope,
 } from "@invariant/ir";
+import { importReferences } from "./import.ts";
 import { applyParameterScope } from "./predict-parameters.ts";
 import {
   schemaAdd,
@@ -326,6 +327,7 @@ export function predictDocument(
                 });
                 break;
               }
+              importReferences(document, newContract, resolved.shape);
               schemaAdd(document, schema, op.path, resolved.shape, resolved.required);
               break;
             }

@@ -28,6 +28,7 @@ import {
   type ParameterScope,
   parsePointer,
 } from "@invariant/ir";
+import { importReferences } from "./import.ts";
 import {
   addressOf,
   envelopePointer,
@@ -295,6 +296,7 @@ function applyOne(
       }
       params.splice(index, 1);
       const root = bodyHolder(document, located.operation, true) as JsonObject;
+      importReferences(document, newContract, shape.shape);
       schemaAdd(document, root, `/${to.segments.join("/")}`, shape.shape, shape.required);
       return;
     }
@@ -342,6 +344,7 @@ function applyOne(
           `the new contract declares no ${address.part} parameter ${name}`,
         );
       }
+      importReferences(document, newContract, declared);
       params.push(structuredClone(declared));
       return;
     }

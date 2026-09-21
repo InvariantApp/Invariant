@@ -316,3 +316,32 @@ describe("a field added to a schema whose operations moved with no declared rout
     );
   });
 });
+
+describe("a field added with a shape that refers to schemas only the new contract has", () => {
+  it("brings those schemas into the prediction, and what they refer to", () => {
+    const before = contract("3.0.3", {
+      ThingCreate: thing({ name: { type: "string" } }, []),
+      Thing: thing({ id: { type: "string" } }, ["id"]),
+    });
+    const after = contract("3.0.3", {
+      ThingCreate: thing({ name: { type: "string" } }, []),
+      Thing: thing(
+        { id: { type: "string" }, credit: { $ref: "#/components/schemas/Credit" } },
+        ["id"],
+      ),
+      Credit: thing({ student: { $ref: "#/components/schemas/Student" } }, []),
+      Student: thing({ school: { type: "string" } }, []),
+    });
+    const prediction = predictDocument(before, after, [
+      change("Thing", { op: "add", path: "/credit", value: null }),
+    ]);
+    expect(prediction.issues).toEqual([]);
+    const schemas = (prediction.document["components"] as JsonObject)[
+      "schemas"
+    ] as JsonObject;
+    // The field's own reference is resolved into it, so Credit arrives
+    // inline; what Credit refers to has to be defined for that to mean
+    // anything.
+    expect(Object.keys(schemas).sort()).toEqual(["Student", "Thing", "ThingCreate"]);
+  });
+});

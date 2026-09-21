@@ -12088,6 +12088,62 @@ function bodySchemaFor(document, operation, direction, status) {
 	return match === void 0 ? void 0 : deref(document, match.schema);
 }
 //#endregion
+//#region ../compiler/src/import.ts
+/**
+* Bringing a declaration over from the new contract, with what it refers to.
+*
+* `add`, and a parameter or body field that arrives from the new contract,
+* copy their declaration from there. A declaration can refer to components
+* the old contract never defined, and copied on its own it would leave the
+* prediction pointing at nothing: the differ cannot even load that, and a
+* real Plaid release failed closure that way. Whatever it refers to, and
+* whatever that refers to in turn, comes with it when the prediction does not
+* already define it. A component the prediction does define is left as it is,
+* because a difference there is a change of its own, for closure to judge.
+*/
+const LOCAL = /^#\/components\/([^/]+)\/([^/]+)$/;
+function refsIn(value, found) {
+	if (Array.isArray(value)) {
+		for (const entry of value) refsIn(entry, found);
+		return;
+	}
+	if (!isJsonObject(value)) return;
+	const ref = value["$ref"];
+	if (typeof ref === "string") found.add(ref);
+	for (const [key, child] of Object.entries(value)) if (key !== "$ref") refsIn(child, found);
+}
+function importReferences(document, source, declaration) {
+	const pending = /* @__PURE__ */ new Set();
+	refsIn(declaration, pending);
+	const seen = /* @__PURE__ */ new Set();
+	while (pending.size > 0) {
+		const ref = pending.values().next().value;
+		pending.delete(ref);
+		if (seen.has(ref)) continue;
+		seen.add(ref);
+		const match = LOCAL.exec(ref);
+		if (!match) continue;
+		if (resolveRef(document, ref) !== void 0) continue;
+		const found = resolveRef(source, ref);
+		if (found === void 0) continue;
+		const kind = decodeURIComponent(match[1].replace(/~1/g, "/").replace(/~0/g, "~"));
+		const name = match[2].replace(/~1/g, "/").replace(/~0/g, "~");
+		let components = document["components"];
+		if (!isJsonObject(components)) {
+			components = {};
+			document["components"] = components;
+		}
+		let bucket = components[kind];
+		if (!isJsonObject(bucket)) {
+			bucket = {};
+			components[kind] = bucket;
+		}
+		const copy = structuredClone(found);
+		bucket[name] = copy;
+		refsIn(copy, pending);
+	}
+}
+//#endregion
 //#region ../compiler/src/parameters.ts
 /**
 * Parameters, as the compiler reads and addresses them.
@@ -12845,7 +12901,9 @@ function applyOne(document, newContract, located, scope, op) {
 			const shape = bodyShapeInNew(newContract, located, to.segments);
 			if (!shape) throw new SchemaOpError(`the new contract's request body has no ${op.to.slice(1)}`);
 			params.splice(index, 1);
-			schemaAdd(document, bodyHolder(document, located.operation, true), `/${to.segments.join("/")}`, shape.shape, shape.required);
+			const root = bodyHolder(document, located.operation, true);
+			importReferences(document, newContract, shape.shape);
+			schemaAdd(document, root, `/${to.segments.join("/")}`, shape.shape, shape.required);
 			return;
 		}
 		const target = to.address.part;
@@ -12877,6 +12935,7 @@ function applyOne(document, newContract, located, scope, op) {
 			if (indexOf(address.part, name) !== -1) throw new SchemaOpError(`the ${address.part} parameter ${name} already exists`);
 			const declared = declaredInNew(newContract, located, address.part, name);
 			if (!declared) throw new SchemaOpError(`the new contract declares no ${address.part} parameter ${name}`);
+			importReferences(document, newContract, declared);
 			params.push(structuredClone(declared));
 			return;
 		}
@@ -13089,6 +13148,7 @@ function predictDocument(oldContract, newContract, changes) {
 							});
 							break;
 						}
+						importReferences(document, newContract, resolved.shape);
 						schemaAdd(document, schema, op.path, resolved.shape, resolved.required);
 						break;
 					}
