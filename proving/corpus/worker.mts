@@ -63,7 +63,12 @@ const judge: Judge =
 const started = Date.now();
 const result = await analysePair(
   { api, fromVersion, toVersion, fromPath, toPath },
-  { judge },
+  {
+    judge,
+    // Streamed as they happen, so a pair stopped for its budget still says
+    // which stage the time went to.
+    onStage: (stage, ms) => process.stdout.write(`\n__STAGE__${stage} ${ms}\n`),
+  },
 );
 
 // A sentinel, because anything the loaded specifications provoke on stdout

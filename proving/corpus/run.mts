@@ -129,6 +129,18 @@ type WorkerResult = PairResult & {
   source?: string;
 };
 
+/** The stages a worker reports, in the order it runs them. */
+const STAGE_ORDER = ["load", "diff", "propose", "align", "compile", "closure"] as const;
+
+/** The stage timings a worker streamed before it was stopped. */
+function stagesIn(out: string): Record<string, number> {
+  const stageMs: Record<string, number> = {};
+  for (const match of out.matchAll(/__STAGE__(\w+) (\d+)/g)) {
+    stageMs[match[1] as string] = Number(match[2]);
+  }
+  return stageMs;
+}
+
 /**
  * Runs one pair in its own process, and never throws.
  *
@@ -210,12 +222,17 @@ function analyseIsolated(pair: LocalPair): Promise<WorkerResult> {
 
     const timer = setTimeout(() => {
       killTree();
-      done(
-        stopped(
-          `Stopped after ${PAIR_TIMEOUT_MS} ms. The difference between these two ` +
-            "versions is larger than one pair's budget.",
+      const stageMs = stagesIn(out);
+      const spent = Object.values(stageMs).reduce((sum, ms) => sum + ms, 0);
+      const running = STAGE_ORDER.find((stage) => !(stage in stageMs)) ?? "closure";
+      done({
+        ...stopped(
+          `Stopped after ${PAIR_TIMEOUT_MS} ms, in \`${running}\` ` +
+            `(${Math.round((PAIR_TIMEOUT_MS - spent) / 1000)}s there). The difference ` +
+            "between these two versions is larger than one pair's budget.",
         ),
-      );
+        stageMs,
+      });
     }, PAIR_TIMEOUT_MS);
 
     child.stdout.on("data", (chunk: Buffer) => {

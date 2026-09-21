@@ -112,6 +112,8 @@ export interface PairResult {
   /** Every breaking check id seen, with how many of each. */
   breakingKinds: Record<string, number>;
   elapsedMs: number;
+  /** How long each stage took, in milliseconds, in the order they ran. */
+  stageMs?: Record<string, number>;
 }
 
 function tally(entries: readonly DiffEntry[]): Record<string, number> {
@@ -152,6 +154,12 @@ export interface AnalyseOptions {
    * finding, and one that never finishes would otherwise end the whole run.
    */
   timeoutMs?: number;
+  /**
+   * Told as each stage ends, with how long it took. A pair stopped from
+   * outside never returns, so this is the only way to learn where its time
+   * went.
+   */
+  onStage?: (stage: string, ms: number) => void;
 }
 
 /**
@@ -185,15 +193,27 @@ export async function analysePair(
     breakingKinds: {},
     elapsedMs: 0,
   };
+  const stageMs: Record<string, number> = {};
+  let mark = started;
+  /** Records the stage that just ended. */
+  const timed = (name: string): void => {
+    const now = performance.now();
+    const ms = Math.round(now - mark);
+    mark = now;
+    stageMs[name] = ms;
+    options.onStage?.(name, ms);
+  };
   const finish = (result: PairResult): PairResult => ({
     ...result,
     elapsedMs: Math.round(performance.now() - started),
+    stageMs,
   });
 
   const loaded = await stage(async () => ({
     from: await loadContract(input.fromPath, input.fromVersion),
     to: await loadContract(input.toPath, input.toVersion),
   }));
+  timed("load");
   if (!loaded.ok) return finish({ ...base, error: loaded.error });
 
   /**
@@ -217,6 +237,7 @@ export async function analysePair(
       confirm: true,
     });
   });
+  timed("diff");
   if (!diffed.ok) {
     // A differ that ran out of memory or time did not fail to read the
     // documents, it failed to afford them, and those are different findings.
@@ -265,6 +286,7 @@ export async function analysePair(
       judge: options.judge,
     }),
   );
+  timed("propose");
   if (!drafted.ok) return finish({ ...afterDiff, error: drafted.error });
 
   const changes: Change[] = drafted.value.proposals.map((proposal) => proposal.change);
@@ -293,6 +315,8 @@ export async function analysePair(
       alignedKinds = tally(lined.value);
     }
   }
+  // Recorded even when there was nothing to align, so the stages read in order.
+  timed("align");
 
   const afterPropose: PairResult = {
     ...afterDiff,
@@ -310,6 +334,7 @@ export async function analysePair(
   const predicted = await stage(() =>
     predictDocument(loaded.value.from.document, loaded.value.to.document, changes),
   );
+  timed("compile");
   if (!predicted.ok) return finish({ ...afterPropose, error: predicted.error });
 
   const afterCompile: PairResult = {
@@ -325,6 +350,7 @@ export async function analysePair(
       await diffDocuments(predicted.value.document, loaded.value.to.document, pinned),
     ),
   );
+  timed("closure");
   if (!residual.ok) {
     // The closure check runs the differ a second time, on the predicted
     // document against the real one. On the largest providers it is the second
