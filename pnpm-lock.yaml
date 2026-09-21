@@ -439,6 +439,22 @@ importers:
         specifier: workspace:*
         version: link:../ir
 
+  packages/telemetry:
+    dependencies:
+      '@invariant/client':
+        specifier: workspace:*
+        version: link:../client
+    devDependencies:
+      '@invariant/cli':
+        specifier: workspace:*
+        version: link:../cli
+      '@invariant/contract':
+        specifier: workspace:*
+        version: link:../contract
+      '@invariant/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+
   packages/verifier:
     dependencies:
       '@invariant/compiler':

@@ -2251,6 +2251,24 @@ property, which Rig C now covers too. The contract is gated by Invariant
 itself through `packages/client/invariant.yaml`, and is released for the first
 time when the service first deploys.
 
+### Counters that leave the process
+
+The runtime reported every applied Change and every adapted request and
+response through two callbacks, and nothing was connected to them, so E9 and
+the retirement signal had nothing to read in any real deployment.
+`@invariant/telemetry` is what they connect to (M4.4). It folds events into
+hourly counters keyed by hashed consumer, contract, Change and hour, so its
+cost follows the number of distinct keys rather than the number of requests,
+and past a bound it counts what it drops instead of growing. A consumer's key
+is hashed before it is held, optionally salted. Three sinks: the control
+plane, through the new client, keeping rows across an outage and retrying them
+under the same idempotency key, dropping only what the service refused for a
+reason a retry would not change; a rotating JSONL file whose outcome lines are
+exactly what `invariant release` reads for E9; and an OpenTelemetry meter,
+typed by shape so the package depends on nothing, under the names in 11.3. A
+heartbeat says which program and runtime are running, which is what will tell
+"no traffic" from "never wired". None of it throws into the request path.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no
