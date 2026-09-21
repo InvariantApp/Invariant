@@ -462,3 +462,23 @@ describe("an operation that kept its path and changed its method", () => {
     expect(ops.some((op) => op.op === "retire")).toBe(false);
   });
 });
+
+describe("a value that went and one that arrived", () => {
+  it("is paired, and put in front of a person rather than assumed", async () => {
+    // Adyen dropped `alma` and added `wero` in one release: two different
+    // payment methods, which only a person can tell from a rename.
+    const vocabulary = (values: string[]) =>
+      object({ type: { type: "string", enum: values } }, ["type"]);
+    const before = await propose(
+      contract({ ...base, Thing: vocabulary(["alma", "card"]) }),
+      contract({ ...base, Thing: vocabulary(["wero", "card"]) }),
+      { judge: new RulesJudge() },
+    );
+    const renamed = before.proposals.find((proposal) =>
+      proposal.change.ops.some((op) => op.op === "convert"),
+    );
+    expect(renamed?.attention).toBe("explicit");
+    expect(renamed?.confidence).toBeLessThan(1);
+    expect(renamed?.notes.join(" ")).toContain("confirm");
+  });
+});

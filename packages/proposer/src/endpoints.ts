@@ -598,6 +598,7 @@ export function parameterDrafts(deltas: readonly ParameterDelta[]): {
     for (const { before, after } of delta.altered) {
       const ops: Change["ops"] = [];
       const notes: string[] = [];
+      let guessed = false;
       const path = `/${before.name}`;
 
       const from = before.enumValues;
@@ -623,7 +624,14 @@ export function parameterDrafts(deltas: readonly ParameterDelta[]): {
             continue;
           }
           ops.push({ op: "convert", path, codec: { kind: "enumMap", pairs } });
-          notes.push("the two documents state this mapping between them");
+          if (pairs.some(([from, to]) => from !== to)) {
+            guessed = true;
+            notes.push(
+              `\`${dropped[0]}\` is paired with \`${gained[0]}\` only because each was the only one to go and to arrive; confirm it is the same value renamed`,
+            );
+          } else {
+            notes.push("the new vocabulary keeps every old value");
+          }
         }
       }
 
@@ -693,6 +701,7 @@ export function parameterDrafts(deltas: readonly ParameterDelta[]): {
         `The \`${before.name}\` ${delta.location} parameter of ${delta.operation} changed.`,
         ops,
         notes,
+        guessed ? "explicit" : "normal",
       );
     }
   }

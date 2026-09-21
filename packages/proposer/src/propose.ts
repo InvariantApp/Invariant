@@ -28,6 +28,12 @@ import { describePrefixMove, detectPrefixMove, prefixChange } from "./prefix.ts"
 import { stemOf, UNIT_SUFFIXES } from "./rules.ts";
 import { type FoldDecision, foldDecisions } from "./vocabulary.ts";
 
+/**
+ * How much a rename inferred from one value going and one arriving is worth.
+ * Below the attention threshold on purpose, so a person always sees it.
+ */
+const RENAME_GUESS_CONFIDENCE = 0.5;
+
 /** Below this, a draft is marked for explicit attention rather than assumed good. */
 export const DEFAULT_ATTENTION_THRESHOLD = 0.6;
 
@@ -725,6 +731,17 @@ function alteredProposals(
       // no old caller is hurt by, which the gate does not report either.
       if (ops.length === 0) continue;
 
+      // One value that went and one that arrived is a pairing the documents
+      // make possible, not one they state: Adyen dropped `alma` and added
+      // `wero`, two different payment methods. Drafted, because it is often
+      // right, and put in front of a person, because nothing here knows.
+      const guessed = ops.some(
+        (op) =>
+          op.op === "convert" &&
+          op.codec.kind === "enumMap" &&
+          op.codec.pairs.some(([from, to]) => from !== to),
+      );
+      const confidence = guessed ? RENAME_GUESS_CONFIDENCE : 1;
       proposals.push({
         change: {
           irVersion: 1,
@@ -732,17 +749,22 @@ function alteredProposals(
           summary: `\`${pair.old.name}\` changed shape on ${delta.schema}.`,
           scopes: [scopeOf(delta)],
           ops,
-          provenance: { proposed_by: { judge: "rules", confidence: 1 } },
+          provenance: { proposed_by: { judge: "rules", confidence } },
         },
         judge: "rules",
-        confidence: 1,
-        attention: "normal",
+        confidence,
+        attention: guessed ? "explicit" : "normal",
         notes: [
           reshaped
             ? "the field kept its name, so only its values moved"
             : "the field kept its name and its values",
           ...shape.notes,
           ...presence.notes,
+          ...(guessed
+            ? [
+                "a value that went is paired with the one that arrived only because each was the only one; confirm it is the same thing renamed, and not one retired and an unrelated one added",
+              ]
+            : []),
         ],
       });
     }
