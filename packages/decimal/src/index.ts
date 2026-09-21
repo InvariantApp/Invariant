@@ -113,13 +113,14 @@ export function fractionDigits(text: string): number {
 export function compareDecimal(a: string, b: string): number {
   const left = parseDecimal(a);
   const right = parseDecimal(b);
-  if (left.negative !== right.negative) return left.negative ? -1 : 1;
-
   const scale = Math.max(left.scale, right.scale);
-  const leftDigits = BigInt(left.digits) * 10n ** BigInt(scale - left.scale);
-  const rightDigits = BigInt(right.digits) * 10n ** BigInt(scale - right.scale);
-  const sign = left.negative ? -1n : 1n;
-  const diff = (leftDigits - rightDigits) * sign;
+  // Compared as signed values at a common scale. Comparing signs first once
+  // put -0 below 0, which are the same number; a property test found it.
+  const value = (decimal: Decimal) => {
+    const magnitude = BigInt(decimal.digits) * 10n ** BigInt(scale - decimal.scale);
+    return decimal.negative ? -magnitude : magnitude;
+  };
+  const diff = value(left) - value(right);
   return diff === 0n ? 0 : diff > 0n ? 1 : -1;
 }
 

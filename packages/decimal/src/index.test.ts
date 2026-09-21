@@ -146,3 +146,16 @@ describe("decimal laws", () => {
     );
   });
 });
+
+describe("comparing zero", () => {
+  // -0 is valid JSON and the same number as 0. Comparing signs first put it
+  // below 0, which a property test found with the seed 2030732703.
+  it("treats a negative zero as zero, at any scale", () => {
+    expect(compareDecimal("0", "-0")).toBe(0);
+    expect(compareDecimal("-0.00", "0")).toBe(0);
+    expect(compareDecimal("-0", "0.1")).toBe(-1);
+    expect(compareDecimal("-0", "-0.1")).toBe(1);
+    expect(compareDecimal("-1.5", "-1.50")).toBe(0);
+    expect(compareDecimal("-2", "-10")).toBe(1);
+  });
+});
