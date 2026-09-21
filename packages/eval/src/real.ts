@@ -126,12 +126,40 @@ export interface PairResult {
   decidedError?: string;
   /** How long each stage took, in milliseconds, in the order they ran. */
   stageMs?: Record<string, number>;
+  /**
+   * The breaking deltas counted once per place rather than once per
+   * operation: the aligned denominator, what the drafts left, and what
+   * answered decisions leave. See `placeOf`.
+   */
+  places?: { aligned: number; after: number; decided?: number };
 }
 
 function tally(entries: readonly DiffEntry[]): Record<string, number> {
   const out: Record<string, number> = {};
   for (const entry of entries) out[entry.id] = (out[entry.id] ?? 0) + 1;
   return out;
+}
+
+/**
+ * One delta's place: the check and what it says, with the response status
+ * taken out, and the operation kept only where the text names no property.
+ *
+ * The differ reports a schema's delta once for every operation and status
+ * that returns the schema, so one enum value Stripe adds to a shared object
+ * is thousands of entries, and a count by entry measures how widely a schema
+ * is used rather than how much changed. A property's place in a body is the
+ * nearest thing the report carries to the schema it belongs to. A removed
+ * path names no property, and each one is its own break.
+ */
+export function placeOf(entry: DiffEntry): string {
+  const text = entry.text.replace(/`([1-5]\d\d|[1-5]xx|default)`/gi, "`*`");
+  return /propert/i.test(entry.text)
+    ? `${entry.id}\n${text}`
+    : `${entry.id}\n${entry.operation} ${entry.path}\n${text}`;
+}
+
+function placesIn(entries: readonly DiffEntry[]): number {
+  return new Set(entries.map(placeOf)).size;
 }
 
 function message(error: unknown): string {
@@ -311,6 +339,7 @@ export async function analysePair(
   );
   let aligned = breaking.length;
   let alignedKinds = tally(breaking);
+  let alignedEntries: readonly DiffEntry[] = breaking;
   if (routeOnly.length > 0) {
     const lined = await stage(async () => {
       const predicted = predictDocument(
@@ -325,6 +354,7 @@ export async function analysePair(
     if (lined.ok) {
       aligned = lined.value.length;
       alignedKinds = tally(lined.value);
+      alignedEntries = lined.value;
     }
   }
   // Recorded even when there was nothing to align, so the stages read in order.
@@ -374,17 +404,20 @@ export async function analysePair(
     });
   }
 
+  const places = { aligned: placesIn(alignedEntries), after: placesIn(residual.value) };
   const closed: PairResult = {
     ...afterCompile,
     reached: "done",
     breakingAfter: residual.value.length,
     unexplainedKinds: tally(residual.value),
+    places,
   };
   if (drafted.value.decisions.length === 0) {
     return finish({
       ...closed,
       breakingAfterDecided: closed.breakingAfter,
       unexplainedDecidedKinds: closed.unexplainedKinds,
+      places: { ...places, decided: places.after },
     });
   }
 
@@ -413,6 +446,7 @@ export async function analysePair(
           ...closed,
           breakingAfterDecided: decided.value.length,
           unexplainedDecidedKinds: tally(decided.value),
+          places: { ...places, decided: placesIn(decided.value) },
         }
       : { ...closed, decidedError: decided.error },
   );

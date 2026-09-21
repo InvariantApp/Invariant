@@ -118,6 +118,23 @@ export function scoreboard(inputs: {
   const closedDecided = breakingPairs.filter(
     (result) => (result.breakingAfterDecided ?? result.breakingAfter) === 0,
   );
+  // Per place: a shared schema's one change counts once, however many
+  // operations return it. The gate is judged on this where it is measured.
+  const placed = done.filter((result) => result.places !== undefined);
+  const placeSum = (pick: (places: NonNullable<CorpusResult["places"]>) => number) =>
+    placed.reduce(
+      (sum, result) => sum + pick(result.places as NonNullable<CorpusResult["places"]>),
+      0,
+    );
+  const placesAligned = placeSum((places) => places.aligned);
+  const placesAfter = placeSum((places) => places.after);
+  const placesDecided = placeSum((places) => places.decided ?? places.after);
+  const byPlace = placed.length > 0;
+  const headline = byPlace
+    ? placesAligned === 0
+      ? 1
+      : (placesAligned - placesAfter) / placesAligned
+    : explained;
   lines.push({
     id: "L4",
     claim:
@@ -125,13 +142,15 @@ export function scoreboard(inputs: {
     status:
       corpus.length === 0
         ? "not measured"
-        : explained >= 0.95 && closed.length >= 0.8 * breakingPairs.length
+        : headline >= 0.95 && closed.length >= 0.8 * breakingPairs.length
           ? "met"
           : "not met",
     value:
-      `${percent(aligned - after, aligned)} of breaking deltas explained; ${closed.length} of ${breakingPairs.length} breaking pairs closed (${percent(closed.length, breakingPairs.length)}). ` +
-      `With every open decision answered synthetically: ${percent(aligned - decided, aligned)} explained, ${closedDecided.length} pairs closed (${percent(closedDecided.length, breakingPairs.length)}), measured on ${measuredDecided} of ${done.length} completed pairs. ` +
-      "Counted per instance, not yet per (id, schema).",
+      (byPlace
+        ? `Per place, on ${placed.length} of ${done.length} completed pairs: ${percent(placesAligned - placesAfter, placesAligned)} of breaking deltas explained, ${percent(placesAligned - placesDecided, placesAligned)} with every open decision answered synthetically. `
+        : "") +
+      `Per instance: ${percent(aligned - after, aligned)} explained, ${percent(aligned - decided, aligned)} with synthetic answers (measured on ${measuredDecided} pairs). ` +
+      `${closed.length} of ${breakingPairs.length} breaking pairs closed (${percent(closed.length, breakingPairs.length)}), ${closedDecided.length} with synthetic answers (${percent(closedDecided.length, breakingPairs.length)}).`,
     evidence:
       "proving/corpus/results.json (rules judge; without decisions, and with synthetic answers)",
   });
