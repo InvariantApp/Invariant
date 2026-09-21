@@ -104,8 +104,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     # Runs the projects' own images and test suites, which this project did
-    # not write, so the job holds no token and no secret.
-    permissions: {}
+    # not write, so the job holds no secret. Reading this repository needs
+    # the token while it is private; checkout drops it from git's config
+    # before anything else runs, so no later step can use it.
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
         with:
