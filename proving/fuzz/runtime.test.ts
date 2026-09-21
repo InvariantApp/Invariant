@@ -261,6 +261,128 @@ describe("transforming a body", () => {
   });
 });
 
+interface EnvelopeVectorFile {
+  template: string;
+  envelope: unknown;
+  request: { path: string };
+}
+
+const ENVELOPES = (
+  JSON.parse(
+    readFileSync(new URL("../../conformance/vectors.json", import.meta.url), "utf8"),
+  ) as { envelopes: EnvelopeVectorFile[] }
+).envelopes.flatMap((vector) => {
+  try {
+    const runtime = createRuntime({
+      program: {
+        irVersion: 1,
+        api: "fuzz",
+        currentLabel: "new",
+        current: "sha256:fuzz",
+        contracts: {
+          old: {
+            label: "old",
+            routes: [],
+            sites: { [`post ${vector.template}`]: { envelope: vector.envelope } },
+            behaviors: [],
+            retired: [],
+          },
+        },
+      },
+      identity: [{ kind: "default", label: "old" }],
+      maxBodyBytes: 64 * 1024,
+    });
+    return [{ runtime, path: vector.request.path }];
+  } catch {
+    return [];
+  }
+});
+
+/** The pieces a hostile query string, header or cookie is made of. */
+const fragment = fc.oneof(
+  fc.constantFrom(
+    "limit",
+    "page_size",
+    "tag",
+    "tags",
+    "filter",
+    "where",
+    "sort",
+    "amount",
+    "note",
+    "api_version",
+    "[",
+    "]",
+    "%5B",
+    "%5D",
+    "=",
+    "&",
+    "+",
+    "%",
+    "%0D%0A",
+    "%E0%A4%A",
+    "__proto__",
+    "constructor",
+    ",",
+    "|",
+    " ",
+    ";",
+    "1e400",
+    "-0",
+    "true",
+  ),
+  fc.string({ maxLength: 4 }),
+);
+const wire = fc.array(fragment, { maxLength: 12 }).map((parts) => parts.join(""));
+const headerName = fc.constantFrom(
+  "X-Page-Size",
+  "x-limit",
+  "Cookie",
+  "cookie",
+  "api-version",
+  "X-Note",
+  "Authorization",
+);
+
+describe("rewriting a whole request", () => {
+  it("returns a request or refuses with a typed error, and never writes a line break into a header", () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom(...ENVELOPES),
+        wire,
+        fc.array(fc.tuple(headerName, wire), { maxLength: 4 }),
+        fc.option(text, { nil: undefined }),
+        (entry, search, headers, body) => {
+          const site = entry.runtime.siteFor("old", "POST", entry.path);
+          expect(site).toBeDefined();
+          if (!site) return;
+          const request = { path: entry.path, search, headers, body };
+          const context = { contract: "old", operation: "post" };
+          const attempt = () => {
+            try {
+              return entry.runtime.transformEnvelope(site, request, context);
+            } catch (error) {
+              if (!typed(error)) throw error;
+              return `refused: ${(error as Error).name}`;
+            }
+          };
+          const first = attempt();
+          expect(attempt()).toEqual(first);
+          if (typeof first !== "string") {
+            const before = new Set(headers.map(([, value]) => value));
+            for (const [, value] of first.headers) {
+              // A value the caller sent is theirs; one the program wrote is not.
+              if (!before.has(value)) expect(value).not.toMatch(/[\r\n]/);
+            }
+          }
+          prototypeUntouched();
+        },
+      ),
+      settings,
+    );
+  });
+});
+
 describe("matching a path template", () => {
   const literal = fc.stringMatching(/^[a-z0-9._:-]{1,6}$/);
   const segment = fc.oneof(
@@ -386,7 +508,6 @@ describe("the proxy", () => {
             runtime: entry.runtime,
             upstream: "http://upstream.test",
             fetch: upstream,
-            maxBodyBytes: 64 * 1024,
           });
           const hasBody = method !== "GET" && method !== "HEAD";
           const response = await proxy(

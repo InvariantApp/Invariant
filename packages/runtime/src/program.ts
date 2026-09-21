@@ -6,6 +6,15 @@
  * unrecognised instruction, an unexpected field or a malformed path is a
  * refusal to load rather than something to skip over at request time.
  */
+import {
+  codecKey,
+  type DecodedEnvelope,
+  type ParamCodec,
+  type ParamLocation,
+  type ParamScalar,
+  type ParamStyle,
+  type ParamType,
+} from "./envelope.ts";
 import type { CompiledInstr, ScalarType } from "./interpreter.ts";
 import type { Json } from "./json.ts";
 import { isUnsafeKey } from "./pointer.ts";
@@ -19,6 +28,10 @@ export class ProgramError extends Error {
 
 export interface DecodedSite {
   request: CompiledInstr[];
+  /** Instructions over the whole request, where a Change reaches a parameter. */
+  envelope?: DecodedEnvelope;
+  /** The site's path template, split on `/`, as the contract writes it. */
+  template: string[];
   response: Map<string, CompiledInstr[]>;
   /** True when any instruction re-encodes a number. */
   numeric: boolean;
@@ -229,9 +242,196 @@ function needsExactNumbers(instrs: readonly CompiledInstr[]): boolean {
   return instrs.some((instr) => instr.k === "scale" || instr.k === "cast");
 }
 
-function decodeSite(raw: unknown, where: string): DecodedSite {
+const LOCATIONS: Record<string, ParamLocation> = {
+  "@path": "path",
+  "@query": "query",
+  "@header": "header",
+  "@cookie": "cookie",
+};
+
+/**
+ * Styles each location can be written in. `label` and `matrix` path styles
+ * and exploded form objects are left out on purpose: the first two are rare
+ * enough to refuse rather than half-support, and an exploded form object
+ * spreads its properties across the query string with nothing to say which
+ * keys belong to it.
+ */
+const STYLES: Record<ParamLocation, readonly string[]> = {
+  path: ["simple"],
+  query: ["form", "spaceDelimited", "pipeDelimited", "deepObject"],
+  header: ["simple"],
+  cookie: ["form"],
+};
+const PARAM_TYPES = new Set([
+  "string",
+  "integer",
+  "number",
+  "boolean",
+  "array",
+  "object",
+]);
+
+/**
+ * Headers no program may touch. The compiler refuses these first; this is the
+ * copy the runtime holds, so a program built by anything else is refused too.
+ * `DENIED_HEADERS` in `@invariant/ir` is the list, and a test keeps them equal.
+ */
+export const RUNTIME_DENIED_HEADERS: ReadonlySet<string> = new Set([
+  "authorization",
+  "proxy-authorization",
+  "cookie",
+  "set-cookie",
+  "host",
+  "connection",
+  "keep-alive",
+  "proxy-connection",
+  "te",
+  "trailer",
+  "transfer-encoding",
+  "upgrade",
+  "expect",
+  "content-length",
+  "content-type",
+  "content-encoding",
+  "x-api-key",
+  "api-key",
+  "x-auth-token",
+]);
+const RUNTIME_DENIED_WORDS = /signature|hmac|digest|credential|secret/;
+
+function decodeCodec(raw: unknown, where: string): ParamCodec {
   const value = object(raw, where);
-  expectKeys(value, ["request", "response"], where);
+  expectKeys(value, ["in", "name", "style", "explode", "type", "items"], where);
+  const location = string(value["in"], `${where}.in`) as ParamLocation;
+  if (!(location in STYLES))
+    throw new ProgramError(`${where}.in is not a parameter location`);
+  const name = string(value["name"], `${where}.name`);
+  if (name === "" || isUnsafeKey(name)) {
+    throw new ProgramError(`${where}.name may not be "${name}"`);
+  }
+  if (location === "header") {
+    if (name !== name.toLowerCase()) {
+      throw new ProgramError(`${where}.name must be lowercase for a header`);
+    }
+    if (RUNTIME_DENIED_HEADERS.has(name) || RUNTIME_DENIED_WORDS.test(name)) {
+      throw new ProgramError(
+        `${where} names the ${name} header, which no program may touch`,
+      );
+    }
+  }
+  const style = string(value["style"], `${where}.style`) as ParamStyle;
+  if (!STYLES[location].includes(style)) {
+    throw new ProgramError(
+      `${where}.style ${style} is not served for a ${location} parameter`,
+    );
+  }
+  const explode = value["explode"];
+  if (typeof explode !== "boolean")
+    throw new ProgramError(`${where}.explode must be a boolean`);
+  const type = string(value["type"], `${where}.type`) as ParamType;
+  if (!PARAM_TYPES.has(type))
+    throw new ProgramError(`${where}.type is not a parameter type`);
+  if (type === "object" && explode && style === "form") {
+    throw new ProgramError(`${where} is an exploded form object, which is not served`);
+  }
+  if (style === "deepObject" && type !== "object") {
+    throw new ProgramError(`${where} is a deepObject that is not an object`);
+  }
+  const items = value["items"];
+  if (items !== undefined && (type !== "array" || !SCALARS.has(items as ScalarType))) {
+    throw new ProgramError(`${where}.items must be a scalar type, on an array`);
+  }
+  return {
+    in: location,
+    name,
+    style,
+    explode,
+    type,
+    ...(items === undefined ? {} : { items: items as ParamScalar }),
+  };
+}
+
+function decodeEnvelope(raw: unknown, where: string): DecodedEnvelope {
+  const value = object(raw, where);
+  expectKeys(value, ["instrs", "params", "body"], where);
+  const instrs = (array(value["instrs"], `${where}.instrs`) as unknown[]).map(
+    (instr, index) => decodeInstr(instr, `${where}.instrs[${index}]`),
+  );
+  const params = object(value["params"], `${where}.params`);
+  expectKeys(params, ["old", "new"], `${where}.params`);
+  const codecs = (side: "old" | "new") => {
+    const map = new Map<string, ParamCodec>();
+    (array(params[side], `${where}.params.${side}`) as unknown[]).forEach(
+      (entry, index) => {
+        const codec = decodeCodec(entry, `${where}.params.${side}[${index}]`);
+        map.set(codecKey(codec.in, codec.name), codec);
+      },
+    );
+    return map;
+  };
+  const old = codecs("old");
+  const next = codecs("new");
+  const body = value["body"];
+  if (typeof body !== "boolean")
+    throw new ProgramError(`${where}.body must be a boolean`);
+
+  // Every place an instruction reaches is a part of the request and, outside
+  // the body, one named parameter the program says how to write. Anything
+  // else would be a program rewriting what it has no declaration for.
+  instrs.forEach((instr, index) => {
+    const paths = instr.k === "move" ? [instr.from, instr.to] : [instr.path];
+    for (const path of paths) {
+      const part = path[0];
+      if (part === "@body") {
+        if (!body) {
+          throw new ProgramError(
+            `${where}.instrs[${index}] reaches the body, which body says is not read`,
+          );
+        }
+        continue;
+      }
+      const location = part === undefined ? undefined : LOCATIONS[part];
+      const name = path[1];
+      if (location === undefined || name === undefined || name === "*") {
+        throw new ProgramError(
+          `${where}.instrs[${index}] must address one named parameter or the body`,
+        );
+      }
+      const key = codecKey(location, name);
+      if (!old.has(key) && !next.has(key)) {
+        throw new ProgramError(
+          `${where}.instrs[${index}] names the ${location} parameter ${name}, which params does not declare`,
+        );
+      }
+      if (
+        location === "path" &&
+        instr.k !== "scale" &&
+        instr.k !== "enum" &&
+        instr.k !== "cast"
+      ) {
+        // A template has exactly the parameters it has, so a path parameter
+        // can be converted but not moved, added or taken away.
+        throw new ProgramError(
+          `${where}.instrs[${index}] can only convert a path parameter`,
+        );
+      }
+    }
+  });
+  return { instrs, old, new: next, body };
+}
+
+function decodeSite(raw: unknown, where: string, template: string[]): DecodedSite {
+  const value = object(raw, where);
+  expectKeys(value, ["request", "envelope", "response"], where);
+  if (value["request"] !== undefined && value["envelope"] !== undefined) {
+    throw new ProgramError(
+      `${where} has both request and envelope; one list keeps the order`,
+    );
+  }
+  const envelope =
+    value["envelope"] === undefined
+      ? undefined
+      : decodeEnvelope(value["envelope"], `${where}.envelope`);
 
   const request = (array(value["request"] ?? [], `${where}.request`) as unknown[]).map(
     (instr, index) => decodeInstr(instr, `${where}.request[${index}]`),
@@ -255,8 +455,16 @@ function decodeSite(raw: unknown, where: string): DecodedSite {
   }
 
   const numeric =
-    needsExactNumbers(request) || [...response.values()].some(needsExactNumbers);
-  return { request, response, numeric };
+    needsExactNumbers(request) ||
+    (envelope !== undefined && needsExactNumbers(envelope.instrs)) ||
+    [...response.values()].some(needsExactNumbers);
+  return {
+    request,
+    response,
+    numeric,
+    template,
+    ...(envelope === undefined ? {} : { envelope }),
+  };
 }
 
 function decodeRoute(raw: unknown, where: string): DecodedRoute {
@@ -317,7 +525,21 @@ export function decodeProgram(raw: unknown): DecodedProgram {
     for (const [key, site] of Object.entries(
       object(contract["sites"], `${where}.sites`),
     )) {
-      sites.set(key.toLowerCase(), decodeSite(site, `${where}.sites["${key}"]`));
+      // Only the method is case-insensitive. A path is not, and lowercasing
+      // it meant a site such as `/v1/{name}:batchGet` was never found, so its
+      // callers were passed on untranslated without a word.
+      const separator = key.indexOf(" ");
+      if (separator <= 0) {
+        throw new ProgramError(
+          `${where}.sites has a key "${key}" that is not "method path"`,
+        );
+      }
+      const method = key.slice(0, separator).toLowerCase();
+      const path = key.slice(separator + 1);
+      sites.set(
+        `${method} ${path}`,
+        decodeSite(site, `${where}.sites["${key}"]`, path.split("/")),
+      );
     }
 
     contracts.set(label, {

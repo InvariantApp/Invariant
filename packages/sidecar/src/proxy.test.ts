@@ -96,7 +96,11 @@ function upstream(answer: (seen: Seen) => Response | Promise<Response>) {
   return { fetchImpl, calls };
 }
 
-function proxyWith(fetchImpl: typeof fetch, extra: Record<string, unknown> = {}) {
+function proxyWith(
+  fetchImpl: typeof fetch,
+  extra: Partial<Parameters<typeof createProxy>[0]> = {},
+  runtimeExtra: { maxBodyBytes?: number } = {},
+) {
   return createProxy({
     runtime: createRuntime({
       program: PROGRAM,
@@ -104,6 +108,7 @@ function proxyWith(fetchImpl: typeof fetch, extra: Record<string, unknown> = {})
         { kind: "header", name: "payments-version" },
         { kind: "default", label: "2026-09-20" },
       ],
+      ...runtimeExtra,
     }),
     upstream: "http://api.internal:8080",
     fetch: fetchImpl,
@@ -390,7 +395,7 @@ describe("what the proxy will not let through", () => {
       }),
       duplex: "half",
     } as RequestInit);
-    const response = await proxyWith(fetchImpl, { maxBodyBytes: 1024 })(streamed);
+    const response = await proxyWith(fetchImpl, {}, { maxBodyBytes: 1024 })(streamed);
 
     expect(response.status).toBe(413);
     expect(calls).toHaveLength(0);

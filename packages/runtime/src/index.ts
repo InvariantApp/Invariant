@@ -11,7 +11,10 @@
  * compiled program ships inside the provider's build, so an adapter deploys and
  * rolls back with the code it belongs to.
  */
+
+import { closeEnvelope, type EnvelopeRequest, openEnvelope } from "./envelope.ts";
 import { BodyTooLargeError } from "./errors.ts";
+import { headersForText, isJsonMediaType, readBodyText } from "./http.ts";
 import {
   type CompiledInstr,
   DEFAULT_LIMITS,
@@ -32,6 +35,7 @@ import {
   ProgramError,
 } from "./program.ts";
 
+export type { EnvelopeRequest } from "./envelope.ts";
 export {
   BodyTooLargeError,
   DEFAULT_ERROR_SHAPER,
@@ -53,6 +57,19 @@ export {
 export type { DecodedProgram, DecodedSite };
 // matchTemplate is the rule the runtime routes by, for anything that has to agree with it.
 export { decodeProgram, MatchLimitError, matchTemplate, ProgramError, TransformError };
+
+/** A request as the provider's handler should receive it. */
+export interface AdaptedRequest {
+  path: string;
+  /** With its `?`, or empty. */
+  search: string;
+  headers: Headers;
+  body: ReadableStream<Uint8Array> | string | null;
+}
+
+function pathsOfInstr(instr: CompiledInstr): readonly (readonly string[])[] {
+  return instr.k === "move" ? [instr.from, instr.to] : [instr.path];
+}
 
 /** A transformed body, and the paths at which a value was folded to produce it. */
 export interface Transformed {
@@ -605,6 +622,7 @@ export class InvariantRuntime {
     if (disabled && disabled.length > 0) {
       const referenced = new Set<string>();
       for (const instr of site.request) referenced.add(instr.c);
+      for (const instr of site.envelope?.instrs ?? []) referenced.add(instr.c);
       for (const list of site.response.values()) {
         for (const instr of list) referenced.add(instr.c);
       }
@@ -656,6 +674,140 @@ export class InvariantRuntime {
         consumer: context.consumer,
       }),
     ).body;
+  }
+
+  /** True when adapting this request means reading its body. */
+  readsRequestBody(site: DecodedSite): boolean {
+    return site.request.length > 0 || site.envelope?.body === true;
+  }
+
+  /** True when some program converts a path parameter, so the path itself can change. */
+  get rewritesPathParameters(): boolean {
+    for (const contract of this.#program.contracts.values()) {
+      for (const site of contract.sites.values()) {
+        if (
+          site.envelope?.instrs.some((instr) => pathsOfInstr(instr)[0]?.[0] === "@path")
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * An incoming request as the provider's handler should see it: the one
+   * place every binding adapts a request, so they cannot disagree about it.
+   *
+   * `parts` is the path, query string and headers as the binding would pass
+   * them on, after routing and after its own header hygiene. Only a JSON body
+   * is ever read, and only when the site's program reaches into it. Anything
+   * else a program would have to write a body into is refused rather than
+   * replaced, because a form or an upload rewritten as JSON is a request the
+   * provider never agreed to receive.
+   */
+  async adaptRequest(
+    site: DecodedSite,
+    request: Request,
+    parts: { path: string; search: string; headers: Headers },
+    context: { contract: string; operation: string; consumer?: string | undefined },
+  ): Promise<AdaptedRequest> {
+    const unchanged: AdaptedRequest = { ...parts, body: request.body };
+    const json = isJsonMediaType(request.headers.get("content-type"));
+
+    if (!site.envelope) {
+      if (site.request.length === 0 || !request.body || !json) return unchanged;
+      const original = await readBodyText(request, {
+        limit: this.#maxBodyBytes,
+        encoded: true,
+      });
+      const body = this.transformRequest(site, original.text, context);
+      return {
+        ...parts,
+        headers: headersForText(parts.headers, body, original.decoded),
+        body,
+      };
+    }
+
+    const envelope = site.envelope;
+    if (envelope.body && request.body && !json) {
+      throw new TransformError(
+        envelope.instrs.find((instr) =>
+          pathsOfInstr(instr).some((path) => path[0] === "@body"),
+        )?.c ?? "",
+        "This operation's program writes into the request body, and the body sent is not JSON.",
+      );
+    }
+    const original =
+      envelope.body && request.body
+        ? await readBodyText(request, { limit: this.#maxBodyBytes, encoded: true })
+        : undefined;
+    const result = this.transformEnvelope(
+      site,
+      {
+        path: parts.path,
+        search: parts.search.startsWith("?") ? parts.search.slice(1) : parts.search,
+        headers: [...parts.headers],
+        body: original?.text,
+      },
+      context,
+    );
+    let headers = new Headers(result.headers);
+    let body: ReadableStream<Uint8Array> | string | null = request.body;
+    if (original !== undefined && result.body !== undefined) {
+      body = result.body;
+      headers = headersForText(headers, body, original.decoded);
+    } else if (original === undefined && result.body !== undefined) {
+      // A body the program built from parameters, where the caller sent none.
+      body = result.body;
+      headers.set("content-type", "application/json");
+      headers = headersForText(headers, body, false);
+    }
+    return {
+      path: result.path,
+      search: result.search === "" ? "" : `?${result.search}`,
+      headers,
+      body,
+    };
+  }
+
+  /**
+   * The whole request rewritten, for an operation where a Change reaches a
+   * parameter: its path, query string, headers and, where the program reads
+   * it, its body.
+   *
+   * `request.path` is the routed path as the caller's URL has it, base path
+   * included. Nothing outside what the program names is changed, down to the
+   * bytes and order of an untouched query string.
+   */
+  transformEnvelope(
+    site: DecodedSite,
+    request: EnvelopeRequest,
+    context: { contract: string; operation: string; consumer?: string | undefined },
+  ): EnvelopeRequest {
+    const envelope = site.envelope;
+    const local = this.#local(request.path);
+    if (!envelope || envelope.instrs.length === 0 || local === undefined) return request;
+    return this.#reporting("request", context, () => {
+      if (request.body !== undefined && request.body.length > this.#maxBodyBytes) {
+        throw new BodyTooLargeError(this.#maxBodyBytes);
+      }
+      const values = matchTemplate(site.template, local) ?? [];
+      const fidelity = site.numeric ? this.#fidelity : "double";
+      const opened = { ...request, path: local };
+      const tree = openEnvelope(envelope, site.template, values, opened, fidelity);
+      const result = execute(tree, envelope.instrs, this.#limits);
+      if (this.#onUsage && result.applied.size > 0) {
+        this.#onUsage({
+          contract: context.contract,
+          operation: context.operation,
+          consumer: context.consumer,
+          changes: result.applied,
+        });
+      }
+      const closed = closeEnvelope(envelope, site.template, values, opened, tree);
+      return { ...closed, path: `${this.#program.basePath}${closed.path}` };
+    });
   }
 
   transformResponse(

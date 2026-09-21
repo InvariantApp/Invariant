@@ -30,7 +30,6 @@ async function main(): Promise<void> {
     createProxy({
       runtime,
       upstream: config.upstream,
-      maxBodyBytes: config.maxBodyBytes,
       upstreamTimeoutMs: config.upstreamTimeoutMs,
       healthPath: config.healthPath,
       skip: skipper(config.skip),

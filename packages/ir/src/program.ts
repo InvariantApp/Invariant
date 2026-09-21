@@ -128,10 +128,84 @@ export const RouteRule = Type.Object(
   { additionalProperties: false },
 );
 
+/**
+ * How one parameter is written on the wire, from its OpenAPI declaration.
+ *
+ * Carried for every parameter an envelope instruction reads or writes, and for
+ * nothing else: a parameter no instruction names is passed on byte for byte,
+ * however it is written.
+ */
+export const ParamCodec = Type.Object(
+  {
+    in: Type.Union([
+      Type.Literal("path"),
+      Type.Literal("query"),
+      Type.Literal("header"),
+      Type.Literal("cookie"),
+    ]),
+    /** As declared; a header's is lowercase. */
+    name: Type.String({ minLength: 1 }),
+    style: Type.Union([
+      Type.Literal("simple"),
+      Type.Literal("form"),
+      Type.Literal("spaceDelimited"),
+      Type.Literal("pipeDelimited"),
+      Type.Literal("deepObject"),
+    ]),
+    explode: Type.Boolean(),
+    /** What the value is, so `10` reaches an instruction as a number. */
+    type: Type.Union([
+      Type.Literal("string"),
+      Type.Literal("integer"),
+      Type.Literal("number"),
+      Type.Literal("boolean"),
+      Type.Literal("array"),
+      Type.Literal("object"),
+    ]),
+    /** The element type of an array. */
+    items: Type.Optional(
+      Type.Union([
+        Type.Literal("string"),
+        Type.Literal("integer"),
+        Type.Literal("number"),
+        Type.Literal("boolean"),
+      ]),
+    ),
+  },
+  { additionalProperties: false },
+);
+
+/**
+ * Old shape to canonical over the whole request, for an operation where a
+ * Change reaches past the body.
+ *
+ * Instructions address the envelope, `/@query/limit` or `/@body/amount`, and
+ * run as one ordered list. `old` says how each parameter they name is written
+ * by an old caller, `new` how the current contract expects it; a name in
+ * neither is never touched.
+ */
+export const EnvelopeProgram = Type.Object(
+  {
+    instrs: Type.Array(Instr),
+    params: Type.Object(
+      { old: Type.Array(ParamCodec), new: Type.Array(ParamCodec) },
+      { additionalProperties: false },
+    ),
+    /** True when an instruction reaches into `/@body`, so the body is read. */
+    body: Type.Boolean(),
+  },
+  { additionalProperties: false },
+);
+
 export const SiteProgram = Type.Object(
   {
     /** Old shape to canonical, applied to a request body. */
     request: Type.Optional(Type.Array(Instr)),
+    /**
+     * Old shape to canonical over the whole request. Present instead of
+     * `request` wherever a Change reaches a parameter.
+     */
+    envelope: Type.Optional(EnvelopeProgram),
     /**
      * Canonical back to old shape, keyed by status code or by the class
      * shorthands `2xx`, `4xx`, `5xx`. An exact code wins over its class.
@@ -210,6 +284,8 @@ export type SetInstr = Static<typeof SetInstr>;
 export type DelInstr = Static<typeof DelInstr>;
 export type Instr = Static<typeof Instr>;
 export type RouteRule = Static<typeof RouteRule>;
+export type ParamCodec = Static<typeof ParamCodec>;
+export type EnvelopeProgram = Static<typeof EnvelopeProgram>;
 export type SiteProgram = Static<typeof SiteProgram>;
 export type ContractProgram = Static<typeof ContractProgram>;
 export type CompiledProgram = Static<typeof CompiledProgram>;

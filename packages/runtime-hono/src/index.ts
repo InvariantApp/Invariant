@@ -163,6 +163,17 @@ export function adapt(options: HonoBindingOptions): MiddlewareHandler {
     skip,
   } = options;
 
+  // Hono has matched the route, and bound its path parameters, before any
+  // middleware runs, so a path parameter converted here would never reach the
+  // handler. Refused where it is mounted rather than served wrong.
+  if (runtime.rewritesPathParameters) {
+    throw new Error(
+      "This program converts a path parameter, which an in-process binding cannot " +
+        "serve because the route is matched before it runs. Run the proxy in front " +
+        "of this service instead.",
+    );
+  }
+
   return async (c: Context, next: Next) => {
     if (skip?.(c.req.path)) return next();
 
@@ -213,28 +224,26 @@ export function adapt(options: HonoBindingOptions): MiddlewareHandler {
     // form, an upload, is passed on as it came, and the provider's own handler
     // answers it as it would for any caller.
     const request = c.req.raw;
-    if (
-      site.request.length > 0 &&
-      request.body &&
-      isJsonMediaType(request.headers.get("content-type"))
-    ) {
+    if (runtime.readsRequestBody(site) || site.envelope) {
       try {
-        const original = await readBodyText(request.clone(), {
-          limit: runtime.maxBodyBytes,
-          encoded: true,
-        });
-        const transformed = runtime.transformRequest(site, original.text, {
-          contract,
-          operation,
-          consumer,
-        });
+        const url = new URL(request.url);
+        const adapted = await runtime.adaptRequest(
+          site,
+          request.clone(),
+          { path: url.pathname, search: url.search, headers: request.headers },
+          { contract, operation, consumer },
+        );
         // Replace the request the handler will read, leaving everything the
         // caller signed already verified upstream.
-        c.req.raw = new Request(request.url, {
+        url.pathname = adapted.path;
+        url.search = adapted.search;
+        c.req.raw = new Request(url, {
           method: request.method,
-          headers: headersForText(request.headers, transformed, original.decoded),
-          body: transformed,
-        });
+          headers: adapted.headers,
+          ...(adapted.body === null
+            ? {}
+            : { body: adapted.body, duplex: "half" as const }),
+        } as RequestInit);
       } catch (error) {
         return failRequest(c, errors, error);
       }

@@ -10,6 +10,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { ENVELOPE_VECTORS } from "./envelope-vectors.ts";
 import { CONFORMANCE_VECTORS } from "./vectors.ts";
 
 const PATH = join(import.meta.dirname, "../../../conformance/vectors.json");
@@ -24,6 +25,7 @@ function serialise(): string {
         "refusals. A refusal is part of the contract: an engine that rounds " +
         "where this one rejects is not compatible.",
       vectors: CONFORMANCE_VECTORS,
+      envelopes: ENVELOPE_VECTORS,
     },
     null,
     2,

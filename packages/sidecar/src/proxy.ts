@@ -20,6 +20,7 @@
  * body is never read.
  */
 import {
+  type AdaptedRequest,
   CONTRACT_HINT_HEADER,
   CONTRACT_RESPONSE_HEADER,
   DEFAULT_ERROR_SHAPER,
@@ -46,8 +47,6 @@ export interface ProxyOptions {
   upstream: string | URL;
   /** Injected for tests. Defaults to the global `fetch`. */
   fetch?: typeof fetch;
-  /** Largest body buffered on a request or response that has to be rewritten. */
-  maxBodyBytes?: number;
   /** How long the provider has to answer before the caller is told it did not. */
   upstreamTimeoutMs?: number;
   /**
@@ -61,7 +60,6 @@ export interface ProxyOptions {
   errors?: ErrorShaper;
 }
 
-const DEFAULT_MAX_BODY = 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_HEALTH_PATH = "/__invariant/health";
 
@@ -86,7 +84,9 @@ export function createProxy(options: ProxyOptions): FetchHandler {
   const runtime = options.runtime;
   const upstream = new URL(options.upstream);
   const send = options.fetch ?? fetch;
-  const maxBody = options.maxBodyBytes ?? DEFAULT_MAX_BODY;
+  // One limit for both directions: the runtime's, which it also enforces on
+  // every request it adapts.
+  const maxBody = runtime.maxBodyBytes;
   const timeoutMs = options.upstreamTimeoutMs ?? DEFAULT_TIMEOUT_MS;
   const healthPath = options.healthPath ?? DEFAULT_HEALTH_PATH;
   const errors = options.errors ?? DEFAULT_ERROR_SHAPER;
@@ -149,29 +149,32 @@ export function createProxy(options: ProxyOptions): FetchHandler {
 
     // Only a JSON body is something the program describes. A form or an
     // upload goes on as it came, and the provider answers it as it would.
-    let body: ReadableStream<Uint8Array> | string | null = request.body;
-    let outgoing = headers;
-    if (
-      site &&
-      site.request.length > 0 &&
-      request.body &&
-      isJsonMediaType(request.headers.get("content-type"))
-    ) {
+    let adapted: AdaptedRequest = {
+      path: decision.path,
+      search: url.search,
+      headers,
+      body: request.body,
+    };
+    if (site) {
       try {
-        const original = await readBodyText(request, { limit: maxBody, encoded: true });
-        const rewritten = runtime.transformRequest(site, original.text, context);
-        body = rewritten;
-        outgoing = headersForText(headers, rewritten, original.decoded);
+        adapted = await runtime.adaptRequest(site, request, adapted, context);
       } catch (error) {
         return failRequest(errors, error);
       }
     }
 
-    const answer = await forward(request, decision.path, url.search, outgoing, body, {
-      site,
-      contract,
-      context,
-    });
+    const answer = await forward(
+      request,
+      adapted.path,
+      adapted.search,
+      adapted.headers,
+      adapted.body,
+      {
+        site,
+        contract,
+        context,
+      },
+    );
     // An operation retired after the caller's contract reached the provider;
     // if the provider says it is gone, the caller hears why and what to use.
     const retired = runtime.retiredFor(contract, request.method, decision.path);

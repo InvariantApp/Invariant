@@ -3281,9 +3281,73 @@ const RouteRule = Type.Object({
 	}, { additionalProperties: false }),
 	c: ChangeId
 }, { additionalProperties: false });
+/**
+* How one parameter is written on the wire, from its OpenAPI declaration.
+*
+* Carried for every parameter an envelope instruction reads or writes, and for
+* nothing else: a parameter no instruction names is passed on byte for byte,
+* however it is written.
+*/
+const ParamCodec = Type.Object({
+	in: Type.Union([
+		Type.Literal("path"),
+		Type.Literal("query"),
+		Type.Literal("header"),
+		Type.Literal("cookie")
+	]),
+	/** As declared; a header's is lowercase. */
+	name: Type.String({ minLength: 1 }),
+	style: Type.Union([
+		Type.Literal("simple"),
+		Type.Literal("form"),
+		Type.Literal("spaceDelimited"),
+		Type.Literal("pipeDelimited"),
+		Type.Literal("deepObject")
+	]),
+	explode: Type.Boolean(),
+	/** What the value is, so `10` reaches an instruction as a number. */
+	type: Type.Union([
+		Type.Literal("string"),
+		Type.Literal("integer"),
+		Type.Literal("number"),
+		Type.Literal("boolean"),
+		Type.Literal("array"),
+		Type.Literal("object")
+	]),
+	/** The element type of an array. */
+	items: Type.Optional(Type.Union([
+		Type.Literal("string"),
+		Type.Literal("integer"),
+		Type.Literal("number"),
+		Type.Literal("boolean")
+	]))
+}, { additionalProperties: false });
+/**
+* Old shape to canonical over the whole request, for an operation where a
+* Change reaches past the body.
+*
+* Instructions address the envelope, `/@query/limit` or `/@body/amount`, and
+* run as one ordered list. `old` says how each parameter they name is written
+* by an old caller, `new` how the current contract expects it; a name in
+* neither is never touched.
+*/
+const EnvelopeProgram = Type.Object({
+	instrs: Type.Array(Instr),
+	params: Type.Object({
+		old: Type.Array(ParamCodec),
+		new: Type.Array(ParamCodec)
+	}, { additionalProperties: false }),
+	/** True when an instruction reaches into `/@body`, so the body is read. */
+	body: Type.Boolean()
+}, { additionalProperties: false });
 const SiteProgram = Type.Object({
 	/** Old shape to canonical, applied to a request body. */
 	request: Type.Optional(Type.Array(Instr)),
+	/**
+	* Old shape to canonical over the whole request. Present instead of
+	* `request` wherever a Change reaches a parameter.
+	*/
+	envelope: Type.Optional(EnvelopeProgram),
 	/**
 	* Canonical back to old shape, keyed by status code or by the class
 	* shorthands `2xx`, `4xx`, `5xx`. An exact code wins over its class.
@@ -13806,7 +13870,7 @@ const RULES = [
 		sentence: "Old callers may now receive values outside what their contract promised. Passing them through is a declared loss you acknowledge; clamping them is not served yet."
 	})
 ];
-const FALLBACK = {
+const FALLBACK$1 = {
 	class: "behavior-only",
 	served: "not applicable",
 	sentence: `Not yet classified. ${BEHAVIOR}`
@@ -13824,7 +13888,7 @@ const NON_BREAKING = {
 */
 function catalogueEntry(id, level) {
 	if (!(level === void 0 || level === "error" || BREAKING_WARN_IDS.has(id) || BREAKING_INFO_IDS.has(id))) return NON_BREAKING;
-	return RULES.find((candidate) => candidate.match.test(id))?.entry ?? FALLBACK;
+	return RULES.find((candidate) => candidate.match.test(id))?.entry ?? FALLBACK$1;
 }
 //#endregion
 //#region ../diff/src/install.ts
@@ -27095,14 +27159,439 @@ function step(root, instr, limits, result) {
 		case "del": countApplied(result, instr.c, applyDel(root, instr, limits));
 	}
 }
+//#endregion
+//#region ../runtime/src/envelope.ts
+const PART = {
+	path: "@path",
+	query: "@query",
+	header: "@header",
+	cookie: "@cookie",
+	body: "@body"
+};
+const codecKey = (location, name) => `${location} ${location === "header" ? name.toLowerCase() : name}`;
+const JSON_NUMBER = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/;
+function decodeComponent(text) {
+	try {
+		return decodeURIComponent(text.replace(/\+/g, " "));
+	} catch {
+		return text;
+	}
+}
+/** A path segment: percent-decoded, where `+` is a plus sign, not a space. */
+function decodeSegment(text) {
+	try {
+		return decodeURIComponent(text);
+	} catch {
+		return text;
+	}
+}
+function queryPairs(search) {
+	if (search === "") return [];
+	return search.split("&").map((raw) => {
+		const equals = raw.indexOf("=");
+		return equals === -1 ? {
+			raw,
+			key: decodeComponent(raw),
+			value: ""
+		} : {
+			raw,
+			key: decodeComponent(raw.slice(0, equals)),
+			value: decodeComponent(raw.slice(equals + 1))
+		};
+	});
+}
+function cookiePairs(headers) {
+	const pairs = [];
+	for (const [name, value] of headers) {
+		if (name.toLowerCase() !== "cookie") continue;
+		for (const part of value.split(";")) {
+			const trimmed = part.trim();
+			if (trimmed === "") continue;
+			const equals = trimmed.indexOf("=");
+			pairs.push(equals === -1 ? [trimmed, ""] : [trimmed.slice(0, equals), trimmed.slice(equals + 1)]);
+		}
+	}
+	return pairs;
+}
+/** A scalar written as text, typed the way its declaration says it is. */
+function scalar(text, type, fidelity) {
+	if ((type === "integer" || type === "number") && JSON_NUMBER.test(text)) return parseJson(text, fidelity);
+	if (type === "boolean" && (text === "true" || text === "false")) return text === "true";
+	return text;
+}
+function delimiterOf(codec) {
+	if (codec.style === "spaceDelimited") return " ";
+	if (codec.style === "pipeDelimited") return "|";
+	return ",";
+}
+/** A value from its written parts: every occurrence for an exploded list. */
+function decodeValue(parts, codec, fidelity) {
+	const item = codec.items ?? "string";
+	if (codec.type === "array") return (codec.explode && codec.in !== "header" && codec.in !== "path" ? parts : (parts[0] ?? "").split(delimiterOf(codec)).map((entry) => codec.in === "header" ? entry.trim() : entry)).map((entry) => scalar(entry, item, fidelity));
+	if (codec.type === "object") {
+		const text = parts[0] ?? "";
+		const object = {};
+		if (codec.explode) for (const entry of text.split(",")) {
+			const equals = entry.indexOf("=");
+			const key = entry.slice(0, equals).trim();
+			if (equals === -1 || isUnsafeKey(key)) continue;
+			object[key] = entry.slice(equals + 1).trim();
+		}
+		else {
+			const flat = text.split(",");
+			for (let index = 0; index + 1 < flat.length; index += 2) {
+				const key = flat[index];
+				if (!isUnsafeKey(key)) object[key] = flat[index + 1];
+			}
+		}
+		return object;
+	}
+	return scalar(parts[0] ?? "", codec.type, fidelity);
+}
+/** The template's parameter names, in the order `matchTemplate` returns values. */
+function templateNames(template) {
+	return template.flatMap((segment) => [...segment.matchAll(/\{([^{}]+)\}/g)].map((match) => match[1]));
+}
+/**
+* The request as a tree holding only what the program names.
+*
+* `pathValues` are the values the routed path matched its template with, in
+* template order.
+*/
+function openEnvelope(envelope, template, pathValues, request, fidelity) {
+	const tree = {
+		[PART.path]: {},
+		[PART.query]: {},
+		[PART.header]: {},
+		[PART.cookie]: {}
+	};
+	const names = templateNames(template);
+	const query = queryPairs(request.search);
+	const cookies = cookiePairs(request.headers);
+	for (const codec of envelope.old.values()) {
+		let parts = [];
+		let object;
+		switch (codec.in) {
+			case "path": {
+				const index = names.indexOf(codec.name);
+				const raw = index === -1 ? void 0 : pathValues[index];
+				if (raw !== void 0) parts = [decodeSegment(raw)];
+				break;
+			}
+			case "query":
+				if (codec.style === "deepObject") {
+					const prefix = `${codec.name}[`;
+					for (const pair of query) {
+						if (!pair.key.startsWith(prefix) || !pair.key.endsWith("]")) continue;
+						const key = pair.key.slice(prefix.length, -1);
+						if (isUnsafeKey(key)) continue;
+						object ??= {};
+						object[key] = pair.value;
+					}
+				} else parts = query.filter((pair) => pair.key === codec.name).map((pair) => pair.value);
+				break;
+			case "header": {
+				const lines = request.headers.filter(([name]) => name.toLowerCase() === codec.name).map(([, value]) => value.trim());
+				if (lines.length > 0) parts = [lines.join(", ")];
+				break;
+			}
+			case "cookie": parts = cookies.filter(([name]) => name === codec.name).map(([, value]) => value);
+		}
+		const part = tree[PART[codec.in]];
+		if (object !== void 0) part[codec.name] = object;
+		else if (parts.length > 0) part[codec.name] = decodeValue(parts, codec, fidelity);
+	}
+	if (envelope.body && request.body !== void 0 && request.body !== "") tree[PART.body] = parseJson(request.body, fidelity);
+	return tree;
+}
+function text(value, changeId, where) {
+	if (typeof value === "string") return value;
+	if (typeof value === "boolean") return String(value);
+	if (value === null) return "";
+	try {
+		return numberTextOf(value);
+	} catch {
+		throw new TransformError(changeId, `${where} holds a value that cannot be written as text`);
+	}
+}
+/** The written parts of a value: one per occurrence for an exploded list. */
+function encodeValue(value, codec, changeId) {
+	const where = `${codec.in} parameter ${codec.name}`;
+	if (Array.isArray(value)) {
+		const items = value.map((entry) => text(entry, changeId, where));
+		if (codec.explode && (codec.in === "query" || codec.in === "cookie")) return items;
+		return [items.join(delimiterOf(codec))];
+	}
+	if (typeof value === "object" && value !== null && !numberLike(value)) {
+		const entries = Object.entries(value).map(([key, entry]) => [key, text(entry, changeId, where)]);
+		return [codec.explode ? entries.map(([key, entry]) => `${key}=${entry}`).join(",") : entries.flat().join(",")];
+	}
+	return [text(value, changeId, where)];
+}
+function numberLike(value) {
+	return JSON.isRawJSON(value);
+}
+const FALLBACK = {
+	path: {
+		style: "simple",
+		explode: false
+	},
+	query: {
+		style: "form",
+		explode: true
+	},
+	header: {
+		style: "simple",
+		explode: false
+	},
+	cookie: {
+		style: "form",
+		explode: true
+	}
+};
+/** The change that last wrote under a pointer prefix, for naming a refusal. */
+function writerOf(instrs, part, name) {
+	for (let index = instrs.length - 1; index >= 0; index -= 1) {
+		const instr = instrs[index];
+		if ((instr.k === "move" ? [instr.from, instr.to] : [instr.path]).some((path) => path[0] === part && path[1] === name)) return instr.c;
+	}
+	return instrs[0]?.c ?? "";
+}
+/** Characters that would end a header line or a cookie early. */
+const UNSAFE_HEADER = /[\r\n\0]/;
+const UNSAFE_COOKIE = /[\r\n\0;,\s]/;
+/**
+* Writes the tree back into a request.
+*
+* A parameter the program named is taken out of the request wherever it was
+* and written again from the tree, so one it moved away is gone and one it
+* moved in arrives in the current contract's own style.
+*/
+function closeEnvelope(envelope, template, pathValues, request, tree) {
+	const named = /* @__PURE__ */ new Map();
+	for (const codec of [...envelope.old.values(), ...envelope.new.values()]) {
+		const set = named.get(codec.in) ?? /* @__PURE__ */ new Set();
+		set.add(codec.name);
+		named.set(codec.in, set);
+	}
+	const codecFor = (location, name) => envelope.new.get(codecKey(location, name)) ?? envelope.old.get(codecKey(location, name)) ?? {
+		in: location,
+		name,
+		type: "string",
+		...FALLBACK[location]
+	};
+	const partOf = (location) => tree[PART[location]] ?? {};
+	let path = request.path;
+	const pathNamed = named.get("path");
+	if (pathNamed && pathNamed.size > 0) {
+		const names = templateNames(template);
+		const values = partOf("path");
+		const filled = names.map((name, index) => {
+			if (!pathNamed.has(name)) return pathValues[index];
+			const value = values[name];
+			const changeId = writerOf(envelope.instrs, PART.path, name);
+			if (value === void 0 || value === null) throw new TransformError(changeId, `path parameter ${name} was left without a value`);
+			return encodeURIComponent(encodeValue(value, codecFor("path", name), changeId)[0] ?? "");
+		});
+		let next = 0;
+		path = template.map((segment) => segment.replace(/\{[^{}]+\}/g, () => {
+			const value = filled[next] ?? "";
+			next += 1;
+			return value;
+		})).join("/");
+	}
+	let search = request.search;
+	const queryNamed = named.get("query");
+	if (queryNamed && queryNamed.size > 0) {
+		const kept = queryPairs(request.search).filter((pair) => !queryNamed.has(pair.key) && ![...queryNamed].some((name) => pair.key.startsWith(`${name}[`) && pair.key.endsWith("]"))).map((pair) => pair.raw);
+		const written = [];
+		for (const [name, value] of Object.entries(partOf("query"))) {
+			if (value === void 0) continue;
+			const codec = codecFor("query", name);
+			const changeId = writerOf(envelope.instrs, PART.query, name);
+			if (codec.style === "deepObject" && typeof value === "object" && value !== null && !Array.isArray(value) && !numberLike(value)) {
+				for (const [key, entry] of Object.entries(value)) written.push(`${encodeURIComponent(name)}[${encodeURIComponent(key)}]=${encodeURIComponent(text(entry, changeId, `query parameter ${name}`))}`);
+				continue;
+			}
+			const parts = encodeValue(value, codec, changeId);
+			const separator = codec.explode ? void 0 : delimiterOf(codec);
+			for (const part of parts) {
+				const encoded = separator === void 0 ? encodeURIComponent(part) : part.split(separator).map(encodeURIComponent).join(separator === " " ? "%20" : separator);
+				written.push(`${encodeURIComponent(name)}=${encoded}`);
+			}
+		}
+		search = [...kept, ...written].join("&");
+	}
+	let headers = request.headers;
+	const headerNamed = named.get("header");
+	const cookieNamed = named.get("cookie");
+	if (headerNamed && headerNamed.size > 0 || cookieNamed && cookieNamed.size > 0) {
+		const lowered = new Set([...headerNamed ?? []].map((name) => name.toLowerCase()));
+		headers = request.headers.filter(([name]) => {
+			const lower = name.toLowerCase();
+			if (lowered.has(lower)) return false;
+			return !(cookieNamed && cookieNamed.size > 0 && lower === "cookie");
+		});
+		for (const [name, value] of Object.entries(partOf("header"))) {
+			if (value === void 0) continue;
+			const changeId = writerOf(envelope.instrs, PART.header, name);
+			const written = encodeValue(value, codecFor("header", name), changeId)[0] ?? "";
+			if (UNSAFE_HEADER.test(written)) throw new TransformError(changeId, `header ${name} would carry a line break`);
+			headers.push([name.toLowerCase(), written]);
+		}
+		if (cookieNamed && cookieNamed.size > 0) {
+			const kept = cookiePairs(request.headers).filter(([name]) => !cookieNamed.has(name));
+			const written = [];
+			for (const [name, value] of Object.entries(partOf("cookie"))) {
+				if (value === void 0) continue;
+				const changeId = writerOf(envelope.instrs, PART.cookie, name);
+				for (const part of encodeValue(value, codecFor("cookie", name), changeId)) {
+					if (UNSAFE_COOKIE.test(part)) throw new TransformError(changeId, `cookie ${name} would carry a separator`);
+					written.push([name, part]);
+				}
+			}
+			const all = [...kept, ...written];
+			if (all.length > 0) headers.push(["cookie", all.map(([name, value]) => `${name}=${value}`).join("; ")]);
+		}
+	}
+	let body = request.body;
+	if (envelope.body && tree[PART.body] !== void 0) body = stringifyJson(tree[PART.body]);
+	else if (envelope.body && body !== void 0 && body !== "") body = "";
+	return {
+		path,
+		search,
+		headers,
+		body
+	};
+}
 var BodyTooLargeError = class extends Error {
 	constructor(limit) {
 		super(`Request body exceeds the ${limit} byte limit for a transformed operation`);
 		this.name = "BodyTooLargeError";
 	}
 };
+/** A `Content-Encoding` this runtime has no way to decode. */
+var UnsupportedEncodingError = class extends Error {
+	encoding;
+	constructor(encoding) {
+		super(`The body is encoded as "${encoding}", which cannot be decoded here, so it cannot be translated.`);
+		this.name = "UnsupportedEncodingError";
+		this.encoding = encoding;
+	}
+};
+//#endregion
+//#region ../runtime/src/http.ts
+/**
+* The HTTP rules every binding follows when it has to read a body.
+*
+* They lived in the proxy alone, and the in-process binding had none: it read
+* whatever arrived, however large, whatever its type, and handed it to
+* `JSON.parse`. A CSV export, a multipart upload or a compressed response on
+* an adapted operation all became errors a caller could do nothing about. One
+* copy of the rules, here, is how the bindings stop disagreeing.
+*
+* Nothing in this file touches the network or the file system. It uses only
+* web-standard globals, so it runs wherever the runtime does.
+*/
+/**
+* Whether a body of this type is one a compiled program describes.
+*
+* Programs are compiled from a document's JSON representations, so anything
+* else, an HTML error page, a file, an event stream, is outside what the
+* program says and passes through untouched rather than being guessed at.
+*/
+function isJsonMediaType(contentType) {
+	if (!contentType) return false;
+	const media = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
+	return media === "application/json" || media.endsWith("+json");
+}
+/** Web-standard names for each encoding `DecompressionStream` understands. */
+const DECODERS = {
+	gzip: "gzip",
+	"x-gzip": "gzip",
+	deflate: "deflate",
+	br: "brotli"
+};
+/**
+* Reads a body as text, refusing past the limit without holding the rest.
+*
+* A declared length over the limit is refused before a byte is read. One that
+* lies, or none at all, is counted as it arrives. The count is of decoded
+* bytes, because a small compressed body can expand to anything, and a limit
+* that only measured the wire would let a caller buffer an unbounded one.
+*/
+async function readBodyText(message, options) {
+	const encoding = (message.headers.get("content-encoding") ?? "").split(",").map((token) => token.trim().toLowerCase()).filter((token) => token !== "" && token !== "identity");
+	const decoding = options.encoded && encoding.length > 0;
+	const declared = Number(message.headers.get("content-length"));
+	if (!decoding && Number.isFinite(declared) && declared > options.limit) throw new BodyTooLargeError(options.limit);
+	if (!message.body) return {
+		text: "",
+		decoded: false
+	};
+	let stream = message.body;
+	if (decoding) for (const token of [...encoding].reverse()) {
+		const format = DECODERS[token];
+		if (format === void 0) throw new UnsupportedEncodingError(token);
+		let decoder;
+		try {
+			decoder = new DecompressionStream(format);
+		} catch {
+			throw new UnsupportedEncodingError(token);
+		}
+		stream = stream.pipeThrough(decoder);
+	}
+	const reader = stream.getReader();
+	const chunks = [];
+	let size = 0;
+	try {
+		for (;;) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			size += value.byteLength;
+			if (size > options.limit) {
+				await reader.cancel();
+				throw new BodyTooLargeError(options.limit);
+			}
+			chunks.push(value);
+		}
+	} catch (error) {
+		if (error instanceof BodyTooLargeError) throw error;
+		if (decoding) throw new UnsupportedEncodingError(encoding.join(", "));
+		throw error;
+	}
+	const whole = new Uint8Array(size);
+	let at = 0;
+	for (const chunk of chunks) {
+		whole.set(chunk, at);
+		at += chunk.byteLength;
+	}
+	return {
+		text: new TextDecoder().decode(whole),
+		decoded: decoding
+	};
+}
+/** Headers for a body rebuilt from text: new length, and no stale encoding. */
+function headersForText(source, text, decoded) {
+	const headers = new Headers(source);
+	if (decoded) headers.delete("content-encoding");
+	headers.delete("content-md5");
+	headers.delete("digest");
+	headers.delete("repr-digest");
+	headers.delete("content-digest");
+	headers.set("content-length", String(new TextEncoder().encode(text).byteLength));
+	return headers;
+}
 //#endregion
 //#region ../runtime/src/program.ts
+/**
+* Decoding a compiled program.
+*
+* The decoder is hand-written and strict on purpose. This is the boundary where
+* a build artifact becomes something that runs against live traffic, so an
+* unrecognised instruction, an unexpected field or a malformed path is a
+* refusal to load rather than something to skip over at request time.
+*/
 var ProgramError = class extends Error {
 	constructor(message) {
 		super(message);
@@ -27265,9 +27754,156 @@ function decodeInstr(raw, where) {
 function needsExactNumbers(instrs) {
 	return instrs.some((instr) => instr.k === "scale" || instr.k === "cast");
 }
-function decodeSite(raw, where) {
+const LOCATIONS = {
+	"@path": "path",
+	"@query": "query",
+	"@header": "header",
+	"@cookie": "cookie"
+};
+/**
+* Styles each location can be written in. `label` and `matrix` path styles
+* and exploded form objects are left out on purpose: the first two are rare
+* enough to refuse rather than half-support, and an exploded form object
+* spreads its properties across the query string with nothing to say which
+* keys belong to it.
+*/
+const STYLES = {
+	path: ["simple"],
+	query: [
+		"form",
+		"spaceDelimited",
+		"pipeDelimited",
+		"deepObject"
+	],
+	header: ["simple"],
+	cookie: ["form"]
+};
+const PARAM_TYPES = /* @__PURE__ */ new Set([
+	"string",
+	"integer",
+	"number",
+	"boolean",
+	"array",
+	"object"
+]);
+/**
+* Headers no program may touch. The compiler refuses these first; this is the
+* copy the runtime holds, so a program built by anything else is refused too.
+* `DENIED_HEADERS` in `@invariant/ir` is the list, and a test keeps them equal.
+*/
+const RUNTIME_DENIED_HEADERS = /* @__PURE__ */ new Set([
+	"authorization",
+	"proxy-authorization",
+	"cookie",
+	"set-cookie",
+	"host",
+	"connection",
+	"keep-alive",
+	"proxy-connection",
+	"te",
+	"trailer",
+	"transfer-encoding",
+	"upgrade",
+	"expect",
+	"content-length",
+	"content-type",
+	"content-encoding",
+	"x-api-key",
+	"api-key",
+	"x-auth-token"
+]);
+const RUNTIME_DENIED_WORDS = /signature|hmac|digest|credential|secret/;
+function decodeCodec(raw, where) {
 	const value = object(raw, where);
-	expectKeys(value, ["request", "response"], where);
+	expectKeys(value, [
+		"in",
+		"name",
+		"style",
+		"explode",
+		"type",
+		"items"
+	], where);
+	const location = string(value["in"], `${where}.in`);
+	if (!(location in STYLES)) throw new ProgramError(`${where}.in is not a parameter location`);
+	const name = string(value["name"], `${where}.name`);
+	if (name === "" || isUnsafeKey(name)) throw new ProgramError(`${where}.name may not be "${name}"`);
+	if (location === "header") {
+		if (name !== name.toLowerCase()) throw new ProgramError(`${where}.name must be lowercase for a header`);
+		if (RUNTIME_DENIED_HEADERS.has(name) || RUNTIME_DENIED_WORDS.test(name)) throw new ProgramError(`${where} names the ${name} header, which no program may touch`);
+	}
+	const style = string(value["style"], `${where}.style`);
+	if (!STYLES[location].includes(style)) throw new ProgramError(`${where}.style ${style} is not served for a ${location} parameter`);
+	const explode = value["explode"];
+	if (typeof explode !== "boolean") throw new ProgramError(`${where}.explode must be a boolean`);
+	const type = string(value["type"], `${where}.type`);
+	if (!PARAM_TYPES.has(type)) throw new ProgramError(`${where}.type is not a parameter type`);
+	if (type === "object" && explode && style === "form") throw new ProgramError(`${where} is an exploded form object, which is not served`);
+	if (style === "deepObject" && type !== "object") throw new ProgramError(`${where} is a deepObject that is not an object`);
+	const items = value["items"];
+	if (items !== void 0 && (type !== "array" || !SCALARS.has(items))) throw new ProgramError(`${where}.items must be a scalar type, on an array`);
+	return {
+		in: location,
+		name,
+		style,
+		explode,
+		type,
+		...items === void 0 ? {} : { items }
+	};
+}
+function decodeEnvelope(raw, where) {
+	const value = object(raw, where);
+	expectKeys(value, [
+		"instrs",
+		"params",
+		"body"
+	], where);
+	const instrs = array(value["instrs"], `${where}.instrs`).map((instr, index) => decodeInstr(instr, `${where}.instrs[${index}]`));
+	const params = object(value["params"], `${where}.params`);
+	expectKeys(params, ["old", "new"], `${where}.params`);
+	const codecs = (side) => {
+		const map = /* @__PURE__ */ new Map();
+		array(params[side], `${where}.params.${side}`).forEach((entry, index) => {
+			const codec = decodeCodec(entry, `${where}.params.${side}[${index}]`);
+			map.set(codecKey(codec.in, codec.name), codec);
+		});
+		return map;
+	};
+	const old = codecs("old");
+	const next = codecs("new");
+	const body = value["body"];
+	if (typeof body !== "boolean") throw new ProgramError(`${where}.body must be a boolean`);
+	instrs.forEach((instr, index) => {
+		const paths = instr.k === "move" ? [instr.from, instr.to] : [instr.path];
+		for (const path of paths) {
+			const part = path[0];
+			if (part === "@body") {
+				if (!body) throw new ProgramError(`${where}.instrs[${index}] reaches the body, which body says is not read`);
+				continue;
+			}
+			const location = part === void 0 ? void 0 : LOCATIONS[part];
+			const name = path[1];
+			if (location === void 0 || name === void 0 || name === "*") throw new ProgramError(`${where}.instrs[${index}] must address one named parameter or the body`);
+			const key = codecKey(location, name);
+			if (!old.has(key) && !next.has(key)) throw new ProgramError(`${where}.instrs[${index}] names the ${location} parameter ${name}, which params does not declare`);
+			if (location === "path" && instr.k !== "scale" && instr.k !== "enum" && instr.k !== "cast") throw new ProgramError(`${where}.instrs[${index}] can only convert a path parameter`);
+		}
+	});
+	return {
+		instrs,
+		old,
+		new: next,
+		body
+	};
+}
+function decodeSite(raw, where, template) {
+	const value = object(raw, where);
+	expectKeys(value, [
+		"request",
+		"envelope",
+		"response"
+	], where);
+	if (value["request"] !== void 0 && value["envelope"] !== void 0) throw new ProgramError(`${where} has both request and envelope; one list keeps the order`);
+	const envelope = value["envelope"] === void 0 ? void 0 : decodeEnvelope(value["envelope"], `${where}.envelope`);
 	const request = array(value["request"] ?? [], `${where}.request`).map((instr, index) => decodeInstr(instr, `${where}.request[${index}]`));
 	const response = /* @__PURE__ */ new Map();
 	if (value["response"] !== void 0) for (const [status, list] of Object.entries(object(value["response"], `${where}.response`))) {
@@ -27277,7 +27913,9 @@ function decodeSite(raw, where) {
 	return {
 		request,
 		response,
-		numeric: needsExactNumbers(request) || [...response.values()].some(needsExactNumbers)
+		numeric: needsExactNumbers(request) || envelope !== void 0 && needsExactNumbers(envelope.instrs) || [...response.values()].some(needsExactNumbers),
+		template,
+		...envelope === void 0 ? {} : { envelope }
 	};
 }
 function decodeRoute(raw, where) {
@@ -27329,7 +27967,13 @@ function decodeProgram(raw) {
 			"retired"
 		], where);
 		const sites = /* @__PURE__ */ new Map();
-		for (const [key, site] of Object.entries(object(contract["sites"], `${where}.sites`))) sites.set(key.toLowerCase(), decodeSite(site, `${where}.sites["${key}"]`));
+		for (const [key, site] of Object.entries(object(contract["sites"], `${where}.sites`))) {
+			const separator = key.indexOf(" ");
+			if (separator <= 0) throw new ProgramError(`${where}.sites has a key "${key}" that is not "method path"`);
+			const method = key.slice(0, separator).toLowerCase();
+			const path = key.slice(separator + 1);
+			sites.set(`${method} ${path}`, decodeSite(site, `${where}.sites["${key}"]`, path.split("/")));
+		}
 		contracts.set(label, {
 			label: string(contract["label"], `${where}.label`),
 			routes: array(contract["routes"], `${where}.routes`).map((route, index) => decodeRoute(route, `${where}.routes[${index}]`)),
@@ -27434,6 +28078,9 @@ function findSite(contract, method, path) {
 * compiled program ships inside the provider's build, so an adapter deploys and
 * rolls back with the code it belongs to.
 */
+function pathsOfInstr(instr) {
+	return instr.k === "move" ? [instr.from, instr.to] : [instr.path];
+}
 /** Header stage one uses to tell stage two what it concluded. */
 const CONTRACT_HINT_HEADER = "x-invariant-contract-hint";
 const INTERNAL_PREFIX = "x-invariant-";
@@ -27732,6 +28379,7 @@ var InvariantRuntime = class {
 		if (disabled && disabled.length > 0) {
 			const referenced = /* @__PURE__ */ new Set();
 			for (const instr of site.request) referenced.add(instr.c);
+			for (const instr of site.envelope?.instrs ?? []) referenced.add(instr.c);
 			for (const list of site.response.values()) for (const instr of list) referenced.add(instr.c);
 			for (const change of disabled) if (referenced.has(change)) throw new UnsupportedContractError(label, `change ${change} is switched off`);
 		}
@@ -27762,6 +28410,110 @@ var InvariantRuntime = class {
 			operation: context.operation,
 			consumer: context.consumer
 		})).body;
+	}
+	/** True when adapting this request means reading its body. */
+	readsRequestBody(site) {
+		return site.request.length > 0 || site.envelope?.body === true;
+	}
+	/** True when some program converts a path parameter, so the path itself can change. */
+	get rewritesPathParameters() {
+		for (const contract of this.#program.contracts.values()) for (const site of contract.sites.values()) if (site.envelope?.instrs.some((instr) => pathsOfInstr(instr)[0]?.[0] === "@path")) return true;
+		return false;
+	}
+	/**
+	* An incoming request as the provider's handler should see it: the one
+	* place every binding adapts a request, so they cannot disagree about it.
+	*
+	* `parts` is the path, query string and headers as the binding would pass
+	* them on, after routing and after its own header hygiene. Only a JSON body
+	* is ever read, and only when the site's program reaches into it. Anything
+	* else a program would have to write a body into is refused rather than
+	* replaced, because a form or an upload rewritten as JSON is a request the
+	* provider never agreed to receive.
+	*/
+	async adaptRequest(site, request, parts, context) {
+		const unchanged = {
+			...parts,
+			body: request.body
+		};
+		const json = isJsonMediaType(request.headers.get("content-type"));
+		if (!site.envelope) {
+			if (site.request.length === 0 || !request.body || !json) return unchanged;
+			const original = await readBodyText(request, {
+				limit: this.#maxBodyBytes,
+				encoded: true
+			});
+			const body = this.transformRequest(site, original.text, context);
+			return {
+				...parts,
+				headers: headersForText(parts.headers, body, original.decoded),
+				body
+			};
+		}
+		const envelope = site.envelope;
+		if (envelope.body && request.body && !json) throw new TransformError(envelope.instrs.find((instr) => pathsOfInstr(instr).some((path) => path[0] === "@body"))?.c ?? "", "This operation's program writes into the request body, and the body sent is not JSON.");
+		const original = envelope.body && request.body ? await readBodyText(request, {
+			limit: this.#maxBodyBytes,
+			encoded: true
+		}) : void 0;
+		const result = this.transformEnvelope(site, {
+			path: parts.path,
+			search: parts.search.startsWith("?") ? parts.search.slice(1) : parts.search,
+			headers: [...parts.headers],
+			body: original?.text
+		}, context);
+		let headers = new Headers(result.headers);
+		let body = request.body;
+		if (original !== void 0 && result.body !== void 0) {
+			body = result.body;
+			headers = headersForText(headers, body, original.decoded);
+		} else if (original === void 0 && result.body !== void 0) {
+			body = result.body;
+			headers.set("content-type", "application/json");
+			headers = headersForText(headers, body, false);
+		}
+		return {
+			path: result.path,
+			search: result.search === "" ? "" : `?${result.search}`,
+			headers,
+			body
+		};
+	}
+	/**
+	* The whole request rewritten, for an operation where a Change reaches a
+	* parameter: its path, query string, headers and, where the program reads
+	* it, its body.
+	*
+	* `request.path` is the routed path as the caller's URL has it, base path
+	* included. Nothing outside what the program names is changed, down to the
+	* bytes and order of an untouched query string.
+	*/
+	transformEnvelope(site, request, context) {
+		const envelope = site.envelope;
+		const local = this.#local(request.path);
+		if (!envelope || envelope.instrs.length === 0 || local === void 0) return request;
+		return this.#reporting("request", context, () => {
+			if (request.body !== void 0 && request.body.length > this.#maxBodyBytes) throw new BodyTooLargeError(this.#maxBodyBytes);
+			const values = matchTemplate(site.template, local) ?? [];
+			const fidelity = site.numeric ? this.#fidelity : "double";
+			const opened = {
+				...request,
+				path: local
+			};
+			const tree = openEnvelope(envelope, site.template, values, opened, fidelity);
+			const result = execute(tree, envelope.instrs, this.#limits);
+			if (this.#onUsage && result.applied.size > 0) this.#onUsage({
+				contract: context.contract,
+				operation: context.operation,
+				consumer: context.consumer,
+				changes: result.applied
+			});
+			const closed = closeEnvelope(envelope, site.template, values, opened, tree);
+			return {
+				...closed,
+				path: `${this.#program.basePath}${closed.path}`
+			};
+		});
 	}
 	transformResponse(site, status, text, context) {
 		return this.transformResponseDetailed(site, status, text, context).body;
