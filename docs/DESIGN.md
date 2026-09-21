@@ -1980,6 +1980,35 @@ one operation's copy of a shared parameter failed closure; it now runs with
 App Mesh's did, as every endpoint being retired: the traffic rig caught the
 404s that would have followed.
 
+### Forms, versions in the server URL, and bodies with no name
+
+Stripe, Twilio, Slack and every OAuth token endpoint take form-encoded
+requests, and none of them could be adapted: the contract layer read only
+JSON request bodies, so their schemas were invisible to everything
+downstream. A form describes fields exactly as JSON does, so a program does
+not change; a site that takes a form carries how each field is written, in
+Stripe's bracketed keys or Twilio's repeated ones, and what each place an
+instruction reads holds, so `amount=49.99` reaches a scale as a number. Only
+the fields a program names are decoded and rewritten, and each value is typed
+where the caller wrote it, traced back through earlier steps' moves.
+
+Twilio and Stripe also declare request bodies inline, with no schema name, so
+there was nothing a Change could be scoped to. An operation's own request body
+is now a scope, and the proposer compares inline bodies operation by
+operation.
+
+Google's older APIs carry their version in the server URL, `/analytics/v2.4`
+then `/analytics/v3`, not in their paths, so no path moved and nothing routed
+an old caller. A contract now carries the base path it was served under when
+the current one differs, and stage one routes it.
+
+The traffic rig learned to send parameters and forms, written by its own code
+and `qs`, never by the runtime it measures, and the first thing it did was
+fail five Google sites; the base path was the reason. Probing the form codec
+also found that fifty thousand brackets, in a form key or a JSON body in
+either direction, exhausted the stack and answered 500. Bodies nested past
+any real API's depth are now refused as too large before anything walks them.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no
