@@ -14454,6 +14454,26 @@ function numberToDecimalText(value) {
 * and two copies of "what does a caller hear when their contract is retired"
 * is how the two drift until one of them answers 500.
 */
+/** The header a refusal's or failure's id is sent in. */
+const ERROR_ID_HEADER = "invariant-error-id";
+/**
+* An id for one refusal or failure, so what a caller quotes can be found in
+* the provider's own logs, where the outcome event carries the same one.
+*/
+function newErrorId() {
+	return `err_${globalThis.crypto.randomUUID().replaceAll("-", "").slice(0, 24)}`;
+}
+/** The id a refusal was given when it happened, giving it one if it has none. */
+function errorIdOf(error) {
+	if (typeof error !== "object" || error === null) return void 0;
+	const held = error;
+	if (typeof held.errorId !== "string") Object.defineProperty(error, "errorId", {
+		value: newErrorId(),
+		enumerable: false,
+		configurable: true
+	});
+	return held.errorId;
+}
 const shaped = (type, status) => (message, code) => ({
 	body: { error: {
 		type,
@@ -14517,7 +14537,13 @@ var UnsupportedEncodingError = class extends Error {
 * the provider sent that was not valid JSON at all.
 */
 function responseFailure(errors, error) {
-	if (error instanceof TransformError || error instanceof BodyTooLargeError || error instanceof UnsupportedEncodingError || error instanceof SyntaxError) return errors.serverError("The response could not be expressed in the contract this integration uses.", ERROR_CODES.responseNotTranslatable);
+	if (error instanceof TransformError || error instanceof BodyTooLargeError || error instanceof UnsupportedEncodingError || error instanceof SyntaxError) {
+		const errorId = errorIdOf(error);
+		return {
+			...errors.serverError("The response could not be expressed in the contract this integration uses.", ERROR_CODES.responseNotTranslatable, errorId),
+			errorId
+		};
+	}
 }
 //#endregion
 //#region ../runtime/src/json.ts
@@ -15088,7 +15114,21 @@ var MatchLimitError = class extends TransformError {
 		this.limit = limit;
 	}
 };
-const DEFAULT_LIMITS = { maxMatches: 1e4 };
+const DEFAULT_LIMITS = {
+	maxMatches: 1e4,
+	timeBudgetMs: 100
+};
+/** Too long spent on one body: refused as too large to translate, never finished late. */
+var TimeBudgetError = class extends TransformError {
+	budgetMs;
+	constructor(changeId, budgetMs) {
+		super(changeId, `${changeId} was still running after ${budgetMs} ms on one body. Raise limits.timeBudgetMs if bodies this large are expected.`);
+		this.name = "TimeBudgetError";
+		this.budgetMs = budgetMs;
+	}
+};
+var TimeExceeded = class extends Error {};
+const TICKS_PER_READ = 256;
 function countApplied(result, changeId, times) {
 	if (times === 0) return;
 	result.applied.set(changeId, (result.applied.get(changeId) ?? 0) + times);
@@ -15266,10 +15306,16 @@ function execute(root, program, limits = DEFAULT_LIMITS) {
 		applied: /* @__PURE__ */ new Map(),
 		folded: /* @__PURE__ */ new Set()
 	};
+	const bounded = limits.timeBudgetMs === void 0 || !Number.isFinite(limits.timeBudgetMs) ? limits : {
+		...limits,
+		deadline: performance.now() + limits.timeBudgetMs,
+		ticks: 0
+	};
 	for (const instr of program) try {
-		step(root, instr, limits, result, 0, void 0);
+		step(root, instr, bounded, result, 0, void 0);
 	} catch (error) {
 		if (error instanceof FanOutExceeded) throw new MatchLimitError(instr.c, error.limit);
+		if (error instanceof TimeExceeded) throw new TimeBudgetError(instr.c, limits.timeBudgetMs ?? 0);
 		if (error instanceof DecimalError) throw new TransformError(instr.c, error.message);
 		throw error;
 	}
@@ -15280,6 +15326,10 @@ function hereFor(instr, here) {
 	return here;
 }
 function step(root, instr, limits, result, calls, here) {
+	if (limits.deadline !== void 0) {
+		limits.ticks = (limits.ticks ?? 0) + 1;
+		if (limits.ticks % TICKS_PER_READ === 0 && performance.now() > limits.deadline) throw new TimeExceeded();
+	}
 	const run = (at, block, depth = calls, where = here) => {
 		for (const inner of block) step(at, inner, limits, result, depth, where);
 	};
@@ -17164,7 +17214,10 @@ var InvariantRuntime = class {
 			for (const label of named) if (!this.knows(label)) throw new Error(`The ${strategy.kind} identity strategy names contract "${label}", which this program does not have. Known: ${this.#knownLabels()}.`);
 		}
 		this.#maxBodyBytes = options.maxBodyBytes ?? 1048576;
-		this.#limits = options.limits ?? DEFAULT_LIMITS;
+		this.#limits = {
+			...DEFAULT_LIMITS,
+			...options.limits
+		};
 		this.#fidelity = options.numbers ?? "double";
 		this.#flags = options.flags ?? (() => ({}));
 		this.#onUsage = options.onUsage;
@@ -17395,7 +17448,8 @@ var InvariantRuntime = class {
 				consumer: context?.consumer,
 				direction: "request",
 				outcome: "refused",
-				reason: "UnsupportedContractError"
+				reason: "UnsupportedContractError",
+				errorId: errorIdOf(error)
 			});
 			throw error;
 		}
@@ -17580,6 +17634,7 @@ var InvariantRuntime = class {
 				"content-type": "application/json",
 				[CONTRACT_RESPONSE_HEADER]: context.contract
 			});
+			if (shaped.errorId !== void 0) failed.set(ERROR_ID_HEADER, shaped.errorId);
 			appendVary(failed, this.varyOn);
 			return new Response(JSON.stringify(shaped.body), {
 				status: shaped.status,
@@ -17788,10 +17843,12 @@ var InvariantRuntime = class {
 			});
 			return result;
 		} catch (error) {
+			const errorId = errorIdOf(error);
 			this.#onOutcome({
 				...base,
 				outcome: direction === "request" ? "refused" : "failed",
-				reason: error instanceof Error ? error.name : "Error"
+				reason: error instanceof Error ? error.name : "Error",
+				...errorId === void 0 ? {} : { errorId }
 			});
 			throw error;
 		}

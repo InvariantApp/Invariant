@@ -7,23 +7,55 @@
  * and two copies of "what does a caller hear when their contract is retired"
  * is how the two drift until one of them answers 500.
  */
-import { MatchLimitError, TransformError } from "./interpreter.ts";
+import { MatchLimitError, TimeBudgetError, TransformError } from "./interpreter.ts";
 
 export interface ShapedError {
   body: unknown;
   status: number;
+  /** Sent as `Invariant-Error-Id`, and the same as the refusal's outcome event carries. */
+  errorId?: string | undefined;
 }
 
+/**
+ * How a refusal is written in the provider's own error shape. Each is given
+ * the error's id as well, for a provider who puts it in the body; it is sent
+ * as `Invariant-Error-Id` whether or not they do.
+ */
 export interface ErrorShaper {
   /** Something about the request itself. Nothing has run yet. */
-  badRequest: (message: string, code: string) => ShapedError;
+  badRequest: (message: string, code: string, errorId?: string) => ShapedError;
   /** The operation ran and its answer could not be expressed. */
-  serverError: (message: string, code: string) => ShapedError;
+  serverError: (message: string, code: string, errorId?: string) => ShapedError;
   /**
    * An operation the caller's contract had and the current one does not.
    * Optional so a shaper written before it existed keeps working.
    */
-  gone?: (message: string, code: string) => ShapedError;
+  gone?: (message: string, code: string, errorId?: string) => ShapedError;
+}
+
+/** The header a refusal's or failure's id is sent in. */
+export const ERROR_ID_HEADER = "invariant-error-id";
+
+/**
+ * An id for one refusal or failure, so what a caller quotes can be found in
+ * the provider's own logs, where the outcome event carries the same one.
+ */
+export function newErrorId(): string {
+  return `err_${globalThis.crypto.randomUUID().replaceAll("-", "").slice(0, 24)}`;
+}
+
+/** The id a refusal was given when it happened, giving it one if it has none. */
+export function errorIdOf(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null) return undefined;
+  const held = error as { errorId?: unknown };
+  if (typeof held.errorId !== "string") {
+    Object.defineProperty(error, "errorId", {
+      value: newErrorId(),
+      enumerable: false,
+      configurable: true,
+    });
+  }
+  return held.errorId as string;
 }
 
 const shaped = (type: string, status: number) => (message: string, code: string) => ({
@@ -40,7 +72,7 @@ export const DEFAULT_ERROR_SHAPER: Required<ErrorShaper> = {
 /** The shaper's `gone`, or the default's when it has none. */
 export function goneWith(
   errors: ErrorShaper,
-): (message: string, code: string) => ShapedError {
+): (message: string, code: string, errorId?: string) => ShapedError {
   return errors.gone ?? DEFAULT_ERROR_SHAPER.gone;
 }
 
@@ -109,19 +141,35 @@ export function requestFailure(
 ): ShapedError | undefined {
   // Too much of it, whether by bytes or by how many places one instruction
   // reaches. Either way the request is too large to translate.
-  if (error instanceof BodyTooLargeError || error instanceof MatchLimitError) {
-    return { ...errors.badRequest(error.message, ERROR_CODES.bodyTooLarge), status: 413 };
+  const known =
+    error instanceof BodyTooLargeError ||
+    error instanceof UnsupportedEncodingError ||
+    error instanceof TransformError ||
+    error instanceof SyntaxError;
+  if (!known) return undefined;
+  const errorId = errorIdOf(error);
+  if (
+    error instanceof BodyTooLargeError ||
+    error instanceof MatchLimitError ||
+    error instanceof TimeBudgetError
+  ) {
+    return {
+      ...errors.badRequest(error.message, ERROR_CODES.bodyTooLarge, errorId),
+      status: 413,
+      errorId,
+    };
   }
   if (error instanceof UnsupportedEncodingError) {
     return {
-      ...errors.badRequest(error.message, ERROR_CODES.encodingUnsupported),
+      ...errors.badRequest(error.message, ERROR_CODES.encodingUnsupported, errorId),
       status: 415,
+      errorId,
     };
   }
-  if (error instanceof TransformError || error instanceof SyntaxError) {
-    return errors.badRequest(error.message, ERROR_CODES.requestNotTranslatable);
-  }
-  return undefined;
+  return {
+    ...errors.badRequest(error.message, ERROR_CODES.requestNotTranslatable, errorId),
+    errorId,
+  };
 }
 
 /**
@@ -141,10 +189,15 @@ export function responseFailure(
     error instanceof UnsupportedEncodingError ||
     error instanceof SyntaxError
   ) {
-    return errors.serverError(
-      "The response could not be expressed in the contract this integration uses.",
-      ERROR_CODES.responseNotTranslatable,
-    );
+    const errorId = errorIdOf(error);
+    return {
+      ...errors.serverError(
+        "The response could not be expressed in the contract this integration uses.",
+        ERROR_CODES.responseNotTranslatable,
+        errorId,
+      ),
+      errorId,
+    };
   }
   return undefined;
 }

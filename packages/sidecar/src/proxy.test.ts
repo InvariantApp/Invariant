@@ -257,6 +257,8 @@ describe("an old caller, through the proxy", () => {
     expect(
       ((await response.json()) as { error: { message: string } }).error.message,
     ).toContain("1999-01-01");
+    // Something the caller can quote to the provider's support.
+    expect(response.headers.get("invariant-error-id")).toMatch(/^err_[0-9a-f]{24}$/);
     expect(calls).toHaveLength(0);
   });
 });

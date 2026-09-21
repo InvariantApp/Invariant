@@ -25,7 +25,9 @@ import {
   DEFAULT_ERROR_SHAPER,
   type DecodedSite,
   ERROR_CODES,
+  ERROR_ID_HEADER,
   type ErrorShaper,
+  errorIdOf,
   GONE_STATUSES,
   goneWith,
   type InvariantRuntime,
@@ -129,14 +131,18 @@ export function createProxy(options: ProxyOptions): FetchHandler {
       site = runtime.siteFor(contract, decision.method, decision.path);
     } catch (error) {
       if (error instanceof UnsupportedContractError) {
-        return shapedResponse(
-          errors.badRequest(error.message, ERROR_CODES.contractUnsupported),
-        );
+        const errorId = errorIdOf(error);
+        return shapedResponse({
+          ...errors.badRequest(error.message, ERROR_CODES.contractUnsupported, errorId),
+          errorId,
+        });
       }
       if (error instanceof RetiredEndpointError) {
-        return shapedResponse(
-          goneWith(errors)(error.message, ERROR_CODES.endpointRetired),
-        );
+        const errorId = errorIdOf(error);
+        return shapedResponse({
+          ...goneWith(errors)(error.message, ERROR_CODES.endpointRetired, errorId),
+          errorId,
+        });
       }
       throw error;
     }
@@ -315,8 +321,11 @@ function json(status: number, body: unknown): Response {
   });
 }
 
+/** A refusal in the provider's shape, with the id the caller can quote. */
 function shapedResponse(shaped: ShapedError): Response {
-  return json(shaped.status, shaped.body);
+  const response = json(shaped.status, shaped.body);
+  if (shaped.errorId !== undefined) response.headers.set(ERROR_ID_HEADER, shaped.errorId);
+  return response;
 }
 
 function failRequest(errors: ErrorShaper, error: unknown): Response {

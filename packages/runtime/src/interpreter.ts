@@ -183,9 +183,38 @@ export class MatchLimitError extends TransformError {
 export interface ExecuteLimits {
   /** Cap on how many slots one instruction may touch. */
   maxMatches: number;
+  /**
+   * Most milliseconds one body may take, checked as it runs. A pathological
+   * body, deep recursion through a schema that contains itself, cannot hold
+   * a worker past it. Absent means no limit.
+   */
+  timeBudgetMs?: number;
 }
 
-export const DEFAULT_LIMITS: ExecuteLimits = { maxMatches: 10_000 };
+export const DEFAULT_LIMITS: ExecuteLimits = { maxMatches: 10_000, timeBudgetMs: 100 };
+
+/** Too long spent on one body: refused as too large to translate, never finished late. */
+export class TimeBudgetError extends TransformError {
+  readonly budgetMs: number;
+
+  constructor(changeId: string, budgetMs: number) {
+    super(
+      changeId,
+      `${changeId} was still running after ${budgetMs} ms on one body. Raise ` +
+        "limits.timeBudgetMs if bodies this large are expected.",
+    );
+    this.name = "TimeBudgetError";
+    this.budgetMs = budgetMs;
+  }
+}
+
+/** The clock one body runs against, read every so many steps so it costs nothing. */
+interface Clock {
+  deadline: number;
+  ticks: number;
+}
+class TimeExceeded extends Error {}
+const TICKS_PER_READ = 256;
 
 export interface ExecuteResult {
   /** How many times each Change was actually applied. */
@@ -503,13 +532,20 @@ export function execute(
   limits: ExecuteLimits = DEFAULT_LIMITS,
 ): ExecuteResult {
   const result: ExecuteResult = { applied: new Map(), folded: new Set() };
+  const bounded: ExecuteLimits & Partial<Clock> =
+    limits.timeBudgetMs === undefined || !Number.isFinite(limits.timeBudgetMs)
+      ? limits
+      : { ...limits, deadline: performance.now() + limits.timeBudgetMs, ticks: 0 };
 
   for (const instr of program) {
     try {
-      step(root, instr, limits, result, 0, undefined);
+      step(root, instr, bounded, result, 0, undefined);
     } catch (error) {
       if (error instanceof FanOutExceeded)
         throw new MatchLimitError(instr.c, error.limit);
+      if (error instanceof TimeExceeded) {
+        throw new TimeBudgetError(instr.c, limits.timeBudgetMs ?? 0);
+      }
       // Decimal arithmetic on a value this change cannot express, such as a
       // cast of "abc" to a number: the body is not translatable by it.
       if (error instanceof DecimalError) throw new TransformError(instr.c, error.message);
@@ -540,11 +576,17 @@ function hereFor(instr: CompiledInstr, here: Here | undefined): Here {
 function step(
   root: Json,
   instr: CompiledInstr,
-  limits: ExecuteLimits,
+  limits: ExecuteLimits & Partial<Clock>,
   result: ExecuteResult,
   calls: number,
   here: Here | undefined,
 ): void {
+  if (limits.deadline !== undefined) {
+    limits.ticks = (limits.ticks ?? 0) + 1;
+    if (limits.ticks % TICKS_PER_READ === 0 && performance.now() > limits.deadline) {
+      throw new TimeExceeded();
+    }
+  }
   const run = (
     at: Json,
     block: readonly CompiledInstr[],

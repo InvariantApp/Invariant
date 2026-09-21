@@ -16,7 +16,9 @@ import { closeEnvelope, type EnvelopeRequest, openEnvelope } from "./envelope.ts
 import {
   BodyTooLargeError,
   DEFAULT_ERROR_SHAPER,
+  ERROR_ID_HEADER,
   type ErrorShaper,
+  errorIdOf,
   responseFailure,
 } from "./errors.ts";
 import { closeForm, formRoots, isFormMediaType, openForm } from "./form.ts";
@@ -34,6 +36,7 @@ import {
   type ExecuteLimits,
   execute,
   MatchLimitError,
+  TimeBudgetError,
   TransformError,
   touchedPaths,
 } from "./interpreter.ts";
@@ -64,8 +67,11 @@ export {
   BodyTooLargeError,
   DEFAULT_ERROR_SHAPER,
   ERROR_CODES,
+  ERROR_ID_HEADER,
   type ErrorShaper,
+  errorIdOf,
   goneWith,
+  newErrorId,
   requestFailure,
   responseFailure,
   type ShapedError,
@@ -90,6 +96,7 @@ export {
   PROGRAM_VERSION,
   ProgramError,
   ProgramTooNewError,
+  TimeBudgetError,
   TransformError,
 };
 
@@ -327,6 +334,11 @@ export interface OutcomeEvent {
   outcome: "adapted" | "refused" | "failed";
   /** Why, when it was not `adapted`. Never a body or a field value. */
   reason?: string;
+  /**
+   * The refusal's or failure's id, as the caller was sent it in
+   * `Invariant-Error-Id`, so what they quote can be found here.
+   */
+  errorId?: string;
 }
 
 /** Where a behaviour question is being asked from, for counting. */
@@ -391,7 +403,8 @@ export class InvariantRuntime {
       }
     }
     this.#maxBodyBytes = options.maxBodyBytes ?? 1024 * 1024;
-    this.#limits = options.limits ?? DEFAULT_LIMITS;
+    // A provider who sets one limit keeps the defaults for the rest.
+    this.#limits = { ...DEFAULT_LIMITS, ...options.limits };
     this.#fidelity = options.numbers ?? "double";
     this.#flags = options.flags ?? (() => ({}));
     this.#onUsage = options.onUsage;
@@ -674,6 +687,7 @@ export class InvariantRuntime {
           direction: "request",
           outcome: "refused",
           reason: "UnsupportedContractError",
+          errorId: errorIdOf(error) as string,
         });
       }
       throw error;
@@ -973,6 +987,7 @@ export class InvariantRuntime {
         "content-type": "application/json",
         [CONTRACT_RESPONSE_HEADER]: context.contract,
       });
+      if (shaped.errorId !== undefined) failed.set(ERROR_ID_HEADER, shaped.errorId);
       appendVary(failed, this.varyOn);
       return new Response(JSON.stringify(shaped.body), {
         status: shaped.status,
@@ -1237,10 +1252,12 @@ export class InvariantRuntime {
       this.#onOutcome({ ...base, outcome: "adapted" });
       return result;
     } catch (error) {
+      const errorId = errorIdOf(error);
       this.#onOutcome({
         ...base,
         outcome: direction === "request" ? "refused" : "failed",
         reason: error instanceof Error ? error.name : "Error",
+        ...(errorId === undefined ? {} : { errorId }),
       });
       throw error;
     }

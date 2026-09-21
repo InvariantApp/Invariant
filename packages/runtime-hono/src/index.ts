@@ -11,12 +11,15 @@ import {
   CONTRACT_HINT_HEADER,
   DEFAULT_ERROR_SHAPER,
   ERROR_CODES,
+  ERROR_ID_HEADER,
   type ErrorShaper,
+  errorIdOf,
   GONE_STATUSES,
   goneWith,
   InvariantRuntime,
   RetiredEndpointError,
   requestFailure,
+  type ShapedError,
   UnsupportedContractError,
 } from "@invariant/runtime";
 import type { Context, MiddlewareHandler, Next } from "hono";
@@ -201,15 +204,21 @@ export function adapt(options: HonoBindingOptions): MiddlewareHandler {
       });
     } catch (error) {
       if (error instanceof UnsupportedContractError) {
-        const shaped = errors.badRequest(error.message, "invariant_contract_unsupported");
-        return c.json(shaped.body as never, shaped.status as never);
+        const errorId = errorIdOf(error);
+        return refusal(c, {
+          ...errors.badRequest(error.message, ERROR_CODES.contractUnsupported, errorId),
+          errorId,
+        });
       }
       if (error instanceof RetiredEndpointError) {
         // The whole point of retiring an endpoint is that the caller is told
         // what to use instead. This used to fall through as an unexplained 500,
         // so the provider's guidance never reached anyone.
-        const shaped = goneWith(errors)(error.message, ERROR_CODES.endpointRetired);
-        return c.json(shaped.body as never, shaped.status as never);
+        const errorId = errorIdOf(error);
+        return refusal(c, {
+          ...goneWith(errors)(error.message, ERROR_CODES.endpointRetired, errorId),
+          errorId,
+        });
       }
       throw error;
     }
@@ -335,5 +344,14 @@ function replaceResponse(c: Context, response: Response): void {
 function failRequest(c: Context, errors: ErrorShaper, error: unknown): Response {
   const shaped = requestFailure(errors, error);
   if (!shaped) throw error;
-  return c.json(shaped.body as never, shaped.status as never);
+  return refusal(c, shaped);
+}
+
+/** A refusal in the provider's shape, with the id the caller can quote. */
+function refusal(c: Context, shaped: ShapedError): Response {
+  return c.json(
+    shaped.body as never,
+    shaped.status as never,
+    shaped.errorId === undefined ? {} : { [ERROR_ID_HEADER]: shaped.errorId },
+  );
 }
