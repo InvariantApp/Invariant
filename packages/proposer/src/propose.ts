@@ -335,15 +335,6 @@ export async function propose(
 ): Promise<ProposeOutcome> {
   const thresholdFor = (judge: JudgeId) =>
     options.attentionThreshold ?? ANSWER_THRESHOLDS[judge] ?? DEFAULT_ATTENTION_THRESHOLD;
-  // A schema no operation reaches has nothing to serve, and the gate reports
-  // nothing for it. Plaid documents every webhook payload that way; asking a
-  // judge about them costs a question and drafts a Change for nobody.
-  const deltas = schemaDeltas(oldContract, newContract).filter((delta) => {
-    const sides = sidesOfDelta(oldContract, delta);
-    return sides.request || sides.response;
-  });
-  const scopes = new Map(deltas.map((delta) => [delta.schema, scopeOf(delta)]));
-
   // Before anything about fields: did the whole API move? Versioning by URL
   // prefix is how most real APIs express a version, and left undetected it
   // reports every endpoint as removed and every new one as unrelated.
@@ -392,20 +383,38 @@ export async function propose(
       ],
     })),
   );
-  const retired: Proposal[] = retiredEndpoints(oldContract, newContract, relocated).map(
-    (endpoint) => ({
-      change: retireChange(endpoint),
-      judge: "rules" as const,
-      confidence: 1,
-      // Always explicit. Retiring an endpoint cannot be served to anyone still
-      // calling it, and a reviewer should never skim past that.
-      attention: "explicit" as const,
-      notes: [
-        `no transform can serve this: there is no handler left to reach. ` +
-          "Old callers get an explicit refusal naming this change, rather than a 404.",
-      ],
-    }),
-  );
+  const retiredOperations = retiredEndpoints(oldContract, newContract, relocated);
+  const retired: Proposal[] = retiredOperations.map((endpoint) => ({
+    change: retireChange(endpoint),
+    judge: "rules" as const,
+    confidence: 1,
+    // Always explicit. Retiring an endpoint cannot be served to anyone still
+    // calling it, and a reviewer should never skim past that.
+    attention: "explicit" as const,
+    notes: [
+      `no transform can serve this: there is no handler left to reach. ` +
+        "Old callers get an explicit refusal naming this change, rather than a 404.",
+    ],
+  }));
+
+  // A schema no operation reaches has nothing to serve, and the gate reports
+  // nothing for it. Plaid documents every webhook payload that way; asking a
+  // judge about them costs a question and drafts a Change for nobody. Nor
+  // does a body scoped to an operation this proposal retires: an operation
+  // whose id lives on at an unrelated path is still gone for its old callers,
+  // and a Change to its body would scope to nothing.
+  const retiredIds = new Set(retiredOperations.map((endpoint) => endpoint.operationId));
+  const deltas = schemaDeltas(oldContract, newContract).filter((delta) => {
+    if (
+      delta.scope &&
+      "operation" in delta.scope &&
+      retiredIds.has(delta.scope.operation)
+    )
+      return false;
+    const sides = sidesOfDelta(oldContract, delta);
+    return sides.request || sides.response;
+  });
+  const scopes = new Map(deltas.map((delta) => [delta.schema, scopeOf(delta)]));
 
   const parameterWork = parameterDrafts(parameterDeltas(oldContract, newContract));
   const parameters: Proposal[] = parameterWork.drafts.map((entry) => ({
@@ -941,7 +950,8 @@ export function relaxOps(
  * know, drafted as a `widen` for each one, shown as whatever the old union
  * already allows: its id where the union took a plain string, as Stripe's
  * expandable fields do; null where it could be null; left out where it could
- * be. A union that allows none of those has nothing to show, and says so.
+ * be, which for the items of a list means left out of the list. A union that
+ * allows none of those has nothing to show, and says so.
  *
  * A union in a request that accepts more breaks nobody, and is left alone.
  */
@@ -959,11 +969,14 @@ export function widenOps(
   if (!sides.response || old.variants === undefined || gained.length === 0) {
     return { ops: [], notes: [] };
   }
+  // An item of a list is never missing from its place the way a field is,
+  // but it can be left out of the list, which is what old callers are shown.
+  const item = next.pointer.endsWith("/*");
   const show = old.idBranch
     ? "id"
     : old.nullable
       ? "null"
-      : !old.required
+      : !old.required || item
         ? "absent"
         : undefined;
   const names = gained
@@ -979,7 +992,7 @@ export function widenOps(
   return {
     ops: gained.map((variant) => ({ op: "widen", path: next.pointer, variant, show })),
     notes: [
-      `\`${old.name}\` can now hold ${names}, which old callers never heard of; they are shown ${show === "id" ? "its id, as for a field they did not expand" : show === "null" ? "null" : "the field left out"} instead, a declared loss to acknowledge`,
+      `\`${old.name}\` can now hold ${names}, which old callers never heard of; they are shown ${show === "id" ? "its id, as for a field they did not expand" : show === "null" ? "null" : item ? "the item left out of the list" : "the field left out"} instead, a declared loss to acknowledge`,
     ],
   };
 }

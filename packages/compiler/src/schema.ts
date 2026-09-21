@@ -609,12 +609,14 @@ export function schemaWiden(
 ): void {
   const segments = parsePointer(path);
   const slot = readSlot(document, root, segments);
-  const union = slot.schema;
-  if (!isJsonObject(union) || typeof union["$ref"] === "string") {
-    throw new SchemaOpError(
-      `${path} is not a union written in place; declare the change on the schema that is`,
-    );
-  }
+  // A union behind a reference, as Intercom writes `event_details`, is made
+  // this change's own first, so the branch is added to this use of it and
+  // never to every other schema that shares the name.
+  const union = own(
+    document,
+    WILDCARD_KEYWORD[slot.last] ? slot.parent : (slot.parent["properties"] as JsonObject),
+    WILDCARD_KEYWORD[slot.last] ?? slot.last,
+  );
   const key = Array.isArray(union["anyOf"])
     ? "anyOf"
     : Array.isArray(union["oneOf"])

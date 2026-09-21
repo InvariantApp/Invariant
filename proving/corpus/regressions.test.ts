@@ -44,6 +44,22 @@ describe("comparing a run with the recorded one", () => {
     expect(regressions).toHaveLength(2);
   });
 
+  it("notes, without failing, unexplained breakage that is only newly seen", () => {
+    const before = pair({ breakingAligned: 19, breakingAfter: 0 });
+    expect(
+      compareRuns([before], [pair({ breakingAligned: 105, breakingAfter: 52 })]),
+    ).toEqual({
+      regressions: [],
+      notes: [
+        "acme 1 -> 2: 52 breaking deltas left unexplained, was 0, of 105 now seen where 19 were",
+      ],
+    });
+    expect(
+      compareRuns([before], [pair({ breakingAligned: 30, breakingAfter: 12 })])
+        .regressions,
+    ).toEqual(["acme 1 -> 2: 12 breaking deltas left unexplained, was 0"]);
+  });
+
   it("counts a pair that was recorded and not run", () => {
     expect(compareRuns([pair()], []).regressions).toEqual([
       "acme 1 -> 2: recorded, but not run",

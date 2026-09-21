@@ -18366,8 +18366,7 @@ function schemaConvert(document, root, path, codec) {
 */
 function schemaWiden(document, root, path, variant, show) {
 	const slot = readSlot(document, root, parsePointer(path));
-	const union = slot.schema;
-	if (!isJsonObject(union) || typeof union["$ref"] === "string") throw new SchemaOpError(`${path} is not a union written in place; declare the change on the schema that is`);
+	const union = own(document, WILDCARD_KEYWORD[slot.last] ? slot.parent : slot.parent["properties"], WILDCARD_KEYWORD[slot.last] ?? slot.last);
 	const key = Array.isArray(union["anyOf"]) ? "anyOf" : Array.isArray(union["oneOf"]) ? "oneOf" : void 0;
 	if (!key) throw new SchemaOpError(`${path} is not a union`);
 	const branches = union[key];

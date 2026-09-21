@@ -8,6 +8,12 @@
  * A pair that ran out of its time budget is not counted as a regression: the
  * budget is wall-clock, and a slower runner is not a worse product. It is
  * listed so it is seen.
+ *
+ * Nor is breakage that was always there and is only now seen. Lining up a
+ * moved endpoint lets the differ look inside it, so a pair can go from 19
+ * breaking deltas, all explained by the move, to 105 with 52 unexplained.
+ * That pair explains more than it did. Unexplained breakage counts against a
+ * pair only where it grew by more than the breakage the run can now see.
  */
 import type { PairResult } from "@invariant/eval";
 
@@ -46,9 +52,15 @@ export function compareRuns(
       continue;
     }
     if (before.reached !== "done" || after.reached !== "done") continue;
-    if (after.breakingAfter > before.breakingAfter) {
+    const unexplained = after.breakingAfter - before.breakingAfter;
+    const newlySeen = Math.max(0, after.breakingAligned - before.breakingAligned);
+    if (unexplained > newlySeen) {
       regressions.push(
         `${key}: ${after.breakingAfter} breaking deltas left unexplained, was ${before.breakingAfter}`,
+      );
+    } else if (unexplained > 0) {
+      notes.push(
+        `${key}: ${after.breakingAfter} breaking deltas left unexplained, was ${before.breakingAfter}, of ${after.breakingAligned} now seen where ${before.breakingAligned} were`,
       );
     }
     if (after.compileIssues.length > 0 && before.compileIssues.length === 0) {

@@ -472,6 +472,55 @@ describe("an operation that kept its path and changed its method", () => {
     // Not reported as retired as well.
     expect(ops.some((op) => op.op === "retire")).toBe(false);
   });
+
+  it("drafts nothing for the body of an operation it retires", async () => {
+    // Apicurio 2 moved its versions listing under `/groups/{groupId}` and kept
+    // the operationId. That is a new endpoint with a parameter old callers
+    // never send, so the old one is retired, and a body Change scoped to the
+    // same id would point at an operation the predicted contract no longer has.
+    const versions = (
+      path: string,
+      properties: Record<string, Schema>,
+      required: string[] = [],
+    ) =>
+      ({
+        openapi: "3.0.3",
+        info: { title: "t", version: "1" },
+        paths: {
+          [path]: {
+            get: {
+              operationId: "listArtifactVersions",
+              responses: {
+                "200": {
+                  description: "ok",
+                  content: {
+                    "application/json": { schema: object(properties, required) },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }) as unknown as OpenApiDocument;
+    const outcome = await propose(
+      versions("/artifacts/{artifactId}/versions", { id: { type: "string" } }),
+      versions(
+        "/groups/{groupId}/artifacts/{artifactId}/versions",
+        {
+          id: { type: "string" },
+          count: { type: "integer" },
+        },
+        ["id", "count"],
+      ),
+      { judge: new RulesJudge() },
+    );
+    const changes = outcome.proposals.map((proposal) => proposal.change);
+    expect(changes.flatMap((change) => change.ops)).toContainEqual({
+      op: "retire",
+      endpoint: { method: "get", path: "/artifacts/{artifactId}/versions" },
+    });
+    expect(changes.filter((change) => (change.scopes ?? []).length > 0)).toEqual([]);
+  });
 });
 
 describe("a value that went and one that arrived", () => {
@@ -525,6 +574,44 @@ describe("a response union that can hold a new kind of object", () => {
       { op: "widen", path: "/owner", variant: "#/components/schemas/Guest", show: "id" },
     ]);
     expect(draft?.notes.join()).toMatch(/declared loss/);
+  });
+
+  it("leaves the new kind out of a list, where the union is a list's items", async () => {
+    // Stripe's `discounts` is a list of a union: an item old callers cannot
+    // read can be left out of the list, though no item may be null.
+    const listed = (...variants: string[]) => ({
+      ...withUnion("Customer"),
+      Thing: object(
+        {
+          id: { type: "string" },
+          owners: {
+            type: "array",
+            items: {
+              anyOf: variants.map((name) => ({ $ref: `#/components/schemas/${name}` })),
+            },
+          },
+        },
+        ["id", "owners"],
+      ),
+    });
+    const outcome = await propose(
+      contract(listed("Customer")),
+      contract(listed("Customer", "Guest")),
+      { judge: new RulesJudge() },
+    );
+    const draft = outcome.proposals.find((proposal) =>
+      proposal.change.ops.some((op) => op.op === "widen"),
+    );
+    expect(draft?.change.ops).toEqual([
+      {
+        op: "widen",
+        path: "/owners/*",
+        variant: "#/components/schemas/Guest",
+        show: "absent",
+      },
+    ]);
+    expect(draft?.notes.join()).toMatch(/left out of the list/);
+    expect(outcome.unresolved.map((entry) => entry.reason).join()).not.toMatch(/owners/);
   });
 
   it("leaves a request union that accepts more alone", async () => {
