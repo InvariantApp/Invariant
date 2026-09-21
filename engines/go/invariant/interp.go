@@ -45,7 +45,8 @@ type TransformError struct {
 	ChangeID string
 	Message  string
 	// Kind tells the refusals apart: "transform", "matches" or "time".
-	Kind string
+	Kind    string
+	errorID string
 }
 
 func (e *TransformError) Error() string { return e.Message }

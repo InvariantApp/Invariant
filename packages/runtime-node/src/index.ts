@@ -131,7 +131,7 @@ function webHeaders(request: IncomingMessage): Headers {
 
 /** Headers in the form a `node:http` message carries them. */
 function toRawHeaders(headers: Headers): string[] {
-  return [...headers].flatMap(([name, value]) => [name, value]);
+  return [...headers].flat();
 }
 
 function toHeaderObject(headers: Headers): Record<string, string> {

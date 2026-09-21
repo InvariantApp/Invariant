@@ -9,7 +9,9 @@
  * requests see one answer per contract, and an answer that cannot be
  * expressed becomes the provider's error, never the untranslated body.
  */
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createHmac } from "node:crypto";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import {
   createServer,
   type IncomingMessage,
@@ -17,6 +19,9 @@ import {
   type ServerResponse,
 } from "node:http";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createInterface } from "node:readline";
 import { createRuntime, type InvariantRuntime } from "@invariant/runtime";
 import express from "express";
 import express4 from "express4";
@@ -91,7 +96,13 @@ const HANDLERS = {
   csv: () => "id,amount\np_1,1999\n",
 };
 
-type Build = (runtime: InvariantRuntime) => Promise<Server>;
+/** A server that is not a Node one: its address, and how to stop it. */
+interface Served {
+  base: string;
+  close: () => Promise<void>;
+}
+
+type Build = (runtime: InvariantRuntime) => Promise<Server | Served>;
 
 /** Fastify runs the listener its serverFactory is given, so the adapter wraps that. */
 async function fastifyWith(
@@ -287,15 +298,63 @@ const FRAMEWORKS: Record<string, Build> = {
   "fastify 4": (runtime) => fastifyWith(Fastify4 as unknown as typeof Fastify, runtime),
 };
 
+/**
+ * The Go engine's net/http middleware (launch gate L10b), in front of the same
+ * routes written in Go, run as its own process on the same program. Held to
+ * this suite rather than a copy of it, so the two cannot drift apart.
+ */
+const GO_ENGINE = join(import.meta.dirname, "../../../engines/go");
+const hasGo = spawnSync("go", ["version"]).status === 0;
+if (hasGo) {
+  FRAMEWORKS["go net/http"] = async () => {
+    const dir = mkdtempSync(join(tmpdir(), "invariant-go-"));
+    const binary = join(dir, "conformance-server");
+    const program = join(dir, "program.json");
+    execFileSync("go", ["build", "-o", binary, "./cmd/conformance-server"], {
+      cwd: GO_ENGINE,
+      stdio: "inherit",
+    });
+    writeFileSync(program, JSON.stringify(PROGRAM));
+    const child = spawn(binary, ["-program", program], {
+      stdio: ["ignore", "pipe", "inherit"],
+    });
+    const base = await new Promise<string>((resolve, reject) => {
+      child.once("exit", (code) =>
+        reject(new Error(`the Go server exited with ${code}`)),
+      );
+      createInterface({ input: child.stdout }).once("line", (line) =>
+        resolve(line.replace(/^listening /, "")),
+      );
+    });
+    return {
+      base,
+      close: () =>
+        new Promise<void>((resolve) => {
+          child.once("exit", () => resolve());
+          child.kill();
+        }),
+    };
+  };
+} else if (process.env["INVARIANT_REQUIRE_GO"]) {
+  throw new Error("INVARIANT_REQUIRE_GO is set and there is no Go toolchain on PATH");
+}
+
 for (const [name, build] of Object.entries(FRAMEWORKS)) {
   describe(`the runtime in ${name}`, () => {
-    let server: Server;
+    let served: Served;
     let base: string;
     beforeAll(async () => {
-      server = await build(createRuntime({ program: PROGRAM }));
-      base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-    });
-    afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+      const server = await build(createRuntime({ program: PROGRAM }));
+      served =
+        "base" in server
+          ? server
+          : {
+              base: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
+              close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+            };
+      base = served.base;
+    }, 120_000);
+    afterAll(() => served.close());
 
     const pay = (body: unknown, version?: string) =>
       fetch(`${base}/v1/payments`, {

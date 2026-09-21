@@ -12,4 +12,12 @@ describe("the runtime's version", () => {
     ) as { version: string };
     expect(VERSION).toBe(manifest.version);
   });
+
+  it("is the one the Go engine states", () => {
+    const go = readFileSync(
+      new URL("../../../engines/go/invariant/version.go", import.meta.url),
+      "utf8",
+    );
+    expect(go).toContain(`const Version = ${JSON.stringify(VERSION)}`);
+  });
 });

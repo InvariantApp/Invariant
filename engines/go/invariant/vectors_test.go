@@ -21,6 +21,9 @@ type vector struct {
 	} `json:"expect"`
 }
 
+// oldByDefault is the identity the TypeScript harness gives every vector.
+var oldByDefault = []Identity{{Kind: "default", Label: "old"}}
+
 type vectorFile struct {
 	Vectors []vector `json:"vectors"`
 }
@@ -67,7 +70,7 @@ func programFor(v vector) []byte {
 // run returns the output, or who refused: "decode" for a program refused at
 // load, the Change's id for a body refused while running, "error" otherwise.
 func runVector(v vector) (any, string) {
-	runtime, err := Load(programFor(v), Options{Limits: Limits{MaxMatches: v.MaxMatches}})
+	runtime, err := Load(programFor(v), Options{Limits: Limits{MaxMatches: v.MaxMatches}, Identity: oldByDefault})
 	if err != nil {
 		return nil, "decode"
 	}
@@ -189,7 +192,7 @@ func runEnvelopeVector(v envelopeVector) (*envelopeRequest, string) {
 			"retired":   []any{},
 		}},
 	})
-	runtime, err := Load(program, Options{})
+	runtime, err := Load(program, Options{Identity: oldByDefault})
 	if err != nil {
 		return nil, "decode"
 	}
@@ -276,7 +279,7 @@ func runFormVector(v formVector) (string, string) {
 			"retired":   []any{},
 		}},
 	})
-	runtime, err := Load(program, Options{})
+	runtime, err := Load(program, Options{Identity: oldByDefault})
 	if err != nil {
 		return "", "decode"
 	}

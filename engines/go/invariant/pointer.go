@@ -90,6 +90,9 @@ func resolveSlots(root any, segments []string, limit int) ([]slot, error) {
 				if !ok {
 					continue
 				}
+				if next == nil {
+					next = make([]node, 0, len(array.Items)*len(frontier))
+				}
 				for index, item := range array.Items {
 					if len(next) >= limit {
 						return nil, &fanOutExceeded{limit}
@@ -133,6 +136,9 @@ func resolveSlots(root any, segments []string, limit int) ([]slot, error) {
 			if last != eachItem {
 				continue
 			}
+			if slots == nil {
+				slots = make([]slot, 0, len(container.Items)*len(frontier))
+			}
 			for index := range container.Items {
 				if len(slots) >= limit {
 					return nil, &fanOutExceeded{limit}
@@ -160,6 +166,9 @@ func resolveSlots(root any, segments []string, limit int) ([]slot, error) {
 			}
 			if len(slots) >= limit {
 				return nil, &fanOutExceeded{limit}
+			}
+			if slots == nil {
+				slots = make([]slot, 0, len(frontier))
 			}
 			slots = append(slots, slot{object: container, key: last, captures: n.captures})
 		}

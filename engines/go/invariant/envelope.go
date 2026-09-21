@@ -387,7 +387,7 @@ func openEnvelope(envelope *Envelope, template, pathValues []string, request Env
 	}
 
 	if envelope.Body && request.Body != nil && *request.Body != "" {
-		body, err := Parse([]byte(*request.Body))
+		body, err := parseBody([]byte(*request.Body))
 		if err != nil {
 			return nil, err
 		}
@@ -460,6 +460,10 @@ var fallbackStyles = map[string]ParamCodec{
 	"header": {Style: "simple", Explode: false},
 	"cookie": {Style: "form", Explode: true},
 }
+
+// TouchedPaths are every place an instruction reads or writes, as segments
+// from the root it runs at.
+func TouchedPaths(instr *Instr) [][]string { return touchedPaths(instr, nil) }
 
 // touchedPaths are every place an instruction reads or writes, as segments
 // from the root it runs at.
