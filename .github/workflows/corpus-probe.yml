@@ -1,0 +1,54 @@
+name: Corpus probe
+
+# One provider's corpus pairs, on demand, for looking into a pair the nightly
+# run flagged without running the machine-sized ones on a laptop. It records
+# nothing: the result is an artifact to read, never a new baseline.
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: Provider as the manifest names it, such as stripe.com
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: corpus probe (${{ inputs.provider }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: node --import tsx scripts/fetch-oasdiff.mts --host
+
+      - uses: actions/cache@v4
+        with:
+          path: .cache/corpus
+          key: corpus-${{ hashFiles('proving/corpus/manifest.json') }}
+
+      - name: Run the provider's pairs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROVIDER: ${{ inputs.provider }}
+          REAL_CONCURRENCY: "1"
+        run: >-
+          node --import tsx proving/corpus/run.mts
+          --provider "$PROVIDER"
+          --results probe.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: probe
+          path: probe.json
