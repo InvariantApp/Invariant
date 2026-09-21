@@ -6,6 +6,11 @@ packages:
 allowBuilds:
   esbuild: true
 
+minimumReleaseAgeExclude:
+  - '@nestjs/common@12.0.4'
+  - '@nestjs/core@12.0.4'
+  - '@nestjs/platform-express@12.0.4'
+
 # openapi-typescript 7.13 (latest) declares TypeScript ^5 only. Consumer B's
 # generated types are compiled and tested under this repository's TypeScript 6
 # on every run, so the combination is known to work rather than assumed to.

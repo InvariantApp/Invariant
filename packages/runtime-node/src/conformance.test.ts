@@ -23,6 +23,9 @@ import express4 from "express4";
 import Fastify from "fastify";
 import Fastify4 from "fastify4";
 import Koa from "koa";
+import "reflect-metadata";
+import * as Nest from "@nestjs/common";
+import { NestFactory } from "@nestjs/core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { adaptListener, adaptMiddleware, type Listener } from "./index.ts";
 
@@ -200,6 +203,60 @@ const FRAMEWORKS: Record<string, Build> = {
       response.type("text/csv").send(HANDLERS.csv());
     });
     return listen(createServer(adaptListener(app as unknown as Listener, { runtime })));
+  },
+  "nestjs 12": async (runtime) => {
+    // Nest's decorators applied as the functions they are, so the suite does
+    // not depend on how the compiler handles decorator syntax.
+    class Payments {
+      create(
+        body: Record<string, unknown>,
+        response: { status: (code: number) => unknown },
+      ) {
+        const out = HANDLERS.create(body);
+        response.status(out.status);
+        return out.body;
+      }
+      read(
+        ifNoneMatch: string | undefined,
+        response: {
+          status: (code: number) => {
+            set: (
+              name: string,
+              value: string,
+            ) => { end: () => void; json: (body: unknown) => void };
+          };
+        },
+      ) {
+        const out = HANDLERS.read(ifNoneMatch);
+        const reply = response.status(out.status).set("etag", out.etag);
+        if (out.status === 304) reply.end();
+        else reply.json(out.body);
+      }
+      csv(response: { type: (type: string) => { send: (body: string) => void } }) {
+        response.type("text/csv").send(HANDLERS.csv());
+      }
+    }
+    const method = (name: keyof Payments) =>
+      Object.getOwnPropertyDescriptor(Payments.prototype, name) as PropertyDescriptor;
+    Nest.Controller("v1")(Payments);
+    Nest.Post("payments")(Payments.prototype, "create", method("create"));
+    Nest.Body()(Payments.prototype, "create", 0);
+    Nest.Res({ passthrough: true })(Payments.prototype, "create", 1);
+    Nest.Get("payments/:id")(Payments.prototype, "read", method("read"));
+    Nest.Headers("if-none-match")(Payments.prototype, "read", 0);
+    Nest.Res()(Payments.prototype, "read", 1);
+    Nest.Get("export")(Payments.prototype, "csv", method("csv"));
+    Nest.Res()(Payments.prototype, "csv", 0);
+    class AppModule {}
+    Nest.Module({ controllers: [Payments] })(AppModule);
+
+    const app = await NestFactory.create(AppModule, { logger: false });
+    (
+      app.getHttpAdapter().getInstance() as { set: (key: string, value: unknown) => void }
+    ).set("etag", false);
+    await app.init();
+    const listener = app.getHttpAdapter().getInstance() as Listener;
+    return listen(createServer(adaptListener(listener, { runtime })));
   },
   koa: async (runtime) => {
     const app = new Koa();
