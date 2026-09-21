@@ -32,7 +32,10 @@ jobs:
       # which would quietly remove the safety property CI exists to enforce.
       - name: Install oasdiff
         run: |
-          go install github.com/oasdiff/oasdiff@v1.32.1
+          # Pinned past v1.32.1 on purpose. That release returns a different
+          # answer each run on documents with reference cycles, which is
+          # oasdiff #1230, and the fix is on main and not yet tagged.
+          go install github.com/oasdiff/oasdiff@v1.33.0-rc.1.0.20260916211558-322d7ae815e5
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - run: pnpm install --frozen-lockfile

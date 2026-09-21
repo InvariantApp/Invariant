@@ -1707,38 +1707,61 @@ against the real one, still exceeds what a 5.9 GB development machine can give
 it. That is recorded as `budget` rather than hidden, and the unexplained count
 for those pairs is an upper bound rather than a measurement.
 
-### The differ does not always give the same answer twice
-
-The largest finding from this round is not about memory, and it invalidated
-every Stripe number reported before it.
+### The differ does not always give the same answer twice, and the fix was upstream
 
 Given the same command and the same two Stripe documents three times, oasdiff
 1.32.1 returned 18,990 entries, then 38,442, then 23,838. The runs are not
 truncations of one another: 16,563 findings appear only in the first and 36,015
 only in the second, across the same 11 check ids, which is what a
-non-deterministic pairing of endpoints looks like rather than an output that got
-cut short. Pairs at ordinary sizes were stable across three runs each, so it is
-something the very large comparisons provoke.
+non-deterministic pairing looks like rather than output that got cut short. A
+repeat at a larger memory ceiling varied more, not less, so it was never memory
+pressure. Pairs at ordinary sizes were stable across three runs each.
 
-It was found by an arithmetic impossibility rather than by looking for it. One
-pair drafted no changes at all, which means the predicted document is the
-original document, which means the residual has to equal the aligned count. It
-did not: 18,838 against 146,635. `predictDocument(from, to, [])` was confirmed
-to return `from` exactly, so the two comparisons had identical inputs and
-disagreed anyway.
+It was found by arithmetic rather than by looking. One pair drafted no changes
+at all, so its predicted document is its original document, so its residual had
+to equal its aligned count of 146,635. It reported 18,838.
+`predictDocument(from, to, [])` was confirmed to return `from` exactly, which
+left only the differ.
 
-The gate decides whether a release may ship, so an answer that changes between
-runs has to be refused rather than averaged or believed. `diffOutcome` takes a
-`confirm` option that repeats the comparison and raises `UnstableDiffError`
-unless both runs find the same fingerprints, and the evaluation harness turns it
-on above a thousand breaking entries, which is where instability has actually
-been observed. It doubles the work, so it stays off by default and goes on
-wherever a number is about to be trusted.
+It is oasdiff #1230, "Non-deterministic diff --format json output for schemas
+with multiple reference cycles", and it was already fixed on their main branch
+by a rewrite that computes each schema pair once as a graph. The project is
+therefore pinned past the release, to
+`v1.33.0-rc.1.0.20260916211558-322d7ae815e5`, which is a pre-release commit and
+a deliberate choice: a tagged release that cannot give the same answer twice is
+worth less than an untagged one that can.
 
-What this says about the earlier numbers is worth stating plainly: any Stripe
-count in an earlier report was one sample from a distribution, and the right
-response to that is to stop reporting it rather than to pick the sample that
-looks best.
+Measured on the same Stripe pair, before and after:
+
+| | v1.32.1 | pinned build |
+|---|---|---|
+| three runs of one comparison | 55,266 / 30,384 / 228,531 | 28,464 / 28,464 / 28,464 |
+| time | 45 s to 400 s, or exhausted | 4 s to 5 s |
+| with `--flatten-allof` | exhausted 3.4 GB in 8 s | 5 s, stable across three runs |
+
+**Most of the work done to survive the bug was then deleted.** A pre-check that
+skipped the full changelog above twenty changed schemas, and a rule that passed
+`--flatten-allof` only when a document contained `allOf`, both existed because
+the comparison was unaffordable. It is affordable now, so flattening is
+unconditional again as this design always specified, and the pre-check is gone.
+Keeping a workaround after its reason has gone is how a codebase accumulates
+permanent cost for a temporary problem.
+
+What was kept is the part that found it. `diffOutcome` takes a `confirm` option
+that repeats the comparison and raises `UnstableDiffError` unless both runs find
+the same fingerprints, and the harness turns it on above a thousand breaking
+entries. It costs a second comparison and it is the only reason the earlier
+Stripe figures were known to be noise.
+
+**Stripe, measured for the first time.** Six of its seven steps now complete at
+full fidelity, taking between seven seconds and two minutes, and the counts
+repeat. Across them 92,192 breaking deltas: 66.7% are a response enum gaining a
+value and 19.9% one losing a value, with required response properties appearing
+and disappearing making up most of the rest. Two thirds of what the largest
+provider in this corpus does to its callers is change the vocabulary of a
+response field, which is the category this system deliberately cannot adapt,
+because there is nothing to map a new value back to. That is a more useful thing
+to know about the product than any number reported here before it.
 
 ### Still to build
 

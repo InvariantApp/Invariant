@@ -3,8 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { ambiguousPaths, type OpenApiDocument, schemasOf } from "@invariant/contract";
-import { isJsonObject, type JsonValue } from "@invariant/ir";
+import { ambiguousPaths, type OpenApiDocument } from "@invariant/contract";
 import { BREAKING_INFO_IDS } from "./policy.ts";
 
 const run = promisify(execFile);
@@ -75,19 +74,10 @@ const DEFAULT_TIMEOUT_MS = 300_000;
  */
 const DEFAULT_MEMORY_LIMIT: string | undefined = undefined;
 
-/**
- * How many changed component schemas the full changelog is trusted to survive.
- *
- * Measured, not chosen: 16 changed schemas on Stripe's documents completed in
- * twenty-four seconds and 28 exhausted three gigabytes, so the line sits
- * between them, nearer the side that is known to work.
- */
-const CHANGED_SCHEMA_LIMIT = 20;
-
 export interface DiffOptions {
   /**
    * Merge allOf subschemas before diffing, so composition noise does not appear
-   * as change. Decided per document rather than always on: see `hasAllOf`.
+   * as change. On by default; pass false to compare without merging.
    */
   flattenAllOf?: boolean;
   /** Resolved from `flattenAllOf` and the documents. Internal. */
@@ -106,8 +96,6 @@ export interface DiffOptions {
    * enough to exhaust the differ still has to be able to release.
    */
   fallback?: boolean;
-  /** Overrides the measured limit above which the reduced path is used first. */
-  changedSchemaLimit?: number;
   /**
    * Repeat the comparison and refuse the result if it does not come back the
    * same. Off by default because it doubles the work; on wherever a number is
@@ -339,24 +327,12 @@ export async function diffOutcome(
       writeFile(revisionFile, JSON.stringify(revision)),
     ]);
 
-    // Above the measured limit the full changelog is not merely slow, it does
-    // not finish, and attempting it first costs a minute and a memory spike
-    // before the reduced path can even start. Below it the full changelog is
-    // attempted and the fallback still catches anything surprising, so the
-    // threshold being imprecise costs additive counts rather than correctness.
-    const overLimit =
-      options.mode === undefined &&
-      options.fallback !== false &&
-      changedSchemaCount(base, revision) >
-        (options.changedSchemaLimit ?? CHANGED_SCHEMA_LIMIT);
-    // Straight to the bottom rung, not the middle one. The middle rung expands
-    // to fill whatever ceiling it is given before dying, which starves the rung
-    // that would have worked: given 3.4 GB it took all of it, and the same pair
-    // completes in thirty seconds and 2.6 GB with the `allOf` merge switched
-    // off. Trying it first costs the attempt and the one after it.
-    const requested: DiffMode =
-      options.mode ?? (overLimit ? "breaking-unflattened" : "changelog");
-    const flatten = options.flattenAllOf ?? (hasAllOf(base) || hasAllOf(revision));
+    const requested: DiffMode = options.mode ?? "changelog";
+    // Always, which is what the design asked for and what a working differ
+    // allows. It was made conditional while oasdiff 1.32.1 could not afford it,
+    // and that reason is gone: on the pinned build the same Stripe pair
+    // flattens in five seconds and returns the same answer every time.
+    const flatten = options.flattenAllOf !== false;
     // Any breaking-only rung needs the promotions, not just the first one.
     // Without them the two checks this policy calls breaking at INFO are not
     // reported at all, which is how a reduced run quietly loses 154 real Plaid
@@ -415,57 +391,6 @@ export async function diffOutcome(
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
-}
-
-/**
- * How many component schemas the two documents define differently.
- *
- * This is the one thing measured to predict whether the full changelog is
- * affordable, and it is cheap to compute. Neither size nor reuse predicts it:
- * GitHub's 13 MB document with 990 schemas and 4.3 references each diffs in
- * three seconds, while Stripe's 7.6 MB document with 1431 schemas and 2.7
- * references each cannot be diffed at all. What separates them is how many
- * shared schemas moved at once. Holding Stripe's documents fixed and varying
- * only that number: 1 changed schema took one second, 4 took two, 8 took
- * twenty-four, and 28 exhausted three gigabytes.
- */
-/**
- * Whether a document composes anything with `allOf`.
- *
- * `--flatten-allof` was passed unconditionally, on the reasoning that merging
- * composition keeps it from showing up as change. On a document that uses no
- * composition there is nothing to merge, and the flag is not free: Stripe
- * declares zero `allOf` and 2002 `anyOf`, and passing it exhausted 3.4 GB in
- * eight seconds where the same comparison without it finished in thirty. It
- * also changed the answer, reporting 110,324 breaking entries against 166,331,
- * so on a document with no `allOf` it was suppressing real differences rather
- * than collapsing noise.
- *
- * The flag is therefore passed when there is something for it to do.
- */
-export function hasAllOf(document: OpenApiDocument): boolean {
-  const seen = (value: JsonValue): boolean => {
-    if (Array.isArray(value)) return value.some(seen);
-    if (!isJsonObject(value)) return false;
-    if (value["allOf"] !== undefined) return true;
-    return Object.values(value).some((child) => seen(child as JsonValue));
-  };
-  return seen(document as JsonValue);
-}
-
-export function changedSchemaCount(
-  base: OpenApiDocument,
-  revision: OpenApiDocument,
-): number {
-  const from = schemasOf(base);
-  const to = schemasOf(revision);
-  let changed = 0;
-  for (const name of Object.keys(from)) {
-    const other = to[name];
-    if (other === undefined) continue;
-    if (JSON.stringify(from[name]) !== JSON.stringify(other)) changed += 1;
-  }
-  return changed;
 }
 
 /** Whether two runs found the same things, by fingerprint. */

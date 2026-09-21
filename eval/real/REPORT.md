@@ -10,23 +10,21 @@ or a corpus written for it.
 ## Did the pipeline survive
 
 - 686 version pairs
-- 667 ran every stage (97.2%)
-- 14 stopped after `load`
-- 5 stopped after `budget`
-- median 173 ms per pair
+- 672 ran every stage (98.0%)
+- 13 stopped after `load`
+- 1 stopped after `budget`
+- median 179 ms per pair
 
 ### What stopped them
 
 | Count | Error |
 |---|---|
 | 7 | `ContractError: `#/components/schemas/custom_attributes` is referenced but not defined, from 4 places including #/components/schemas/conversation_list_item/properties/custom_attributes. The document has to define everything it points at before it can be compared.` |
-| 4 | `OasdiffError: /home/akirt/go/bin/oasdiff was killed by the system, which on this path means it ran out of memory. Lower `memoryLimit` or diff a smaller step.` |
 | 2 | `ContractError: `#/components/schemas/Address` is referenced but not defined, from 3 places including #/components/schemas/Individual/properties/residentialAddress. The document has to define everything it points at before it can be compared.` |
 | 2 | `ContractError: `#/components/schemas/BankAccountInfo` is referenced but not defined, from 2 places including #/components/schemas/TransferInstrument/properties/bankAccount. The document has to define everything it points at before it can be compared.` |
 | 1 | `OasdiffError: /home/akirt/go/bin/oasdiff exited with 104.
 Error` |
-| 1 | `UnstableDiffError: The differ returned 86943 entries and then 99356 for the same two documents, so its answer here is not reproducible and no count from it means anything. This is a defect in oasdiff 1.32.1 rather than in the documents` |
-| 1 | `OasdiffError: /home/akirt/go/bin/oasdiff did not finish within 180000 ms and was stopped. Comparison cost is driven by how the documents compose their schemas rather than by how far apart the two versions are.` |
+| 1 | `The worker was killed, which on this path means it ran out of memory.` |
 | 1 | `OasdiffError: /home/akirt/go/bin/oasdiff exited with 102.
 Error` |
 
@@ -36,10 +34,10 @@ Of the 686 pairs, 450 were purely additive:
 the new version broke nothing. That is itself worth knowing, because it is
 the case this system should stay out of the way of.
 
-A raw diff of the rest finds 12022 breaking deltas.
-Lining the endpoints up first finds 12353.
+A raw diff of the rest finds 104215 breaking deltas.
+Lining the endpoints up first finds 104753.
 
-**331 of those are only visible after lining up.** Most real APIs
+**538 of those are only visible after lining up.** Most real APIs
 put the version in the URL, so bumping it moves every endpoint at once. A diff
 with no notion of that reports the old paths as removed and stops: it cannot
 see inside operations it thinks no longer exist. Applying the route change
@@ -48,31 +46,31 @@ not otherwise have been told about.
 
 | Breaking change | Times | Pairs |
 |---|---|---|
-| `response-property-enum-value-added` | 6400 | 62 |
+| `response-property-enum-value-added` | 67917 | 66 |
+| `response-property-enum-value-removed` | 18738 | 16 |
+| `response-required-property-added` | 6394 | 27 |
+| `response-property-any-of-added` | 4106 | 3 |
+| `response-required-property-removed` | 2102 | 10 |
 | `api-path-removed-without-deprecation` | 1436 | 34 |
-| `response-body-type-changed` | 917 | 3 |
+| `response-body-type-changed` | 918 | 4 |
 | `response-property-became-optional` | 804 | 12 |
 | `request-parameter-enum-value-removed` | 453 | 7 |
-| `response-property-enum-value-removed` | 384 | 15 |
 | `response-property-type-changed` | 311 | 23 |
 | `response-property-max-increased` | 292 | 2 |
-| `response-required-property-added` | 276 | 23 |
-| `request-property-enum-value-removed` | 163 | 50 |
+| `api-operation-id-removed` | 237 | 8 |
+| `request-property-enum-value-removed` | 188 | 51 |
+| `request-property-removed` | 176 | 24 |
 | `request-property-type-changed` | 152 | 10 |
-| `request-property-removed` | 142 | 21 |
 | `request-property-became-required` | 86 | 9 |
 | `request-parameter-type-changed` | 62 | 7 |
 | `request-parameter-max-decreased` | 57 | 7 |
-| `response-required-property-removed` | 56 | 8 |
 | `response-property-max-length-unset` | 52 | 3 |
 | `request-parameter-removed` | 45 | 6 |
 | `response-property-one-of-added` | 30 | 9 |
-| `api-operation-id-removed` | 29 | 2 |
 | `new-required-request-property` | 29 | 6 |
 | `response-property-min-length-unset` | 24 | 2 |
 | `response-property-max-length-increased` | 23 | 2 |
 | `request-body-type-changed` | 20 | 1 |
-| `api-security-removed` | 19 | 1 |
 
 ## Who the providers are
 
@@ -91,54 +89,18 @@ place, which is what this system is actually for.
 | twilio.com | 270 | 270 | 0 | 1145 | 1081 | 96 |
 | intercom.com | 42 | 35 | 0 | 56 | 56 | 10 |
 | googleapis.com | 17 | 16 | 0 | 398 | 33 | 373 |
-| amazonaws.com | 15 | 15 | 0 | 1819 | 1322 | 505 |
+| amazonaws.com | 15 | 15 | 0 | 2026 | 1529 | 505 |
 | github.com | 8 | 8 | 0 | 964 | 153 | 849 |
-| stripe.com | 7 | 1 | 5 | 0 | 0 | 0 |
+| stripe.com | 7 | 6 | 1 | 92192 | 92192 | 15 |
 | box.com | 7 | 7 | 0 | 7 | 7 | 0 |
 | openai.com | 7 | 7 | 0 | 8 | 8 | 1 |
-| plaid.com | 7 | 7 | 0 | 5610 | 5608 | 61 |
+| plaid.com | 7 | 7 | 0 | 5611 | 5609 | 61 |
 | apicurio.local | 1 | 1 | 0 | 46 | 14 | 35 |
 | chaingateway.io | 1 | 1 | 0 | 21 | 0 | 21 |
 
-## Pairs compared at reduced fidelity
-
-42 pairs could not be compared in full. Their counts below
-are upper bounds rather than measurements, and they are listed here so no
-number from them is read as though it were measured the same way as the
-rest.
-
-The full changelog could not be computed for these, so a breaking-only
-comparison was used instead. For the largest it also had to stop merging
-`allOf` before comparing, which no longer collapses composition and so
-reports a superset. Every comparison of one pair uses the same rung, or
-the residual and the total would not be subtractable.
-
-| API | Step | Rung | Aligned breaking |
-|---|---|---|---|
-| adyen.com:AccountService | 4 to 5 | `breaking-unflattened` | 66 |
-| adyen.com:CheckoutService | 46 to 49 | `breaking-unflattened` | 0 |
-| adyen.com:CheckoutService | 67 to 68 | `breaking-unflattened` | 2 |
-| amazonaws.com:appmesh | 2018-10-01 to 2019-01-25 | `breaking-unflattened` | 19 |
-| amazonaws.com:clouddirectory | 2016-05-10 to 2017-01-11 | `breaking-unflattened` | 600 |
-| amazonaws.com:cloudfront | 2016-11-25 to 2017-03-25 | `breaking-unflattened` | 21 |
-| amazonaws.com:cloudfront | 2017-10-30 to 2018-06-18 | `breaking-unflattened` | 317 |
-| amazonaws.com:cloudfront | 2018-06-18 to 2018-11-05 | `breaking-unflattened` | 3 |
-| amazonaws.com:cloudfront | 2018-11-05 to 2019-03-26 | `breaking-unflattened` | 10 |
-| amazonaws.com:cloudfront | 2019-03-26 to 2020-05-31 | `breaking-unflattened` | 79 |
-| amazonaws.com:cloudsearch | 2011-02-01 to 2013-01-01 | `breaking-unflattened` | 148 |
-| amazonaws.com:dynamodb | 2011-12-05 to 2012-08-10 | `breaking-unflattened` | 13 |
-| amazonaws.com:rds | 2013-02-12 to 2013-09-09 | `breaking-unflattened` | 104 |
-| amazonaws.com:rds | 2014-09-01 to 2014-10-31 | `breaking-unflattened` | 118 |
-| googleapis.com:androidpublisher | v2 to v3 | `breaking-unflattened` | 58 |
-| plaid.com:2020-09-14 | 2026-04-27 22052fb to 2026-06-10 5c2920e | `breaking-unflattened` | 367 |
-| plaid.com:2020-09-14 | 2026-06-10 5c2920e to 2026-06-25 050cfa0 | `breaking-unflattened` | 412 |
-| plaid.com:2020-09-14 | 2026-06-25 050cfa0 to 2026-07-22 8a493a5 | `breaking-unflattened` | 4312 |
-| plaid.com:2020-09-14 | 2026-07-22 8a493a5 to 2026-07-22 e3d940a | `breaking-unflattened` | 72 |
-| plaid.com:2020-09-14 | 2026-07-24 bae08e2 to 2026-08-17 82f90e9 | `breaking-unflattened` | 435 |
-
 ## Pairs that cost more than they were given
 
-5 of 686 pairs were stopped rather than finished.
+1 of 686 pairs were stopped rather than finished.
 
 This is a real limit, not a crash. The differ's cost tracks the size of
 the difference rather than the size of the documents: two 13 MB GitHub
@@ -153,15 +115,11 @@ says which bound it hit.
 
 | API | Step | Why |
 |---|---|---|
-| stripe.com:spec3 | 2026-04-20 d771243 to 2026-05-23 6a1ea0a | OasdiffError: /home/akirt/go/bin/oasdiff was killed by the system, which on this path means it ran out of memory. Lower  |
-| stripe.com:spec3 | 2026-05-23 fbd0091 to 2026-06-23 f4ac6d9 | OasdiffError: /home/akirt/go/bin/oasdiff was killed by the system, which on this path means it ran out of memory. Lower  |
-| stripe.com:spec3 | 2026-07-01 7061322 to 2026-07-01 d5d11f6 | OasdiffError: /home/akirt/go/bin/oasdiff was killed by the system, which on this path means it ran out of memory. Lower  |
-| stripe.com:spec3 | 2026-07-01 d5d11f6 to 2026-07-29 af5309c | OasdiffError: /home/akirt/go/bin/oasdiff was killed by the system, which on this path means it ran out of memory. Lower  |
-| stripe.com:spec3 | 2026-07-29 af5309c to 2026-08-26 30d3391 | OasdiffError: /home/akirt/go/bin/oasdiff did not finish within 180000 ms and was stopped. Comparison cost is driven by h |
+| stripe.com:spec3 | 2026-07-01 d5d11f6 to 2026-07-29 af5309c | The worker was killed, which on this path means it ran out of memory. |
 
 ## What we could not explain
 
-2150 Changes were drafted, by deterministic rules alone, with no model asked anything.
+2165 Changes were drafted, by deterministic rules alone, with no model asked anything.
 
 The table below is the to-do list, and it is ordered by how often real
 companies actually do each thing. Three categories in it are already
@@ -169,26 +127,26 @@ reachable with ops that exist and are simply not wired up.
 
 | Unexplained | Times | Pairs | What it would take |
 |---|---|---|---|
-| `response-property-enum-value-added` | 6400 | 62 | a new value a client switching exhaustively would not know. `enumMap` cannot help, since there is nothing to map it back to; this is a `behavior` change or an accepted break. |
-| `response-body-type-changed` | 917 | 3 | a response schema replaced wholesale, often with an empty one. Not expressible and probably should not be: it is a rewrite, not a rename. |
+| `response-property-enum-value-added` | 67917 | 66 | a new value a client switching exhaustively would not know. `enumMap` cannot help, since there is nothing to map it back to; this is a `behavior` change or an accepted break. |
+| `response-property-enum-value-removed` | 18736 | 15 | a value a client may still be storing. `enumMap` can express it once someone says what it became, which is exactly the question the model is asked. |
+| `response-required-property-added` | 6394 | 27 | a new required field in a response. `add` expresses it, given a value for callers who predate it, which is not in the document. |
+| `response-property-any-of-added` | 4106 | 3 | not yet diagnosed |
+| `response-required-property-removed` | 2102 | 10 | a required response field gone. `remove` with a restore value expresses it; again the value is not in the document. |
+| `response-body-type-changed` | 918 | 4 | a response schema replaced wholesale, often with an empty one. Not expressible and probably should not be: it is a rewrite, not a rename. |
 | `response-property-became-optional` | 804 | 12 | a field a caller relied on may now be absent. Expressible only by supplying a value, which is a judgement. |
-| `response-property-enum-value-removed` | 382 | 14 | a value a client may still be storing. `enumMap` can express it once someone says what it became, which is exactly the question the model is asked. |
 | `response-property-type-changed` | 304 | 21 | a response field whose declared type moved. `cast` covers the scalar cases once someone says the two are the same field, which is the alignment question. |
 | `response-property-max-increased` | 292 | 2 | not yet diagnosed |
-| `response-required-property-added` | 276 | 23 | a new required field in a response. `add` expresses it, given a value for callers who predate it, which is not in the document. |
-| `request-property-enum-value-removed` | 159 | 49 | not yet diagnosed |
+| `api-operation-id-removed` | 237 | 8 | not yet diagnosed |
+| `request-property-enum-value-removed` | 184 | 50 | not yet diagnosed |
+| `request-property-removed` | 176 | 24 | a field dropped from a request. `remove` expresses it; the rules judge abstains on removals by design, so this needs the model or a person. |
 | `request-property-type-changed` | 152 | 10 | `cast` covers the scalar cases. Anything structural is out of scope on purpose. |
-| `request-property-removed` | 142 | 21 | a field dropped from a request. `remove` expresses it; the rules judge abstains on removals by design, so this needs the model or a person. |
 | `request-property-became-required` | 86 | 9 | a caller who omitted it will now be refused. `add` with a default expresses it. |
 | `request-parameter-type-changed` | 62 | 7 | not yet diagnosed |
 | `request-parameter-max-decreased` | 57 | 7 | not yet diagnosed |
-| `response-required-property-removed` | 56 | 8 | a required response field gone. `remove` with a restore value expresses it; again the value is not in the document. |
 | `response-property-max-length-unset` | 52 | 3 | not yet diagnosed |
 | `request-parameter-removed` | 45 | 6 | a query or path parameter dropped. Same cause: parameters are invisible to the proposer. **Reachable, not wired up.** |
 | `response-property-one-of-added` | 30 | 9 | not yet diagnosed |
-| `api-operation-id-removed` | 29 | 2 | not yet diagnosed |
 | `new-required-request-property` | 29 | 6 | a new required request field. `add` with a default expresses it, and the default is a decision rather than a fact. |
-| `response-property-min-length-unset` | 24 | 2 | not yet diagnosed |
 
 ## Drafts that would not compile
 
@@ -260,18 +218,18 @@ here, not a hard case. These are the highest priority in the report.
 
 | API | Versions | Raw | Aligned | Unexplained | Drafted |
 |---|---|---|---|---|---|
+| stripe.com:spec3 | 2026-04-20 d771243 to 2026-05-23 6a1ea0a | 24616 | 24616 | 24616 | 8 |
+| stripe.com:spec3 | 2026-07-01 7061322 to 2026-07-01 d5d11f6 | 20451 | 20451 | 20451 | 0 |
+| stripe.com:spec3 | 2026-06-23 f4ac6d9 to 2026-07-01 7061322 | 20403 | 20403 | 20403 | 2 |
+| stripe.com:spec3 | 2026-05-23 fbd0091 to 2026-06-23 f4ac6d9 | 16390 | 16390 | 16390 | 4 |
+| stripe.com:spec3 | 2026-07-29 af5309c to 2026-08-26 30d3391 | 10332 | 10332 | 10332 | 1 |
 | plaid.com:2020-09-14 | 2026-06-25 050cfa0 to 2026-07-22 8a493a5 | 4312 | 4312 | 4312 | 11 |
 | amazonaws.com:clouddirectory | 2016-05-10 to 2017-01-11 | 600 | 600 | 600 | 0 |
 | adyen.com:AccountService-v6 | 2022-10-06 49d15b1 to 2023-03-22 68a6f20 | 579 | 579 | 579 | 1 |
 | plaid.com:2020-09-14 | 2026-07-24 bae08e2 to 2026-08-17 82f90e9 | 435 | 435 | 435 | 14 |
-| plaid.com:2020-09-14 | 2026-06-10 5c2920e to 2026-06-25 050cfa0 | 412 | 412 | 412 | 5 |
+| plaid.com:2020-09-14 | 2026-06-10 5c2920e to 2026-06-25 050cfa0 | 413 | 413 | 413 | 5 |
 | plaid.com:2020-09-14 | 2026-04-27 22052fb to 2026-06-10 5c2920e | 367 | 367 | 365 | 12 |
-| amazonaws.com:cloudfront | 2017-10-30 to 2018-06-18 | 45 | 317 | 317 | 1 |
+| amazonaws.com:cloudfront | 2017-10-30 to 2018-06-18 | 45 | 362 | 362 | 1 |
 | twilio.com:twilio_memory_v1 | 2026-07-30 bb2d4be to 2026-08-11 591755b | 314 | 314 | 314 | 0 |
 | adyen.com:BalancePlatformService | 1 to 2 | 271 | 271 | 260 | 12 |
 | adyen.com:ManagementService-v3 | 2026-02-02 9c9bc16 to 2026-05-01 9a8c347 | 176 | 176 | 176 | 2 |
-| adyen.com:ManagementService-v1 | 2026-02-02 9c9bc16 to 2026-05-01 9a8c347 | 176 | 176 | 176 | 2 |
-| twilio.com:twilio_messaging_v1 | 2026-02-05 55a17be to 2026-03-10 c854046 | 144 | 144 | 144 | 0 |
-| github.com:api.github.com | 2026-09-11 f5d6d10 to 2026-09-12 e16cc25 | 123 | 123 | 123 | 0 |
-| adyen.com:ManagementService-v3 | 2026-05-28 1e3919b to 2026-07-13 8ca5e35 | 106 | 106 | 106 | 1 |
-| adyen.com:ManagementService-v1 | 2026-05-28 1e3919b to 2026-07-13 8ca5e35 | 106 | 106 | 106 | 1 |
