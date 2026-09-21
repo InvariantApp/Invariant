@@ -15,7 +15,9 @@
     "*.config.ts",
     "tsdown.shared.ts",
     "packages/*/tsdown*.ts",
-    "scripts/**/*.mts"
+    "scripts/**/*.mts",
+    "proving/**/*.mts",
+    "proving/**/*.ts"
   ],
   "exclude": ["**/node_modules", "**/dist"]
 }

@@ -347,6 +347,7 @@ async function drain(): Promise<void> {
         compileIssues: [],
         breakingKinds: {},
         unexplainedKinds: {},
+        elapsedMs: 0,
       };
     }
     results.push({ ...result, provider: pair.provider, source: pair.source });
@@ -400,7 +401,7 @@ function percent(value: number): string {
 
 function render(
   summary: RealSummary,
-  all: readonly PairResult[],
+  all: readonly WorkerResult[],
   judgeMode: string,
   baseline?: RealSummary,
 ): string {

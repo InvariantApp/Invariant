@@ -12741,10 +12741,42 @@ var InstallError = class extends Error {
 		this.name = "InstallError";
 	}
 };
-async function download(name) {
-	const response = await fetch(`${RELEASE_BASE}/${name}`, { redirect: "follow" });
-	if (!response.ok) throw new InstallError(`${response.status} fetching ${name}`);
-	return Buffer.from(await response.arrayBuffer());
+/** Waits before retries 1, 2 and 3. */
+const BACKOFF_MS = [
+	1e3,
+	3e3,
+	9e3
+];
+/**
+* One release asset's bytes.
+*
+* GitHub's release CDN answers a few percent of requests with a 5xx or drops
+* the connection, and a first-time install that fails on that is broken for
+* the person running it. Server errors, rate limits and network failures are
+* retried with backoff; anything else, a 404 above all, means the asset is not
+* there and is reported at once. The bytes are verified by hash afterwards
+* either way, so a retry can never let a different file through.
+*/
+async function download(name, options = {}) {
+	const get = options.fetch ?? fetch;
+	const pause = options.pause ?? ((ms) => new Promise((done) => setTimeout(done, ms)));
+	let failure = "";
+	let attempts = 0;
+	for (let attempt = 0; attempt <= BACKOFF_MS.length; attempt += 1) {
+		if (attempt > 0) await pause(BACKOFF_MS[attempt - 1]);
+		attempts += 1;
+		let response;
+		try {
+			response = await get(`${RELEASE_BASE}/${name}`, { redirect: "follow" });
+		} catch (error) {
+			failure = error instanceof Error ? error.message : String(error);
+			continue;
+		}
+		if (response.ok) return Buffer.from(await response.arrayBuffer());
+		failure = String(response.status);
+		if (response.status < 500 && response.status !== 429) break;
+	}
+	throw new InstallError(`${failure} fetching ${name}${attempts > 1 ? ` after ${attempts} attempts` : ""}`);
 }
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 /** Upstream's published hash for each asset of the pinned release. */
@@ -25171,16 +25203,21 @@ function typesOf$1(schema) {
 * integer space keeps the generated value free of the binary-fraction noise
 * that multiplying by 0.01 would introduce.
 */
-function numberWithStep(step, integral) {
+function numberWithStep(step, integral, range = {
+	min: -1e6,
+	max: 1e6
+}) {
 	const factor = 10 ** decimalPlaces$1(step);
 	const unit = Math.round(step * factor);
 	if (unit === 0) return fast_check_default.integer({
 		min: -1e6,
 		max: 1e6
 	});
+	const lowest = Math.ceil(range.min * factor / unit);
+	const highest = Math.floor(range.max * factor / unit);
 	return fast_check_default.integer({
-		min: -1e6,
-		max: 1e6
+		min: Math.max(lowest, -1e6),
+		max: Math.max(Math.min(highest, 1e6), Math.max(lowest, -1e6))
 	}).map((count) => count * unit / factor).filter((value) => !integral || Number.isInteger(value));
 }
 function decimalPlaces$1(value) {
@@ -25193,18 +25230,59 @@ function decimalPlaces$1(value) {
 	const dot = text.indexOf(".");
 	return dot === -1 ? 0 : text.length - dot - 1;
 }
+const DATES = fast_check_default.date({
+	min: /* @__PURE__ */ new Date("2020-01-01T00:00:00Z"),
+	max: /* @__PURE__ */ new Date("2030-01-01T00:00:00Z"),
+	noInvalidDate: true
+});
 function stringFor(schema) {
 	const format = schema["format"];
-	if (format === "date-time") return fast_check_default.date({
-		min: /* @__PURE__ */ new Date("2020-01-01T00:00:00Z"),
-		max: /* @__PURE__ */ new Date("2030-01-01T00:00:00Z")
-	}).map((date) => date.toISOString());
+	if (format === "date-time") return DATES.map((date) => date.toISOString());
+	if (format === "date") return DATES.map((date) => date.toISOString().slice(0, 10));
 	if (format === "uuid") return fast_check_default.uuid();
+	if (format === "email") return fast_check_default.emailAddress();
+	if (format === "uri" || format === "url") return fast_check_default.webUrl();
+	if (format === "ipv4") return fast_check_default.ipV4();
+	const minLength = typeof schema["minLength"] === "number" ? schema["minLength"] : 0;
+	const maxLength = typeof schema["maxLength"] === "number" ? schema["maxLength"] : Math.max(minLength, 24);
+	const pattern = schema["pattern"];
+	if (typeof pattern === "string") try {
+		return fast_check_default.stringMatching(new RegExp(pattern, "u")).filter((text) => text.length >= minLength && text.length <= maxLength);
+	} catch {}
 	return fast_check_default.string({
-		minLength: 0,
-		maxLength: 24,
+		minLength,
+		maxLength,
 		unit: "grapheme-ascii"
 	});
+}
+function integerFor(schema) {
+	const step = schema["multipleOf"];
+	const { min, max } = bounds(schema, true);
+	if (typeof step === "number") return numberWithStep(step, true, {
+		min,
+		max
+	});
+	return fast_check_default.integer({
+		min: Math.ceil(min),
+		max: Math.floor(max)
+	});
+}
+/**
+* The declared range, as inclusive bounds. Both OpenAPI spellings of an
+* exclusive bound are read: 3.1's number and 3.0's flag beside the bound.
+*/
+function bounds(schema, integral) {
+	const unit = integral ? 1 : .01;
+	let min = -1e6;
+	let max = 1e6;
+	if (typeof schema["minimum"] === "number") min = schema["exclusiveMinimum"] === true ? schema["minimum"] + unit : schema["minimum"];
+	if (typeof schema["exclusiveMinimum"] === "number") min = schema["exclusiveMinimum"] + unit;
+	if (typeof schema["maximum"] === "number") max = schema["exclusiveMaximum"] === true ? schema["maximum"] - unit : schema["maximum"];
+	if (typeof schema["exclusiveMaximum"] === "number") max = schema["exclusiveMaximum"] - unit;
+	return {
+		min,
+		max: Math.max(min, max)
+	};
 }
 function arbitraryFor(document, raw, depth) {
 	const resolved = deref(document, raw);
@@ -25214,6 +25292,19 @@ function arbitraryFor(document, raw, depth) {
 	if (constant !== void 0) return fast_check_default.constant(constant);
 	const enumValues = schema["enum"];
 	if (Array.isArray(enumValues) && enumValues.length > 0) return fast_check_default.constantFrom(...enumValues);
+	for (const key of ["oneOf", "anyOf"]) {
+		const branches = schema[key];
+		if (Array.isArray(branches) && branches.length > 0) {
+			const chosen = fast_check_default.oneof(...branches.map((branch) => arbitraryFor(document, branch, depth)));
+			return schema["nullable"] === true ? fast_check_default.oneof({
+				weight: 4,
+				arbitrary: chosen
+			}, {
+				weight: 1,
+				arbitrary: fast_check_default.constant(null)
+			}) : chosen;
+		}
+	}
 	const allOf = schema["allOf"];
 	if (Array.isArray(allOf) && allOf.length > 0) return fast_check_default.tuple(...allOf.map((branch) => arbitraryFor(document, branch, depth))).map((parts) => {
 		const merged = {};
@@ -25221,37 +25312,41 @@ function arbitraryFor(document, raw, depth) {
 		return merged;
 	});
 	const types = typesOf$1(schema);
-	const nullable = types.includes("null");
+	const nullable = types.includes("null") || schema["nullable"] === true;
 	const primary = types.find((type) => type !== "null");
 	const base = (() => {
 		switch (primary) {
 			case "string": return stringFor(schema);
 			case "boolean": return fast_check_default.boolean();
-			case "integer": {
-				const step = schema["multipleOf"];
-				if (typeof step === "number") return numberWithStep(step, true);
-				return fast_check_default.integer({
-					min: -1e6,
-					max: 1e6
-				});
-			}
+			case "integer": return integerFor(schema);
 			case "number": {
 				const step = schema["multipleOf"];
-				if (typeof step === "number") return numberWithStep(step, false);
-				return numberWithStep(.01, false);
+				if (typeof step === "number") return numberWithStep(step, false, bounds(schema, false));
+				const { min, max } = bounds(schema, false);
+				return numberWithStep(.01, false).map((value) => Math.min(max, Math.max(min, value)));
 			}
 			case "array": {
 				if (depth >= MAX_DEPTH) return fast_check_default.constant([]);
 				const items = schema["items"];
 				if (items === void 0) return fast_check_default.constant([]);
+				const minItems = typeof schema["minItems"] === "number" ? schema["minItems"] : 0;
+				const maxItems = typeof schema["maxItems"] === "number" ? schema["maxItems"] : Math.max(minItems, 3);
 				return fast_check_default.array(arbitraryFor(document, items, depth + 1), {
-					minLength: 0,
-					maxLength: 3
+					minLength: minItems,
+					maxLength: Math.min(maxItems, minItems + 3)
 				});
 			}
 			default: {
 				const properties = schema["properties"];
-				if (!isJsonObject(properties)) return fast_check_default.constant({});
+				const additional = schema["additionalProperties"];
+				if (!isJsonObject(properties)) {
+					if (isJsonObject(additional) && depth < MAX_DEPTH) return fast_check_default.dictionary(fast_check_default.string({
+						minLength: 1,
+						maxLength: 8,
+						unit: "grapheme-ascii"
+					}), arbitraryFor(document, additional, depth + 1), { maxKeys: 3 });
+					return fast_check_default.constant({});
+				}
 				if (depth >= MAX_DEPTH) return fast_check_default.constant({});
 				const required = new Set(Array.isArray(schema["required"]) ? schema["required"].filter((entry) => typeof entry === "string") : []);
 				const entries = Object.entries(properties).map(([name, child]) => {

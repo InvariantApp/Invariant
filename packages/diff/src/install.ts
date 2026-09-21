@@ -28,10 +28,51 @@ export class InstallError extends Error {
   }
 }
 
-async function download(name: string): Promise<Buffer> {
-  const response = await fetch(`${RELEASE_BASE}/${name}`, { redirect: "follow" });
-  if (!response.ok) throw new InstallError(`${response.status} fetching ${name}`);
-  return Buffer.from(await response.arrayBuffer());
+export interface DownloadOptions {
+  fetch?: typeof fetch;
+  /** How long to wait before each retry; replaced in tests. */
+  pause?: (ms: number) => Promise<void>;
+}
+
+/** Waits before retries 1, 2 and 3. */
+const BACKOFF_MS = [1_000, 3_000, 9_000];
+
+/**
+ * One release asset's bytes.
+ *
+ * GitHub's release CDN answers a few percent of requests with a 5xx or drops
+ * the connection, and a first-time install that fails on that is broken for
+ * the person running it. Server errors, rate limits and network failures are
+ * retried with backoff; anything else, a 404 above all, means the asset is not
+ * there and is reported at once. The bytes are verified by hash afterwards
+ * either way, so a retry can never let a different file through.
+ */
+export async function download(
+  name: string,
+  options: DownloadOptions = {},
+): Promise<Buffer> {
+  const get = options.fetch ?? fetch;
+  const pause =
+    options.pause ?? ((ms: number) => new Promise((done) => setTimeout(done, ms)));
+  let failure = "";
+  let attempts = 0;
+  for (let attempt = 0; attempt <= BACKOFF_MS.length; attempt += 1) {
+    if (attempt > 0) await pause(BACKOFF_MS[attempt - 1] as number);
+    attempts += 1;
+    let response: Response;
+    try {
+      response = await get(`${RELEASE_BASE}/${name}`, { redirect: "follow" });
+    } catch (error) {
+      failure = error instanceof Error ? error.message : String(error);
+      continue;
+    }
+    if (response.ok) return Buffer.from(await response.arrayBuffer());
+    failure = String(response.status);
+    if (response.status < 500 && response.status !== 429) break;
+  }
+  throw new InstallError(
+    `${failure} fetching ${name}${attempts > 1 ? ` after ${attempts} attempts` : ""}`,
+  );
 }
 
 const sha256 = (bytes: Buffer): string =>
