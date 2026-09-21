@@ -2979,6 +2979,28 @@ const RemoveOp = Type.Object({
 	additionalProperties: false,
 	description: "A field the target contract dropped. Forward deletes it; backward restores `restore`."
 });
+const DefaultOp = Type.Object({
+	op: Type.Literal("default"),
+	path: Pointer$1,
+	value: Type.Unknown(),
+	when: Type.Union([
+		Type.Literal("absent"),
+		Type.Literal("null"),
+		Type.Literal("absent-or-null")
+	]),
+	toward: Type.Union([Type.Literal("old"), Type.Literal("new")])
+}, {
+	additionalProperties: false,
+	description: "A field both contracts have, where one side may leave it out or null and the other may not. Values travelling toward the stricter side get `value` where the field is missing or null, as `when` says; the other direction is untouched. `toward: old` serves a field that became optional or nullable, `toward: new` one that became required or stopped being nullable."
+});
+const DropNullOp = Type.Object({
+	op: Type.Literal("dropNull"),
+	path: Pointer$1,
+	toward: Type.Union([Type.Literal("old"), Type.Literal("new")])
+}, {
+	additionalProperties: false,
+	description: "An optional field one side allows to be null and the other does not. A null travelling toward the stricter side is deleted, so the field arrives left out; any other value is untouched. `toward: old` serves a field that became nullable, `toward: new` one that stopped being nullable. Only valid where the stricter side does not require the field."
+});
 const RouteOp = Type.Object({
 	op: Type.Literal("route"),
 	from: Endpoint,
@@ -3052,6 +3074,8 @@ const Op = Type.Union([
 	ConvertOp,
 	AddOp,
 	RemoveOp,
+	DefaultOp,
+	DropNullOp,
 	RouteOp,
 	RetireOp,
 	BehaviorOp
@@ -3112,8 +3136,16 @@ const Change = Type.Object({
 	assertions: Type.Optional(Assertions),
 	provenance: Type.Optional(Provenance)
 }, { additionalProperties: false });
+const DATA_OPS = /* @__PURE__ */ new Set([
+	"move",
+	"convert",
+	"add",
+	"remove",
+	"default",
+	"dropNull"
+]);
 function isDataOp(op) {
-	return op.op === "move" || op.op === "convert" || op.op === "add" || op.op === "remove";
+	return DATA_OPS.has(op.op);
 }
 function isSchemaScope(scope) {
 	return "schema" in scope;
@@ -3215,11 +3247,19 @@ const SetInstr = Type.Object({
 	value: Type.Unknown(),
 	/** True for a default that must not overwrite a value the caller supplied. */
 	ifAbsent: Type.Boolean(),
+	/**
+	* Write where the value is null. With `ifAbsent`, where it is either; on
+	* its own, never where it is missing, so no field is created that was not
+	* there.
+	*/
+	ifNull: Type.Optional(Type.Literal(true)),
 	c: ChangeId
 }, { additionalProperties: false });
 const DelInstr = Type.Object({
 	k: Type.Literal("del"),
 	path: Pointer,
+	/** Delete only a null, leaving any other value in place. */
+	ifNull: Type.Optional(Type.Literal(true)),
 	c: ChangeId
 }, { additionalProperties: false });
 const Instr = Type.Union([
@@ -12302,6 +12342,59 @@ function schemaRemove(document, root, path) {
 	deleteSlot$1(document, root, segments);
 	pruneEmptyObjects(document, root, segments);
 }
+/**
+* Whether a field must be present, changed where it is declared.
+*
+* Only the parent's `required` list changes; the field's own schema is left
+* alone, so a schema shared through a reference is never touched by a change
+* that is about one place it is used.
+*/
+function schemaSetRequired(document, root, path, required) {
+	const slot = readSlot$1(document, root, parsePointer(path));
+	if (slot.last === "*") throw new SchemaOpError("A list element is not optional");
+	setRequired(slot.parent, slot.last, required);
+}
+/** Whether a field must be present, read through references on the way. */
+function schemaRequiredAt(document, root, path) {
+	return readSlot$1(document, root, parsePointer(path)).required;
+}
+/** The field's own schema, made this change's own so it can be edited. */
+function ownSlot(document, root, segments) {
+	const slot = readSlot$1(document, root, segments);
+	if (slot.last === "*") return own(document, slot.parent, "items");
+	return own(document, slot.parent["properties"], slot.last);
+}
+const isNullSchema = (branch) => isJsonObject(branch) && branch["type"] === "null" && Object.keys(branch).length === 1;
+/**
+* Whether a field may be null, written the way the document's own version
+* writes it: `nullable` in 3.0, a `"null"` type in 3.1. Written the other way,
+* the prediction would mean the same thing and still differ from the real
+* specification, and closure would report a change nobody made.
+*/
+function schemaSetNullable(document, root, path, nullable) {
+	const schema = ownSlot(document, root, parsePointer(path));
+	const version = document["openapi"];
+	if (typeof version === "string" && version.startsWith("3.0")) {
+		if (nullable) schema["nullable"] = true;
+		else delete schema["nullable"];
+		return;
+	}
+	const declared = schema["type"];
+	if (typeof declared === "string" || Array.isArray(declared)) {
+		const types = (Array.isArray(declared) ? declared : [declared]).filter((type) => type !== "null");
+		const next = nullable ? [...types, "null"] : types;
+		schema["type"] = next.length === 1 ? next[0] : next;
+		return;
+	}
+	for (const key of ["anyOf", "oneOf"]) {
+		const branches = schema[key];
+		if (!Array.isArray(branches)) continue;
+		const rest = branches.filter((branch) => !isNullSchema(branch));
+		schema[key] = nullable ? [...rest, { type: "null" }] : rest;
+		return;
+	}
+	throw new SchemaOpError(`"${path}" declares no type, so there is no way to write whether it may be null`);
+}
 //#endregion
 //#region ../compiler/src/predict.ts
 /**
@@ -12595,6 +12688,15 @@ function predictDocument(oldContract, newContract, changes) {
 						schemaAdd(document, schema, op.path, resolved.shape, resolved.required);
 						break;
 					}
+					case "default": {
+						const looser = op.toward === "old";
+						if (op.when !== "null") schemaSetRequired(document, schema, op.path, !looser);
+						if (op.when !== "absent") schemaSetNullable(document, schema, op.path, looser);
+						break;
+					}
+					case "dropNull":
+						if (oldSites.some((site) => site.direction === (op.toward === "new" ? "request" : "response")) && schemaRequiredAt(document, schema, op.path)) throw new Error(`${op.path} is required, so a null cannot be sent as the field left out`);
+						schemaSetNullable(document, schema, op.path, op.toward === "old");
 				}
 			} catch (error) {
 				issues.push({
@@ -12739,6 +12841,29 @@ function findInterference(changes) {
 function prefixed(prefix, path) {
 	return formatPointer([...parsePointer(prefix), ...parsePointer(path)]);
 }
+/**
+* A `default` op's one write, in whichever direction it faces. A value the
+* stricter side would accept is never touched: `ifAbsent` alone leaves a null
+* in place, and `ifNull` alone never creates a field that was missing.
+*/
+function fill(op, prefix, changeId) {
+	return {
+		k: "set",
+		path: prefixed(prefix, op.path),
+		value: op.value,
+		ifAbsent: op.when !== "null",
+		...op.when === "absent" ? {} : { ifNull: true },
+		c: changeId
+	};
+}
+function dropNull(op, prefix, changeId) {
+	return {
+		k: "del",
+		path: prefixed(prefix, op.path),
+		ifNull: true,
+		c: changeId
+	};
+}
 /** Old-shape-to-canonical primitives for one data op, at one pointer prefix. */
 function forwardInstrs(op, prefix, changeId) {
 	switch (op.op) {
@@ -12782,6 +12907,8 @@ function forwardInstrs(op, prefix, changeId) {
 			path: prefixed(prefix, op.path),
 			c: changeId
 		}];
+		case "default": return op.toward === "new" ? [fill(op, prefix, changeId)] : [];
+		case "dropNull": return op.toward === "new" ? [dropNull(op, prefix, changeId)] : [];
 	}
 	return [];
 }
@@ -12832,6 +12959,8 @@ function backwardInstrs(op, prefix, changeId) {
 			ifAbsent: false,
 			c: changeId
 		}];
+		case "default": return op.toward === "old" ? [fill(op, prefix, changeId)] : [];
+		case "dropNull": return op.toward === "old" ? [dropNull(op, prefix, changeId)] : [];
 	}
 	return [];
 }
@@ -13215,6 +13344,18 @@ function derive(change) {
 			reasons.push(`${op.path} is gone, so a response can only carry the declared constant in its place, not whatever the value used to be`);
 			lossy.forward.push(op.path);
 			break;
+		case "default": {
+			runtime = worse(runtime, "declared-lossy");
+			const missing = op.when === "absent" ? "missing" : op.when === "null" ? "null" : "missing or null";
+			reasons.push(op.toward === "old" ? `${op.path} can now be ${missing}, so an old caller is shown the declared default in its place and cannot tell the two apart` : `${op.path} can no longer be ${missing}, so the declared default is sent for an old caller who left it that way`);
+			(op.toward === "old" ? lossy.backward : lossy.forward).push(op.path);
+			break;
+		}
+		case "dropNull":
+			runtime = worse(runtime, "declared-lossy");
+			reasons.push(op.toward === "old" ? `${op.path} can now be null, so an old caller is sent the field left out instead` : `${op.path} can no longer be null, so a null from an old caller is sent as the field left out`);
+			(op.toward === "old" ? lossy.backward : lossy.forward).push(op.path);
+			break;
 		case "retire":
 			runtime = "none";
 			source = "manual";
@@ -13540,17 +13681,29 @@ const RULES = [
 		served: "not applicable",
 		sentence: `A request field now refuses values the old contract allowed. Rewriting a caller's value into a different one would change what they asked for. ${BEHAVIOR}`
 	}),
-	rule(/^(new-required-request-property-with-default|request-property-became-required-with-default)$/, {
+	rule(/^new-required-request-property-with-default$/, {
 		class: "adaptable",
 		op: "add",
 		served: "yes",
 		sentence: "A request field old callers never sent is now required, and the specification gives its default. An `add` supplies it for them."
 	}),
-	rule(/^(new-required-request-property|request-property-became-required)$/, {
+	rule(/^new-required-request-property$/, {
 		class: "needs-decision",
 		op: "add",
 		served: "yes",
 		sentence: "A request field old callers never sent is now required. An `add` supplies it for them, with a value you decide."
+	}),
+	rule(/^request-property-became-required-with-default$/, {
+		class: "adaptable",
+		op: "default",
+		served: "yes",
+		sentence: "A request field old callers could leave out is now required, and the specification gives its default. A `default` supplies it where they leave it out."
+	}),
+	rule(/^request-property-became-required$/, {
+		class: "needs-decision",
+		op: "default",
+		served: "yes",
+		sentence: "A request field old callers could leave out is now required. A `default` supplies it where they leave it out, with a value you decide."
 	}),
 	rule(/^request-property-removed$/, {
 		class: "adaptable",
@@ -13570,11 +13723,23 @@ const RULES = [
 		served: "yes",
 		sentence: "A request field's type changed. A `cast` or `scale10` conversion translates old callers' values, which you confirm."
 	}),
-	rule(/^request-(body|property)-became-not-nullable$/, {
+	rule(/^request-property-became-nullable$/, {
+		class: "adaptable",
+		op: "dropNull",
+		served: "yes",
+		sentence: "A request field now accepts null. No old caller sends one, so nothing is translated on the way in; a `dropNull` toward old records it, and wherever the schema is also a response, old callers are sent the field left out instead of null."
+	}),
+	rule(/^request-property-became-not-nullable$/, {
+		class: "adaptable",
+		op: "dropNull",
+		served: "yes",
+		sentence: "A request field no longer accepts null. Where old callers may leave it out, a `dropNull` sends their null as the field left out; where it is required, a `default` replaces the null with a value you decide."
+	}),
+	rule(/^request-body-became-not-nullable$/, {
 		class: "needs-decision",
-		op: "remove",
+		op: "default",
 		served: "planned",
-		sentence: "A request field no longer accepts null. Dropping a null an old caller sends, or replacing it with a value you decide, is not served yet."
+		sentence: "A request body no longer accepts null. Replacing a null body an old caller sends with one you decide needs an op on the whole body, which is not served yet."
 	}),
 	rule(/^request-(body|property)-(any-of-removed|one-of-removed|all-of-added|wrapped-in-one-of(-original-preserved)?)$/, {
 		class: "needs-decision",
@@ -13611,11 +13776,23 @@ const RULES = [
 		served: "yes",
 		sentence: "A response field old callers were always given is gone. A `remove` restores it for them with a value you decide, or a `move` if another field replaced it."
 	}),
-	rule(/^response-(body|property)-(became-optional|became-nullable)$/, {
+	rule(/^response-property-became-optional$/, {
 		class: "needs-decision",
-		op: "add",
+		op: "default",
+		served: "yes",
+		sentence: "A response field old callers were always given may now be missing. A `default` fills it in for them with the specification's default or a value you decide, as a declared loss."
+	}),
+	rule(/^response-property-became-nullable$/, {
+		class: "adaptable",
+		op: "dropNull",
+		served: "yes",
+		sentence: "A response field may now be null. Where old callers could already be sent it left out, a `dropNull` sends it that way; where they were always given a value, a `default` fills one in that you decide."
+	}),
+	rule(/^response-body-became-nullable$/, {
+		class: "needs-decision",
+		op: "default",
 		served: "planned",
-		sentence: "A response field old callers were always given may now be missing or null. Filling it in for them with a value you decide is not served yet."
+		sentence: "A response body may now be null. Giving old callers a body in its place needs an op on the whole body, which is not served yet."
 	}),
 	rule(/^response-(body|property)-(any-of-added|one-of-added|all-of-removed|wrapped-in-one-of(-original-preserved)?)$/, {
 		class: "needs-decision",
@@ -26831,7 +27008,21 @@ function applyCast(root, instr, limits) {
 	}
 	return cast;
 }
+/** Whether a `set` writes over what is there now. */
+function setsOver(instr, current) {
+	if (!instr.ifAbsent && !instr.ifNull) return true;
+	return instr.ifAbsent && current === void 0 || instr.ifNull === true && current === null;
+}
 function applySet(root, instr, limits) {
+	if (instr.ifNull && !instr.ifAbsent) {
+		let written = 0;
+		for (const slot of resolveSlots(root, instr.path, limits.maxMatches)) {
+			if (readSlot(slot) !== null) continue;
+			writeSlot(slot, instr.value);
+			written += 1;
+		}
+		return written;
+	}
 	const lastWildcard = instr.path.lastIndexOf("*");
 	if (lastWildcard >= 0) {
 		const elements = resolveSlots(root, instr.path.slice(0, lastWildcard + 1), limits.maxMatches);
@@ -26840,7 +27031,7 @@ function applySet(root, instr, limits) {
 		for (const element of elements) {
 			const target = rest.length === 0 ? element : createSlot(readSlot(element), rest, []);
 			if (!target) continue;
-			if (instr.ifAbsent && readSlot(target) !== void 0) continue;
+			if (!setsOver(instr, readSlot(target))) continue;
 			writeSlot(target, instr.value);
 			written += 1;
 		}
@@ -26848,7 +27039,7 @@ function applySet(root, instr, limits) {
 	}
 	const slot = createSlot(root, instr.path, []);
 	if (!slot) throw new TransformError(instr.c, `Cannot write ${instr.path.join("/")}`);
-	if (instr.ifAbsent && readSlot(slot) !== void 0) return 0;
+	if (!setsOver(instr, readSlot(slot))) return 0;
 	writeSlot(slot, instr.value);
 	return 1;
 }
@@ -26856,6 +27047,7 @@ function applyDel(root, instr, limits) {
 	const slots = resolveSlots(root, instr.path, limits.maxMatches);
 	let removed = 0;
 	for (const slot of [...slots].reverse()) {
+		if (instr.ifNull && readSlot(slot) !== null) continue;
 		deleteSlot(slot);
 		removed += 1;
 	}
@@ -27042,6 +27234,7 @@ function decodeInstr(raw, where) {
 				"path",
 				"value",
 				"ifAbsent",
+				"ifNull",
 				"c"
 			], where);
 			if (typeof value["ifAbsent"] !== "boolean") throw new ProgramError(`${where}.ifAbsent must be a boolean`);
@@ -27050,17 +27243,20 @@ function decodeInstr(raw, where) {
 				path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
 				value: value["value"],
 				ifAbsent: value["ifAbsent"],
+				...onlyTrue(value["ifNull"], `${where}.ifNull`) ? { ifNull: true } : {},
 				c: changeId
 			};
 		case "del":
 			expectKeys(value, [
 				"k",
 				"path",
+				"ifNull",
 				"c"
 			], where);
 			return {
 				k: "del",
 				path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
+				...onlyTrue(value["ifNull"], `${where}.ifNull`) ? { ifNull: true } : {},
 				c: changeId
 			};
 		default: throw new ProgramError(`${where} has an unknown instruction "${kind}"`);
@@ -27101,6 +27297,12 @@ function decodeRoute(raw, where) {
 		to: string(to["path"], `${where}.to.path`).split("/"),
 		changeId: string(value["c"], `${where}.c`)
 	};
+}
+/** An optional flag that is either left out or true, never anything else. */
+function onlyTrue(value, where) {
+	if (value === void 0) return false;
+	if (value !== true) throw new ProgramError(`${where} must be true when present`);
+	return true;
 }
 function decodeProgram(raw) {
 	const value = object(raw, "program");
