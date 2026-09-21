@@ -340,6 +340,9 @@ importers:
 
   packages/flags:
     dependencies:
+      '@invariant/client':
+        specifier: workspace:*
+        version: link:../client
       '@invariant/runtime':
         specifier: workspace:*
         version: link:../runtime

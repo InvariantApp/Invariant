@@ -194,7 +194,7 @@ export async function migrateConsumerB(): Promise<MigratedConsumer> {
   // compiles against today; putting these in first would delete the very
   // properties it anchors on.
   const regenerated = join(out, "acme-types.next.ts");
-  await regenerateTypes(join(PROVIDER, "openapi/head.json"), regenerated);
+  await regenerateTypes(consumer, join(PROVIDER, "openapi/head.json"), regenerated);
   const nextTypes = await readFile(regenerated, "utf8");
   await rm(regenerated);
 
@@ -242,12 +242,21 @@ export async function migrateConsumerB(): Promise<MigratedConsumer> {
   };
 }
 
-/** Runs the consumer's own generator, the way its package.json does. */
-async function regenerateTypes(spec: string, out: string): Promise<void> {
+/**
+ * Runs the consumer's own generator, the way its package.json does: from its
+ * own directory, with the version it depends on. Run from the repository root
+ * it depended on whatever `npx` happened to find there, which changed the day
+ * another package in the workspace began to depend on a different copy.
+ */
+async function regenerateTypes(
+  consumer: string,
+  spec: string,
+  out: string,
+): Promise<void> {
   const { execFile } = await import("node:child_process");
   const { promisify } = await import("node:util");
   await promisify(execFile)("npx", ["openapi-typescript", spec, "-o", out], {
-    cwd: REPO_ROOT,
+    cwd: consumer,
   });
 }
 

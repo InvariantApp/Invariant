@@ -36,6 +36,7 @@
     }
   },
   "dependencies": {
-    "@invariant/runtime": "workspace:*"
+    "@invariant/runtime": "workspace:*",
+    "@invariant/client": "workspace:*"
   }
 }

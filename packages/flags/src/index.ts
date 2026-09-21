@@ -21,6 +21,16 @@
 import { readFileSync, statSync } from "node:fs";
 import type { RuntimeFlags } from "@invariant/runtime";
 
+import { parseFlags } from "./parse.ts";
+
+export { parseFlags } from "./parse.ts";
+export {
+  combineFlags,
+  type RemoteFlagsOptions,
+  type RemoteFlagsSource,
+  remoteFlags,
+} from "./remote.ts";
+
 export interface FlagsOptions {
   /** JSON file holding the flags. Absent is normal and means nothing is off. */
   path?: string;
@@ -33,26 +43,6 @@ export interface FlagsOptions {
 }
 
 const DEFAULT_TTL_MS = 5_000;
-
-function parse(text: string): RuntimeFlags | undefined {
-  const value: unknown = JSON.parse(text);
-  if (value === null || typeof value !== "object") return undefined;
-  const record = value as Record<string, unknown>;
-
-  const strings = (entry: unknown): string[] | undefined =>
-    Array.isArray(entry)
-      ? entry.filter((item): item is string => typeof item === "string")
-      : undefined;
-
-  const contracts = strings(record["disabledContracts"]);
-  const changes = strings(record["disabledChanges"]);
-
-  return {
-    ...(record["allDisabled"] === true ? { allDisabled: true } : {}),
-    ...(contracts ? { disabledContracts: contracts } : {}),
-    ...(changes ? { disabledChanges: changes } : {}),
-  };
-}
 
 export interface FlagsSource {
   /** What the runtime calls. Never throws. */
@@ -81,7 +71,7 @@ export function flagsFrom(options: FlagsOptions = {}): FlagsSource {
     const raw = options.env ? process.env[options.env] : undefined;
     if (raw !== undefined && raw !== "") {
       try {
-        const parsed = parse(raw);
+        const parsed = parseFlags(raw);
         if (parsed) {
           lastGood = parsed;
           wasStale = false;
@@ -110,7 +100,7 @@ export function flagsFrom(options: FlagsOptions = {}): FlagsSource {
         wasStale = false;
         return lastGood;
       }
-      const parsed = parse(readFileSync(options.path, "utf8"));
+      const parsed = parseFlags(readFileSync(options.path, "utf8"));
       if (!parsed) {
         note(`${options.path} is not an object, so the last known flags are kept`);
         wasStale = true;

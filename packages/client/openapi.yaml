@@ -33,7 +33,7 @@ tags:
   - name: Telemetry
     description: What running adapters report. Counters only, never bodies or field values.
   - name: Flags
-    description: The kill switch and canary a runtime polls.
+    description: The kill switch a runtime polls.
   - name: Contracts
     description: Which old contracts are served and who still uses them.
   - name: Drafting
@@ -1084,14 +1084,6 @@ components:
           type: array
           uniqueItems: true
           items: { $ref: "#/components/schemas/ChangeId" }
-        canary:
-          type: object
-          description: |
-            The share of consumers, in percent, a Change is applied for while it
-            is being rolled out, chosen by a stable hash of the consumer so the
-            same consumer stays on the same side.
-          propertyNames: { $ref: "#/components/schemas/ChangeId" }
-          additionalProperties: { type: number, minimum: 0, maximum: 100 }
     FlagsState:
       type: object
       required: [flags, updatedAt]

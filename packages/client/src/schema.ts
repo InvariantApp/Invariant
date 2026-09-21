@@ -559,14 +559,6 @@ export interface components {
             allDisabled?: boolean;
             disabledContracts?: components["schemas"]["ContractLabel"][];
             disabledChanges?: components["schemas"]["ChangeId"][];
-            /**
-             * @description The share of consumers, in percent, a Change is applied for while it
-             *     is being rolled out, chosen by a stable hash of the consumer so the
-             *     same consumer stays on the same side.
-             */
-            canary?: {
-                [key: string]: number;
-            };
         };
         FlagsState: {
             flags: components["schemas"]["Flags"];
