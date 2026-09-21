@@ -195,6 +195,16 @@ can be counted and switched off on its own.
 `param` in a validation error. An unfamiliar name there is harmless; failing the
 whole response over it is not.
 
+### What the provider sends
+
+A contract may carry `outbound`, keyed `method webhook:<name>` for an entry
+under `webhooks` and `method callback:<operation>/<callback>` for one under an
+operation's `callbacks`. Each is a list of instructions run on a payload the
+provider is about to send, to put it in the shape a subscriber on that
+contract expects, in the same direction as a response. It runs before the
+payload is signed, because a subscriber verifies the signature over the bytes
+it receives. An event with no entry is sent as it is.
+
 ### Ordering
 
 Instructions apply in the order given. A rename followed by a conversion

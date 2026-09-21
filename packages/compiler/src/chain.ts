@@ -217,6 +217,9 @@ export function chainContract(
   const retired: ContractProgram["retired"] = [];
   // Each step names its blocks after its own label, so steps never collide.
   const blocks: Record<string, Instr[]> = {};
+  // What the provider sends moves backward through time, as a response does:
+  // the latest step's work runs first.
+  const outbound: Record<string, Instr[]> = {};
 
   // Route rules for the whole chain, expressed from the historical contract's
   // endpoint straight to the current one.
@@ -227,6 +230,9 @@ export function chainContract(
     issues.push(...projected.issues);
     behaviors.push(...projected.program.behaviors);
     Object.assign(blocks, projected.program.blocks ?? {});
+    for (const [event, instrs] of Object.entries(projected.program.outbound ?? {})) {
+      outbound[event] = [...instrs, ...(outbound[event] ?? [])];
+    }
     // A retired endpoint is named as it stood in the contract that retired it,
     // which is also the path a request reaches after the earlier steps' route
     // rewrites. Later steps never touch it, because it no longer exists there.
@@ -271,6 +277,9 @@ export function chainContract(
         ),
       ),
       sites: Object.fromEntries([...sites.entries()].sort()),
+      ...(Object.keys(outbound).length > 0
+        ? { outbound: Object.fromEntries(Object.entries(outbound).sort()) }
+        : {}),
       ...(Object.keys(blocks).length > 0
         ? { blocks: Object.fromEntries(Object.entries(blocks).sort()) }
         : {}),

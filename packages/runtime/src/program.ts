@@ -77,6 +77,12 @@ export interface DecodedContract {
   basePath?: string;
   routes: DecodedRoute[];
   sites: Map<string, DecodedSite>;
+  /**
+   * What the provider sends of its own accord, keyed `method webhook:<name>`
+   * or `method callback:<operation>/<callback>`, with whether any of it
+   * re-encodes a number.
+   */
+  outbound: Map<string, { instrs: CompiledInstr[]; numeric: boolean }>;
   behaviors: string[];
   /** Endpoints this contract had that the current one does not. */
   retired: {
@@ -893,7 +899,16 @@ export function decodeProgram(raw: unknown): DecodedProgram {
     const contract = object(entry, where);
     expectKeys(
       contract,
-      ["label", "routes", "sites", "blocks", "behaviors", "retired", "basePath"],
+      [
+        "label",
+        "routes",
+        "sites",
+        "outbound",
+        "blocks",
+        "behaviors",
+        "retired",
+        "basePath",
+      ],
       where,
     );
     const blocks = decodeBlocks(contract["blocks"], `${where}.blocks`);
@@ -926,6 +941,27 @@ export function decodeProgram(raw: unknown): DecodedProgram {
       );
     }
 
+    const outbound = new Map<string, { instrs: CompiledInstr[]; numeric: boolean }>();
+    for (const [key, list] of Object.entries(
+      object(contract["outbound"] ?? {}, `${where}.outbound`),
+    )) {
+      const separator = key.indexOf(" ");
+      const event = key.slice(separator + 1);
+      if (separator <= 0 || !/^(webhook|callback):./.test(event)) {
+        throw new ProgramError(
+          `${where}.outbound has a key "${key}" that is not "method webhook:<name>" or "method callback:<operation>/<callback>"`,
+        );
+      }
+      const instrs = (array(list, `${where}.outbound["${key}"]`) as unknown[]).map(
+        (instr, index) =>
+          decodeInstr(instr, `${where}.outbound["${key}"][${index}]`, 0, blocks),
+      );
+      outbound.set(`${key.slice(0, separator).toLowerCase()} ${event}`, {
+        instrs,
+        numeric: needsExactNumbers(instrs),
+      });
+    }
+
     contracts.set(label, {
       ...(ownBase === undefined ? {} : { basePath: ownBase as string }),
       label: string(contract["label"], `${where}.label`),
@@ -933,6 +969,7 @@ export function decodeProgram(raw: unknown): DecodedProgram {
         (route, index) => decodeRoute(route, `${where}.routes[${index}]`),
       ),
       sites,
+      outbound,
       behaviors: (
         array(contract["behaviors"] ?? [], `${where}.behaviors`) as unknown[]
       ).map((flag, index) => string(flag, `${where}.behaviors[${index}]`)),

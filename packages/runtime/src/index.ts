@@ -258,7 +258,8 @@ export interface OutcomeEvent {
   contract: string;
   operation: string;
   consumer: string | undefined;
-  direction: "request" | "response";
+  /** `outbound` is a webhook or callback payload the provider sends. */
+  direction: "request" | "response" | "outbound";
   /**
    * `adapted`: the body was rewritten and the caller got their own shape.
    * `refused`: the request never reached the handler, so nothing happened.
@@ -976,6 +977,56 @@ export class InvariantRuntime {
   }
 
   /**
+   * A payload the provider sends of its own accord, a webhook or a callback,
+   * in the shape a subscriber on `contract` expects.
+   *
+   * `event` names it as the contract does: `webhook:<name>` for an entry
+   * under `webhooks`, `callback:<operation>/<callback>` for one under an
+   * operation's `callbacks`. Adapt before signing. A subscriber verifies the
+   * signature over the bytes it receives, so a payload signed and then
+   * adapted fails verification for every old subscriber at once.
+   *
+   * A subscriber on the current contract, or an event nothing changed, gets
+   * the payload as it is. A contract that is switched off, or a Change in the
+   * event's program that is, refuses rather than send a payload in a shape
+   * the subscriber was never promised.
+   */
+  adaptOutbound(
+    contract: string,
+    event: string,
+    text: string,
+    options: { method?: string; consumer?: string } = {},
+  ): Transformed {
+    if (contract === this.#program.currentLabel) return { body: text, folded: [] };
+    const program = this.#program.contracts.get(contract);
+    if (!program) {
+      throw new UnsupportedContractError(
+        contract,
+        "no compiled program for this contract",
+      );
+    }
+    const flags = this.#flags();
+    if (flags.allDisabled) {
+      throw new UnsupportedContractError(contract, "compatibility is switched off");
+    }
+    if (flags.disabledContracts?.includes(contract)) {
+      throw new UnsupportedContractError(contract, "this contract is switched off");
+    }
+    const method = (options.method ?? "post").toLowerCase();
+    const found = program.outbound.get(`${method} ${event}`);
+    if (!found) return { body: text, folded: [] };
+    for (const change of flags.disabledChanges ?? []) {
+      if (found.instrs.some((instr) => instr.c === change)) {
+        throw new UnsupportedContractError(contract, `change ${change} is switched off`);
+      }
+    }
+    const context = { contract, operation: event, consumer: options.consumer };
+    return this.#reporting("outbound", context, () =>
+      this.#run(found.instrs, found.numeric, text, context),
+    );
+  }
+
+  /**
    * Runs a transform and reports how it ended.
    *
    * Reported here rather than in each framework binding, so a provider gets
@@ -986,7 +1037,7 @@ export class InvariantRuntime {
    * that actually matters.
    */
   #reporting<T>(
-    direction: "request" | "response",
+    direction: "request" | "response" | "outbound",
     context: { contract: string; operation: string; consumer?: string | undefined },
     run: () => T,
   ): T {

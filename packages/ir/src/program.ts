@@ -396,6 +396,13 @@ export const ContractProgram = Type.Object(
     /** Keyed by the canonical `method path-template`, for example `post /v1/payments`. */
     sites: Type.Record(Type.String(), SiteProgram),
     /**
+     * Canonical back to this contract's shape, for what the provider sends on
+     * its own: keyed `method webhook:<name>` for a webhook, and
+     * `method callback:<operation>/<callback>` for a callback. Run before the
+     * payload is signed, so the signature is over what the subscriber reads.
+     */
+    outbound: Type.Optional(Type.Record(Type.String(), Type.Array(Instr))),
+    /**
      * Instructions shared by every site, run by `call`: one per schema whose
      * values have to be followed rather than listed, because it contains
      * itself or sits in too many places.

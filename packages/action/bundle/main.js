@@ -3770,6 +3770,13 @@ const ContractProgram = Type.Object({
 	/** Keyed by the canonical `method path-template`, for example `post /v1/payments`. */
 	sites: Type.Record(Type.String(), SiteProgram),
 	/**
+	* Canonical back to this contract's shape, for what the provider sends on
+	* its own: keyed `method webhook:<name>` for a webhook, and
+	* `method callback:<operation>/<callback>` for a callback. Run before the
+	* payload is signed, so the signature is over what the subscriber reads.
+	*/
+	outbound: Type.Optional(Type.Record(Type.String(), Type.Array(Instr))),
+	/**
 	* Instructions shared by every site, run by `call`: one per schema whose
 	* values have to be followed rather than listed, because it contains
 	* itself or sits in too many places.
@@ -13253,6 +13260,39 @@ function scanRoot(document, target, root, leads = leadingTo(document, target), b
 	};
 }
 /**
+* The callbacks an operation declares, each with the body it sends. One
+* callback may list several URL expressions; they carry the same payloads,
+* and a subscriber is sent one of them, so each method is listed once.
+*/
+function callbacksOf(document, operationId, operation) {
+	const callbacks = operation["callbacks"];
+	if (!isJsonObject(callbacks)) return [];
+	const found = [];
+	for (const name of Object.keys(callbacks).sort()) {
+		const callback = deref(document, callbacks[name]);
+		if (!isJsonObject(callback)) continue;
+		const seen = /* @__PURE__ */ new Set();
+		for (const expression of Object.keys(callback).sort()) {
+			const item = deref(document, callback[expression]);
+			if (!isJsonObject(item)) continue;
+			for (const method of HTTP_METHODS$1) {
+				const request = item[method];
+				if (!isJsonObject(request) || seen.has(method)) continue;
+				const payload = requestBodySchema(document, request);
+				if (payload === void 0) continue;
+				seen.add(method);
+				found.push({
+					operationId: `${operationId}/${name}`,
+					method,
+					path: `callback:${operationId}/${name}`,
+					payload
+				});
+			}
+		}
+	}
+	return found;
+}
+/**
 * Every place `#/components/schemas/<name>` reaches the wire in this document.
 */
 function findSchemaSites(document, schemaRef) {
@@ -13265,8 +13305,28 @@ function findSchemaSites(document, schemaRef) {
 			const payload = requestBodySchema(document, operation);
 			if (payload === void 0) continue;
 			const scan = scanRoot(document, schemaRef, payload, leads, budget);
-			if (scan.prefixes.length > 0 || scan.unsupported.length > 0) unsupported.push(`${operationId} is a webhook that sends this schema, which this runtime cannot adapt. Describe it as a \`behavior\` change, or send the new shape.`);
+			unsupported.push(...scan.unsupported.map((u) => `${operationId} payload: ${u}`));
+			for (const { prefix, guards } of scan.prefixes) sites.push({
+				operationId,
+				method,
+				path,
+				direction: "outbound",
+				prefix,
+				...guards.length > 0 ? { guards } : {}
+			});
 			continue;
+		}
+		for (const callback of callbacksOf(document, operationId, operation)) {
+			const scan = scanRoot(document, schemaRef, callback.payload, leads, budget);
+			unsupported.push(...scan.unsupported.map((u) => `${callback.operationId} payload: ${u}`));
+			for (const { prefix, guards } of scan.prefixes) sites.push({
+				operationId: callback.operationId,
+				method: callback.method,
+				path: callback.path,
+				direction: "outbound",
+				prefix,
+				...guards.length > 0 ? { guards } : {}
+			});
 		}
 		const request = requestBodySchema(document, operation);
 		if (request !== void 0) {
@@ -13308,7 +13368,7 @@ function findSchemaSites(document, schemaRef) {
 * Which ways a schema travels: whether any request body or any response can
 * carry it. Answered from the reference graph alone, in time linear in the
 * document, where listing every place it sits can be exponential. A webhook
-* that sends it counts as both, as `findSchemaSites` refuses it.
+* or a callback that sends it counts as a response.
 */
 function schemaDirections(document, schemaRef) {
 	const leads = leadingTo(document, schemaRef);
@@ -13320,15 +13380,13 @@ function schemaDirections(document, schemaRef) {
 	};
 	let request = false;
 	let response = false;
-	for (const { operation, webhook } of operationsOf(document)) {
+	for (const { operationId, operation, webhook } of operationsOf(document)) {
 		const body = requestBodySchema(document, operation);
 		if (webhook === true) {
-			if (reaches(body)) return {
-				request: true,
-				response: true
-			};
+			response ||= reaches(body);
 			continue;
 		}
+		response ||= callbacksOf(document, operationId, operation).some((callback) => reaches(callback.payload));
 		request ||= reaches(body);
 		response ||= responseSchemas(document, operation).some(({ schema }) => reaches(schema));
 		if (request && response) break;
@@ -16474,6 +16532,7 @@ function decodeProgram(raw) {
 			"label",
 			"routes",
 			"sites",
+			"outbound",
 			"blocks",
 			"behaviors",
 			"retired",
@@ -16490,11 +16549,23 @@ function decodeProgram(raw) {
 			const path = key.slice(separator + 1);
 			sites.set(`${method} ${path}`, decodeSite(site, `${where}.sites["${key}"]`, path.split("/"), blocks));
 		}
+		const outbound = /* @__PURE__ */ new Map();
+		for (const [key, list] of Object.entries(object$1(contract["outbound"] ?? {}, `${where}.outbound`))) {
+			const separator = key.indexOf(" ");
+			const event = key.slice(separator + 1);
+			if (separator <= 0 || !/^(webhook|callback):./.test(event)) throw new ProgramError(`${where}.outbound has a key "${key}" that is not "method webhook:<name>" or "method callback:<operation>/<callback>"`);
+			const instrs = array$1(list, `${where}.outbound["${key}"]`).map((instr, index) => decodeInstr(instr, `${where}.outbound["${key}"][${index}]`, 0, blocks));
+			outbound.set(`${key.slice(0, separator).toLowerCase()} ${event}`, {
+				instrs,
+				numeric: needsExactNumbers(instrs)
+			});
+		}
 		contracts.set(label, {
 			...ownBase === void 0 ? {} : { basePath: ownBase },
 			label: string$1(contract["label"], `${where}.label`),
 			routes: array$1(contract["routes"], `${where}.routes`).map((route, index) => decodeRoute(route, `${where}.routes[${index}]`)),
 			sites,
+			outbound,
 			behaviors: array$1(contract["behaviors"] ?? [], `${where}.behaviors`).map((flag, index) => string$1(flag, `${where}.behaviors[${index}]`)),
 			retired: array$1(contract["retired"] ?? [], `${where}.retired`).map((entry, index) => {
 				const at = `${where}.retired[${index}]`;
@@ -17208,6 +17279,45 @@ var InvariantRuntime = class {
 			operation: context.operation,
 			consumer: context.consumer
 		}));
+	}
+	/**
+	* A payload the provider sends of its own accord, a webhook or a callback,
+	* in the shape a subscriber on `contract` expects.
+	*
+	* `event` names it as the contract does: `webhook:<name>` for an entry
+	* under `webhooks`, `callback:<operation>/<callback>` for one under an
+	* operation's `callbacks`. Adapt before signing. A subscriber verifies the
+	* signature over the bytes it receives, so a payload signed and then
+	* adapted fails verification for every old subscriber at once.
+	*
+	* A subscriber on the current contract, or an event nothing changed, gets
+	* the payload as it is. A contract that is switched off, or a Change in the
+	* event's program that is, refuses rather than send a payload in a shape
+	* the subscriber was never promised.
+	*/
+	adaptOutbound(contract, event, text, options = {}) {
+		if (contract === this.#program.currentLabel) return {
+			body: text,
+			folded: []
+		};
+		const program = this.#program.contracts.get(contract);
+		if (!program) throw new UnsupportedContractError(contract, "no compiled program for this contract");
+		const flags = this.#flags();
+		if (flags.allDisabled) throw new UnsupportedContractError(contract, "compatibility is switched off");
+		if (flags.disabledContracts?.includes(contract)) throw new UnsupportedContractError(contract, "this contract is switched off");
+		const method = (options.method ?? "post").toLowerCase();
+		const found = program.outbound.get(`${method} ${event}`);
+		if (!found) return {
+			body: text,
+			folded: []
+		};
+		for (const change of flags.disabledChanges ?? []) if (found.instrs.some((instr) => instr.c === change)) throw new UnsupportedContractError(contract, `change ${change} is switched off`);
+		const context = {
+			contract,
+			operation: event,
+			consumer: options.consumer
+		};
+		return this.#reporting("outbound", context, () => this.#run(found.instrs, found.numeric, text, context));
 	}
 	/**
 	* Runs a transform and reports how it ended.
@@ -18956,7 +19066,8 @@ function projectStep(label, oldContract, changes, newContract) {
 		collectForward(change, oldContract, newContract, routes, sites, issues, shared.targets);
 		collectParameters(change, oldContract, newContract, routes, sites, issues);
 	}
-	for (const change of [...changes].reverse()) collectBackward(change, oldContract, routes, sites, issues, shared.targets, variants);
+	const outbound = /* @__PURE__ */ new Map();
+	for (const change of [...changes].reverse()) collectBackward(change, oldContract, routes, sites, outbound, issues, shared.targets, variants);
 	collectShared(shared, oldContract, newContract, routes, sites);
 	if (newContract) collectErrorParams(oldContract, newContract, changes, routes, sites);
 	const out = {};
@@ -18976,11 +19087,13 @@ function projectStep(label, oldContract, changes, newContract) {
 		if (responses.length > 0) program.response = Object.fromEntries(responses);
 		if (program.request || program.envelope || program.response) out[key] = program;
 	}
+	const sent = [...outbound.entries()].sort().filter(([, instrs]) => instrs.length > 0);
 	return {
 		program: {
 			label,
 			routes: routeRules,
 			sites: out,
+			...sent.length > 0 ? { outbound: Object.fromEntries(sent) } : {},
 			...Object.keys(shared.blocks).length > 0 ? { blocks: shared.blocks } : {},
 			behaviors,
 			retired
@@ -19325,10 +19438,17 @@ function prefixInstr(instr, part) {
 		};
 	}
 }
-function collectBackward(change, oldContract, routes, sites, issues, shared, variants) {
+function collectBackward(change, oldContract, routes, sites, outbound, issues, shared, variants) {
 	const dataOps = change.ops.filter(isDataOp);
 	if (dataOps.length === 0) return;
 	for (const site of sitesOf(change, oldContract, issues, shared)) {
+		if (site.direction === "outbound") {
+			const key = siteKey(site.method, site.path);
+			const instrs = outbound.get(key) ?? [];
+			instrs.push(...guarded(site, change, "backward", (prefix) => [...dataOps].reverse().flatMap((op) => backwardInstrs(op, prefix, change.id, variants))));
+			outbound.set(key, instrs);
+			continue;
+		}
 		if (site.direction !== "response" || site.status === void 0) continue;
 		const target = mapEndpoint(routes, site.method, site.path);
 		const entry = accumulatorFor(sites, siteKey(target.method, target.path));
@@ -19521,12 +19641,14 @@ function chainContract(label, steps) {
 	const behaviors = [];
 	const retired = [];
 	const blocks = {};
+	const outbound = {};
 	const laterRoutes = steps.map((step) => routeMappings(step.changes));
 	steps.forEach((step, index) => {
 		const projected = projectStep(step.label, step.from, step.changes, step.to);
 		issues.push(...projected.issues);
 		behaviors.push(...projected.program.behaviors);
 		Object.assign(blocks, projected.program.blocks ?? {});
+		for (const [event, instrs] of Object.entries(projected.program.outbound ?? {})) outbound[event] = [...instrs, ...outbound[event] ?? []];
 		retired.push(...projected.program.retired);
 		const after = laterRoutes.slice(index + 1);
 		for (const [key, raw] of Object.entries(projected.program.sites)) {
@@ -19554,6 +19676,7 @@ function chainContract(label, steps) {
 			label,
 			routes: routes.sort((a, b) => siteKey(a.from.method, a.from.path).localeCompare(siteKey(b.from.method, b.from.path))),
 			sites: Object.fromEntries([...sites.entries()].sort()),
+			...Object.keys(outbound).length > 0 ? { outbound: Object.fromEntries(Object.entries(outbound).sort()) } : {},
 			...Object.keys(blocks).length > 0 ? { blocks: Object.fromEntries(Object.entries(blocks).sort()) } : {},
 			behaviors: [...new Set(behaviors)].sort(),
 			retired: [...new Map(retired.map((e) => [`${e.method} ${e.path}`, e])).values()].sort((a, b) => `${a.method} ${a.path}`.localeCompare(`${b.method} ${b.path}`))
@@ -34353,7 +34476,7 @@ const RESPONSE_FAILURE_SLO = 1e-4;
 function parse(value) {
 	if (!isJsonObject(value)) return void 0;
 	const { contract, operation, direction, outcome, count, reason } = value;
-	if (typeof contract !== "string" || typeof operation !== "string" || direction !== "request" && direction !== "response" || outcome !== "adapted" && outcome !== "refused" && outcome !== "failed" || typeof count !== "number") return;
+	if (typeof contract !== "string" || typeof operation !== "string" || direction !== "request" && direction !== "response" && direction !== "outbound" || outcome !== "adapted" && outcome !== "refused" && outcome !== "failed" || typeof count !== "number") return;
 	return {
 		contract,
 		operation,
@@ -34404,7 +34527,7 @@ function health(records) {
 			};
 			byContract.set(record.contract, entry);
 		}
-		if (record.direction === "response") {
+		if (record.direction === "response" || record.direction === "outbound") {
 			if (record.outcome === "adapted") entry.responsesAdapted += record.count;
 			else entry.responsesFailed += record.count;
 			continue;

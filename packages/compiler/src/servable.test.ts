@@ -246,6 +246,25 @@ const OLD = {
 
 type Schema = Record<string, unknown>;
 
+// What the provider sends of its own accord: an event carrying a schema shaped
+// as Order is, which reaches subscribers and nobody else.
+{
+  const schemas = (OLD["components"] as { schemas: Record<string, Schema> }).schemas;
+  schemas["OrderEvent"] = structuredClone(schemas["Order"] as Schema);
+  (OLD as Record<string, unknown>)["webhooks"] = {
+    "order.paid": {
+      post: {
+        requestBody: {
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/OrderEvent" } },
+          },
+        },
+        responses: { "200": { description: "received" } },
+      },
+    },
+  };
+}
+
 /**
  * The new contract: the old one with a field and parameters only it has,
  * since `add` and a rename take what arrives from the contract it arrives in.
@@ -262,14 +281,14 @@ const NEW = structuredClone(OLD) as OpenApiDocument;
       id: { type: "string" },
     },
   };
-  for (const name of ["Order", "OrderCreate"]) {
+  for (const name of ["Order", "OrderCreate", "OrderEvent"]) {
     const customer = (
       (schemas[name] as Schema)["properties"] as Record<string, { anyOf: unknown[] }>
     )["customer"] as { anyOf: unknown[] };
     customer.anyOf.push({ $ref: "#/components/schemas/Guest" });
   }
 }
-for (const name of ["Order", "OrderCreate"]) {
+for (const name of ["Order", "OrderCreate", "OrderEvent"]) {
   const schema = (NEW["components"] as { schemas: Record<string, Schema> }).schemas[
     name
   ] as Schema;
@@ -806,12 +825,15 @@ function unserved(change: Change, program: unknown): string[] {
   // An op with nothing to do in the direction a site faces is a correct
   // program rather than a missing one: a field that may no longer be null
   // needs nothing on the way back to a caller who never saw a null.
-  const actsOn = (op: Change["ops"][number], direction: string) =>
-    op.op === "dropNull" || op.op === "default"
+  // A payload the provider sends is undone as a response is.
+  const actsOn = (op: Change["ops"][number], travels: string) => {
+    const direction = travels === "outbound" ? "response" : travels;
+    return op.op === "dropNull" || op.op === "default"
       ? direction === (op.toward === "new" ? "request" : "response")
       : op.op === "widen"
         ? direction === "response"
         : op.op !== "relax";
+  };
   const dataOps = change.ops.filter(isDataOp);
   const parameterScoped = (change.scopes ?? []).some((scope) => "location" in scope);
   const responseScoped = (change.scopes ?? []).filter(
@@ -1262,11 +1284,17 @@ describe("L1: the op x location x direction matrix", () => {
   });
 
   for (const op of matrix.ops) {
-    for (const direction of ["request", "response"]) {
+    for (const direction of ["request", "response", "outbound"]) {
       it(`${op} in a body, ${direction}: ${"served"}`, () => {
         expect(matrix.cells[`body ${direction}`]?.status).toBe("served");
-        // OrderCreate reaches request bodies only, Order response bodies only.
-        const schema = direction === "request" ? "OrderCreate" : "Order";
+        // OrderCreate reaches request bodies only, Order response bodies
+        // only, OrderEvent a webhook's payload only.
+        const schema =
+          direction === "request"
+            ? "OrderCreate"
+            : direction === "response"
+              ? "Order"
+              : "OrderEvent";
         const change = parseChange({
           irVersion: 1,
           id: "chg_cell",
@@ -1279,11 +1307,14 @@ describe("L1: the op x location x direction matrix", () => {
         const sites = Object.values(
           (result.contract["sites"] ?? {}) as Record<string, Schema>,
         );
-        const reached = sites.some((site) =>
-          JSON.stringify(
-            direction === "request" ? site["request"] : site["response"],
-          )?.includes('"c":"chg_cell"'),
-        );
+        const reached =
+          direction === "outbound"
+            ? JSON.stringify(result.contract["outbound"] ?? {}).includes('"c":"chg_cell"')
+            : sites.some((site) =>
+                JSON.stringify(
+                  direction === "request" ? site["request"] : site["response"],
+                )?.includes('"c":"chg_cell"'),
+              );
         // An op with nothing to do in a direction is served by doing nothing,
         // and the matrix says which those are.
         expect(reached).toBe(matrix.inert[`${op} ${direction}`] === undefined);

@@ -315,8 +315,18 @@ export function projectStep(
     );
     collectParameters(change, oldContract, newContract, routes, sites, issues);
   }
+  const outbound = new Map<string, Instr[]>();
   for (const change of [...changes].reverse()) {
-    collectBackward(change, oldContract, routes, sites, issues, shared.targets, variants);
+    collectBackward(
+      change,
+      oldContract,
+      routes,
+      sites,
+      outbound,
+      issues,
+      shared.targets,
+      variants,
+    );
   }
 
   collectShared(shared, oldContract, newContract, routes, sites);
@@ -357,11 +367,14 @@ export function projectStep(
     if (program.request || program.envelope || program.response) out[key] = program;
   }
 
+  const sent = [...outbound.entries()].sort().filter(([, instrs]) => instrs.length > 0);
+
   return {
     program: {
       label,
       routes: routeRules,
       sites: out,
+      ...(sent.length > 0 ? { outbound: Object.fromEntries(sent) } : {}),
       ...(Object.keys(shared.blocks).length > 0 ? { blocks: shared.blocks } : {}),
       behaviors,
       retired,
@@ -795,6 +808,7 @@ function collectBackward(
   oldContract: OpenApiDocument,
   routes: readonly RouteMapping[],
   sites: Map<string, SiteAccumulator>,
+  outbound: Map<string, Instr[]>,
   issues: ProjectionIssue[],
   shared: ReadonlySet<string>,
   variants: VariantGuards,
@@ -803,6 +817,20 @@ function collectBackward(
   if (dataOps.length === 0) return;
 
   for (const site of sitesOf(change, oldContract, issues, shared)) {
+    if (site.direction === "outbound") {
+      // Named by the event rather than an endpoint, so no route moves it.
+      const key = siteKey(site.method, site.path);
+      const instrs = outbound.get(key) ?? [];
+      instrs.push(
+        ...guarded(site, change, "backward", (prefix) =>
+          [...dataOps]
+            .reverse()
+            .flatMap((op) => backwardInstrs(op, prefix, change.id, variants)),
+        ),
+      );
+      outbound.set(key, instrs);
+      continue;
+    }
     if (site.direction !== "response" || site.status === undefined) continue;
     const target = mapEndpoint(routes, site.method, site.path);
     const entry = accumulatorFor(sites, siteKey(target.method, target.path));

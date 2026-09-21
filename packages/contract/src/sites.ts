@@ -8,6 +8,7 @@
  */
 import {
   formatPointer,
+  HTTP_METHODS,
   isJsonObject,
   type JsonObject,
   type JsonValue,
@@ -24,7 +25,12 @@ import {
   responseSchemas,
 } from "./spec.ts";
 
-export type Direction = "request" | "response";
+/**
+ * Which way a body travels. `outbound` is a body the provider sends on its
+ * own initiative, a webhook or a callback, which reaches a subscriber the way
+ * a response reaches a caller: in whatever shape their contract describes.
+ */
+export type Direction = "request" | "response" | "outbound";
 
 export interface Site {
   operationId: string;
@@ -511,6 +517,54 @@ function scanRoot(
   return { prefixes: ctx.found, unsupported: ctx.unsupported };
 }
 
+/** A request the provider makes to a subscriber, declared under an operation's `callbacks`. */
+export interface Callback {
+  /** `<operation>/<callback>`, which also names it to the runtime. */
+  operationId: string;
+  method: HttpMethod;
+  /** `callback:<operation>/<callback>`, kept apart from every real path. */
+  path: string;
+  payload: JsonValue;
+}
+
+/**
+ * The callbacks an operation declares, each with the body it sends. One
+ * callback may list several URL expressions; they carry the same payloads,
+ * and a subscriber is sent one of them, so each method is listed once.
+ */
+export function callbacksOf(
+  document: OpenApiDocument,
+  operationId: string,
+  operation: JsonObject,
+): Callback[] {
+  const callbacks = operation["callbacks"];
+  if (!isJsonObject(callbacks)) return [];
+  const found: Callback[] = [];
+  for (const name of Object.keys(callbacks).sort()) {
+    const callback = deref(document, callbacks[name] as JsonValue);
+    if (!isJsonObject(callback)) continue;
+    const seen = new Set<string>();
+    for (const expression of Object.keys(callback).sort()) {
+      const item = deref(document, callback[expression] as JsonValue);
+      if (!isJsonObject(item)) continue;
+      for (const method of HTTP_METHODS) {
+        const request = item[method];
+        if (!isJsonObject(request) || seen.has(method)) continue;
+        const payload = requestBodySchema(document, request);
+        if (payload === undefined) continue;
+        seen.add(method);
+        found.push({
+          operationId: `${operationId}/${name}`,
+          method,
+          path: `callback:${operationId}/${name}`,
+          payload,
+        });
+      }
+    }
+  }
+  return found;
+}
+
 /**
  * Every place `#/components/schemas/<name>` reaches the wire in this document.
  */
@@ -527,22 +581,39 @@ export function findSchemaSites(
     document,
   )) {
     if (webhook === true) {
-      // A webhook is sent by the provider, so there is no inbound request to
-      // rewrite and no response of the provider's own to rewrite back. When
-      // the changed schema is part of what the webhook sends, what cannot
-      // exist is an adapter site for it, and saying so here is what keeps a
-      // drafted transform from being compiled into a program that could never
-      // run. A webhook that never carries the schema is not affected at all.
+      // Sent by the provider, so what is adapted is the payload, on its way
+      // to a subscriber on an old contract, as a response is.
       const payload = requestBodySchema(document, operation);
       if (payload === undefined) continue;
       const scan = scanRoot(document, schemaRef, payload, leads, budget);
-      if (scan.prefixes.length > 0 || scan.unsupported.length > 0) {
-        unsupported.push(
-          `${operationId} is a webhook that sends this schema, which this runtime ` +
-            "cannot adapt. Describe it as a `behavior` change, or send the new shape.",
-        );
+      unsupported.push(...scan.unsupported.map((u) => `${operationId} payload: ${u}`));
+      for (const { prefix, guards } of scan.prefixes) {
+        sites.push({
+          operationId,
+          method,
+          path,
+          direction: "outbound",
+          prefix,
+          ...(guards.length > 0 ? { guards } : {}),
+        });
       }
       continue;
+    }
+    for (const callback of callbacksOf(document, operationId, operation)) {
+      const scan = scanRoot(document, schemaRef, callback.payload, leads, budget);
+      unsupported.push(
+        ...scan.unsupported.map((u) => `${callback.operationId} payload: ${u}`),
+      );
+      for (const { prefix, guards } of scan.prefixes) {
+        sites.push({
+          operationId: callback.operationId,
+          method: callback.method,
+          path: callback.path,
+          direction: "outbound",
+          prefix,
+          ...(guards.length > 0 ? { guards } : {}),
+        });
+      }
     }
     const request = requestBodySchema(document, operation);
     if (request !== undefined) {
@@ -589,7 +660,7 @@ export function findSchemaSites(
  * Which ways a schema travels: whether any request body or any response can
  * carry it. Answered from the reference graph alone, in time linear in the
  * document, where listing every place it sits can be exponential. A webhook
- * that sends it counts as both, as `findSchemaSites` refuses it.
+ * or a callback that sends it counts as a response.
  */
 export function schemaDirections(
   document: OpenApiDocument,
@@ -604,12 +675,17 @@ export function schemaDirections(
   };
   let request = false;
   let response = false;
-  for (const { operation, webhook } of operationsOf(document)) {
+  for (const { operationId, operation, webhook } of operationsOf(document)) {
     const body = requestBodySchema(document, operation);
+    // What the provider sends of its own accord reaches a subscriber as a
+    // response reaches a caller.
     if (webhook === true) {
-      if (reaches(body)) return { request: true, response: true };
+      response ||= reaches(body);
       continue;
     }
+    response ||= callbacksOf(document, operationId, operation).some((callback) =>
+      reaches(callback.payload),
+    );
     request ||= reaches(body);
     response ||= responseSchemas(document, operation).some(({ schema }) =>
       reaches(schema),

@@ -51,10 +51,10 @@ describe("documents that describe webhooks", () => {
     expect(operation?.webhook).toBeUndefined();
   });
 
-  it("builds no adapter site for a webhook, and says why", () => {
-    // The provider sends a webhook, so there is no inbound request to rewrite.
-    // Reporting the change is right; compiling a transform for it would promise
-    // something that could never run.
+  it("finds a webhook's payload as an outbound site, adapted as a response is", () => {
+    // The provider sends a webhook, so what reaches a subscriber on an old
+    // contract is the payload, in whatever shape their contract describes.
+    // This used to be refused, and left every change to a payload unserved.
     const scan = findSchemaSites(
       doc({
         webhooks: {
@@ -75,10 +75,16 @@ describe("documents that describe webhooks", () => {
       "#/components/schemas/Event",
     );
 
-    expect(scan.sites).toEqual([]);
-    expect(scan.unsupported.join(" ")).toMatch(
-      /webhook that sends this schema, which this runtime cannot adapt/,
-    );
+    expect(scan.unsupported).toEqual([]);
+    expect(scan.sites).toEqual([
+      {
+        operationId: "auth",
+        method: "post",
+        path: "webhook:AUTHORISATION",
+        direction: "outbound",
+        prefix: "",
+      },
+    ]);
   });
 
   it("says nothing about a webhook that never sends the schema", () => {

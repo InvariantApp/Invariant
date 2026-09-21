@@ -2171,6 +2171,20 @@ in place, so an edit to one use was an edit to all. Documents with an alias
 are written out once after the size check, so no two places are ever the
 same object.
 
+### What the provider sends of its own accord
+
+A webhook or a callback carrying a changed schema used to be refused as a site
+nothing could adapt, so any Change to an event payload blocked the release.
+It is served now, the way a response is: the payload reaches a subscriber on
+an old contract in the shape that contract describes, undone latest step
+first. The program carries an `outbound` map per contract, keyed by event,
+and the runtime's `adaptOutbound(contract, event, body)` runs it. A
+subscriber verifies the signature over the bytes it receives, so adapting has
+to come before signing, which is the order M4.6 builds the sending side in. A
+switched-off contract refuses rather than send a shape nobody was promised.
+The L1 matrix gained an outbound direction, served for bodies and not
+expressible for parameters, and every op is executed in it.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no

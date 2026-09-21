@@ -19,11 +19,11 @@ import { readFile } from "node:fs/promises";
 import { isJsonObject } from "@invariant/ir";
 import { type Evidence, inputsDigest } from "@invariant/verifier";
 
-/** One adapted request or response, as the runtime reported it. */
+/** One adapted request, response or outbound payload, as the runtime reported it. */
 export interface OutcomeRecord {
   contract: string;
   operation: string;
-  direction: "request" | "response";
+  direction: "request" | "response" | "outbound";
   outcome: "adapted" | "refused" | "failed";
   count: number;
   reason?: string;
@@ -56,7 +56,7 @@ function parse(value: unknown): OutcomeRecord | undefined {
   if (
     typeof contract !== "string" ||
     typeof operation !== "string" ||
-    (direction !== "request" && direction !== "response") ||
+    (direction !== "request" && direction !== "response" && direction !== "outbound") ||
     (outcome !== "adapted" && outcome !== "refused" && outcome !== "failed") ||
     typeof count !== "number"
   ) {
@@ -119,7 +119,9 @@ export function health(records: Iterable<OutcomeRecord>): ContractHealth[] {
       byContract.set(record.contract, entry);
     }
 
-    if (record.direction === "response") {
+    // A webhook or callback payload fails after the fact, as a response does:
+    // the work it reports on has already happened.
+    if (record.direction === "response" || record.direction === "outbound") {
       if (record.outcome === "adapted") entry.responsesAdapted += record.count;
       else entry.responsesFailed += record.count;
       continue;
