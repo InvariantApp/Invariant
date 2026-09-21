@@ -6,12 +6,25 @@
  * before the port opens, so a misconfigured proxy never takes a single request.
  */
 import { watch } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { createRuntime } from "@invariant/runtime";
+import { accessLogged } from "./access-log.ts";
 import { ConfigError, loadConfig, skipper } from "./config.ts";
 import { createProxy } from "./proxy.ts";
 import { reloadable } from "./reload.ts";
 import { serve } from "./server.ts";
 import { servicesFor } from "./services.ts";
+import { passUpgrades } from "./upgrade.ts";
+
+async function readTls(path: string, what: string): Promise<Buffer> {
+  try {
+    return await readFile(path);
+  } catch (error) {
+    throw new ConfigError(
+      `Could not read the TLS ${what} at ${path}: ${(error as Error).message}`,
+    );
+  }
+}
 
 async function main(): Promise<void> {
   const path = process.argv[2] ?? process.env["INVARIANT_SIDECAR_CONFIG"];
@@ -34,7 +47,7 @@ async function main(): Promise<void> {
         ...(config.identity ? { identity: config.identity } : {}),
         maxBodyBytes: config.maxBodyBytes,
         ...(services.flags ? { flags: services.flags } : {}),
-        ...(services.onUsage ? { onUsage: services.onUsage } : {}),
+        onUsage: services.onUsage,
         onOutcome: services.onOutcome,
       });
       services.started({ text, currentLabel: runtime.currentLabel });
@@ -43,6 +56,9 @@ async function main(): Promise<void> {
         upstream: config.upstream,
         upstreamTimeoutMs: config.upstreamTimeoutMs,
         healthPath: config.healthPath,
+        ...(config.metricsPath === null
+          ? {}
+          : { metrics: { path: config.metricsPath, render: services.metrics.render } }),
         skip: skipper(config.skip),
       });
     },
@@ -54,9 +70,22 @@ async function main(): Promise<void> {
     new Promise((resolve) => setTimeout(resolve, 2000).unref()),
   ]);
 
-  const listening = await serve(program.handler, {
+  // Read before the port opens, so a missing certificate stops the start
+  // rather than the first caller's handshake.
+  const tls = config.listen.tls
+    ? {
+        cert: await readTls(config.listen.tls.certFile, "certificate"),
+        key: await readTls(config.listen.tls.keyFile, "key"),
+      }
+    : undefined;
+  const handler = config.accessLog
+    ? accessLogged(program.handler, (line) => process.stdout.write(`${line}\n`))
+    : program.handler;
+  const listening = await serve(handler, {
     port: config.listen.port,
     host: config.listen.host,
+    ...(tls ? { tls } : {}),
+    upgrade: passUpgrades(config.upstream),
     requestTimeoutMs: config.requestTimeoutMs,
     headersTimeoutMs: config.headersTimeoutMs,
     maxConnections: config.maxConnections,

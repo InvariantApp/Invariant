@@ -91,11 +91,18 @@ function running(config: SidecarConfig, plane: ReturnType<typeof controlPlane>) 
     program: PROGRAM,
     ...(config.identity ? { identity: config.identity } : {}),
     ...(services.flags ? { flags: services.flags } : {}),
-    ...(services.onUsage ? { onUsage: services.onUsage } : {}),
+    onUsage: services.onUsage,
     onOutcome: services.onOutcome,
   });
   services.started({ text: JSON.stringify(PROGRAM), currentLabel: runtime.currentLabel });
-  const proxy = createProxy({ runtime, upstream: config.upstream, fetch: upstream() });
+  const proxy = createProxy({
+    runtime,
+    upstream: config.upstream,
+    fetch: upstream(),
+    ...(config.metricsPath === null
+      ? {}
+      : { metrics: { path: config.metricsPath, render: services.metrics.render } }),
+  });
   return { services, proxy };
 }
 
@@ -105,6 +112,47 @@ const pay = () =>
     headers: { "content-type": "application/json", "payments-version": OLD },
     body: JSON.stringify({ amount: 1999 }),
   });
+
+describe("the proxy's counters", () => {
+  it("are scraped from beside the health check, labelled without a path", async () => {
+    const { proxy } = running(parseConfig(base, dir), controlPlane());
+    expect((await proxy(pay())).status).toBe(200);
+    const unknown = await proxy(
+      new Request("https://api.example.com/v1/payments/p_123", {
+        headers: { "payments-version": "1999-01-01" },
+      }),
+    );
+    expect(unknown.status).toBe(400);
+
+    const scrape = await proxy(
+      new Request("https://api.example.com/__invariant/metrics"),
+    );
+    expect(scrape.headers.get("content-type")).toContain("text/plain");
+    const text = await scrape.text();
+    expect(text).toContain(
+      `invariant_adapted_total{contract="${OLD}",direction="request"} 1`,
+    );
+    expect(text).toContain(
+      `invariant_change_applied_total{contract="${OLD}",change="chg_minor_units"} 1`,
+    );
+    expect(text).toContain(
+      'invariant_unsupported_contract_total{contract="1999-01-01"} 1',
+    );
+    expect(text).not.toContain("p_123");
+  });
+
+  it("can be turned off", async () => {
+    const { proxy } = running(
+      parseConfig({ ...base, metricsPath: null }, dir),
+      controlPlane(),
+    );
+    const scrape = await proxy(
+      new Request("https://api.example.com/__invariant/metrics"),
+    );
+    // Passed on to the provider like any other path.
+    expect(await scrape.json()).toEqual({ ok: true });
+  });
+});
 
 describe("the proxy connected to its control plane", () => {
   const config = (file = "usage.jsonl") =>

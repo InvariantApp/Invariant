@@ -33,6 +33,45 @@ things to get right:
 The supported shape is one proxy beside each instance of your API, in the same
 pod or task, so the program it runs always ships with the build it fronts.
 
+## WebSockets
+
+A request asking to `Upgrade`, a WebSocket among them, is passed to the
+upstream with its path, query and headers, and once the upstream agrees the
+bytes flow both ways untouched. There is no message after the handshake for a
+program to adapt. An upstream that cannot be reached is answered with `502`.
+
+## Metrics
+
+`/__invariant/metrics` serves the proxy's counters in Prometheus's text format:
+`invariant_adapted_total`, `invariant_change_applied_total`,
+`invariant_refused_total`, `invariant_unsupported_contract_total` and
+`invariant_transform_error_total`, labelled by contract, direction, Change and
+reason. Never by path, which carries ids. Move it with `"metricsPath"`, or set
+it to `null` to pass that path on to your API like any other.
+
+## Access log
+
+`"accessLog": true` writes one JSON line per request to stdout: method, path,
+status, milliseconds until the answer began, and the contract and error id
+where there is one. Never a body, a query string or a header value, which
+carry what callers send.
+
+## TLS and HTTP/2
+
+To have callers reach the proxy over TLS, give it a certificate and key in PEM,
+by path relative to the configuration:
+
+```json
+{ "listen": { "host": "0.0.0.0", "port": 8443, "tls": { "certFile": "tls/cert.pem", "keyFile": "tls/key.pem" } } }
+```
+
+The port then serves HTTP/2 and HTTP/1.1, whichever a caller offers. Some
+official SDKs, stripe-go among them, speak only HTTP/2 over TLS. Both files are
+read before the port opens, so a missing one stops the start. In the container,
+point the health check at the TLS port with
+`INVARIANT_HEALTH_URL=https://127.0.0.1:8443/__invariant/health`, and set
+`NODE_EXTRA_CA_CERTS` to the certificate if no public authority issued it.
+
 ## The kill switch and counters
 
 Both are optional, and neither is ever in a request's path.

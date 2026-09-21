@@ -51,6 +51,11 @@ export interface ProxyOptions {
    * provider.
    */
   healthPath?: string;
+  /**
+   * Answers with the proxy's counters in Prometheus's text format, and never
+   * reaches the provider. Absent means no metrics endpoint.
+   */
+  metrics?: { path: string; render: () => string };
   /** Paths passed through untouched, such as the provider's own health check. */
   skip?: (path: string) => boolean;
   errors?: ErrorShaper;
@@ -90,6 +95,13 @@ export function createProxy(options: ProxyOptions): FetchHandler {
 
   return async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
+
+    if (options.metrics && url.pathname === options.metrics.path) {
+      return new Response(options.metrics.render(), {
+        status: 200,
+        headers: { "content-type": "text/plain; version=0.0.4; charset=utf-8" },
+      });
+    }
 
     if (url.pathname === healthPath) {
       return json(200, {

@@ -14,7 +14,15 @@ export interface SidecarConfig {
   /** The compiled program, from `invariant compile`. */
   program: string;
   upstream: string;
-  listen: { port: number; host: string };
+  listen: {
+    port: number;
+    host: string;
+    /**
+     * Terminate TLS here, serving HTTP/2 and HTTP/1.1 on the one port. Paths
+     * to PEM files, relative to this configuration.
+     */
+    tls?: { certFile: string; keyFile: string };
+  };
   /**
    * How a request names its contract. Absent means the program's own, which
    * `invariant compile` takes from `invariant.yaml`; set here only to serve a
@@ -30,6 +38,10 @@ export interface SidecarConfig {
   /** Most caller connections held at once. */
   maxConnections: number;
   healthPath: string;
+  /** One JSON line per request on stdout, without bodies or query strings. */
+  accessLog: boolean;
+  /** Where Prometheus scrapes the proxy's counters, or null for nowhere. */
+  metricsPath: string | null;
   /** Paths passed through untouched, matched as exact paths or `prefix*`. */
   skip: string[];
   /** The hosted service, for remote flags and telemetry. */
@@ -88,6 +100,8 @@ const KEYS = new Set([
   "headersTimeoutMs",
   "maxConnections",
   "healthPath",
+  "metricsPath",
+  "accessLog",
   "skip",
   "controlPlane",
   "flags",
@@ -134,6 +148,19 @@ export function parseConfig(raw: unknown, relativeTo: string): SidecarConfig {
   }
   const host = listen["host"] ?? "127.0.0.1";
   if (typeof host !== "string") throw new ConfigError(`"listen.host" must be a string.`);
+  for (const key of Object.keys(listen)) {
+    if (!["port", "host", "tls"].includes(key)) {
+      throw new ConfigError(`Unknown setting "listen.${key}". Known: port, host, tls.`);
+    }
+  }
+  let tls: { certFile: string; keyFile: string } | undefined;
+  if (listen["tls"] !== undefined) {
+    const given = section(listen, "tls", ["certFile", "keyFile"], "listen.");
+    tls = {
+      certFile: resolve(relativeTo, requireString(given, "certFile", "listen.tls")),
+      keyFile: resolve(relativeTo, requireString(given, "keyFile", "listen.tls")),
+    };
+  }
 
   const requestTimeoutMs = positiveInt(value, "requestTimeoutMs", 120_000);
   const headersTimeoutMs = positiveInt(value, "headersTimeoutMs", 30_000);
@@ -146,7 +173,7 @@ export function parseConfig(raw: unknown, relativeTo: string): SidecarConfig {
   return {
     program: resolve(relativeTo, program),
     upstream,
-    listen: { port, host },
+    listen: { port, host, ...(tls ? { tls } : {}) },
     ...(value["identity"] === undefined
       ? {}
       : { identity: identityFrom(value["identity"]) }),
@@ -156,6 +183,11 @@ export function parseConfig(raw: unknown, relativeTo: string): SidecarConfig {
     headersTimeoutMs,
     maxConnections: positiveInt(value, "maxConnections", 10_000),
     healthPath: optionalPath(value, "healthPath", "/__invariant/health"),
+    accessLog: optionalBoolean(value, "accessLog", false),
+    metricsPath:
+      value["metricsPath"] === null
+        ? null
+        : optionalPath(value, "metricsPath", "/__invariant/metrics"),
     skip: stringList(value, "skip"),
     ...optionalServices(value, relativeTo),
   };
@@ -356,4 +388,16 @@ export function skipper(patterns: readonly string[]): (path: string) => boolean 
     patterns.some((pattern) =>
       pattern.endsWith("*") ? path.startsWith(pattern.slice(0, -1)) : path === pattern,
     );
+}
+
+function optionalBoolean(
+  value: Record<string, unknown>,
+  key: string,
+  fallback: boolean,
+): boolean {
+  const found = value[key];
+  if (found === undefined) return fallback;
+  if (typeof found !== "boolean")
+    throw new ConfigError(`"${key}" must be true or false.`);
+  return found;
 }

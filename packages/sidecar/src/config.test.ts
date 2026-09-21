@@ -24,6 +24,26 @@ describe("reading the configuration", () => {
     expect(config.identity?.[0]).toEqual({ kind: "header", name: "api-version" });
   });
 
+  it("reads TLS files beside the configuration, and refuses a mistyped listen key", () => {
+    const config = parseConfig(
+      {
+        ...base,
+        listen: { port: 8443, tls: { certFile: "tls/cert.pem", keyFile: "tls/key.pem" } },
+      },
+      "/etc/invariant",
+    );
+    expect(config.listen.tls).toEqual({
+      certFile: "/etc/invariant/tls/cert.pem",
+      keyFile: "/etc/invariant/tls/key.pem",
+    });
+    expect(() => parseConfig({ ...base, listen: { tsl: {} } }, "/")).toThrow(
+      /Unknown setting "listen.tsl"/,
+    );
+    expect(() =>
+      parseConfig({ ...base, listen: { tls: { certFile: "c.pem" } } }, "/"),
+    ).toThrow(/listen.tls\."keyFile" is required/);
+  });
+
   it("refuses a setting it does not know, rather than ignoring a typo", () => {
     expect(() => parseConfig({ ...base, upstrem: "x" }, "/")).toThrow(
       /Unknown setting "upstrem"/,

@@ -13,12 +13,19 @@ import {
   type Server,
   type ServerResponse,
 } from "node:http";
+import {
+  createSecureServer,
+  type Http2SecureServer,
+  type Http2ServerRequest,
+  type Http2ServerResponse,
+} from "node:http2";
 import type { AddressInfo } from "node:net";
 import { Readable } from "node:stream";
 import type { FetchHandler } from "./proxy.ts";
+import type { UpgradeHandler } from "./upgrade.ts";
 
 export interface Listening {
-  server: Server;
+  server: Server | Http2SecureServer;
   /** Where it is listening, which matters when the port was chosen by the system. */
   url: string;
   /** Stops accepting, lets requests in flight finish, then resolves. */
@@ -41,25 +48,53 @@ export interface ServeOptions {
   maxConnections?: number;
   /** Called with anything thrown past the proxy's own handling. */
   onError?: (error: unknown) => void;
+  /**
+   * Terminate TLS here, with this certificate and key in PEM. Callers are
+   * then served HTTP/2 or HTTP/1.1 on the one port, whichever they offer:
+   * some official SDKs, stripe-go among them, insist on HTTP/2.
+   */
+  tls?: { cert: string | Buffer; key: string | Buffer };
+  /** Where a request asking to `Upgrade`, a WebSocket among them, is sent. */
+  upgrade?: UpgradeHandler;
 }
+
+type Incoming = IncomingMessage | Http2ServerRequest;
+type Outgoing = ServerResponse | Http2ServerResponse;
+
+/**
+ * Headers that belong to one HTTP/1.1 connection. HTTP/2 has no such thing,
+ * and a response carrying one is refused by the protocol layer.
+ */
+const CONNECTION_HEADERS = new Set([
+  "connection",
+  "keep-alive",
+  "proxy-connection",
+  "transfer-encoding",
+  "upgrade",
+]);
 
 export async function serve(
   handler: FetchHandler,
   options: ServeOptions,
 ): Promise<Listening> {
-  const server = createServer(
-    {
-      requestTimeout: options.requestTimeoutMs ?? 120_000,
-      headersTimeout: options.headersTimeoutMs ?? 30_000,
-    },
-    (incoming, outgoing) => {
-      void handle(handler, incoming, outgoing, options.onError);
-    },
-  );
+  const requestTimeoutMs = options.requestTimeoutMs ?? 120_000;
+  const server = options.tls
+    ? secureServer(handler, options, requestTimeoutMs)
+    : createServer(
+        {
+          requestTimeout: requestTimeoutMs,
+          headersTimeout: options.headersTimeoutMs ?? 30_000,
+          // Longer than a typical load balancer's idle timeout, so the
+          // balancer closes idle connections rather than finding them closed
+          // under it.
+          keepAliveTimeout: 65_000,
+        },
+        (incoming, outgoing) => {
+          void handle(handler, incoming, outgoing, options.onError);
+        },
+      );
   server.maxConnections = options.maxConnections ?? 10_000;
-  // Longer than a typical load balancer's idle timeout, so the balancer closes
-  // idle connections rather than finding them closed under it.
-  server.keepAliveTimeout = 65_000;
+  if (options.upgrade) server.on("upgrade", options.upgrade);
 
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
@@ -73,19 +108,51 @@ export async function serve(
   const host = address.family === "IPv6" ? `[${address.address}]` : address.address;
   return {
     server,
-    url: `http://${host}:${address.port}`,
+    url: `${options.tls ? "https" : "http"}://${host}:${address.port}`,
     close: () =>
       new Promise<void>((resolve, reject) => {
         server.close((error) => (error ? reject(error) : resolve()));
-        server.closeIdleConnections();
+        if ("closeIdleConnections" in server) server.closeIdleConnections();
       }),
   };
 }
 
+/**
+ * TLS terminated here, serving HTTP/2 and HTTP/1.1 alike. HTTP/2 has no
+ * whole-request timeout of its own, so each request is given one: a stream
+ * that has not finished arriving in time is closed.
+ */
+function secureServer(
+  handler: FetchHandler,
+  options: ServeOptions,
+  requestTimeoutMs: number,
+): Http2SecureServer {
+  const tls = options.tls as NonNullable<ServeOptions["tls"]>;
+  const server = createSecureServer({ cert: tls.cert, key: tls.key, allowHTTP1: true });
+  server.on("request", (incoming: Incoming, outgoing: Outgoing) => {
+    const timer = setTimeout(() => {
+      if (!incoming.complete) destroy(outgoing);
+    }, requestTimeoutMs);
+    timer.unref();
+    incoming.once("end", () => clearTimeout(timer));
+    outgoing.once("close", () => clearTimeout(timer));
+    void handle(handler, incoming, outgoing, options.onError);
+  });
+  // A connection idle this long, one whose handshake never finished among
+  // them, is closed rather than held.
+  server.setTimeout(options.headersTimeoutMs ?? 30_000);
+  return server;
+}
+
+function destroy(outgoing: Outgoing): void {
+  if ("stream" in outgoing) outgoing.stream.close();
+  else outgoing.destroy();
+}
+
 async function handle(
   handler: FetchHandler,
-  incoming: IncomingMessage,
-  outgoing: ServerResponse,
+  incoming: Incoming,
+  outgoing: Outgoing,
   onError: ((error: unknown) => void) | undefined,
 ): Promise<void> {
   try {
@@ -108,25 +175,28 @@ async function handle(
         }),
       );
     } else {
-      outgoing.destroy();
+      destroy(outgoing);
     }
   }
 }
 
-function toRequest(incoming: IncomingMessage): Request {
+function toRequest(incoming: Incoming): Request {
   // Only the path and query are taken from the request line. A request written
   // in absolute form names a host, and nothing here should let a caller choose
   // one; the proxy sends everything to its configured upstream regardless.
   const target = new URL(incoming.url ?? "/", "http://placeholder.invalid");
-  const host = incoming.headers.host ?? "localhost";
+  // HTTP/2 names the host in :authority, which carries what Host would.
+  const authority = incoming.headers[":authority"];
+  const host =
+    incoming.headers.host ?? (typeof authority === "string" ? authority : "localhost");
   const url = new URL(`${target.pathname}${target.search}`, `http://${host}`);
 
   const headers = new Headers();
   for (let index = 0; index < incoming.rawHeaders.length; index += 2) {
-    headers.append(
-      incoming.rawHeaders[index] as string,
-      incoming.rawHeaders[index + 1] as string,
-    );
+    const name = incoming.rawHeaders[index] as string;
+    // HTTP/2's pseudo-headers are the request line, already read above.
+    if (name.startsWith(":")) continue;
+    headers.append(name, incoming.rawHeaders[index + 1] as string);
   }
   const peer = incoming.socket.remoteAddress;
   if (peer) {
@@ -145,10 +215,12 @@ function toRequest(incoming: IncomingMessage): Request {
   } as RequestInit);
 }
 
-async function write(response: Response, outgoing: ServerResponse): Promise<void> {
+async function write(response: Response, outgoing: Outgoing): Promise<void> {
+  const http2 = "stream" in outgoing;
   outgoing.statusCode = response.status;
   for (const [name, value] of response.headers) {
     if (name === "set-cookie") continue;
+    if (http2 && CONNECTION_HEADERS.has(name)) continue;
     outgoing.setHeader(name, value);
   }
   // Several cookies cannot share one header line, so they are written one each.
@@ -164,6 +236,6 @@ async function write(response: Response, outgoing: ServerResponse): Promise<void
     source.on("error", reject);
     outgoing.on("error", reject);
     outgoing.on("finish", resolve);
-    source.pipe(outgoing);
+    source.pipe(outgoing as NodeJS.WritableStream);
   });
 }

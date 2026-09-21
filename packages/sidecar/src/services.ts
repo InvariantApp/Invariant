@@ -31,11 +31,14 @@ import {
   type Telemetry,
 } from "@invariant/telemetry";
 import { ConfigError, type SidecarConfig } from "./config.ts";
+import { createMetrics, type Metrics } from "./metrics.ts";
 
 export interface Services {
   /** The runtime's flags, or nothing when no source is configured. */
   flags?: () => RuntimeFlags;
-  onUsage?: (event: UsageEvent) => void;
+  onUsage: (event: UsageEvent) => void;
+  /** The counters `/__invariant/metrics` serves, fed by the same events. */
+  metrics: Metrics;
   /** Counts every outcome, and logs each refusal and failure with its id. */
   onOutcome: (event: OutcomeEvent) => void;
   /**
@@ -126,10 +129,16 @@ export function servicesFor(
     | { digest: string; currentLabel: string; compiledBy?: string; minRuntime?: string }
     | undefined;
 
+  const metrics = createMetrics();
   return {
     ...(flags ? { flags: flags.read } : {}),
-    ...(telemetry ? { onUsage: telemetry.onUsage } : {}),
+    metrics,
+    onUsage(event) {
+      metrics.usage(event);
+      telemetry?.onUsage(event);
+    },
     onOutcome(event) {
+      metrics.outcome(event);
       telemetry?.onOutcome(event);
       if (event.outcome === "adapted") return;
       // The id the caller was sent, beside what happened, so what they quote
