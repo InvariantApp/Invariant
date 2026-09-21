@@ -43,6 +43,12 @@ interface Source {
   /** How many documents to take when the repo holds many. */
   files?: number;
   branch: string;
+  /**
+   * How many successive states of each document to take. Deeper for the
+   * moderate specifications; shallow for the largest, whose pairs mostly
+   * measure the time budget.
+   */
+  depth?: number;
 }
 
 /**
@@ -101,6 +107,156 @@ const SOURCES: Source[] = [
     match: /^json\/[^/]+\.json$/,
     files: 40,
     branch: "main",
+  },
+  // Added to reach thirty providers: each one's own published specification,
+  // a single self-contained OpenAPI 3 document per API.
+  {
+    provider: "cloudflare.com",
+    repo: "cloudflare/api-schemas",
+    path: "openapi.json",
+    branch: "main",
+    depth: 4,
+  },
+  {
+    provider: "discord.com",
+    repo: "discord/discord-api-spec",
+    path: "specs/openapi.json",
+    branch: "main",
+    depth: 40,
+  },
+  {
+    provider: "asana.com",
+    repo: "Asana/openapi",
+    path: "defs/asana_oas.yaml",
+    branch: "master",
+    depth: 40,
+  },
+  {
+    provider: "pagerduty.com",
+    repo: "PagerDuty/api-schema",
+    path: "reference/REST/openapiv3.json",
+    branch: "main",
+    depth: 40,
+  },
+  {
+    provider: "datadoghq.com",
+    repo: "DataDog/datadog-api-client-typescript",
+    dir: ".generator/schemas",
+    match: /^\.generator\/schemas\/v[12]\/openapi\.yaml$/,
+    files: 2,
+    branch: "master",
+    depth: 40,
+  },
+  {
+    provider: "sentry.io",
+    repo: "getsentry/sentry-api-schema",
+    path: "openapi-derefed.json",
+    branch: "main",
+    depth: 40,
+  },
+  {
+    provider: "okta.com",
+    repo: "okta/okta-management-openapi-spec",
+    path: "dist/current/management-minimal.yaml",
+    branch: "master",
+    depth: 40,
+  },
+  {
+    provider: "kubernetes.io",
+    repo: "kubernetes/kubernetes",
+    dir: "api/openapi-spec/v3",
+    match: /^api\/openapi-spec\/v3\/apis__[a-z.0-9]+__v[0-9a-z]+_openapi\.json$/,
+    files: 12,
+    branch: "master",
+    depth: 8,
+  },
+  {
+    provider: "spotify.com",
+    repo: "sonallux/spotify-web-api",
+    path: "fixed-spotify-open-api.yml",
+    branch: "main",
+    depth: 40,
+  },
+  {
+    provider: "grafana.com",
+    repo: "grafana/grafana",
+    path: "public/openapi3.json",
+    branch: "main",
+    depth: 40,
+  },
+  {
+    provider: "xero.com",
+    repo: "XeroAPI/Xero-OpenAPI",
+    dir: "",
+    match: /^xero[-_][a-z0-9-_]+\.yaml$/,
+    files: 10,
+    branch: "master",
+    depth: 10,
+  },
+  {
+    provider: "figma.com",
+    repo: "figma/rest-api-spec",
+    path: "openapi/openapi.yaml",
+    branch: "main",
+    depth: 40,
+  },
+  {
+    provider: "resend.com",
+    repo: "resend/resend-openapi",
+    path: "resend.yaml",
+    branch: "main",
+    depth: 40,
+  },
+  {
+    provider: "paypal.com",
+    repo: "paypal/paypal-rest-api-specifications",
+    dir: "openapi",
+    match: /^openapi\/[a-z_0-9]+\.json$/,
+    files: 13,
+    branch: "main",
+    depth: 8,
+  },
+  {
+    provider: "qdrant.tech",
+    repo: "qdrant/qdrant",
+    path: "docs/redoc/master/openapi.json",
+    branch: "master",
+    depth: 40,
+  },
+  {
+    provider: "elastic.co",
+    repo: "elastic/elasticsearch-specification",
+    path: "output/openapi/elasticsearch-openapi.json",
+    branch: "main",
+    depth: 10,
+  },
+  {
+    provider: "supabase.com",
+    repo: "supabase/supabase",
+    path: "apps/docs/spec/api_v1_openapi.json",
+    branch: "master",
+    depth: 40,
+  },
+  {
+    provider: "meilisearch.com",
+    repo: "meilisearch/open-api",
+    path: "open-api.json",
+    branch: "main",
+    depth: 40,
+  },
+  {
+    provider: "langfuse.com",
+    repo: "langfuse/langfuse",
+    path: "web/public/generated/api/openapi.yml",
+    branch: "main",
+    depth: 40,
+  },
+  {
+    provider: "mistral.ai",
+    repo: "mistralai/platform-docs-public",
+    path: "openapi.yaml",
+    branch: "main",
+    depth: 40,
   },
 ];
 
@@ -162,7 +318,7 @@ for (const source of SOURCES) {
     let commits: Commit[];
     try {
       commits = await api<Commit[]>(
-        `repos/${source.repo}/commits?path=${encodeURIComponent(path)}&per_page=${DEPTH}`,
+        `repos/${source.repo}/commits?path=${encodeURIComponent(path)}&per_page=${source.depth ?? DEPTH}`,
       );
     } catch {
       continue;
