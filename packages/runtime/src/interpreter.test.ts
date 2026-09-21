@@ -314,3 +314,78 @@ describe("the fan-out cap", () => {
     }
   });
 });
+
+/**
+ * Found by the Rig F fuzzers: inputs a cast could not express escaped as
+ * untyped errors, which a binding cannot turn into an answer.
+ */
+describe("a cast of a value it cannot express", () => {
+  const cast = (to: "string" | "integer" | "number"): CompiledInstr => ({
+    k: "cast",
+    path: ["amount"],
+    to,
+    c: "chg_cast",
+  });
+
+  it("refuses an object or an array as a string", () => {
+    for (const body of ['{"amount":{"a":1}}', '{"amount":[1]}']) {
+      expect(() => run(body, [cast("string")])).toThrow(TransformError);
+    }
+  });
+
+  it("refuses text that is not a number as a number", () => {
+    expect(() => run('{"amount":"abc"}', [cast("integer")])).toThrow(TransformError);
+    expect(() => run('{"amount":"1.5.5"}', [cast("number")])).toThrow(TransformError);
+  });
+});
+
+describe("a number a double cannot hold", () => {
+  // `1e400` is valid JSON. Parsed as a double it is Infinity, which is written
+  // back as null: the provider would have received {"total":null}.
+  it("comes through a transform exactly as it was sent, even in double mode", () => {
+    const move: CompiledInstr = {
+      k: "move",
+      from: ["amount"],
+      to: ["total"],
+      c: "chg_move",
+    };
+    expect(run('{"amount":1e400,"fee":1e-400}', [move], "double")).toBe(
+      '{"fee":1e-400,"total":1e400}',
+    );
+    const toText: CompiledInstr = {
+      k: "cast",
+      path: ["amount"],
+      to: "string",
+      c: "chg_cast",
+    };
+    expect(run('{"amount":1e400}', [toText], "double")).toBe('{"amount":"1e400"}');
+    // Overflow from the digits rather than the exponent: 1e309.
+    const long = `1${"0".repeat(299)}e10`;
+    expect(run(`{"amount":${long}}`, [move], "double")).toBe(`{"total":${long}}`);
+  });
+
+  it("still takes the fast path for a body with nothing out of range", () => {
+    expect(run('{"amount":1e99,"id":"file123"}', [], "double")).toBe(
+      '{"amount":1e+99,"id":"file123"}',
+    );
+  });
+});
+
+describe("a number kept with its original digits", () => {
+  // Held as a frozen raw-JSON object, and once treated as a container: a set
+  // into the body `1e+100` threw a TypeError. Found by fuzzing.
+  it("is a leaf, refused exactly as the same number held as a double is", () => {
+    const set: CompiledInstr = {
+      k: "set",
+      path: ["capture_method"],
+      value: "automatic",
+      ifAbsent: true,
+      c: "chg_set",
+    };
+    expect(() => run("1e+100", [set], "double")).toThrow(TransformError);
+    expect(() => run("5", [set], "double")).toThrow(TransformError);
+    const nested = { ...set, path: ["a", "b"] };
+    expect(() => run('{"a":1e+100}', [nested], "preserve")).toThrow(TransformError);
+    expect(() => run('{"a":5}', [nested], "double")).toThrow(TransformError);
+  });
+});

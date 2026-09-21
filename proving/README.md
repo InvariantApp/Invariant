@@ -72,3 +72,21 @@ node --import tsx proving/servers/run.mts --project qdrant --pair v1.13.0:v1.14.
 Needs Docker and `uv`. The suite is installed from the release's own lock
 file into a virtual environment of its own. A test that passes without the
 adapter and fails through it fails the run.
+
+## Rig F: hostile input
+
+`fuzz/` holds properties that must hold for any input at all: the program
+decoder, the interpreter, path templates and the proxy either answer or
+refuse with their own typed error, never throw anything else, never answer
+with a 500 of their own, and never touch `Object.prototype`. Every commit runs
+them with a few hundred cases; the nightly run with 200,000.
+
+```console
+pnpm exec vitest run proving/fuzz
+FUZZ_RUNS=200000 FUZZ_SEED=-900866067 pnpm exec vitest run proving/fuzz   # replay a failure
+```
+
+A counterexample is fixed where it broke and kept there as a regression test.
+The first deep run found three: a number a double cannot hold was forwarded
+as `null`, a cast of a value it could not express threw an untyped error, and
+a number kept with its original digits was treated as an object.

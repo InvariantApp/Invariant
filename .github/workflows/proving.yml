@@ -131,6 +131,32 @@ jobs:
           name: servers-${{ matrix.project }}
           path: .cache/servers/results-${{ matrix.project }}.json
 
+  fuzz:
+    name: fuzz (rig F)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Every commit runs these with a few hundred cases; the nightly run
+      # takes a fresh seed and many more. A failure prints its seed and path,
+      # which replay it exactly with FUZZ_SEED.
+      - name: Hostile input, deeply
+        env:
+          FUZZ_RUNS: "200000"
+        run: pnpm exec vitest run proving/fuzz --testTimeout=3000000
+
   report:
     needs: corpus
     runs-on: ubuntu-latest

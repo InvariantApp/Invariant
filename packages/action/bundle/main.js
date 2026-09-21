@@ -25598,8 +25598,20 @@ function schemaArbitrary(document, ref) {
 * later anyway. A provider that really does read bodies with arbitrary
 * precision can turn it on.
 */
+/**
+* A number a double might not hold. `1e400` parses to Infinity and `1e-400`
+* to 0, and Infinity is written back as `null`, so a transform on such a body
+* would change what the caller sent without a word. Found by fuzzing.
+*
+* A number with fewer than 100 digits in a row and an exponent of at most two
+* digits lies within 1e±198, well inside a double's range, so anything this
+* does not match is safe on the fast path. What it does match, including the
+* odd string holding a hundred digits, pays for an exact parse and loses
+* nothing.
+*/
+const BEYOND_DOUBLE = /[\d.][eE][+-]?\d{3}|\d{100}/;
 function parseJson(text, fidelity) {
-	if (fidelity === "double") return JSON.parse(text);
+	if (fidelity === "double" && !BEYOND_DOUBLE.test(text)) return JSON.parse(text);
 	return JSON.parse(text, function preserveNumbers(_key, value, context) {
 		if (typeof value !== "number") return value;
 		const source = context?.source;
@@ -25608,6 +25620,9 @@ function parseJson(text, fidelity) {
 }
 function stringifyJson(value) {
 	return JSON.stringify(value) ?? "null";
+}
+function isNumberLike(value) {
+	return typeof value === "number" || JSON.isRawJSON(value);
 }
 /**
 * The exact decimal text of a numeric value, whatever form it is held in.
@@ -25642,7 +25657,7 @@ var FanOutExceeded = class extends Error {
 	}
 };
 function isContainer(value) {
-	return typeof value === "object" && value !== null;
+	return typeof value === "object" && value !== null && !JSON.isRawJSON(value);
 }
 /**
 * Keys that would reach outside the document being transformed.
@@ -25904,6 +25919,7 @@ function castValue(value, to, instr, path) {
 		case "string":
 			if (typeof value === "string") return value;
 			if (typeof value === "boolean") return String(value);
+			if (!isNumberLike(value)) throw new TransformError(instr.c, `Cannot cast ${value === null ? "null" : typeof value} to string at ${path.join("/")}`);
 			return numberTextOf(value);
 		case "boolean":
 			if (typeof value === "boolean") return value;
@@ -25975,6 +25991,7 @@ function execute(root, program, limits = DEFAULT_LIMITS) {
 		step(root, instr, limits, result);
 	} catch (error) {
 		if (error instanceof FanOutExceeded) throw new MatchLimitError(instr.c, error.limit);
+		if (error instanceof DecimalError) throw new TransformError(instr.c, error.message);
 		throw error;
 	}
 	return result;

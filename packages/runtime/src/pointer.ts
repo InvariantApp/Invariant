@@ -36,7 +36,10 @@ export class FanOutExceeded extends Error {
 }
 
 function isContainer(value: unknown): value is Record<string, unknown> | unknown[] {
-  return typeof value === "object" && value !== null;
+  // A number kept with its original digits is held as a frozen raw-JSON
+  // object. It is a leaf, and treating it as an object once threw on a write
+  // into it. Found by fuzzing.
+  return typeof value === "object" && value !== null && !JSON.isRawJSON(value);
 }
 
 /**

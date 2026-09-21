@@ -10,8 +10,8 @@
  * never hand back a body in the wrong shape, so every refusal raises rather
  * than skipping the instruction.
  */
-import { compareDecimal, shiftDecimal } from "@invariant/decimal";
-import { type Json, numberFromText, numberTextOf } from "./json.ts";
+import { compareDecimal, DecimalError, shiftDecimal } from "@invariant/decimal";
+import { isNumberLike, type Json, numberFromText, numberTextOf } from "./json.ts";
 import {
   createSlot,
   deleteSlot,
@@ -212,6 +212,12 @@ function castValue(
     case "string":
       if (typeof value === "string") return value;
       if (typeof value === "boolean") return String(value);
+      if (!isNumberLike(value)) {
+        throw new TransformError(
+          instr.c,
+          `Cannot cast ${value === null ? "null" : typeof value} to string at ${path.join("/")}`,
+        );
+      }
       return numberTextOf(value);
     case "boolean":
       if (typeof value === "boolean") return value;
@@ -326,6 +332,9 @@ export function execute(
     } catch (error) {
       if (error instanceof FanOutExceeded)
         throw new MatchLimitError(instr.c, error.limit);
+      // Decimal arithmetic on a value this change cannot express, such as a
+      // cast of "abc" to a number: the body is not translatable by it.
+      if (error instanceof DecimalError) throw new TransformError(instr.c, error.message);
       throw error;
     }
   }

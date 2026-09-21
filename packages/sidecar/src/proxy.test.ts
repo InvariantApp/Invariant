@@ -222,6 +222,28 @@ describe("an old caller, through the proxy", () => {
   });
 });
 
+describe("numbers a double cannot hold", () => {
+  // Found by the Rig F fuzzers. The provider was sent {"amount_cents":null}.
+  it("reach the provider, and come back, exactly as they were written", async () => {
+    const { fetchImpl, calls } = upstream(
+      () =>
+        new Response('{"amount_cents":1e400,"status":"pending"}', {
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const response = await proxyWith(fetchImpl)(
+      new Request("https://api.example.com/v1/charges", {
+        method: "POST",
+        headers: { "content-type": "application/json", "payments-version": "2026-01-01" },
+        body: '{"amount":1e400}',
+      }),
+    );
+
+    expect(calls[0]?.body).toBe('{"amount_cents":1e400}');
+    expect(await response.text()).toBe('{"status":"pending","amount":1e400}');
+  });
+});
+
 describe("a current caller, through the proxy", () => {
   it("is passed through untouched, body and all", async () => {
     const { fetchImpl, calls } = upstream(() =>
