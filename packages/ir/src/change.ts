@@ -314,6 +314,7 @@ export const CONSTRAINT_KEYWORDS = [
   "maxProperties",
   "minProperties",
   "pattern",
+  "format",
   "multipleOf",
   "uniqueItems",
 ] as const;
@@ -353,6 +354,12 @@ export const RelaxOp = Type.Object(
         maxProperties: Type.Optional(Count),
         minProperties: Type.Optional(Count),
         pattern: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+        /**
+         * What the text or number claims to be. PayPal drops its own formats
+         * (`payer_v1`, `ppaas_date_notime_v2`) from responses release after
+         * release, which frees the value from a claim an old caller may check.
+         */
+        format: Type.Optional(Type.Union([Type.String(), Type.Null()])),
         multipleOf: Type.Optional(
           Type.Union([Type.Number({ exclusiveMinimum: 0 }), Type.Null()]),
         ),

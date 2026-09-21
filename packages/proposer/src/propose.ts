@@ -904,20 +904,33 @@ export function relaxOps(
   const narrowed = changed.filter((keyword) =>
     narrows(keyword, before[keyword], set[keyword] as JsonValue),
   );
-  if (sides.request && narrowed.length > 0) {
-    return {
-      ops: [],
-      notes: [],
-      unresolved: `\`${old.name}\` now allows less (${narrowed.join(", ")}) in requests, so old callers will be refused for values their contract allowed; no Change can hide that`,
-    };
-  }
+  // A bound that narrowed on something old callers send cannot be served, and
+  // is reported. It says nothing about the bounds beside it that widened,
+  // which a response can still declare: PayPal raises a `maxLength` and adds
+  // a `pattern` to the same field in one release.
+  const unresolved =
+    sides.request && narrowed.length > 0
+      ? `\`${old.name}\` now allows less (${narrowed.join(", ")}) in requests, so old callers will be refused for values their contract allowed; no Change can hide that`
+      : undefined;
   const widened = changed.filter((keyword) => !narrowed.includes(keyword));
-  if (!sides.response || widened.length === 0) return { ops: [], notes: [] };
+  const declared = unresolved === undefined ? changed : widened;
+  if (!sides.response || widened.length === 0) {
+    return { ops: [], notes: [], ...(unresolved ? { unresolved } : {}) };
+  }
   return {
-    ops: [{ op: "relax", path: next.pointer, set: set as never }],
+    ops: [
+      {
+        op: "relax",
+        path: next.pointer,
+        set: Object.fromEntries(
+          declared.map((keyword) => [keyword, set[keyword]]),
+        ) as never,
+      },
+    ],
     notes: [
       `\`${old.name}\` may now hold values its old bounds ruled out (${widened.join(", ")}); they pass through as the API produced them, a declared loss to acknowledge`,
     ],
+    ...(unresolved ? { unresolved } : {}),
   };
 }
 
@@ -970,12 +983,14 @@ export function widenOps(
 }
 
 /** Whether the values a field can hold changed, apart from null and absence. */
+/**
+ * Whether the values a field holds are a different kind of thing. A format
+ * that moved while the type stayed is a claim about the same values, which
+ * `relax` states; counting it here reported PayPal's hundreds of dropped
+ * formats as reshapings no op could express.
+ */
 function valuesDiffer(a: FieldShape, b: FieldShape): boolean {
-  return (
-    a.type !== b.type ||
-    a.format !== b.format ||
-    a.enumValues?.join("|") !== b.enumValues?.join("|")
-  );
+  return a.type !== b.type || a.enumValues?.join("|") !== b.enumValues?.join("|");
 }
 
 /**

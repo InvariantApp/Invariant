@@ -671,6 +671,30 @@ describe("a value written another way", () => {
   });
 });
 
+describe("bounds that moved both ways in one release", () => {
+  it("declares the widening a response can carry and reports the narrowing a request cannot", async () => {
+    // PayPal's shape: one schema used both ways, a limit raised and a
+    // pattern added to the same field in the same release.
+    const both = (field: Schema) => ({
+      ...base,
+      Shared: object({ id: { type: "string" }, note: field }, ["id"]),
+      ThingCreate: { $ref: "#/components/schemas/Shared" },
+    });
+    const outcome = await propose(
+      contract(both({ type: "string", maxLength: 127 })),
+      contract(both({ type: "string", maxLength: 255, pattern: "^[^<>]*$" })),
+      { judge: new RulesJudge() },
+    );
+    const relaxed = outcome.proposals
+      .flatMap((proposal) => proposal.change.ops)
+      .filter((op) => op.op === "relax");
+    expect(relaxed).toEqual([{ op: "relax", path: "/note", set: { maxLength: 255 } }]);
+    expect(outcome.unresolved.map((entry) => entry.reason).join()).toContain(
+      "now allows less (pattern) in requests",
+    );
+  });
+});
+
 describe("how sure a judge has to be", () => {
   /** Answers every question with the first candidate, as one judge, at one confidence. */
   const sure = (judge: "jev" | "s2", confidence: number): Judge => ({
