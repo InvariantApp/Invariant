@@ -198,7 +198,7 @@ function decodeInstr(raw: unknown, where: string): CompiledInstr {
       };
     }
     case "set": {
-      expectKeys(value, ["k", "path", "value", "ifAbsent", "c"], where);
+      expectKeys(value, ["k", "path", "value", "ifAbsent", "ifNull", "c"], where);
       if (typeof value["ifAbsent"] !== "boolean") {
         throw new ProgramError(`${where}.ifAbsent must be a boolean`);
       }
@@ -207,14 +207,16 @@ function decodeInstr(raw: unknown, where: string): CompiledInstr {
         path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
         value: value["value"] as Json,
         ifAbsent: value["ifAbsent"],
+        ...(onlyTrue(value["ifNull"], `${where}.ifNull`) ? { ifNull: true } : {}),
         c: changeId,
       };
     }
     case "del": {
-      expectKeys(value, ["k", "path", "c"], where);
+      expectKeys(value, ["k", "path", "ifNull", "c"], where);
       return {
         k: "del",
         path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
+        ...(onlyTrue(value["ifNull"], `${where}.ifNull`) ? { ifNull: true } : {}),
         c: changeId,
       };
     }
@@ -273,6 +275,13 @@ function decodeRoute(raw: unknown, where: string): DecodedRoute {
     to: string(to["path"], `${where}.to.path`).split("/"),
     changeId: string(value["c"], `${where}.c`),
   };
+}
+
+/** An optional flag that is either left out or true, never anything else. */
+function onlyTrue(value: unknown, where: string): boolean {
+  if (value === undefined) return false;
+  if (value !== true) throw new ProgramError(`${where} must be true when present`);
+  return true;
 }
 
 export function decodeProgram(raw: unknown): DecodedProgram {

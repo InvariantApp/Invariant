@@ -17,7 +17,7 @@
  * than rewritten on a guess. A migration that quietly gets one call site wrong
  * is worse than one that says which call site it could not do.
  */
-import type { DataOp } from "@invariant/ir";
+import type { AddOp, DataOp, DefaultOp } from "@invariant/ir";
 import {
   Node,
   type Project,
@@ -613,6 +613,16 @@ function propertyOf(
   return found && Node.isPropertySignature(found) ? found : undefined;
 }
 
+/**
+ * An op that means every caller now has to send the field: a new required
+ * one, or an existing one that stopped being optional.
+ */
+function suppliesField(op: DataOp): op is AddOp | DefaultOp {
+  return (
+    op.op === "add" || (op.op === "default" && op.toward === "new" && op.when !== "null")
+  );
+}
+
 export function runEngine(
   project: Project,
   plan: MigrationPlan,
@@ -626,7 +636,10 @@ export function runEngine(
   // One group per field, so every op that touches it composes into one edit.
   const groups = new Map<string, TargetSymbol[]>();
   for (const target of plan.targets) {
-    if (target.op.op === "add") continue;
+    // Neither edits an existing reference: a field that must now be sent is
+    // written into the literals below, and one that may now be missing or
+    // null is left to the type checker, which knows every place it is read.
+    if (["add", "default", "dropNull"].includes(target.op.op)) continue;
     const key = `${target.typeName}.${target.property}`;
     groups.set(key, [...(groups.get(key) ?? []), target]);
   }
@@ -682,7 +695,7 @@ export function runEngine(
   // A newly required field has no existing reference to anchor to, so the
   // object literals that write the type are found through its other properties.
   for (const target of plan.targets) {
-    if (target.op.op !== "add") continue;
+    if (!suppliesField(target.op)) continue;
     const head = segmentsOf(target.op.path)[0] as string;
 
     {

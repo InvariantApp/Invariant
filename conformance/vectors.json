@@ -297,6 +297,127 @@
       }
     },
     {
+      "name": "set with ifNull fills a null and nothing else",
+      "why": "A response field that became nullable is shown to an old caller with the value the provider chose, and never created where it was absent.",
+      "instrs": [
+        {
+          "k": "set",
+          "path": "/data/*/note",
+          "value": "",
+          "ifAbsent": false,
+          "ifNull": true,
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "data": [
+          {
+            "note": null
+          },
+          {
+            "note": "kept"
+          },
+          {}
+        ]
+      },
+      "expect": {
+        "output": {
+          "data": [
+            {
+              "note": ""
+            },
+            {
+              "note": "kept"
+            },
+            {}
+          ]
+        }
+      }
+    },
+    {
+      "name": "set with ifAbsent and ifNull fills either",
+      "why": "A response field that became optional and nullable is always there, and never null, for an old caller.",
+      "instrs": [
+        {
+          "k": "set",
+          "path": "/data/*/tier",
+          "value": "basic",
+          "ifAbsent": true,
+          "ifNull": true,
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "data": [
+          {
+            "tier": null
+          },
+          {},
+          {
+            "tier": "gold"
+          }
+        ]
+      },
+      "expect": {
+        "output": {
+          "data": [
+            {
+              "tier": "basic"
+            },
+            {
+              "tier": "basic"
+            },
+            {
+              "tier": "gold"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "del with ifNull drops a null and nothing else",
+      "why": "A request field that no longer accepts null is left out when an old caller sends null, where the new contract lets it be absent.",
+      "instrs": [
+        {
+          "k": "del",
+          "path": "/description",
+          "ifNull": true,
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "amount": 1,
+        "description": null
+      },
+      "expect": {
+        "output": {
+          "amount": 1
+        }
+      }
+    },
+    {
+      "name": "del with ifNull leaves a value",
+      "why": "Only the null the new contract refuses is dropped.",
+      "instrs": [
+        {
+          "k": "del",
+          "path": "/description",
+          "ifNull": true,
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "amount": 1,
+        "description": "rent"
+      },
+      "expect": {
+        "output": {
+          "amount": 1,
+          "description": "rent"
+        }
+      }
+    },
+    {
       "name": "a wildcard applies to every element of a list",
       "why": "A list envelope is the common shape and the one with a fan-out cost.",
       "instrs": [

@@ -145,6 +145,38 @@ export const RemoveOp = Type.Object(
   },
 );
 
+export const DefaultOp = Type.Object(
+  {
+    op: Type.Literal("default"),
+    path: Pointer,
+    value: Type.Unknown(),
+    when: Type.Union([
+      Type.Literal("absent"),
+      Type.Literal("null"),
+      Type.Literal("absent-or-null"),
+    ]),
+    toward: Type.Union([Type.Literal("old"), Type.Literal("new")]),
+  },
+  {
+    additionalProperties: false,
+    description:
+      "A field both contracts have, where one side may leave it out or null and the other may not. Values travelling toward the stricter side get `value` where the field is missing or null, as `when` says; the other direction is untouched. `toward: old` serves a field that became optional or nullable, `toward: new` one that became required or stopped being nullable.",
+  },
+);
+
+export const DropNullOp = Type.Object(
+  {
+    op: Type.Literal("dropNull"),
+    path: Pointer,
+    toward: Type.Union([Type.Literal("old"), Type.Literal("new")]),
+  },
+  {
+    additionalProperties: false,
+    description:
+      "An optional field one side allows to be null and the other does not. A null travelling toward the stricter side is deleted, so the field arrives left out; any other value is untouched. `toward: old` serves a field that became nullable, `toward: new` one that stopped being nullable. Only valid where the stricter side does not require the field.",
+  },
+);
+
 export const RouteOp = Type.Object(
   {
     op: Type.Literal("route"),
@@ -231,6 +263,8 @@ export const Op = Type.Union([
   ConvertOp,
   AddOp,
   RemoveOp,
+  DefaultOp,
+  DropNullOp,
   RouteOp,
   RetireOp,
   BehaviorOp,
@@ -328,6 +362,8 @@ export type MoveOp = Static<typeof MoveOp>;
 export type ConvertOp = Static<typeof ConvertOp>;
 export type AddOp = Static<typeof AddOp>;
 export type RemoveOp = Static<typeof RemoveOp>;
+export type DefaultOp = Static<typeof DefaultOp>;
+export type DropNullOp = Static<typeof DropNullOp>;
 export type RouteOp = Static<typeof RouteOp>;
 export type RetireOp = Static<typeof RetireOp>;
 export type BehaviorOp = Static<typeof BehaviorOp>;
@@ -340,10 +376,12 @@ export type Provenance = Static<typeof Provenance>;
 export type JudgeKind = Static<typeof JudgeKind>;
 export type Change = Static<typeof Change>;
 
-export type DataOp = MoveOp | ConvertOp | AddOp | RemoveOp;
+export type DataOp = MoveOp | ConvertOp | AddOp | RemoveOp | DefaultOp | DropNullOp;
+
+const DATA_OPS = new Set(["move", "convert", "add", "remove", "default", "dropNull"]);
 
 export function isDataOp(op: Op): op is DataOp {
-  return op.op === "move" || op.op === "convert" || op.op === "add" || op.op === "remove";
+  return DATA_OPS.has(op.op);
 }
 
 export function isSchemaScope(scope: Scope): scope is SchemaScope {

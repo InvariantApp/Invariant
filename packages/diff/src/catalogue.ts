@@ -208,22 +208,33 @@ const RULES: Rule[] = [
       sentence: `A request field now refuses values the old contract allowed. Rewriting a caller's value into a different one would change what they asked for. ${BEHAVIOR}`,
     },
   ),
-  rule(
-    /^(new-required-request-property-with-default|request-property-became-required-with-default)$/,
-    {
-      class: "adaptable",
-      op: "add",
-      served: "yes",
-      sentence:
-        "A request field old callers never sent is now required, and the specification gives its default. An `add` supplies it for them.",
-    },
-  ),
-  rule(/^(new-required-request-property|request-property-became-required)$/, {
+  rule(/^new-required-request-property-with-default$/, {
+    class: "adaptable",
+    op: "add",
+    served: "yes",
+    sentence:
+      "A request field old callers never sent is now required, and the specification gives its default. An `add` supplies it for them.",
+  }),
+  rule(/^new-required-request-property$/, {
     class: "needs-decision",
     op: "add",
     served: "yes",
     sentence:
       "A request field old callers never sent is now required. An `add` supplies it for them, with a value you decide.",
+  }),
+  rule(/^request-property-became-required-with-default$/, {
+    class: "adaptable",
+    op: "default",
+    served: "yes",
+    sentence:
+      "A request field old callers could leave out is now required, and the specification gives its default. A `default` supplies it where they leave it out.",
+  }),
+  rule(/^request-property-became-required$/, {
+    class: "needs-decision",
+    op: "default",
+    served: "yes",
+    sentence:
+      "A request field old callers could leave out is now required. A `default` supplies it where they leave it out, with a value you decide.",
   }),
   rule(/^request-property-removed$/, {
     class: "adaptable",
@@ -249,12 +260,26 @@ const RULES: Rule[] = [
     sentence:
       "A request field's type changed. A `cast` or `scale10` conversion translates old callers' values, which you confirm.",
   }),
-  rule(/^request-(body|property)-became-not-nullable$/, {
+  rule(/^request-property-became-nullable$/, {
+    class: "adaptable",
+    op: "dropNull",
+    served: "yes",
+    sentence:
+      "A request field now accepts null. No old caller sends one, so nothing is translated on the way in; a `dropNull` toward old records it, and wherever the schema is also a response, old callers are sent the field left out instead of null.",
+  }),
+  rule(/^request-property-became-not-nullable$/, {
+    class: "adaptable",
+    op: "dropNull",
+    served: "yes",
+    sentence:
+      "A request field no longer accepts null. Where old callers may leave it out, a `dropNull` sends their null as the field left out; where it is required, a `default` replaces the null with a value you decide.",
+  }),
+  rule(/^request-body-became-not-nullable$/, {
     class: "needs-decision",
-    op: "remove",
+    op: "default",
     served: "planned",
     sentence:
-      "A request field no longer accepts null. Dropping a null an old caller sends, or replacing it with a value you decide, is not served yet.",
+      "A request body no longer accepts null. Replacing a null body an old caller sends with one you decide needs an op on the whole body, which is not served yet.",
   }),
   rule(
     /^request-(body|property)-(any-of-removed|one-of-removed|all-of-added|wrapped-in-one-of(-original-preserved)?)$/,
@@ -301,12 +326,26 @@ const RULES: Rule[] = [
     sentence:
       "A response field old callers were always given is gone. A `remove` restores it for them with a value you decide, or a `move` if another field replaced it.",
   }),
-  rule(/^response-(body|property)-(became-optional|became-nullable)$/, {
+  rule(/^response-property-became-optional$/, {
     class: "needs-decision",
-    op: "add",
+    op: "default",
+    served: "yes",
+    sentence:
+      "A response field old callers were always given may now be missing. A `default` fills it in for them with the specification's default or a value you decide, as a declared loss.",
+  }),
+  rule(/^response-property-became-nullable$/, {
+    class: "adaptable",
+    op: "dropNull",
+    served: "yes",
+    sentence:
+      "A response field may now be null. Where old callers could already be sent it left out, a `dropNull` sends it that way; where they were always given a value, a `default` fills one in that you decide.",
+  }),
+  rule(/^response-body-became-nullable$/, {
+    class: "needs-decision",
+    op: "default",
     served: "planned",
     sentence:
-      "A response field old callers were always given may now be missing or null. Filling it in for them with a value you decide is not served yet.",
+      "A response body may now be null. Giving old callers a body in its place needs an op on the whole body, which is not served yet.",
   }),
   rule(
     /^response-(body|property)-(any-of-added|one-of-added|all-of-removed|wrapped-in-one-of(-original-preserved)?)$/,

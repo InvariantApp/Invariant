@@ -43,8 +43,15 @@ export type CompiledInstr =
       c: string;
     }
   | { k: "cast"; path: Segments; to: ScalarType; c: string }
-  | { k: "set"; path: Segments; value: Json; ifAbsent: boolean; c: string }
-  | { k: "del"; path: Segments; c: string };
+  | {
+      k: "set";
+      path: Segments;
+      value: Json;
+      ifAbsent: boolean;
+      ifNull?: boolean;
+      c: string;
+    }
+  | { k: "del"; path: Segments; ifNull?: boolean; c: string };
 
 export class TransformError extends Error {
   readonly changeId: string;
@@ -258,11 +265,35 @@ function applyCast(
   return cast;
 }
 
+/** Whether a `set` writes over what is there now. */
+function setsOver(
+  instr: Extract<CompiledInstr, { k: "set" }>,
+  current: unknown,
+): boolean {
+  if (!instr.ifAbsent && !instr.ifNull) return true;
+  return (
+    (instr.ifAbsent && current === undefined) ||
+    (instr.ifNull === true && current === null)
+  );
+}
+
 function applySet(
   root: Json,
   instr: Extract<CompiledInstr, { k: "set" }>,
   limits: ExecuteLimits,
 ): number {
+  // Filling a null never creates a field: only values that are there, and
+  // null, are written over.
+  if (instr.ifNull && !instr.ifAbsent) {
+    let written = 0;
+    for (const slot of resolveSlots(root, instr.path, limits.maxMatches)) {
+      if (readSlot(slot) !== null) continue;
+      writeSlot(slot, instr.value);
+      written += 1;
+    }
+    return written;
+  }
+
   // A wildcard names existing elements, but the field being written into them
   // is usually the one that does not exist yet. So resolve as far as the last
   // wildcard, then create the rest of the path inside each element found.
@@ -280,7 +311,7 @@ function applySet(
       const target =
         rest.length === 0 ? element : createSlot(readSlot(element), rest, []);
       if (!target) continue;
-      if (instr.ifAbsent && readSlot(target) !== undefined) continue;
+      if (!setsOver(instr, readSlot(target))) continue;
       writeSlot(target, instr.value);
       written += 1;
     }
@@ -291,7 +322,7 @@ function applySet(
   if (!slot) {
     throw new TransformError(instr.c, `Cannot write ${instr.path.join("/")}`);
   }
-  if (instr.ifAbsent && readSlot(slot) !== undefined) return 0;
+  if (!setsOver(instr, readSlot(slot))) return 0;
   writeSlot(slot, instr.value);
   return 1;
 }
@@ -305,6 +336,7 @@ function applyDel(
   // Deleting from an array shifts later indices, so work back to front.
   let removed = 0;
   for (const slot of [...slots].reverse()) {
+    if (instr.ifNull && readSlot(slot) !== null) continue;
     deleteSlot(slot);
     removed += 1;
   }

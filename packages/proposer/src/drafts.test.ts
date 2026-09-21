@@ -278,3 +278,105 @@ describe("a schema no operation uses", () => {
     expect(outcome.unresolved.some((entry) => entry.schema === "Webhook")).toBe(false);
   });
 });
+
+describe("a field that may now be left out or null, or no longer may", () => {
+  const ops = async (after: Record<string, Schema>) =>
+    (await drafts(after)).proposals.flatMap((proposal) => proposal.change.ops);
+  const unresolvedFields = async (after: Record<string, Schema>) =>
+    (await drafts(after)).unresolved.map((entry) => `${entry.schema}.${entry.field}`);
+
+  it("sends old callers a now-nullable optional response field left out", async () => {
+    const before = {
+      ...base,
+      Thing: object({ id: { type: "string" }, note: { type: "string" } }, ["id"]),
+    };
+    const outcome = await propose(
+      contract(before),
+      contract({
+        ...before,
+        Thing: object(
+          { id: { type: "string" }, note: { type: "string", nullable: true } },
+          ["id"],
+        ),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.proposals.flatMap((proposal) => proposal.change.ops)).toEqual([
+      { op: "dropNull", path: "/note", toward: "old" },
+    ]);
+  });
+
+  it("gives old callers the declared default where a response field became optional", async () => {
+    expect(
+      await ops({
+        Thing: object({ id: { type: "string", default: "unknown" } }, []),
+      }),
+    ).toEqual([
+      { op: "default", path: "/id", value: "unknown", when: "absent", toward: "old" },
+    ]);
+  });
+
+  it("leaves it to a person where a response field became optional with no default", async () => {
+    expect(
+      await unresolvedFields({ Thing: object({ id: { type: "string" } }, []) }),
+    ).toContain("Thing.id");
+  });
+
+  it("gives old callers' requests the default where a field became required", async () => {
+    expect(
+      await ops({
+        ThingCreate: object(
+          { name: { type: "string", default: "unnamed" }, legacy: { type: "string" } },
+          ["name"],
+        ),
+      }),
+    ).toEqual([
+      { op: "default", path: "/name", value: "unnamed", when: "absent", toward: "new" },
+    ]);
+  });
+
+  it("drops a null from old callers' requests where an optional field stopped being nullable", async () => {
+    const before = {
+      ...base,
+      ThingCreate: object({ name: { type: "string", nullable: true } }),
+    };
+    const outcome = await propose(
+      contract(before),
+      contract({ ...before, ThingCreate: object({ name: { type: "string" } }) }),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.proposals.flatMap((proposal) => proposal.change.ops)).toEqual([
+      { op: "dropNull", path: "/name", toward: "new" },
+    ]);
+  });
+
+  it("records a request field that now accepts null, with nothing to translate", async () => {
+    expect(
+      await ops({
+        ThingCreate: object(
+          { name: { type: "string", nullable: true }, legacy: { type: "string" } },
+          ["name"],
+        ),
+      }),
+    ).toEqual([{ op: "dropNull", path: "/name", toward: "old" }]);
+  });
+
+  it("drafts nothing where the change hurts no old caller", async () => {
+    // A request field that became optional: old callers always send it.
+    const before = {
+      ...base,
+      ThingCreate: object({ name: { type: "string" }, legacy: { type: "string" } }, [
+        "name",
+      ]),
+    };
+    const outcome = await propose(
+      contract(before),
+      contract({ ...before, ThingCreate: base.ThingCreate }),
+      {
+        judge: new RulesJudge(),
+      },
+    );
+    expect(outcome.proposals).toEqual([]);
+    expect(outcome.unresolved).toEqual([]);
+  });
+});

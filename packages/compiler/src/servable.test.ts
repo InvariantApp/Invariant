@@ -339,6 +339,28 @@ function fitTo(change: Change, name: string): fc.Arbitrary<Change | undefined> {
         );
       case "add":
         return fc.constant({ ...op, path: "/added_field", value: "supplied" });
+      case "default":
+        // Facing whichever side the scope is used on, so it has work to do.
+        return pick(fields).map((field) =>
+          field
+            ? {
+                ...op,
+                path: field.pointer,
+                toward: name === "OrderCreate" ? "new" : "old",
+              }
+            : op,
+        );
+      case "dropNull":
+        // Only a field that may be left out can have its null left out.
+        return pick(fields.filter((field) => !field.required)).map((field) =>
+          field
+            ? {
+                ...op,
+                path: field.pointer,
+                toward: name === "OrderCreate" ? "new" : "old",
+              }
+            : op,
+        );
       case "convert": {
         const codec = op.codec;
         if (codec.kind === "scale10") {
@@ -415,11 +437,20 @@ function unserved(change: Change, program: unknown): string[] {
   const text = JSON.stringify(contract);
   const mentions = (text.match(new RegExp(`"c":"${change.id}"`, "g")) ?? []).length;
   const missing: string[] = [];
+  // An op with nothing to do in the direction a site faces is a correct
+  // program rather than a missing one: a field that may no longer be null
+  // needs nothing on the way back to a caller who never saw a null.
+  const actsOn = (op: Change["ops"][number], direction: string) =>
+    op.op === "dropNull" || op.op === "default"
+      ? direction === (op.toward === "new" ? "request" : "response")
+      : true;
   const dataOps = change.ops.filter(isDataOp);
   if (dataOps.length > 0) {
-    const sites = (change.scopes ?? []).flatMap((scope) =>
-      "schema" in scope ? findSchemaSites(OLD, scope.schema).sites : [],
-    );
+    const sites = (change.scopes ?? [])
+      .flatMap((scope) =>
+        "schema" in scope ? findSchemaSites(OLD, scope.schema).sites : [],
+      )
+      .filter((site) => dataOps.some((op) => actsOn(op, site.direction)));
     // Every site a data op reaches needs at least one instruction per op.
     if (sites.length > 0 && mentions < sites.length) {
       missing.push(`${sites.length} sites, ${mentions} instructions`);
@@ -497,6 +528,8 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
       "convert cast",
       "add",
       "remove",
+      "default",
+      "dropNull",
       "route",
       "retire",
       "behavior",
@@ -549,7 +582,14 @@ describe("L1: the op x location x direction matrix", () => {
     },
     add: { op: "add", path: "/added_field", value: "supplied" },
     remove: { op: "remove", path: "/note", restore: "" },
+    default: { op: "default", path: "/note", value: "", when: "absent-or-null" },
+    dropNull: { op: "dropNull", path: "/note" },
   };
+  /** The op as it would be written for a body used in this direction. */
+  const bodyOp = (op: string, direction: string) =>
+    op === "default" || op === "dropNull"
+      ? { ...(bodyOps[op] as object), toward: direction === "request" ? "new" : "old" }
+      : bodyOps[op];
   const parameterOps: Record<string, unknown> = {
     move: { op: "move", from: "/limit", to: "/page_size" },
     "convert scale10": {
@@ -575,6 +615,14 @@ describe("L1: the op x location x direction matrix", () => {
     },
     add: { op: "add", path: "/cursor", value: "start" },
     remove: { op: "remove", path: "/sort", restore: "asc" },
+    default: {
+      op: "default",
+      path: "/cursor",
+      value: "start",
+      when: "absent",
+      toward: "new",
+    },
+    dropNull: { op: "dropNull", path: "/sort", toward: "new" },
   };
 
   const outcome = (change: Change) => {
@@ -643,6 +691,8 @@ describe("L1: the op x location x direction matrix", () => {
     "convert cast",
     "add",
     "remove",
+    "default",
+    "dropNull",
   ]) {
     for (const direction of ["request", "response"]) {
       it(`${op} in a body, ${direction}: ${"served"}`, () => {
@@ -654,7 +704,7 @@ describe("L1: the op x location x direction matrix", () => {
           id: "chg_cell",
           summary: "a cell",
           scopes: [{ schema: `#/components/schemas/${schema}` }],
-          ops: [bodyOps[op]],
+          ops: [bodyOp(op, direction)],
         });
         const result = outcome(change);
         expect(result.issues).toEqual([]);

@@ -210,7 +210,12 @@ export function migrateRawCallSites(
         scales.set(leaf(op.path), op.codec.exponent);
       } else if (op.op === "convert" && op.codec.kind === "enumMap") {
         enums.set(leaf(op.path), Object.fromEntries(op.codec.pairs));
-      } else if (op.op === "add") {
+      } else if (
+        op.op === "add" ||
+        (op.op === "default" && op.toward === "new" && op.when !== "null")
+      ) {
+        // A field every caller now has to send, whether it is new or only
+        // newly required.
         added.set(leaf(op.path), { value: op.value, schemas });
       }
     }

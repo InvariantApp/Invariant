@@ -117,7 +117,18 @@ function fieldsOf(
       description:
         typeof value["description"] === "string" ? value["description"] : undefined,
       required: required.has(name),
-      nullable: types.includes("null"),
+      // Each way a document can say it: 3.1's type list, 3.0's flag, or a
+      // union with a null branch.
+      nullable:
+        types.includes("null") ||
+        value["nullable"] === true ||
+        ["anyOf", "oneOf"].some(
+          (key) =>
+            Array.isArray(value[key]) &&
+            (value[key] as JsonValue[]).some(
+              (branch) => isJsonObject(branch) && branch["type"] === "null",
+            ),
+        ),
       ...(value["default"] === undefined ? {} : { default: value["default"] }),
       ...(value["readOnly"] === true ? { readOnly: true } : {}),
     };
@@ -169,7 +180,12 @@ function operationsUsing(document: OpenApiDocument): Map<string, string[]> {
 }
 
 function shapeDiffers(a: FieldShape, b: FieldShape): boolean {
-  if (a.type !== b.type || a.format !== b.format || a.required !== b.required)
+  if (
+    a.type !== b.type ||
+    a.format !== b.format ||
+    a.required !== b.required ||
+    a.nullable !== b.nullable
+  )
     return true;
   const left = a.enumValues?.join("|");
   const right = b.enumValues?.join("|");

@@ -106,6 +106,40 @@ export function derive(change: Change): Derived {
         );
         lossy.forward.push(op.path);
         break;
+      case "default": {
+        // Where the API now says nothing, or null, the stricter side is shown
+        // the declared value instead. That value is a claim about what the
+        // missing field meant, and nothing in the specification proves it.
+        runtime = worse(runtime, "declared-lossy");
+        const missing =
+          op.when === "absent"
+            ? "missing"
+            : op.when === "null"
+              ? "null"
+              : "missing or null";
+        reasons.push(
+          op.toward === "old"
+            ? `${op.path} can now be ${missing}, so an old caller is shown the ` +
+                "declared default in its place and cannot tell the two apart"
+            : `${op.path} can no longer be ${missing}, so the declared default ` +
+                "is sent for an old caller who left it that way",
+        );
+        (op.toward === "old" ? lossy.backward : lossy.forward).push(op.path);
+        break;
+      }
+      case "dropNull":
+        // Null and missing are two answers to one question for most callers,
+        // and not for all of them, so it is declared.
+        runtime = worse(runtime, "declared-lossy");
+        reasons.push(
+          op.toward === "old"
+            ? `${op.path} can now be null, so an old caller is sent the field ` +
+                "left out instead"
+            : `${op.path} can no longer be null, so a null from an old caller is ` +
+                "sent as the field left out",
+        );
+        (op.toward === "old" ? lossy.backward : lossy.forward).push(op.path);
+        break;
       case "retire":
         runtime = "none";
         source = "manual";

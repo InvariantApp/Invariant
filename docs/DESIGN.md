@@ -1924,6 +1924,30 @@ custom methods (`/v1/{name}:cancel`), and the fuzzers found a number too large
 for a double forwarded as `null` and three untyped errors escaping the proxy.
 Each is fixed where it broke and kept as a regression test.
 
+### Null and missing, which the IR could not say
+
+A field that became optional, became nullable, became required or stopped
+being nullable had no op. Each is among the commonest breaks a real
+specification makes, and every one of them landed in the gate as a delta
+nobody could explain.
+
+Two ops now say it. `default` fills in a declared value where one side leaves
+a field out or null and the other side may not, and it faces one way: toward
+old for a response field old callers were always given, toward new for a
+request field old callers could leave out. `dropNull` deletes a null
+travelling toward the side that forbids it, which is only allowed where that
+side may leave the field out, and the compiler refuses it anywhere else. Both
+are declared losses, because null, missing and a default are three answers a
+careful caller can tell apart.
+
+The prediction writes nullability the way the document's own version writes
+it, `nullable: true` in 3.0 and a `"null"` type in 3.1, since the same meaning
+written the other way would still differ from the real specification and fail
+closure. The proposer drafts these without a judge wherever nothing has to be
+invented: a null becomes a field left out, and a value comes only from the
+specification's own `default`. Without one it is a decision, and it is reported
+as one.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no

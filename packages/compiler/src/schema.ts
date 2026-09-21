@@ -404,6 +404,90 @@ export function schemaRemove(
   pruneEmptyObjects(document, root, segments);
 }
 
+/**
+ * Whether a field must be present, changed where it is declared.
+ *
+ * Only the parent's `required` list changes; the field's own schema is left
+ * alone, so a schema shared through a reference is never touched by a change
+ * that is about one place it is used.
+ */
+export function schemaSetRequired(
+  document: OpenApiDocument,
+  root: JsonObject,
+  path: string,
+  required: boolean,
+): void {
+  const segments = parsePointer(path);
+  const slot = readSlot(document, root, segments);
+  if (slot.last === "*") throw new SchemaOpError("A list element is not optional");
+  setRequired(slot.parent, slot.last, required);
+}
+
+/** Whether a field must be present, read through references on the way. */
+export function schemaRequiredAt(
+  document: OpenApiDocument,
+  root: JsonObject,
+  path: string,
+): boolean {
+  return readSlot(document, root, parsePointer(path)).required;
+}
+
+/** The field's own schema, made this change's own so it can be edited. */
+function ownSlot(
+  document: OpenApiDocument,
+  root: JsonObject,
+  segments: readonly string[],
+): JsonObject {
+  const slot = readSlot(document, root, segments);
+  if (slot.last === "*") return own(document, slot.parent, "items");
+  return own(document, slot.parent["properties"] as JsonObject, slot.last);
+}
+
+const isNullSchema = (branch: JsonValue): boolean =>
+  isJsonObject(branch) && branch["type"] === "null" && Object.keys(branch).length === 1;
+
+/**
+ * Whether a field may be null, written the way the document's own version
+ * writes it: `nullable` in 3.0, a `"null"` type in 3.1. Written the other way,
+ * the prediction would mean the same thing and still differ from the real
+ * specification, and closure would report a change nobody made.
+ */
+export function schemaSetNullable(
+  document: OpenApiDocument,
+  root: JsonObject,
+  path: string,
+  nullable: boolean,
+): void {
+  const schema = ownSlot(document, root, parsePointer(path));
+  const version = document["openapi"];
+  if (typeof version === "string" && version.startsWith("3.0")) {
+    if (nullable) schema["nullable"] = true;
+    else delete schema["nullable"];
+    return;
+  }
+
+  const declared = schema["type"];
+  if (typeof declared === "string" || Array.isArray(declared)) {
+    const types = (Array.isArray(declared) ? declared : [declared]).filter(
+      (type) => type !== "null",
+    );
+    const next = nullable ? [...types, "null"] : types;
+    schema["type"] = next.length === 1 ? (next[0] as JsonValue) : next;
+    return;
+  }
+  // A union spells null as a branch of its own.
+  for (const key of ["anyOf", "oneOf"]) {
+    const branches = schema[key];
+    if (!Array.isArray(branches)) continue;
+    const rest = branches.filter((branch) => !isNullSchema(branch));
+    schema[key] = nullable ? [...rest, { type: "null" }] : rest;
+    return;
+  }
+  throw new SchemaOpError(
+    `"${path}" declares no type, so there is no way to write whether it may be null`,
+  );
+}
+
 export function schemaSlotRequired(root: JsonValue, path: string): boolean {
   const segments = parsePointer(path);
   if (segments.length === 0 || !isJsonObject(root)) return false;

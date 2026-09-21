@@ -359,7 +359,7 @@ export async function propose(
     }),
   );
 
-  const altered = alteredProposals(deltas);
+  const altered = alteredProposals(deltas, oldContract);
   const added = additions(deltas, oldContract);
   const gone = removals(deltas, oldContract);
   altered.proposals.unshift(
@@ -651,22 +651,39 @@ function removals(
  */
 function alteredProposals(
   deltas: readonly SchemaDelta[],
+  oldContract: Parameters<typeof schemaDeltas>[0],
 ): Pick<ProposeOutcome, "proposals" | "unresolved"> {
   const proposals: Proposal[] = [];
   const unresolved: Unresolved[] = [];
 
   for (const delta of deltas) {
+    const sides =
+      delta.altered.length > 0 ? sidesOf(oldContract, delta.schema) : undefined;
     for (const pair of delta.altered) {
-      const { ops, notes } = opsFor(pair.old, pair.new);
-      if (ops.length === 0) {
+      const shape = opsFor(pair.old, pair.new);
+      const reshaped = valuesDiffer(pair.old, pair.new);
+      if (reshaped && shape.ops.length === 0) {
         unresolved.push({
           schema: delta.schema,
           field: pair.old.name,
-          reason: notes.join("; ") || "its shape changed in a way no op expresses",
+          reason: shape.notes.join("; ") || "its shape changed in a way no op expresses",
           side: "removed",
         });
         continue;
       }
+      const presence = presenceOps(pair.old, pair.new, sides ?? NEITHER);
+      if (presence.unresolved) {
+        unresolved.push({
+          schema: delta.schema,
+          field: pair.old.name,
+          reason: presence.unresolved,
+          side: "removed",
+        });
+      }
+      const ops = [...shape.ops, ...presence.ops];
+      // Whether a field may be left out or null changed only in the direction
+      // no old caller is hurt by, which the gate does not report either.
+      if (ops.length === 0) continue;
 
       proposals.push({
         change: {
@@ -680,12 +697,127 @@ function alteredProposals(
         judge: "rules",
         confidence: 1,
         attention: "normal",
-        notes: [`the field kept its name, so only its values moved`, ...notes],
+        notes: [
+          reshaped
+            ? "the field kept its name, so only its values moved"
+            : "the field kept its name and its values",
+          ...shape.notes,
+          ...presence.notes,
+        ],
       });
     }
   }
 
   return { proposals, unresolved };
+}
+
+const NEITHER = { request: false, response: false };
+
+/** Whether the values a field can hold changed, apart from null and absence. */
+function valuesDiffer(a: FieldShape, b: FieldShape): boolean {
+  return (
+    a.type !== b.type ||
+    a.format !== b.format ||
+    a.enumValues?.join("|") !== b.enumValues?.join("|")
+  );
+}
+
+/**
+ * A field that may now be left out or null where it could not before, or the
+ * other way round, drafted for each side of the wire the schema reaches where
+ * the difference breaks an old caller.
+ *
+ * Nothing is invented. A null an optional field can no longer carry is sent
+ * as the field left out. Anything that needs a value takes the one the
+ * specification declares as the field's default, and without one it is a
+ * decision for the provider, reported as such.
+ */
+export function presenceOps(
+  old: FieldShape,
+  next: FieldShape,
+  sides: { request: boolean; response: boolean },
+): { ops: Op[]; notes: string[]; unresolved?: string } {
+  const ops: Op[] = [];
+  const notes: string[] = [];
+  const decisions: string[] = [];
+  const declared = next.default !== undefined ? next.default : old.default;
+  const when = (absent: boolean, nulled: boolean) =>
+    absent && nulled ? "absent-or-null" : absent ? "absent" : "null";
+
+  if (sides.response) {
+    // Old callers were promised the field, or a value in it.
+    const absent = old.required && !next.required;
+    const nulled = !old.nullable && next.nullable;
+    if (absent || (nulled && old.required)) {
+      if (declared === undefined) {
+        decisions.push(
+          `old callers were always given \`${old.name}\`, and what they should see where it is now ${absent && nulled ? "missing or null" : absent ? "missing" : "null"} is a decision`,
+        );
+      } else {
+        ops.push({
+          op: "default",
+          path: next.pointer,
+          value: declared,
+          when: when(absent, nulled),
+          toward: "old",
+        });
+        notes.push(
+          `old callers are given the declared default ${JSON.stringify(declared)} where \`${old.name}\` is now left out or null`,
+        );
+      }
+    } else if (nulled) {
+      ops.push({ op: "dropNull", path: next.pointer, toward: "old" });
+      notes.push(
+        `\`${old.name}\` can now be null, and old callers, who could always be sent it left out, are sent it that way`,
+      );
+    }
+  }
+
+  if (sides.request && !sides.response && !old.nullable && next.nullable) {
+    // Nothing an old caller sends changes, and there is no response to keep a
+    // null out of, so this only records the change.
+    ops.push({ op: "dropNull", path: next.pointer, toward: "old" });
+    notes.push(`\`${old.name}\` now accepts null, which no old caller sends`);
+  }
+
+  if (sides.request) {
+    // Old callers may leave out, or send null in, what the server now needs.
+    const absent = !old.required && next.required;
+    const nulled = old.nullable && !next.nullable;
+    if (absent || (nulled && next.required)) {
+      if (next.default === undefined) {
+        decisions.push(
+          `\`${old.name}\` is now required in requests, and the value a caller who predates that should send is not in the specification`,
+        );
+      } else {
+        ops.push({
+          op: "default",
+          path: next.pointer,
+          value: next.default,
+          when: when(absent, nulled),
+          toward: "new",
+        });
+        notes.push(
+          `old callers who leave \`${old.name}\` out${nulled ? " or send null" : ""} are given the specification's default ${JSON.stringify(next.default)}`,
+        );
+      }
+    } else if (nulled) {
+      if (old.required) {
+        decisions.push(
+          `\`${old.name}\` can no longer be null, and old callers were required to send it, so sending it left out is not a value they ever chose`,
+        );
+      } else {
+        ops.push({ op: "dropNull", path: next.pointer, toward: "new" });
+        notes.push(
+          `\`${old.name}\` can no longer be null, so a null from an old caller is sent as the field left out`,
+        );
+      }
+    }
+  }
+
+  return decisions.length > 0
+    ? { ops, notes, unresolved: decisions.join("; ") }
+    : { ops, notes };
 }
 
 export { UNIT_SUFFIXES };

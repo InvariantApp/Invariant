@@ -15,6 +15,8 @@ import {
   type Change,
   type ContractProgram,
   type DataOp,
+  type DefaultOp,
+  type DropNullOp,
   formatPointer,
   type Instr,
   isDataOp,
@@ -40,6 +42,26 @@ export interface Projection {
 
 function prefixed(prefix: string, path: string): string {
   return formatPointer([...parsePointer(prefix), ...parsePointer(path)]);
+}
+
+/**
+ * A `default` op's one write, in whichever direction it faces. A value the
+ * stricter side would accept is never touched: `ifAbsent` alone leaves a null
+ * in place, and `ifNull` alone never creates a field that was missing.
+ */
+function fill(op: DefaultOp, prefix: string, changeId: string): Instr {
+  return {
+    k: "set",
+    path: prefixed(prefix, op.path),
+    value: op.value,
+    ifAbsent: op.when !== "null",
+    ...(op.when === "absent" ? {} : { ifNull: true as const }),
+    c: changeId,
+  };
+}
+
+function dropNull(op: DropNullOp, prefix: string, changeId: string): Instr {
+  return { k: "del", path: prefixed(prefix, op.path), ifNull: true, c: changeId };
 }
 
 /** Old-shape-to-canonical primitives for one data op, at one pointer prefix. */
@@ -94,6 +116,10 @@ function forwardInstrs(op: DataOp, prefix: string, changeId: string): Instr[] {
       ];
     case "remove":
       return [{ k: "del", path: prefixed(prefix, op.path), c: changeId }];
+    case "default":
+      return op.toward === "new" ? [fill(op, prefix, changeId)] : [];
+    case "dropNull":
+      return op.toward === "new" ? [dropNull(op, prefix, changeId)] : [];
   }
   return [];
 }
@@ -164,6 +190,10 @@ function backwardInstrs(op: DataOp, prefix: string, changeId: string): Instr[] {
           c: changeId,
         },
       ];
+    case "default":
+      return op.toward === "old" ? [fill(op, prefix, changeId)] : [];
+    case "dropNull":
+      return op.toward === "old" ? [dropNull(op, prefix, changeId)] : [];
   }
   return [];
 }

@@ -82,13 +82,25 @@ export const SetInstr = Type.Object(
     value: Type.Unknown(),
     /** True for a default that must not overwrite a value the caller supplied. */
     ifAbsent: Type.Boolean(),
+    /**
+     * Write where the value is null. With `ifAbsent`, where it is either; on
+     * its own, never where it is missing, so no field is created that was not
+     * there.
+     */
+    ifNull: Type.Optional(Type.Literal(true)),
     c: ChangeId,
   },
   { additionalProperties: false },
 );
 
 export const DelInstr = Type.Object(
-  { k: Type.Literal("del"), path: Pointer, c: ChangeId },
+  {
+    k: Type.Literal("del"),
+    path: Pointer,
+    /** Delete only a null, leaving any other value in place. */
+    ifNull: Type.Optional(Type.Literal(true)),
+    c: ChangeId,
+  },
   { additionalProperties: false },
 );
 

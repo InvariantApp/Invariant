@@ -2,7 +2,16 @@
   "about": "Every data op, at every place in a message it can name, in each direction: whether the compiler serves it, or blocks the release and why. A test builds a Change for every cell and checks the compiler does what the cell says, and fails if any cell is missing. Endpoint ops (route, retire, behavior) act on a whole operation and are listed once each.",
   "locations": ["body", "query", "path", "header"],
   "directions": ["request", "response"],
-  "ops": ["move", "convert scale10", "convert enumMap", "convert cast", "add", "remove"],
+  "ops": [
+    "move",
+    "convert scale10",
+    "convert enumMap",
+    "convert cast",
+    "add",
+    "remove",
+    "default",
+    "dropNull"
+  ],
   "cells": {
     "body request": {
       "status": "served",

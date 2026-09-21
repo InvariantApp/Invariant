@@ -23,7 +23,15 @@ import {
   type RouteOp,
   type Scope,
 } from "@invariant/ir";
-import { schemaAdd, schemaConvert, schemaMove, schemaRemove } from "./schema.ts";
+import {
+  schemaAdd,
+  schemaConvert,
+  schemaMove,
+  schemaRemove,
+  schemaRequiredAt,
+  schemaSetNullable,
+  schemaSetRequired,
+} from "./schema.ts";
 
 export interface PredictionIssue {
   changeId: string;
@@ -453,6 +461,33 @@ export function predictDocument(
               schemaAdd(document, schema, op.path, resolved.shape, resolved.required);
               break;
             }
+            case "default": {
+              // Facing old, the new contract is the looser side; facing new,
+              // the stricter one.
+              const looser = op.toward === "old";
+              if (op.when !== "null")
+                schemaSetRequired(document, schema, op.path, !looser);
+              if (op.when !== "absent")
+                schemaSetNullable(document, schema, op.path, looser);
+              break;
+            }
+            case "dropNull":
+              // Deleting a null is only a valid answer where the field may be
+              // left out, and only matters where the op does work: a schema
+              // that is never a response gets nothing deleted on the way out.
+              if (
+                oldSites.some(
+                  (site) =>
+                    site.direction === (op.toward === "new" ? "request" : "response"),
+                ) &&
+                schemaRequiredAt(document, schema, op.path)
+              ) {
+                throw new Error(
+                  `${op.path} is required, so a null cannot be sent as the field left out`,
+                );
+              }
+              schemaSetNullable(document, schema, op.path, op.toward === "old");
+              break;
           }
         } catch (error) {
           issues.push({
