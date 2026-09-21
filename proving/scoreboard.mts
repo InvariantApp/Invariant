@@ -237,7 +237,14 @@ export function scoreboard(inputs: {
     },
     unmeasured("L10b", "A Go net/http adapter passes the same suite.", "M4.9."),
     unmeasured("L11", "A 24-hour proxy soak under chaos with zero violations.", "M10.4."),
-    unmeasured("L12", "The Go engine passes every conformance vector.", "M4.9."),
+    {
+      id: "L12",
+      claim: "The Go engine passes every conformance vector.",
+      status: "not met",
+      value:
+        "all 69 body vectors pass; the 19 request-envelope and 10 form vectors are not yet ported",
+      evidence: "engines/go/invariant/vectors_test.go, in CI on every commit",
+    },
     unmeasured(
       "L13",
       "The whole product journey in a browser against staging.",

@@ -66,6 +66,10 @@ step "action bundle is current" bash -c '
   [ "$before" = "$after" ] || { echo "the bundle was stale; it has been rebuilt, commit it"; exit 1; }'
 step "release gate on the fixture (--full)" bash -c \
   'cd fixtures/provider-acme && timeout 360 pnpm exec invariant check --full'
+if command -v go >/dev/null 2>&1; then
+  step "Go engine passes the vectors" bash -c \
+    'cd engines/go && test -z "$(gofmt -l .)" && go vet ./... && go test ./...'
+fi
 step "control plane contract passes its gate" \
   node --import tsx packages/cli/src/main.ts check --config packages/client/invariant.yaml
 

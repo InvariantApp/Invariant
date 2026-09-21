@@ -10,6 +10,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The Go engine, held to the same conformance vectors as the reference.
+  go-engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: engines/go/go.mod
+      - name: The Go engine passes the conformance vectors
+        working-directory: engines/go
+        run: |
+          test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+          go vet ./...
+          go test ./...
+
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 20
