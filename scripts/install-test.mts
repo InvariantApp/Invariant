@@ -17,6 +17,7 @@
  *   node --import tsx scripts/install-test.mts
  */
 import { type ChildProcess, execFile, spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
@@ -74,7 +75,21 @@ async function installed(cwd: string, env: NodeJS.ProcessEnv): Promise<string> {
   const bins = await readdir(join(cwd, "node_modules", ".bin")).catch(() => [
     "(no .bin directory)",
   ]);
-  return `npm ls:\n${listing.stdout}\nnode_modules/.bin: ${bins.join(", ")}`;
+  // The installed manifest's bin, and whether what it names exists, because a
+  // bin npm could not link is skipped without a word.
+  const cli = join(cwd, "node_modules", "@invariant", "cli");
+  const manifest = await readFile(join(cli, "package.json"), "utf8").then(
+    (text) => JSON.parse(text) as { bin?: Record<string, string> },
+    () => ({ bin: undefined }),
+  );
+  const targets = Object.entries(manifest.bin ?? {}).map(
+    ([name, target]) =>
+      `${name} -> ${target} (${existsSync(join(cli, target)) ? "exists" : "MISSING"})`,
+  );
+  return (
+    `npm ls:\n${listing.stdout}\nnode_modules/.bin: ${bins.join(", ")}\n` +
+    `@invariant/cli bin: ${targets.join(", ") || "none"}`
+  );
 }
 
 const work = await mkdtemp(join(tmpdir(), "invariant-install-"));
