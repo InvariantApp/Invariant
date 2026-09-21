@@ -14,11 +14,11 @@ import { compareVersions, OASDIFF_VERSION, unusableVersion } from "./version.ts"
 const ROOT = join(import.meta.dirname, "../../..");
 
 /**
- * Files that name a release in an install command. CI is not among them: it
- * fetches the binary through scripts/fetch-oasdiff.mts, which reads the
+ * Files that name a release in an install command. CI and the GitHub Action
+ * are not among them: both fetch the binary through code that reads the
  * constant itself.
  */
-const PINNED_IN = ["action.yml", "docs/quickstart.md", "README.md"];
+const PINNED_IN = ["docs/quickstart.md", "README.md"];
 
 describe("the pinned oasdiff release", () => {
   for (const file of PINNED_IN) {

@@ -53,6 +53,20 @@ jobs:
       - name: Check the published packages
         run: pnpm check:packages
 
+      # The action runs from this repository at a tag, so the committed bundle
+      # is what providers execute. It has to be exactly what the source builds.
+      - name: Check the action bundle is current
+        run: |
+          pnpm --filter @invariant/action bundle
+          git diff --exit-code -- packages/action/bundle
+
+      # The real action.yml, on a real runner, against the fixture provider.
+      - name: Run the action on this repository
+        uses: ./
+        with:
+          config: fixtures/provider-acme/invariant.yaml
+          comment: "false"
+
       # The layers that need the provider's code running. They start real
       # processes, so they are not part of `pnpm test`, and leaving them out of
       # CI would mean the only checks that can catch a swapped value map or a

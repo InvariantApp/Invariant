@@ -172,6 +172,15 @@ importers:
 
   fixtures/sdk-acme-v3: {}
 
+  packages/action:
+    dependencies:
+      '@invariant/cli':
+        specifier: workspace:*
+        version: link:../cli
+      '@invariant/diff':
+        specifier: workspace:*
+        version: link:../diff
+
   packages/bundle:
     dependencies:
       '@invariant/contract':

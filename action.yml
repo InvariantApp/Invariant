@@ -18,7 +18,8 @@ inputs:
       Start the provider's own builds and compare what they do. This is what
       catches a value map whose pairs are swapped and a specification that has
       drifted from the code; nothing else can. Needs a build section in
-      invariant.yaml.
+      invariant.yaml, and the provider's dependencies installed in an earlier
+      step.
     required: false
     default: "false"
   comment:
@@ -27,76 +28,24 @@ inputs:
       adding another on every push.
     required: false
     default: "true"
+  token:
+    description: >-
+      Used only to write the pull request comment. A pull request from a fork
+      gets a read-only token, and the check still gives its verdict without it.
+    required: false
+    default: ${{ github.token }}
 
 outputs:
   result:
     description: pass, warn or block.
-    value: ${{ steps.check.outputs.result }}
+  unexplained:
+    description: How many breaking changes no declared Change accounts for.
+  report:
+    description: Path to the report, as Markdown.
 
+# One bundled file from this repository, at the ref the workflow names. It
+# needs neither npm nor Go: oasdiff is downloaded from its pinned release,
+# verified against two hashes, and cached on the runner.
 runs:
-  using: composite
-  steps:
-    # oasdiff does the structural comparison. Without it the closure check
-    # cannot run, and a check that silently does less than it claims is worse
-    # than one that fails.
-    - name: Install oasdiff
-      shell: bash
-      run: |
-        if ! command -v oasdiff > /dev/null; then
-          go install github.com/oasdiff/oasdiff@v1.33.0-rc.1
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-        fi
-
-    - name: Check the release
-      id: check
-      shell: bash
-      run: |
-        set +e
-        npx --yes @invariant/cli check \
-          --config "${{ inputs.config }}" \
-          ${{ inputs.full == 'true' && '--full' || '' }} \
-          --format markdown > "$RUNNER_TEMP/invariant-comment.md"
-        status=$?
-        set -e
-
-        # The report is the point, so it goes to the log whatever happened.
-        cat "$RUNNER_TEMP/invariant-comment.md"
-
-        if [ "$status" -eq 0 ]; then
-          echo "result=pass" >> "$GITHUB_OUTPUT"
-        else
-          echo "result=block" >> "$GITHUB_OUTPUT"
-        fi
-
-        {
-          echo "## Invariant"
-          cat "$RUNNER_TEMP/invariant-comment.md"
-        } >> "$GITHUB_STEP_SUMMARY"
-
-        exit "$status"
-
-    # Runs even when the check failed, because a blocked release is exactly
-    # when the author needs to read why.
-    - name: Comment on the pull request
-      if: ${{ always() && inputs.comment == 'true' && github.event_name == 'pull_request' }}
-      shell: bash
-      env:
-        GH_TOKEN: ${{ github.token }}
-        PR: ${{ github.event.pull_request.number }}
-        REPO: ${{ github.repository }}
-      run: |
-        body="$(cat "$RUNNER_TEMP/invariant-comment.md")"
-        marker="<!-- invariant:release-check -->"
-
-        # One comment per pull request, edited in place. A new comment on every
-        # push buries the history of the thing being reviewed.
-        existing="$(gh api "repos/$REPO/issues/$PR/comments" \
-          --jq "[.[] | select(.body | startswith(\"$marker\"))][0].id // empty")"
-
-        if [ -n "$existing" ]; then
-          gh api --method PATCH "repos/$REPO/issues/comments/$existing" \
-            -f body="$body" > /dev/null
-        else
-          gh api --method POST "repos/$REPO/issues/$PR/comments" \
-            -f body="$body" > /dev/null
-        fi
+  using: node24
+  main: packages/action/bundle/main.js

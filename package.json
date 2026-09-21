@@ -10,6 +10,7 @@
     "typecheck": "tsc --build",
     "build": "pnpm -r --workspace-concurrency=1 --filter './packages/*' run build",
     "check:packages": "node --import tsx scripts/check-packages.mts",
+    "bundle:action": "pnpm --filter @invariant/action bundle",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "biome check .",
