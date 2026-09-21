@@ -163,8 +163,29 @@ try {
   for (const name of packages) {
     const manifest = JSON.parse(
       await readFile(join(ROOT, "packages", name, "package.json"), "utf8"),
-    ) as { private?: boolean; name: string };
+    ) as {
+      private?: boolean;
+      name: string;
+      publishConfig?: { bin?: Record<string, string>; exports?: unknown };
+    };
     if (manifest.private) continue;
+    // Refused here rather than discovered as a bin npm silently did not link:
+    // on Windows a build that matched no packages once published all of them
+    // without a line of their code.
+    const entries = [
+      ...Object.values(manifest.publishConfig?.bin ?? {}),
+      ...(JSON.stringify(manifest.publishConfig?.exports ?? {})
+        .match(/"\.\/dist\/[^"]+"/g)
+        ?.map((entry) => entry.slice(1, -1)) ?? []),
+    ];
+    const missing = entries.filter(
+      (entry) => !existsSync(join(ROOT, "packages", name, entry)),
+    );
+    if (missing.length > 0) {
+      throw new Error(
+        `${manifest.name} is not built: ${missing.join(", ")} missing. Run pnpm build first.`,
+      );
+    }
     await sh(
       "pnpm",
       ["publish", "--registry", REGISTRY, "--no-git-checks", "--access", "public"],

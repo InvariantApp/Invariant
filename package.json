@@ -8,7 +8,7 @@
   },
   "scripts": {
     "typecheck": "tsc --build",
-    "build": "pnpm -r --workspace-concurrency=1 --filter './packages/*' run build",
+    "build": "pnpm -r --workspace-concurrency=1 --filter \"./packages/*\" run build",
     "check:packages": "node --import tsx scripts/check-packages.mts",
     "bundle:action": "pnpm --filter @invariant/action bundle",
     "bundle:sidecar": "cd packages/sidecar && tsdown --config tsdown.image.config.ts && cp ../../LICENSE ../../NOTICE image/",
@@ -22,6 +22,7 @@
     "eval:record": "node --env-file=.env --import tsx eval/record.mts",
     "app:register": "node --import tsx scripts/register-app.mts",
     "app:status": "node --import tsx scripts/app-status.mts",
+    "proving:traffic": "node --import tsx proving/traffic/run.mts",
     "proving:corpus": "node --env-file-if-exists=.env --import tsx proving/corpus/run.mts",
     "proving:discover": "node --import tsx proving/corpus/discover-git.mts"
   },
@@ -45,6 +46,7 @@
     "@invariant/migrate-ts": "workspace:*",
     "@invariant/proposer": "workspace:*",
     "@invariant/runtime": "workspace:*",
+    "@invariant/sidecar": "workspace:*",
     "@invariant/verifier": "workspace:*",
     "@types/node": "^22.20.4",
     "@typesafe-ai/sdk": "^0.6.0",
