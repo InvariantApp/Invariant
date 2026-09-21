@@ -134,6 +134,9 @@ describe("a change no op can express", () => {
     const app = new Hono();
     app.use("/v1/*", adapt({ runtime: inv }));
     app.get("/internal/whoami", (c) => c.text(contractOf(c)));
+    // Answered here rather than by Hono's default handler, which would print
+    // the error into the test log as though something had gone wrong.
+    app.onError((error, c) => c.text(error.message, 500));
 
     const response = await app.fetch(
       new Request("https://api.example.com/internal/whoami"),
@@ -141,5 +144,6 @@ describe("a change no op can express", () => {
 
     // Loud, not a quiet assumption that the caller is current.
     expect(response.status).toBe(500);
+    expect(await response.text()).toContain("Mount adapt() on this route");
   });
 });

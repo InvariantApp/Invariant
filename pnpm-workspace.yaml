@@ -5,3 +5,10 @@ packages:
 
 allowBuilds:
   esbuild: true
+
+# openapi-typescript 7.13 (latest) declares TypeScript ^5 only. Consumer B's
+# generated types are compiled and tested under this repository's TypeScript 6
+# on every run, so the combination is known to work rather than assumed to.
+peerDependencyRules:
+  allowedVersions:
+    openapi-typescript>typescript: "6"
