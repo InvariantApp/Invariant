@@ -295,6 +295,35 @@ describe("parameter drafts that need no decision", () => {
     ]);
   });
 
+  it("re-encodes a time filter that became date-time text, and a value that became a list", () => {
+    const result = drafted(
+      [
+        { name: "created_after", in: "query", schema: { type: "integer" } },
+        { name: "tag", in: "query", schema: { type: "string" } },
+      ],
+      [
+        {
+          name: "created_after",
+          in: "query",
+          schema: { type: "string", format: "date-time" },
+        },
+        {
+          name: "tag",
+          in: "query",
+          schema: { type: "array", items: { type: "string" } },
+        },
+      ],
+    );
+    expect(opsOf(result)).toEqual([
+      {
+        op: "convert",
+        path: "/created_after",
+        codec: { kind: "dateFormat", from: "epoch-s", to: "rfc3339" },
+      },
+      { op: "convert", path: "/tag", codec: { kind: "wrapArray" } },
+    ]);
+  });
+
   it("drops a null an old caller sends where the parameter can no longer be null", () => {
     expect(
       opsOf(

@@ -16,7 +16,10 @@ import {
   narrows,
   parsePointer,
   type ScalarType,
+  type StringCase,
+  type TimeFormat,
 } from "@invariant/ir";
+import { CodecRefusal, convertCase, convertTime } from "@invariant/runtime";
 
 export class SchemaOpError extends Error {
   constructor(message: string) {
@@ -362,6 +365,192 @@ function applyCast(
   return out;
 }
 
+/** The non-null types a schema declares, whichever way it writes them. */
+function declaredTypes(schema: JsonObject): string[] {
+  const type = schema["type"];
+  if (typeof type === "string") return [type];
+  if (Array.isArray(type))
+    return type.filter(
+      (each): each is string => typeof each === "string" && each !== "null",
+    );
+  return [];
+}
+
+/** Sets the type, keeping a 3.1 `"null"` in the list where there was one. */
+function retyped(schema: JsonObject, type: string): void {
+  const nullable = Array.isArray(schema["type"]) && schema["type"].includes("null");
+  schema["type"] = nullable ? [type, "null"] : type;
+}
+
+const STRING_BOUNDS = ["minLength", "maxLength", "pattern"] as const;
+const TIME_TYPES: Record<TimeFormat, string[]> = {
+  "epoch-s": ["integer", "number"],
+  "epoch-ms": ["integer", "number"],
+  rfc3339: ["string"],
+};
+
+/**
+ * Runs a value codec over the values a schema lists or starts from, so the
+ * predicted contract names them the way the new one does. A listed value the
+ * codec refuses is a Change that cannot serve its own contract, so it is
+ * reported here, before anything runs.
+ */
+function convertListed(
+  out: JsonObject,
+  what: string,
+  convert: (value: unknown) => unknown,
+): void {
+  const each = (value: JsonValue, where: string): JsonValue => {
+    if (value === null) return value;
+    try {
+      return convert(value) as JsonValue;
+    } catch (error) {
+      if (!(error instanceof CodecRefusal)) throw error;
+      throw new SchemaOpError(
+        `${what} cannot convert the ${where} ${JSON.stringify(value)}: ${error.message}`,
+      );
+    }
+  };
+  if (Array.isArray(out["enum"]))
+    out["enum"] = out["enum"].map((value) => each(value, "listed value"));
+  if (out["const"] !== undefined) out["const"] = each(out["const"], "constant");
+  if (out["default"] !== undefined) out["default"] = each(out["default"], "default");
+  // Examples illustrate; they are not part of what either contract promises.
+  delete out["example"];
+  delete out["examples"];
+}
+
+/**
+ * The instant keeps its meaning and changes its type: text with the
+ * `date-time` format, or a whole number with none. Bounds of the old type say
+ * nothing about the new one, so they go.
+ */
+function applyDateFormat(
+  schema: JsonObject,
+  codec: { from: TimeFormat; to: TimeFormat },
+): JsonObject {
+  if (codec.from === codec.to)
+    throw new SchemaOpError(`dateFormat from ${codec.from} to itself changes nothing`);
+  const types = declaredTypes(schema);
+  if (types.length > 0 && !types.every((type) => TIME_TYPES[codec.from].includes(type))) {
+    throw new SchemaOpError(
+      `dateFormat reads ${codec.from}, but the schema holds ${types.join(" or ")}`,
+    );
+  }
+  if (
+    codec.from === "rfc3339" &&
+    schema["format"] !== undefined &&
+    schema["format"] !== "date-time"
+  ) {
+    throw new SchemaOpError(
+      `dateFormat reads a date-time, but the schema's format is ${String(schema["format"])}`,
+    );
+  }
+  const out = clone(schema);
+  convertListed(out, "dateFormat", (value) => convertTime(value, codec.from, codec.to));
+  if (codec.to === "rfc3339") {
+    retyped(out, "string");
+    out["format"] = "date-time";
+    for (const bound of NUMERIC_BOUNDS) delete out[bound];
+    delete out["multipleOf"];
+  } else {
+    retyped(out, "integer");
+    if (out["format"] === "date-time") delete out["format"];
+    for (const bound of STRING_BOUNDS) delete out[bound];
+  }
+  return out;
+}
+
+/**
+ * The listed values are rewritten, so a closed set stays closed and every
+ * member is proved to survive the round trip now, rather than refused one at
+ * a time in production. A pattern describes the old spelling and is dropped;
+ * one the new contract states is declared with `relax`.
+ */
+function applyStringCase(
+  schema: JsonObject,
+  codec: { from: StringCase; to: StringCase },
+): JsonObject {
+  if (codec.from === codec.to)
+    throw new SchemaOpError(`stringCase from ${codec.from} to itself changes nothing`);
+  const types = declaredTypes(schema);
+  if (types.length > 0 && !types.every((type) => type === "string")) {
+    throw new SchemaOpError(
+      `stringCase rewrites text, but the schema holds ${types.join(" or ")}`,
+    );
+  }
+  const out = clone(schema);
+  convertListed(out, "stringCase", (value) => convertCase(value, codec.from, codec.to));
+  delete out["pattern"];
+  return out;
+}
+
+/** Words about the field, which belong to the field whether it holds one value or a list. */
+const ANNOTATIONS = [
+  "title",
+  "description",
+  "deprecated",
+  "readOnly",
+  "writeOnly",
+] as const;
+
+function isNullable(schema: JsonObject): boolean {
+  return (
+    schema["nullable"] === true ||
+    (Array.isArray(schema["type"]) && schema["type"].includes("null"))
+  );
+}
+
+/** The schema with any null taken out of it, in whichever way it was written. */
+function withoutNull(schema: JsonObject): JsonObject {
+  const out = clone(schema);
+  delete out["nullable"];
+  if (Array.isArray(out["type"])) {
+    const rest = out["type"].filter((type) => type !== "null");
+    out["type"] = rest.length === 1 ? (rest[0] as JsonValue) : rest;
+  }
+  return out;
+}
+
+/**
+ * The field holds a list of what it held. Null passes through the runtime as
+ * it is, so a field that could be null is a list that can be null, not a list
+ * of values that can be.
+ */
+function applyWrapArray(schema: JsonObject): JsonObject {
+  const nullable = isNullable(schema);
+  const items = withoutNull(schema);
+  const out: JsonObject = {};
+  for (const key of ANNOTATIONS) {
+    if (items[key] !== undefined) {
+      out[key] = items[key] as JsonValue;
+      delete items[key];
+    }
+  }
+  delete items["default"];
+  out["type"] = nullable ? ["array", "null"] : "array";
+  out["items"] = items;
+  return out;
+}
+
+function applyUnwrapSingle(schema: JsonObject): JsonObject {
+  const types = declaredTypes(schema);
+  const items = schema["items"];
+  if ((types.length > 0 && !types.includes("array")) || !isJsonObject(items)) {
+    throw new SchemaOpError("unwrapSingle needs a list whose items are described");
+  }
+  const out = clone(items);
+  for (const key of ANNOTATIONS) {
+    if (schema[key] !== undefined) out[key] = clone(schema[key] as JsonValue);
+  }
+  if (isNullable(schema) && !isNullable(out)) {
+    const type = out["type"];
+    if (typeof type === "string") out["type"] = [type, "null"];
+    else out["nullable"] = true;
+  }
+  return out;
+}
+
 export function applyCodecToSchema(schema: JsonValue, codec: Codec): JsonValue {
   if (!isJsonObject(schema)) {
     throw new SchemaOpError("A codec needs a schema object to apply to");
@@ -373,6 +562,14 @@ export function applyCodecToSchema(schema: JsonValue, codec: Codec): JsonValue {
       return applyEnumMap(schema, codec.pairs, codec.fold);
     case "cast":
       return applyCast(schema, codec);
+    case "dateFormat":
+      return applyDateFormat(schema, codec);
+    case "stringCase":
+      return applyStringCase(schema, codec);
+    case "wrapArray":
+      return applyWrapArray(schema);
+    case "unwrapSingle":
+      return applyUnwrapSingle(schema);
   }
 }
 
@@ -388,7 +585,11 @@ export function schemaConvert(
 ): void {
   const segments = parsePointer(path);
   const slot = readSlot(document, root, segments);
-  const converted = applyCodecToSchema(resolveSchema(document, slot.schema), codec);
+  // A list of a named schema stays a list of that name, rather than of a copy.
+  const converted =
+    codec.kind === "wrapArray"
+      ? applyWrapArray(isJsonObject(slot.schema) ? slot.schema : {})
+      : applyCodecToSchema(resolveSchema(document, slot.schema), codec);
   writeSlot(document, root, segments, converted, slot.required);
 }
 

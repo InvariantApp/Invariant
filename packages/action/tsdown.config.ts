@@ -11,7 +11,8 @@ export default defineConfig({
   platform: "node",
   target: "node24",
   outDir: "bundle",
-  noExternal: [/.*/],
+  // Everything is bundled on purpose, so no list of allowed packages applies.
+  deps: { alwaysBundle: [/.*/], onlyBundle: false },
   dts: false,
   sourcemap: false,
   clean: true,

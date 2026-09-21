@@ -11,6 +11,13 @@
  * than skipping the instruction.
  */
 import { compareDecimal, DecimalError, shiftDecimal } from "@invariant/decimal";
+import {
+  CodecRefusal,
+  convertCase,
+  convertTime,
+  type StringCase,
+  type TimeFormat,
+} from "./codecs.ts";
 import { isNumberLike, type Json, numberFromText, numberTextOf } from "./json.ts";
 import {
   createSlot,
@@ -45,6 +52,17 @@ export type CompiledInstr =
       c: string;
     }
   | { k: "cast"; path: Segments; to: ScalarType; c: string }
+  | {
+      k: "time";
+      path: Segments;
+      from: TimeFormat;
+      to: TimeFormat;
+      truncate?: boolean;
+      c: string;
+    }
+  | { k: "case"; path: Segments; from: StringCase; to: StringCase; c: string }
+  | { k: "wrap"; path: Segments; c: string }
+  | { k: "unwrap"; path: Segments; first?: boolean; c: string }
   | {
       k: "set";
       path: Segments;
@@ -325,6 +343,56 @@ function castValue(
   }
 }
 
+/** What a codec returns to take the field away rather than rewrite it. */
+const LEAVE_OUT: unique symbol = Symbol("leave out");
+
+/**
+ * Rewrites each value at the path with a codec that is exact or refuses. A
+ * null passes through, as it does for every codec: a nullable field stays
+ * nullable on both sides.
+ */
+function applyEach(
+  root: Json,
+  instr: Extract<CompiledInstr, { k: "time" | "case" | "wrap" | "unwrap" }>,
+  limits: ExecuteLimits,
+  convert: (value: unknown) => unknown,
+): number {
+  let done = 0;
+  const removals: Slot[] = [];
+  for (const slot of resolveSlots(root, instr.path, limits.maxMatches)) {
+    const value = readSlot(slot);
+    if (value === null) continue;
+    let converted: unknown;
+    try {
+      converted = convert(value);
+    } catch (error) {
+      if (!(error instanceof CodecRefusal)) throw error;
+      throw new TransformError(instr.c, `At ${instr.path.join("/")}, ${error.message}`);
+    }
+    if (converted === LEAVE_OUT) removals.push(slot);
+    else writeSlot(slot, converted);
+    done += 1;
+  }
+  // Back to front, so taking one list item out never moves the next.
+  for (const slot of removals.reverse()) deleteSlot(slot);
+  return done;
+}
+
+function unwrapped(value: unknown, first: boolean): unknown {
+  if (!Array.isArray(value)) {
+    throw new CodecRefusal(`expected a list to unwrap, found ${typeof value}`);
+  }
+  if (first) return value.length === 0 ? LEAVE_OUT : value[0];
+  if (value.length !== 1) {
+    // The old contract holds one value. It cannot say that there are none,
+    // and choosing one of several would hide the rest.
+    throw new CodecRefusal(
+      `the list holds ${value.length} items, and only one can be shown`,
+    );
+  }
+  return value[0];
+}
+
 function applyCast(
   root: Json,
   instr: Extract<CompiledInstr, { k: "cast" }>,
@@ -505,6 +573,38 @@ function step(
       break;
     case "cast":
       countApplied(result, instr.c, applyCast(root, instr, limits));
+      break;
+    case "time":
+      countApplied(
+        result,
+        instr.c,
+        applyEach(root, instr, limits, (value) =>
+          convertTime(value, instr.from, instr.to, instr.truncate === true),
+        ),
+      );
+      break;
+    case "case":
+      countApplied(
+        result,
+        instr.c,
+        applyEach(root, instr, limits, (value) =>
+          convertCase(value, instr.from, instr.to),
+        ),
+      );
+      break;
+    case "wrap":
+      countApplied(
+        result,
+        instr.c,
+        applyEach(root, instr, limits, (value) => [value]),
+      );
+      break;
+    case "unwrap":
+      countApplied(
+        result,
+        instr.c,
+        applyEach(root, instr, limits, (value) => unwrapped(value, instr.first === true)),
+      );
       break;
     case "set":
       if (instr.path.length === 0) {

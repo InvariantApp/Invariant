@@ -2952,10 +2952,91 @@ const CastCodec = Type.Object({
 	from: ScalarType,
 	to: ScalarType
 }, { additionalProperties: false });
+/** Seconds or milliseconds since the Unix epoch, or RFC 3339 text in UTC. */
+const TimeFormat = Type.Union([
+	Type.Literal("epoch-s"),
+	Type.Literal("epoch-ms"),
+	Type.Literal("rfc3339")
+]);
+/**
+* The same instant, written another way: `created` as 1700000000 becoming
+* "2023-11-14T22:13:20Z", or seconds becoming milliseconds.
+*
+* Exact or refused. A fraction of a second cannot become whole seconds and a
+* year past 9999 cannot become text, and the runtime says so rather than
+* rounding. Text is always written in UTC, so an offset an old caller wrote
+* does not survive the epoch; the instant does, and the compiler declares
+* the offset as the loss.
+*/
+const DateFormatCodec = Type.Object({
+	kind: Type.Literal("dateFormat"),
+	from: TimeFormat,
+	to: TimeFormat,
+	/**
+	* What to do with precision the target cannot hold, such as the
+	* milliseconds of "2023-11-14T22:13:20.120Z" going to whole seconds.
+	* `reject` refuses the value, and is the default. `truncate` drops it,
+	* toward the earlier instant as the epoch does, and makes the Change
+	* declared-lossy: an old caller is shown 22:13:20 and cannot know there
+	* was more.
+	*/
+	onInexact: Type.Optional(Type.Union([Type.Literal("reject"), Type.Literal("truncate")]))
+}, { additionalProperties: false });
+const StringCase = Type.Union([
+	Type.Literal("snake"),
+	Type.Literal("screaming"),
+	Type.Literal("kebab"),
+	Type.Literal("camel"),
+	Type.Literal("pascal")
+]);
+/**
+* An identifier written in another case, as `in_progress` becoming
+* `IN_PROGRESS` or `inProgress`. For a field whose values are named rather
+* than listed; one with an enum can say the same with `enumMap`, and the
+* compiler checks that every listed value survives the round trip either way.
+*
+* Refuses text that is not in `from`, and text the target cannot keep apart
+* into the same words again.
+*/
+const StringCaseCodec = Type.Object({
+	kind: Type.Literal("stringCase"),
+	from: StringCase,
+	to: StringCase
+}, { additionalProperties: false });
+/**
+* Which item a list shows where one value is expected. `only` refuses a list
+* that does not hold exactly one, since one value cannot say "none" or
+* "several"; it is the default. `first` shows the first item and leaves the
+* field out for an empty list, and makes the Change declared-lossy: whoever
+* reads the one value cannot know there were others.
+*/
+const ListPick = Type.Union([Type.Literal("only"), Type.Literal("first")]);
+/**
+* A single value became a list of them: `tag: "a"` is now `tags: ["a"]`
+* after a move, or `email` now holds a list. Forward wraps; backward shows
+* an old caller one item, as `pick` says.
+*/
+const WrapArrayCodec = Type.Object({
+	kind: Type.Literal("wrapArray"),
+	pick: Type.Optional(ListPick)
+}, { additionalProperties: false });
+/**
+* The inverse of `wrapArray`: a list became one value. Forward sends the
+* provider one item of what an old caller sent, as `pick` says; backward
+* wraps.
+*/
+const UnwrapSingleCodec = Type.Object({
+	kind: Type.Literal("unwrapSingle"),
+	pick: Type.Optional(ListPick)
+}, { additionalProperties: false });
 const Codec = Type.Union([
 	Scale10Codec,
 	EnumMapCodec,
-	CastCodec
+	CastCodec,
+	DateFormatCodec,
+	StringCaseCodec,
+	WrapArrayCodec,
+	UnwrapSingleCodec
 ]);
 /**
 * Every operation a path item can declare, in OpenAPI's own order.
@@ -3341,7 +3422,7 @@ function formatPointer(segments) {
 *
 * The runtime has no notion of direction. Backward transforms are produced by
 * inverting ops at compile time, so a program is always just an ordered list of
-* forward primitives. There are six of them, none can call out or allocate
+* forward primitives. None of them can call out or allocate
 * unboundedly, the only repetition follows the value being transformed, and
 * each carries the id of the Change it came from so a single change can be
 * counted and switched off on its own.
@@ -3399,6 +3480,41 @@ const CastInstr = Type.Object({
 		Type.Literal("number"),
 		Type.Literal("boolean")
 	]),
+	c: ChangeId
+}, { additionalProperties: false });
+/** One instant re-encoded, exactly or refused. See `DateFormatCodec`. */
+const TimeInstr = Type.Object({
+	k: Type.Literal("time"),
+	path: Pointer,
+	from: TimeFormat,
+	to: TimeFormat,
+	/** Drop precision the target cannot hold instead of refusing the value. */
+	truncate: Type.Optional(Type.Literal(true)),
+	c: ChangeId
+}, { additionalProperties: false });
+/** One identifier rewritten in another case, exactly or refused. See `StringCaseCodec`. */
+const CaseInstr = Type.Object({
+	k: Type.Literal("case"),
+	path: Pointer,
+	from: StringCase,
+	to: StringCase,
+	c: ChangeId
+}, { additionalProperties: false });
+/** The value becomes a list holding it. */
+const WrapInstr = Type.Object({
+	k: Type.Literal("wrap"),
+	path: Pointer,
+	c: ChangeId
+}, { additionalProperties: false });
+/**
+* A list of exactly one item becomes the item, and any other length is
+* refused. With `first`, the first item is taken and an empty list is left
+* out.
+*/
+const UnwrapInstr = Type.Object({
+	k: Type.Literal("unwrap"),
+	path: Pointer,
+	first: Type.Optional(Type.Literal(true)),
 	c: ChangeId
 }, { additionalProperties: false });
 const SetInstr = Type.Object({
@@ -3461,6 +3577,10 @@ const Instr = Type.Recursive((Self) => Type.Union([
 	ScaleInstr,
 	EnumInstr,
 	CastInstr,
+	TimeInstr,
+	CaseInstr,
+	WrapInstr,
+	UnwrapInstr,
 	SetInstr,
 	DelInstr,
 	Type.Object({
@@ -12968,6 +13088,352 @@ function importReferences(document, source, declaration) {
 	}
 }
 //#endregion
+//#region ../compiler/src/lens.ts
+function prefixed(prefix, path) {
+	return formatPointer([...parsePointer(prefix), ...parsePointer(path)]);
+}
+/**
+* A `default` op's one write, in whichever direction it faces. A value the
+* stricter side would accept is never touched: `ifAbsent` alone leaves a null
+* in place, and `ifNull` alone never creates a field that was missing.
+*/
+function fill(op, prefix, changeId) {
+	return {
+		k: "set",
+		path: prefixed(prefix, op.path),
+		value: op.value,
+		ifAbsent: op.when !== "null",
+		...op.when === "absent" ? {} : { ifNull: true },
+		c: changeId
+	};
+}
+function dropNull(op, prefix, changeId) {
+	return {
+		k: "del",
+		path: prefixed(prefix, op.path),
+		ifNull: true,
+		c: changeId
+	};
+}
+/**
+* The codecs that are one instruction each way, the same instruction with its
+* ends swapped: an instant or a case read one way and written the other, a
+* value wrapped one way and unwrapped the other.
+*/
+function valueCodec(codec, path, changeId, direction) {
+	const forward = direction === "forward";
+	switch (codec.kind) {
+		case "dateFormat": {
+			const truncate = codec.onInexact === "truncate" ? { truncate: true } : {};
+			return forward ? {
+				k: "time",
+				path,
+				from: codec.from,
+				to: codec.to,
+				...truncate,
+				c: changeId
+			} : {
+				k: "time",
+				path,
+				from: codec.to,
+				to: codec.from,
+				...truncate,
+				c: changeId
+			};
+		}
+		case "stringCase": return forward ? {
+			k: "case",
+			path,
+			from: codec.from,
+			to: codec.to,
+			c: changeId
+		} : {
+			k: "case",
+			path,
+			from: codec.to,
+			to: codec.from,
+			c: changeId
+		};
+		case "wrapArray":
+		case "unwrapSingle":
+			if (forward === (codec.kind === "wrapArray")) return {
+				k: "wrap",
+				path,
+				c: changeId
+			};
+			return {
+				k: "unwrap",
+				path,
+				...codec.pick === "first" ? { first: true } : {},
+				c: changeId
+			};
+	}
+}
+/**
+* Whether an op can apply to a path parameter. A template has the parameters
+* it has, so one can be re-encoded in place or bounded differently, and
+* nothing else: not renamed, added, removed, or turned into a list.
+*/
+function servesPathParameter(op) {
+	if (op.op === "relax") return true;
+	return op.op === "convert" && op.codec.kind !== "wrapArray" && op.codec.kind !== "unwrapSingle";
+}
+const PATH_PARAMETER_REFUSAL = "a path parameter can only be converted in place or given new bounds";
+/** Old-shape-to-canonical primitives for one data op, at one pointer prefix. */
+function forwardInstrs(op, prefix, changeId) {
+	switch (op.op) {
+		case "move": return [{
+			k: "move",
+			from: prefixed(prefix, op.from),
+			to: prefixed(prefix, op.to),
+			c: changeId
+		}];
+		case "convert": switch (op.codec.kind) {
+			case "scale10": return [{
+				k: "scale",
+				path: prefixed(prefix, op.path),
+				exp: op.codec.exponent,
+				c: changeId
+			}];
+			case "enumMap": return [{
+				k: "enum",
+				path: prefixed(prefix, op.path),
+				map: Object.fromEntries(op.codec.pairs),
+				c: changeId
+			}];
+			case "cast": return [{
+				k: "cast",
+				path: prefixed(prefix, op.path),
+				to: op.codec.to,
+				c: changeId
+			}];
+			default: return [valueCodec(op.codec, prefixed(prefix, op.path), changeId, "forward")];
+		}
+		case "add": return [{
+			k: "set",
+			path: prefixed(prefix, op.path),
+			value: op.value,
+			ifAbsent: true,
+			c: changeId
+		}];
+		case "remove": return [{
+			k: "del",
+			path: prefixed(prefix, op.path),
+			c: changeId
+		}];
+		case "default": return op.toward === "new" ? [fill(op, prefix, changeId)] : [];
+		case "dropNull": return op.toward === "new" ? [dropNull(op, prefix, changeId)] : [];
+		case "widen": return [];
+		case "relax": return [];
+	}
+	return [];
+}
+const NO_VARIANTS = () => void 0;
+/** The value itself replaced as `show` says, by an instruction standing on it. */
+function shown(op, changeId) {
+	switch (op.show) {
+		case "id": return {
+			k: "move",
+			from: "/id",
+			to: "",
+			c: changeId
+		};
+		case "null": return {
+			k: "set",
+			path: "",
+			value: null,
+			ifAbsent: false,
+			c: changeId
+		};
+		case "absent": return {
+			k: "del",
+			path: "",
+			c: changeId
+		};
+	}
+}
+/** Runs `block` on a value only when the guard says it is the variant. */
+function testing(guard, block, changeId) {
+	if ("type" in guard) return {
+		k: "is",
+		path: "",
+		type: guard.type,
+		block,
+		c: changeId
+	};
+	if ("key" in guard) {
+		const chosen = guard.has !== void 0 ? [{
+			k: "has",
+			path: formatPointer([guard.has]),
+			block,
+			c: changeId
+		}] : guard.lacks !== void 0 ? [{
+			k: "has",
+			path: formatPointer([guard.lacks]),
+			absent: true,
+			block,
+			c: changeId
+		}] : block;
+		return {
+			k: "switch",
+			path: guard.key,
+			cases: Object.fromEntries(guard.values.map((value) => [value, chosen])),
+			c: changeId
+		};
+	}
+	if ("lacks" in guard) return {
+		k: "has",
+		path: formatPointer([guard.lacks]),
+		absent: true,
+		block,
+		c: changeId
+	};
+	return {
+		k: "has",
+		path: formatPointer([guard.has]),
+		block,
+		c: changeId
+	};
+}
+/** Canonical-back-to-old-shape primitives: each op's inverse. */
+function backwardInstrs(op, prefix, changeId, variants = NO_VARIANTS) {
+	switch (op.op) {
+		case "move": return [{
+			k: "move",
+			from: prefixed(prefix, op.to),
+			to: prefixed(prefix, op.from),
+			c: changeId
+		}];
+		case "convert": switch (op.codec.kind) {
+			case "scale10": return [{
+				k: "scale",
+				path: prefixed(prefix, op.path),
+				exp: -op.codec.exponent,
+				c: changeId
+			}];
+			case "enumMap": return [{
+				k: "enum",
+				path: prefixed(prefix, op.path),
+				map: {
+					...Object.fromEntries(op.codec.pairs.map(([from, to]) => [to, from])),
+					...Object.fromEntries(op.codec.fold ?? [])
+				},
+				...op.codec.fold && op.codec.fold.length > 0 ? { folded: op.codec.fold.map(([value]) => value) } : {},
+				c: changeId
+			}];
+			case "cast": return [{
+				k: "cast",
+				path: prefixed(prefix, op.path),
+				to: op.codec.from,
+				c: changeId
+			}];
+			default: return [valueCodec(op.codec, prefixed(prefix, op.path), changeId, "backward")];
+		}
+		case "add": return [{
+			k: "del",
+			path: prefixed(prefix, op.path),
+			c: changeId
+		}];
+		case "remove": return [{
+			k: "set",
+			path: prefixed(prefix, op.path),
+			value: op.restore,
+			ifAbsent: false,
+			c: changeId
+		}];
+		case "default": return op.toward === "old" ? [fill(op, prefix, changeId)] : [];
+		case "dropNull": return op.toward === "old" ? [dropNull(op, prefix, changeId)] : [];
+		case "relax": return [];
+		case "widen": {
+			const guard = variants(op);
+			if (!guard) return [];
+			return [{
+				k: "within",
+				path: prefixed(prefix, op.path),
+				block: [testing(guard, [shown(op, changeId)], changeId)],
+				c: changeId
+			}];
+		}
+	}
+	return [];
+}
+/**
+* A site's instructions, placed so they run only for values of the branch the
+* site is in: `within` each union on the way, and a `switch` on the key or a
+* `has` on the field that tells the branch apart. `build` makes the
+* instructions for a prefix relative to the innermost union.
+*
+* On the way back the key already holds the new contract's value, so any
+* value this Change's own enum map renames is matched by what it became.
+*/
+function guarded(site, change, direction, build) {
+	const guards = site.guards ?? [];
+	if (guards.length === 0) return build(site.prefix);
+	const relative = (from, to) => {
+		const outer = parsePointer(from);
+		return formatPointer(parsePointer(to).slice(outer.length));
+	};
+	const innermost = guards[guards.length - 1];
+	let block = build(relative(innermost.at, site.prefix));
+	if (block.length === 0) return [];
+	for (let index = guards.length - 1; index >= 0; index -= 1) {
+		const guard = guards[index];
+		const outer = index === 0 ? "" : guards[index - 1].at;
+		const inner = testing(renamed(guard, direction === "backward" && guard.at === site.prefix ? change : void 0), block, change.id);
+		block = [{
+			k: "within",
+			path: relative(outer, guard.at),
+			block: [inner],
+			c: change.id
+		}];
+	}
+	return block;
+}
+/**
+* The guard as the value still reads when this Change has not yet been undone
+* on it: its key's values and its fields under their new names.
+*/
+function renamed(guard, change) {
+	if (!change) return guard;
+	const field = (name) => movedTo(change, name) ?? name;
+	if ("type" in guard) return guard;
+	if ("key" in guard) {
+		const renames = renamesOf(change, guard.key);
+		return {
+			...guard,
+			values: [...new Set(guard.values.map((value) => renames.get(value) ?? value))],
+			...guard.has === void 0 ? {} : { has: field(guard.has) },
+			...guard.lacks === void 0 ? {} : { lacks: field(guard.lacks) }
+		};
+	}
+	if ("lacks" in guard) return {
+		...guard,
+		lacks: field(guard.lacks)
+	};
+	return {
+		...guard,
+		has: field(guard.has)
+	};
+}
+/** What a Change's enum map at `path` renames each old value to. */
+function renamesOf(change, path) {
+	const renames = /* @__PURE__ */ new Map();
+	for (const op of change.ops) {
+		if (op.op !== "convert" || op.codec.kind !== "enumMap" || op.path !== path) continue;
+		for (const [from, to] of op.codec.pairs) renames.set(from, to);
+	}
+	return renames;
+}
+/** Where a Change moves a top-level field to, when it moves it to another top-level name. */
+function movedTo(change, field) {
+	for (const op of change.ops) {
+		if (op.op !== "move") continue;
+		const from = parsePointer(op.from);
+		const to = parsePointer(op.to);
+		if (from.length === 1 && from[0] === field && to.length === 1) return to[0];
+	}
+}
+//#endregion
 //#region ../compiler/src/parameters.ts
 /**
 * Parameters, as the compiler reads and addresses them.
@@ -13210,6 +13676,3020 @@ function numberToDecimalText(value) {
 	if (text.includes("e") || text.includes("E")) throw new DecimalError(`Exponential notation is not supported: ${text}`);
 	return text;
 }
+var BodyTooLargeError = class extends Error {
+	constructor(limit) {
+		super(`Request body exceeds the ${limit} byte limit for a transformed operation`);
+		this.name = "BodyTooLargeError";
+	}
+};
+/**
+* A body nested deeper than this runtime will walk.
+*
+* Refused before anything parses it: every step that reads a body, parsing it,
+* transforming it and writing it back, follows its nesting, and a request made
+* of fifty thousand brackets would otherwise exhaust the stack and answer 500.
+* Treated as too large, which is what it is.
+*/
+var BodyTooDeepError = class extends BodyTooLargeError {
+	depth;
+	constructor(depth) {
+		super(0);
+		this.message = `The body is nested more than ${depth} levels deep, which is deeper than a transformed operation accepts.`;
+		this.name = "BodyTooDeepError";
+		this.depth = depth;
+	}
+};
+/** A `Content-Encoding` this runtime has no way to decode. */
+var UnsupportedEncodingError = class extends Error {
+	encoding;
+	constructor(encoding) {
+		super(`The body is encoded as "${encoding}", which cannot be decoded here, so it cannot be translated.`);
+		this.name = "UnsupportedEncodingError";
+		this.encoding = encoding;
+	}
+};
+//#endregion
+//#region ../runtime/src/json.ts
+/**
+* JSON that keeps money exact.
+*
+* The important guarantee is that `49.99` scaled to minor units is `4999`, not
+* `4998.9999999999995`. That comes from doing the arithmetic on the decimal
+* text rather than on the double, and `String(value)` recovers that text
+* exactly for every number a double represents, which is every JSON number of
+* up to 15 significant digits.
+*
+* Node can also hand back the original source text of every number, which
+* preserves precision beyond what a double holds. That is switched off by
+* default, for two measured reasons. It costs roughly six times a plain parse,
+* because passing any reviver to `JSON.parse` leaves the fast path. And it buys
+* nothing on its own: the provider's handler parses the body it is given with
+* an ordinary parse, so precision the adapter preserved would be lost one step
+* later anyway. A provider that really does read bodies with arbitrary
+* precision can turn it on.
+*/
+/**
+* A number a double might not hold. `1e400` parses to Infinity and `1e-400`
+* to 0, and Infinity is written back as `null`, so a transform on such a body
+* would change what the caller sent without a word. Found by fuzzing.
+*
+* A number with fewer than 100 digits in a row and an exponent of at most two
+* digits lies within 1e±198, well inside a double's range, so anything this
+* does not match is safe on the fast path. What it does match, including the
+* odd string holding a hundred digits, pays for an exact parse and loses
+* nothing.
+*/
+const BEYOND_DOUBLE = /[\d.][eE][+-]?\d{3}|\d{100}/;
+/** Whether a JSON text nests deeper than the limit, found in one pass without parsing. */
+function tooDeep(text, limit) {
+	if (text.length <= limit) return false;
+	let depth = 0;
+	let inString = false;
+	for (let index = 0; index < text.length; index += 1) {
+		const code = text.charCodeAt(index);
+		if (inString) {
+			if (code === 92) index += 1;
+			else if (code === 34) inString = false;
+			continue;
+		}
+		if (code === 34) inString = true;
+		else if (code === 91 || code === 123) {
+			depth += 1;
+			if (depth > limit) return true;
+		} else if (code === 93 || code === 125) depth -= 1;
+	}
+	return false;
+}
+function parseJson(text, fidelity) {
+	if (tooDeep(text, 256)) throw new BodyTooDeepError(256);
+	if (fidelity === "double" && !BEYOND_DOUBLE.test(text)) return JSON.parse(text);
+	return JSON.parse(text, function preserveNumbers(_key, value, context) {
+		if (typeof value !== "number") return value;
+		const source = context?.source;
+		return source === void 0 ? value : JSON.rawJSON(source);
+	});
+}
+function stringifyJson(value) {
+	return JSON.stringify(value) ?? "null";
+}
+function isNumberLike(value) {
+	return typeof value === "number" || JSON.isRawJSON(value);
+}
+/**
+* The exact decimal text of a numeric value, whatever form it is held in.
+*
+* For a plain number this is the shortest text that reads back as the same
+* double, which is precisely the value the caller sent.
+*/
+function numberTextOf(value) {
+	if (JSON.isRawJSON(value)) return value.rawJSON;
+	if (typeof value === "number") return numberToDecimalText(value);
+	throw new TypeError("Not a number");
+}
+/** Builds a JSON number from exact decimal text, without going through a double. */
+function numberFromText(text) {
+	return JSON.rawJSON(text);
+}
+//#endregion
+//#region ../runtime/src/codecs.ts
+/**
+* The value codecs that are not arithmetic: instants written three ways, and
+* identifiers written in five cases.
+*
+* Every one is exact or refuses. A value either converts to one the other
+* side can read and converts back to the same meaning, or it is refused with a
+* reason, never approximated. That rule is what lets a single declaration
+* serve both directions: the same function runs forward on a request and
+* backward on a response, and the lens laws hold because nothing in between
+* guesses.
+*
+* Both are pure functions of their input with no dependence on the host's
+* clock, time zone or locale, so an engine in another language can match them
+* byte for byte from the vectors alone.
+*/
+/** Why a value was refused, in words that name the value. */
+var CodecRefusal = class extends Error {};
+const RFC3339 = /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(?:([Zz])|([+-])(\d{2}):(\d{2}))$/;
+/**
+* Days since 1970-01-01 of a proleptic Gregorian date. Written out rather than
+* taken from `Date.UTC`, which reads years 0 to 99 as 1900 to 1999.
+*/
+function daysFromCivil(year, month, day) {
+	const y = month <= 2 ? year - 1 : year;
+	const era = Math.floor(y / 400);
+	const yoe = y - era * 400;
+	const doy = Math.floor((153 * (month + (month > 2 ? -3 : 9)) + 2) / 5) + day - 1;
+	const doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy;
+	return era * 146097 + doe - 719468;
+}
+function civilFromDays(days) {
+	const z = days + 719468;
+	const era = Math.floor(z / 146097);
+	const doe = z - era * 146097;
+	const yoe = Math.floor((doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) / 365);
+	const doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100));
+	const mp = Math.floor((5 * doy + 2) / 153);
+	const day = doy - Math.floor((153 * mp + 2) / 5) + 1;
+	const month = mp < 10 ? mp + 3 : mp - 9;
+	return [
+		yoe + era * 400 + (month <= 2 ? 1 : 0),
+		month,
+		day
+	];
+}
+function daysInMonth(year, month) {
+	if (month === 2) return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28;
+	return [
+		4,
+		6,
+		9,
+		11
+	].includes(month) ? 30 : 31;
+}
+const MS_PER_DAY = 86400000n;
+/** 0000-01-01T00:00:00Z and the last millisecond of 9999, the years RFC 3339 can write. */
+const EARLIEST = BigInt(daysFromCivil(0, 1, 1)) * MS_PER_DAY;
+const LATEST = BigInt(daysFromCivil(1e4, 1, 1)) * MS_PER_DAY - 1n;
+function parseRfc3339(text) {
+	const match = RFC3339.exec(text);
+	if (match === null) throw new CodecRefusal(`"${text}" is not an RFC 3339 date-time`);
+	const [year, month, day, hour, minute, second] = match.slice(1, 7).map((part) => Number(part));
+	if (month < 1 || month > 12 || day < 1 || day > daysInMonth(year, month)) throw new CodecRefusal(`"${text}" names a day that does not exist`);
+	if (hour > 23 || minute > 59) throw new CodecRefusal(`"${text}" names a time that does not exist`);
+	if (second > 59) throw new CodecRefusal(`"${text}" is a leap second, which the epoch cannot count`);
+	let offsetMinutes = 0;
+	if (match[8] === void 0) {
+		const offsetHours = Number(match[10]);
+		const offsetRest = Number(match[11]);
+		if (offsetHours > 23 || offsetRest > 59) throw new CodecRefusal(`"${text}" has an offset that does not exist`);
+		offsetMinutes = (offsetHours * 60 + offsetRest) * (match[9] === "-" ? -1 : 1);
+	}
+	const fraction = match[7] ?? "";
+	const millis = BigInt((fraction.slice(0, 3) || "0").padEnd(3, "0"));
+	return {
+		ms: BigInt(daysFromCivil(year, month, day)) * MS_PER_DAY + BigInt(((hour * 60 + minute - offsetMinutes) * 60 + second) * 1e3) + millis,
+		finer: fraction.slice(3).replace(/0+$/, "")
+	};
+}
+function formatRfc3339(ms) {
+	if (ms < EARLIEST || ms > LATEST) throw new CodecRefusal(`${ms} ms since the epoch is outside the years RFC 3339 can write`);
+	const days = ms >= 0n ? ms / MS_PER_DAY : (ms - MS_PER_DAY + 1n) / MS_PER_DAY;
+	const rest = Number(ms - days * MS_PER_DAY);
+	const [year, month, day] = civilFromDays(Number(days));
+	const pad = (n, width = 2) => String(n).padStart(width, "0");
+	const clock = `${pad(Math.floor(rest / 36e5))}:${pad(Math.floor(rest / 6e4) % 60)}:` + pad(Math.floor(rest / 1e3) % 60);
+	const millis = rest % 1e3;
+	return `${pad(year, 4)}-${pad(month)}-${pad(day)}T${clock}${millis === 0 ? "" : `.${pad(millis, 3)}`}Z`;
+}
+function epochOf(value, format) {
+	if (!isNumberLike(value)) throw new CodecRefusal(`expected a number of ${format === "epoch-s" ? "seconds" : "milliseconds"}, found ${value === null ? "null" : typeof value}`);
+	const text = numberTextOf(value);
+	if (!/^-?\d+$/.test(text)) throw new CodecRefusal(`${text} is not a whole number`);
+	return format === "epoch-s" ? BigInt(text) * 1000n : BigInt(text);
+}
+function epochValue(ms) {
+	return ms >= BigInt(Number.MIN_SAFE_INTEGER) && ms <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(ms) : JSON.rawJSON(String(ms));
+}
+/**
+* One instant, re-encoded. Refuses a value the target cannot hold exactly: a
+* fraction of a second going to whole seconds, more than millisecond
+* precision going to milliseconds, a year outside 0000 to 9999 going to text.
+*
+* With `truncate`, precision the target cannot hold is dropped instead,
+* always toward the earlier instant: -0.5 seconds is -1, as the epoch counts.
+*
+* RFC 3339 is always written in UTC with the fraction left out when it is
+* zero, so an offset a caller wrote is not preserved through the epoch. The
+* instant is; the compiler declares the offset as the loss.
+*/
+function convertTime(value, from, to, truncate = false) {
+	if (from === to) return value;
+	let instant;
+	if (from === "rfc3339") {
+		if (typeof value !== "string") throw new CodecRefusal(`expected RFC 3339 text, found ${value === null ? "null" : typeof value}`);
+		instant = parseRfc3339(value);
+	} else instant = {
+		ms: epochOf(value, from),
+		finer: ""
+	};
+	if (instant.finer !== "" && !truncate) throw new CodecRefusal("the value is more precise than a millisecond");
+	switch (to) {
+		case "rfc3339": return formatRfc3339(instant.ms);
+		case "epoch-ms": return epochValue(instant.ms);
+		case "epoch-s": {
+			const remainder = (instant.ms % 1000n + 1000n) % 1000n;
+			if (remainder !== 0n && !truncate) throw new CodecRefusal("the value has a fraction of a second, which whole seconds cannot hold");
+			return epochValue((instant.ms - remainder) / 1000n);
+		}
+	}
+}
+const LOWER_WORD = /^[a-z0-9]+$/;
+const UPPER_WORD = /^[A-Z0-9]+$/;
+function split(text, separator, word) {
+	const words = text.split(separator);
+	return words.every((part) => word.test(part)) ? words.map((part) => part.toLowerCase()) : void 0;
+}
+function wordsOf(text, style) {
+	switch (style) {
+		case "snake": return split(text, "_", LOWER_WORD);
+		case "screaming": return split(text, "_", UPPER_WORD);
+		case "kebab": return split(text, "-", LOWER_WORD);
+		case "camel":
+		case "pascal":
+			if (/[A-Z]{2}/.test(text)) return void 0;
+			if (!(style === "camel" ? /^[a-z0-9]+(?:[A-Z][a-z0-9]*)*$/ : /^(?:[A-Z][a-z0-9]*)+$/).test(text)) return;
+			return text.split(/(?=[A-Z])/).map((part) => part.toLowerCase());
+	}
+}
+function written(words, style) {
+	const capital = (word) => word.charAt(0).toUpperCase() + word.slice(1);
+	switch (style) {
+		case "snake": return words.join("_");
+		case "screaming": return words.join("_").toUpperCase();
+		case "kebab": return words.join("-");
+		case "camel": return words.map((word, i) => i === 0 ? word : capital(word)).join("");
+		case "pascal": return words.map(capital).join("");
+	}
+}
+/**
+* One identifier, rewritten in another case. Words are runs of lowercase
+* letters and digits; in camel and pascal case a capital starts a new one.
+*
+* Refuses text that is not written in `from`, an acronym in camel or pascal
+* case (`userID` could be `user_id` or `user_i_d`), and text whose words the
+* target cannot keep apart: `v2_beta` is `v2Beta` in camel case, but `a_1b`
+* would be `a1b`, which reads back as one word. The check is the round trip
+* itself, so no case of this is missed by a rule that forgot it.
+*/
+function convertCase(value, from, to) {
+	if (typeof value !== "string") throw new CodecRefusal(`expected text to recase, found ${value === null ? "null" : typeof value}`);
+	if (from === to) return value;
+	const words = wordsOf(value, from);
+	if (words === void 0) throw new CodecRefusal(`"${value}" is not written in ${from} case`);
+	const out = written(words, to);
+	const back = wordsOf(out, to);
+	if (back === void 0 || written(back, from) !== value) throw new CodecRefusal(`"${value}" cannot be written in ${to} case and read back`);
+	return out;
+}
+function isWildcard(segment) {
+	return segment === "*" || segment === "{}";
+}
+/**
+* A path selected more slots than an instruction may touch.
+*
+* Thrown rather than returned as a short list, because a short list is a
+* partly transformed document, and a partly transformed document is a body in
+* the wrong shape that nothing reports. The interpreter attaches the Change.
+*/
+var FanOutExceeded = class extends Error {
+	limit;
+	constructor(limit) {
+		super(`more than ${limit} matches`);
+		this.name = "FanOutExceeded";
+		this.limit = limit;
+	}
+};
+function isContainer(value) {
+	return typeof value === "object" && value !== null && !JSON.isRawJSON(value);
+}
+/**
+* Keys that would reach outside the document being transformed.
+*
+* A program is compiled from a provider's own specification, so one of these
+* should never appear. Refusing them here anyway means a payload can never
+* steer a write onto a shared prototype, whatever produced the program.
+*/
+const UNSAFE_KEYS = /* @__PURE__ */ new Set([
+	"__proto__",
+	"constructor",
+	"prototype"
+]);
+function isUnsafeKey(key) {
+	return UNSAFE_KEYS.has(key);
+}
+function readChild(container, key) {
+	if (Array.isArray(container)) {
+		const index = Number(key);
+		return Number.isInteger(index) ? container[index] : void 0;
+	}
+	return container[key];
+}
+/**
+* Every existing slot a path selects. A path with no wildcard selects at most
+* one; a wildcard fans out across an array's elements.
+*/
+function resolveSlots(root, segments, limit) {
+	if (segments.length === 0) return [];
+	let frontier = [{
+		value: root,
+		captures: []
+	}];
+	for (let depth = 0; depth < segments.length - 1; depth += 1) {
+		const segment = segments[depth];
+		const next = [];
+		for (const node of frontier) {
+			if (!isContainer(node.value)) continue;
+			if (segment === "*") {
+				if (!Array.isArray(node.value)) continue;
+				for (const [index, item] of node.value.entries()) {
+					if (next.length >= limit) throw new FanOutExceeded(limit);
+					next.push({
+						value: item,
+						captures: [...node.captures, index]
+					});
+				}
+				continue;
+			}
+			if (segment === "{}") {
+				if (Array.isArray(node.value)) continue;
+				for (const key of Object.keys(node.value)) {
+					if (isUnsafeKey(key)) continue;
+					if (next.length >= limit) throw new FanOutExceeded(limit);
+					next.push({
+						value: node.value[key],
+						captures: [...node.captures, key]
+					});
+				}
+				continue;
+			}
+			const child = readChild(node.value, segment);
+			if (child === void 0) continue;
+			next.push({
+				value: child,
+				captures: node.captures
+			});
+		}
+		frontier = next;
+		if (frontier.length === 0) return [];
+	}
+	const last = segments[segments.length - 1];
+	const slots = [];
+	for (const node of frontier) {
+		if (!isContainer(node.value)) continue;
+		if (last === "*") {
+			if (!Array.isArray(node.value)) continue;
+			for (const index of node.value.keys()) {
+				if (slots.length >= limit) throw new FanOutExceeded(limit);
+				slots.push({
+					container: node.value,
+					key: String(index),
+					captures: [...node.captures, index]
+				});
+			}
+			continue;
+		}
+		if (last === "{}") {
+			if (Array.isArray(node.value)) continue;
+			for (const key of Object.keys(node.value)) {
+				if (isUnsafeKey(key)) continue;
+				if (slots.length >= limit) throw new FanOutExceeded(limit);
+				slots.push({
+					container: node.value,
+					key,
+					captures: [...node.captures, key]
+				});
+			}
+			continue;
+		}
+		if (Array.isArray(node.value)) continue;
+		if (!Object.hasOwn(node.value, last)) continue;
+		if (slots.length >= limit) throw new FanOutExceeded(limit);
+		slots.push({
+			container: node.value,
+			key: last,
+			captures: node.captures
+		});
+	}
+	return slots;
+}
+function readSlot$1(slot) {
+	return readChild(slot.container, slot.key);
+}
+function writeSlot$1(slot, value) {
+	if (!Array.isArray(slot.container) && isUnsafeKey(slot.key)) return;
+	if (Array.isArray(slot.container)) {
+		slot.container[Number(slot.key)] = value;
+		return;
+	}
+	slot.container[slot.key] = value;
+}
+function deleteSlot$1(slot) {
+	if (Array.isArray(slot.container)) {
+		slot.container.splice(Number(slot.key), 1);
+		return;
+	}
+	delete slot.container[slot.key];
+}
+/**
+* Walks to a slot, creating plain objects along the way. Wildcards are filled
+* from `captures`, so a target path lines up element by element with the source
+* path that produced it.
+*/
+function createSlot(root, segments, captures) {
+	if (segments.length === 0) return void 0;
+	let current = root;
+	let captureIndex = 0;
+	for (let depth = 0; depth < segments.length - 1; depth += 1) {
+		const raw = segments[depth];
+		if (!isContainer(current)) return void 0;
+		if (raw === "*") {
+			const index = captures[captureIndex];
+			captureIndex += 1;
+			if (typeof index !== "number" || !Array.isArray(current)) return void 0;
+			const child = current[index];
+			if (child === void 0) return void 0;
+			current = child;
+			continue;
+		}
+		if (raw === "{}") {
+			const key = captures[captureIndex];
+			captureIndex += 1;
+			if (typeof key !== "string" || Array.isArray(current) || isUnsafeKey(key)) return;
+			const child = Object.hasOwn(current, key) ? current[key] : void 0;
+			if (child === void 0) return void 0;
+			current = child;
+			continue;
+		}
+		if (Array.isArray(current) || isUnsafeKey(raw)) return void 0;
+		let child = Object.hasOwn(current, raw) ? current[raw] : void 0;
+		if (child === void 0 || !isContainer(child)) {
+			if (child !== void 0) return void 0;
+			child = {};
+			current[raw] = child;
+		}
+		current = child;
+	}
+	const last = segments[segments.length - 1];
+	if (!isContainer(current)) return void 0;
+	if (last === "*") {
+		const index = captures[captureIndex];
+		if (typeof index !== "number" || !Array.isArray(current)) return void 0;
+		return {
+			container: current,
+			key: String(index),
+			captures: [...captures]
+		};
+	}
+	if (last === "{}") {
+		const key = captures[captureIndex];
+		if (typeof key !== "string" || Array.isArray(current) || isUnsafeKey(key)) return;
+		return {
+			container: current,
+			key,
+			captures: [...captures]
+		};
+	}
+	if (Array.isArray(current) || isUnsafeKey(last)) return void 0;
+	return {
+		container: current,
+		key: last,
+		captures: [...captures]
+	};
+}
+/** Removes objects a move emptied, so the old shape does not leave a husk behind. */
+function pruneEmptyAncestors(root, segments, captures) {
+	for (let depth = segments.length - 1; depth >= 1; depth -= 1) {
+		const slot = createSlot(root, segments.slice(0, depth), captures);
+		if (!slot) return;
+		const value = readSlot$1(slot);
+		if (!(typeof value === "object" && value !== null && !Array.isArray(value) && Object.keys(value).length === 0)) return;
+		deleteSlot$1(slot);
+	}
+}
+//#endregion
+//#region ../runtime/src/interpreter.ts
+/**
+* The compatibility interpreter.
+*
+* Six instructions, no loops, no recursion over user input beyond the depth of
+* the document, no expressions, no I/O. There is nothing here that can be made
+* to call out, and nothing that a payload can steer. A program is data, and the
+* worst a malformed one can do is fail.
+*
+* Failure is always loud. A transform that cannot be completed exactly must
+* never hand back a body in the wrong shape, so every refusal raises rather
+* than skipping the instruction.
+*/
+/**
+* How deeply calls may nest while running one body. A call only goes deeper
+* inside a `within` that descends into the value, and bodies are refused past
+* 256 levels, so this is never reached by a program the decoder accepts; it
+* is the guard behind that proof.
+*/
+const MAX_CALL_DEPTH = 512;
+/** The JSON kind of a parsed value. */
+function kindOf$1(value) {
+	if (value === null) return "null";
+	if (isNumberLike(value)) return "number";
+	if (Array.isArray(value)) return "array";
+	switch (typeof value) {
+		case "string": return "string";
+		case "boolean": return "boolean";
+		case "object": return "object";
+		default: return;
+	}
+}
+/**
+* Every place an instruction reads or writes, from the root it runs at,
+* including what its blocks touch: a block under `within` is read from each
+* match, which a wildcard stands for here.
+*
+* A named block is followed once per path through the calls: where it recurs,
+* it touches deeper copies of places already listed, so the list stays finite
+* and still names every place at each depth it was first reached.
+*/
+function touchedPaths(instr, entered = /* @__PURE__ */ new Set()) {
+	const inner = (block) => block.flatMap((each) => touchedPaths(each, entered));
+	switch (instr.k) {
+		case "move": return [instr.from, instr.to];
+		case "within": return [instr.path, ...inner(instr.block).map((path) => [...instr.path, ...path])];
+		case "switch": return [instr.path, ...[...instr.cases.values()].flatMap(inner)];
+		case "has":
+		case "is": return [instr.path, ...inner(instr.block)];
+		case "call": {
+			if (entered.has(instr.name)) return [];
+			const deeper = new Set(entered).add(instr.name);
+			return instr.target.instrs.flatMap((each) => touchedPaths(each, deeper));
+		}
+		default: return [instr.path];
+	}
+}
+var TransformError = class extends Error {
+	changeId;
+	constructor(changeId, message) {
+		super(message);
+		this.name = "TransformError";
+		this.changeId = changeId;
+	}
+};
+/**
+* An instruction matched more places than the configured cap allows.
+*
+* A request carrying this is refused as too large; a response carrying it is
+* refused as untranslatable. Neither is ever answered with a body that was
+* transformed in part.
+*/
+var MatchLimitError = class extends TransformError {
+	limit;
+	constructor(changeId, limit) {
+		super(changeId, `${changeId} would touch more than ${limit} places in one body. Raise limits.maxMatches if bodies this large are expected.`);
+		this.name = "MatchLimitError";
+		this.limit = limit;
+	}
+};
+const DEFAULT_LIMITS = { maxMatches: 1e4 };
+function countApplied(result, changeId, times) {
+	if (times === 0) return;
+	result.applied.set(changeId, (result.applied.get(changeId) ?? 0) + times);
+}
+function applyMove(root, instr, limits) {
+	const slots = resolveSlots(root, instr.from, limits.maxMatches);
+	let moved = 0;
+	for (const slot of slots) {
+		const value = readSlot$1(slot);
+		const target = createSlot(root, instr.to, slot.captures);
+		if (!target) throw new TransformError(instr.c, `Cannot place the value from ${instr.from.join("/")} at ${instr.to.join("/")}`);
+		deleteSlot$1(slot);
+		writeSlot$1(target, value);
+		pruneEmptyAncestors(root, instr.from, slot.captures);
+		moved += 1;
+	}
+	return moved;
+}
+function applyScale(root, instr, limits) {
+	const slots = resolveSlots(root, instr.path, limits.maxMatches);
+	let scaled = 0;
+	for (const slot of slots) {
+		const value = readSlot$1(slot);
+		if (value === null) continue;
+		let text;
+		try {
+			text = numberTextOf(value);
+		} catch {
+			throw new TransformError(instr.c, `Expected a number at ${instr.path.join("/")} to scale, found ${typeof value}`);
+		}
+		const shifted = shiftDecimal(text, instr.exp);
+		if (instr.exp > 0 && shifted.includes(".")) throw new TransformError(instr.c, `Value ${text} at ${instr.path.join("/")} has more precision than the contract allows`);
+		writeSlot$1(slot, numberFromText(shifted));
+		scaled += 1;
+	}
+	return scaled;
+}
+function applyEnum(root, instr, limits, folded) {
+	const folds = instr.folded === void 0 ? void 0 : new Set(instr.folded);
+	const slots = resolveSlots(root, instr.path, limits.maxMatches);
+	let mapped = 0;
+	for (const slot of slots) {
+		const value = readSlot$1(slot);
+		if (value === null) continue;
+		if (typeof value !== "string") throw new TransformError(instr.c, `Expected a string at ${instr.path.join("/")} to map, found ${typeof value}`);
+		const replacement = Object.hasOwn(instr.map, value) ? instr.map[value] : void 0;
+		if (replacement === void 0) {
+			if (instr.lenient) continue;
+			throw new TransformError(instr.c, `No mapping for "${value}" at ${instr.path.join("/")} in this contract`);
+		}
+		if (folds?.has(value)) folded.add(instr.path.join("/"));
+		writeSlot$1(slot, replacement);
+		mapped += 1;
+	}
+	return mapped;
+}
+function castValue(value, to, instr, path) {
+	switch (to) {
+		case "string":
+			if (typeof value === "string") return value;
+			if (typeof value === "boolean") return String(value);
+			if (!isNumberLike(value)) throw new TransformError(instr.c, `Cannot cast ${value === null ? "null" : typeof value} to string at ${path.join("/")}`);
+			return numberTextOf(value);
+		case "boolean":
+			if (typeof value === "boolean") return value;
+			throw new TransformError(instr.c, `Cannot cast ${typeof value} to boolean at ${path.join("/")}`);
+		case "integer":
+		case "number": {
+			const text = typeof value === "string" ? value : numberTextOf(value);
+			const normalized = shiftDecimal(text, 0);
+			if (to === "integer" && normalized.includes(".")) throw new TransformError(instr.c, `Value ${text} at ${path.join("/")} is not an integer`);
+			return numberFromText(normalized);
+		}
+	}
+}
+/** What a codec returns to take the field away rather than rewrite it. */
+const LEAVE_OUT = Symbol("leave out");
+/**
+* Rewrites each value at the path with a codec that is exact or refuses. A
+* null passes through, as it does for every codec: a nullable field stays
+* nullable on both sides.
+*/
+function applyEach(root, instr, limits, convert) {
+	let done = 0;
+	const removals = [];
+	for (const slot of resolveSlots(root, instr.path, limits.maxMatches)) {
+		const value = readSlot$1(slot);
+		if (value === null) continue;
+		let converted;
+		try {
+			converted = convert(value);
+		} catch (error) {
+			if (!(error instanceof CodecRefusal)) throw error;
+			throw new TransformError(instr.c, `At ${instr.path.join("/")}, ${error.message}`);
+		}
+		if (converted === LEAVE_OUT) removals.push(slot);
+		else writeSlot$1(slot, converted);
+		done += 1;
+	}
+	for (const slot of removals.reverse()) deleteSlot$1(slot);
+	return done;
+}
+function unwrapped(value, first) {
+	if (!Array.isArray(value)) throw new CodecRefusal(`expected a list to unwrap, found ${typeof value}`);
+	if (first) return value.length === 0 ? LEAVE_OUT : value[0];
+	if (value.length !== 1) throw new CodecRefusal(`the list holds ${value.length} items, and only one can be shown`);
+	return value[0];
+}
+function applyCast$1(root, instr, limits) {
+	const slots = resolveSlots(root, instr.path, limits.maxMatches);
+	let cast = 0;
+	for (const slot of slots) {
+		const value = readSlot$1(slot);
+		if (value === null) continue;
+		writeSlot$1(slot, castValue(value, instr.to, instr, instr.path));
+		cast += 1;
+	}
+	return cast;
+}
+/** Whether a `set` writes over what is there now. */
+function setsOver(instr, current) {
+	if (!instr.ifAbsent && !instr.ifNull) return true;
+	return instr.ifAbsent && current === void 0 || instr.ifNull === true && current === null;
+}
+function applySet(root, instr, limits) {
+	if (instr.ifNull && !instr.ifAbsent) {
+		let written = 0;
+		for (const slot of resolveSlots(root, instr.path, limits.maxMatches)) {
+			if (readSlot$1(slot) !== null) continue;
+			writeSlot$1(slot, instr.value);
+			written += 1;
+		}
+		return written;
+	}
+	const lastWildcard = instr.path.findLastIndex(isWildcard);
+	if (lastWildcard >= 0) {
+		const elements = resolveSlots(root, instr.path.slice(0, lastWildcard + 1), limits.maxMatches);
+		const rest = instr.path.slice(lastWildcard + 1);
+		let written = 0;
+		for (const element of elements) {
+			const target = rest.length === 0 ? element : createSlot(readSlot$1(element), rest, []);
+			if (!target) continue;
+			if (!setsOver(instr, readSlot$1(target))) continue;
+			writeSlot$1(target, instr.value);
+			written += 1;
+		}
+		return written;
+	}
+	const slot = createSlot(root, instr.path, []);
+	if (!slot) throw new TransformError(instr.c, `Cannot write ${instr.path.join("/")}`);
+	if (!setsOver(instr, readSlot$1(slot))) return 0;
+	writeSlot$1(slot, instr.value);
+	return 1;
+}
+function applyDel(root, instr, limits) {
+	const slots = resolveSlots(root, instr.path, limits.maxMatches);
+	let removed = 0;
+	for (const slot of [...slots].reverse()) {
+		if (instr.ifNull && readSlot$1(slot) !== null) continue;
+		deleteSlot$1(slot);
+		removed += 1;
+	}
+	return removed;
+}
+/**
+* Runs a program over a parsed body, in place.
+*
+* A path that is simply absent is not an error: optional fields are allowed to
+* be missing, and an instruction that matches nothing has nothing to do. A path
+* that is present but holds the wrong kind of value is an error, because that
+* means the document does not match the contract the program was compiled for.
+*/
+function execute(root, program, limits = DEFAULT_LIMITS) {
+	const result = {
+		applied: /* @__PURE__ */ new Map(),
+		folded: /* @__PURE__ */ new Set()
+	};
+	for (const instr of program) try {
+		step(root, instr, limits, result, 0, void 0);
+	} catch (error) {
+		if (error instanceof FanOutExceeded) throw new MatchLimitError(instr.c, error.limit);
+		if (error instanceof DecimalError) throw new TransformError(instr.c, error.message);
+		throw error;
+	}
+	return result;
+}
+function hereFor(instr, here) {
+	if (!here) throw new TransformError(instr.c, "An instruction cannot replace a whole body");
+	return here;
+}
+function step(root, instr, limits, result, calls, here) {
+	const run = (at, block, depth = calls, where = here) => {
+		for (const inner of block) step(at, inner, limits, result, depth, where);
+	};
+	switch (instr.k) {
+		case "move":
+			if (instr.to.length === 0) {
+				const [source] = resolveSlots(root, instr.from, limits.maxMatches);
+				if (source === void 0) break;
+				writeSlot$1(hereFor(instr, here).slot, readSlot$1(source));
+				countApplied(result, instr.c, 1);
+				break;
+			}
+			countApplied(result, instr.c, applyMove(root, instr, limits));
+			break;
+		case "scale":
+			countApplied(result, instr.c, applyScale(root, instr, limits));
+			break;
+		case "enum":
+			countApplied(result, instr.c, applyEnum(root, instr, limits, result.folded));
+			break;
+		case "cast":
+			countApplied(result, instr.c, applyCast$1(root, instr, limits));
+			break;
+		case "time":
+			countApplied(result, instr.c, applyEach(root, instr, limits, (value) => convertTime(value, instr.from, instr.to, instr.truncate === true)));
+			break;
+		case "case":
+			countApplied(result, instr.c, applyEach(root, instr, limits, (value) => convertCase(value, instr.from, instr.to)));
+			break;
+		case "wrap":
+			countApplied(result, instr.c, applyEach(root, instr, limits, (value) => [value]));
+			break;
+		case "unwrap":
+			countApplied(result, instr.c, applyEach(root, instr, limits, (value) => unwrapped(value, instr.first === true)));
+			break;
+		case "set":
+			if (instr.path.length === 0) {
+				writeSlot$1(hereFor(instr, here).slot, instr.value);
+				countApplied(result, instr.c, 1);
+				break;
+			}
+			countApplied(result, instr.c, applySet(root, instr, limits));
+			break;
+		case "del":
+			if (instr.path.length === 0) {
+				const at = hereFor(instr, here);
+				at.removals.push(at.slot);
+				countApplied(result, instr.c, 1);
+				break;
+			}
+			countApplied(result, instr.c, applyDel(root, instr, limits));
+			break;
+		case "within": {
+			if (instr.path.length === 0) {
+				if (typeof root === "object" && root !== null && !JSON.isRawJSON(root)) run(root, instr.block);
+				break;
+			}
+			const removals = [];
+			for (const slot of resolveSlots(root, instr.path, limits.maxMatches)) {
+				const node = readSlot$1(slot);
+				if (typeof node !== "object" || node === null || JSON.isRawJSON(node)) continue;
+				run(node, instr.block, calls, {
+					slot,
+					removals
+				});
+			}
+			for (const slot of removals.reverse()) deleteSlot$1(slot);
+			break;
+		}
+		case "switch": {
+			const value = instr.path.length === 0 ? root : readOne(root, instr.path, limits.maxMatches);
+			const key = typeof value === "string" ? value : typeof value === "boolean" ? String(value) : isNumberLike(value) ? numberTextOf(value) : void 0;
+			run(root, (key === void 0 ? void 0 : instr.cases.get(key)) ?? []);
+			break;
+		}
+		case "has":
+			if (resolveSlots(root, instr.path, limits.maxMatches).length > 0 === (instr.absent === true)) break;
+			run(root, instr.block);
+			break;
+		case "is": {
+			const value = instr.path.length === 0 ? root : readOne(root, instr.path, limits.maxMatches);
+			if (value !== void 0 && kindOf$1(value) === instr.type) run(root, instr.block);
+			break;
+		}
+		case "call":
+			if (calls >= MAX_CALL_DEPTH) throw new TransformError(instr.c, `${instr.name} called itself too deeply`);
+			run(root, instr.target.instrs, calls + 1);
+	}
+}
+function readOne(root, path, limit) {
+	const [slot] = resolveSlots(root, path, limit);
+	return slot === void 0 ? void 0 : readSlot$1(slot);
+}
+//#endregion
+//#region ../runtime/src/envelope.ts
+/**
+* A request as one tree, and back.
+*
+* `open` reads the parameters a program names out of the request, decoded
+* into typed values the way their declaration says they are written, and
+* places them beside the body under `@path`, `@query`, `@header` and
+* `@cookie`. The interpreter then runs over that tree like any body. `close`
+* writes what the tree holds back into the request, encoded the way the
+* current contract declares each parameter.
+*
+* Only named parameters are ever decoded or rewritten. Everything else in the
+* request, including the order of an untouched query string, is passed on
+* exactly as it arrived, because a program that quietly re-encodes what it
+* was never asked about is a program that breaks a signature or a cache key
+* nobody knew depended on those bytes.
+*/
+const PART = {
+	path: "@path",
+	query: "@query",
+	header: "@header",
+	cookie: "@cookie",
+	body: "@body"
+};
+const codecKey$1 = (location, name) => `${location} ${location === "header" ? name.toLowerCase() : name}`;
+const JSON_NUMBER$1 = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/;
+function decodeComponent$1(text) {
+	try {
+		return decodeURIComponent(text.replace(/\+/g, " "));
+	} catch {
+		return text;
+	}
+}
+/** A path segment: percent-decoded, where `+` is a plus sign, not a space. */
+function decodeSegment(text) {
+	try {
+		return decodeURIComponent(text);
+	} catch {
+		return text;
+	}
+}
+function queryPairs(search) {
+	if (search === "") return [];
+	return search.split("&").map((raw) => {
+		const equals = raw.indexOf("=");
+		return equals === -1 ? {
+			raw,
+			key: decodeComponent$1(raw),
+			value: ""
+		} : {
+			raw,
+			key: decodeComponent$1(raw.slice(0, equals)),
+			value: decodeComponent$1(raw.slice(equals + 1))
+		};
+	});
+}
+function cookiePairs(headers) {
+	const pairs = [];
+	for (const [name, value] of headers) {
+		if (name.toLowerCase() !== "cookie") continue;
+		for (const part of value.split(";")) {
+			const trimmed = part.trim();
+			if (trimmed === "") continue;
+			const equals = trimmed.indexOf("=");
+			pairs.push(equals === -1 ? [trimmed, ""] : [trimmed.slice(0, equals), trimmed.slice(equals + 1)]);
+		}
+	}
+	return pairs;
+}
+/** A scalar written as text, typed the way its declaration says it is. */
+function scalar(text, type, fidelity) {
+	if ((type === "integer" || type === "number") && JSON_NUMBER$1.test(text)) return parseJson(text, fidelity);
+	if (type === "boolean" && (text === "true" || text === "false")) return text === "true";
+	return text;
+}
+function delimiterOf(codec) {
+	if (codec.style === "spaceDelimited") return " ";
+	if (codec.style === "pipeDelimited") return "|";
+	return ",";
+}
+/** A value from its written parts: every occurrence for an exploded list. */
+function decodeValue(parts, codec, fidelity) {
+	const item = codec.items ?? "string";
+	if (codec.type === "array") return (codec.explode && codec.in !== "header" && codec.in !== "path" ? parts : (parts[0] ?? "").split(delimiterOf(codec)).map((entry) => codec.in === "header" ? entry.trim() : entry)).map((entry) => scalar(entry, item, fidelity));
+	if (codec.type === "object") {
+		const text = parts[0] ?? "";
+		const object = {};
+		if (codec.explode) for (const entry of text.split(",")) {
+			const equals = entry.indexOf("=");
+			const key = entry.slice(0, equals).trim();
+			if (equals === -1 || isUnsafeKey(key)) continue;
+			object[key] = entry.slice(equals + 1).trim();
+		}
+		else {
+			const flat = text.split(",");
+			for (let index = 0; index + 1 < flat.length; index += 2) {
+				const key = flat[index];
+				if (!isUnsafeKey(key)) object[key] = flat[index + 1];
+			}
+		}
+		return object;
+	}
+	return scalar(parts[0] ?? "", codec.type, fidelity);
+}
+/** The template's parameter names, in the order `matchTemplate` returns values. */
+function templateNames$1(template) {
+	return template.flatMap((segment) => [...segment.matchAll(/\{([^{}]+)\}/g)].map((match) => match[1]));
+}
+/**
+* The request as a tree holding only what the program names.
+*
+* `pathValues` are the values the routed path matched its template with, in
+* template order.
+*/
+function openEnvelope(envelope, template, pathValues, request, fidelity) {
+	const tree = {
+		[PART.path]: {},
+		[PART.query]: {},
+		[PART.header]: {},
+		[PART.cookie]: {}
+	};
+	const names = templateNames$1(template);
+	const query = queryPairs(request.search);
+	const cookies = cookiePairs(request.headers);
+	for (const codec of envelope.old.values()) {
+		let parts = [];
+		let object;
+		switch (codec.in) {
+			case "path": {
+				const index = names.indexOf(codec.name);
+				const raw = index === -1 ? void 0 : pathValues[index];
+				if (raw !== void 0) parts = [decodeSegment(raw)];
+				break;
+			}
+			case "query":
+				if (codec.style === "deepObject") {
+					const prefix = `${codec.name}[`;
+					for (const pair of query) {
+						if (!pair.key.startsWith(prefix) || !pair.key.endsWith("]")) continue;
+						const key = pair.key.slice(prefix.length, -1);
+						if (isUnsafeKey(key)) continue;
+						object ??= {};
+						object[key] = pair.value;
+					}
+				} else parts = query.filter((pair) => pair.key === codec.name).map((pair) => pair.value);
+				break;
+			case "header": {
+				const lines = request.headers.filter(([name]) => name.toLowerCase() === codec.name).map(([, value]) => value.trim());
+				if (lines.length > 0) parts = [lines.join(", ")];
+				break;
+			}
+			case "cookie": parts = cookies.filter(([name]) => name === codec.name).map(([, value]) => value);
+		}
+		const part = tree[PART[codec.in]];
+		if (object !== void 0) part[codec.name] = object;
+		else if (parts.length > 0) part[codec.name] = decodeValue(parts, codec, fidelity);
+	}
+	if (envelope.body && request.body !== void 0 && request.body !== "") tree[PART.body] = parseJson(request.body, fidelity);
+	return tree;
+}
+function text$1(value, changeId, where) {
+	if (typeof value === "string") return value;
+	if (typeof value === "boolean") return String(value);
+	if (value === null) return "";
+	try {
+		return numberTextOf(value);
+	} catch {
+		throw new TransformError(changeId, `${where} holds a value that cannot be written as text`);
+	}
+}
+/** The written parts of a value: one per occurrence for an exploded list. */
+function encodeValue(value, codec, changeId) {
+	const where = `${codec.in} parameter ${codec.name}`;
+	if (Array.isArray(value)) {
+		const items = value.map((entry) => text$1(entry, changeId, where));
+		if (codec.explode && (codec.in === "query" || codec.in === "cookie")) return items;
+		return [items.join(delimiterOf(codec))];
+	}
+	if (typeof value === "object" && value !== null && !numberLike(value)) {
+		const entries = Object.entries(value).map(([key, entry]) => [key, text$1(entry, changeId, where)]);
+		return [codec.explode ? entries.map(([key, entry]) => `${key}=${entry}`).join(",") : entries.flat().join(",")];
+	}
+	return [text$1(value, changeId, where)];
+}
+function numberLike(value) {
+	return JSON.isRawJSON(value);
+}
+const FALLBACK$1 = {
+	path: {
+		style: "simple",
+		explode: false
+	},
+	query: {
+		style: "form",
+		explode: true
+	},
+	header: {
+		style: "simple",
+		explode: false
+	},
+	cookie: {
+		style: "form",
+		explode: true
+	}
+};
+/** The change that last wrote under a pointer prefix, for naming a refusal. */
+function writerOf$1(instrs, part, name) {
+	for (let index = instrs.length - 1; index >= 0; index -= 1) {
+		const instr = instrs[index];
+		if (touchedPaths(instr).some((path) => path[0] === part && path[1] === name)) return instr.c;
+	}
+	return instrs[0]?.c ?? "";
+}
+/** Characters that would end a header line or a cookie early. */
+const UNSAFE_HEADER = /[\r\n\0]/;
+const UNSAFE_COOKIE = /[\r\n\0;,\s]/;
+/**
+* Writes the tree back into a request.
+*
+* A parameter the program named is taken out of the request wherever it was
+* and written again from the tree, so one it moved away is gone and one it
+* moved in arrives in the current contract's own style.
+*/
+function closeEnvelope(envelope, template, pathValues, request, tree) {
+	const named = /* @__PURE__ */ new Map();
+	for (const codec of [...envelope.old.values(), ...envelope.new.values()]) {
+		const set = named.get(codec.in) ?? /* @__PURE__ */ new Set();
+		set.add(codec.name);
+		named.set(codec.in, set);
+	}
+	const codecFor = (location, name) => envelope.new.get(codecKey$1(location, name)) ?? envelope.old.get(codecKey$1(location, name)) ?? {
+		in: location,
+		name,
+		type: "string",
+		...FALLBACK$1[location]
+	};
+	const partOf = (location) => tree[PART[location]] ?? {};
+	let path = request.path;
+	const pathNamed = named.get("path");
+	if (pathNamed && pathNamed.size > 0) {
+		const names = templateNames$1(template);
+		const values = partOf("path");
+		const filled = names.map((name, index) => {
+			if (!pathNamed.has(name)) return pathValues[index];
+			const value = values[name];
+			const changeId = writerOf$1(envelope.instrs, PART.path, name);
+			if (value === void 0 || value === null) throw new TransformError(changeId, `path parameter ${name} was left without a value`);
+			return encodeURIComponent(encodeValue(value, codecFor("path", name), changeId)[0] ?? "");
+		});
+		let next = 0;
+		path = template.map((segment) => segment.replace(/\{[^{}]+\}/g, () => {
+			const value = filled[next] ?? "";
+			next += 1;
+			return value;
+		})).join("/");
+	}
+	let search = request.search;
+	const queryNamed = named.get("query");
+	if (queryNamed && queryNamed.size > 0) {
+		const kept = queryPairs(request.search).filter((pair) => !queryNamed.has(pair.key) && ![...queryNamed].some((name) => pair.key.startsWith(`${name}[`) && pair.key.endsWith("]"))).map((pair) => pair.raw);
+		const written = [];
+		for (const [name, value] of Object.entries(partOf("query"))) {
+			if (value === void 0) continue;
+			const codec = codecFor("query", name);
+			const changeId = writerOf$1(envelope.instrs, PART.query, name);
+			if (codec.style === "deepObject" && typeof value === "object" && value !== null && !Array.isArray(value) && !numberLike(value)) {
+				for (const [key, entry] of Object.entries(value)) written.push(`${encodeURIComponent(name)}[${encodeURIComponent(key)}]=${encodeURIComponent(text$1(entry, changeId, `query parameter ${name}`))}`);
+				continue;
+			}
+			const parts = encodeValue(value, codec, changeId);
+			const separator = codec.explode ? void 0 : delimiterOf(codec);
+			for (const part of parts) {
+				const encoded = separator === void 0 ? encodeURIComponent(part) : part.split(separator).map(encodeURIComponent).join(separator === " " ? "%20" : separator);
+				written.push(`${encodeURIComponent(name)}=${encoded}`);
+			}
+		}
+		search = [...kept, ...written].join("&");
+	}
+	let headers = request.headers;
+	const headerNamed = named.get("header");
+	const cookieNamed = named.get("cookie");
+	if (headerNamed && headerNamed.size > 0 || cookieNamed && cookieNamed.size > 0) {
+		const lowered = new Set([...headerNamed ?? []].map((name) => name.toLowerCase()));
+		headers = request.headers.filter(([name]) => {
+			const lower = name.toLowerCase();
+			if (lowered.has(lower)) return false;
+			return !(cookieNamed && cookieNamed.size > 0 && lower === "cookie");
+		});
+		for (const [name, value] of Object.entries(partOf("header"))) {
+			if (value === void 0) continue;
+			const changeId = writerOf$1(envelope.instrs, PART.header, name);
+			const written = encodeValue(value, codecFor("header", name), changeId)[0] ?? "";
+			if (UNSAFE_HEADER.test(written)) throw new TransformError(changeId, `header ${name} would carry a line break`);
+			headers.push([name.toLowerCase(), written]);
+		}
+		if (cookieNamed && cookieNamed.size > 0) {
+			const kept = cookiePairs(request.headers).filter(([name]) => !cookieNamed.has(name));
+			const written = [];
+			for (const [name, value] of Object.entries(partOf("cookie"))) {
+				if (value === void 0) continue;
+				const changeId = writerOf$1(envelope.instrs, PART.cookie, name);
+				for (const part of encodeValue(value, codecFor("cookie", name), changeId)) {
+					if (UNSAFE_COOKIE.test(part)) throw new TransformError(changeId, `cookie ${name} would carry a separator`);
+					written.push([name, part]);
+				}
+			}
+			const all = [...kept, ...written];
+			if (all.length > 0) headers.push(["cookie", all.map(([name, value]) => `${name}=${value}`).join("; ")]);
+		}
+	}
+	let body = request.body;
+	if (envelope.body && tree[PART.body] !== void 0) body = stringifyJson(tree[PART.body]);
+	else if (envelope.body && body !== void 0 && body !== "") body = "";
+	return {
+		path,
+		search,
+		headers,
+		body
+	};
+}
+//#endregion
+//#region ../runtime/src/form.ts
+/**
+* Form-encoded bodies, as a tree and back.
+*
+* Stripe, Twilio, Slack and every OAuth token endpoint take
+* `application/x-www-form-urlencoded` requests. A program describes fields,
+* not encodings, so the same instructions run whether a body arrived as JSON
+* or as a form: the form is decoded into a tree, the instructions run, and the
+* tree is written back.
+*
+* Only the top-level fields a program names are decoded and rewritten, in the
+* style each is declared with: bracketed keys for a `deepObject`, as Stripe
+* writes `metadata[order_id]=6735` and `items[0][price]=p_1`, and plain keys
+* otherwise, repeated for a list as Twilio writes them. Every other pair keeps
+* its exact bytes and its place.
+*/
+const PLAIN = {
+	style: "form",
+	explode: true
+};
+const JSON_NUMBER = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/;
+function decodeComponent(text) {
+	try {
+		return decodeURIComponent(text.replace(/\+/g, " "));
+	} catch {
+		return text;
+	}
+}
+function pairsOf(text) {
+	if (text === "") return [];
+	return text.split("&").flatMap((raw) => {
+		if (raw === "") return [];
+		const equals = raw.indexOf("=");
+		return [equals === -1 ? {
+			raw,
+			key: decodeComponent(raw),
+			value: ""
+		} : {
+			raw,
+			key: decodeComponent(raw.slice(0, equals)),
+			value: decodeComponent(raw.slice(equals + 1))
+		}];
+	});
+}
+/** How deeply a form key may nest, far beyond Stripe's deepest. */
+const MAX_FORM_DEPTH = 32;
+/** `a[b][0]` as its root and the segments under it; `a[]` ends in an append. */
+function keyPath(key) {
+	const open = key.indexOf("[");
+	if (open === -1) return {
+		root: key,
+		segments: []
+	};
+	const root = key.slice(0, open);
+	const segments = [];
+	let rest = key.slice(open);
+	while (rest.length > 0) {
+		const match = /^\[([^[\]]*)\]/.exec(rest);
+		if (!match) return void 0;
+		segments.push(match[1]);
+		if (segments.length > MAX_FORM_DEPTH) throw new BodyTooDeepError(MAX_FORM_DEPTH);
+		rest = rest.slice(match[0].length);
+	}
+	return {
+		root,
+		segments
+	};
+}
+/** The root a pair belongs to, so a named field can take all of its pairs. */
+function rootOf(key) {
+	const open = key.indexOf("[");
+	return open === -1 ? key : key.slice(0, open);
+}
+/** Objects whose keys run 0, 1, 2 ... are the lists they were written from. */
+function listsFromIndexes(value) {
+	if (Array.isArray(value)) return value.map(listsFromIndexes);
+	if (typeof value !== "object" || value === null) return value;
+	const node = value;
+	const keys = Object.keys(node);
+	for (const key of keys) node[key] = listsFromIndexes(node[key]);
+	if (keys.length > 0 && keys.every((key, index) => key === String(index))) return keys.map((key) => node[key]);
+	return node;
+}
+function bracketed(pairs, root) {
+	let tree;
+	for (const pair of pairs) {
+		const path = keyPath(pair.key);
+		if (!path || path.root !== root) continue;
+		if (path.segments.length === 0) return pair.value;
+		tree ??= {};
+		let node = tree;
+		for (const [index, segment] of path.segments.entries()) {
+			const last = index === path.segments.length - 1;
+			const key = segment === "" ? String(Object.keys(node).length) : segment;
+			if (isUnsafeKey(key)) break;
+			if (last) node[key] = pair.value;
+			else {
+				const next = node[key];
+				if (typeof next !== "object" || next === null) node[key] = {};
+				node = node[key];
+			}
+		}
+	}
+	return tree === void 0 ? void 0 : listsFromIndexes(tree);
+}
+function typeAt(value, type, fidelity) {
+	if (typeof value !== "string" || type === void 0) return value;
+	if ((type === "integer" || type === "number") && JSON_NUMBER.test(value)) return parseJson(value, fidelity);
+	if (type === "boolean" && (value === "true" || value === "false")) return value === "true";
+	return value;
+}
+/** Types every leaf the program reads, walking `*` over list items. */
+function applyTypes(tree, types, fidelity) {
+	for (const [pointer, type] of types) {
+		if (type === "array" || type === "object") continue;
+		const segments = pointer.split("/").slice(1).map((segment) => segment.replace(/~1/g, "/").replace(/~0/g, "~"));
+		const visit = (holder, at) => {
+			const segment = segments[at];
+			const keys = segment === "*" ? Array.isArray(holder) ? holder.map((_, index) => String(index)) : [] : segment === "{}" ? Array.isArray(holder) ? [] : Object.keys(holder).filter((key) => !isUnsafeKey(key)) : [segment];
+			for (const key of keys) {
+				const container = holder;
+				if (!Object.hasOwn(container, key)) continue;
+				if (at === segments.length - 1) container[key] = typeAt(container[key], type, fidelity);
+				else {
+					const next = container[key];
+					if (typeof next === "object" && next !== null) visit(next, at + 1);
+				}
+			}
+		};
+		if (segments.length > 0) visit(tree, 0);
+	}
+}
+/**
+* The fields a program names, decoded from the form into a tree. Only
+* `roots` are read; a field of the form no instruction names never is.
+*/
+function openForm(form, roots, text, fidelity) {
+	const pairs = pairsOf(text);
+	const tree = {};
+	for (const root of roots) {
+		if (isUnsafeKey(root)) continue;
+		const field = form.fields.get(root) ?? PLAIN;
+		const declared = form.types.get(`/${root}`);
+		const mine = pairs.filter((pair) => rootOf(pair.key) === root);
+		if (mine.length === 0) continue;
+		if (field.style === "deepObject" || mine.some((pair) => pair.key !== root)) {
+			const value = bracketed(mine, root);
+			if (value !== void 0) tree[root] = value;
+			continue;
+		}
+		const values = mine.map((pair) => pair.value);
+		if (declared === "array") tree[root] = field.explode ? values : (values[0] ?? "").split(",");
+		else if (declared === "object" && !field.explode) {
+			const flat = (values[0] ?? "").split(",");
+			const object = {};
+			for (let index = 0; index + 1 < flat.length; index += 2) {
+				const key = flat[index];
+				if (!isUnsafeKey(key)) object[key] = flat[index + 1];
+			}
+			tree[root] = object;
+		} else tree[root] = values.length === 1 ? values[0] : values;
+	}
+	applyTypes(tree, form.types, fidelity);
+	return tree;
+}
+function text(value, changeId, where) {
+	if (typeof value === "string") return value;
+	if (typeof value === "boolean") return String(value);
+	if (value === null) return "";
+	try {
+		return numberTextOf(value);
+	} catch {
+		throw new TransformError(changeId, `${where} holds a value a form cannot write`);
+	}
+}
+const isNode = (value) => typeof value === "object" && value !== null && !Array.isArray(value) && !JSON.isRawJSON(value);
+function encodeKey(root, segments) {
+	return `${encodeURIComponent(root)}${segments.map((segment) => `[${encodeURIComponent(segment)}]`).join("")}`;
+}
+/** One field of the tree as the pairs a form carries it in. */
+function encodeField(root, value, field, changeId) {
+	const out = [];
+	const nested = (segments, node) => {
+		if (Array.isArray(node)) {
+			for (const [index, item] of node.entries()) nested([...segments, String(index)], item);
+			return;
+		}
+		if (isNode(node)) {
+			for (const [key, child] of Object.entries(node)) nested([...segments, key], child);
+			return;
+		}
+		out.push(`${encodeKey(root, segments)}=${encodeURIComponent(text(node, changeId, root))}`);
+	};
+	if (field.style === "deepObject" || isNode(value) || Array.isArray(value) && value.some((item) => isNode(item) || Array.isArray(item))) {
+		if (field.style !== "deepObject" && isNode(value) && !field.explode) {
+			const flat = Object.entries(value).flatMap(([key, child]) => [key, text(child, changeId, root)]);
+			out.push(`${encodeURIComponent(root)}=${flat.map(encodeURIComponent).join(",")}`);
+			return out;
+		}
+		nested([], value);
+		return out;
+	}
+	if (Array.isArray(value)) {
+		const items = value.map((item) => text(item, changeId, root));
+		if (field.explode) for (const item of items) out.push(`${encodeURIComponent(root)}=${encodeURIComponent(item)}`);
+		else out.push(`${encodeURIComponent(root)}=${items.map(encodeURIComponent).join(",")}`);
+		return out;
+	}
+	out.push(`${encodeURIComponent(root)}=${encodeURIComponent(text(value, changeId, root))}`);
+	return out;
+}
+/** The change that last wrote under a root, for naming a refusal. */
+function writerOf(instrs, root, depth) {
+	for (let index = instrs.length - 1; index >= 0; index -= 1) {
+		const instr = instrs[index];
+		if (touchedPaths(instr).some((path) => path[depth] === root)) return instr.c;
+	}
+	return instrs[0]?.c ?? "";
+}
+/**
+* Writes the named fields back. A field the program took away is gone; one it
+* moved in is written in the style its declaration gives it.
+*/
+function closeForm(form, roots, original, tree, instrs, depth) {
+	const kept = pairsOf(original).filter((pair) => !roots.has(rootOf(pair.key))).map((pair) => pair.raw);
+	const written = [];
+	for (const [root, value] of Object.entries(tree)) {
+		if (value === void 0 || !roots.has(root)) continue;
+		written.push(...encodeField(root, value, form.fields.get(root) ?? PLAIN, writerOf(instrs, root, depth)));
+	}
+	return [...kept, ...written].join("&");
+}
+/** The top-level fields a list of instructions names, under `depth` leading segments. */
+function formRoots(instrs, depth) {
+	const roots = /* @__PURE__ */ new Set();
+	for (const instr of instrs) for (const path of touchedPaths(instr)) {
+		if (depth === 1 && path[0] !== "@body") continue;
+		const root = path[depth];
+		if (root !== void 0 && !isWildcard(root)) roots.add(root);
+	}
+	return roots;
+}
+function isFormMediaType(contentType) {
+	if (!contentType) return false;
+	return (contentType.split(";")[0]?.trim().toLowerCase() ?? "") === "application/x-www-form-urlencoded";
+}
+//#endregion
+//#region ../runtime/src/http.ts
+/**
+* The HTTP rules every binding follows when it has to read a body.
+*
+* They lived in the proxy alone, and the in-process binding had none: it read
+* whatever arrived, however large, whatever its type, and handed it to
+* `JSON.parse`. A CSV export, a multipart upload or a compressed response on
+* an adapted operation all became errors a caller could do nothing about. One
+* copy of the rules, here, is how the bindings stop disagreeing.
+*
+* Nothing in this file touches the network or the file system. It uses only
+* web-standard globals, so it runs wherever the runtime does.
+*/
+/**
+* Whether a body of this type is one a compiled program describes.
+*
+* Programs are compiled from a document's JSON representations, so anything
+* else, an HTML error page, a file, an event stream, is outside what the
+* program says and passes through untouched rather than being guessed at.
+*/
+function isJsonMediaType(contentType) {
+	if (!contentType) return false;
+	const media = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
+	return media === "application/json" || media.endsWith("+json");
+}
+/** Web-standard names for each encoding `DecompressionStream` understands. */
+const DECODERS = {
+	gzip: "gzip",
+	"x-gzip": "gzip",
+	deflate: "deflate",
+	br: "brotli"
+};
+/**
+* Reads a body as text, refusing past the limit without holding the rest.
+*
+* A declared length over the limit is refused before a byte is read. One that
+* lies, or none at all, is counted as it arrives. The count is of decoded
+* bytes, because a small compressed body can expand to anything, and a limit
+* that only measured the wire would let a caller buffer an unbounded one.
+*/
+async function readBodyText(message, options) {
+	const encoding = (message.headers.get("content-encoding") ?? "").split(",").map((token) => token.trim().toLowerCase()).filter((token) => token !== "" && token !== "identity");
+	const decoding = options.encoded && encoding.length > 0;
+	const declared = Number(message.headers.get("content-length"));
+	if (!decoding && Number.isFinite(declared) && declared > options.limit) throw new BodyTooLargeError(options.limit);
+	if (!message.body) return {
+		text: "",
+		decoded: false
+	};
+	let stream = message.body;
+	if (decoding) for (const token of [...encoding].reverse()) {
+		const format = DECODERS[token];
+		if (format === void 0) throw new UnsupportedEncodingError(token);
+		let decoder;
+		try {
+			decoder = new DecompressionStream(format);
+		} catch {
+			throw new UnsupportedEncodingError(token);
+		}
+		stream = stream.pipeThrough(decoder);
+	}
+	const reader = stream.getReader();
+	const chunks = [];
+	let size = 0;
+	try {
+		for (;;) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			size += value.byteLength;
+			if (size > options.limit) {
+				await reader.cancel();
+				throw new BodyTooLargeError(options.limit);
+			}
+			chunks.push(value);
+		}
+	} catch (error) {
+		if (error instanceof BodyTooLargeError) throw error;
+		if (decoding) throw new UnsupportedEncodingError(encoding.join(", "));
+		throw error;
+	}
+	const whole = new Uint8Array(size);
+	let at = 0;
+	for (const chunk of chunks) {
+		whole.set(chunk, at);
+		at += chunk.byteLength;
+	}
+	return {
+		text: new TextDecoder().decode(whole),
+		decoded: decoding
+	};
+}
+/** Headers for a body rebuilt from text: new length, and no stale encoding. */
+function headersForText(source, text, decoded) {
+	const headers = new Headers(source);
+	if (decoded) headers.delete("content-encoding");
+	headers.delete("content-md5");
+	headers.delete("digest");
+	headers.delete("repr-digest");
+	headers.delete("content-digest");
+	headers.set("content-length", String(new TextEncoder().encode(text).byteLength));
+	return headers;
+}
+//#endregion
+//#region ../runtime/src/program.ts
+var ProgramError = class extends Error {
+	constructor(message) {
+		super(message);
+		this.name = "ProgramError";
+	}
+};
+const HTTP_METHODS = /* @__PURE__ */ new Set([
+	"get",
+	"put",
+	"post",
+	"delete",
+	"options",
+	"head",
+	"patch",
+	"trace"
+]);
+const SCALARS = /* @__PURE__ */ new Set([
+	"string",
+	"integer",
+	"number",
+	"boolean"
+]);
+const TIME_FORMATS = /* @__PURE__ */ new Set([
+	"epoch-s",
+	"epoch-ms",
+	"rfc3339"
+]);
+const STRING_CASES = /* @__PURE__ */ new Set([
+	"snake",
+	"screaming",
+	"kebab",
+	"camel",
+	"pascal"
+]);
+function object$1(value, where) {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) throw new ProgramError(`${where} must be an object`);
+	return value;
+}
+function string$1(value, where) {
+	if (typeof value !== "string") throw new ProgramError(`${where} must be a string`);
+	return value;
+}
+function array$1(value, where) {
+	if (!Array.isArray(value)) throw new ProgramError(`${where} must be an array`);
+	return value;
+}
+function expectKeys(value, allowed, where) {
+	for (const key of Object.keys(value)) if (!allowed.includes(key)) throw new ProgramError(`${where} has an unexpected field "${key}"`);
+}
+const POINTER_SEGMENT = /^([^/~]|~[01])*$/;
+function segmentsOf(pointer, where) {
+	if (pointer === "") return [];
+	if (!pointer.startsWith("/")) throw new ProgramError(`${where} must be a JSON Pointer, got "${pointer}"`);
+	return pointer.slice(1).split("/").map((raw) => {
+		if (raw !== "*" && !POINTER_SEGMENT.test(raw)) throw new ProgramError(`${where} has an invalid segment "${raw}"`);
+		const decoded = isWildcard(raw) ? raw : raw.replace(/~1/g, "/").replace(/~0/g, "~");
+		if (isUnsafeKey(decoded)) throw new ProgramError(`${where} may not name "${decoded}"`);
+		return decoded;
+	});
+}
+/** The wildcards in a path, in order; a move has to take list to list and map to map. */
+function wildcardsOf(segments) {
+	return segments.filter(isWildcard).join(",");
+}
+/**
+* How deeply blocks may nest. A union inside a union inside a list is three;
+* nothing a compiler emits needs more, and each level multiplies how many
+* places one instruction can reach.
+*/
+const MAX_BLOCK_DEPTH = 8;
+const NO_BLOCKS = /* @__PURE__ */ new Map();
+const JSON_KINDS = /* @__PURE__ */ new Set([
+	"object",
+	"array",
+	"string",
+	"number",
+	"boolean",
+	"null"
+]);
+function decodeBlock(raw, where, depth, blocks, descended) {
+	if (depth > MAX_BLOCK_DEPTH) throw new ProgramError(`${where} nests blocks more than ${MAX_BLOCK_DEPTH} deep`);
+	return array$1(raw, where).map((instr, index) => decodeInstr(instr, `${where}[${index}]`, depth, blocks, descended));
+}
+/**
+* `descended` is whether the instruction runs on a value a `within` went down
+* to, the only place one may write the value itself: an object replaced by
+* its id, or a list item removed. A named block may be called anywhere, so it
+* is allowed there and refused at run time where it stands on a whole body.
+*/
+function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = false) {
+	const itself = (path, field) => {
+		if (path.length === 0 && !descended) throw new ProgramError(`${where}.${field} writes a whole body, which only a value inside one can be`);
+	};
+	const value = object$1(raw, where);
+	const kind = string$1(value["k"], `${where}.k`);
+	const changeId = string$1(value["c"], `${where}.c`);
+	switch (kind) {
+		case "within": {
+			expectKeys(value, [
+				"k",
+				"path",
+				"block",
+				"c"
+			], where);
+			const path = segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`);
+			return {
+				k: "within",
+				path,
+				block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks, descended || path.length > 0),
+				c: changeId
+			};
+		}
+		case "call": {
+			expectKeys(value, [
+				"k",
+				"block",
+				"c"
+			], where);
+			const name = string$1(value["block"], `${where}.block`);
+			const target = blocks.get(name);
+			if (!target) throw new ProgramError(`${where} calls "${name}", which is no block`);
+			return {
+				k: "call",
+				name,
+				target,
+				c: changeId
+			};
+		}
+		case "switch":
+		case "has":
+		case "is": {
+			const path = segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`);
+			if (path.some(isWildcard)) throw new ProgramError(`${where}.path reads a key through a wildcard`);
+			if (kind === "has") {
+				expectKeys(value, [
+					"k",
+					"path",
+					"block",
+					"absent",
+					"c"
+				], where);
+				if (path.length === 0) throw new ProgramError(`${where}.path names nothing`);
+				return {
+					k: "has",
+					path,
+					block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks, descended),
+					...onlyTrue(value["absent"], `${where}.absent`) ? { absent: true } : {},
+					c: changeId
+				};
+			}
+			if (kind === "is") {
+				expectKeys(value, [
+					"k",
+					"path",
+					"type",
+					"block",
+					"c"
+				], where);
+				const type = value["type"];
+				if (typeof type !== "string" || !JSON_KINDS.has(type)) throw new ProgramError(`${where}.type is not a JSON type`);
+				return {
+					k: "is",
+					path,
+					type,
+					block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks, descended),
+					c: changeId
+				};
+			}
+			expectKeys(value, [
+				"k",
+				"path",
+				"cases",
+				"c"
+			], where);
+			const cases = /* @__PURE__ */ new Map();
+			for (const [key, block] of Object.entries(object$1(value["cases"], `${where}.cases`))) cases.set(key, decodeBlock(block, `${where}.cases.${key}`, depth + 1, blocks, descended));
+			return {
+				k: "switch",
+				path,
+				cases,
+				c: changeId
+			};
+		}
+		case "move": {
+			expectKeys(value, [
+				"k",
+				"from",
+				"to",
+				"c"
+			], where);
+			const from = segmentsOf(string$1(value["from"], `${where}.from`), `${where}.from`);
+			const to = segmentsOf(string$1(value["to"], `${where}.to`), `${where}.to`);
+			if (wildcardsOf(from) !== wildcardsOf(to)) throw new ProgramError(`${where} moves between paths whose wildcards do not line up`);
+			if (from.length === 0) throw new ProgramError(`${where} cannot move the document root`);
+			itself(to, "to");
+			return {
+				k: "move",
+				from,
+				to,
+				c: changeId
+			};
+		}
+		case "scale": {
+			expectKeys(value, [
+				"k",
+				"path",
+				"exp",
+				"c"
+			], where);
+			const exp = value["exp"];
+			if (typeof exp !== "number" || !Number.isInteger(exp) || exp < -9 || exp > 9) throw new ProgramError(`${where}.exp must be an integer between -9 and 9`);
+			return {
+				k: "scale",
+				path: segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`),
+				exp,
+				c: changeId
+			};
+		}
+		case "enum": {
+			expectKeys(value, [
+				"k",
+				"path",
+				"map",
+				"lenient",
+				"folded",
+				"c"
+			], where);
+			const lenient = value["lenient"];
+			if (lenient !== void 0 && typeof lenient !== "boolean") throw new ProgramError(`${where}.lenient must be a boolean`);
+			const map = object$1(value["map"], `${where}.map`);
+			const decoded = {};
+			for (const [from, to] of Object.entries(map)) decoded[from] = string$1(to, `${where}.map.${from}`);
+			const rawFolded = value["folded"];
+			let folded;
+			if (rawFolded !== void 0) {
+				folded = array$1(rawFolded, `${where}.folded`).map((entry, index) => string$1(entry, `${where}.folded[${index}]`));
+				for (const key of folded) if (!Object.hasOwn(decoded, key)) throw new ProgramError(`${where}.folded names "${key}", which the map does not`);
+			}
+			return {
+				k: "enum",
+				path: segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`),
+				map: decoded,
+				...lenient === true ? { lenient: true } : {},
+				...folded !== void 0 && folded.length > 0 ? { folded } : {},
+				c: changeId
+			};
+		}
+		case "cast": {
+			expectKeys(value, [
+				"k",
+				"path",
+				"to",
+				"c"
+			], where);
+			const to = string$1(value["to"], `${where}.to`);
+			if (!SCALARS.has(to)) throw new ProgramError(`${where}.to is not a scalar type`);
+			return {
+				k: "cast",
+				path: segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`),
+				to,
+				c: changeId
+			};
+		}
+		case "time": {
+			expectKeys(value, [
+				"k",
+				"path",
+				"from",
+				"to",
+				"truncate",
+				"c"
+			], where);
+			const from = string$1(value["from"], `${where}.from`);
+			const to = string$1(value["to"], `${where}.to`);
+			if (!TIME_FORMATS.has(from) || !TIME_FORMATS.has(to) || from === to) throw new ProgramError(`${where} must name two different time formats`);
+			return {
+				k: "time",
+				path: segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`),
+				from,
+				to,
+				...onlyTrue(value["truncate"], `${where}.truncate`) ? { truncate: true } : {},
+				c: changeId
+			};
+		}
+		case "case": {
+			expectKeys(value, [
+				"k",
+				"path",
+				"from",
+				"to",
+				"c"
+			], where);
+			const from = string$1(value["from"], `${where}.from`);
+			const to = string$1(value["to"], `${where}.to`);
+			if (!STRING_CASES.has(from) || !STRING_CASES.has(to) || from === to) throw new ProgramError(`${where} must name two different cases`);
+			return {
+				k: "case",
+				path: segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`),
+				from,
+				to,
+				c: changeId
+			};
+		}
+		case "wrap":
+			expectKeys(value, [
+				"k",
+				"path",
+				"c"
+			], where);
+			return {
+				k: "wrap",
+				path: segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`),
+				c: changeId
+			};
+		case "unwrap":
+			expectKeys(value, [
+				"k",
+				"path",
+				"first",
+				"c"
+			], where);
+			return {
+				k: "unwrap",
+				path: segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`),
+				...onlyTrue(value["first"], `${where}.first`) ? { first: true } : {},
+				c: changeId
+			};
+		case "set": {
+			expectKeys(value, [
+				"k",
+				"path",
+				"value",
+				"ifAbsent",
+				"ifNull",
+				"c"
+			], where);
+			if (typeof value["ifAbsent"] !== "boolean") throw new ProgramError(`${where}.ifAbsent must be a boolean`);
+			const path = segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`);
+			itself(path, "path");
+			if (path.length === 0 && (value["ifAbsent"] || value["ifNull"] !== void 0)) throw new ProgramError(`${where} replaces the value itself, which is never absent`);
+			return {
+				k: "set",
+				path,
+				value: value["value"],
+				ifAbsent: value["ifAbsent"],
+				...onlyTrue(value["ifNull"], `${where}.ifNull`) ? { ifNull: true } : {},
+				c: changeId
+			};
+		}
+		case "del": {
+			expectKeys(value, [
+				"k",
+				"path",
+				"ifNull",
+				"c"
+			], where);
+			const path = segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`);
+			itself(path, "path");
+			if (path.length === 0 && value["ifNull"] !== void 0) throw new ProgramError(`${where} removes the value itself, which is never null`);
+			return {
+				k: "del",
+				path,
+				...onlyTrue(value["ifNull"], `${where}.ifNull`) ? { ifNull: true } : {},
+				c: changeId
+			};
+		}
+		default: throw new ProgramError(`${where} has an unknown instruction "${kind}"`);
+	}
+}
+function needsExactNumbers(instrs, entered = /* @__PURE__ */ new Set()) {
+	return instrs.some((instr) => {
+		if (instr.k === "scale" || instr.k === "cast" || instr.k === "time") return true;
+		if (instr.k === "within" || instr.k === "has" || instr.k === "is") return needsExactNumbers(instr.block, entered);
+		if (instr.k === "switch") return [...instr.cases.values()].some((block) => needsExactNumbers(block, entered));
+		if (instr.k === "call") {
+			if (entered.has(instr.name)) return false;
+			entered.add(instr.name);
+			return needsExactNumbers(instr.target.instrs, entered);
+		}
+		return false;
+	});
+}
+/**
+* Refuses blocks that could call one another forever on one value.
+*
+* A call runs where it stands; only a `within` with a path moves to a value
+* inside. So a cycle of calls none of which sits under such a `within` would
+* run on the same value without end, and a program containing one is refused
+* rather than trusted. Every cycle that remains descends on each turn, and so
+* ends where the value does.
+*/
+function refuseStandingCycles(blocks, where) {
+	/** The blocks a list calls without first descending into the value. */
+	const standing = (instrs, into) => {
+		for (const instr of instrs) if (instr.k === "call") into.add(instr.name);
+		else if (instr.k === "within" && instr.path.length === 0) standing(instr.block, into);
+		else if (instr.k === "has" || instr.k === "is") standing(instr.block, into);
+		else if (instr.k === "switch") for (const block of instr.cases.values()) standing(block, into);
+	};
+	const edges = /* @__PURE__ */ new Map();
+	for (const [name, holder] of blocks) {
+		const into = /* @__PURE__ */ new Set();
+		standing(holder.instrs, into);
+		edges.set(name, into);
+	}
+	const state = /* @__PURE__ */ new Map();
+	const visit = (name, trail) => {
+		if (state.get(name) === "done") return;
+		if (state.get(name) === "open") throw new ProgramError(`${where} call one another without descending: ${[...trail, name].join(" -> ")}`);
+		state.set(name, "open");
+		for (const next of edges.get(name) ?? []) visit(next, [...trail, name]);
+		state.set(name, "done");
+	};
+	for (const name of blocks.keys()) visit(name, []);
+}
+/** A contract's blocks: every name first, so a block can call any of them, itself included. */
+function decodeBlocks(raw, where) {
+	if (raw === void 0) return NO_BLOCKS;
+	const entries = Object.entries(object$1(raw, where));
+	const blocks = /* @__PURE__ */ new Map();
+	for (const [name] of entries) {
+		if (name.length === 0 || name.length > 256) throw new ProgramError(`${where} has a block name that is empty or too long`);
+		blocks.set(name, { instrs: [] });
+	}
+	for (const [name, list] of entries) blocks.get(name).instrs = decodeBlock(list, `${where}["${name}"]`, 0, blocks, true);
+	refuseStandingCycles(blocks, where);
+	return blocks;
+}
+const LOCATIONS = {
+	"@path": "path",
+	"@query": "query",
+	"@header": "header",
+	"@cookie": "cookie"
+};
+/**
+* Styles each location can be written in. `label` and `matrix` path styles
+* and exploded form objects are left out on purpose: the first two are rare
+* enough to refuse rather than half-support, and an exploded form object
+* spreads its properties across the query string with nothing to say which
+* keys belong to it.
+*/
+const STYLES = {
+	path: ["simple"],
+	query: [
+		"form",
+		"spaceDelimited",
+		"pipeDelimited",
+		"deepObject"
+	],
+	header: ["simple"],
+	cookie: ["form"]
+};
+const PARAM_TYPES = /* @__PURE__ */ new Set([
+	"string",
+	"integer",
+	"number",
+	"boolean",
+	"array",
+	"object"
+]);
+/**
+* Headers no program may touch. The compiler refuses these first; this is the
+* copy the runtime holds, so a program built by anything else is refused too.
+* `DENIED_HEADERS` in `@invariant/ir` is the list, and a test keeps them equal.
+*/
+const RUNTIME_DENIED_HEADERS = /* @__PURE__ */ new Set([
+	"authorization",
+	"proxy-authorization",
+	"cookie",
+	"set-cookie",
+	"host",
+	"connection",
+	"keep-alive",
+	"proxy-connection",
+	"te",
+	"trailer",
+	"transfer-encoding",
+	"upgrade",
+	"expect",
+	"content-length",
+	"content-type",
+	"content-encoding",
+	"x-api-key",
+	"api-key",
+	"x-auth-token"
+]);
+const RUNTIME_DENIED_WORDS = /signature|hmac|digest|credential|secret/;
+function decodeCodec(raw, where) {
+	const value = object$1(raw, where);
+	expectKeys(value, [
+		"in",
+		"name",
+		"style",
+		"explode",
+		"type",
+		"items"
+	], where);
+	const location = string$1(value["in"], `${where}.in`);
+	if (!(location in STYLES)) throw new ProgramError(`${where}.in is not a parameter location`);
+	const name = string$1(value["name"], `${where}.name`);
+	if (name === "" || isUnsafeKey(name)) throw new ProgramError(`${where}.name may not be "${name}"`);
+	if (location === "header") {
+		if (name !== name.toLowerCase()) throw new ProgramError(`${where}.name must be lowercase for a header`);
+		if (RUNTIME_DENIED_HEADERS.has(name) || RUNTIME_DENIED_WORDS.test(name)) throw new ProgramError(`${where} names the ${name} header, which no program may touch`);
+	}
+	const style = string$1(value["style"], `${where}.style`);
+	if (!STYLES[location].includes(style)) throw new ProgramError(`${where}.style ${style} is not served for a ${location} parameter`);
+	const explode = value["explode"];
+	if (typeof explode !== "boolean") throw new ProgramError(`${where}.explode must be a boolean`);
+	const type = string$1(value["type"], `${where}.type`);
+	if (!PARAM_TYPES.has(type)) throw new ProgramError(`${where}.type is not a parameter type`);
+	if (type === "object" && explode && style === "form") throw new ProgramError(`${where} is an exploded form object, which is not served`);
+	if (style === "deepObject" && type !== "object") throw new ProgramError(`${where} is a deepObject that is not an object`);
+	const items = value["items"];
+	if (items !== void 0 && (type !== "array" || !SCALARS.has(items))) throw new ProgramError(`${where}.items must be a scalar type, on an array`);
+	return {
+		in: location,
+		name,
+		style,
+		explode,
+		type,
+		...items === void 0 ? {} : { items }
+	};
+}
+function decodeEnvelope(raw, where, blocks) {
+	const value = object$1(raw, where);
+	expectKeys(value, [
+		"instrs",
+		"params",
+		"body"
+	], where);
+	const instrs = array$1(value["instrs"], `${where}.instrs`).map((instr, index) => decodeInstr(instr, `${where}.instrs[${index}]`, 0, blocks));
+	const params = object$1(value["params"], `${where}.params`);
+	expectKeys(params, ["old", "new"], `${where}.params`);
+	const codecs = (side) => {
+		const map = /* @__PURE__ */ new Map();
+		array$1(params[side], `${where}.params.${side}`).forEach((entry, index) => {
+			const codec = decodeCodec(entry, `${where}.params.${side}[${index}]`);
+			map.set(codecKey$1(codec.in, codec.name), codec);
+		});
+		return map;
+	};
+	const old = codecs("old");
+	const next = codecs("new");
+	const body = value["body"];
+	if (typeof body !== "boolean") throw new ProgramError(`${where}.body must be a boolean`);
+	instrs.forEach((instr, index) => {
+		for (const path of touchedPaths(instr)) {
+			const part = path[0];
+			if (part === "@body") {
+				if (!body) throw new ProgramError(`${where}.instrs[${index}] reaches the body, which body says is not read`);
+				continue;
+			}
+			const location = part === void 0 ? void 0 : LOCATIONS[part];
+			const name = path[1];
+			if (location === void 0 || name === void 0 || name === "*") throw new ProgramError(`${where}.instrs[${index}] must address one named parameter or the body`);
+			const key = codecKey$1(location, name);
+			if (!old.has(key) && !next.has(key)) throw new ProgramError(`${where}.instrs[${index}] names the ${location} parameter ${name}, which params does not declare`);
+			if (location === "path" && instr.k !== "scale" && instr.k !== "enum" && instr.k !== "cast" && instr.k !== "time" && instr.k !== "case") throw new ProgramError(`${where}.instrs[${index}] can only convert a path parameter`);
+		}
+	});
+	return {
+		instrs,
+		old,
+		new: next,
+		body
+	};
+}
+const FORM_TYPES = /* @__PURE__ */ new Set([
+	"string",
+	"integer",
+	"number",
+	"boolean",
+	"array",
+	"object"
+]);
+function decodeForm(raw, where) {
+	const value = object$1(raw, where);
+	expectKeys(value, ["fields", "types"], where);
+	const fields = /* @__PURE__ */ new Map();
+	for (const [name, entry] of Object.entries(object$1(value["fields"], `${where}.fields`))) {
+		if (isUnsafeKey(name)) throw new ProgramError(`${where}.fields may not name "${name}"`);
+		const field = object$1(entry, `${where}.fields.${name}`);
+		expectKeys(field, ["style", "explode"], `${where}.fields.${name}`);
+		const style = field["style"];
+		if (style !== "form" && style !== "deepObject") throw new ProgramError(`${where}.fields.${name}.style must be form or deepObject`);
+		if (typeof field["explode"] !== "boolean") throw new ProgramError(`${where}.fields.${name}.explode must be a boolean`);
+		fields.set(name, {
+			style,
+			explode: field["explode"]
+		});
+	}
+	const types = /* @__PURE__ */ new Map();
+	for (const [pointer, type] of Object.entries(object$1(value["types"], `${where}.types`))) {
+		segmentsOf(pointer, `${where}.types`);
+		if (typeof type !== "string" || !FORM_TYPES.has(type)) throw new ProgramError(`${where}.types["${pointer}"] is not a type`);
+		types.set(pointer, type);
+	}
+	return {
+		fields,
+		types
+	};
+}
+function decodeSite(raw, where, template, blocks) {
+	const value = object$1(raw, where);
+	expectKeys(value, [
+		"form",
+		"request",
+		"envelope",
+		"response"
+	], where);
+	const form = value["form"] === void 0 ? void 0 : decodeForm(value["form"], `${where}.form`);
+	if (value["request"] !== void 0 && value["envelope"] !== void 0) throw new ProgramError(`${where} has both request and envelope; one list keeps the order`);
+	const envelope = value["envelope"] === void 0 ? void 0 : decodeEnvelope(value["envelope"], `${where}.envelope`, blocks);
+	const request = array$1(value["request"] ?? [], `${where}.request`).map((instr, index) => decodeInstr(instr, `${where}.request[${index}]`, 0, blocks));
+	const response = /* @__PURE__ */ new Map();
+	if (value["response"] !== void 0) for (const [status, list] of Object.entries(object$1(value["response"], `${where}.response`))) {
+		if (!/^([1-5]\d\d|[1-5][xX][xX]|default)$/.test(status)) throw new ProgramError(`${where}.response has an invalid status key "${status}"`);
+		const key = status.toLowerCase();
+		if (response.has(key)) throw new ProgramError(`${where}.response names ${key} twice`);
+		response.set(key, array$1(list, `${where}.response.${status}`).map((instr, index) => decodeInstr(instr, `${where}.response.${status}[${index}]`, 0, blocks)));
+	}
+	return {
+		request,
+		response,
+		numeric: needsExactNumbers(request) || envelope !== void 0 && needsExactNumbers(envelope.instrs) || [...response.values()].some((list) => needsExactNumbers(list)),
+		template,
+		...envelope === void 0 ? {} : { envelope },
+		...form === void 0 ? {} : { form }
+	};
+}
+function decodeRoute(raw, where) {
+	const value = object$1(raw, where);
+	expectKeys(value, [
+		"from",
+		"to",
+		"c"
+	], where);
+	const from = object$1(value["from"], `${where}.from`);
+	const to = object$1(value["to"], `${where}.to`);
+	const fromMethod = string$1(from["method"], `${where}.from.method`).toLowerCase();
+	const toMethod = string$1(to["method"], `${where}.to.method`).toLowerCase();
+	for (const method of [fromMethod, toMethod]) if (!HTTP_METHODS.has(method)) throw new ProgramError(`${where} names ${method}, which is not an HTTP method`);
+	return {
+		method: fromMethod,
+		toMethod,
+		from: string$1(from["path"], `${where}.from.path`).split("/"),
+		to: string$1(to["path"], `${where}.to.path`).split("/"),
+		changeId: string$1(value["c"], `${where}.c`)
+	};
+}
+/** An optional flag that is either left out or true, never anything else. */
+function onlyTrue(value, where) {
+	if (value === void 0) return false;
+	if (value !== true) throw new ProgramError(`${where} must be true when present`);
+	return true;
+}
+function decodeProgram(raw) {
+	const value = object$1(raw, "program");
+	expectKeys(value, [
+		"irVersion",
+		"api",
+		"current",
+		"currentLabel",
+		"contracts",
+		"basePath"
+	], "program");
+	const basePath = value["basePath"];
+	if (basePath !== void 0 && (typeof basePath !== "string" || !basePath.startsWith("/") || basePath.endsWith("/"))) throw new ProgramError("program.basePath must be a path such as /v1, without a trailing /");
+	if (value["irVersion"] !== 1) throw new ProgramError(`Unsupported IR version ${String(value["irVersion"])}`);
+	const contracts = /* @__PURE__ */ new Map();
+	for (const [label, entry] of Object.entries(object$1(value["contracts"], "program.contracts"))) {
+		const where = `program.contracts.${label}`;
+		const contract = object$1(entry, where);
+		expectKeys(contract, [
+			"label",
+			"routes",
+			"sites",
+			"blocks",
+			"behaviors",
+			"retired",
+			"basePath"
+		], where);
+		const blocks = decodeBlocks(contract["blocks"], `${where}.blocks`);
+		const ownBase = contract["basePath"];
+		if (ownBase !== void 0 && (typeof ownBase !== "string" || !/^(\/.*[^/])?$/.test(ownBase))) throw new ProgramError(`${where}.basePath must be a path such as /v1, or empty`);
+		const sites = /* @__PURE__ */ new Map();
+		for (const [key, site] of Object.entries(object$1(contract["sites"], `${where}.sites`))) {
+			const separator = key.indexOf(" ");
+			if (separator <= 0) throw new ProgramError(`${where}.sites has a key "${key}" that is not "method path"`);
+			const method = key.slice(0, separator).toLowerCase();
+			const path = key.slice(separator + 1);
+			sites.set(`${method} ${path}`, decodeSite(site, `${where}.sites["${key}"]`, path.split("/"), blocks));
+		}
+		contracts.set(label, {
+			...ownBase === void 0 ? {} : { basePath: ownBase },
+			label: string$1(contract["label"], `${where}.label`),
+			routes: array$1(contract["routes"], `${where}.routes`).map((route, index) => decodeRoute(route, `${where}.routes[${index}]`)),
+			sites,
+			behaviors: array$1(contract["behaviors"] ?? [], `${where}.behaviors`).map((flag, index) => string$1(flag, `${where}.behaviors[${index}]`)),
+			retired: array$1(contract["retired"] ?? [], `${where}.retired`).map((entry, index) => {
+				const at = `${where}.retired[${index}]`;
+				const row = object$1(entry, at);
+				const guidance = row["guidance"];
+				const refuse = row["refuse"];
+				if (refuse !== void 0 && refuse !== true) throw new ProgramError(`${at}.refuse must be true when present`);
+				return {
+					method: string$1(row["method"], `${at}.method`).toLowerCase(),
+					path: string$1(row["path"], `${at}.path`),
+					guidance: guidance === void 0 ? void 0 : string$1(guidance, `${at}.guidance`),
+					c: string$1(row["c"], `${at}.c`),
+					refuse: refuse === true
+				};
+			})
+		});
+	}
+	return {
+		api: string$1(value["api"], "program.api"),
+		current: string$1(value["current"], "program.current"),
+		currentLabel: string$1(value["currentLabel"], "program.currentLabel"),
+		contracts,
+		basePath: basePath ?? ""
+	};
+}
+const PARAMETER = /\{[^{}]+\}/g;
+/**
+* A template segment with literal text around its parameters, such as
+* `{name}:cancel`, the custom-method form of Google's design guide, or
+* `{id}.{format}`. Compiled once per segment: the literal parts are escaped,
+* each parameter matches one or more characters of that segment only, since
+* an OpenAPI path parameter never spans a `/`.
+*/
+const mixedSegments = /* @__PURE__ */ new Map();
+function mixedSegment(template) {
+	let compiled = mixedSegments.get(template);
+	if (!compiled) {
+		const source = template.split(PARAMETER).map((literal) => literal.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&")).join("(.+)");
+		compiled = new RegExp(`^${source}$`, "s");
+		mixedSegments.set(template, compiled);
+	}
+	return compiled;
+}
+const isWholeParameter = (segment) => segment.startsWith("{") && segment.endsWith("}") && segment.indexOf("}") === segment.length - 1;
+/** Matches a concrete request path against a route template. */
+function matchTemplate(template, path) {
+	const actual = path.split("/");
+	if (actual.length !== template.length) return void 0;
+	const params = [];
+	for (const [index, expected] of template.entries()) {
+		const segment = actual[index];
+		if (isWholeParameter(expected)) {
+			if (segment === "") return void 0;
+			params.push(segment);
+			continue;
+		}
+		if (expected.includes("{")) {
+			const matched = mixedSegment(expected).exec(segment);
+			if (!matched) return void 0;
+			params.push(...matched.slice(1));
+			continue;
+		}
+		if (expected !== segment) return void 0;
+	}
+	return params;
+}
+function fillTemplate(template, params) {
+	let next = 0;
+	return template.map((segment) => segment.replace(PARAMETER, () => {
+		const value = params[next] ?? "";
+		next += 1;
+		return value;
+	})).join("/");
+}
+/** The compiled site for a concrete request, found by template match. */
+function findSite(contract, method, path) {
+	const lower = method.toLowerCase();
+	const direct = contract.sites.get(`${lower} ${path}`);
+	if (direct) return direct;
+	for (const [key, site] of contract.sites) {
+		const separator = key.indexOf(" ");
+		if (key.slice(0, separator) !== lower) continue;
+		if (matchTemplate(key.slice(separator + 1).split("/"), path)) return site;
+	}
+}
+//#endregion
+//#region ../runtime/src/parameters.ts
+/**
+* Parameters written and read the way the runtime writes and reads them.
+*
+* For whatever has to produce or check the traffic an old caller sends, such
+* as the verifier's laws, through the same encoder and decoder the envelope
+* uses rather than a second copy that could disagree with it.
+*/
+const emptyValues = () => ({
+	path: {},
+	query: {},
+	header: {},
+	cookie: {}
+});
+function envelopeFor(codecs) {
+	const map = new Map(codecs.map((codec) => [codecKey$1(codec.in, codec.name), codec]));
+	return {
+		instrs: [],
+		old: map,
+		new: map,
+		body: false
+	};
+}
+/**
+* A request carrying these parameter values, written the way the codecs say.
+* Every parameter of the template needs a value. Used to generate traffic an
+* old caller could send, through the same encoder the runtime writes with.
+*/
+function writeParameters(codecs, template, values) {
+	const segments = template.split("/");
+	const tree = {};
+	for (const location of [
+		"path",
+		"query",
+		"header",
+		"cookie"
+	]) tree[PART[location]] = { ...values[location] ?? {} };
+	const request = {
+		path: template,
+		search: "",
+		headers: [],
+		body: void 0
+	};
+	return closeEnvelope(envelopeFor(codecs), segments, templateNames$1(segments), request, tree);
+}
+/** The values of these parameters as a request carries them, typed by the codecs. */
+function readParameters(codecs, template, request) {
+	const segments = template.split("/");
+	const matched = matchTemplate(segments, request.path) ?? [];
+	const tree = openEnvelope(envelopeFor(codecs), segments, matched, request, "double");
+	const out = emptyValues();
+	for (const location of [
+		"path",
+		"query",
+		"header",
+		"cookie"
+	]) out[location] = tree[PART[location]] ?? {};
+	return out;
+}
+//#endregion
+//#region ../runtime/src/index.ts
+/**
+* The provider-side compatibility runtime.
+*
+* It runs inside the provider's own process, in two stages. Path rewriting has
+* to happen before routing so an old URL reaches the canonical handler; body
+* rewriting has to happen after authentication so that a signature computed
+* over the bytes the client sent is still verified against those bytes. Putting
+* both in one place would break one of the two.
+*
+* Nothing here reaches the network, reads a file, or consults a model. The
+* compiled program ships inside the provider's build, so an adapter deploys and
+* rolls back with the code it belongs to.
+*/
+function pathsOfInstr(instr) {
+	return touchedPaths(instr);
+}
+/** Header stage one uses to tell stage two what it concluded. */
+const CONTRACT_HINT_HEADER = "x-invariant-contract-hint";
+const INTERNAL_PREFIX = "x-invariant-";
+var UnsupportedContractError = class UnsupportedContractError extends Error {
+	contract;
+	constructor(contract, reason, message) {
+		super(message ?? `Contract ${contract} cannot be served right now: ${reason}`);
+		this.name = "UnsupportedContractError";
+		this.contract = contract;
+	}
+	/**
+	* A caller named a contract that does not exist.
+	*
+	* Worded apart from the kill-switch case on purpose. "Cannot be served right
+	* now" is true of a contract an operator switched off and false of a typo,
+	* and a caller reading it would wait for something that is never coming back
+	* instead of checking the one character they got wrong.
+	*/
+	static unknown(contract, known) {
+		const list = known.length === 1 ? known[0] : `${known.slice(0, -1).join(", ")} and ${known.at(-1)}`;
+		return new UnsupportedContractError(contract, "unknown", `No contract is called "${contract}". This API serves ${list}.`);
+	}
+};
+var RetiredEndpointError = class extends Error {
+	contract;
+	changeId;
+	guidance;
+	constructor(contract, method, path, changeId, guidance) {
+		super(`${method.toUpperCase()} ${path} was retired after contract ${contract}` + (guidance ? `. ${guidance}` : ". Nothing replaced it."));
+		this.name = "RetiredEndpointError";
+		this.contract = contract;
+		this.changeId = changeId;
+		this.guidance = guidance;
+	}
+};
+/**
+* A handler asked about a behaviour flag no Change declares.
+*
+* Almost always a typo, and the reason this throws rather than answering
+* `false`: answering would mean every caller silently gets the new behaviour,
+* including the ones the flag exists to protect, and nothing would ever say so.
+*/
+var UnknownBehaviorError = class extends Error {
+	constructor(flag, known) {
+		super(`No Change declares the behaviour flag "${flag}". ` + (known.length > 0 ? `Declared flags: ${known.join(", ")}.` : "This program declares none."));
+		this.name = "UnknownBehaviorError";
+	}
+};
+/** The keys a response status is looked up by, most specific first, as OpenAPI orders them. */
+function statusKeysFor(status) {
+	return [
+		String(status),
+		`${Math.floor(status / 100)}xx`,
+		"default"
+	];
+}
+var InvariantRuntime = class {
+	#program;
+	#identity;
+	#maxBodyBytes;
+	#limits;
+	#fidelity;
+	#flags;
+	#onUsage;
+	#onOutcome;
+	#behaviors;
+	constructor(options) {
+		this.#program = decodeProgram(options.program);
+		this.#behaviors = [...new Set([...this.#program.contracts.values()].flatMap((contract) => contract.behaviors))].sort();
+		this.#identity = options.identity;
+		for (const strategy of this.#identity) {
+			const named = strategy.kind === "default" ? [strategy.label] : strategy.kind === "urlPrefix" ? Object.values(strategy.map) : [];
+			for (const label of named) if (!this.knows(label)) throw new Error(`The ${strategy.kind} identity strategy names contract "${label}", which this program does not have. Known: ${this.#knownLabels()}.`);
+		}
+		this.#maxBodyBytes = options.maxBodyBytes ?? 1048576;
+		this.#limits = options.limits ?? DEFAULT_LIMITS;
+		this.#fidelity = options.numbers ?? "double";
+		this.#flags = options.flags ?? (() => ({}));
+		this.#onUsage = options.onUsage;
+		this.#onOutcome = options.onOutcome;
+	}
+	get currentLabel() {
+		return this.#program.currentLabel;
+	}
+	/** Largest body, in decoded bytes, a binding may buffer for a transform. */
+	get maxBodyBytes() {
+		return this.#maxBodyBytes;
+	}
+	get currentDigest() {
+		return this.#program.current;
+	}
+	#knownList() {
+		const labels = [this.#program.currentLabel, ...this.#program.contracts.keys()];
+		return [...new Set(labels)].sort();
+	}
+	#knownLabels() {
+		return this.#knownList().join(", ");
+	}
+	knows(label) {
+		return label === this.#program.currentLabel || this.#program.contracts.has(label);
+	}
+	/** Every behaviour flag any Change in this program declares. */
+	get behaviors() {
+		return this.#behaviors;
+	}
+	/**
+	* Whether this caller predates the change a behaviour flag marks.
+	*
+	* The escape hatch for everything the IR deliberately cannot express: a
+	* change of side effect, of timing, of a business rule, or a reshaping no op
+	* in the catalog covers. The provider writes the branch themselves, in their
+	* own code, and this says which side of it a given caller belongs on.
+	*
+	*     if (inv.before("chg_capture_is_deferred", { contract })) {
+	*       await captureImmediately(payment);
+	*     }
+	*
+	* It is a fact about a public contract label and nothing else. It must never
+	* decide what a caller is allowed to do: a label is chosen by the caller, so
+	* branching authorisation on it would let anyone pick their own permissions.
+	*/
+	before(flag, on) {
+		if (!this.#behaviors.includes(flag)) throw new UnknownBehaviorError(flag, this.#behaviors);
+		if (!this.#program.contracts.get(on.contract)?.behaviors.includes(flag)) return false;
+		this.#onUsage?.({
+			contract: on.contract,
+			operation: on.operation ?? "behavior",
+			consumer: on.consumer,
+			changes: /* @__PURE__ */ new Map([[flag, 1]])
+		});
+		return true;
+	}
+	/**
+	* Strips any inbound header in Invariant's internal namespace.
+	*
+	* Stage one tells stage two what it decided through such a header, so a
+	* caller must never be able to supply one. A contract label only ever selects
+	* a shape transform, but letting an outsider forge internal state is not a
+	* property worth relying on.
+	*/
+	static sanitizeHeaders(headers) {
+		for (const name of [...headers.keys()]) if (name.toLowerCase().startsWith(INTERNAL_PREFIX)) headers.delete(name);
+	}
+	/** Whatever the pre-authentication signals say about the caller's contract. */
+	hintFrom(headers, path) {
+		for (const strategy of this.#identity) {
+			if (strategy.kind === "header") {
+				const value = headers.get(strategy.name);
+				if (value) {
+					if (!this.knows(value)) throw UnsupportedContractError.unknown(value, this.#knownList());
+					return {
+						label: value,
+						source: "header"
+					};
+				}
+			}
+			if (strategy.kind === "urlPrefix") {
+				for (const [prefix, label] of Object.entries(strategy.map)) if (path.startsWith(prefix) && this.knows(label)) return {
+					label,
+					source: "urlPrefix"
+				};
+			}
+		}
+	}
+	/**
+	* Stage one. Decides what path the canonical handler should see.
+	*
+	* When the caller declared a contract, that contract's route table is used.
+	* When it did not, the path itself can still identify an old endpoint, but
+	* only if every contract that knows it agrees on where it went; disagreement
+	* is left alone rather than guessed at.
+	*/
+	/**
+	* A request's path as the contract writes it: the base path the API is
+	* served under taken off. Undefined for a path outside it, which is not a
+	* call to this API and is never touched.
+	*/
+	#local(path) {
+		const base = this.#program.basePath;
+		if (base === "") return path;
+		if (path === base) return "/";
+		return path.startsWith(`${base}/`) ? path.slice(base.length) : void 0;
+	}
+	/**
+	* A request under a base path an older contract was served under, moved
+	* under the current one. The version was in the server URL, so the base
+	* path says which contract the caller was written against, when only one
+	* contract used it.
+	*/
+	#fromOlderBase(full, hint) {
+		const current = this.#program.basePath;
+		if (current !== "" && (full === current || full.startsWith(`${current}/`))) return;
+		let best;
+		for (const contract of this.#program.contracts.values()) {
+			const base = contract.basePath;
+			if (base === void 0 || base === current) continue;
+			if (hint && hint.label !== contract.label) continue;
+			if (!(base === "" || full === base || full.startsWith(`${base}/`))) continue;
+			if (!best || base.length > best.base.length) best = {
+				base,
+				labels: [contract.label]
+			};
+			else if (base === best.base) best.labels.push(contract.label);
+		}
+		if (!best) return void 0;
+		const rest = full.slice(best.base.length);
+		const [only] = best.labels;
+		return {
+			path: `${current}${rest === "" ? "" : rest}` || "/",
+			hint: hint ?? (best.labels.length === 1 && only ? {
+				label: only,
+				source: "route"
+			} : void 0)
+		};
+	}
+	route(method, full, headers) {
+		let hint = this.hintFrom(headers, full);
+		const older = this.#fromOlderBase(full, hint);
+		const moved = older !== void 0 && older.path !== full;
+		if (older) {
+			full = older.path;
+			hint = older.hint;
+		}
+		const path = this.#local(full);
+		const asSent = method.toUpperCase();
+		if (path === void 0) return {
+			path: full,
+			method: asSent,
+			hint,
+			rewritten: moved
+		};
+		const candidates = hint ? [this.#program.contracts.get(hint.label)].filter((contract) => contract !== void 0) : [...this.#program.contracts.values()];
+		const matches = /* @__PURE__ */ new Map();
+		for (const contract of candidates) for (const rule of contract.routes) {
+			if (rule.method !== method.toLowerCase()) continue;
+			const params = matchTemplate(rule.from, path);
+			if (!params) continue;
+			const target = fillTemplate(rule.to, params);
+			matches.set(`${rule.toMethod} ${target}`, {
+				label: contract.label,
+				method: rule.toMethod,
+				path: target
+			});
+		}
+		if (matches.size !== 1) return {
+			path: full,
+			method: asSent,
+			hint,
+			rewritten: moved
+		};
+		const [origin] = [...matches.values()];
+		const changedMethod = origin.method !== method.toLowerCase();
+		return {
+			path: `${this.#program.basePath}${origin.path}`,
+			method: changedMethod ? origin.method.toUpperCase() : asSent,
+			hint: hint ?? {
+				label: origin.label,
+				source: "route"
+			},
+			rewritten: moved || changedMethod || origin.path !== path
+		};
+	}
+	/** Stage two. Which contract this request is actually served under. */
+	resolve(headers, path, pinned) {
+		const hinted = headers.get(CONTRACT_HINT_HEADER);
+		if (hinted && this.knows(hinted)) return {
+			label: hinted,
+			source: "header"
+		};
+		const direct = this.hintFrom(headers, path);
+		if (direct) return direct;
+		for (const strategy of this.#identity) {
+			if (strategy.kind === "principal" && pinned !== void 0) {
+				if (!this.knows(pinned)) throw new UnsupportedContractError(pinned, "the account is pinned to an unknown contract");
+				return {
+					label: pinned,
+					source: "principal"
+				};
+			}
+			if (strategy.kind === "default") return {
+				label: strategy.label,
+				source: "default"
+			};
+		}
+		return {
+			label: this.#program.currentLabel,
+			source: "default"
+		};
+	}
+	/**
+	* The compiled work for a request, or nothing at all.
+	*
+	* Returning nothing is the common case and the important one: a caller on the
+	* current contract, or on an operation that never changed, costs a map lookup
+	* and no body is read.
+	*/
+	siteFor(label, method, path, context) {
+		try {
+			return this.#siteFor(label, method, path);
+		} catch (error) {
+			if (error instanceof UnsupportedContractError) this.#onOutcome?.({
+				contract: label,
+				operation: context?.operation ?? `${method.toLowerCase()} ${path}`,
+				consumer: context?.consumer,
+				direction: "request",
+				outcome: "refused",
+				reason: "UnsupportedContractError"
+			});
+			throw error;
+		}
+	}
+	#retiredIn(contract, method, path) {
+		return contract.retired.find((entry) => entry.method === method.toLowerCase() && matchTemplate(entry.path.split("/"), path) !== void 0);
+	}
+	/**
+	* An operation retired after this contract that is still passed on to the
+	* provider, and what to tell the caller if the provider says it is gone.
+	*
+	* A binding forwards the call as usual and, when the answer is one of
+	* `GONE_STATUSES`, replaces it with a 410 carrying this error's guidance.
+	* The Change sets `refuse` when the provider's server no longer serves the
+	* operation at all, and then the call never gets this far.
+	* Anything else the provider answers goes back untouched: a specification
+	* that dropped an operation its server still serves must not become an
+	* outage the adapter caused.
+	*/
+	retiredFor(label, method, full) {
+		if (label === this.#program.currentLabel) return void 0;
+		const path = this.#local(full);
+		const contract = this.#program.contracts.get(label);
+		const gone = contract && path !== void 0 && this.#retiredIn(contract, method, path);
+		if (!gone || gone.refuse) return void 0;
+		return new RetiredEndpointError(label, method, full, gone.c, gone.guidance);
+	}
+	#siteFor(label, method, full) {
+		if (label === this.#program.currentLabel) return void 0;
+		const path = this.#local(full);
+		if (path === void 0) return void 0;
+		const flags = this.#flags();
+		const contract = this.#program.contracts.get(label);
+		if (!contract) throw new UnsupportedContractError(label, "no compiled program for this contract");
+		const gone = this.#retiredIn(contract, method, path);
+		if (gone?.refuse) throw new RetiredEndpointError(label, method, full, gone.c, gone.guidance);
+		if (flags.allDisabled) throw new UnsupportedContractError(label, "compatibility is switched off");
+		if (flags.disabledContracts?.includes(label)) throw new UnsupportedContractError(label, "this contract is switched off");
+		const site = findSite(contract, method, path);
+		if (!site) return void 0;
+		const disabled = flags.disabledChanges;
+		if (disabled && disabled.length > 0) {
+			const referenced = /* @__PURE__ */ new Set();
+			for (const instr of site.request) referenced.add(instr.c);
+			for (const instr of site.envelope?.instrs ?? []) referenced.add(instr.c);
+			for (const list of site.response.values()) for (const instr of list) referenced.add(instr.c);
+			for (const change of disabled) if (referenced.has(change)) throw new UnsupportedContractError(label, `change ${change} is switched off`);
+		}
+		return site;
+	}
+	#run(instrs, numeric, text, context) {
+		if (instrs.length === 0) return {
+			body: text,
+			folded: []
+		};
+		if (text.length > this.#maxBodyBytes) throw new BodyTooLargeError(this.#maxBodyBytes);
+		const parsed = parseJson(text, numeric ? this.#fidelity : "double");
+		const result = execute(parsed, instrs, this.#limits);
+		if (this.#onUsage && result.applied.size > 0) this.#onUsage({
+			contract: context.contract,
+			operation: context.operation,
+			consumer: context.consumer,
+			changes: result.applied
+		});
+		return {
+			body: stringifyJson(parsed),
+			folded: [...result.folded].sort()
+		};
+	}
+	/**
+	* A form-encoded request body rewritten by the site's program: the fields
+	* it names decoded, transformed and written back, and every other pair of
+	* the form passed on exactly as it came.
+	*/
+	transformRequestForm(site, text, context) {
+		const form = site.form;
+		if (!form || site.request.length === 0) return text;
+		return this.#reporting("request", context, () => {
+			if (text.length > this.#maxBodyBytes) throw new BodyTooLargeError(this.#maxBodyBytes);
+			const roots = formRoots(site.request, 0);
+			const tree = openForm(form, roots, text, site.numeric ? this.#fidelity : "double");
+			this.#counted(execute(tree, site.request, this.#limits), context);
+			return closeForm(form, roots, text, tree, site.request, 0);
+		});
+	}
+	#counted(result, context) {
+		if (this.#onUsage && result.applied.size > 0) this.#onUsage({
+			contract: context.contract,
+			operation: context.operation,
+			consumer: context.consumer,
+			changes: result.applied
+		});
+	}
+	transformRequest(site, text, context) {
+		return this.#reporting("request", context, () => this.#run(site.request, site.numeric, text, {
+			contract: context.contract,
+			operation: context.operation,
+			consumer: context.consumer
+		})).body;
+	}
+	/** True when adapting this request means reading its body. */
+	readsRequestBody(site) {
+		return site.request.length > 0 || site.envelope?.body === true;
+	}
+	/** True when some program converts a path parameter, so the path itself can change. */
+	get rewritesPathParameters() {
+		for (const contract of this.#program.contracts.values()) for (const site of contract.sites.values()) if (site.envelope?.instrs.some((instr) => pathsOfInstr(instr)[0]?.[0] === "@path")) return true;
+		return false;
+	}
+	/**
+	* An incoming request as the provider's handler should see it: the one
+	* place every binding adapts a request, so they cannot disagree about it.
+	*
+	* `parts` is the path, query string and headers as the binding would pass
+	* them on, after routing and after its own header hygiene. Only a JSON body
+	* is ever read, and only when the site's program reaches into it. Anything
+	* else a program would have to write a body into is refused rather than
+	* replaced, because a form or an upload rewritten as JSON is a request the
+	* provider never agreed to receive.
+	*/
+	async adaptRequest(site, request, parts, context) {
+		const unchanged = {
+			...parts,
+			body: request.body
+		};
+		const contentType = request.headers.get("content-type");
+		const json = isJsonMediaType(contentType);
+		const form = !json && isFormMediaType(contentType) && site.form !== void 0;
+		if (!site.envelope) {
+			if (site.request.length === 0 || !request.body || !(json || form)) return unchanged;
+			const original = await readBodyText(request, {
+				limit: this.#maxBodyBytes,
+				encoded: true
+			});
+			const body = form ? this.transformRequestForm(site, original.text, context) : this.transformRequest(site, original.text, context);
+			return {
+				...parts,
+				headers: headersForText(parts.headers, body, original.decoded),
+				body
+			};
+		}
+		const envelope = site.envelope;
+		if (envelope.body && request.body && !json && !form) throw new TransformError(envelope.instrs.find((instr) => pathsOfInstr(instr).some((path) => path[0] === "@body"))?.c ?? "", "This operation's program writes into the request body, and the body sent is not JSON.");
+		const original = envelope.body && request.body ? await readBodyText(request, {
+			limit: this.#maxBodyBytes,
+			encoded: true
+		}) : void 0;
+		const result = this.transformEnvelope(site, {
+			path: parts.path,
+			search: parts.search.startsWith("?") ? parts.search.slice(1) : parts.search,
+			headers: [...parts.headers],
+			body: original?.text,
+			...form ? { form: true } : {}
+		}, context);
+		let headers = new Headers(result.headers);
+		let body = request.body;
+		if (original !== void 0 && result.body !== void 0) {
+			body = result.body;
+			headers = headersForText(headers, body, original.decoded);
+		} else if (original === void 0 && result.body !== void 0) {
+			body = result.body;
+			headers.set("content-type", "application/json");
+			headers = headersForText(headers, body, false);
+		}
+		return {
+			path: result.path,
+			search: result.search === "" ? "" : `?${result.search}`,
+			headers,
+			body
+		};
+	}
+	/**
+	* The whole request rewritten, for an operation where a Change reaches a
+	* parameter: its path, query string, headers and, where the program reads
+	* it, its body.
+	*
+	* `request.path` is the routed path as the caller's URL has it, base path
+	* included. Nothing outside what the program names is changed, down to the
+	* bytes and order of an untouched query string.
+	*/
+	transformEnvelope(site, request, context) {
+		const envelope = site.envelope;
+		const local = this.#local(request.path);
+		if (!envelope || envelope.instrs.length === 0 || local === void 0) return request;
+		return this.#reporting("request", context, () => {
+			if (request.body !== void 0 && request.body.length > this.#maxBodyBytes) throw new BodyTooLargeError(this.#maxBodyBytes);
+			const values = matchTemplate(site.template, local) ?? [];
+			const fidelity = site.numeric ? this.#fidelity : "double";
+			const opened = {
+				...request,
+				path: local
+			};
+			const form = request.form === true && envelope.body ? site.form : void 0;
+			if (!form) {
+				const tree = openEnvelope(envelope, site.template, values, opened, fidelity);
+				this.#counted(execute(tree, envelope.instrs, this.#limits), context);
+				const closed = closeEnvelope(envelope, site.template, values, opened, tree);
+				return {
+					...closed,
+					path: `${this.#program.basePath}${closed.path}`
+				};
+			}
+			const parameters = {
+				...envelope,
+				body: false
+			};
+			const roots = formRoots(envelope.instrs, 1);
+			const text = request.body ?? "";
+			const tree = openEnvelope(parameters, site.template, values, opened, fidelity);
+			tree["@body"] = openForm(form, roots, text, fidelity);
+			this.#counted(execute(tree, envelope.instrs, this.#limits), context);
+			const closed = closeEnvelope(parameters, site.template, values, opened, tree);
+			const body = tree["@body"];
+			return {
+				...closed,
+				path: `${this.#program.basePath}${closed.path}`,
+				body: closeForm(form, roots, text, typeof body === "object" && body !== null ? body : {}, envelope.instrs, 1)
+			};
+		});
+	}
+	transformResponse(site, status, text, context) {
+		return this.transformResponseDetailed(site, status, text, context).body;
+	}
+	/**
+	* The transformed body, and where a value was folded to get it.
+	*
+	* A fold is the one transform that shows a caller something untrue: the API
+	* produced a value their contract never named, and they are shown one it
+	* does. They have no way to notice. Returning where it happened lets whoever
+	* writes the response say so, which is the difference between a mitigation a
+	* caller can reason about and one that quietly misleads them.
+	*/
+	transformResponseDetailed(site, status, text, context) {
+		const instrs = statusKeysFor(status).map((key) => site.response.get(key)).find((found) => found !== void 0);
+		if (!instrs) return {
+			body: text,
+			folded: []
+		};
+		return this.#reporting("response", context, () => this.#run(instrs, site.numeric, text, {
+			contract: context.contract,
+			operation: context.operation,
+			consumer: context.consumer
+		}));
+	}
+	/**
+	* Runs a transform and reports how it ended.
+	*
+	* Reported here rather than in each framework binding, so a provider gets
+	* the same evidence whatever they mounted the runtime in, and so a binding
+	* cannot forget. A failure on the way in refused the request and nothing
+	* happened; a failure on the way out means the operation already ran and
+	* somebody is getting an error for work that succeeded, which is the number
+	* that actually matters.
+	*/
+	#reporting(direction, context, run) {
+		if (!this.#onOutcome) return run();
+		const base = {
+			contract: context.contract,
+			operation: context.operation,
+			consumer: context.consumer,
+			direction
+		};
+		try {
+			const result = run();
+			this.#onOutcome({
+				...base,
+				outcome: "adapted"
+			});
+			return result;
+		} catch (error) {
+			this.#onOutcome({
+				...base,
+				outcome: direction === "request" ? "refused" : "failed",
+				reason: error instanceof Error ? error.name : "Error"
+			});
+			throw error;
+		}
+	}
+	/** True when this status has compiled response work, so the body must be read. */
+	respondsTo(site, status) {
+		return statusKeysFor(status).some((key) => (site.response.get(key)?.length ?? 0) > 0);
+	}
+};
+function createRuntime(options) {
+	return new InvariantRuntime(options);
+}
 //#endregion
 //#region ../compiler/src/schema.ts
 /**
@@ -13328,7 +16808,7 @@ function parentFor(document, root, segments, create) {
 		last: segments[segments.length - 1]
 	};
 }
-function readSlot$1(document, root, segments) {
+function readSlot(document, root, segments) {
 	const { parent, last } = parentFor(document, root, segments, false);
 	const keyword = WILDCARD_KEYWORD[last];
 	const schema = keyword ? parent[keyword] : parent["properties"]?.[last];
@@ -13340,7 +16820,7 @@ function readSlot$1(document, root, segments) {
 		required: !keyword && isRequired(parent, last)
 	};
 }
-function deleteSlot$1(document, root, segments) {
+function deleteSlot(document, root, segments) {
 	const { parent, last } = parentFor(document, root, segments, false);
 	const keyword = WILDCARD_KEYWORD[last];
 	if (keyword) {
@@ -13351,7 +16831,7 @@ function deleteSlot$1(document, root, segments) {
 	if (isJsonObject(properties)) delete properties[last];
 	setRequired(parent, last, false);
 }
-function writeSlot$1(document, root, segments, schema, required) {
+function writeSlot(document, root, segments, schema, required) {
 	const { parent, last } = parentFor(document, root, segments, true);
 	const keyword = WILDCARD_KEYWORD[last];
 	if (keyword) {
@@ -13377,10 +16857,10 @@ function writeSlot$1(document, root, segments, schema, required) {
 function schemaMove(document, root, from, to) {
 	const fromSegments = parsePointer(from);
 	const toSegments = parsePointer(to);
-	const slot = readSlot$1(document, root, fromSegments);
+	const slot = readSlot(document, root, fromSegments);
 	const moved = clone$1(slot.schema);
-	deleteSlot$1(document, root, fromSegments);
-	writeSlot$1(document, root, toSegments, moved, slot.required);
+	deleteSlot(document, root, fromSegments);
+	writeSlot(document, root, toSegments, moved, slot.required);
 	pruneEmptyObjects(document, root, fromSegments);
 }
 /** Drops intermediate objects a move emptied out. */
@@ -13396,7 +16876,7 @@ function pruneEmptyObjects(document, root, segments) {
 		if (!isJsonObject(node)) return;
 		const properties = node["properties"];
 		if (!(isJsonObject(properties) && Object.keys(properties).length === 0)) return;
-		deleteSlot$1(document, root, path);
+		deleteSlot(document, root, path);
 	}
 }
 const NUMERIC_BOUNDS = [
@@ -13458,7 +16938,7 @@ const SCALAR_TO_SCHEMA_TYPE = {
 	number: "number",
 	boolean: "boolean"
 };
-function applyCast$1(schema, codec) {
+function applyCast(schema, codec) {
 	const out = clone$1(schema);
 	const declared = out["type"];
 	if (declared !== void 0 && declared !== SCALAR_TO_SCHEMA_TYPE[codec.from]) throw new SchemaOpError(`cast declares from "${codec.from}" but the schema says "${String(declared)}"`);
@@ -13469,12 +16949,150 @@ function applyCast$1(schema, codec) {
 	}
 	return out;
 }
+/** The non-null types a schema declares, whichever way it writes them. */
+function declaredTypes(schema) {
+	const type = schema["type"];
+	if (typeof type === "string") return [type];
+	if (Array.isArray(type)) return type.filter((each) => typeof each === "string" && each !== "null");
+	return [];
+}
+/** Sets the type, keeping a 3.1 `"null"` in the list where there was one. */
+function retyped(schema, type) {
+	schema["type"] = Array.isArray(schema["type"]) && schema["type"].includes("null") ? [type, "null"] : type;
+}
+const STRING_BOUNDS = [
+	"minLength",
+	"maxLength",
+	"pattern"
+];
+const TIME_TYPES = {
+	"epoch-s": ["integer", "number"],
+	"epoch-ms": ["integer", "number"],
+	rfc3339: ["string"]
+};
+/**
+* Runs a value codec over the values a schema lists or starts from, so the
+* predicted contract names them the way the new one does. A listed value the
+* codec refuses is a Change that cannot serve its own contract, so it is
+* reported here, before anything runs.
+*/
+function convertListed(out, what, convert) {
+	const each = (value, where) => {
+		if (value === null) return value;
+		try {
+			return convert(value);
+		} catch (error) {
+			if (!(error instanceof CodecRefusal)) throw error;
+			throw new SchemaOpError(`${what} cannot convert the ${where} ${JSON.stringify(value)}: ${error.message}`);
+		}
+	};
+	if (Array.isArray(out["enum"])) out["enum"] = out["enum"].map((value) => each(value, "listed value"));
+	if (out["const"] !== void 0) out["const"] = each(out["const"], "constant");
+	if (out["default"] !== void 0) out["default"] = each(out["default"], "default");
+	delete out["example"];
+	delete out["examples"];
+}
+/**
+* The instant keeps its meaning and changes its type: text with the
+* `date-time` format, or a whole number with none. Bounds of the old type say
+* nothing about the new one, so they go.
+*/
+function applyDateFormat(schema, codec) {
+	if (codec.from === codec.to) throw new SchemaOpError(`dateFormat from ${codec.from} to itself changes nothing`);
+	const types = declaredTypes(schema);
+	if (types.length > 0 && !types.every((type) => TIME_TYPES[codec.from].includes(type))) throw new SchemaOpError(`dateFormat reads ${codec.from}, but the schema holds ${types.join(" or ")}`);
+	if (codec.from === "rfc3339" && schema["format"] !== void 0 && schema["format"] !== "date-time") throw new SchemaOpError(`dateFormat reads a date-time, but the schema's format is ${String(schema["format"])}`);
+	const out = clone$1(schema);
+	convertListed(out, "dateFormat", (value) => convertTime(value, codec.from, codec.to));
+	if (codec.to === "rfc3339") {
+		retyped(out, "string");
+		out["format"] = "date-time";
+		for (const bound of NUMERIC_BOUNDS) delete out[bound];
+		delete out["multipleOf"];
+	} else {
+		retyped(out, "integer");
+		if (out["format"] === "date-time") delete out["format"];
+		for (const bound of STRING_BOUNDS) delete out[bound];
+	}
+	return out;
+}
+/**
+* The listed values are rewritten, so a closed set stays closed and every
+* member is proved to survive the round trip now, rather than refused one at
+* a time in production. A pattern describes the old spelling and is dropped;
+* one the new contract states is declared with `relax`.
+*/
+function applyStringCase(schema, codec) {
+	if (codec.from === codec.to) throw new SchemaOpError(`stringCase from ${codec.from} to itself changes nothing`);
+	const types = declaredTypes(schema);
+	if (types.length > 0 && !types.every((type) => type === "string")) throw new SchemaOpError(`stringCase rewrites text, but the schema holds ${types.join(" or ")}`);
+	const out = clone$1(schema);
+	convertListed(out, "stringCase", (value) => convertCase(value, codec.from, codec.to));
+	delete out["pattern"];
+	return out;
+}
+/** Words about the field, which belong to the field whether it holds one value or a list. */
+const ANNOTATIONS = [
+	"title",
+	"description",
+	"deprecated",
+	"readOnly",
+	"writeOnly"
+];
+function isNullable(schema) {
+	return schema["nullable"] === true || Array.isArray(schema["type"]) && schema["type"].includes("null");
+}
+/** The schema with any null taken out of it, in whichever way it was written. */
+function withoutNull(schema) {
+	const out = clone$1(schema);
+	delete out["nullable"];
+	if (Array.isArray(out["type"])) {
+		const rest = out["type"].filter((type) => type !== "null");
+		out["type"] = rest.length === 1 ? rest[0] : rest;
+	}
+	return out;
+}
+/**
+* The field holds a list of what it held. Null passes through the runtime as
+* it is, so a field that could be null is a list that can be null, not a list
+* of values that can be.
+*/
+function applyWrapArray(schema) {
+	const nullable = isNullable(schema);
+	const items = withoutNull(schema);
+	const out = {};
+	for (const key of ANNOTATIONS) if (items[key] !== void 0) {
+		out[key] = items[key];
+		delete items[key];
+	}
+	delete items["default"];
+	out["type"] = nullable ? ["array", "null"] : "array";
+	out["items"] = items;
+	return out;
+}
+function applyUnwrapSingle(schema) {
+	const types = declaredTypes(schema);
+	const items = schema["items"];
+	if (types.length > 0 && !types.includes("array") || !isJsonObject(items)) throw new SchemaOpError("unwrapSingle needs a list whose items are described");
+	const out = clone$1(items);
+	for (const key of ANNOTATIONS) if (schema[key] !== void 0) out[key] = clone$1(schema[key]);
+	if (isNullable(schema) && !isNullable(out)) {
+		const type = out["type"];
+		if (typeof type === "string") out["type"] = [type, "null"];
+		else out["nullable"] = true;
+	}
+	return out;
+}
 function applyCodecToSchema(schema, codec) {
 	if (!isJsonObject(schema)) throw new SchemaOpError("A codec needs a schema object to apply to");
 	switch (codec.kind) {
 		case "scale10": return applyScale10(schema, codec.exponent);
 		case "enumMap": return applyEnumMap(schema, codec.pairs, codec.fold);
-		case "cast": return applyCast$1(schema, codec);
+		case "cast": return applyCast(schema, codec);
+		case "dateFormat": return applyDateFormat(schema, codec);
+		case "stringCase": return applyStringCase(schema, codec);
+		case "wrapArray": return applyWrapArray(schema);
+		case "unwrapSingle": return applyUnwrapSingle(schema);
 	}
 }
 /**
@@ -13483,8 +17101,8 @@ function applyCodecToSchema(schema, codec) {
 */
 function schemaConvert(document, root, path, codec) {
 	const segments = parsePointer(path);
-	const slot = readSlot$1(document, root, segments);
-	writeSlot$1(document, root, segments, applyCodecToSchema(resolveSchema(document, slot.schema), codec), slot.required);
+	const slot = readSlot(document, root, segments);
+	writeSlot(document, root, segments, codec.kind === "wrapArray" ? applyWrapArray(isJsonObject(slot.schema) ? slot.schema : {}) : applyCodecToSchema(resolveSchema(document, slot.schema), codec), slot.required);
 }
 /**
 * `widen`: the union at `path` gains `variant` as a branch. What old callers
@@ -13494,7 +17112,7 @@ function schemaConvert(document, root, path, codec) {
 * needs a field that may be left out.
 */
 function schemaWiden(document, root, path, variant, show) {
-	const slot = readSlot$1(document, root, parsePointer(path));
+	const slot = readSlot(document, root, parsePointer(path));
 	const union = slot.schema;
 	if (!isJsonObject(union) || typeof union["$ref"] === "string") throw new SchemaOpError(`${path} is not a union written in place; declare the change on the schema that is`);
 	const key = Array.isArray(union["anyOf"]) ? "anyOf" : Array.isArray(union["oneOf"]) ? "oneOf" : void 0;
@@ -13539,12 +17157,12 @@ function schemaRelax(document, root, path, set, sentByOldCallers) {
 * invented here.
 */
 function schemaAdd(document, root, path, shape, required) {
-	writeSlot$1(document, root, parsePointer(path), clone$1(shape), required);
+	writeSlot(document, root, parsePointer(path), clone$1(shape), required);
 }
 function schemaRemove(document, root, path) {
 	const segments = parsePointer(path);
-	readSlot$1(document, root, segments);
-	deleteSlot$1(document, root, segments);
+	readSlot(document, root, segments);
+	deleteSlot(document, root, segments);
 	pruneEmptyObjects(document, root, segments);
 }
 /**
@@ -13555,17 +17173,17 @@ function schemaRemove(document, root, path) {
 * that is about one place it is used.
 */
 function schemaSetRequired(document, root, path, required) {
-	const slot = readSlot$1(document, root, parsePointer(path));
+	const slot = readSlot(document, root, parsePointer(path));
 	if (WILDCARD_KEYWORD[slot.last]) throw new SchemaOpError("A list item or a map value is not optional");
 	setRequired(slot.parent, slot.last, required);
 }
 /** Whether a field must be present, read through references on the way. */
 function schemaRequiredAt(document, root, path) {
-	return readSlot$1(document, root, parsePointer(path)).required;
+	return readSlot(document, root, parsePointer(path)).required;
 }
 /** The field's own schema, made this change's own so it can be edited. */
 function ownSlot(document, root, segments) {
-	const slot = readSlot$1(document, root, segments);
+	const slot = readSlot(document, root, segments);
 	const wildcard = WILDCARD_KEYWORD[slot.last];
 	if (wildcard) return own(document, slot.parent, wildcard);
 	return own(document, slot.parent["properties"], slot.last);
@@ -13857,7 +17475,7 @@ function applyOne(document, newContract, located, scope, op) {
 	const { address } = at(op.path);
 	if (address.part === "body") throw new SchemaOpError(`a body field is changed with a schema scope, not a parameter scope`);
 	const name = address.name;
-	if (address.part === "path" && op.op !== "convert" && op.op !== "relax") throw new SchemaOpError("a path parameter can only be converted or given new bounds");
+	if (address.part === "path" && !servesPathParameter(op)) throw new SchemaOpError(PATH_PARAMETER_REFUSAL);
 	switch (op.op) {
 		case "convert": {
 			const parameter = existing(address.part, name);
@@ -14170,6 +17788,26 @@ function derive(change) {
 		case "move":
 		case "route": break;
 		case "convert":
+			if (op.codec.kind === "dateFormat" && op.codec.onInexact === "truncate") {
+				runtime = worse(runtime, "declared-lossy");
+				reasons.push(`${op.path} drops precision it cannot hold between ${op.codec.from} and ${op.codec.to}, so a caller may be shown the start of a second rather than a time within it`);
+				const finer = (format) => format === "epoch-s" ? 0 : format === "epoch-ms" ? 1 : 2;
+				if (finer(op.codec.to) < finer(op.codec.from)) lossy.forward.push(op.path);
+				if (finer(op.codec.from) < finer(op.codec.to)) lossy.backward.push(op.path);
+			}
+			if (op.codec.kind === "dateFormat" && op.codec.from !== op.codec.to) {
+				if (op.codec.from === "rfc3339") {
+					runtime = worse(runtime, "declared-lossy");
+					reasons.push(`${op.path} is now a count since the epoch, so the UTC offset an old caller writes a time in is not passed on, only the instant`);
+					lossy.forward.push(op.path);
+				} else if (op.codec.to === "rfc3339") lossy.backward.push(op.path);
+			}
+			if ((op.codec.kind === "wrapArray" || op.codec.kind === "unwrapSingle") && op.codec.pick === "first") {
+				runtime = worse(runtime, "declared-lossy");
+				const toOld = op.codec.kind === "wrapArray";
+				reasons.push(toOld ? `${op.path} is now a list, so an old caller is shown its first item, nothing where it is empty, and never the rest` : `${op.path} is now one value, so the provider is sent the first item of an old caller's list and never the rest`);
+				(toOld ? lossy.backward : lossy.forward).push(op.path);
+			}
 			if (op.codec.kind === "enumMap") {
 				if (op.codec.fold !== void 0 && op.codec.fold.length > 0) {
 					runtime = worse(runtime, "declared-lossy");
@@ -14359,290 +17997,6 @@ function findInterference(changes) {
 		}
 	}
 	return issues;
-}
-//#endregion
-//#region ../compiler/src/lens.ts
-function prefixed(prefix, path) {
-	return formatPointer([...parsePointer(prefix), ...parsePointer(path)]);
-}
-/**
-* A `default` op's one write, in whichever direction it faces. A value the
-* stricter side would accept is never touched: `ifAbsent` alone leaves a null
-* in place, and `ifNull` alone never creates a field that was missing.
-*/
-function fill(op, prefix, changeId) {
-	return {
-		k: "set",
-		path: prefixed(prefix, op.path),
-		value: op.value,
-		ifAbsent: op.when !== "null",
-		...op.when === "absent" ? {} : { ifNull: true },
-		c: changeId
-	};
-}
-function dropNull(op, prefix, changeId) {
-	return {
-		k: "del",
-		path: prefixed(prefix, op.path),
-		ifNull: true,
-		c: changeId
-	};
-}
-/** Old-shape-to-canonical primitives for one data op, at one pointer prefix. */
-function forwardInstrs(op, prefix, changeId) {
-	switch (op.op) {
-		case "move": return [{
-			k: "move",
-			from: prefixed(prefix, op.from),
-			to: prefixed(prefix, op.to),
-			c: changeId
-		}];
-		case "convert":
-			switch (op.codec.kind) {
-				case "scale10": return [{
-					k: "scale",
-					path: prefixed(prefix, op.path),
-					exp: op.codec.exponent,
-					c: changeId
-				}];
-				case "enumMap": return [{
-					k: "enum",
-					path: prefixed(prefix, op.path),
-					map: Object.fromEntries(op.codec.pairs),
-					c: changeId
-				}];
-				case "cast": return [{
-					k: "cast",
-					path: prefixed(prefix, op.path),
-					to: op.codec.to,
-					c: changeId
-				}];
-			}
-			break;
-		case "add": return [{
-			k: "set",
-			path: prefixed(prefix, op.path),
-			value: op.value,
-			ifAbsent: true,
-			c: changeId
-		}];
-		case "remove": return [{
-			k: "del",
-			path: prefixed(prefix, op.path),
-			c: changeId
-		}];
-		case "default": return op.toward === "new" ? [fill(op, prefix, changeId)] : [];
-		case "dropNull": return op.toward === "new" ? [dropNull(op, prefix, changeId)] : [];
-		case "widen": return [];
-		case "relax": return [];
-	}
-	return [];
-}
-const NO_VARIANTS = () => void 0;
-/** The value itself replaced as `show` says, by an instruction standing on it. */
-function shown(op, changeId) {
-	switch (op.show) {
-		case "id": return {
-			k: "move",
-			from: "/id",
-			to: "",
-			c: changeId
-		};
-		case "null": return {
-			k: "set",
-			path: "",
-			value: null,
-			ifAbsent: false,
-			c: changeId
-		};
-		case "absent": return {
-			k: "del",
-			path: "",
-			c: changeId
-		};
-	}
-}
-/** Runs `block` on a value only when the guard says it is the variant. */
-function testing(guard, block, changeId) {
-	if ("type" in guard) return {
-		k: "is",
-		path: "",
-		type: guard.type,
-		block,
-		c: changeId
-	};
-	if ("key" in guard) {
-		const chosen = guard.has !== void 0 ? [{
-			k: "has",
-			path: formatPointer([guard.has]),
-			block,
-			c: changeId
-		}] : guard.lacks !== void 0 ? [{
-			k: "has",
-			path: formatPointer([guard.lacks]),
-			absent: true,
-			block,
-			c: changeId
-		}] : block;
-		return {
-			k: "switch",
-			path: guard.key,
-			cases: Object.fromEntries(guard.values.map((value) => [value, chosen])),
-			c: changeId
-		};
-	}
-	if ("lacks" in guard) return {
-		k: "has",
-		path: formatPointer([guard.lacks]),
-		absent: true,
-		block,
-		c: changeId
-	};
-	return {
-		k: "has",
-		path: formatPointer([guard.has]),
-		block,
-		c: changeId
-	};
-}
-/** Canonical-back-to-old-shape primitives: each op's inverse. */
-function backwardInstrs(op, prefix, changeId, variants = NO_VARIANTS) {
-	switch (op.op) {
-		case "move": return [{
-			k: "move",
-			from: prefixed(prefix, op.to),
-			to: prefixed(prefix, op.from),
-			c: changeId
-		}];
-		case "convert":
-			switch (op.codec.kind) {
-				case "scale10": return [{
-					k: "scale",
-					path: prefixed(prefix, op.path),
-					exp: -op.codec.exponent,
-					c: changeId
-				}];
-				case "enumMap": return [{
-					k: "enum",
-					path: prefixed(prefix, op.path),
-					map: {
-						...Object.fromEntries(op.codec.pairs.map(([from, to]) => [to, from])),
-						...Object.fromEntries(op.codec.fold ?? [])
-					},
-					...op.codec.fold && op.codec.fold.length > 0 ? { folded: op.codec.fold.map(([value]) => value) } : {},
-					c: changeId
-				}];
-				case "cast": return [{
-					k: "cast",
-					path: prefixed(prefix, op.path),
-					to: op.codec.from,
-					c: changeId
-				}];
-			}
-			break;
-		case "add": return [{
-			k: "del",
-			path: prefixed(prefix, op.path),
-			c: changeId
-		}];
-		case "remove": return [{
-			k: "set",
-			path: prefixed(prefix, op.path),
-			value: op.restore,
-			ifAbsent: false,
-			c: changeId
-		}];
-		case "default": return op.toward === "old" ? [fill(op, prefix, changeId)] : [];
-		case "dropNull": return op.toward === "old" ? [dropNull(op, prefix, changeId)] : [];
-		case "relax": return [];
-		case "widen": {
-			const guard = variants(op);
-			if (!guard) return [];
-			return [{
-				k: "within",
-				path: prefixed(prefix, op.path),
-				block: [testing(guard, [shown(op, changeId)], changeId)],
-				c: changeId
-			}];
-		}
-	}
-	return [];
-}
-/**
-* A site's instructions, placed so they run only for values of the branch the
-* site is in: `within` each union on the way, and a `switch` on the key or a
-* `has` on the field that tells the branch apart. `build` makes the
-* instructions for a prefix relative to the innermost union.
-*
-* On the way back the key already holds the new contract's value, so any
-* value this Change's own enum map renames is matched by what it became.
-*/
-function guarded(site, change, direction, build) {
-	const guards = site.guards ?? [];
-	if (guards.length === 0) return build(site.prefix);
-	const relative = (from, to) => {
-		const outer = parsePointer(from);
-		return formatPointer(parsePointer(to).slice(outer.length));
-	};
-	const innermost = guards[guards.length - 1];
-	let block = build(relative(innermost.at, site.prefix));
-	if (block.length === 0) return [];
-	for (let index = guards.length - 1; index >= 0; index -= 1) {
-		const guard = guards[index];
-		const outer = index === 0 ? "" : guards[index - 1].at;
-		const inner = testing(renamed(guard, direction === "backward" && guard.at === site.prefix ? change : void 0), block, change.id);
-		block = [{
-			k: "within",
-			path: relative(outer, guard.at),
-			block: [inner],
-			c: change.id
-		}];
-	}
-	return block;
-}
-/**
-* The guard as the value still reads when this Change has not yet been undone
-* on it: its key's values and its fields under their new names.
-*/
-function renamed(guard, change) {
-	if (!change) return guard;
-	const field = (name) => movedTo(change, name) ?? name;
-	if ("type" in guard) return guard;
-	if ("key" in guard) {
-		const renames = renamesOf(change, guard.key);
-		return {
-			...guard,
-			values: [...new Set(guard.values.map((value) => renames.get(value) ?? value))],
-			...guard.has === void 0 ? {} : { has: field(guard.has) },
-			...guard.lacks === void 0 ? {} : { lacks: field(guard.lacks) }
-		};
-	}
-	if ("lacks" in guard) return {
-		...guard,
-		lacks: field(guard.lacks)
-	};
-	return {
-		...guard,
-		has: field(guard.has)
-	};
-}
-/** What a Change's enum map at `path` renames each old value to. */
-function renamesOf(change, path) {
-	const renames = /* @__PURE__ */ new Map();
-	for (const op of change.ops) {
-		if (op.op !== "convert" || op.codec.kind !== "enumMap" || op.path !== path) continue;
-		for (const [from, to] of op.codec.pairs) renames.set(from, to);
-	}
-	return renames;
-}
-/** Where a Change moves a top-level field to, when it moves it to another top-level name. */
-function movedTo(change, field) {
-	for (const op of change.ops) {
-		if (op.op !== "move") continue;
-		const from = parsePointer(op.from);
-		const to = parsePointer(op.to);
-		if (from.length === 1 && from[0] === field && to.length === 1) return to[0];
-	}
 }
 //#endregion
 //#region ../compiler/src/shared.ts
@@ -15077,7 +18431,7 @@ function pointersOf(instr) {
 	return instr.k === "move" ? [instr.from, instr.to] : [instr.path];
 }
 /** The template's parameter names, in order. */
-function templateNames$1(path) {
+function templateNames(path) {
 	return [...path.matchAll(/\{([^{}]+)\}/g)].map((match) => match[1]);
 }
 /**
@@ -15101,8 +18455,8 @@ function collectParameters(change, oldContract, newContract, routes, sites, issu
 		const target = mapEndpoint(routes, operation.method, operation.path);
 		const oldParams = parametersOf(oldContract, operation.method, operation.path);
 		const newParams = newContract ? parametersOf(newContract, target.method, target.path) : [];
-		const oldNames = templateNames$1(operation.path);
-		const newNames = templateNames$1(target.path);
+		const oldNames = templateNames(operation.path);
+		const newNames = templateNames(target.path);
 		const staged = [];
 		const codecs = [];
 		let refused = false;
@@ -15114,8 +18468,8 @@ function collectParameters(change, oldContract, newContract, routes, sites, issu
 				} catch {
 					return false;
 				}
-			}) && op.op !== "convert" && op.op !== "relax") {
-				refuse(`a path parameter can only be converted or given new bounds: ${scope.operation}'s path has the parameters its template has, and renaming one is a route change`);
+			}) && !servesPathParameter(op)) {
+				refuse(`${PATH_PARAMETER_REFUSAL}: ${scope.operation}'s path has the parameters its template has, and renaming one is a route change`);
 				refused = true;
 				continue;
 			}
@@ -15193,7 +18547,7 @@ function declare(scope, op, pointer, context) {
 	if (address.part === "body") return void 0;
 	const name = address.name;
 	if (name === void 0 || name === "*") return `${pointer} names every ${address.part} parameter at once, not one of them`;
-	if (address.part === "path" && op.op !== "convert" && op.op !== "relax") return `a path parameter can only be converted or given new bounds: ${scope.operation}'s path has the parameters its template has, and renaming one is a route change`;
+	if (address.part === "path" && !servesPathParameter(op)) return `${PATH_PARAMETER_REFUSAL}: ${scope.operation}'s path has the parameters its template has, and renaming one is a route change`;
 	if (address.part === "header") {
 		const refusal = headerRefusal(oldContract, name) ?? (newContract ? headerRefusal(newContract, name) : void 0);
 		if (refusal) return refusal;
@@ -15361,13 +18715,13 @@ function mergeSite(earlier, later) {
 		const second = asEnvelope(later);
 		const oldCodecs = /* @__PURE__ */ new Map();
 		const newCodecs = /* @__PURE__ */ new Map();
-		for (const codec of first.params.old) oldCodecs.set(codecKey$1(codec), codec);
-		for (const codec of first.params.new) newCodecs.set(codecKey$1(codec), codec);
+		for (const codec of first.params.old) oldCodecs.set(codecKey(codec), codec);
+		for (const codec of first.params.new) newCodecs.set(codecKey(codec), codec);
 		for (const codec of second.params.old) {
-			const key = codecKey$1(codec);
+			const key = codecKey(codec);
 			if (!oldCodecs.has(key) && !newCodecs.has(key)) oldCodecs.set(key, codec);
 		}
-		for (const codec of second.params.new) newCodecs.set(codecKey$1(codec), codec);
+		for (const codec of second.params.new) newCodecs.set(codecKey(codec), codec);
 		out.envelope = {
 			instrs: [...first.instrs, ...second.instrs],
 			params: {
@@ -15388,7 +18742,7 @@ function mergeSite(earlier, later) {
 	}
 	return out;
 }
-const codecKey$1 = (codec) => `${codec.in} ${codec.name}`;
+const codecKey = (codec) => `${codec.in} ${codec.name}`;
 /** A site's request instructions over the body, relative to it. */
 function bodyInstrsOf(site) {
 	if (site.envelope) return site.envelope.instrs.flatMap((instr) => {
@@ -15417,8 +18771,8 @@ function asEnvelope(site) {
 function renamePathParameters(program, fromPath, toPath) {
 	const envelope = program.envelope;
 	if (!envelope || fromPath === toPath) return program;
-	const from = templateNames$1(fromPath);
-	const to = templateNames$1(toPath);
+	const from = templateNames(fromPath);
+	const to = templateNames(toPath);
 	const rename = (name) => to[from.indexOf(name)] ?? name;
 	const pointer = (value) => {
 		const segments = parsePointer(value);
@@ -15877,7 +19231,7 @@ const RULES = [
 		class: "needs-decision",
 		op: "convert",
 		served: "yes",
-		sentence: "A parameter's type or nullability changed. A `cast` or `scale10` conversion translates old callers' values, which you confirm, and a `dropNull` sends a null they still send as the parameter left out."
+		sentence: "A parameter's type or nullability changed. A conversion translates old callers' values, which you confirm (`cast`, `scale10`, `dateFormat`, or `wrapArray` for a value that became a list), and a `dropNull` sends a null they still send as the parameter left out."
 	}),
 	rule(/^response-header-.*(max|min|pattern|exclusive|items|length|properties|contains|multiple-of)/, {
 		class: "needs-decision",
@@ -15935,7 +19289,7 @@ const RULES = [
 		class: "needs-decision",
 		op: "convert",
 		served: "yes",
-		sentence: "A request field's type changed. A `cast` or `scale10` conversion translates old callers' values, which you confirm."
+		sentence: "A request field's type changed. A conversion translates old callers' values, which you confirm: `cast` or `scale10` for a number, `dateFormat` for a time, `wrapArray` or `unwrapSingle` for a value that became a list or stopped being one."
 	}),
 	rule(/^request-property-became-nullable$/, {
 		class: "adaptable",
@@ -15982,7 +19336,7 @@ const RULES = [
 		class: "needs-decision",
 		op: "convert",
 		served: "yes",
-		sentence: "A response field's type changed. A `cast` or `scale10` conversion translates it back for old callers, which you confirm."
+		sentence: "A response field's type changed. A conversion translates it back for old callers, which you confirm: `cast` or `scale10` for a number, `dateFormat` for a time, `wrapArray` or `unwrapSingle` for a value that became a list or stopped being one."
 	}),
 	rule(/^response-required-property-removed$/, {
 		class: "needs-decision",
@@ -16032,7 +19386,7 @@ const RULES = [
 		sentence: "Old callers may now receive values outside what their contract promised. Passing them through is a declared loss you acknowledge; clamping them is not served yet."
 	})
 ];
-const FALLBACK$1 = {
+const FALLBACK = {
 	class: "behavior-only",
 	served: "not applicable",
 	sentence: `Not yet classified. ${BEHAVIOR}`
@@ -16050,7 +19404,7 @@ const NON_BREAKING = {
 */
 function catalogueEntry(id, level) {
 	if (!(level === void 0 || level === "error" || BREAKING_WARN_IDS.has(id) || BREAKING_INFO_IDS.has(id))) return NON_BREAKING;
-	return RULES.find((candidate) => candidate.match.test(id))?.entry ?? FALLBACK$1;
+	return RULES.find((candidate) => candidate.match.test(id))?.entry ?? FALLBACK;
 }
 //#endregion
 //#region ../diff/src/install.ts
@@ -20251,7 +23605,7 @@ function resolveSize(size) {
 * @remarks Since 0.0.1
 * @public
 */
-function array$1(arb, constraints = {}) {
+function array(arb, constraints = {}) {
 	const size = constraints.size;
 	const minLength = constraints.minLength || 0;
 	const maxLengthOrUnset = constraints.maxLength;
@@ -22447,11 +25801,11 @@ function extractUnitArbitrary(constraints) {
 * @remarks Since 0.0.1
 * @public
 */
-function string$1(constraints = {}) {
+function string(constraints = {}) {
 	const charArbitrary = extractUnitArbitrary(constraints);
 	const unmapper = patternsToStringUnmapperFor(charArbitrary, constraints);
 	const experimentalCustomSlices = createSlicesForString(charArbitrary, constraints);
-	return array$1(charArbitrary, {
+	return array(charArbitrary, {
 		...constraints,
 		experimentalCustomSlices
 	}).map(patternsToStringMapper, unmapper);
@@ -22484,7 +25838,7 @@ function percentCharArbUnmapper(value) {
 	return decodeURIComponent(value);
 }
 /** @internal */
-const percentCharArb = () => string$1({
+const percentCharArb = () => string({
 	unit: "binary",
 	minLength: 1,
 	maxLength: 1
@@ -22618,7 +25972,7 @@ function toSubdomainLabelUnmapper(value) {
 /** @internal */
 function subdomainLabel(size) {
 	const alphaNumericArb = getOrCreateLowerAlphaNumericArbitrary("");
-	return tuple(alphaNumericArb, option(tuple(string$1({
+	return tuple(alphaNumericArb, option(tuple(string({
 		unit: getOrCreateLowerAlphaNumericArbitrary("-"),
 		size,
 		maxLength: 61
@@ -22667,13 +26021,13 @@ function labelsAdapter(labels) {
 function domain(constraints = {}) {
 	const resolvedSize = resolveSize(constraints.size);
 	const resolvedSizeMinusOne = relativeSizeToSize("-1", resolvedSize);
-	const publicSuffixArb = string$1({
+	const publicSuffixArb = string({
 		unit: getOrCreateLowerAlphaArbitrary(),
 		minLength: 2,
 		maxLength: 63,
 		size: resolvedSizeMinusOne
 	});
-	return adapter(tuple(array$1(subdomainLabel(resolvedSize), {
+	return adapter(tuple(array(subdomainLabel(resolvedSize), {
 		size: resolvedSizeMinusOne,
 		minLength: 1,
 		maxLength: 127
@@ -22725,7 +26079,7 @@ function atUnmapper(value) {
 * @public
 */
 function emailAddress(constraints = {}) {
-	return tuple(adapter(array$1(string$1({
+	return tuple(adapter(array(string({
 		unit: getOrCreateLowerAlphaNumericArbitrary("!#$%&'*+-/=?^_`{|}~"),
 		minLength: 1,
 		maxLength: 64,
@@ -23515,7 +26869,7 @@ const safeObjectKeys$2 = Object.keys;
 * @public
 */
 function func(arb) {
-	return tuple(array$1(arb, { minLength: 1 }), noShrink(integer())).map(([outs, seed]) => {
+	return tuple(array(arb, { minLength: 1 }), noShrink(integer())).map(([outs, seed]) => {
 		const producer = () => {
 			const recorded = {};
 			const f = (...args) => {
@@ -23753,58 +27107,58 @@ function hexa() {
 * @public
 */
 function ipV6() {
-	const h16Arb = string$1({
+	const h16Arb = string({
 		unit: hexa(),
 		minLength: 1,
 		maxLength: 4,
 		size: "max"
 	});
 	const ls32Arb = oneof(tuple(h16Arb, h16Arb).map(h16sTol32Mapper, h16sTol32Unmapper), ipV4());
-	return oneof(tuple(array$1(h16Arb, {
+	return oneof(tuple(array(h16Arb, {
 		minLength: 6,
 		maxLength: 6,
 		size: "max"
-	}), ls32Arb).map(fullySpecifiedMapper, fullySpecifiedUnmapper), tuple(array$1(h16Arb, {
+	}), ls32Arb).map(fullySpecifiedMapper, fullySpecifiedUnmapper), tuple(array(h16Arb, {
 		minLength: 5,
 		maxLength: 5,
 		size: "max"
-	}), ls32Arb).map(onlyTrailingMapper, onlyTrailingUnmapper), tuple(array$1(h16Arb, {
+	}), ls32Arb).map(onlyTrailingMapper, onlyTrailingUnmapper), tuple(array(h16Arb, {
 		minLength: 0,
 		maxLength: 1,
 		size: "max"
-	}), array$1(h16Arb, {
+	}), array(h16Arb, {
 		minLength: 4,
 		maxLength: 4,
 		size: "max"
-	}), ls32Arb).map(multiTrailingMapper, multiTrailingUnmapper), tuple(array$1(h16Arb, {
+	}), ls32Arb).map(multiTrailingMapper, multiTrailingUnmapper), tuple(array(h16Arb, {
 		minLength: 0,
 		maxLength: 2,
 		size: "max"
-	}), array$1(h16Arb, {
+	}), array(h16Arb, {
 		minLength: 3,
 		maxLength: 3,
 		size: "max"
-	}), ls32Arb).map(multiTrailingMapper, multiTrailingUnmapper), tuple(array$1(h16Arb, {
+	}), ls32Arb).map(multiTrailingMapper, multiTrailingUnmapper), tuple(array(h16Arb, {
 		minLength: 0,
 		maxLength: 3,
 		size: "max"
-	}), array$1(h16Arb, {
+	}), array(h16Arb, {
 		minLength: 2,
 		maxLength: 2,
 		size: "max"
-	}), ls32Arb).map(multiTrailingMapper, multiTrailingUnmapper), tuple(array$1(h16Arb, {
+	}), ls32Arb).map(multiTrailingMapper, multiTrailingUnmapper), tuple(array(h16Arb, {
 		minLength: 0,
 		maxLength: 4,
 		size: "max"
-	}), h16Arb, ls32Arb).map(multiTrailingMapperOne, multiTrailingUnmapperOne), tuple(array$1(h16Arb, {
+	}), h16Arb, ls32Arb).map(multiTrailingMapperOne, multiTrailingUnmapperOne), tuple(array(h16Arb, {
 		minLength: 0,
 		maxLength: 5,
 		size: "max"
-	}), ls32Arb).map(singleTrailingMapper, singleTrailingUnmapper), tuple(array$1(h16Arb, {
+	}), ls32Arb).map(singleTrailingMapper, singleTrailingUnmapper), tuple(array(h16Arb, {
 		minLength: 0,
 		maxLength: 6,
 		size: "max"
-	}), h16Arb).map(singleTrailingMapper, singleTrailingUnmapper), tuple(array$1(h16Arb, {
+	}), h16Arb).map(singleTrailingMapper, singleTrailingUnmapper), tuple(array(h16Arb, {
 		minLength: 0,
 		maxLength: 7,
 		size: "max"
@@ -23864,7 +27218,7 @@ function canHaveAtLeastOneItem(keys, constraints) {
 function initialPoolForEntityGraph(keys, constraints) {
 	if (keys.length === 0) return constant([]);
 	if (!canHaveAtLeastOneItem(keys, constraints)) throw new SError("Contraints on pool must accept at least one entity, maxLength cannot sum to 0");
-	return tuple(...keys.map((key) => array$1(constant(key), constraints[key]))).map((values) => safeFlat(values)).filter((names) => names.length > 0);
+	return tuple(...keys.map((key) => array(constant(key), constraints[key]))).map((values) => safeFlat(values)).filter((names) => names.length > 0);
 }
 const safeObjectAssign$1 = Object.assign;
 const safeObjectCreate$4 = Object.create;
@@ -24282,7 +27636,7 @@ function unlinkedEntitiesForEntityGraph(arbitraries, countFor, unicityConstraint
 		recordModel[name] = unicityConstraints !== void 0 ? uniqueArray(entityArbitrary, {
 			...arrayConstraints,
 			selector: unicityConstraints
-		}) : array$1(entityArbitrary, arrayConstraints);
+		}) : array(entityArbitrary, arrayConstraints);
 	}
 	return record(recordModel);
 }
@@ -24434,7 +27788,7 @@ function lorem(constraints = {}) {
 	const { maxCount, mode = "words", size } = constraints;
 	if (maxCount !== void 0 && maxCount < 1) throw new Error(`lorem has to produce at least one word/sentence`);
 	const wordArbitrary = loremWord();
-	if (mode === "sentences") return array$1(array$1(wordArbitrary, {
+	if (mode === "sentences") return array(array(wordArbitrary, {
 		minLength: 1,
 		size: "small"
 	}).map(wordsToSentenceMapper, wordsToSentenceUnmapperFor(wordArbitrary)), {
@@ -24442,7 +27796,7 @@ function lorem(constraints = {}) {
 		maxLength: maxCount,
 		size
 	}).map(sentencesToParagraphMapper, sentencesToParagraphUnmapper);
-	else return array$1(wordArbitrary, {
+	else return array(wordArbitrary, {
 		minLength: 1,
 		maxLength: maxCount,
 		size
@@ -24678,7 +28032,7 @@ function fromTypedUnmapper$1(value) {
 * @public
 */
 function float32Array(constraints = {}) {
-	return array$1(float(constraints), constraints).map(toTypedMapper$1, fromTypedUnmapper$1);
+	return array(float(constraints), constraints).map(toTypedMapper$1, fromTypedUnmapper$1);
 }
 /** @internal */
 function toTypedMapper(data) {
@@ -24695,7 +28049,7 @@ function fromTypedUnmapper(value) {
 * @public
 */
 function float64Array(constraints = {}) {
-	return array$1(double(constraints), constraints).map(toTypedMapper, fromTypedUnmapper);
+	return array(double(constraints), constraints).map(toTypedMapper, fromTypedUnmapper);
 }
 /** @internal */
 function typedIntArrayArbitraryArbitraryBuilder(constraints, defaultMin, defaultMax, TypedArrayClass, arbitraryBuilder) {
@@ -24704,7 +28058,7 @@ function typedIntArrayArbitraryArbitraryBuilder(constraints, defaultMin, default
 	if (min > max) throw new Error(`Invalid range passed to ${generatorName}: min must be lower than or equal to max`);
 	if (min < defaultMin) throw new Error(`Invalid min value passed to ${generatorName}: min must be greater than or equal to ${defaultMin}`);
 	if (max > defaultMax) throw new Error(`Invalid max value passed to ${generatorName}: max must be lower than or equal to ${defaultMax}`);
-	return array$1(arbitraryBuilder({
+	return array(arbitraryBuilder({
 		min,
 		max
 	}), arrayConstraints).map((data) => TypedArrayClass.from(data), (value) => {
@@ -24945,7 +28299,7 @@ function anyArbitraryBuilder(constraints) {
 			arbitrary: tie("anything").map((o) => stringify(o)),
 			weight: 1
 		}) : constraints.key,
-		array: array$1(tie("anything"), {
+		array: array(tie("anything"), {
 			maxLength: maxKeys,
 			size,
 			depthIdentifier
@@ -25013,8 +28367,8 @@ function toQualifiedObjectConstraints(settings = {}) {
 		unit: "stringUnit" in settings ? settings.stringUnit : settings.withUnicodeString ? "binary" : void 0
 	};
 	return {
-		key: settings.key !== void 0 ? settings.key : string$1(valueConstraints),
-		values: boxArbitrariesIfNeeded(settings.values !== void 0 ? settings.values : defaultValues(valueConstraints, string$1), settings.withBoxedValues === true),
+		key: settings.key !== void 0 ? settings.key : string(valueConstraints),
+		values: boxArbitrariesIfNeeded(settings.values !== void 0 ? settings.values : defaultValues(valueConstraints, string), settings.withBoxedValues === true),
 		depthSize: settings.depthSize,
 		maxDepth: settings.maxDepth,
 		maxKeys: settings.maxKeys,
@@ -25037,7 +28391,7 @@ function objectInternal(constraints) {
 		size: constraints.size
 	});
 }
-function object$1(constraints) {
+function object(constraints) {
 	return objectInternal(toQualifiedObjectConstraints(constraints));
 }
 /**
@@ -25079,7 +28433,7 @@ function anything(constraints) {
 */
 function jsonValue(constraints = {}) {
 	const noUnicodeString = constraints.noUnicodeString === void 0 || constraints.noUnicodeString === true;
-	return anything(jsonConstraintsBuilder("stringUnit" in constraints ? string$1({ unit: constraints.stringUnit }) : noUnicodeString ? string$1() : string$1({ unit: "binary" }), constraints));
+	return anything(jsonConstraintsBuilder("stringUnit" in constraints ? string({ unit: constraints.stringUnit }) : noUnicodeString ? string() : string({ unit: "binary" }), constraints));
 }
 /** @internal */
 const safeJsonStringify = JSON.stringify;
@@ -25235,7 +28589,7 @@ function base64String(constraints = {}) {
 	if (minLength % 4 !== 0) throw new SError("Minimal length of base64 strings must be a multiple of 4");
 	if (maxLength % 4 !== 0) throw new SError("Maximal length of base64 strings must be a multiple of 4");
 	const charArbitrary = base64();
-	return array$1(charArbitrary, {
+	return array(charArbitrary, {
 		minLength,
 		maxLength,
 		size: requestedSize,
@@ -25573,7 +28927,7 @@ function uuid(constraints = {}) {
 }
 /** @internal */
 function hostUserInfo(size) {
-	return string$1({
+	return string({
 		unit: getOrCreateAlphaNumericPercentArbitrary("-._~!$&'()*+,;=:"),
 		size
 	});
@@ -25627,7 +28981,7 @@ function webAuthority(constraints) {
 }
 /** @internal */
 function buildUriQueryOrFragmentArbitrary(size) {
-	return string$1({
+	return string({
 		unit: getOrCreateAlphaNumericPercentArbitrary("-._~!$&'()*+,;=:@/?"),
 		size
 	});
@@ -25660,7 +29014,7 @@ function webFragments(constraints = {}) {
 * @public
 */
 function webSegment(constraints = {}) {
-	return string$1({
+	return string({
 		unit: getOrCreateAlphaNumericPercentArbitrary("-._~!$&'()*+,;=:@"),
 		size: constraints.size
 	});
@@ -25689,7 +29043,7 @@ function sqrtSize(size) {
 }
 /** @internal */
 function buildUriPathArbitraryInternal(segmentSize, numSegmentSize) {
-	return array$1(webSegment({ size: segmentSize }), { size: numSegmentSize }).map(segmentsToPathMapper, segmentsToPathUnmapper);
+	return array(webSegment({ size: segmentSize }), { size: numSegmentSize }).map(segmentsToPathMapper, segmentsToPathUnmapper);
 }
 /** @internal */
 function buildUriPathArbitrary(resolvedSize) {
@@ -27668,7 +31022,7 @@ const digitCharsSet = new SSet(digitChars);
 const spaceCharsSet = new SSet(spaceChars);
 const terminatorCharsSet = new SSet(terminatorChars);
 const newLineAndTerminatorCharsSet = new SSet(newLineAndTerminatorChars);
-const defaultChar = () => string$1({
+const defaultChar = () => string({
 	unit: "grapheme-ascii",
 	minLength: 1,
 	maxLength: 1
@@ -27702,22 +31056,22 @@ function toMatchingArbitrary(astNode, constraints, flags) {
 		case "Repetition": {
 			const node = toMatchingArbitrary(astNode.expression, constraints, flags);
 			switch (astNode.quantifier.kind) {
-				case "*": return string$1({
+				case "*": return string({
 					...constraints,
 					unit: node
 				});
-				case "+": return string$1({
+				case "+": return string({
 					...constraints,
 					minLength: 1,
 					unit: node
 				});
-				case "?": return string$1({
+				case "?": return string({
 					...constraints,
 					minLength: 0,
 					maxLength: 1,
 					unit: node
 				});
-				case "Range": return string$1({
+				case "Range": return string({
 					...constraints,
 					minLength: astNode.quantifier.from,
 					maxLength: astNode.quantifier.to,
@@ -27778,11 +31132,11 @@ function toMatchingArbitrary(astNode, constraints, flags) {
 		case "Assertion":
 			if (astNode.kind === "^" || astNode.kind === "$") {
 				if (flags.multiline) {
-					if (astNode.kind === "^") return oneof(constant(""), tuple(string$1({ unit: defaultChar() }), constantFrom(...newLineChars)).map((t) => `${t[0]}${t[1]}`, (value) => {
+					if (astNode.kind === "^") return oneof(constant(""), tuple(string({ unit: defaultChar() }), constantFrom(...newLineChars)).map((t) => `${t[0]}${t[1]}`, (value) => {
 						if (typeof value !== "string" || value.length === 0) throw new SError("Invalid type");
 						return [safeSubstring(value, 0, value.length - 1), value[value.length - 1]];
 					}));
-					else return oneof(constant(""), tuple(constantFrom(...newLineChars), string$1({ unit: defaultChar() })).map((t) => `${t[0]}${t[1]}`, (value) => {
+					else return oneof(constant(""), tuple(constantFrom(...newLineChars), string({ unit: defaultChar() })).map((t) => `${t[0]}${t[1]}`, (value) => {
 						if (typeof value !== "string" || value.length === 0) throw new SError("Invalid type");
 						return [value[0], safeSubstring(value, 1)];
 					}));
@@ -28326,7 +31680,7 @@ var fast_check_default_exports = /* @__PURE__ */ __exportAll({
 	__version: () => __version,
 	afterEach: () => afterEach,
 	anything: () => anything,
-	array: () => array$1,
+	array: () => array,
 	assert: () => assert,
 	asyncDefaultReportMessage: () => asyncDefaultReportMessage,
 	asyncModelRun: () => asyncModelRun,
@@ -28396,7 +31750,7 @@ var fast_check_default_exports = /* @__PURE__ */ __exportAll({
 	nat: () => nat,
 	noBias: () => noBias,
 	noShrink: () => noShrink,
-	object: () => object$1,
+	object: () => object,
 	oneof: () => oneof,
 	option: () => option,
 	pre: () => pre,
@@ -28414,7 +31768,7 @@ var fast_check_default_exports = /* @__PURE__ */ __exportAll({
 	sparseArray: () => sparseArray,
 	statistics: () => statistics,
 	stream: () => stream,
-	string: () => string$1,
+	string: () => string,
 	stringMatching: () => stringMatching,
 	stringify: () => stringify,
 	subarray: () => subarray,
@@ -28615,7 +31969,7 @@ var ArbitraryError = class extends Error {
 	}
 };
 /** How deep to follow nested objects before giving up on a recursive schema. */
-const MAX_DEPTH$1 = 6;
+const MAX_DEPTH = 6;
 /**
 * Beyond MAX_DEPTH only what the schema requires is generated. Real contracts
 * nest deeper than six levels, Adyen's terminal API well past it, and an
@@ -28809,7 +32163,7 @@ function arbitraryFor(document, raw, depth) {
 				const items = schema["items"];
 				const minItems = typeof schema["minItems"] === "number" ? schema["minItems"] : 0;
 				if (items === void 0 || depth >= HARD_DEPTH) return fast_check_default.constant([]);
-				if (depth >= MAX_DEPTH$1) {
+				if (depth >= MAX_DEPTH) {
 					if (minItems === 0) return fast_check_default.constant([]);
 					return fast_check_default.array(arbitraryFor(document, items, depth + 1), {
 						minLength: minItems,
@@ -28826,7 +32180,7 @@ function arbitraryFor(document, raw, depth) {
 				const properties = schema["properties"];
 				const additional = schema["additionalProperties"];
 				if (!isJsonObject(properties)) {
-					if (isJsonObject(additional) && depth < MAX_DEPTH$1) return fast_check_default.dictionary(fast_check_default.string({
+					if (isJsonObject(additional) && depth < MAX_DEPTH) return fast_check_default.dictionary(fast_check_default.string({
 						minLength: 1,
 						maxLength: 8,
 						unit: "grapheme-ascii"
@@ -28834,7 +32188,7 @@ function arbitraryFor(document, raw, depth) {
 					return fast_check_default.constant({});
 				}
 				if (depth >= HARD_DEPTH) return fast_check_default.constant({});
-				const minimal = depth >= MAX_DEPTH$1;
+				const minimal = depth >= MAX_DEPTH;
 				const required = new Set(Array.isArray(schema["required"]) ? schema["required"].filter((entry) => typeof entry === "string") : []);
 				const entries = Object.entries(properties).filter(([name]) => !minimal || required.has(name)).map(([name, child]) => {
 					const value = arbitraryFor(document, child, depth + 1);
@@ -28872,2726 +32226,6 @@ function schemaArbitrary(document, ref) {
 	const resolved = deref(document, { $ref: ref });
 	if (!isJsonObject(resolved)) throw new ArbitraryError(`${ref} is not a schema in this contract`);
 	return arbitraryFor(document, resolved, 0);
-}
-var BodyTooLargeError = class extends Error {
-	constructor(limit) {
-		super(`Request body exceeds the ${limit} byte limit for a transformed operation`);
-		this.name = "BodyTooLargeError";
-	}
-};
-/**
-* A body nested deeper than this runtime will walk.
-*
-* Refused before anything parses it: every step that reads a body, parsing it,
-* transforming it and writing it back, follows its nesting, and a request made
-* of fifty thousand brackets would otherwise exhaust the stack and answer 500.
-* Treated as too large, which is what it is.
-*/
-var BodyTooDeepError = class extends BodyTooLargeError {
-	depth;
-	constructor(depth) {
-		super(0);
-		this.message = `The body is nested more than ${depth} levels deep, which is deeper than a transformed operation accepts.`;
-		this.name = "BodyTooDeepError";
-		this.depth = depth;
-	}
-};
-/** A `Content-Encoding` this runtime has no way to decode. */
-var UnsupportedEncodingError = class extends Error {
-	encoding;
-	constructor(encoding) {
-		super(`The body is encoded as "${encoding}", which cannot be decoded here, so it cannot be translated.`);
-		this.name = "UnsupportedEncodingError";
-		this.encoding = encoding;
-	}
-};
-//#endregion
-//#region ../runtime/src/json.ts
-/**
-* JSON that keeps money exact.
-*
-* The important guarantee is that `49.99` scaled to minor units is `4999`, not
-* `4998.9999999999995`. That comes from doing the arithmetic on the decimal
-* text rather than on the double, and `String(value)` recovers that text
-* exactly for every number a double represents, which is every JSON number of
-* up to 15 significant digits.
-*
-* Node can also hand back the original source text of every number, which
-* preserves precision beyond what a double holds. That is switched off by
-* default, for two measured reasons. It costs roughly six times a plain parse,
-* because passing any reviver to `JSON.parse` leaves the fast path. And it buys
-* nothing on its own: the provider's handler parses the body it is given with
-* an ordinary parse, so precision the adapter preserved would be lost one step
-* later anyway. A provider that really does read bodies with arbitrary
-* precision can turn it on.
-*/
-/**
-* A number a double might not hold. `1e400` parses to Infinity and `1e-400`
-* to 0, and Infinity is written back as `null`, so a transform on such a body
-* would change what the caller sent without a word. Found by fuzzing.
-*
-* A number with fewer than 100 digits in a row and an exponent of at most two
-* digits lies within 1e±198, well inside a double's range, so anything this
-* does not match is safe on the fast path. What it does match, including the
-* odd string holding a hundred digits, pays for an exact parse and loses
-* nothing.
-*/
-const BEYOND_DOUBLE = /[\d.][eE][+-]?\d{3}|\d{100}/;
-/** Whether a JSON text nests deeper than the limit, found in one pass without parsing. */
-function tooDeep(text, limit) {
-	if (text.length <= limit) return false;
-	let depth = 0;
-	let inString = false;
-	for (let index = 0; index < text.length; index += 1) {
-		const code = text.charCodeAt(index);
-		if (inString) {
-			if (code === 92) index += 1;
-			else if (code === 34) inString = false;
-			continue;
-		}
-		if (code === 34) inString = true;
-		else if (code === 91 || code === 123) {
-			depth += 1;
-			if (depth > limit) return true;
-		} else if (code === 93 || code === 125) depth -= 1;
-	}
-	return false;
-}
-function parseJson(text, fidelity) {
-	if (tooDeep(text, 256)) throw new BodyTooDeepError(256);
-	if (fidelity === "double" && !BEYOND_DOUBLE.test(text)) return JSON.parse(text);
-	return JSON.parse(text, function preserveNumbers(_key, value, context) {
-		if (typeof value !== "number") return value;
-		const source = context?.source;
-		return source === void 0 ? value : JSON.rawJSON(source);
-	});
-}
-function stringifyJson(value) {
-	return JSON.stringify(value) ?? "null";
-}
-function isNumberLike(value) {
-	return typeof value === "number" || JSON.isRawJSON(value);
-}
-/**
-* The exact decimal text of a numeric value, whatever form it is held in.
-*
-* For a plain number this is the shortest text that reads back as the same
-* double, which is precisely the value the caller sent.
-*/
-function numberTextOf(value) {
-	if (JSON.isRawJSON(value)) return value.rawJSON;
-	if (typeof value === "number") return numberToDecimalText(value);
-	throw new TypeError("Not a number");
-}
-/** Builds a JSON number from exact decimal text, without going through a double. */
-function numberFromText(text) {
-	return JSON.rawJSON(text);
-}
-function isWildcard(segment) {
-	return segment === "*" || segment === "{}";
-}
-/**
-* A path selected more slots than an instruction may touch.
-*
-* Thrown rather than returned as a short list, because a short list is a
-* partly transformed document, and a partly transformed document is a body in
-* the wrong shape that nothing reports. The interpreter attaches the Change.
-*/
-var FanOutExceeded = class extends Error {
-	limit;
-	constructor(limit) {
-		super(`more than ${limit} matches`);
-		this.name = "FanOutExceeded";
-		this.limit = limit;
-	}
-};
-function isContainer(value) {
-	return typeof value === "object" && value !== null && !JSON.isRawJSON(value);
-}
-/**
-* Keys that would reach outside the document being transformed.
-*
-* A program is compiled from a provider's own specification, so one of these
-* should never appear. Refusing them here anyway means a payload can never
-* steer a write onto a shared prototype, whatever produced the program.
-*/
-const UNSAFE_KEYS = /* @__PURE__ */ new Set([
-	"__proto__",
-	"constructor",
-	"prototype"
-]);
-function isUnsafeKey(key) {
-	return UNSAFE_KEYS.has(key);
-}
-function readChild(container, key) {
-	if (Array.isArray(container)) {
-		const index = Number(key);
-		return Number.isInteger(index) ? container[index] : void 0;
-	}
-	return container[key];
-}
-/**
-* Every existing slot a path selects. A path with no wildcard selects at most
-* one; a wildcard fans out across an array's elements.
-*/
-function resolveSlots(root, segments, limit) {
-	if (segments.length === 0) return [];
-	let frontier = [{
-		value: root,
-		captures: []
-	}];
-	for (let depth = 0; depth < segments.length - 1; depth += 1) {
-		const segment = segments[depth];
-		const next = [];
-		for (const node of frontier) {
-			if (!isContainer(node.value)) continue;
-			if (segment === "*") {
-				if (!Array.isArray(node.value)) continue;
-				for (const [index, item] of node.value.entries()) {
-					if (next.length >= limit) throw new FanOutExceeded(limit);
-					next.push({
-						value: item,
-						captures: [...node.captures, index]
-					});
-				}
-				continue;
-			}
-			if (segment === "{}") {
-				if (Array.isArray(node.value)) continue;
-				for (const key of Object.keys(node.value)) {
-					if (isUnsafeKey(key)) continue;
-					if (next.length >= limit) throw new FanOutExceeded(limit);
-					next.push({
-						value: node.value[key],
-						captures: [...node.captures, key]
-					});
-				}
-				continue;
-			}
-			const child = readChild(node.value, segment);
-			if (child === void 0) continue;
-			next.push({
-				value: child,
-				captures: node.captures
-			});
-		}
-		frontier = next;
-		if (frontier.length === 0) return [];
-	}
-	const last = segments[segments.length - 1];
-	const slots = [];
-	for (const node of frontier) {
-		if (!isContainer(node.value)) continue;
-		if (last === "*") {
-			if (!Array.isArray(node.value)) continue;
-			for (const index of node.value.keys()) {
-				if (slots.length >= limit) throw new FanOutExceeded(limit);
-				slots.push({
-					container: node.value,
-					key: String(index),
-					captures: [...node.captures, index]
-				});
-			}
-			continue;
-		}
-		if (last === "{}") {
-			if (Array.isArray(node.value)) continue;
-			for (const key of Object.keys(node.value)) {
-				if (isUnsafeKey(key)) continue;
-				if (slots.length >= limit) throw new FanOutExceeded(limit);
-				slots.push({
-					container: node.value,
-					key,
-					captures: [...node.captures, key]
-				});
-			}
-			continue;
-		}
-		if (Array.isArray(node.value)) continue;
-		if (!Object.hasOwn(node.value, last)) continue;
-		if (slots.length >= limit) throw new FanOutExceeded(limit);
-		slots.push({
-			container: node.value,
-			key: last,
-			captures: node.captures
-		});
-	}
-	return slots;
-}
-function readSlot(slot) {
-	return readChild(slot.container, slot.key);
-}
-function writeSlot(slot, value) {
-	if (!Array.isArray(slot.container) && isUnsafeKey(slot.key)) return;
-	if (Array.isArray(slot.container)) {
-		slot.container[Number(slot.key)] = value;
-		return;
-	}
-	slot.container[slot.key] = value;
-}
-function deleteSlot(slot) {
-	if (Array.isArray(slot.container)) {
-		slot.container.splice(Number(slot.key), 1);
-		return;
-	}
-	delete slot.container[slot.key];
-}
-/**
-* Walks to a slot, creating plain objects along the way. Wildcards are filled
-* from `captures`, so a target path lines up element by element with the source
-* path that produced it.
-*/
-function createSlot(root, segments, captures) {
-	if (segments.length === 0) return void 0;
-	let current = root;
-	let captureIndex = 0;
-	for (let depth = 0; depth < segments.length - 1; depth += 1) {
-		const raw = segments[depth];
-		if (!isContainer(current)) return void 0;
-		if (raw === "*") {
-			const index = captures[captureIndex];
-			captureIndex += 1;
-			if (typeof index !== "number" || !Array.isArray(current)) return void 0;
-			const child = current[index];
-			if (child === void 0) return void 0;
-			current = child;
-			continue;
-		}
-		if (raw === "{}") {
-			const key = captures[captureIndex];
-			captureIndex += 1;
-			if (typeof key !== "string" || Array.isArray(current) || isUnsafeKey(key)) return;
-			const child = Object.hasOwn(current, key) ? current[key] : void 0;
-			if (child === void 0) return void 0;
-			current = child;
-			continue;
-		}
-		if (Array.isArray(current) || isUnsafeKey(raw)) return void 0;
-		let child = Object.hasOwn(current, raw) ? current[raw] : void 0;
-		if (child === void 0 || !isContainer(child)) {
-			if (child !== void 0) return void 0;
-			child = {};
-			current[raw] = child;
-		}
-		current = child;
-	}
-	const last = segments[segments.length - 1];
-	if (!isContainer(current)) return void 0;
-	if (last === "*") {
-		const index = captures[captureIndex];
-		if (typeof index !== "number" || !Array.isArray(current)) return void 0;
-		return {
-			container: current,
-			key: String(index),
-			captures: [...captures]
-		};
-	}
-	if (last === "{}") {
-		const key = captures[captureIndex];
-		if (typeof key !== "string" || Array.isArray(current) || isUnsafeKey(key)) return;
-		return {
-			container: current,
-			key,
-			captures: [...captures]
-		};
-	}
-	if (Array.isArray(current) || isUnsafeKey(last)) return void 0;
-	return {
-		container: current,
-		key: last,
-		captures: [...captures]
-	};
-}
-/** Removes objects a move emptied, so the old shape does not leave a husk behind. */
-function pruneEmptyAncestors(root, segments, captures) {
-	for (let depth = segments.length - 1; depth >= 1; depth -= 1) {
-		const slot = createSlot(root, segments.slice(0, depth), captures);
-		if (!slot) return;
-		const value = readSlot(slot);
-		if (!(typeof value === "object" && value !== null && !Array.isArray(value) && Object.keys(value).length === 0)) return;
-		deleteSlot(slot);
-	}
-}
-//#endregion
-//#region ../runtime/src/interpreter.ts
-/**
-* The compatibility interpreter.
-*
-* Six instructions, no loops, no recursion over user input beyond the depth of
-* the document, no expressions, no I/O. There is nothing here that can be made
-* to call out, and nothing that a payload can steer. A program is data, and the
-* worst a malformed one can do is fail.
-*
-* Failure is always loud. A transform that cannot be completed exactly must
-* never hand back a body in the wrong shape, so every refusal raises rather
-* than skipping the instruction.
-*/
-/**
-* How deeply calls may nest while running one body. A call only goes deeper
-* inside a `within` that descends into the value, and bodies are refused past
-* 256 levels, so this is never reached by a program the decoder accepts; it
-* is the guard behind that proof.
-*/
-const MAX_CALL_DEPTH = 512;
-/** The JSON kind of a parsed value. */
-function kindOf$1(value) {
-	if (value === null) return "null";
-	if (isNumberLike(value)) return "number";
-	if (Array.isArray(value)) return "array";
-	switch (typeof value) {
-		case "string": return "string";
-		case "boolean": return "boolean";
-		case "object": return "object";
-		default: return;
-	}
-}
-/**
-* Every place an instruction reads or writes, from the root it runs at,
-* including what its blocks touch: a block under `within` is read from each
-* match, which a wildcard stands for here.
-*
-* A named block is followed once per path through the calls: where it recurs,
-* it touches deeper copies of places already listed, so the list stays finite
-* and still names every place at each depth it was first reached.
-*/
-function touchedPaths(instr, entered = /* @__PURE__ */ new Set()) {
-	const inner = (block) => block.flatMap((each) => touchedPaths(each, entered));
-	switch (instr.k) {
-		case "move": return [instr.from, instr.to];
-		case "within": return [instr.path, ...inner(instr.block).map((path) => [...instr.path, ...path])];
-		case "switch": return [instr.path, ...[...instr.cases.values()].flatMap(inner)];
-		case "has":
-		case "is": return [instr.path, ...inner(instr.block)];
-		case "call": {
-			if (entered.has(instr.name)) return [];
-			const deeper = new Set(entered).add(instr.name);
-			return instr.target.instrs.flatMap((each) => touchedPaths(each, deeper));
-		}
-		default: return [instr.path];
-	}
-}
-var TransformError = class extends Error {
-	changeId;
-	constructor(changeId, message) {
-		super(message);
-		this.name = "TransformError";
-		this.changeId = changeId;
-	}
-};
-/**
-* An instruction matched more places than the configured cap allows.
-*
-* A request carrying this is refused as too large; a response carrying it is
-* refused as untranslatable. Neither is ever answered with a body that was
-* transformed in part.
-*/
-var MatchLimitError = class extends TransformError {
-	limit;
-	constructor(changeId, limit) {
-		super(changeId, `${changeId} would touch more than ${limit} places in one body. Raise limits.maxMatches if bodies this large are expected.`);
-		this.name = "MatchLimitError";
-		this.limit = limit;
-	}
-};
-const DEFAULT_LIMITS = { maxMatches: 1e4 };
-function countApplied(result, changeId, times) {
-	if (times === 0) return;
-	result.applied.set(changeId, (result.applied.get(changeId) ?? 0) + times);
-}
-function applyMove(root, instr, limits) {
-	const slots = resolveSlots(root, instr.from, limits.maxMatches);
-	let moved = 0;
-	for (const slot of slots) {
-		const value = readSlot(slot);
-		const target = createSlot(root, instr.to, slot.captures);
-		if (!target) throw new TransformError(instr.c, `Cannot place the value from ${instr.from.join("/")} at ${instr.to.join("/")}`);
-		deleteSlot(slot);
-		writeSlot(target, value);
-		pruneEmptyAncestors(root, instr.from, slot.captures);
-		moved += 1;
-	}
-	return moved;
-}
-function applyScale(root, instr, limits) {
-	const slots = resolveSlots(root, instr.path, limits.maxMatches);
-	let scaled = 0;
-	for (const slot of slots) {
-		const value = readSlot(slot);
-		if (value === null) continue;
-		let text;
-		try {
-			text = numberTextOf(value);
-		} catch {
-			throw new TransformError(instr.c, `Expected a number at ${instr.path.join("/")} to scale, found ${typeof value}`);
-		}
-		const shifted = shiftDecimal(text, instr.exp);
-		if (instr.exp > 0 && shifted.includes(".")) throw new TransformError(instr.c, `Value ${text} at ${instr.path.join("/")} has more precision than the contract allows`);
-		writeSlot(slot, numberFromText(shifted));
-		scaled += 1;
-	}
-	return scaled;
-}
-function applyEnum(root, instr, limits, folded) {
-	const folds = instr.folded === void 0 ? void 0 : new Set(instr.folded);
-	const slots = resolveSlots(root, instr.path, limits.maxMatches);
-	let mapped = 0;
-	for (const slot of slots) {
-		const value = readSlot(slot);
-		if (value === null) continue;
-		if (typeof value !== "string") throw new TransformError(instr.c, `Expected a string at ${instr.path.join("/")} to map, found ${typeof value}`);
-		const replacement = Object.hasOwn(instr.map, value) ? instr.map[value] : void 0;
-		if (replacement === void 0) {
-			if (instr.lenient) continue;
-			throw new TransformError(instr.c, `No mapping for "${value}" at ${instr.path.join("/")} in this contract`);
-		}
-		if (folds?.has(value)) folded.add(instr.path.join("/"));
-		writeSlot(slot, replacement);
-		mapped += 1;
-	}
-	return mapped;
-}
-function castValue(value, to, instr, path) {
-	switch (to) {
-		case "string":
-			if (typeof value === "string") return value;
-			if (typeof value === "boolean") return String(value);
-			if (!isNumberLike(value)) throw new TransformError(instr.c, `Cannot cast ${value === null ? "null" : typeof value} to string at ${path.join("/")}`);
-			return numberTextOf(value);
-		case "boolean":
-			if (typeof value === "boolean") return value;
-			throw new TransformError(instr.c, `Cannot cast ${typeof value} to boolean at ${path.join("/")}`);
-		case "integer":
-		case "number": {
-			const text = typeof value === "string" ? value : numberTextOf(value);
-			const normalized = shiftDecimal(text, 0);
-			if (to === "integer" && normalized.includes(".")) throw new TransformError(instr.c, `Value ${text} at ${path.join("/")} is not an integer`);
-			return numberFromText(normalized);
-		}
-	}
-}
-function applyCast(root, instr, limits) {
-	const slots = resolveSlots(root, instr.path, limits.maxMatches);
-	let cast = 0;
-	for (const slot of slots) {
-		const value = readSlot(slot);
-		if (value === null) continue;
-		writeSlot(slot, castValue(value, instr.to, instr, instr.path));
-		cast += 1;
-	}
-	return cast;
-}
-/** Whether a `set` writes over what is there now. */
-function setsOver(instr, current) {
-	if (!instr.ifAbsent && !instr.ifNull) return true;
-	return instr.ifAbsent && current === void 0 || instr.ifNull === true && current === null;
-}
-function applySet(root, instr, limits) {
-	if (instr.ifNull && !instr.ifAbsent) {
-		let written = 0;
-		for (const slot of resolveSlots(root, instr.path, limits.maxMatches)) {
-			if (readSlot(slot) !== null) continue;
-			writeSlot(slot, instr.value);
-			written += 1;
-		}
-		return written;
-	}
-	const lastWildcard = instr.path.findLastIndex(isWildcard);
-	if (lastWildcard >= 0) {
-		const elements = resolveSlots(root, instr.path.slice(0, lastWildcard + 1), limits.maxMatches);
-		const rest = instr.path.slice(lastWildcard + 1);
-		let written = 0;
-		for (const element of elements) {
-			const target = rest.length === 0 ? element : createSlot(readSlot(element), rest, []);
-			if (!target) continue;
-			if (!setsOver(instr, readSlot(target))) continue;
-			writeSlot(target, instr.value);
-			written += 1;
-		}
-		return written;
-	}
-	const slot = createSlot(root, instr.path, []);
-	if (!slot) throw new TransformError(instr.c, `Cannot write ${instr.path.join("/")}`);
-	if (!setsOver(instr, readSlot(slot))) return 0;
-	writeSlot(slot, instr.value);
-	return 1;
-}
-function applyDel(root, instr, limits) {
-	const slots = resolveSlots(root, instr.path, limits.maxMatches);
-	let removed = 0;
-	for (const slot of [...slots].reverse()) {
-		if (instr.ifNull && readSlot(slot) !== null) continue;
-		deleteSlot(slot);
-		removed += 1;
-	}
-	return removed;
-}
-/**
-* Runs a program over a parsed body, in place.
-*
-* A path that is simply absent is not an error: optional fields are allowed to
-* be missing, and an instruction that matches nothing has nothing to do. A path
-* that is present but holds the wrong kind of value is an error, because that
-* means the document does not match the contract the program was compiled for.
-*/
-function execute(root, program, limits = DEFAULT_LIMITS) {
-	const result = {
-		applied: /* @__PURE__ */ new Map(),
-		folded: /* @__PURE__ */ new Set()
-	};
-	for (const instr of program) try {
-		step(root, instr, limits, result, 0, void 0);
-	} catch (error) {
-		if (error instanceof FanOutExceeded) throw new MatchLimitError(instr.c, error.limit);
-		if (error instanceof DecimalError) throw new TransformError(instr.c, error.message);
-		throw error;
-	}
-	return result;
-}
-function hereFor(instr, here) {
-	if (!here) throw new TransformError(instr.c, "An instruction cannot replace a whole body");
-	return here;
-}
-function step(root, instr, limits, result, calls, here) {
-	const run = (at, block, depth = calls, where = here) => {
-		for (const inner of block) step(at, inner, limits, result, depth, where);
-	};
-	switch (instr.k) {
-		case "move":
-			if (instr.to.length === 0) {
-				const [source] = resolveSlots(root, instr.from, limits.maxMatches);
-				if (source === void 0) break;
-				writeSlot(hereFor(instr, here).slot, readSlot(source));
-				countApplied(result, instr.c, 1);
-				break;
-			}
-			countApplied(result, instr.c, applyMove(root, instr, limits));
-			break;
-		case "scale":
-			countApplied(result, instr.c, applyScale(root, instr, limits));
-			break;
-		case "enum":
-			countApplied(result, instr.c, applyEnum(root, instr, limits, result.folded));
-			break;
-		case "cast":
-			countApplied(result, instr.c, applyCast(root, instr, limits));
-			break;
-		case "set":
-			if (instr.path.length === 0) {
-				writeSlot(hereFor(instr, here).slot, instr.value);
-				countApplied(result, instr.c, 1);
-				break;
-			}
-			countApplied(result, instr.c, applySet(root, instr, limits));
-			break;
-		case "del":
-			if (instr.path.length === 0) {
-				const at = hereFor(instr, here);
-				at.removals.push(at.slot);
-				countApplied(result, instr.c, 1);
-				break;
-			}
-			countApplied(result, instr.c, applyDel(root, instr, limits));
-			break;
-		case "within": {
-			if (instr.path.length === 0) {
-				if (typeof root === "object" && root !== null && !JSON.isRawJSON(root)) run(root, instr.block);
-				break;
-			}
-			const removals = [];
-			for (const slot of resolveSlots(root, instr.path, limits.maxMatches)) {
-				const node = readSlot(slot);
-				if (typeof node !== "object" || node === null || JSON.isRawJSON(node)) continue;
-				run(node, instr.block, calls, {
-					slot,
-					removals
-				});
-			}
-			for (const slot of removals.reverse()) deleteSlot(slot);
-			break;
-		}
-		case "switch": {
-			const value = instr.path.length === 0 ? root : readOne(root, instr.path, limits.maxMatches);
-			const key = typeof value === "string" ? value : typeof value === "boolean" ? String(value) : isNumberLike(value) ? numberTextOf(value) : void 0;
-			run(root, (key === void 0 ? void 0 : instr.cases.get(key)) ?? []);
-			break;
-		}
-		case "has":
-			if (resolveSlots(root, instr.path, limits.maxMatches).length > 0 === (instr.absent === true)) break;
-			run(root, instr.block);
-			break;
-		case "is": {
-			const value = instr.path.length === 0 ? root : readOne(root, instr.path, limits.maxMatches);
-			if (value !== void 0 && kindOf$1(value) === instr.type) run(root, instr.block);
-			break;
-		}
-		case "call":
-			if (calls >= MAX_CALL_DEPTH) throw new TransformError(instr.c, `${instr.name} called itself too deeply`);
-			run(root, instr.target.instrs, calls + 1);
-	}
-}
-function readOne(root, path, limit) {
-	const [slot] = resolveSlots(root, path, limit);
-	return slot === void 0 ? void 0 : readSlot(slot);
-}
-//#endregion
-//#region ../runtime/src/envelope.ts
-/**
-* A request as one tree, and back.
-*
-* `open` reads the parameters a program names out of the request, decoded
-* into typed values the way their declaration says they are written, and
-* places them beside the body under `@path`, `@query`, `@header` and
-* `@cookie`. The interpreter then runs over that tree like any body. `close`
-* writes what the tree holds back into the request, encoded the way the
-* current contract declares each parameter.
-*
-* Only named parameters are ever decoded or rewritten. Everything else in the
-* request, including the order of an untouched query string, is passed on
-* exactly as it arrived, because a program that quietly re-encodes what it
-* was never asked about is a program that breaks a signature or a cache key
-* nobody knew depended on those bytes.
-*/
-const PART = {
-	path: "@path",
-	query: "@query",
-	header: "@header",
-	cookie: "@cookie",
-	body: "@body"
-};
-const codecKey = (location, name) => `${location} ${location === "header" ? name.toLowerCase() : name}`;
-const JSON_NUMBER$1 = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/;
-function decodeComponent$1(text) {
-	try {
-		return decodeURIComponent(text.replace(/\+/g, " "));
-	} catch {
-		return text;
-	}
-}
-/** A path segment: percent-decoded, where `+` is a plus sign, not a space. */
-function decodeSegment(text) {
-	try {
-		return decodeURIComponent(text);
-	} catch {
-		return text;
-	}
-}
-function queryPairs(search) {
-	if (search === "") return [];
-	return search.split("&").map((raw) => {
-		const equals = raw.indexOf("=");
-		return equals === -1 ? {
-			raw,
-			key: decodeComponent$1(raw),
-			value: ""
-		} : {
-			raw,
-			key: decodeComponent$1(raw.slice(0, equals)),
-			value: decodeComponent$1(raw.slice(equals + 1))
-		};
-	});
-}
-function cookiePairs(headers) {
-	const pairs = [];
-	for (const [name, value] of headers) {
-		if (name.toLowerCase() !== "cookie") continue;
-		for (const part of value.split(";")) {
-			const trimmed = part.trim();
-			if (trimmed === "") continue;
-			const equals = trimmed.indexOf("=");
-			pairs.push(equals === -1 ? [trimmed, ""] : [trimmed.slice(0, equals), trimmed.slice(equals + 1)]);
-		}
-	}
-	return pairs;
-}
-/** A scalar written as text, typed the way its declaration says it is. */
-function scalar(text, type, fidelity) {
-	if ((type === "integer" || type === "number") && JSON_NUMBER$1.test(text)) return parseJson(text, fidelity);
-	if (type === "boolean" && (text === "true" || text === "false")) return text === "true";
-	return text;
-}
-function delimiterOf(codec) {
-	if (codec.style === "spaceDelimited") return " ";
-	if (codec.style === "pipeDelimited") return "|";
-	return ",";
-}
-/** A value from its written parts: every occurrence for an exploded list. */
-function decodeValue(parts, codec, fidelity) {
-	const item = codec.items ?? "string";
-	if (codec.type === "array") return (codec.explode && codec.in !== "header" && codec.in !== "path" ? parts : (parts[0] ?? "").split(delimiterOf(codec)).map((entry) => codec.in === "header" ? entry.trim() : entry)).map((entry) => scalar(entry, item, fidelity));
-	if (codec.type === "object") {
-		const text = parts[0] ?? "";
-		const object = {};
-		if (codec.explode) for (const entry of text.split(",")) {
-			const equals = entry.indexOf("=");
-			const key = entry.slice(0, equals).trim();
-			if (equals === -1 || isUnsafeKey(key)) continue;
-			object[key] = entry.slice(equals + 1).trim();
-		}
-		else {
-			const flat = text.split(",");
-			for (let index = 0; index + 1 < flat.length; index += 2) {
-				const key = flat[index];
-				if (!isUnsafeKey(key)) object[key] = flat[index + 1];
-			}
-		}
-		return object;
-	}
-	return scalar(parts[0] ?? "", codec.type, fidelity);
-}
-/** The template's parameter names, in the order `matchTemplate` returns values. */
-function templateNames(template) {
-	return template.flatMap((segment) => [...segment.matchAll(/\{([^{}]+)\}/g)].map((match) => match[1]));
-}
-/**
-* The request as a tree holding only what the program names.
-*
-* `pathValues` are the values the routed path matched its template with, in
-* template order.
-*/
-function openEnvelope(envelope, template, pathValues, request, fidelity) {
-	const tree = {
-		[PART.path]: {},
-		[PART.query]: {},
-		[PART.header]: {},
-		[PART.cookie]: {}
-	};
-	const names = templateNames(template);
-	const query = queryPairs(request.search);
-	const cookies = cookiePairs(request.headers);
-	for (const codec of envelope.old.values()) {
-		let parts = [];
-		let object;
-		switch (codec.in) {
-			case "path": {
-				const index = names.indexOf(codec.name);
-				const raw = index === -1 ? void 0 : pathValues[index];
-				if (raw !== void 0) parts = [decodeSegment(raw)];
-				break;
-			}
-			case "query":
-				if (codec.style === "deepObject") {
-					const prefix = `${codec.name}[`;
-					for (const pair of query) {
-						if (!pair.key.startsWith(prefix) || !pair.key.endsWith("]")) continue;
-						const key = pair.key.slice(prefix.length, -1);
-						if (isUnsafeKey(key)) continue;
-						object ??= {};
-						object[key] = pair.value;
-					}
-				} else parts = query.filter((pair) => pair.key === codec.name).map((pair) => pair.value);
-				break;
-			case "header": {
-				const lines = request.headers.filter(([name]) => name.toLowerCase() === codec.name).map(([, value]) => value.trim());
-				if (lines.length > 0) parts = [lines.join(", ")];
-				break;
-			}
-			case "cookie": parts = cookies.filter(([name]) => name === codec.name).map(([, value]) => value);
-		}
-		const part = tree[PART[codec.in]];
-		if (object !== void 0) part[codec.name] = object;
-		else if (parts.length > 0) part[codec.name] = decodeValue(parts, codec, fidelity);
-	}
-	if (envelope.body && request.body !== void 0 && request.body !== "") tree[PART.body] = parseJson(request.body, fidelity);
-	return tree;
-}
-function text$1(value, changeId, where) {
-	if (typeof value === "string") return value;
-	if (typeof value === "boolean") return String(value);
-	if (value === null) return "";
-	try {
-		return numberTextOf(value);
-	} catch {
-		throw new TransformError(changeId, `${where} holds a value that cannot be written as text`);
-	}
-}
-/** The written parts of a value: one per occurrence for an exploded list. */
-function encodeValue(value, codec, changeId) {
-	const where = `${codec.in} parameter ${codec.name}`;
-	if (Array.isArray(value)) {
-		const items = value.map((entry) => text$1(entry, changeId, where));
-		if (codec.explode && (codec.in === "query" || codec.in === "cookie")) return items;
-		return [items.join(delimiterOf(codec))];
-	}
-	if (typeof value === "object" && value !== null && !numberLike(value)) {
-		const entries = Object.entries(value).map(([key, entry]) => [key, text$1(entry, changeId, where)]);
-		return [codec.explode ? entries.map(([key, entry]) => `${key}=${entry}`).join(",") : entries.flat().join(",")];
-	}
-	return [text$1(value, changeId, where)];
-}
-function numberLike(value) {
-	return JSON.isRawJSON(value);
-}
-const FALLBACK = {
-	path: {
-		style: "simple",
-		explode: false
-	},
-	query: {
-		style: "form",
-		explode: true
-	},
-	header: {
-		style: "simple",
-		explode: false
-	},
-	cookie: {
-		style: "form",
-		explode: true
-	}
-};
-/** The change that last wrote under a pointer prefix, for naming a refusal. */
-function writerOf$1(instrs, part, name) {
-	for (let index = instrs.length - 1; index >= 0; index -= 1) {
-		const instr = instrs[index];
-		if (touchedPaths(instr).some((path) => path[0] === part && path[1] === name)) return instr.c;
-	}
-	return instrs[0]?.c ?? "";
-}
-/** Characters that would end a header line or a cookie early. */
-const UNSAFE_HEADER = /[\r\n\0]/;
-const UNSAFE_COOKIE = /[\r\n\0;,\s]/;
-/**
-* Writes the tree back into a request.
-*
-* A parameter the program named is taken out of the request wherever it was
-* and written again from the tree, so one it moved away is gone and one it
-* moved in arrives in the current contract's own style.
-*/
-function closeEnvelope(envelope, template, pathValues, request, tree) {
-	const named = /* @__PURE__ */ new Map();
-	for (const codec of [...envelope.old.values(), ...envelope.new.values()]) {
-		const set = named.get(codec.in) ?? /* @__PURE__ */ new Set();
-		set.add(codec.name);
-		named.set(codec.in, set);
-	}
-	const codecFor = (location, name) => envelope.new.get(codecKey(location, name)) ?? envelope.old.get(codecKey(location, name)) ?? {
-		in: location,
-		name,
-		type: "string",
-		...FALLBACK[location]
-	};
-	const partOf = (location) => tree[PART[location]] ?? {};
-	let path = request.path;
-	const pathNamed = named.get("path");
-	if (pathNamed && pathNamed.size > 0) {
-		const names = templateNames(template);
-		const values = partOf("path");
-		const filled = names.map((name, index) => {
-			if (!pathNamed.has(name)) return pathValues[index];
-			const value = values[name];
-			const changeId = writerOf$1(envelope.instrs, PART.path, name);
-			if (value === void 0 || value === null) throw new TransformError(changeId, `path parameter ${name} was left without a value`);
-			return encodeURIComponent(encodeValue(value, codecFor("path", name), changeId)[0] ?? "");
-		});
-		let next = 0;
-		path = template.map((segment) => segment.replace(/\{[^{}]+\}/g, () => {
-			const value = filled[next] ?? "";
-			next += 1;
-			return value;
-		})).join("/");
-	}
-	let search = request.search;
-	const queryNamed = named.get("query");
-	if (queryNamed && queryNamed.size > 0) {
-		const kept = queryPairs(request.search).filter((pair) => !queryNamed.has(pair.key) && ![...queryNamed].some((name) => pair.key.startsWith(`${name}[`) && pair.key.endsWith("]"))).map((pair) => pair.raw);
-		const written = [];
-		for (const [name, value] of Object.entries(partOf("query"))) {
-			if (value === void 0) continue;
-			const codec = codecFor("query", name);
-			const changeId = writerOf$1(envelope.instrs, PART.query, name);
-			if (codec.style === "deepObject" && typeof value === "object" && value !== null && !Array.isArray(value) && !numberLike(value)) {
-				for (const [key, entry] of Object.entries(value)) written.push(`${encodeURIComponent(name)}[${encodeURIComponent(key)}]=${encodeURIComponent(text$1(entry, changeId, `query parameter ${name}`))}`);
-				continue;
-			}
-			const parts = encodeValue(value, codec, changeId);
-			const separator = codec.explode ? void 0 : delimiterOf(codec);
-			for (const part of parts) {
-				const encoded = separator === void 0 ? encodeURIComponent(part) : part.split(separator).map(encodeURIComponent).join(separator === " " ? "%20" : separator);
-				written.push(`${encodeURIComponent(name)}=${encoded}`);
-			}
-		}
-		search = [...kept, ...written].join("&");
-	}
-	let headers = request.headers;
-	const headerNamed = named.get("header");
-	const cookieNamed = named.get("cookie");
-	if (headerNamed && headerNamed.size > 0 || cookieNamed && cookieNamed.size > 0) {
-		const lowered = new Set([...headerNamed ?? []].map((name) => name.toLowerCase()));
-		headers = request.headers.filter(([name]) => {
-			const lower = name.toLowerCase();
-			if (lowered.has(lower)) return false;
-			return !(cookieNamed && cookieNamed.size > 0 && lower === "cookie");
-		});
-		for (const [name, value] of Object.entries(partOf("header"))) {
-			if (value === void 0) continue;
-			const changeId = writerOf$1(envelope.instrs, PART.header, name);
-			const written = encodeValue(value, codecFor("header", name), changeId)[0] ?? "";
-			if (UNSAFE_HEADER.test(written)) throw new TransformError(changeId, `header ${name} would carry a line break`);
-			headers.push([name.toLowerCase(), written]);
-		}
-		if (cookieNamed && cookieNamed.size > 0) {
-			const kept = cookiePairs(request.headers).filter(([name]) => !cookieNamed.has(name));
-			const written = [];
-			for (const [name, value] of Object.entries(partOf("cookie"))) {
-				if (value === void 0) continue;
-				const changeId = writerOf$1(envelope.instrs, PART.cookie, name);
-				for (const part of encodeValue(value, codecFor("cookie", name), changeId)) {
-					if (UNSAFE_COOKIE.test(part)) throw new TransformError(changeId, `cookie ${name} would carry a separator`);
-					written.push([name, part]);
-				}
-			}
-			const all = [...kept, ...written];
-			if (all.length > 0) headers.push(["cookie", all.map(([name, value]) => `${name}=${value}`).join("; ")]);
-		}
-	}
-	let body = request.body;
-	if (envelope.body && tree[PART.body] !== void 0) body = stringifyJson(tree[PART.body]);
-	else if (envelope.body && body !== void 0 && body !== "") body = "";
-	return {
-		path,
-		search,
-		headers,
-		body
-	};
-}
-//#endregion
-//#region ../runtime/src/form.ts
-/**
-* Form-encoded bodies, as a tree and back.
-*
-* Stripe, Twilio, Slack and every OAuth token endpoint take
-* `application/x-www-form-urlencoded` requests. A program describes fields,
-* not encodings, so the same instructions run whether a body arrived as JSON
-* or as a form: the form is decoded into a tree, the instructions run, and the
-* tree is written back.
-*
-* Only the top-level fields a program names are decoded and rewritten, in the
-* style each is declared with: bracketed keys for a `deepObject`, as Stripe
-* writes `metadata[order_id]=6735` and `items[0][price]=p_1`, and plain keys
-* otherwise, repeated for a list as Twilio writes them. Every other pair keeps
-* its exact bytes and its place.
-*/
-const PLAIN = {
-	style: "form",
-	explode: true
-};
-const JSON_NUMBER = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/;
-function decodeComponent(text) {
-	try {
-		return decodeURIComponent(text.replace(/\+/g, " "));
-	} catch {
-		return text;
-	}
-}
-function pairsOf(text) {
-	if (text === "") return [];
-	return text.split("&").flatMap((raw) => {
-		if (raw === "") return [];
-		const equals = raw.indexOf("=");
-		return [equals === -1 ? {
-			raw,
-			key: decodeComponent(raw),
-			value: ""
-		} : {
-			raw,
-			key: decodeComponent(raw.slice(0, equals)),
-			value: decodeComponent(raw.slice(equals + 1))
-		}];
-	});
-}
-/** How deeply a form key may nest, far beyond Stripe's deepest. */
-const MAX_FORM_DEPTH = 32;
-/** `a[b][0]` as its root and the segments under it; `a[]` ends in an append. */
-function keyPath(key) {
-	const open = key.indexOf("[");
-	if (open === -1) return {
-		root: key,
-		segments: []
-	};
-	const root = key.slice(0, open);
-	const segments = [];
-	let rest = key.slice(open);
-	while (rest.length > 0) {
-		const match = /^\[([^[\]]*)\]/.exec(rest);
-		if (!match) return void 0;
-		segments.push(match[1]);
-		if (segments.length > MAX_FORM_DEPTH) throw new BodyTooDeepError(MAX_FORM_DEPTH);
-		rest = rest.slice(match[0].length);
-	}
-	return {
-		root,
-		segments
-	};
-}
-/** The root a pair belongs to, so a named field can take all of its pairs. */
-function rootOf(key) {
-	const open = key.indexOf("[");
-	return open === -1 ? key : key.slice(0, open);
-}
-/** Objects whose keys run 0, 1, 2 ... are the lists they were written from. */
-function listsFromIndexes(value) {
-	if (Array.isArray(value)) return value.map(listsFromIndexes);
-	if (typeof value !== "object" || value === null) return value;
-	const node = value;
-	const keys = Object.keys(node);
-	for (const key of keys) node[key] = listsFromIndexes(node[key]);
-	if (keys.length > 0 && keys.every((key, index) => key === String(index))) return keys.map((key) => node[key]);
-	return node;
-}
-function bracketed(pairs, root) {
-	let tree;
-	for (const pair of pairs) {
-		const path = keyPath(pair.key);
-		if (!path || path.root !== root) continue;
-		if (path.segments.length === 0) return pair.value;
-		tree ??= {};
-		let node = tree;
-		for (const [index, segment] of path.segments.entries()) {
-			const last = index === path.segments.length - 1;
-			const key = segment === "" ? String(Object.keys(node).length) : segment;
-			if (isUnsafeKey(key)) break;
-			if (last) node[key] = pair.value;
-			else {
-				const next = node[key];
-				if (typeof next !== "object" || next === null) node[key] = {};
-				node = node[key];
-			}
-		}
-	}
-	return tree === void 0 ? void 0 : listsFromIndexes(tree);
-}
-function typeAt(value, type, fidelity) {
-	if (typeof value !== "string" || type === void 0) return value;
-	if ((type === "integer" || type === "number") && JSON_NUMBER.test(value)) return parseJson(value, fidelity);
-	if (type === "boolean" && (value === "true" || value === "false")) return value === "true";
-	return value;
-}
-/** Types every leaf the program reads, walking `*` over list items. */
-function applyTypes(tree, types, fidelity) {
-	for (const [pointer, type] of types) {
-		if (type === "array" || type === "object") continue;
-		const segments = pointer.split("/").slice(1).map((segment) => segment.replace(/~1/g, "/").replace(/~0/g, "~"));
-		const visit = (holder, at) => {
-			const segment = segments[at];
-			const keys = segment === "*" ? Array.isArray(holder) ? holder.map((_, index) => String(index)) : [] : segment === "{}" ? Array.isArray(holder) ? [] : Object.keys(holder).filter((key) => !isUnsafeKey(key)) : [segment];
-			for (const key of keys) {
-				const container = holder;
-				if (!Object.hasOwn(container, key)) continue;
-				if (at === segments.length - 1) container[key] = typeAt(container[key], type, fidelity);
-				else {
-					const next = container[key];
-					if (typeof next === "object" && next !== null) visit(next, at + 1);
-				}
-			}
-		};
-		if (segments.length > 0) visit(tree, 0);
-	}
-}
-/**
-* The fields a program names, decoded from the form into a tree. Only
-* `roots` are read; a field of the form no instruction names never is.
-*/
-function openForm(form, roots, text, fidelity) {
-	const pairs = pairsOf(text);
-	const tree = {};
-	for (const root of roots) {
-		if (isUnsafeKey(root)) continue;
-		const field = form.fields.get(root) ?? PLAIN;
-		const declared = form.types.get(`/${root}`);
-		const mine = pairs.filter((pair) => rootOf(pair.key) === root);
-		if (mine.length === 0) continue;
-		if (field.style === "deepObject" || mine.some((pair) => pair.key !== root)) {
-			const value = bracketed(mine, root);
-			if (value !== void 0) tree[root] = value;
-			continue;
-		}
-		const values = mine.map((pair) => pair.value);
-		if (declared === "array") tree[root] = field.explode ? values : (values[0] ?? "").split(",");
-		else if (declared === "object" && !field.explode) {
-			const flat = (values[0] ?? "").split(",");
-			const object = {};
-			for (let index = 0; index + 1 < flat.length; index += 2) {
-				const key = flat[index];
-				if (!isUnsafeKey(key)) object[key] = flat[index + 1];
-			}
-			tree[root] = object;
-		} else tree[root] = values.length === 1 ? values[0] : values;
-	}
-	applyTypes(tree, form.types, fidelity);
-	return tree;
-}
-function text(value, changeId, where) {
-	if (typeof value === "string") return value;
-	if (typeof value === "boolean") return String(value);
-	if (value === null) return "";
-	try {
-		return numberTextOf(value);
-	} catch {
-		throw new TransformError(changeId, `${where} holds a value a form cannot write`);
-	}
-}
-const isNode = (value) => typeof value === "object" && value !== null && !Array.isArray(value) && !JSON.isRawJSON(value);
-function encodeKey(root, segments) {
-	return `${encodeURIComponent(root)}${segments.map((segment) => `[${encodeURIComponent(segment)}]`).join("")}`;
-}
-/** One field of the tree as the pairs a form carries it in. */
-function encodeField(root, value, field, changeId) {
-	const out = [];
-	const nested = (segments, node) => {
-		if (Array.isArray(node)) {
-			for (const [index, item] of node.entries()) nested([...segments, String(index)], item);
-			return;
-		}
-		if (isNode(node)) {
-			for (const [key, child] of Object.entries(node)) nested([...segments, key], child);
-			return;
-		}
-		out.push(`${encodeKey(root, segments)}=${encodeURIComponent(text(node, changeId, root))}`);
-	};
-	if (field.style === "deepObject" || isNode(value) || Array.isArray(value) && value.some((item) => isNode(item) || Array.isArray(item))) {
-		if (field.style !== "deepObject" && isNode(value) && !field.explode) {
-			const flat = Object.entries(value).flatMap(([key, child]) => [key, text(child, changeId, root)]);
-			out.push(`${encodeURIComponent(root)}=${flat.map(encodeURIComponent).join(",")}`);
-			return out;
-		}
-		nested([], value);
-		return out;
-	}
-	if (Array.isArray(value)) {
-		const items = value.map((item) => text(item, changeId, root));
-		if (field.explode) for (const item of items) out.push(`${encodeURIComponent(root)}=${encodeURIComponent(item)}`);
-		else out.push(`${encodeURIComponent(root)}=${items.map(encodeURIComponent).join(",")}`);
-		return out;
-	}
-	out.push(`${encodeURIComponent(root)}=${encodeURIComponent(text(value, changeId, root))}`);
-	return out;
-}
-/** The change that last wrote under a root, for naming a refusal. */
-function writerOf(instrs, root, depth) {
-	for (let index = instrs.length - 1; index >= 0; index -= 1) {
-		const instr = instrs[index];
-		if (touchedPaths(instr).some((path) => path[depth] === root)) return instr.c;
-	}
-	return instrs[0]?.c ?? "";
-}
-/**
-* Writes the named fields back. A field the program took away is gone; one it
-* moved in is written in the style its declaration gives it.
-*/
-function closeForm(form, roots, original, tree, instrs, depth) {
-	const kept = pairsOf(original).filter((pair) => !roots.has(rootOf(pair.key))).map((pair) => pair.raw);
-	const written = [];
-	for (const [root, value] of Object.entries(tree)) {
-		if (value === void 0 || !roots.has(root)) continue;
-		written.push(...encodeField(root, value, form.fields.get(root) ?? PLAIN, writerOf(instrs, root, depth)));
-	}
-	return [...kept, ...written].join("&");
-}
-/** The top-level fields a list of instructions names, under `depth` leading segments. */
-function formRoots(instrs, depth) {
-	const roots = /* @__PURE__ */ new Set();
-	for (const instr of instrs) for (const path of touchedPaths(instr)) {
-		if (depth === 1 && path[0] !== "@body") continue;
-		const root = path[depth];
-		if (root !== void 0 && !isWildcard(root)) roots.add(root);
-	}
-	return roots;
-}
-function isFormMediaType(contentType) {
-	if (!contentType) return false;
-	return (contentType.split(";")[0]?.trim().toLowerCase() ?? "") === "application/x-www-form-urlencoded";
-}
-//#endregion
-//#region ../runtime/src/http.ts
-/**
-* The HTTP rules every binding follows when it has to read a body.
-*
-* They lived in the proxy alone, and the in-process binding had none: it read
-* whatever arrived, however large, whatever its type, and handed it to
-* `JSON.parse`. A CSV export, a multipart upload or a compressed response on
-* an adapted operation all became errors a caller could do nothing about. One
-* copy of the rules, here, is how the bindings stop disagreeing.
-*
-* Nothing in this file touches the network or the file system. It uses only
-* web-standard globals, so it runs wherever the runtime does.
-*/
-/**
-* Whether a body of this type is one a compiled program describes.
-*
-* Programs are compiled from a document's JSON representations, so anything
-* else, an HTML error page, a file, an event stream, is outside what the
-* program says and passes through untouched rather than being guessed at.
-*/
-function isJsonMediaType(contentType) {
-	if (!contentType) return false;
-	const media = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
-	return media === "application/json" || media.endsWith("+json");
-}
-/** Web-standard names for each encoding `DecompressionStream` understands. */
-const DECODERS = {
-	gzip: "gzip",
-	"x-gzip": "gzip",
-	deflate: "deflate",
-	br: "brotli"
-};
-/**
-* Reads a body as text, refusing past the limit without holding the rest.
-*
-* A declared length over the limit is refused before a byte is read. One that
-* lies, or none at all, is counted as it arrives. The count is of decoded
-* bytes, because a small compressed body can expand to anything, and a limit
-* that only measured the wire would let a caller buffer an unbounded one.
-*/
-async function readBodyText(message, options) {
-	const encoding = (message.headers.get("content-encoding") ?? "").split(",").map((token) => token.trim().toLowerCase()).filter((token) => token !== "" && token !== "identity");
-	const decoding = options.encoded && encoding.length > 0;
-	const declared = Number(message.headers.get("content-length"));
-	if (!decoding && Number.isFinite(declared) && declared > options.limit) throw new BodyTooLargeError(options.limit);
-	if (!message.body) return {
-		text: "",
-		decoded: false
-	};
-	let stream = message.body;
-	if (decoding) for (const token of [...encoding].reverse()) {
-		const format = DECODERS[token];
-		if (format === void 0) throw new UnsupportedEncodingError(token);
-		let decoder;
-		try {
-			decoder = new DecompressionStream(format);
-		} catch {
-			throw new UnsupportedEncodingError(token);
-		}
-		stream = stream.pipeThrough(decoder);
-	}
-	const reader = stream.getReader();
-	const chunks = [];
-	let size = 0;
-	try {
-		for (;;) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			size += value.byteLength;
-			if (size > options.limit) {
-				await reader.cancel();
-				throw new BodyTooLargeError(options.limit);
-			}
-			chunks.push(value);
-		}
-	} catch (error) {
-		if (error instanceof BodyTooLargeError) throw error;
-		if (decoding) throw new UnsupportedEncodingError(encoding.join(", "));
-		throw error;
-	}
-	const whole = new Uint8Array(size);
-	let at = 0;
-	for (const chunk of chunks) {
-		whole.set(chunk, at);
-		at += chunk.byteLength;
-	}
-	return {
-		text: new TextDecoder().decode(whole),
-		decoded: decoding
-	};
-}
-/** Headers for a body rebuilt from text: new length, and no stale encoding. */
-function headersForText(source, text, decoded) {
-	const headers = new Headers(source);
-	if (decoded) headers.delete("content-encoding");
-	headers.delete("content-md5");
-	headers.delete("digest");
-	headers.delete("repr-digest");
-	headers.delete("content-digest");
-	headers.set("content-length", String(new TextEncoder().encode(text).byteLength));
-	return headers;
-}
-//#endregion
-//#region ../runtime/src/program.ts
-/**
-* Decoding a compiled program.
-*
-* The decoder is hand-written and strict on purpose. This is the boundary where
-* a build artifact becomes something that runs against live traffic, so an
-* unrecognised instruction, an unexpected field or a malformed path is a
-* refusal to load rather than something to skip over at request time.
-*/
-var ProgramError = class extends Error {
-	constructor(message) {
-		super(message);
-		this.name = "ProgramError";
-	}
-};
-const HTTP_METHODS = /* @__PURE__ */ new Set([
-	"get",
-	"put",
-	"post",
-	"delete",
-	"options",
-	"head",
-	"patch",
-	"trace"
-]);
-const SCALARS = /* @__PURE__ */ new Set([
-	"string",
-	"integer",
-	"number",
-	"boolean"
-]);
-function object(value, where) {
-	if (typeof value !== "object" || value === null || Array.isArray(value)) throw new ProgramError(`${where} must be an object`);
-	return value;
-}
-function string(value, where) {
-	if (typeof value !== "string") throw new ProgramError(`${where} must be a string`);
-	return value;
-}
-function array(value, where) {
-	if (!Array.isArray(value)) throw new ProgramError(`${where} must be an array`);
-	return value;
-}
-function expectKeys(value, allowed, where) {
-	for (const key of Object.keys(value)) if (!allowed.includes(key)) throw new ProgramError(`${where} has an unexpected field "${key}"`);
-}
-const POINTER_SEGMENT = /^([^/~]|~[01])*$/;
-function segmentsOf(pointer, where) {
-	if (pointer === "") return [];
-	if (!pointer.startsWith("/")) throw new ProgramError(`${where} must be a JSON Pointer, got "${pointer}"`);
-	return pointer.slice(1).split("/").map((raw) => {
-		if (raw !== "*" && !POINTER_SEGMENT.test(raw)) throw new ProgramError(`${where} has an invalid segment "${raw}"`);
-		const decoded = isWildcard(raw) ? raw : raw.replace(/~1/g, "/").replace(/~0/g, "~");
-		if (isUnsafeKey(decoded)) throw new ProgramError(`${where} may not name "${decoded}"`);
-		return decoded;
-	});
-}
-/** The wildcards in a path, in order; a move has to take list to list and map to map. */
-function wildcardsOf(segments) {
-	return segments.filter(isWildcard).join(",");
-}
-/**
-* How deeply blocks may nest. A union inside a union inside a list is three;
-* nothing a compiler emits needs more, and each level multiplies how many
-* places one instruction can reach.
-*/
-const MAX_BLOCK_DEPTH = 8;
-const NO_BLOCKS = /* @__PURE__ */ new Map();
-const JSON_KINDS = /* @__PURE__ */ new Set([
-	"object",
-	"array",
-	"string",
-	"number",
-	"boolean",
-	"null"
-]);
-function decodeBlock(raw, where, depth, blocks, descended) {
-	if (depth > MAX_BLOCK_DEPTH) throw new ProgramError(`${where} nests blocks more than ${MAX_BLOCK_DEPTH} deep`);
-	return array(raw, where).map((instr, index) => decodeInstr(instr, `${where}[${index}]`, depth, blocks, descended));
-}
-/**
-* `descended` is whether the instruction runs on a value a `within` went down
-* to, the only place one may write the value itself: an object replaced by
-* its id, or a list item removed. A named block may be called anywhere, so it
-* is allowed there and refused at run time where it stands on a whole body.
-*/
-function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = false) {
-	const itself = (path, field) => {
-		if (path.length === 0 && !descended) throw new ProgramError(`${where}.${field} writes a whole body, which only a value inside one can be`);
-	};
-	const value = object(raw, where);
-	const kind = string(value["k"], `${where}.k`);
-	const changeId = string(value["c"], `${where}.c`);
-	switch (kind) {
-		case "within": {
-			expectKeys(value, [
-				"k",
-				"path",
-				"block",
-				"c"
-			], where);
-			const path = segmentsOf(string(value["path"], `${where}.path`), `${where}.path`);
-			return {
-				k: "within",
-				path,
-				block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks, descended || path.length > 0),
-				c: changeId
-			};
-		}
-		case "call": {
-			expectKeys(value, [
-				"k",
-				"block",
-				"c"
-			], where);
-			const name = string(value["block"], `${where}.block`);
-			const target = blocks.get(name);
-			if (!target) throw new ProgramError(`${where} calls "${name}", which is no block`);
-			return {
-				k: "call",
-				name,
-				target,
-				c: changeId
-			};
-		}
-		case "switch":
-		case "has":
-		case "is": {
-			const path = segmentsOf(string(value["path"], `${where}.path`), `${where}.path`);
-			if (path.some(isWildcard)) throw new ProgramError(`${where}.path reads a key through a wildcard`);
-			if (kind === "has") {
-				expectKeys(value, [
-					"k",
-					"path",
-					"block",
-					"absent",
-					"c"
-				], where);
-				if (path.length === 0) throw new ProgramError(`${where}.path names nothing`);
-				return {
-					k: "has",
-					path,
-					block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks, descended),
-					...onlyTrue(value["absent"], `${where}.absent`) ? { absent: true } : {},
-					c: changeId
-				};
-			}
-			if (kind === "is") {
-				expectKeys(value, [
-					"k",
-					"path",
-					"type",
-					"block",
-					"c"
-				], where);
-				const type = value["type"];
-				if (typeof type !== "string" || !JSON_KINDS.has(type)) throw new ProgramError(`${where}.type is not a JSON type`);
-				return {
-					k: "is",
-					path,
-					type,
-					block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks, descended),
-					c: changeId
-				};
-			}
-			expectKeys(value, [
-				"k",
-				"path",
-				"cases",
-				"c"
-			], where);
-			const cases = /* @__PURE__ */ new Map();
-			for (const [key, block] of Object.entries(object(value["cases"], `${where}.cases`))) cases.set(key, decodeBlock(block, `${where}.cases.${key}`, depth + 1, blocks, descended));
-			return {
-				k: "switch",
-				path,
-				cases,
-				c: changeId
-			};
-		}
-		case "move": {
-			expectKeys(value, [
-				"k",
-				"from",
-				"to",
-				"c"
-			], where);
-			const from = segmentsOf(string(value["from"], `${where}.from`), `${where}.from`);
-			const to = segmentsOf(string(value["to"], `${where}.to`), `${where}.to`);
-			if (wildcardsOf(from) !== wildcardsOf(to)) throw new ProgramError(`${where} moves between paths whose wildcards do not line up`);
-			if (from.length === 0) throw new ProgramError(`${where} cannot move the document root`);
-			itself(to, "to");
-			return {
-				k: "move",
-				from,
-				to,
-				c: changeId
-			};
-		}
-		case "scale": {
-			expectKeys(value, [
-				"k",
-				"path",
-				"exp",
-				"c"
-			], where);
-			const exp = value["exp"];
-			if (typeof exp !== "number" || !Number.isInteger(exp) || exp < -9 || exp > 9) throw new ProgramError(`${where}.exp must be an integer between -9 and 9`);
-			return {
-				k: "scale",
-				path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
-				exp,
-				c: changeId
-			};
-		}
-		case "enum": {
-			expectKeys(value, [
-				"k",
-				"path",
-				"map",
-				"lenient",
-				"folded",
-				"c"
-			], where);
-			const lenient = value["lenient"];
-			if (lenient !== void 0 && typeof lenient !== "boolean") throw new ProgramError(`${where}.lenient must be a boolean`);
-			const map = object(value["map"], `${where}.map`);
-			const decoded = {};
-			for (const [from, to] of Object.entries(map)) decoded[from] = string(to, `${where}.map.${from}`);
-			const rawFolded = value["folded"];
-			let folded;
-			if (rawFolded !== void 0) {
-				folded = array(rawFolded, `${where}.folded`).map((entry, index) => string(entry, `${where}.folded[${index}]`));
-				for (const key of folded) if (!Object.hasOwn(decoded, key)) throw new ProgramError(`${where}.folded names "${key}", which the map does not`);
-			}
-			return {
-				k: "enum",
-				path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
-				map: decoded,
-				...lenient === true ? { lenient: true } : {},
-				...folded !== void 0 && folded.length > 0 ? { folded } : {},
-				c: changeId
-			};
-		}
-		case "cast": {
-			expectKeys(value, [
-				"k",
-				"path",
-				"to",
-				"c"
-			], where);
-			const to = string(value["to"], `${where}.to`);
-			if (!SCALARS.has(to)) throw new ProgramError(`${where}.to is not a scalar type`);
-			return {
-				k: "cast",
-				path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
-				to,
-				c: changeId
-			};
-		}
-		case "set": {
-			expectKeys(value, [
-				"k",
-				"path",
-				"value",
-				"ifAbsent",
-				"ifNull",
-				"c"
-			], where);
-			if (typeof value["ifAbsent"] !== "boolean") throw new ProgramError(`${where}.ifAbsent must be a boolean`);
-			const path = segmentsOf(string(value["path"], `${where}.path`), `${where}.path`);
-			itself(path, "path");
-			if (path.length === 0 && (value["ifAbsent"] || value["ifNull"] !== void 0)) throw new ProgramError(`${where} replaces the value itself, which is never absent`);
-			return {
-				k: "set",
-				path,
-				value: value["value"],
-				ifAbsent: value["ifAbsent"],
-				...onlyTrue(value["ifNull"], `${where}.ifNull`) ? { ifNull: true } : {},
-				c: changeId
-			};
-		}
-		case "del": {
-			expectKeys(value, [
-				"k",
-				"path",
-				"ifNull",
-				"c"
-			], where);
-			const path = segmentsOf(string(value["path"], `${where}.path`), `${where}.path`);
-			itself(path, "path");
-			if (path.length === 0 && value["ifNull"] !== void 0) throw new ProgramError(`${where} removes the value itself, which is never null`);
-			return {
-				k: "del",
-				path,
-				...onlyTrue(value["ifNull"], `${where}.ifNull`) ? { ifNull: true } : {},
-				c: changeId
-			};
-		}
-		default: throw new ProgramError(`${where} has an unknown instruction "${kind}"`);
-	}
-}
-function needsExactNumbers(instrs, entered = /* @__PURE__ */ new Set()) {
-	return instrs.some((instr) => {
-		if (instr.k === "scale" || instr.k === "cast") return true;
-		if (instr.k === "within" || instr.k === "has" || instr.k === "is") return needsExactNumbers(instr.block, entered);
-		if (instr.k === "switch") return [...instr.cases.values()].some((block) => needsExactNumbers(block, entered));
-		if (instr.k === "call") {
-			if (entered.has(instr.name)) return false;
-			entered.add(instr.name);
-			return needsExactNumbers(instr.target.instrs, entered);
-		}
-		return false;
-	});
-}
-/**
-* Refuses blocks that could call one another forever on one value.
-*
-* A call runs where it stands; only a `within` with a path moves to a value
-* inside. So a cycle of calls none of which sits under such a `within` would
-* run on the same value without end, and a program containing one is refused
-* rather than trusted. Every cycle that remains descends on each turn, and so
-* ends where the value does.
-*/
-function refuseStandingCycles(blocks, where) {
-	/** The blocks a list calls without first descending into the value. */
-	const standing = (instrs, into) => {
-		for (const instr of instrs) if (instr.k === "call") into.add(instr.name);
-		else if (instr.k === "within" && instr.path.length === 0) standing(instr.block, into);
-		else if (instr.k === "has" || instr.k === "is") standing(instr.block, into);
-		else if (instr.k === "switch") for (const block of instr.cases.values()) standing(block, into);
-	};
-	const edges = /* @__PURE__ */ new Map();
-	for (const [name, holder] of blocks) {
-		const into = /* @__PURE__ */ new Set();
-		standing(holder.instrs, into);
-		edges.set(name, into);
-	}
-	const state = /* @__PURE__ */ new Map();
-	const visit = (name, trail) => {
-		if (state.get(name) === "done") return;
-		if (state.get(name) === "open") throw new ProgramError(`${where} call one another without descending: ${[...trail, name].join(" -> ")}`);
-		state.set(name, "open");
-		for (const next of edges.get(name) ?? []) visit(next, [...trail, name]);
-		state.set(name, "done");
-	};
-	for (const name of blocks.keys()) visit(name, []);
-}
-/** A contract's blocks: every name first, so a block can call any of them, itself included. */
-function decodeBlocks(raw, where) {
-	if (raw === void 0) return NO_BLOCKS;
-	const entries = Object.entries(object(raw, where));
-	const blocks = /* @__PURE__ */ new Map();
-	for (const [name] of entries) {
-		if (name.length === 0 || name.length > 256) throw new ProgramError(`${where} has a block name that is empty or too long`);
-		blocks.set(name, { instrs: [] });
-	}
-	for (const [name, list] of entries) blocks.get(name).instrs = decodeBlock(list, `${where}["${name}"]`, 0, blocks, true);
-	refuseStandingCycles(blocks, where);
-	return blocks;
-}
-const LOCATIONS = {
-	"@path": "path",
-	"@query": "query",
-	"@header": "header",
-	"@cookie": "cookie"
-};
-/**
-* Styles each location can be written in. `label` and `matrix` path styles
-* and exploded form objects are left out on purpose: the first two are rare
-* enough to refuse rather than half-support, and an exploded form object
-* spreads its properties across the query string with nothing to say which
-* keys belong to it.
-*/
-const STYLES = {
-	path: ["simple"],
-	query: [
-		"form",
-		"spaceDelimited",
-		"pipeDelimited",
-		"deepObject"
-	],
-	header: ["simple"],
-	cookie: ["form"]
-};
-const PARAM_TYPES = /* @__PURE__ */ new Set([
-	"string",
-	"integer",
-	"number",
-	"boolean",
-	"array",
-	"object"
-]);
-/**
-* Headers no program may touch. The compiler refuses these first; this is the
-* copy the runtime holds, so a program built by anything else is refused too.
-* `DENIED_HEADERS` in `@invariant/ir` is the list, and a test keeps them equal.
-*/
-const RUNTIME_DENIED_HEADERS = /* @__PURE__ */ new Set([
-	"authorization",
-	"proxy-authorization",
-	"cookie",
-	"set-cookie",
-	"host",
-	"connection",
-	"keep-alive",
-	"proxy-connection",
-	"te",
-	"trailer",
-	"transfer-encoding",
-	"upgrade",
-	"expect",
-	"content-length",
-	"content-type",
-	"content-encoding",
-	"x-api-key",
-	"api-key",
-	"x-auth-token"
-]);
-const RUNTIME_DENIED_WORDS = /signature|hmac|digest|credential|secret/;
-function decodeCodec(raw, where) {
-	const value = object(raw, where);
-	expectKeys(value, [
-		"in",
-		"name",
-		"style",
-		"explode",
-		"type",
-		"items"
-	], where);
-	const location = string(value["in"], `${where}.in`);
-	if (!(location in STYLES)) throw new ProgramError(`${where}.in is not a parameter location`);
-	const name = string(value["name"], `${where}.name`);
-	if (name === "" || isUnsafeKey(name)) throw new ProgramError(`${where}.name may not be "${name}"`);
-	if (location === "header") {
-		if (name !== name.toLowerCase()) throw new ProgramError(`${where}.name must be lowercase for a header`);
-		if (RUNTIME_DENIED_HEADERS.has(name) || RUNTIME_DENIED_WORDS.test(name)) throw new ProgramError(`${where} names the ${name} header, which no program may touch`);
-	}
-	const style = string(value["style"], `${where}.style`);
-	if (!STYLES[location].includes(style)) throw new ProgramError(`${where}.style ${style} is not served for a ${location} parameter`);
-	const explode = value["explode"];
-	if (typeof explode !== "boolean") throw new ProgramError(`${where}.explode must be a boolean`);
-	const type = string(value["type"], `${where}.type`);
-	if (!PARAM_TYPES.has(type)) throw new ProgramError(`${where}.type is not a parameter type`);
-	if (type === "object" && explode && style === "form") throw new ProgramError(`${where} is an exploded form object, which is not served`);
-	if (style === "deepObject" && type !== "object") throw new ProgramError(`${where} is a deepObject that is not an object`);
-	const items = value["items"];
-	if (items !== void 0 && (type !== "array" || !SCALARS.has(items))) throw new ProgramError(`${where}.items must be a scalar type, on an array`);
-	return {
-		in: location,
-		name,
-		style,
-		explode,
-		type,
-		...items === void 0 ? {} : { items }
-	};
-}
-function decodeEnvelope(raw, where, blocks) {
-	const value = object(raw, where);
-	expectKeys(value, [
-		"instrs",
-		"params",
-		"body"
-	], where);
-	const instrs = array(value["instrs"], `${where}.instrs`).map((instr, index) => decodeInstr(instr, `${where}.instrs[${index}]`, 0, blocks));
-	const params = object(value["params"], `${where}.params`);
-	expectKeys(params, ["old", "new"], `${where}.params`);
-	const codecs = (side) => {
-		const map = /* @__PURE__ */ new Map();
-		array(params[side], `${where}.params.${side}`).forEach((entry, index) => {
-			const codec = decodeCodec(entry, `${where}.params.${side}[${index}]`);
-			map.set(codecKey(codec.in, codec.name), codec);
-		});
-		return map;
-	};
-	const old = codecs("old");
-	const next = codecs("new");
-	const body = value["body"];
-	if (typeof body !== "boolean") throw new ProgramError(`${where}.body must be a boolean`);
-	instrs.forEach((instr, index) => {
-		for (const path of touchedPaths(instr)) {
-			const part = path[0];
-			if (part === "@body") {
-				if (!body) throw new ProgramError(`${where}.instrs[${index}] reaches the body, which body says is not read`);
-				continue;
-			}
-			const location = part === void 0 ? void 0 : LOCATIONS[part];
-			const name = path[1];
-			if (location === void 0 || name === void 0 || name === "*") throw new ProgramError(`${where}.instrs[${index}] must address one named parameter or the body`);
-			const key = codecKey(location, name);
-			if (!old.has(key) && !next.has(key)) throw new ProgramError(`${where}.instrs[${index}] names the ${location} parameter ${name}, which params does not declare`);
-			if (location === "path" && instr.k !== "scale" && instr.k !== "enum" && instr.k !== "cast") throw new ProgramError(`${where}.instrs[${index}] can only convert a path parameter`);
-		}
-	});
-	return {
-		instrs,
-		old,
-		new: next,
-		body
-	};
-}
-const FORM_TYPES = /* @__PURE__ */ new Set([
-	"string",
-	"integer",
-	"number",
-	"boolean",
-	"array",
-	"object"
-]);
-function decodeForm(raw, where) {
-	const value = object(raw, where);
-	expectKeys(value, ["fields", "types"], where);
-	const fields = /* @__PURE__ */ new Map();
-	for (const [name, entry] of Object.entries(object(value["fields"], `${where}.fields`))) {
-		if (isUnsafeKey(name)) throw new ProgramError(`${where}.fields may not name "${name}"`);
-		const field = object(entry, `${where}.fields.${name}`);
-		expectKeys(field, ["style", "explode"], `${where}.fields.${name}`);
-		const style = field["style"];
-		if (style !== "form" && style !== "deepObject") throw new ProgramError(`${where}.fields.${name}.style must be form or deepObject`);
-		if (typeof field["explode"] !== "boolean") throw new ProgramError(`${where}.fields.${name}.explode must be a boolean`);
-		fields.set(name, {
-			style,
-			explode: field["explode"]
-		});
-	}
-	const types = /* @__PURE__ */ new Map();
-	for (const [pointer, type] of Object.entries(object(value["types"], `${where}.types`))) {
-		segmentsOf(pointer, `${where}.types`);
-		if (typeof type !== "string" || !FORM_TYPES.has(type)) throw new ProgramError(`${where}.types["${pointer}"] is not a type`);
-		types.set(pointer, type);
-	}
-	return {
-		fields,
-		types
-	};
-}
-function decodeSite(raw, where, template, blocks) {
-	const value = object(raw, where);
-	expectKeys(value, [
-		"form",
-		"request",
-		"envelope",
-		"response"
-	], where);
-	const form = value["form"] === void 0 ? void 0 : decodeForm(value["form"], `${where}.form`);
-	if (value["request"] !== void 0 && value["envelope"] !== void 0) throw new ProgramError(`${where} has both request and envelope; one list keeps the order`);
-	const envelope = value["envelope"] === void 0 ? void 0 : decodeEnvelope(value["envelope"], `${where}.envelope`, blocks);
-	const request = array(value["request"] ?? [], `${where}.request`).map((instr, index) => decodeInstr(instr, `${where}.request[${index}]`, 0, blocks));
-	const response = /* @__PURE__ */ new Map();
-	if (value["response"] !== void 0) for (const [status, list] of Object.entries(object(value["response"], `${where}.response`))) {
-		if (!/^([1-5]\d\d|[1-5][xX][xX]|default)$/.test(status)) throw new ProgramError(`${where}.response has an invalid status key "${status}"`);
-		const key = status.toLowerCase();
-		if (response.has(key)) throw new ProgramError(`${where}.response names ${key} twice`);
-		response.set(key, array(list, `${where}.response.${status}`).map((instr, index) => decodeInstr(instr, `${where}.response.${status}[${index}]`, 0, blocks)));
-	}
-	return {
-		request,
-		response,
-		numeric: needsExactNumbers(request) || envelope !== void 0 && needsExactNumbers(envelope.instrs) || [...response.values()].some((list) => needsExactNumbers(list)),
-		template,
-		...envelope === void 0 ? {} : { envelope },
-		...form === void 0 ? {} : { form }
-	};
-}
-function decodeRoute(raw, where) {
-	const value = object(raw, where);
-	expectKeys(value, [
-		"from",
-		"to",
-		"c"
-	], where);
-	const from = object(value["from"], `${where}.from`);
-	const to = object(value["to"], `${where}.to`);
-	const fromMethod = string(from["method"], `${where}.from.method`).toLowerCase();
-	const toMethod = string(to["method"], `${where}.to.method`).toLowerCase();
-	for (const method of [fromMethod, toMethod]) if (!HTTP_METHODS.has(method)) throw new ProgramError(`${where} names ${method}, which is not an HTTP method`);
-	return {
-		method: fromMethod,
-		toMethod,
-		from: string(from["path"], `${where}.from.path`).split("/"),
-		to: string(to["path"], `${where}.to.path`).split("/"),
-		changeId: string(value["c"], `${where}.c`)
-	};
-}
-/** An optional flag that is either left out or true, never anything else. */
-function onlyTrue(value, where) {
-	if (value === void 0) return false;
-	if (value !== true) throw new ProgramError(`${where} must be true when present`);
-	return true;
-}
-function decodeProgram(raw) {
-	const value = object(raw, "program");
-	expectKeys(value, [
-		"irVersion",
-		"api",
-		"current",
-		"currentLabel",
-		"contracts",
-		"basePath"
-	], "program");
-	const basePath = value["basePath"];
-	if (basePath !== void 0 && (typeof basePath !== "string" || !basePath.startsWith("/") || basePath.endsWith("/"))) throw new ProgramError("program.basePath must be a path such as /v1, without a trailing /");
-	if (value["irVersion"] !== 1) throw new ProgramError(`Unsupported IR version ${String(value["irVersion"])}`);
-	const contracts = /* @__PURE__ */ new Map();
-	for (const [label, entry] of Object.entries(object(value["contracts"], "program.contracts"))) {
-		const where = `program.contracts.${label}`;
-		const contract = object(entry, where);
-		expectKeys(contract, [
-			"label",
-			"routes",
-			"sites",
-			"blocks",
-			"behaviors",
-			"retired",
-			"basePath"
-		], where);
-		const blocks = decodeBlocks(contract["blocks"], `${where}.blocks`);
-		const ownBase = contract["basePath"];
-		if (ownBase !== void 0 && (typeof ownBase !== "string" || !/^(\/.*[^/])?$/.test(ownBase))) throw new ProgramError(`${where}.basePath must be a path such as /v1, or empty`);
-		const sites = /* @__PURE__ */ new Map();
-		for (const [key, site] of Object.entries(object(contract["sites"], `${where}.sites`))) {
-			const separator = key.indexOf(" ");
-			if (separator <= 0) throw new ProgramError(`${where}.sites has a key "${key}" that is not "method path"`);
-			const method = key.slice(0, separator).toLowerCase();
-			const path = key.slice(separator + 1);
-			sites.set(`${method} ${path}`, decodeSite(site, `${where}.sites["${key}"]`, path.split("/"), blocks));
-		}
-		contracts.set(label, {
-			...ownBase === void 0 ? {} : { basePath: ownBase },
-			label: string(contract["label"], `${where}.label`),
-			routes: array(contract["routes"], `${where}.routes`).map((route, index) => decodeRoute(route, `${where}.routes[${index}]`)),
-			sites,
-			behaviors: array(contract["behaviors"] ?? [], `${where}.behaviors`).map((flag, index) => string(flag, `${where}.behaviors[${index}]`)),
-			retired: array(contract["retired"] ?? [], `${where}.retired`).map((entry, index) => {
-				const at = `${where}.retired[${index}]`;
-				const row = object(entry, at);
-				const guidance = row["guidance"];
-				const refuse = row["refuse"];
-				if (refuse !== void 0 && refuse !== true) throw new ProgramError(`${at}.refuse must be true when present`);
-				return {
-					method: string(row["method"], `${at}.method`).toLowerCase(),
-					path: string(row["path"], `${at}.path`),
-					guidance: guidance === void 0 ? void 0 : string(guidance, `${at}.guidance`),
-					c: string(row["c"], `${at}.c`),
-					refuse: refuse === true
-				};
-			})
-		});
-	}
-	return {
-		api: string(value["api"], "program.api"),
-		current: string(value["current"], "program.current"),
-		currentLabel: string(value["currentLabel"], "program.currentLabel"),
-		contracts,
-		basePath: basePath ?? ""
-	};
-}
-const PARAMETER = /\{[^{}]+\}/g;
-/**
-* A template segment with literal text around its parameters, such as
-* `{name}:cancel`, the custom-method form of Google's design guide, or
-* `{id}.{format}`. Compiled once per segment: the literal parts are escaped,
-* each parameter matches one or more characters of that segment only, since
-* an OpenAPI path parameter never spans a `/`.
-*/
-const mixedSegments = /* @__PURE__ */ new Map();
-function mixedSegment(template) {
-	let compiled = mixedSegments.get(template);
-	if (!compiled) {
-		const source = template.split(PARAMETER).map((literal) => literal.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&")).join("(.+)");
-		compiled = new RegExp(`^${source}$`, "s");
-		mixedSegments.set(template, compiled);
-	}
-	return compiled;
-}
-const isWholeParameter = (segment) => segment.startsWith("{") && segment.endsWith("}") && segment.indexOf("}") === segment.length - 1;
-/** Matches a concrete request path against a route template. */
-function matchTemplate(template, path) {
-	const actual = path.split("/");
-	if (actual.length !== template.length) return void 0;
-	const params = [];
-	for (const [index, expected] of template.entries()) {
-		const segment = actual[index];
-		if (isWholeParameter(expected)) {
-			if (segment === "") return void 0;
-			params.push(segment);
-			continue;
-		}
-		if (expected.includes("{")) {
-			const matched = mixedSegment(expected).exec(segment);
-			if (!matched) return void 0;
-			params.push(...matched.slice(1));
-			continue;
-		}
-		if (expected !== segment) return void 0;
-	}
-	return params;
-}
-function fillTemplate(template, params) {
-	let next = 0;
-	return template.map((segment) => segment.replace(PARAMETER, () => {
-		const value = params[next] ?? "";
-		next += 1;
-		return value;
-	})).join("/");
-}
-/** The compiled site for a concrete request, found by template match. */
-function findSite(contract, method, path) {
-	const lower = method.toLowerCase();
-	const direct = contract.sites.get(`${lower} ${path}`);
-	if (direct) return direct;
-	for (const [key, site] of contract.sites) {
-		const separator = key.indexOf(" ");
-		if (key.slice(0, separator) !== lower) continue;
-		if (matchTemplate(key.slice(separator + 1).split("/"), path)) return site;
-	}
-}
-//#endregion
-//#region ../runtime/src/parameters.ts
-/**
-* Parameters written and read the way the runtime writes and reads them.
-*
-* For whatever has to produce or check the traffic an old caller sends, such
-* as the verifier's laws, through the same encoder and decoder the envelope
-* uses rather than a second copy that could disagree with it.
-*/
-const emptyValues = () => ({
-	path: {},
-	query: {},
-	header: {},
-	cookie: {}
-});
-function envelopeFor(codecs) {
-	const map = new Map(codecs.map((codec) => [codecKey(codec.in, codec.name), codec]));
-	return {
-		instrs: [],
-		old: map,
-		new: map,
-		body: false
-	};
-}
-/**
-* A request carrying these parameter values, written the way the codecs say.
-* Every parameter of the template needs a value. Used to generate traffic an
-* old caller could send, through the same encoder the runtime writes with.
-*/
-function writeParameters(codecs, template, values) {
-	const segments = template.split("/");
-	const tree = {};
-	for (const location of [
-		"path",
-		"query",
-		"header",
-		"cookie"
-	]) tree[PART[location]] = { ...values[location] ?? {} };
-	const request = {
-		path: template,
-		search: "",
-		headers: [],
-		body: void 0
-	};
-	return closeEnvelope(envelopeFor(codecs), segments, templateNames(segments), request, tree);
-}
-/** The values of these parameters as a request carries them, typed by the codecs. */
-function readParameters(codecs, template, request) {
-	const segments = template.split("/");
-	const matched = matchTemplate(segments, request.path) ?? [];
-	const tree = openEnvelope(envelopeFor(codecs), segments, matched, request, "double");
-	const out = emptyValues();
-	for (const location of [
-		"path",
-		"query",
-		"header",
-		"cookie"
-	]) out[location] = tree[PART[location]] ?? {};
-	return out;
-}
-//#endregion
-//#region ../runtime/src/index.ts
-/**
-* The provider-side compatibility runtime.
-*
-* It runs inside the provider's own process, in two stages. Path rewriting has
-* to happen before routing so an old URL reaches the canonical handler; body
-* rewriting has to happen after authentication so that a signature computed
-* over the bytes the client sent is still verified against those bytes. Putting
-* both in one place would break one of the two.
-*
-* Nothing here reaches the network, reads a file, or consults a model. The
-* compiled program ships inside the provider's build, so an adapter deploys and
-* rolls back with the code it belongs to.
-*/
-function pathsOfInstr(instr) {
-	return touchedPaths(instr);
-}
-/** Header stage one uses to tell stage two what it concluded. */
-const CONTRACT_HINT_HEADER = "x-invariant-contract-hint";
-const INTERNAL_PREFIX = "x-invariant-";
-var UnsupportedContractError = class UnsupportedContractError extends Error {
-	contract;
-	constructor(contract, reason, message) {
-		super(message ?? `Contract ${contract} cannot be served right now: ${reason}`);
-		this.name = "UnsupportedContractError";
-		this.contract = contract;
-	}
-	/**
-	* A caller named a contract that does not exist.
-	*
-	* Worded apart from the kill-switch case on purpose. "Cannot be served right
-	* now" is true of a contract an operator switched off and false of a typo,
-	* and a caller reading it would wait for something that is never coming back
-	* instead of checking the one character they got wrong.
-	*/
-	static unknown(contract, known) {
-		const list = known.length === 1 ? known[0] : `${known.slice(0, -1).join(", ")} and ${known.at(-1)}`;
-		return new UnsupportedContractError(contract, "unknown", `No contract is called "${contract}". This API serves ${list}.`);
-	}
-};
-var RetiredEndpointError = class extends Error {
-	contract;
-	changeId;
-	guidance;
-	constructor(contract, method, path, changeId, guidance) {
-		super(`${method.toUpperCase()} ${path} was retired after contract ${contract}` + (guidance ? `. ${guidance}` : ". Nothing replaced it."));
-		this.name = "RetiredEndpointError";
-		this.contract = contract;
-		this.changeId = changeId;
-		this.guidance = guidance;
-	}
-};
-/**
-* A handler asked about a behaviour flag no Change declares.
-*
-* Almost always a typo, and the reason this throws rather than answering
-* `false`: answering would mean every caller silently gets the new behaviour,
-* including the ones the flag exists to protect, and nothing would ever say so.
-*/
-var UnknownBehaviorError = class extends Error {
-	constructor(flag, known) {
-		super(`No Change declares the behaviour flag "${flag}". ` + (known.length > 0 ? `Declared flags: ${known.join(", ")}.` : "This program declares none."));
-		this.name = "UnknownBehaviorError";
-	}
-};
-/** The keys a response status is looked up by, most specific first, as OpenAPI orders them. */
-function statusKeysFor(status) {
-	return [
-		String(status),
-		`${Math.floor(status / 100)}xx`,
-		"default"
-	];
-}
-var InvariantRuntime = class {
-	#program;
-	#identity;
-	#maxBodyBytes;
-	#limits;
-	#fidelity;
-	#flags;
-	#onUsage;
-	#onOutcome;
-	#behaviors;
-	constructor(options) {
-		this.#program = decodeProgram(options.program);
-		this.#behaviors = [...new Set([...this.#program.contracts.values()].flatMap((contract) => contract.behaviors))].sort();
-		this.#identity = options.identity;
-		for (const strategy of this.#identity) {
-			const named = strategy.kind === "default" ? [strategy.label] : strategy.kind === "urlPrefix" ? Object.values(strategy.map) : [];
-			for (const label of named) if (!this.knows(label)) throw new Error(`The ${strategy.kind} identity strategy names contract "${label}", which this program does not have. Known: ${this.#knownLabels()}.`);
-		}
-		this.#maxBodyBytes = options.maxBodyBytes ?? 1048576;
-		this.#limits = options.limits ?? DEFAULT_LIMITS;
-		this.#fidelity = options.numbers ?? "double";
-		this.#flags = options.flags ?? (() => ({}));
-		this.#onUsage = options.onUsage;
-		this.#onOutcome = options.onOutcome;
-	}
-	get currentLabel() {
-		return this.#program.currentLabel;
-	}
-	/** Largest body, in decoded bytes, a binding may buffer for a transform. */
-	get maxBodyBytes() {
-		return this.#maxBodyBytes;
-	}
-	get currentDigest() {
-		return this.#program.current;
-	}
-	#knownList() {
-		const labels = [this.#program.currentLabel, ...this.#program.contracts.keys()];
-		return [...new Set(labels)].sort();
-	}
-	#knownLabels() {
-		return this.#knownList().join(", ");
-	}
-	knows(label) {
-		return label === this.#program.currentLabel || this.#program.contracts.has(label);
-	}
-	/** Every behaviour flag any Change in this program declares. */
-	get behaviors() {
-		return this.#behaviors;
-	}
-	/**
-	* Whether this caller predates the change a behaviour flag marks.
-	*
-	* The escape hatch for everything the IR deliberately cannot express: a
-	* change of side effect, of timing, of a business rule, or a reshaping no op
-	* in the catalog covers. The provider writes the branch themselves, in their
-	* own code, and this says which side of it a given caller belongs on.
-	*
-	*     if (inv.before("chg_capture_is_deferred", { contract })) {
-	*       await captureImmediately(payment);
-	*     }
-	*
-	* It is a fact about a public contract label and nothing else. It must never
-	* decide what a caller is allowed to do: a label is chosen by the caller, so
-	* branching authorisation on it would let anyone pick their own permissions.
-	*/
-	before(flag, on) {
-		if (!this.#behaviors.includes(flag)) throw new UnknownBehaviorError(flag, this.#behaviors);
-		if (!this.#program.contracts.get(on.contract)?.behaviors.includes(flag)) return false;
-		this.#onUsage?.({
-			contract: on.contract,
-			operation: on.operation ?? "behavior",
-			consumer: on.consumer,
-			changes: /* @__PURE__ */ new Map([[flag, 1]])
-		});
-		return true;
-	}
-	/**
-	* Strips any inbound header in Invariant's internal namespace.
-	*
-	* Stage one tells stage two what it decided through such a header, so a
-	* caller must never be able to supply one. A contract label only ever selects
-	* a shape transform, but letting an outsider forge internal state is not a
-	* property worth relying on.
-	*/
-	static sanitizeHeaders(headers) {
-		for (const name of [...headers.keys()]) if (name.toLowerCase().startsWith(INTERNAL_PREFIX)) headers.delete(name);
-	}
-	/** Whatever the pre-authentication signals say about the caller's contract. */
-	hintFrom(headers, path) {
-		for (const strategy of this.#identity) {
-			if (strategy.kind === "header") {
-				const value = headers.get(strategy.name);
-				if (value) {
-					if (!this.knows(value)) throw UnsupportedContractError.unknown(value, this.#knownList());
-					return {
-						label: value,
-						source: "header"
-					};
-				}
-			}
-			if (strategy.kind === "urlPrefix") {
-				for (const [prefix, label] of Object.entries(strategy.map)) if (path.startsWith(prefix) && this.knows(label)) return {
-					label,
-					source: "urlPrefix"
-				};
-			}
-		}
-	}
-	/**
-	* Stage one. Decides what path the canonical handler should see.
-	*
-	* When the caller declared a contract, that contract's route table is used.
-	* When it did not, the path itself can still identify an old endpoint, but
-	* only if every contract that knows it agrees on where it went; disagreement
-	* is left alone rather than guessed at.
-	*/
-	/**
-	* A request's path as the contract writes it: the base path the API is
-	* served under taken off. Undefined for a path outside it, which is not a
-	* call to this API and is never touched.
-	*/
-	#local(path) {
-		const base = this.#program.basePath;
-		if (base === "") return path;
-		if (path === base) return "/";
-		return path.startsWith(`${base}/`) ? path.slice(base.length) : void 0;
-	}
-	/**
-	* A request under a base path an older contract was served under, moved
-	* under the current one. The version was in the server URL, so the base
-	* path says which contract the caller was written against, when only one
-	* contract used it.
-	*/
-	#fromOlderBase(full, hint) {
-		const current = this.#program.basePath;
-		if (current !== "" && (full === current || full.startsWith(`${current}/`))) return;
-		let best;
-		for (const contract of this.#program.contracts.values()) {
-			const base = contract.basePath;
-			if (base === void 0 || base === current) continue;
-			if (hint && hint.label !== contract.label) continue;
-			if (!(base === "" || full === base || full.startsWith(`${base}/`))) continue;
-			if (!best || base.length > best.base.length) best = {
-				base,
-				labels: [contract.label]
-			};
-			else if (base === best.base) best.labels.push(contract.label);
-		}
-		if (!best) return void 0;
-		const rest = full.slice(best.base.length);
-		const [only] = best.labels;
-		return {
-			path: `${current}${rest === "" ? "" : rest}` || "/",
-			hint: hint ?? (best.labels.length === 1 && only ? {
-				label: only,
-				source: "route"
-			} : void 0)
-		};
-	}
-	route(method, full, headers) {
-		let hint = this.hintFrom(headers, full);
-		const older = this.#fromOlderBase(full, hint);
-		const moved = older !== void 0 && older.path !== full;
-		if (older) {
-			full = older.path;
-			hint = older.hint;
-		}
-		const path = this.#local(full);
-		const asSent = method.toUpperCase();
-		if (path === void 0) return {
-			path: full,
-			method: asSent,
-			hint,
-			rewritten: moved
-		};
-		const candidates = hint ? [this.#program.contracts.get(hint.label)].filter((contract) => contract !== void 0) : [...this.#program.contracts.values()];
-		const matches = /* @__PURE__ */ new Map();
-		for (const contract of candidates) for (const rule of contract.routes) {
-			if (rule.method !== method.toLowerCase()) continue;
-			const params = matchTemplate(rule.from, path);
-			if (!params) continue;
-			const target = fillTemplate(rule.to, params);
-			matches.set(`${rule.toMethod} ${target}`, {
-				label: contract.label,
-				method: rule.toMethod,
-				path: target
-			});
-		}
-		if (matches.size !== 1) return {
-			path: full,
-			method: asSent,
-			hint,
-			rewritten: moved
-		};
-		const [origin] = [...matches.values()];
-		const changedMethod = origin.method !== method.toLowerCase();
-		return {
-			path: `${this.#program.basePath}${origin.path}`,
-			method: changedMethod ? origin.method.toUpperCase() : asSent,
-			hint: hint ?? {
-				label: origin.label,
-				source: "route"
-			},
-			rewritten: moved || changedMethod || origin.path !== path
-		};
-	}
-	/** Stage two. Which contract this request is actually served under. */
-	resolve(headers, path, pinned) {
-		const hinted = headers.get(CONTRACT_HINT_HEADER);
-		if (hinted && this.knows(hinted)) return {
-			label: hinted,
-			source: "header"
-		};
-		const direct = this.hintFrom(headers, path);
-		if (direct) return direct;
-		for (const strategy of this.#identity) {
-			if (strategy.kind === "principal" && pinned !== void 0) {
-				if (!this.knows(pinned)) throw new UnsupportedContractError(pinned, "the account is pinned to an unknown contract");
-				return {
-					label: pinned,
-					source: "principal"
-				};
-			}
-			if (strategy.kind === "default") return {
-				label: strategy.label,
-				source: "default"
-			};
-		}
-		return {
-			label: this.#program.currentLabel,
-			source: "default"
-		};
-	}
-	/**
-	* The compiled work for a request, or nothing at all.
-	*
-	* Returning nothing is the common case and the important one: a caller on the
-	* current contract, or on an operation that never changed, costs a map lookup
-	* and no body is read.
-	*/
-	siteFor(label, method, path, context) {
-		try {
-			return this.#siteFor(label, method, path);
-		} catch (error) {
-			if (error instanceof UnsupportedContractError) this.#onOutcome?.({
-				contract: label,
-				operation: context?.operation ?? `${method.toLowerCase()} ${path}`,
-				consumer: context?.consumer,
-				direction: "request",
-				outcome: "refused",
-				reason: "UnsupportedContractError"
-			});
-			throw error;
-		}
-	}
-	#retiredIn(contract, method, path) {
-		return contract.retired.find((entry) => entry.method === method.toLowerCase() && matchTemplate(entry.path.split("/"), path) !== void 0);
-	}
-	/**
-	* An operation retired after this contract that is still passed on to the
-	* provider, and what to tell the caller if the provider says it is gone.
-	*
-	* A binding forwards the call as usual and, when the answer is one of
-	* `GONE_STATUSES`, replaces it with a 410 carrying this error's guidance.
-	* The Change sets `refuse` when the provider's server no longer serves the
-	* operation at all, and then the call never gets this far.
-	* Anything else the provider answers goes back untouched: a specification
-	* that dropped an operation its server still serves must not become an
-	* outage the adapter caused.
-	*/
-	retiredFor(label, method, full) {
-		if (label === this.#program.currentLabel) return void 0;
-		const path = this.#local(full);
-		const contract = this.#program.contracts.get(label);
-		const gone = contract && path !== void 0 && this.#retiredIn(contract, method, path);
-		if (!gone || gone.refuse) return void 0;
-		return new RetiredEndpointError(label, method, full, gone.c, gone.guidance);
-	}
-	#siteFor(label, method, full) {
-		if (label === this.#program.currentLabel) return void 0;
-		const path = this.#local(full);
-		if (path === void 0) return void 0;
-		const flags = this.#flags();
-		const contract = this.#program.contracts.get(label);
-		if (!contract) throw new UnsupportedContractError(label, "no compiled program for this contract");
-		const gone = this.#retiredIn(contract, method, path);
-		if (gone?.refuse) throw new RetiredEndpointError(label, method, full, gone.c, gone.guidance);
-		if (flags.allDisabled) throw new UnsupportedContractError(label, "compatibility is switched off");
-		if (flags.disabledContracts?.includes(label)) throw new UnsupportedContractError(label, "this contract is switched off");
-		const site = findSite(contract, method, path);
-		if (!site) return void 0;
-		const disabled = flags.disabledChanges;
-		if (disabled && disabled.length > 0) {
-			const referenced = /* @__PURE__ */ new Set();
-			for (const instr of site.request) referenced.add(instr.c);
-			for (const instr of site.envelope?.instrs ?? []) referenced.add(instr.c);
-			for (const list of site.response.values()) for (const instr of list) referenced.add(instr.c);
-			for (const change of disabled) if (referenced.has(change)) throw new UnsupportedContractError(label, `change ${change} is switched off`);
-		}
-		return site;
-	}
-	#run(instrs, numeric, text, context) {
-		if (instrs.length === 0) return {
-			body: text,
-			folded: []
-		};
-		if (text.length > this.#maxBodyBytes) throw new BodyTooLargeError(this.#maxBodyBytes);
-		const parsed = parseJson(text, numeric ? this.#fidelity : "double");
-		const result = execute(parsed, instrs, this.#limits);
-		if (this.#onUsage && result.applied.size > 0) this.#onUsage({
-			contract: context.contract,
-			operation: context.operation,
-			consumer: context.consumer,
-			changes: result.applied
-		});
-		return {
-			body: stringifyJson(parsed),
-			folded: [...result.folded].sort()
-		};
-	}
-	/**
-	* A form-encoded request body rewritten by the site's program: the fields
-	* it names decoded, transformed and written back, and every other pair of
-	* the form passed on exactly as it came.
-	*/
-	transformRequestForm(site, text, context) {
-		const form = site.form;
-		if (!form || site.request.length === 0) return text;
-		return this.#reporting("request", context, () => {
-			if (text.length > this.#maxBodyBytes) throw new BodyTooLargeError(this.#maxBodyBytes);
-			const roots = formRoots(site.request, 0);
-			const tree = openForm(form, roots, text, site.numeric ? this.#fidelity : "double");
-			this.#counted(execute(tree, site.request, this.#limits), context);
-			return closeForm(form, roots, text, tree, site.request, 0);
-		});
-	}
-	#counted(result, context) {
-		if (this.#onUsage && result.applied.size > 0) this.#onUsage({
-			contract: context.contract,
-			operation: context.operation,
-			consumer: context.consumer,
-			changes: result.applied
-		});
-	}
-	transformRequest(site, text, context) {
-		return this.#reporting("request", context, () => this.#run(site.request, site.numeric, text, {
-			contract: context.contract,
-			operation: context.operation,
-			consumer: context.consumer
-		})).body;
-	}
-	/** True when adapting this request means reading its body. */
-	readsRequestBody(site) {
-		return site.request.length > 0 || site.envelope?.body === true;
-	}
-	/** True when some program converts a path parameter, so the path itself can change. */
-	get rewritesPathParameters() {
-		for (const contract of this.#program.contracts.values()) for (const site of contract.sites.values()) if (site.envelope?.instrs.some((instr) => pathsOfInstr(instr)[0]?.[0] === "@path")) return true;
-		return false;
-	}
-	/**
-	* An incoming request as the provider's handler should see it: the one
-	* place every binding adapts a request, so they cannot disagree about it.
-	*
-	* `parts` is the path, query string and headers as the binding would pass
-	* them on, after routing and after its own header hygiene. Only a JSON body
-	* is ever read, and only when the site's program reaches into it. Anything
-	* else a program would have to write a body into is refused rather than
-	* replaced, because a form or an upload rewritten as JSON is a request the
-	* provider never agreed to receive.
-	*/
-	async adaptRequest(site, request, parts, context) {
-		const unchanged = {
-			...parts,
-			body: request.body
-		};
-		const contentType = request.headers.get("content-type");
-		const json = isJsonMediaType(contentType);
-		const form = !json && isFormMediaType(contentType) && site.form !== void 0;
-		if (!site.envelope) {
-			if (site.request.length === 0 || !request.body || !(json || form)) return unchanged;
-			const original = await readBodyText(request, {
-				limit: this.#maxBodyBytes,
-				encoded: true
-			});
-			const body = form ? this.transformRequestForm(site, original.text, context) : this.transformRequest(site, original.text, context);
-			return {
-				...parts,
-				headers: headersForText(parts.headers, body, original.decoded),
-				body
-			};
-		}
-		const envelope = site.envelope;
-		if (envelope.body && request.body && !json && !form) throw new TransformError(envelope.instrs.find((instr) => pathsOfInstr(instr).some((path) => path[0] === "@body"))?.c ?? "", "This operation's program writes into the request body, and the body sent is not JSON.");
-		const original = envelope.body && request.body ? await readBodyText(request, {
-			limit: this.#maxBodyBytes,
-			encoded: true
-		}) : void 0;
-		const result = this.transformEnvelope(site, {
-			path: parts.path,
-			search: parts.search.startsWith("?") ? parts.search.slice(1) : parts.search,
-			headers: [...parts.headers],
-			body: original?.text,
-			...form ? { form: true } : {}
-		}, context);
-		let headers = new Headers(result.headers);
-		let body = request.body;
-		if (original !== void 0 && result.body !== void 0) {
-			body = result.body;
-			headers = headersForText(headers, body, original.decoded);
-		} else if (original === void 0 && result.body !== void 0) {
-			body = result.body;
-			headers.set("content-type", "application/json");
-			headers = headersForText(headers, body, false);
-		}
-		return {
-			path: result.path,
-			search: result.search === "" ? "" : `?${result.search}`,
-			headers,
-			body
-		};
-	}
-	/**
-	* The whole request rewritten, for an operation where a Change reaches a
-	* parameter: its path, query string, headers and, where the program reads
-	* it, its body.
-	*
-	* `request.path` is the routed path as the caller's URL has it, base path
-	* included. Nothing outside what the program names is changed, down to the
-	* bytes and order of an untouched query string.
-	*/
-	transformEnvelope(site, request, context) {
-		const envelope = site.envelope;
-		const local = this.#local(request.path);
-		if (!envelope || envelope.instrs.length === 0 || local === void 0) return request;
-		return this.#reporting("request", context, () => {
-			if (request.body !== void 0 && request.body.length > this.#maxBodyBytes) throw new BodyTooLargeError(this.#maxBodyBytes);
-			const values = matchTemplate(site.template, local) ?? [];
-			const fidelity = site.numeric ? this.#fidelity : "double";
-			const opened = {
-				...request,
-				path: local
-			};
-			const form = request.form === true && envelope.body ? site.form : void 0;
-			if (!form) {
-				const tree = openEnvelope(envelope, site.template, values, opened, fidelity);
-				this.#counted(execute(tree, envelope.instrs, this.#limits), context);
-				const closed = closeEnvelope(envelope, site.template, values, opened, tree);
-				return {
-					...closed,
-					path: `${this.#program.basePath}${closed.path}`
-				};
-			}
-			const parameters = {
-				...envelope,
-				body: false
-			};
-			const roots = formRoots(envelope.instrs, 1);
-			const text = request.body ?? "";
-			const tree = openEnvelope(parameters, site.template, values, opened, fidelity);
-			tree["@body"] = openForm(form, roots, text, fidelity);
-			this.#counted(execute(tree, envelope.instrs, this.#limits), context);
-			const closed = closeEnvelope(parameters, site.template, values, opened, tree);
-			const body = tree["@body"];
-			return {
-				...closed,
-				path: `${this.#program.basePath}${closed.path}`,
-				body: closeForm(form, roots, text, typeof body === "object" && body !== null ? body : {}, envelope.instrs, 1)
-			};
-		});
-	}
-	transformResponse(site, status, text, context) {
-		return this.transformResponseDetailed(site, status, text, context).body;
-	}
-	/**
-	* The transformed body, and where a value was folded to get it.
-	*
-	* A fold is the one transform that shows a caller something untrue: the API
-	* produced a value their contract never named, and they are shown one it
-	* does. They have no way to notice. Returning where it happened lets whoever
-	* writes the response say so, which is the difference between a mitigation a
-	* caller can reason about and one that quietly misleads them.
-	*/
-	transformResponseDetailed(site, status, text, context) {
-		const instrs = statusKeysFor(status).map((key) => site.response.get(key)).find((found) => found !== void 0);
-		if (!instrs) return {
-			body: text,
-			folded: []
-		};
-		return this.#reporting("response", context, () => this.#run(instrs, site.numeric, text, {
-			contract: context.contract,
-			operation: context.operation,
-			consumer: context.consumer
-		}));
-	}
-	/**
-	* Runs a transform and reports how it ended.
-	*
-	* Reported here rather than in each framework binding, so a provider gets
-	* the same evidence whatever they mounted the runtime in, and so a binding
-	* cannot forget. A failure on the way in refused the request and nothing
-	* happened; a failure on the way out means the operation already ran and
-	* somebody is getting an error for work that succeeded, which is the number
-	* that actually matters.
-	*/
-	#reporting(direction, context, run) {
-		if (!this.#onOutcome) return run();
-		const base = {
-			contract: context.contract,
-			operation: context.operation,
-			consumer: context.consumer,
-			direction
-		};
-		try {
-			const result = run();
-			this.#onOutcome({
-				...base,
-				outcome: "adapted"
-			});
-			return result;
-		} catch (error) {
-			this.#onOutcome({
-				...base,
-				outcome: direction === "request" ? "refused" : "failed",
-				reason: error instanceof Error ? error.name : "Error"
-			});
-			throw error;
-		}
-	}
-	/** True when this status has compiled response work, so the body must be read. */
-	respondsTo(site, status) {
-		return statusKeysFor(status).some((key) => (site.response.get(key)?.length ?? 0) > 0);
-	}
-};
-function createRuntime(options) {
-	return new InvariantRuntime(options);
 }
 //#endregion
 //#region ../verifier/src/evidence.ts

@@ -82,7 +82,103 @@ export const CastCodec = Type.Object(
   { additionalProperties: false },
 );
 
-export const Codec = Type.Union([Scale10Codec, EnumMapCodec, CastCodec]);
+/** Seconds or milliseconds since the Unix epoch, or RFC 3339 text in UTC. */
+export const TimeFormat = Type.Union([
+  Type.Literal("epoch-s"),
+  Type.Literal("epoch-ms"),
+  Type.Literal("rfc3339"),
+]);
+
+/**
+ * The same instant, written another way: `created` as 1700000000 becoming
+ * "2023-11-14T22:13:20Z", or seconds becoming milliseconds.
+ *
+ * Exact or refused. A fraction of a second cannot become whole seconds and a
+ * year past 9999 cannot become text, and the runtime says so rather than
+ * rounding. Text is always written in UTC, so an offset an old caller wrote
+ * does not survive the epoch; the instant does, and the compiler declares
+ * the offset as the loss.
+ */
+export const DateFormatCodec = Type.Object(
+  {
+    kind: Type.Literal("dateFormat"),
+    from: TimeFormat,
+    to: TimeFormat,
+    /**
+     * What to do with precision the target cannot hold, such as the
+     * milliseconds of "2023-11-14T22:13:20.120Z" going to whole seconds.
+     * `reject` refuses the value, and is the default. `truncate` drops it,
+     * toward the earlier instant as the epoch does, and makes the Change
+     * declared-lossy: an old caller is shown 22:13:20 and cannot know there
+     * was more.
+     */
+    onInexact: Type.Optional(
+      Type.Union([Type.Literal("reject"), Type.Literal("truncate")]),
+    ),
+  },
+  { additionalProperties: false },
+);
+
+export const StringCase = Type.Union([
+  Type.Literal("snake"),
+  Type.Literal("screaming"),
+  Type.Literal("kebab"),
+  Type.Literal("camel"),
+  Type.Literal("pascal"),
+]);
+
+/**
+ * An identifier written in another case, as `in_progress` becoming
+ * `IN_PROGRESS` or `inProgress`. For a field whose values are named rather
+ * than listed; one with an enum can say the same with `enumMap`, and the
+ * compiler checks that every listed value survives the round trip either way.
+ *
+ * Refuses text that is not in `from`, and text the target cannot keep apart
+ * into the same words again.
+ */
+export const StringCaseCodec = Type.Object(
+  { kind: Type.Literal("stringCase"), from: StringCase, to: StringCase },
+  { additionalProperties: false },
+);
+
+/**
+ * Which item a list shows where one value is expected. `only` refuses a list
+ * that does not hold exactly one, since one value cannot say "none" or
+ * "several"; it is the default. `first` shows the first item and leaves the
+ * field out for an empty list, and makes the Change declared-lossy: whoever
+ * reads the one value cannot know there were others.
+ */
+export const ListPick = Type.Union([Type.Literal("only"), Type.Literal("first")]);
+
+/**
+ * A single value became a list of them: `tag: "a"` is now `tags: ["a"]`
+ * after a move, or `email` now holds a list. Forward wraps; backward shows
+ * an old caller one item, as `pick` says.
+ */
+export const WrapArrayCodec = Type.Object(
+  { kind: Type.Literal("wrapArray"), pick: Type.Optional(ListPick) },
+  { additionalProperties: false },
+);
+
+/**
+ * The inverse of `wrapArray`: a list became one value. Forward sends the
+ * provider one item of what an old caller sent, as `pick` says; backward
+ * wraps.
+ */
+export const UnwrapSingleCodec = Type.Object(
+  { kind: Type.Literal("unwrapSingle"), pick: Type.Optional(ListPick) },
+  { additionalProperties: false },
+);
+
+export const Codec = Type.Union([
+  Scale10Codec,
+  EnumMapCodec,
+  CastCodec,
+  DateFormatCodec,
+  StringCaseCodec,
+  WrapArrayCodec,
+  UnwrapSingleCodec,
+]);
 
 /**
  * Every operation a path item can declare, in OpenAPI's own order.
@@ -458,6 +554,12 @@ export const Change = Type.Object(
 export type Scale10Codec = Static<typeof Scale10Codec>;
 export type EnumMapCodec = Static<typeof EnumMapCodec>;
 export type CastCodec = Static<typeof CastCodec>;
+export type TimeFormat = Static<typeof TimeFormat>;
+export type DateFormatCodec = Static<typeof DateFormatCodec>;
+export type StringCase = Static<typeof StringCase>;
+export type StringCaseCodec = Static<typeof StringCaseCodec>;
+export type WrapArrayCodec = Static<typeof WrapArrayCodec>;
+export type UnwrapSingleCodec = Static<typeof UnwrapSingleCodec>;
 export type Codec = Static<typeof Codec>;
 export type ScalarType = Static<typeof ScalarType>;
 export type Endpoint = Static<typeof Endpoint>;

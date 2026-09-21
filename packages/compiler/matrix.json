@@ -7,6 +7,10 @@
     "convert scale10",
     "convert enumMap",
     "convert cast",
+    "convert dateFormat",
+    "convert stringCase",
+    "convert wrapArray",
+    "convert unwrapSingle",
     "add",
     "remove",
     "default",
@@ -43,8 +47,15 @@
     },
     "path request": {
       "status": "served",
-      "only": ["convert scale10", "convert enumMap", "convert cast", "relax"],
-      "why": "A path parameter can be converted in place and is written back into the template. The template's parameters are fixed, so renaming, adding or removing one is a route change, and the gate blocks it as a parameter op."
+      "only": [
+        "convert scale10",
+        "convert enumMap",
+        "convert cast",
+        "convert dateFormat",
+        "convert stringCase",
+        "relax"
+      ],
+      "why": "A path parameter can be converted in place and is written back into the template. The template's parameters are fixed, so renaming, adding or removing one is a route change, and the gate blocks it as a parameter op. A path segment holds one value, so it cannot become a list or stop being one."
     },
     "path response": {
       "status": "not expressible",

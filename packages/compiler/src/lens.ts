@@ -9,6 +9,7 @@
 import type { Guard, Site } from "@invariant/contract";
 import {
   type Change,
+  type Codec,
   type DataOp,
   type DefaultOp,
   type DropNullOp,
@@ -41,6 +42,66 @@ function fill(op: DefaultOp, prefix: string, changeId: string): Instr {
 function dropNull(op: DropNullOp, prefix: string, changeId: string): Instr {
   return { k: "del", path: prefixed(prefix, op.path), ifNull: true, c: changeId };
 }
+
+type ValueCodec = Extract<
+  Codec,
+  { kind: "dateFormat" | "stringCase" | "wrapArray" | "unwrapSingle" }
+>;
+
+/**
+ * The codecs that are one instruction each way, the same instruction with its
+ * ends swapped: an instant or a case read one way and written the other, a
+ * value wrapped one way and unwrapped the other.
+ */
+function valueCodec(
+  codec: ValueCodec,
+  path: string,
+  changeId: string,
+  direction: "forward" | "backward",
+): Instr {
+  const forward = direction === "forward";
+  switch (codec.kind) {
+    case "dateFormat": {
+      const truncate = codec.onInexact === "truncate" ? { truncate: true as const } : {};
+      return forward
+        ? { k: "time", path, from: codec.from, to: codec.to, ...truncate, c: changeId }
+        : { k: "time", path, from: codec.to, to: codec.from, ...truncate, c: changeId };
+    }
+    case "stringCase":
+      return forward
+        ? { k: "case", path, from: codec.from, to: codec.to, c: changeId }
+        : { k: "case", path, from: codec.to, to: codec.from, c: changeId };
+    case "wrapArray":
+    case "unwrapSingle": {
+      // The list is on the new side for one and the old side for the other.
+      const wraps = forward === (codec.kind === "wrapArray");
+      if (wraps) return { k: "wrap", path, c: changeId };
+      return {
+        k: "unwrap",
+        path,
+        ...(codec.pick === "first" ? { first: true as const } : {}),
+        c: changeId,
+      };
+    }
+  }
+}
+
+/**
+ * Whether an op can apply to a path parameter. A template has the parameters
+ * it has, so one can be re-encoded in place or bounded differently, and
+ * nothing else: not renamed, added, removed, or turned into a list.
+ */
+export function servesPathParameter(op: DataOp): boolean {
+  if (op.op === "relax") return true;
+  return (
+    op.op === "convert" &&
+    op.codec.kind !== "wrapArray" &&
+    op.codec.kind !== "unwrapSingle"
+  );
+}
+
+export const PATH_PARAMETER_REFUSAL =
+  "a path parameter can only be converted in place or given new bounds";
 
 /** Old-shape-to-canonical primitives for one data op, at one pointer prefix. */
 export function forwardInstrs(op: DataOp, prefix: string, changeId: string): Instr[] {
@@ -78,8 +139,9 @@ export function forwardInstrs(op: DataOp, prefix: string, changeId: string): Ins
           return [
             { k: "cast", path: prefixed(prefix, op.path), to: op.codec.to, c: changeId },
           ];
+        default:
+          return [valueCodec(op.codec, prefixed(prefix, op.path), changeId, "forward")];
       }
-      break;
     case "add":
       // The caller was written before this field existed, so supply the default
       // without ever overwriting a value they did send.
@@ -222,8 +284,9 @@ export function backwardInstrs(
               c: changeId,
             },
           ];
+        default:
+          return [valueCodec(op.codec, prefixed(prefix, op.path), changeId, "backward")];
       }
-      break;
     case "add":
       // The old contract never had this field, so it must not appear.
       return [{ k: "del", path: prefixed(prefix, op.path), c: changeId }];

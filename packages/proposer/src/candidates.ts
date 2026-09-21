@@ -47,6 +47,33 @@ export interface FieldShape {
   idBranch?: boolean;
   /** The bounds the schema puts on the value, by keyword. */
   bounds?: Record<string, JsonValue>;
+  /** The named schema the field refers to, when it is one. */
+  ref?: string;
+  /** For a list: what each item is, by type and by name when it has one. */
+  items?: { type: string | undefined; ref?: string };
+}
+
+/** The first non-null type a schema declares. */
+function typeOf(value: JsonObject): string | undefined {
+  const declared = value["type"];
+  const types = Array.isArray(declared)
+    ? declared.filter((t): t is string => typeof t === "string")
+    : typeof declared === "string"
+      ? [declared]
+      : [];
+  return types.filter((t) => t !== "null")[0];
+}
+
+function resolvedObject(
+  document: Parameters<typeof resolveSchema>[0],
+  raw: JsonValue,
+): JsonObject {
+  const resolved = resolveSchema(document, raw);
+  return isJsonObject(resolved) ? resolved : {};
+}
+
+function refOf(raw: JsonValue | undefined): Pick<FieldShape, "ref"> {
+  return isJsonObject(raw) && typeof raw["$ref"] === "string" ? { ref: raw["$ref"] } : {};
 }
 
 /** The keywords of a schema that bound its value, where it has any. */
@@ -179,6 +206,15 @@ function fieldsOf(
       ...(value["readOnly"] === true ? { readOnly: true } : {}),
       ...unionOf(value),
       ...boundsOf(value),
+      ...refOf(raw),
+      ...(isJsonObject(value["items"])
+        ? {
+            items: {
+              type: typeOf(resolvedObject(document, value["items"])),
+              ...refOf(value["items"]),
+            },
+          }
+        : {}),
     };
 
     // Inline objects, and inline objects inside lists, are part of this

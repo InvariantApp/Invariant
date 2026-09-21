@@ -37,6 +37,13 @@ import {
   ProgramError,
 } from "./program.ts";
 
+export {
+  CodecRefusal,
+  convertCase,
+  convertTime,
+  type StringCase,
+  type TimeFormat,
+} from "./codecs.ts";
 export type { EnvelopeRequest, ParamCodec } from "./envelope.ts";
 export {
   BodyTooDeepError,

@@ -581,6 +581,96 @@ describe("a bound on a value that moved", () => {
   });
 });
 
+describe("a value written another way", () => {
+  const thing = (fields: Record<string, Schema>) => ({
+    ...base,
+    Thing: object({ id: { type: "string" }, ...fields }, ["id"]),
+  });
+  const opsOf = async (before: Record<string, Schema>, after: Record<string, Schema>) => {
+    const outcome = await propose(contract(thing(before)), contract(thing(after)), {
+      judge: new RulesJudge(),
+    });
+    return outcome.proposals.flatMap((proposal) => proposal.change.ops);
+  };
+
+  it("drafts a count of seconds that became date-time text", async () => {
+    expect(
+      await opsOf(
+        { created: { type: "integer" } },
+        { created: { type: "string", format: "date-time" } },
+      ),
+    ).toContainEqual({
+      op: "convert",
+      path: "/created",
+      codec: { kind: "dateFormat", from: "epoch-s", to: "rfc3339" },
+    });
+  });
+
+  it("reads milliseconds where the field says so", async () => {
+    expect(
+      await opsOf(
+        { expires_at: { type: "string", format: "date-time" } },
+        {
+          expires_at: {
+            type: "integer",
+            description: "Milliseconds since the Unix epoch.",
+          },
+        },
+      ),
+    ).toContainEqual({
+      op: "convert",
+      path: "/expires_at",
+      codec: { kind: "dateFormat", from: "rfc3339", to: "epoch-ms" },
+    });
+  });
+
+  it("drafts a value that became a list of what it was, and back", async () => {
+    expect(
+      await opsOf(
+        { email: { type: "string" } },
+        { email: { type: "array", items: { type: "string" } } },
+      ),
+    ).toContainEqual({ op: "convert", path: "/email", codec: { kind: "wrapArray" } });
+    expect(
+      await opsOf(
+        { email: { type: "array", items: { type: "string" } } },
+        { email: { type: "string" } },
+      ),
+    ).toContainEqual({ op: "convert", path: "/email", codec: { kind: "unwrapSingle" } });
+  });
+
+  it("does not call a list of something else a list of the value", async () => {
+    const ops = await opsOf(
+      { email: { type: "string" } },
+      { email: { type: "array", items: { type: "integer" } } },
+    );
+    expect(ops.some((op) => op.op === "convert")).toBe(false);
+  });
+
+  it("drafts a vocabulary rewritten in another case", async () => {
+    expect(
+      await opsOf(
+        { status: { type: "string", enum: ["in_progress", "past_due", "done"] } },
+        { status: { type: "string", enum: ["IN_PROGRESS", "PAST_DUE", "DONE"] } },
+      ),
+    ).toContainEqual({
+      op: "convert",
+      path: "/status",
+      codec: { kind: "stringCase", from: "snake", to: "screaming" },
+    });
+  });
+
+  it("leaves a duration that changed unit to the scale, not the clock", async () => {
+    const ops = await opsOf(
+      { timeout_ms: { type: "integer" } },
+      { timeout_ms: { type: "string", format: "duration" } },
+    );
+    expect(ops.some((op) => op.op === "convert" && op.codec.kind === "dateFormat")).toBe(
+      false,
+    );
+  });
+});
+
 describe("how sure a judge has to be", () => {
   /** Answers every question with the first candidate, as one judge, at one confidence. */
   const sure = (judge: "jev" | "s2", confidence: number): Judge => ({

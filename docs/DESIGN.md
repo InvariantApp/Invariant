@@ -2049,6 +2049,38 @@ a schema without the Changes to the schemas nested inside it, so a correct
 release that added a required field to a referenced schema was blocked. The
 laws now run what the compiler places on a site.
 
+### Times, cases and lists, exact or refused
+
+Three codecs joined the catalog: `dateFormat` between seconds, milliseconds
+and RFC 3339 text; `stringCase` between five spellings of an identifier; and
+`wrapArray` with its inverse `unwrapSingle` for a value that became a list of
+itself. Each is one runtime instruction each way, and each is exact or
+refuses, the rule `scale10` has had from the start. Instants are computed from
+the civil calendar rather than a date library, because `Date.UTC` reads the
+years 0 to 99 as 1900 to 1999 and a port in another language would disagree
+with it anyway; two hundred thousand random instants from year 1 to 9999
+round trip against the platform's own clock. A case change proves itself by
+the round trip, so `a_1b` is refused in camel case because it reads back as
+one word, and `userID` is refused outright because it could be `user_id` or
+`user_i_d`.
+
+The lens laws decided two of the design questions. A contract whose times
+carry milliseconds cannot be shown to an old caller counting whole seconds,
+and a list cannot be shown to one expecting a single value, unless something
+is dropped. The first draft of each refused, which is correct and made both
+codecs unusable on any real response: the laws generated a time with a
+fraction or a list of two within a few values and failed the release. Both
+now carry a declared choice, `onInexact: truncate` and `pick: first`, which
+drops the precision or the rest of the list and makes the Change
+declared-lossy, so the gate asks for the acknowledgement in writing rather
+than a runtime refusing real traffic. The default is still to refuse.
+
+The TypeScript migration engine was moving a field whose value a `cast`
+changed and leaving the value alone, which compiles against a loose type and
+is wrong. Every re-encoding it cannot rewrite, which is now all of them but
+`scale10` and `enumMap`, is flagged for a person at the site instead. The
+codemods themselves are M6 work.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no

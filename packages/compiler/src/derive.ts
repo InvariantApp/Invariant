@@ -59,6 +59,52 @@ export function derive(change: Change): Derived {
       case "route":
         break;
       case "convert":
+        if (op.codec.kind === "dateFormat" && op.codec.onInexact === "truncate") {
+          // A time finer than the coarser side can count is shown as the
+          // start of the second it falls in.
+          runtime = worse(runtime, "declared-lossy");
+          reasons.push(
+            `${op.path} drops precision it cannot hold between ${op.codec.from} and ` +
+              `${op.codec.to}, so a caller may be shown the start of a second rather than a time within it`,
+          );
+          const finer = (format: string) =>
+            format === "epoch-s" ? 0 : format === "epoch-ms" ? 1 : 2;
+          if (finer(op.codec.to) < finer(op.codec.from)) lossy.forward.push(op.path);
+          if (finer(op.codec.from) < finer(op.codec.to)) lossy.backward.push(op.path);
+        }
+        if (op.codec.kind === "dateFormat" && op.codec.from !== op.codec.to) {
+          if (op.codec.from === "rfc3339") {
+            // The instant arrives intact; the offset the caller wrote it in
+            // does not, since a count of seconds has nowhere to keep one.
+            runtime = worse(runtime, "declared-lossy");
+            reasons.push(
+              `${op.path} is now a count since the epoch, so the UTC offset an ` +
+                "old caller writes a time in is not passed on, only the instant",
+            );
+            lossy.forward.push(op.path);
+          } else if (op.codec.to === "rfc3339") {
+            // An old caller loses nothing: its contract never had an offset.
+            // A round trip from the new side comes back written in UTC.
+            lossy.backward.push(op.path);
+          }
+        }
+        if (
+          (op.codec.kind === "wrapArray" || op.codec.kind === "unwrapSingle") &&
+          op.codec.pick === "first"
+        ) {
+          // One item stands for the list, and nobody reading it can know
+          // whether there were others.
+          runtime = worse(runtime, "declared-lossy");
+          const toOld = op.codec.kind === "wrapArray";
+          reasons.push(
+            toOld
+              ? `${op.path} is now a list, so an old caller is shown its first item, ` +
+                  "nothing where it is empty, and never the rest"
+              : `${op.path} is now one value, so the provider is sent the first item ` +
+                  "of an old caller's list and never the rest",
+          );
+          (toOld ? lossy.backward : lossy.forward).push(op.path);
+        }
         if (op.codec.kind === "enumMap") {
           if (op.codec.fold !== undefined && op.codec.fold.length > 0) {
             // The caller is shown a value that is not the one the API meant,

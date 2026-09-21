@@ -259,7 +259,6 @@ importers:
       '@invariant/ir':
         specifier: workspace:*
         version: link:../ir
-    devDependencies:
       '@invariant/runtime':
         specifier: workspace:*
         version: link:../runtime
@@ -382,6 +381,9 @@ importers:
       '@invariant/ir':
         specifier: workspace:*
         version: link:../ir
+      '@invariant/runtime':
+        specifier: workspace:*
+        version: link:../runtime
       '@typesafe-ai/sdk':
         specifier: ^0.6.0
         version: 0.6.0

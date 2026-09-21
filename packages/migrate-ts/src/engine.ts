@@ -17,7 +17,7 @@
  * than rewritten on a guess. A migration that quietly gets one call site wrong
  * is worse than one that says which call site it could not do.
  */
-import type { AddOp, DataOp, DefaultOp } from "@invariant/ir";
+import type { AddOp, Codec, DataOp, DefaultOp } from "@invariant/ir";
 import {
   Node,
   type Project,
@@ -125,6 +125,26 @@ interface Composed {
   unsupported: string | undefined;
 }
 
+/** What a re-encoding does to a value, in a reviewer's words. */
+export function recoding(codec: Codec): string {
+  switch (codec.kind) {
+    case "scale10":
+      return `the value times 10^${codec.exponent}`;
+    case "enumMap":
+      return "a renamed value";
+    case "cast":
+      return `${codec.to === "integer" ? "an" : "a"} ${codec.to} instead of ${codec.from === "integer" ? "an" : "a"} ${codec.from}`;
+    case "dateFormat":
+      return `${codec.to} instead of ${codec.from}`;
+    case "stringCase":
+      return `${codec.to} case instead of ${codec.from} case`;
+    case "wrapArray":
+      return "a list of one instead of the value";
+    case "unwrapSingle":
+      return "the one item instead of a list";
+  }
+}
+
 function compose(
   targets: readonly TargetSymbol[],
   helpers: { toMinor: string; fromMinor: string } | undefined,
@@ -165,7 +185,14 @@ function compose(
       composed.reasons.push("converted the amount to the unit the contract now uses");
       continue;
     }
-    if (op.op === "convert") continue; // enum values are edited at the literal
+    // Enum values are edited at the literal. Every other re-encoding changes
+    // what a value is, not only where it lives, and moving the field without
+    // converting it would compile against a loose type and be wrong.
+    if (op.op === "convert" && op.codec.kind === "enumMap") continue;
+    if (op.op === "convert") {
+      composed.unsupported = `${op.path} is now written as ${recoding(op.codec)}, which this engine does not rewrite yet`;
+      continue;
+    }
     if (op.op === "remove") composed.unsupported = "the field no longer exists";
     if (op.op === "add") continue;
   }

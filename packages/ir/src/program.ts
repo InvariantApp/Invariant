@@ -4,13 +4,13 @@
  *
  * The runtime has no notion of direction. Backward transforms are produced by
  * inverting ops at compile time, so a program is always just an ordered list of
- * forward primitives. There are six of them, none can call out or allocate
+ * forward primitives. None of them can call out or allocate
  * unboundedly, the only repetition follows the value being transformed, and
  * each carries the id of the Change it came from so a single change can be
  * counted and switched off on its own.
  */
 import { type Static, Type } from "@sinclair/typebox";
-import { IR_VERSION } from "./change.ts";
+import { IR_VERSION, StringCase, TimeFormat } from "./change.ts";
 
 const Pointer = Type.String();
 const ChangeId = Type.String();
@@ -71,6 +71,53 @@ export const CastInstr = Type.Object(
       Type.Literal("number"),
       Type.Literal("boolean"),
     ]),
+    c: ChangeId,
+  },
+  { additionalProperties: false },
+);
+
+/** One instant re-encoded, exactly or refused. See `DateFormatCodec`. */
+export const TimeInstr = Type.Object(
+  {
+    k: Type.Literal("time"),
+    path: Pointer,
+    from: TimeFormat,
+    to: TimeFormat,
+    /** Drop precision the target cannot hold instead of refusing the value. */
+    truncate: Type.Optional(Type.Literal(true)),
+    c: ChangeId,
+  },
+  { additionalProperties: false },
+);
+
+/** One identifier rewritten in another case, exactly or refused. See `StringCaseCodec`. */
+export const CaseInstr = Type.Object(
+  {
+    k: Type.Literal("case"),
+    path: Pointer,
+    from: StringCase,
+    to: StringCase,
+    c: ChangeId,
+  },
+  { additionalProperties: false },
+);
+
+/** The value becomes a list holding it. */
+export const WrapInstr = Type.Object(
+  { k: Type.Literal("wrap"), path: Pointer, c: ChangeId },
+  { additionalProperties: false },
+);
+
+/**
+ * A list of exactly one item becomes the item, and any other length is
+ * refused. With `first`, the first item is taken and an empty list is left
+ * out.
+ */
+export const UnwrapInstr = Type.Object(
+  {
+    k: Type.Literal("unwrap"),
+    path: Pointer,
+    first: Type.Optional(Type.Literal(true)),
     c: ChangeId,
   },
   { additionalProperties: false },
@@ -145,6 +192,10 @@ export const Instr = Type.Recursive(
       ScaleInstr,
       EnumInstr,
       CastInstr,
+      TimeInstr,
+      CaseInstr,
+      WrapInstr,
+      UnwrapInstr,
       SetInstr,
       DelInstr,
       Type.Object(
@@ -416,6 +467,10 @@ export type MoveInstr = Static<typeof MoveInstr>;
 export type ScaleInstr = Static<typeof ScaleInstr>;
 export type EnumInstr = Static<typeof EnumInstr>;
 export type CastInstr = Static<typeof CastInstr>;
+export type TimeInstr = Static<typeof TimeInstr>;
+export type CaseInstr = Static<typeof CaseInstr>;
+export type WrapInstr = Static<typeof WrapInstr>;
+export type UnwrapInstr = Static<typeof UnwrapInstr>;
 export type SetInstr = Static<typeof SetInstr>;
 export type DelInstr = Static<typeof DelInstr>;
 export type Instr = Static<typeof Instr>;

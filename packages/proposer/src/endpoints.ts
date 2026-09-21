@@ -30,6 +30,7 @@ import {
   type JsonObject,
   type JsonValue,
 } from "@invariant/ir";
+import { listCodec, timeCodec } from "./codecs.ts";
 
 export interface RetiredEndpoint {
   method: HttpMethod;
@@ -278,6 +279,9 @@ export interface ParameterShape {
   nullable: boolean;
   /** The declared `default`, when there is one. */
   default?: JsonValue;
+  description?: string;
+  /** For a list: the type of each item. */
+  items?: { type: string | undefined };
 }
 
 const LOCATIONS = new Set(["query", "path", "header", "cookie"]);
@@ -317,7 +321,22 @@ function parameterShape(
       : undefined,
     nullable: types.includes("null") || schema["nullable"] === true,
     ...(schema["default"] === undefined ? {} : { default: schema["default"] }),
+    ...(typeof parameter["description"] === "string"
+      ? { description: parameter["description"] }
+      : {}),
+    ...(isJsonObject(schema["items"])
+      ? { items: { type: typeOfItems(document, schema["items"]) } }
+      : {}),
   };
+}
+
+function typeOfItems(document: OpenApiDocument, raw: JsonValue): string | undefined {
+  const items = resolveSchema(document, raw);
+  if (!isJsonObject(items)) return undefined;
+  const declared = items["type"];
+  return (Array.isArray(declared) ? declared : [declared]).find(
+    (type): type is string => typeof type === "string" && type !== "null",
+  );
 }
 
 function parametersOf(
@@ -635,7 +654,14 @@ export function parameterDrafts(deltas: readonly ParameterDelta[]): {
         }
       }
 
-      if (
+      const recoded =
+        before.type !== undefined && after.type !== undefined
+          ? (timeCodec(before, after) ?? (inPath ? undefined : listCodec(before, after)))
+          : undefined;
+      if (recoded !== undefined) {
+        ops.push({ op: "convert", path, codec: recoded.codec });
+        notes.push(recoded.note);
+      } else if (
         before.type !== after.type &&
         before.type !== undefined &&
         after.type !== undefined

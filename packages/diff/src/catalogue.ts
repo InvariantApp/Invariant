@@ -192,7 +192,7 @@ const RULES: Rule[] = [
     op: "convert",
     served: "yes",
     sentence:
-      "A parameter's type or nullability changed. A `cast` or `scale10` conversion translates old callers' values, which you confirm, and a `dropNull` sends a null they still send as the parameter left out.",
+      "A parameter's type or nullability changed. A conversion translates old callers' values, which you confirm (`cast`, `scale10`, `dateFormat`, or `wrapArray` for a value that became a list), and a `dropNull` sends a null they still send as the parameter left out.",
   }),
 
   // Response headers, served with the envelope too.
@@ -272,7 +272,7 @@ const RULES: Rule[] = [
     op: "convert",
     served: "yes",
     sentence:
-      "A request field's type changed. A `cast` or `scale10` conversion translates old callers' values, which you confirm.",
+      "A request field's type changed. A conversion translates old callers' values, which you confirm: `cast` or `scale10` for a number, `dateFormat` for a time, `wrapArray` or `unwrapSingle` for a value that became a list or stopped being one.",
   }),
   rule(/^request-property-became-nullable$/, {
     class: "adaptable",
@@ -331,7 +331,7 @@ const RULES: Rule[] = [
     op: "convert",
     served: "yes",
     sentence:
-      "A response field's type changed. A `cast` or `scale10` conversion translates it back for old callers, which you confirm.",
+      "A response field's type changed. A conversion translates it back for old callers, which you confirm: `cast` or `scale10` for a number, `dateFormat` for a time, `wrapArray` or `unwrapSingle` for a value that became a list or stopped being one.",
   }),
   rule(/^response-required-property-removed$/, {
     class: "needs-decision",

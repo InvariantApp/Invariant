@@ -21,7 +21,7 @@
 import { Node, type Project, SyntaxKind } from "ts-morph";
 import type { Edit } from "./edits.ts";
 import type { EditScope, ManualSite } from "./engine.ts";
-import { editable } from "./engine.ts";
+import { editable, recoding } from "./engine.ts";
 import { exactMinorUnits } from "./numbers.ts";
 import type { MigrationPlan } from "./plan.ts";
 
@@ -194,6 +194,8 @@ export function migrateRawCallSites(
   const renames = new Map<string, string>();
   const scales = new Map<string, number>();
   const enums = new Map<string, Record<string, string>>();
+  /** Fields whose value is now written differently, which nothing here converts. */
+  const recoded = new Map<string, string>();
   /** Field to add, and the schemas its Change actually scopes to. */
   const added = new Map<string, { value: unknown; schemas: Set<string> }>();
 
@@ -210,6 +212,8 @@ export function migrateRawCallSites(
         scales.set(leaf(op.path), op.codec.exponent);
       } else if (op.op === "convert" && op.codec.kind === "enumMap") {
         enums.set(leaf(op.path), Object.fromEntries(op.codec.pairs));
+      } else if (op.op === "convert") {
+        recoded.set(leaf(op.path), recoding(op.codec));
       } else if (
         op.op === "add" ||
         (op.op === "default" && op.toward === "new" && op.when !== "null")
@@ -259,6 +263,7 @@ export function migrateRawCallSites(
         renames,
         scales,
         enums,
+        recoded,
         added,
         helpers,
         operationId: operation.operationId,
@@ -271,7 +276,7 @@ export function migrateRawCallSites(
         bumpHeader(optionsArgument, options.contractHeader, result);
     }
 
-    rewriteReads(source, result, { renames, scales, enums, helpers });
+    rewriteReads(source, result, { renames, scales, enums, recoded, helpers });
   }
 
   return result;
@@ -286,6 +291,7 @@ interface Rewrites {
   renames: Map<string, string>;
   scales: Map<string, number>;
   enums: Map<string, Record<string, string>>;
+  recoded: Map<string, string>;
   added: Map<string, { value: unknown; schemas: Set<string> }>;
   helpers: { toMinor: string; fromMinor: string; from?: string } | undefined;
   operationId: string;
@@ -312,6 +318,16 @@ function rewriteBody(
     present.add(name);
 
     const renamed = rewrites.renames.get(name);
+    const recodedAs = rewrites.recoded.get(renamed ?? name);
+    if (recodedAs !== undefined) {
+      result.manual.push(
+        manual(
+          property,
+          "raw-http",
+          `\`${renamed ?? name}\` is now written as ${recodedAs}. Convert the value by hand.`,
+        ),
+      );
+    }
     const exponent = rewrites.scales.get(renamed ?? name);
     if (renamed === undefined && exponent === undefined) continue;
 
@@ -415,6 +431,16 @@ function rewriteReads(
 
     const name = argument.getLiteralValue();
     const renamed = rewrites.renames.get(name);
+    const recodedAs = rewrites.recoded.get(renamed ?? name);
+    if (recodedAs !== undefined) {
+      result.manual.push(
+        manual(
+          access,
+          "raw-http",
+          `\`${renamed ?? name}\` is now written as ${recodedAs}. Convert the value by hand.`,
+        ),
+      );
+    }
     const exponent = rewrites.scales.get(renamed ?? name);
     if (renamed === undefined && exponent === undefined) continue;
 

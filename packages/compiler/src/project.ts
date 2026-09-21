@@ -43,7 +43,9 @@ import {
   backwardInstrs,
   forwardInstrs,
   guarded,
+  PATH_PARAMETER_REFUSAL,
   prefixed,
+  servesPathParameter,
   type VariantGuards,
 } from "./lens.ts";
 import {
@@ -581,9 +583,9 @@ function collectParameters(
           }
         },
       );
-      if (touchesPath && op.op !== "convert" && op.op !== "relax") {
+      if (touchesPath && !servesPathParameter(op)) {
         refuse(
-          `a path parameter can only be converted or given new bounds: ${scope.operation}'s path has the ` +
+          `${PATH_PARAMETER_REFUSAL}: ${scope.operation}'s path has the ` +
             "parameters its template has, and renaming one is a route change",
         );
         refused = true;
@@ -690,9 +692,9 @@ function declare(
   if (name === undefined || name === "*") {
     return `${pointer} names every ${address.part} parameter at once, not one of them`;
   }
-  if (address.part === "path" && op.op !== "convert" && op.op !== "relax") {
+  if (address.part === "path" && !servesPathParameter(op)) {
     return (
-      `a path parameter can only be converted or given new bounds: ${scope.operation}'s path has the ` +
+      `${PATH_PARAMETER_REFUSAL}: ${scope.operation}'s path has the ` +
       "parameters its template has, and renaming one is a route change"
     );
   }

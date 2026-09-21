@@ -30,6 +30,7 @@ import {
   parsePointer,
 } from "@invariant/ir";
 import { importReferences } from "./import.ts";
+import { PATH_PARAMETER_REFUSAL, servesPathParameter } from "./lens.ts";
 import {
   addressOf,
   envelopePointer,
@@ -409,8 +410,8 @@ function applyOne(
     );
   }
   const name = address.name as string;
-  if (address.part === "path" && op.op !== "convert" && op.op !== "relax") {
-    throw new SchemaOpError("a path parameter can only be converted or given new bounds");
+  if (address.part === "path" && !servesPathParameter(op)) {
+    throw new SchemaOpError(PATH_PARAMETER_REFUSAL);
   }
 
   switch (op.op) {

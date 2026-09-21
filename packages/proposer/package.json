@@ -38,6 +38,7 @@
   "dependencies": {
     "@invariant/contract": "workspace:*",
     "@invariant/ir": "workspace:*",
+    "@invariant/runtime": "workspace:*",
     "@typesafe-ai/sdk": "^0.6.0"
   }
 }

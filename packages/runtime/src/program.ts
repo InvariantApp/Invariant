@@ -6,6 +6,8 @@
  * unrecognised instruction, an unexpected field or a malformed path is a
  * refusal to load rather than something to skip over at request time.
  */
+
+import type { StringCase, TimeFormat } from "./codecs.ts";
 import {
   codecKey,
   type DecodedEnvelope,
@@ -97,6 +99,14 @@ export interface DecodedProgram {
 }
 
 const SCALARS = new Set<ScalarType>(["string", "integer", "number", "boolean"]);
+const TIME_FORMATS = new Set<TimeFormat>(["epoch-s", "epoch-ms", "rfc3339"]);
+const STRING_CASES = new Set<StringCase>([
+  "snake",
+  "screaming",
+  "kebab",
+  "camel",
+  "pascal",
+]);
 
 function object(value: unknown, where: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -374,6 +384,54 @@ function decodeInstr(
         c: changeId,
       };
     }
+    case "time": {
+      expectKeys(value, ["k", "path", "from", "to", "truncate", "c"], where);
+      const from = string(value["from"], `${where}.from`) as TimeFormat;
+      const to = string(value["to"], `${where}.to`) as TimeFormat;
+      if (!TIME_FORMATS.has(from) || !TIME_FORMATS.has(to) || from === to) {
+        throw new ProgramError(`${where} must name two different time formats`);
+      }
+      return {
+        k: "time",
+        path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
+        from,
+        to,
+        ...(onlyTrue(value["truncate"], `${where}.truncate`) ? { truncate: true } : {}),
+        c: changeId,
+      };
+    }
+    case "case": {
+      expectKeys(value, ["k", "path", "from", "to", "c"], where);
+      const from = string(value["from"], `${where}.from`) as StringCase;
+      const to = string(value["to"], `${where}.to`) as StringCase;
+      if (!STRING_CASES.has(from) || !STRING_CASES.has(to) || from === to) {
+        throw new ProgramError(`${where} must name two different cases`);
+      }
+      return {
+        k: "case",
+        path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
+        from,
+        to,
+        c: changeId,
+      };
+    }
+    case "wrap": {
+      expectKeys(value, ["k", "path", "c"], where);
+      return {
+        k: "wrap",
+        path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
+        c: changeId,
+      };
+    }
+    case "unwrap": {
+      expectKeys(value, ["k", "path", "first", "c"], where);
+      return {
+        k: "unwrap",
+        path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
+        ...(onlyTrue(value["first"], `${where}.first`) ? { first: true } : {}),
+        c: changeId,
+      };
+    }
     case "set": {
       expectKeys(value, ["k", "path", "value", "ifAbsent", "ifNull", "c"], where);
       if (typeof value["ifAbsent"] !== "boolean") {
@@ -420,7 +478,7 @@ function needsExactNumbers(
   entered: Set<string> = new Set(),
 ): boolean {
   return instrs.some((instr) => {
-    if (instr.k === "scale" || instr.k === "cast") return true;
+    if (instr.k === "scale" || instr.k === "cast" || instr.k === "time") return true;
     if (instr.k === "within" || instr.k === "has" || instr.k === "is") {
       return needsExactNumbers(instr.block, entered);
     }
@@ -667,7 +725,9 @@ function decodeEnvelope(raw: unknown, where: string, blocks: Blocks): DecodedEnv
         location === "path" &&
         instr.k !== "scale" &&
         instr.k !== "enum" &&
-        instr.k !== "cast"
+        instr.k !== "cast" &&
+        instr.k !== "time" &&
+        instr.k !== "case"
       ) {
         // A template has exactly the parameters it has, so a path parameter
         // can be converted but not moved, added or taken away.

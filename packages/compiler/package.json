@@ -39,9 +39,7 @@
     "@invariant/contract": "workspace:*",
     "@invariant/diff": "workspace:*",
     "@invariant/ir": "workspace:*",
-    "@invariant/decimal": "workspace:*"
-  },
-  "devDependencies": {
+    "@invariant/decimal": "workspace:*",
     "@invariant/runtime": "workspace:*"
   }
 }

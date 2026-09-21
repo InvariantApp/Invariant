@@ -85,8 +85,10 @@ delta warns; it never passes.
 
 ### Codecs
 
-The codec catalog is closed too: `scale10`, `enumMap`, `cast`. There are no
-expressions and no conditionals.
+The codec catalog is closed too: `scale10`, `enumMap`, `cast`, `dateFormat`,
+`stringCase`, `wrapArray`, `unwrapSingle`. There are no expressions and no
+conditionals. Every codec is exact or refuses, unless the Change declares a
+loss by name, and a declared loss makes the Change `declared-lossy`.
 
 - **`scale10 {exponent, onInexact: reject}`** moves the decimal point by
   `exponent` places. It must be done on the decimal text, never by multiplying:
@@ -96,6 +98,31 @@ expressions and no conditionals.
   A value with no mapping is **refused**, unless the instruction is marked
   lenient (see below).
 - **`cast {from, to}`** between `string`, `integer`, `number` and `boolean`.
+- **`dateFormat {from, to, onInexact?}`** between `epoch-s`, `epoch-ms` and
+  `rfc3339`: the same instant, written another way. Text is always written in
+  UTC as `YYYY-MM-DDTHH:MM:SS[.sss]Z`, with the three-digit fraction only when
+  it is not zero. Dates are proleptic Gregorian, computed from the civil
+  calendar rather than a host date library, for years 0000 to 9999. A leap
+  second, a day that does not exist, a year outside that range, and precision
+  the target cannot hold are **refused**. With `onInexact: truncate` the
+  precision is dropped instead, toward the earlier instant (-0.5 s is -1),
+  and the Change is declared-lossy. An offset an old caller wrote does not
+  survive a count since the epoch; the instant does, and the compiler
+  declares the offset as the loss.
+- **`stringCase {from, to}`** between `snake`, `screaming`, `kebab`, `camel`
+  and `pascal`. Words are runs of `[a-z0-9]`; in camel and pascal case a
+  capital starts one. Text not written in `from`, an acronym (two capitals
+  together), and text whose words the target cannot keep apart are
+  **refused**. The check is the round trip itself: convert, read back, and
+  refuse unless the original comes out.
+- **`wrapArray {pick?}`**: a value became a list of what it was. Forward
+  wraps. Backward shows one item: with `pick: only`, the default, a list of
+  any length but one is **refused**; with `pick: first`, the first item is
+  shown and an empty list leaves the field out, which is declared-lossy.
+- **`unwrapSingle {pick?}`**: the inverse, a list that became one value.
+
+A null passes through every codec unchanged, so a nullable field stays
+nullable on both sides.
 
 ---
 
@@ -105,8 +132,9 @@ A scope names a schema in the **old** contract. The compiler finds every place
 that schema reaches the wire by walking `$ref` usage, so one statement covers a
 create body, a retrieve response and every element of a list envelope.
 
-Pointers are JSON Pointer with one addition: a `*` segment matches every
-element of an array. Nothing else. A pointer naming `__proto__`, `constructor`
+Pointers are JSON Pointer with two additions: a `*` segment matches every
+element of an array, and a `{}` segment matches every value of an object used
+as a map (`additionalProperties`). Nothing else. A pointer naming `__proto__`, `constructor`
 or `prototype` is refused at decode time, before any program can load.
 
 ---
@@ -148,8 +176,17 @@ list of primitives per site, already inverted where inversion was needed.
 | `scale` | `path`, `exp` | shift the decimal point; refuse if inexact |
 | `enum` | `path`, `map`, `lenient?` | map a value; refuse an unmapped one unless lenient |
 | `cast` | `path`, `to` | change the scalar type |
-| `set` | `path`, `value`, `ifAbsent` | write a value; `ifAbsent` must not overwrite |
-| `del` | `path` | remove a field |
+| `time` | `path`, `from`, `to`, `truncate?` | re-encode an instant, as `dateFormat` |
+| `case` | `path`, `from`, `to` | rewrite an identifier's case, as `stringCase` |
+| `wrap` | `path` | put the value in a list of one |
+| `unwrap` | `path`, `first?` | take the one item out of a list; refuse any other length unless `first` |
+| `set` | `path`, `value`, `ifAbsent`, `ifNull?` | write a value; `ifAbsent` must not overwrite |
+| `del` | `path`, `ifNull?` | remove a field, or only a null one |
+| `within` | `path`, `block` | run the block at each match, its pointers read from there |
+| `switch` | `path`, `cases` | run the block for the value a key holds, read once on entry |
+| `has` | `path`, `block`, `absent?` | run the block where a field is present, or missing |
+| `is` | `path`, `type`, `block` | run the block where the value is of one JSON kind |
+| `call` | `block` | run a named block of the contract, for a schema that contains itself |
 
 Every instruction carries `c`, the id of the Change it came from, so one change
 can be counted and switched off on its own.
@@ -181,6 +218,11 @@ rounds where this one rejects is not compatible; it is dangerous.
 
 - A `scale` that cannot be represented exactly.
 - An `enum` value with no mapping, unless lenient.
+- A `time` value that is not an instant its source format can write, or one
+  the target cannot hold, unless `truncate`.
+- A `case` value not written in its source case, or one that does not survive
+  the round trip.
+- An `unwrap` of a list that does not hold exactly one item, unless `first`.
 - A program containing a pointer with a prototype key, at decode time.
 - A body larger than the configured cap, on a site that has work to do.
 

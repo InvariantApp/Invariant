@@ -77,6 +77,21 @@ const OLD = {
             schema: { type: "string", enum: ["asc", "desc"] },
           },
           { name: "Authorization", in: "header", schema: { type: "string" } },
+          {
+            name: "ids",
+            in: "query",
+            schema: { type: "array", items: { type: "string" } },
+          },
+          {
+            name: "X-Ids",
+            in: "header",
+            schema: { type: "array", items: { type: "string" } },
+          },
+          {
+            name: "ids",
+            in: "cookie",
+            schema: { type: "array", items: { type: "string" } },
+          },
           { name: "page", in: "cookie", schema: { type: "integer" } },
           {
             name: "order",
@@ -147,6 +162,7 @@ const OLD = {
           status: { type: "string", enum: ["pending", "paid", "void"] },
           note: { type: "string" },
           gift: { type: "boolean" },
+          tags: { type: "array", items: { type: "string" } },
           shipping: {
             type: "object",
             properties: { city: { type: "string" }, zip: { type: "string" } },
@@ -164,6 +180,7 @@ const OLD = {
           status: { type: "string", enum: ["pending", "paid", "void"] },
           note: { type: "string" },
           gift: { type: "boolean" },
+          tags: { type: "array", items: { type: "string" } },
           shipping: {
             type: "object",
             properties: { city: { type: "string" }, zip: { type: "string" } },
@@ -382,7 +399,7 @@ function fieldsOf(schema: Schema, prefix = "", required = true): Field[] {
     ([name, child]) =>
       child["type"] === "object"
         ? fieldsOf(child, `${prefix}/${name}`, false)
-        : typeof child["type"] === "string" && child["type"] !== "array"
+        : typeof child["type"] === "string"
           ? [
               {
                 pointer: `${prefix}/${name}`,
@@ -397,15 +414,36 @@ function fieldsOf(schema: Schema, prefix = "", required = true): Field[] {
   );
 }
 
-/** For each location: a number, an enum, a name only the new contract has, and one it adds. */
+/**
+ * For each location: a number, an enum, a list, a name only the new contract
+ * has, and one it adds.
+ */
 const NAMES: Record<
   string,
-  { num: string; enum: string; renamed: string; added: string }
+  { num: string; enum: string; list: string; renamed: string; added: string }
 > = {
-  query: { num: "limit", enum: "sort", renamed: "page_size", added: "cursor" },
-  header: { num: "X-Page-Size", enum: "X-Sort", renamed: "X-Limit", added: "X-Cursor" },
-  cookie: { num: "page", enum: "order", renamed: "page_number", added: "session_hint" },
-  path: { num: "id", enum: "id", renamed: "order_id", added: "extra" },
+  query: {
+    num: "limit",
+    enum: "sort",
+    list: "ids",
+    renamed: "page_size",
+    added: "cursor",
+  },
+  header: {
+    num: "X-Page-Size",
+    enum: "X-Sort",
+    list: "X-Ids",
+    renamed: "X-Limit",
+    added: "X-Cursor",
+  },
+  cookie: {
+    num: "page",
+    enum: "order",
+    list: "ids",
+    renamed: "page_number",
+    added: "session_hint",
+  },
+  path: { num: "id", enum: "id", list: "id", renamed: "order_id", added: "extra" },
 };
 
 /**
@@ -455,6 +493,21 @@ function fitToParameters(change: Change, location: string): Change | undefined {
             codec: { kind: "cast", from: "integer", to: "string" },
           };
         }
+        if (op.codec.kind === "dateFormat") {
+          return {
+            ...op,
+            path: `/${n.num}`,
+            codec: { kind: "dateFormat", from: "epoch-s", to: "rfc3339" },
+          };
+        }
+        if (op.codec.kind === "stringCase") {
+          return {
+            ...op,
+            path: `/${n.enum}`,
+            codec: { kind: "stringCase", from: "snake", to: "screaming" },
+          };
+        }
+        if (op.codec.kind === "unwrapSingle") return { ...op, path: `/${n.list}` };
         return { ...op, path: `/${n.num}` };
       case "add":
         return { ...op, path: `/${n.added}` };
@@ -548,8 +601,44 @@ function fitTo(change: Change, name: string): fc.Arbitrary<Change | undefined> {
               : op,
           );
         }
+        if (codec.kind === "dateFormat") {
+          // A count of seconds that becomes text, or text that becomes one.
+          return pick(
+            fields.filter((field) => field.type === "integer" || field.type === "string"),
+          ).map((field) =>
+            field
+              ? {
+                  ...op,
+                  path: field.pointer,
+                  codec:
+                    field.type === "integer"
+                      ? { kind: "dateFormat", from: "epoch-s", to: "rfc3339" }
+                      : { kind: "dateFormat", from: "rfc3339", to: "epoch-ms" },
+                }
+              : op,
+          );
+        }
+        if (codec.kind === "stringCase") {
+          return pick(fields.filter((field) => field.enum)).map((field) =>
+            field
+              ? {
+                  ...op,
+                  path: field.pointer,
+                  codec: { kind: "stringCase", from: "snake", to: "screaming" },
+                }
+              : op,
+          );
+        }
+        if (codec.kind === "wrapArray" || codec.kind === "unwrapSingle") {
+          const list = codec.kind === "unwrapSingle";
+          return pick(fields.filter((field) => (field.type === "array") === list)).map(
+            (field) => (field ? { ...op, path: field.pointer } : op),
+          );
+        }
         // A cast from the field's own type to any other.
-        return pick(fields.filter((field) => !field.enum)).chain((field) =>
+        return pick(
+          fields.filter((field) => !field.enum && field.type !== "array"),
+        ).chain((field) =>
           field
             ? fc
                 .constantFrom("string", "integer", "number", "boolean")
@@ -676,6 +765,18 @@ const THREAD_OPS: Change["ops"] = [
     path: "/count",
     codec: { kind: "cast", from: "integer", to: "string" },
   },
+  {
+    op: "convert",
+    path: "/count",
+    codec: { kind: "dateFormat", from: "epoch-s", to: "rfc3339" },
+  },
+  {
+    op: "convert",
+    path: "/status",
+    codec: { kind: "stringCase", from: "snake", to: "screaming" },
+  },
+  { op: "convert", path: "/title", codec: { kind: "wrapArray" } },
+  { op: "convert", path: "/replies", codec: { kind: "unwrapSingle" } },
   { op: "add", path: "/label", value: "x" },
   { op: "remove", path: "/title", restore: "x" },
   { op: "default", path: "/title", value: "x", when: "absent", toward: "new" },
@@ -777,6 +878,10 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
       "convert scale10",
       "convert enumMap",
       "convert cast",
+      "convert dateFormat",
+      "convert stringCase",
+      "convert wrapArray",
+      "convert unwrapSingle",
       "add",
       "remove",
       "default",
@@ -836,6 +941,22 @@ describe("L1: the op x location x direction matrix", () => {
       path: "/count",
       codec: { kind: "cast", from: "integer", to: "string" },
     },
+    "convert dateFormat": {
+      op: "convert",
+      path: "/count",
+      codec: { kind: "dateFormat", from: "epoch-s", to: "rfc3339" },
+    },
+    "convert stringCase": {
+      op: "convert",
+      path: "/status",
+      codec: { kind: "stringCase", from: "snake", to: "screaming" },
+    },
+    "convert wrapArray": { op: "convert", path: "/note", codec: { kind: "wrapArray" } },
+    "convert unwrapSingle": {
+      op: "convert",
+      path: "/tags",
+      codec: { kind: "unwrapSingle" },
+    },
     add: { op: "add", path: "/added_field", value: "supplied" },
     remove: { op: "remove", path: "/note", restore: "" },
     default: { op: "default", path: "/note", value: "", when: "absent-or-null" },
@@ -886,6 +1007,25 @@ describe("L1: the op x location x direction matrix", () => {
             to: location === "path" ? "integer" : "string",
           },
         };
+      case "convert dateFormat":
+        return {
+          op: "convert",
+          path: `/${n.num}`,
+          codec:
+            location === "path"
+              ? { kind: "dateFormat", from: "rfc3339", to: "epoch-s" }
+              : { kind: "dateFormat", from: "epoch-s", to: "rfc3339" },
+        };
+      case "convert stringCase":
+        return {
+          op: "convert",
+          path: `/${n.enum}`,
+          codec: { kind: "stringCase", from: "snake", to: "screaming" },
+        };
+      case "convert wrapArray":
+        return { op: "convert", path: `/${n.num}`, codec: { kind: "wrapArray" } };
+      case "convert unwrapSingle":
+        return { op: "convert", path: `/${n.list}`, codec: { kind: "unwrapSingle" } };
       case "add":
         return { op: "add", path: `/${n.added}`, value: "start" };
       case "remove":
@@ -971,18 +1111,7 @@ describe("L1: the op x location x direction matrix", () => {
     }
   });
 
-  for (const op of [
-    "move",
-    "convert scale10",
-    "convert enumMap",
-    "convert cast",
-    "add",
-    "remove",
-    "default",
-    "dropNull",
-    "widen",
-    "relax",
-  ]) {
+  for (const op of matrix.ops) {
     for (const direction of ["request", "response"]) {
       it(`${op} in a body, ${direction}: ${"served"}`, () => {
         expect(matrix.cells[`body ${direction}`]?.status).toBe("served");

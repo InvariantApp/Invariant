@@ -20,6 +20,7 @@ import {
   type Scope,
 } from "@invariant/ir";
 import { type FieldShape, type SchemaDelta, schemaDeltas } from "./candidates.ts";
+import { caseCodec, listCodec, timeCodec } from "./codecs.ts";
 import type { Decision, ValueDecision } from "./decisions.ts";
 import {
   methodMoveChanges,
@@ -110,7 +111,14 @@ export function opsFor(
   const numericChange =
     removed.type === "number" && successor.type === "integer" && exponent !== undefined;
 
-  if (numericChange) {
+  const recoded = numericChange
+    ? undefined
+    : (timeCodec(removed, successor) ?? listCodec(removed, successor));
+
+  if (recoded !== undefined) {
+    ops.push({ op: "convert", path: successor.pointer, codec: recoded.codec });
+    notes.push(recoded.note);
+  } else if (numericChange) {
     ops.push({
       op: "convert",
       path: successor.pointer,
@@ -155,7 +163,12 @@ export function opsFor(
     const dropped = before.filter((value) => !after.includes(value));
     const gained = after.filter((value) => !before.includes(value));
 
-    if (dropped.length > 0 || gained.length > 0) {
+    const recased =
+      dropped.length > 0 && gained.length > 0 ? caseCodec(before, after) : undefined;
+    if (recased !== undefined) {
+      ops.push({ op: "convert", path: successor.pointer, codec: recased.codec });
+      notes.push(recased.note);
+    } else if (dropped.length > 0 || gained.length > 0) {
       // A one-to-one pairing is only obvious when exactly one value moved.
       // Anything else is left for a person rather than guessed at.
       const pairs: [string, string][] = kept.map((value) => [value, value]);
