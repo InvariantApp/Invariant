@@ -1,14 +1,45 @@
 {
   "name": "@invariant/cli",
   "version": "0.1.0",
-  "private": true,
-  "type": "module",
   "description": "The invariant command, run by a provider in their own CI",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/InvariantApp/Invariant.git",
+    "directory": "packages/cli"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "sideEffects": false,
   "bin": {
     "invariant": "./src/main.ts"
   },
   "exports": {
     ".": "./src/index.ts"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "node ../../scripts/prepack.mjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "bin": {
+      "invariant": "./dist/main.js"
+    }
   },
   "dependencies": {
     "@invariant/bundle": "workspace:*",

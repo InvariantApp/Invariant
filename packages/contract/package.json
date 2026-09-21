@@ -1,11 +1,39 @@
 {
   "name": "@invariant/contract",
   "version": "0.1.0",
-  "private": true,
-  "type": "module",
   "description": "Loading, normalizing, digesting and indexing OpenAPI contracts",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/InvariantApp/Invariant.git",
+    "directory": "packages/contract"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "sideEffects": false,
   "exports": {
     ".": "./src/index.ts"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "node ../../scripts/prepack.mjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
   },
   "dependencies": {
     "@invariant/ir": "workspace:*",

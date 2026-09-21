@@ -9,3 +9,6 @@ coverage/
 .vitest/
 .migrated/
 .cache/
+# Copied from the root at pack time; see scripts/prepack.mjs.
+packages/*/LICENSE
+packages/*/NOTICE

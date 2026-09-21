@@ -12,7 +12,10 @@
     "apps/*/src/**/*.ts",
     "fixtures/*/src/**/*.ts",
     "e2e/**/*.ts",
-    "*.config.ts"
+    "*.config.ts",
+    "tsdown.shared.ts",
+    "packages/*/tsdown.config.ts",
+    "scripts/**/*.mts"
   ],
   "exclude": ["**/node_modules", "**/dist"]
 }

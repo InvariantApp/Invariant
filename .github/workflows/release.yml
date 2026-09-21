@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # Dormant until the npm organisation exists and trusted publishing is
+    # configured for each package. Set the repository variable PUBLISH_ENABLED
+    # to "true" to switch it on.
+    if: vars.PUBLISH_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+      # npm trusted publishing: a short-lived token from GitHub's OIDC issuer
+      # instead of a long-lived secret, and provenance recorded automatically.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      # The same checks the published artifacts are held to on every push.
+      - run: pnpm build
+      - run: pnpm check:packages
+
+      # Opens a version pull request while changesets are pending, and
+      # publishes once that pull request is merged.
+      - uses: changesets/action@v1
+        with:
+          version: pnpm changeset version
+          publish: pnpm changeset publish
+          commit: "Version packages"
+          title: "Version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"

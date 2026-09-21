@@ -8,6 +8,8 @@
   },
   "scripts": {
     "typecheck": "tsc --build",
+    "build": "pnpm -r --workspace-concurrency=1 --filter './packages/*' run build",
+    "check:packages": "node --import tsx scripts/check-packages.mts",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "biome check .",
@@ -24,7 +26,9 @@
   },
   "devDependencies": {
     "@acme/sdk-v3": "workspace:*",
+    "@arethetypeswrong/cli": "0.18.5",
     "@biomejs/biome": "2.5.14",
+    "@changesets/cli": "3.0.3",
     "@electric-sql/pglite": "^0.5.8",
     "@fixtures/provider-acme": "workspace:*",
     "@hono/node-server": "^2.1.1",
@@ -35,6 +39,7 @@
     "@invariant/diff": "workspace:*",
     "@invariant/eval": "workspace:*",
     "@invariant/flags": "workspace:*",
+    "@invariant/github": "workspace:*",
     "@invariant/ir": "workspace:*",
     "@invariant/migrate-ts": "workspace:*",
     "@invariant/proposer": "workspace:*",
@@ -44,10 +49,11 @@
     "@typesafe-ai/sdk": "^0.6.0",
     "dotenv": "^18.0.1",
     "fast-check": "^4.10.1",
+    "publint": "0.3.24",
     "ts-morph": "^28.0.0",
+    "tsdown": "0.23.0",
     "tsx": "^4.23.13",
     "typescript": "6.0.3",
-    "vitest": "^5.0.1",
-    "@invariant/github": "workspace:*"
+    "vitest": "^5.0.1"
   }
 }

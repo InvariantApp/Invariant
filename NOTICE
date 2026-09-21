@@ -1,0 +1,10 @@
+Invariant
+Copyright 2026 The Invariant Authors
+
+This product includes software developed by The Invariant Authors
+(https://github.com/InvariantApp/Invariant), licensed under the Apache
+License, Version 2.0.
+
+The release gate runs oasdiff (https://github.com/oasdiff/oasdiff),
+Copyright oasdiff contributors, licensed under the Apache License, Version
+2.0. It is invoked as a separate program and is not part of these packages.

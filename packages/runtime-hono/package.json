@@ -1,16 +1,47 @@
 {
   "name": "@invariant/runtime-hono",
   "version": "0.1.0",
-  "private": true,
-  "type": "module",
   "description": "Hono bindings for the Invariant compatibility runtime",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/InvariantApp/Invariant.git",
+    "directory": "packages/runtime-hono"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "sideEffects": false,
   "exports": {
     ".": "./src/index.ts"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "node ../../scripts/prepack.mjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
   },
   "dependencies": {
     "@invariant/runtime": "workspace:*"
   },
   "peerDependencies": {
-    "hono": "^4"
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "hono": "^4.13.8"
   }
 }

@@ -1,14 +1,45 @@
 {
   "name": "@invariant/sidecar",
   "version": "0.1.0",
-  "private": true,
-  "type": "module",
   "description": "A standalone reverse proxy running the Invariant runtime in front of an API written in any language",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/InvariantApp/Invariant.git",
+    "directory": "packages/sidecar"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "sideEffects": false,
+  "bin": {
+    "invariant-sidecar": "./src/cli.ts"
+  },
   "exports": {
     ".": "./src/index.ts"
   },
-  "bin": {
-    "invariant-sidecar": "./src/cli.ts"
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "node ../../scripts/prepack.mjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "bin": {
+      "invariant-sidecar": "./dist/cli.js"
+    }
   },
   "dependencies": {
     "@invariant/runtime": "workspace:*"
