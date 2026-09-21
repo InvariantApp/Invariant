@@ -1430,7 +1430,7 @@ a real API, how much of what they did can this express?
 So sixty consecutive published version pairs from real companies (AWS, Google,
 Adyen, GitHub and others, via the APIs.guru directory) were run through
 loading, diffing, drafting, compiling and the closure check. `pnpm real`
-reproduces it and writes `eval/real/REPORT.md`.
+reproduces it and writes `eval/real/REPORT.md` (now `proving/corpus/REPORT.md`).
 
 **The pipeline survived.** 59 of 60 pairs completed every stage, median 326 ms
 each, on documents up to 765 KB with 170 schemas. Nothing was tuned for them.

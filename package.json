@@ -22,9 +22,8 @@
     "eval:record": "node --env-file=.env --import tsx eval/record.mts",
     "app:register": "node --import tsx scripts/register-app.mts",
     "app:status": "node --import tsx scripts/app-status.mts",
-    "real:fetch": "node --import tsx eval/real/fetch.mts",
-    "real:fetch-git": "node --import tsx eval/real/fetch-git.mts",
-    "real": "node --env-file-if-exists=.env --import tsx eval/real/run.mts"
+    "proving:corpus": "node --env-file-if-exists=.env --import tsx proving/corpus/run.mts",
+    "proving:discover": "node --import tsx proving/corpus/discover-git.mts"
   },
   "devDependencies": {
     "@acme/sdk-v3": "workspace:*",

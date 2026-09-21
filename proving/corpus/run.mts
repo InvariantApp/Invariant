@@ -15,6 +15,13 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type PairResult, type RealSummary, summarizeReal } from "@invariant/eval";
+import {
+  type LocalPair,
+  type ManifestPair,
+  materializePair,
+  readManifest,
+  shardOf,
+} from "./manifest.mts";
 
 /**
  * What each unexplained kind actually means for this system.
@@ -57,39 +64,51 @@ const DIAGNOSIS: Record<string, string> = {
 };
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
+
 /**
- * Two indexes, deliberately kept apart until they are read.
+ * Arguments: an optional judge mode, then flags.
  *
- * `pairs.json` is APIs.guru: published version bumps, mostly Azure and Google.
- * `pairs-git.json` is the specification each provider publishes in its own
- * repository, sampled at successive commits. The second is where the providers
- * people actually integrate against live, and the report keeps the two
- * distinguishable because they are different kinds of evidence.
+ *   rules | hybrid | count        which judge drafts Changes (default rules)
+ *   --shard <i>/<n>               run one CI shard of the providers
+ *   --results <path>              where this run's results go
+ *   --provider <name>             only this provider's pairs
+ *   --report <results.json>...    render the report from shard results, and run nothing
  */
-const INDEXES = [
-  join(ROOT, "eval/real/pairs.json"),
-  join(ROOT, "eval/real/pairs-git.json"),
-];
+const args = process.argv.slice(2);
+const option = (name: string): string | undefined => {
+  const at = args.indexOf(`--${name}`);
+  return at === -1 ? undefined : args[at + 1];
+};
+const shardArg = option("shard");
+const shard = shardArg
+  ? {
+      index: Number(shardArg.split("/")[0]),
+      count: Number(shardArg.split("/")[1]),
+    }
+  : undefined;
+const reportInputs = args.includes("--report")
+  ? args.slice(args.indexOf("--report") + 1).filter((arg) => !arg.startsWith("--"))
+  : undefined;
+
+const partial = shard !== undefined || option("provider") !== undefined;
 const resultsFor = (mode: string) =>
+  option("results") ??
   join(
     ROOT,
-    mode === "rules" ? "eval/real/results.json" : `eval/real/results-${mode}.json`,
+    // A partial run's results never overwrite the committed ones.
+    partial
+      ? `.cache/corpus/results-${mode}-${shardArg?.replace("/", "-of-") ?? option("provider")}.json`
+      : mode === "rules"
+        ? "proving/corpus/results.json"
+        : `proving/corpus/results-${mode}.json`,
   );
 const reportFor = (mode: string) =>
-  join(ROOT, mode === "rules" ? "eval/real/REPORT.md" : `eval/real/REPORT-${mode}.md`);
+  join(
+    ROOT,
+    mode === "rules" ? "proving/corpus/REPORT.md" : `proving/corpus/REPORT-${mode}.md`,
+  );
 
-interface Pair {
-  api: string;
-  title: string;
-  provider?: string;
-  source?: string;
-  fromVersion: string;
-  toVersion: string;
-  fromFile: string;
-  toFile: string;
-}
-
-const mode = process.argv[2] ?? "rules";
+const mode = args[0] !== undefined && !args[0].startsWith("--") ? args[0] : "rules";
 
 /**
  * How much a single pair may consume before it is stopped.
@@ -112,7 +131,7 @@ const HEAP_MB = Number(process.env["REAL_HEAP_MB"] ?? 512);
 /** Kept low on purpose: several differs at once is how a small box dies. */
 const CONCURRENCY = Number(process.env["REAL_CONCURRENCY"] ?? 2);
 
-const WORKER = join(ROOT, "eval/real/worker.mts");
+const WORKER = join(ROOT, "proving/corpus/worker.mts");
 
 /**
  * Every worker still running, so none is left behind.
@@ -140,17 +159,6 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   });
 }
 
-interface Pair {
-  api: string;
-  title: string;
-  provider?: string;
-  source?: string;
-  fromVersion: string;
-  toVersion: string;
-  fromFile: string;
-  toFile: string;
-}
-
 type WorkerResult = PairResult & {
   elapsedMs?: number;
   asked?: number;
@@ -166,7 +174,7 @@ type WorkerResult = PairResult & {
  * accident but a thing that happens, and a run that dies on it tells you
  * nothing about the other several hundred.
  */
-function analyseIsolated(pair: Pair): Promise<WorkerResult> {
+function analyseIsolated(pair: LocalPair): Promise<WorkerResult> {
   return new Promise((resolve) => {
     const child = spawn(
       process.execPath,
@@ -177,10 +185,10 @@ function analyseIsolated(pair: Pair): Promise<WorkerResult> {
         WORKER,
         mode,
         pair.api,
-        pair.fromVersion,
-        pair.toVersion,
-        pair.fromFile,
-        pair.toFile,
+        pair.from.label,
+        pair.to.label,
+        pair.fromPath,
+        pair.toPath,
       ],
       {
         cwd: ROOT,
@@ -195,8 +203,8 @@ function analyseIsolated(pair: Pair): Promise<WorkerResult> {
 
     const stopped = (error: string): WorkerResult => ({
       api: pair.api,
-      fromVersion: pair.fromVersion,
-      toVersion: pair.toVersion,
+      fromVersion: pair.from.label,
+      toVersion: pair.to.label,
       reached: "budget",
       error,
       deltas: 0,
@@ -281,15 +289,28 @@ function analyseIsolated(pair: Pair): Promise<WorkerResult> {
   });
 }
 
-const pairs: Pair[] = [];
-for (const index of INDEXES) {
-  try {
-    pairs.push(...(JSON.parse(await readFile(index, "utf8")) as Pair[]));
-  } catch {
-    // An index that is not there yet is not an error: each fetcher is run
-    // separately and either half is a usable corpus on its own.
+// One provider at a time, for looking at a failure locally without running
+// the several hundred pairs around it.
+const onlyProvider = option("provider");
+const pairs = shardOf((await readManifest()).pairs, shard).filter(
+  (pair) => onlyProvider === undefined || pair.provider === onlyProvider,
+);
+
+if (reportInputs) {
+  // Rendering only: the shards ran on separate runners, and this is the one
+  // report their results add up to.
+  const merged: WorkerResult[] = [];
+  for (const input of reportInputs) {
+    merged.push(...(JSON.parse(await readFile(input, "utf8")) as WorkerResult[]));
   }
+  const report = render(summarizeReal(merged), merged, mode);
+  await writeFile(reportFor(mode), report, "utf8");
+  console.log(
+    `${merged.length} results from ${reportInputs.length} shards, report written`,
+  );
+  process.exit(0);
 }
+
 const results: WorkerResult[] = [];
 
 console.log(
@@ -303,13 +324,32 @@ async function drain(): Promise<void> {
   while (next < pairs.length) {
     const index = next;
     next += 1;
-    const pair = pairs[index] as Pair;
-    const result = await analyseIsolated(pair);
-    results.push({
-      ...result,
-      provider: pair.provider ?? (pair.api.split(":")[0] as string),
-      source: pair.source ?? "guru",
-    });
+    const pair = pairs[index] as ManifestPair;
+    let result: WorkerResult;
+    try {
+      result = await analyseIsolated(await materializePair(pair));
+    } catch (error) {
+      // A specification that cannot be fetched, or no longer hashes to what
+      // was pinned, is reported as such rather than measured as something else.
+      result = {
+        api: pair.api,
+        fromVersion: pair.from.label,
+        toVersion: pair.to.label,
+        reached: "load",
+        error: error instanceof Error ? error.message : String(error),
+        deltas: 0,
+        breakingBefore: 0,
+        breakingAligned: 0,
+        breakingAfter: 0,
+        drafts: 0,
+        unresolved: 0,
+        impasses: 0,
+        compileIssues: [],
+        breakingKinds: {},
+        unexplainedKinds: {},
+      };
+    }
+    results.push({ ...result, provider: pair.provider, source: pair.source });
     finished += 1;
     process.stdout.write(
       result.reached === "done" ? "." : result.reached === "budget" ? "B" : "!",
@@ -344,8 +384,15 @@ if (mode !== "rules") {
 const summary = summarizeReal(results);
 const report = render(summary, results, mode, baseline);
 console.log(`\n\n${report}`);
-await writeFile(reportFor(mode), report, "utf8");
-console.log(`\nwritten to ${reportFor(mode).replace(`${ROOT}`, "")}`);
+// Only a run over the whole corpus is the report. A shard or one provider's
+// pairs is a partial result, and writing it over the report would make a
+// seven-pair run look like the measurement of the corpus.
+if (!partial) {
+  await writeFile(reportFor(mode), report, "utf8");
+  console.log(`\nwritten to ${reportFor(mode).replace(`${ROOT}`, "")}`);
+} else {
+  console.log(`\npartial run: results in ${resultsFor(mode)}, report left as it was`);
+}
 
 function percent(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
@@ -366,7 +413,7 @@ function render(
   lines.push(`# Real APIs${judgeMode === "rules" ? "" : ` (${judgeMode})`}`, "");
   lines.push(
     "Consecutive published versions of real APIs, run through loading, diffing,",
-    "drafting, compiling and the closure check. Generated by `pnpm real`.",
+    "drafting, compiling and the closure check. Generated by `pnpm proving:corpus`.",
     "",
     "Nothing here was written for this project, which is the point. Every number",
     "measured anywhere else in this repository came from a fixture built for it",

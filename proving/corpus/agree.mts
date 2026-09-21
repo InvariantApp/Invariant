@@ -5,11 +5,12 @@
  * documents too large to check any other way, and agreement on a fixture says
  * nothing about agreement on Stripe.
  */
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadContract } from "@invariant/contract";
 import { BREAKING_INFO_IDS, breakingEntries, diffOutcome } from "@invariant/diff";
+import { materializePair, readManifest } from "./manifest.mts";
 
 // Generated from the policy, so this check cannot pass because the file it
 // wrote happened to match a stale copy of the policy.
@@ -19,12 +20,7 @@ await writeFile(
   `${[...BREAKING_INFO_IDS].map((id) => `${id} warn`).join("\n")}\n`,
 );
 
-const pairs = JSON.parse(await readFile("eval/real/pairs-git.json", "utf8")) as {
-  api: string;
-  fromVersion: string;
-  fromFile: string;
-  toFile: string;
-}[];
+const pairs = (await readManifest()).pairs.filter((pair) => pair.source === "git");
 
 const sample = pairs
   .filter((_, index) => index % 7 === 0)
@@ -34,8 +30,9 @@ let disagreed = 0;
 
 for (const pair of sample) {
   try {
-    const from = await loadContract(pair.fromFile, "from");
-    const to = await loadContract(pair.toFile, "to");
+    const local = await materializePair(pair);
+    const from = await loadContract(local.fromPath, "from");
+    const to = await loadContract(local.toPath, "to");
     const full = await diffOutcome(from.document, to.document, { fallback: false });
     if (full.mode !== "changelog") continue;
     const reduced = await diffOutcome(from.document, to.document, {
@@ -58,12 +55,12 @@ for (const pair of sample) {
     if (onlyFull.length > 0 || onlyReduced.length > 0) {
       disagreed += 1;
       console.log(
-        `DISAGREE ${pair.api} ${pair.fromVersion}: full-only ${onlyFull.length}, reduced-only ${onlyReduced.length}`,
+        `DISAGREE ${pair.api} ${pair.from.label}: full-only ${onlyFull.length}, reduced-only ${onlyReduced.length}`,
       );
       for (const k of [...onlyFull.slice(0, 3), ...onlyReduced.slice(0, 3)])
         console.log("   ", k.slice(0, 130));
     } else {
-      console.log(`agree    ${pair.api} ${pair.fromVersion} (${a.size} breaking)`);
+      console.log(`agree    ${pair.api} ${pair.from.label} (${a.size} breaking)`);
     }
   } catch (error) {
     console.log(`skip     ${pair.api}: ${String(error).slice(0, 90)}`);

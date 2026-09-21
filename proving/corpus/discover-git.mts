@@ -13,19 +13,21 @@
  * system sees than a version bump is, because it is the same API evolving in
  * place rather than a new major version appearing beside the old one.
  *
- * Specifications are cached under `.cache/` and never committed: they are
- * megabytes each and they belong to the people who wrote them. What is
- * committed is the index, with a digest per file.
+ * What it finds is added to the pinned manifest, each file by a URL at the
+ * exact commit and its full sha256. Pairs already in the manifest are left as
+ * they are, so running this grows the corpus and never silently replaces what
+ * earlier numbers were measured on. The specifications themselves are cached
+ * under `.cache/` and never committed.
  */
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { MANIFEST, type ManifestPair, readManifest } from "./manifest.mts";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const CACHE = join(ROOT, ".cache/real-git");
-const INDEX = join(ROOT, "eval/real/pairs-git.json");
 
 const TOKEN = process.env["GITHUB_TOKEN"] ?? "";
 /** How many successive states of one document to take. */
@@ -102,19 +104,6 @@ const SOURCES: Source[] = [
   },
 ];
 
-export interface Pair {
-  api: string;
-  title: string;
-  provider: string;
-  source: "git";
-  fromVersion: string;
-  toVersion: string;
-  fromFile: string;
-  toFile: string;
-  fromDigest: string;
-  toDigest: string;
-}
-
 async function api<T>(path: string): Promise<T> {
   const response = await fetch(`https://api.github.com/${path}`, {
     headers: {
@@ -127,8 +116,8 @@ async function api<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-function digestOf(text: string): string {
-  return createHash("sha256").update(text).digest("hex");
+function digestOf(bytes: Buffer): string {
+  return createHash("sha256").update(bytes).digest("hex");
 }
 
 async function filesIn(source: Source): Promise<string[]> {
@@ -152,7 +141,11 @@ interface Commit {
   commit: { committer: { date: string } };
 }
 
-const pairs: Pair[] = [];
+const manifest = await readManifest();
+const known = new Set(
+  manifest.pairs.map((pair) => `${pair.from.sha256}:${pair.to.sha256}`),
+);
+const added: ManifestPair[] = [];
 await mkdir(CACHE, { recursive: true });
 
 for (const source of SOURCES) {
@@ -181,24 +174,24 @@ for (const source of SOURCES) {
     const slug = `${source.repo}/${path}`.replace(/[^a-zA-Z0-9]+/g, "-");
     const extension = path.endsWith(".json") ? "json" : "yaml";
 
-    const states: { label: string; file: string; digest: string }[] = [];
+    const states: { label: string; url: string; digest: string }[] = [];
     for (const commit of ordered) {
       const short = commit.sha.slice(0, 7);
       const date = commit.commit.committer.date.slice(0, 10);
       const file = join(CACHE, `${slug}-${date}-${short}.${extension}`);
+      const url = `https://raw.githubusercontent.com/${source.repo}/${commit.sha}/${path}`;
       try {
         if (!existsSync(file)) {
-          const response = await fetch(
-            `https://raw.githubusercontent.com/${source.repo}/${commit.sha}/${path}`,
-            { headers: { "user-agent": "invariant-eval" } },
-          );
+          const response = await fetch(url, {
+            headers: { "user-agent": "invariant-eval" },
+          });
           if (!response.ok) continue;
-          await writeFile(file, await response.text(), "utf8");
+          await writeFile(file, Buffer.from(await response.arrayBuffer()));
         }
-        const digest = digestOf(await readFile(file, "utf8"));
+        const digest = digestOf(await readFile(file));
         // A commit that touched the file without changing it is not a step.
         if (states.at(-1)?.digest === digest) continue;
-        states.push({ label: `${date} ${short}`, file, digest });
+        states.push({ label: `${date} ${short}`, url, digest });
       } catch {}
     }
 
@@ -210,17 +203,16 @@ for (const source of SOURCES) {
     for (let index = 0; index < states.length - 1; index += 1) {
       const from = states[index] as (typeof states)[number];
       const to = states[index + 1] as (typeof states)[number];
-      pairs.push({
+      const format = extension === "json" ? "json" : "yaml";
+      if (known.has(`${from.digest}:${to.digest}`)) continue;
+      known.add(`${from.digest}:${to.digest}`);
+      added.push({
         api: `${source.provider}:${name}`,
         title: `${source.provider} ${name}`,
         provider: source.provider,
         source: "git",
-        fromVersion: from.label,
-        toVersion: to.label,
-        fromFile: from.file,
-        toFile: to.file,
-        fromDigest: `sha256:${from.digest.slice(0, 16)}`,
-        toDigest: `sha256:${to.digest.slice(0, 16)}`,
+        from: { label: from.label, url: from.url, sha256: from.digest, format },
+        to: { label: to.label, url: to.url, sha256: to.digest, format },
       });
     }
     process.stdout.write(".");
@@ -228,12 +220,15 @@ for (const source of SOURCES) {
   process.stdout.write("\n");
 }
 
-await writeFile(INDEX, `${JSON.stringify(pairs, null, 2)}\n`, "utf8");
+manifest.pairs.push(...added);
+await writeFile(MANIFEST, `${JSON.stringify(manifest, null, 1)}\n`, "utf8");
 const byProvider = new Map<string, number>();
-for (const pair of pairs) {
+for (const pair of added) {
   byProvider.set(pair.provider, (byProvider.get(pair.provider) ?? 0) + 1);
 }
-console.log(`\n${pairs.length} pairs indexed in eval/real/pairs-git.json`);
+console.log(
+  `\n${added.length} new pairs added; the manifest now has ${manifest.pairs.length}`,
+);
 for (const [provider, count] of [...byProvider].sort((a, b) => b[1] - a[1])) {
   console.log(`  ${provider}: ${count}`);
 }

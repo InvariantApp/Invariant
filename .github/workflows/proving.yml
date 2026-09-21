@@ -1,0 +1,108 @@
+name: Proving ground
+
+# The heavy measurements: every rig in proving/, on GitHub's machines rather
+# than a laptop. Nightly, and on demand.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: proving
+  cancel-in-progress: false
+
+jobs:
+  corpus:
+    name: corpus (shard ${{ matrix.shard }} of 4)
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: node --import tsx scripts/fetch-oasdiff.mts --host
+
+      # Downloaded once per week of manifest changes, verified against the
+      # manifest's hashes on every use.
+      - uses: actions/cache@v4
+        with:
+          path: .cache/corpus
+          key: corpus-${{ hashFiles('proving/corpus/manifest.json') }}
+
+      - name: Run this shard
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REAL_CONCURRENCY: "2"
+        run: >-
+          node --import tsx proving/corpus/run.mts
+          --shard ${{ matrix.shard }}/4
+          --results corpus-${{ matrix.shard }}.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: corpus-${{ matrix.shard }}
+          path: corpus-${{ matrix.shard }}.json
+
+  report:
+    needs: corpus
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: corpus-*
+          merge-multiple: true
+
+      - name: Merge the shards into one report
+        run: |
+          node --import tsx proving/corpus/run.mts --report corpus-*.json
+          node --import tsx -e '
+            const fs = require("node:fs");
+            const all = [0, 1, 2, 3].flatMap((i) => JSON.parse(fs.readFileSync(`corpus-${i}.json`, "utf8")));
+            fs.writeFileSync("proving/corpus/results.json", JSON.stringify(all, null, 2) + "\n");
+          '
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: corpus-report
+          path: |
+            proving/corpus/REPORT.md
+            proving/corpus/results.json
+
+      # Recorded in the repository, so a number quoted anywhere can be traced
+      # to the run that produced it. Nothing is committed when nothing changed.
+      - name: Commit the report
+        if: github.event_name == 'schedule'
+        run: |
+          git config user.name "invariant-proving"
+          git config user.email "proving@users.noreply.github.com"
+          git add proving/corpus/REPORT.md proving/corpus/results.json
+          git diff --cached --quiet || git commit -m "Record the nightly corpus run"
+          git push

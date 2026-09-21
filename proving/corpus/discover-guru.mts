@@ -21,10 +21,10 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { MANIFEST, type ManifestPair, readManifest } from "./manifest.mts";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const CACHE = join(ROOT, ".cache/real-specs");
-const INDEX = join(ROOT, "eval/real/pairs.json");
 
 /** Azure would otherwise be four fifths of the corpus. */
 const PER_PROVIDER = Number(process.env["REAL_PER_PROVIDER"] ?? 25);
@@ -36,17 +36,6 @@ interface GuruVersion {
 }
 interface GuruApi {
   versions: Record<string, GuruVersion>;
-}
-
-export interface Pair {
-  api: string;
-  title: string;
-  fromVersion: string;
-  toVersion: string;
-  fromFile: string;
-  toFile: string;
-  fromDigest: string;
-  toDigest: string;
 }
 
 function order(version: string): [number, string | number] {
@@ -65,12 +54,11 @@ async function download(url: string, to: string): Promise<string> {
   if (!existsSync(to)) {
     const response = await fetch(url, { headers: { "user-agent": "invariant-eval" } });
     if (!response.ok) throw new Error(`${response.status} for ${url}`);
-    await writeFile(to, await response.text(), "utf8");
+    await writeFile(to, Buffer.from(await response.arrayBuffer()));
   }
-  return `sha256:${createHash("sha256")
+  return createHash("sha256")
     .update(await readFile(to))
-    .digest("hex")
-    .slice(0, 16)}`;
+    .digest("hex");
 }
 
 const limit = Number(process.argv[2] ?? 60);
@@ -123,7 +111,11 @@ console.log(
     `at ${PER_PROVIDER} per provider, taking ${Math.min(limit, chosen.length)}`,
 );
 
-const pairs: Pair[] = [];
+const manifest = await readManifest();
+const known = new Set(
+  manifest.pairs.map((pair) => `${pair.from.sha256}:${pair.to.sha256}`),
+);
+const added: ManifestPair[] = [];
 for (const candidate of chosen.slice(0, limit)) {
   const slug = candidate.api.replace(/[^a-zA-Z0-9]+/g, "-");
   const fromFile = join(CACHE, `${slug}-${candidate.from}.json`);
@@ -131,25 +123,36 @@ for (const candidate of chosen.slice(0, limit)) {
   try {
     const fromDigest = await download(candidate.urls[0], fromFile);
     const toDigest = await download(candidate.urls[1], toFile);
-    pairs.push({
+    if (known.has(`${fromDigest}:${toDigest}`)) continue;
+    known.add(`${fromDigest}:${toDigest}`);
+    added.push({
       api: candidate.api,
       title: candidate.title,
-      fromVersion: candidate.from,
-      toVersion: candidate.to,
-      fromFile,
-      toFile,
-      fromDigest,
-      toDigest,
+      provider: candidate.api.split(":")[0] as string,
+      source: "apis.guru",
+      from: {
+        label: candidate.from,
+        url: candidate.urls[0],
+        sha256: fromDigest,
+        format: "json",
+      },
+      to: {
+        label: candidate.to,
+        url: candidate.urls[1],
+        sha256: toDigest,
+        format: "json",
+      },
     });
     process.stdout.write(".");
-  } catch (error) {
+  } catch {
     // A specification that cannot be downloaded is not a finding about this
     // system, so it is skipped rather than recorded as a failure.
     process.stdout.write("x");
-    void error;
   }
 }
 
-await writeFile(INDEX, `${JSON.stringify(pairs, null, 2)}\n`, "utf8");
-console.log(`\n${pairs.length} pairs ready, indexed in eval/real/pairs.json`);
-console.log(`providers: ${[...perProvider.keys()].join(", ")}`);
+manifest.pairs.push(...added);
+await writeFile(MANIFEST, `${JSON.stringify(manifest, null, 1)}\n`, "utf8");
+console.log(
+  `\n${added.length} new pairs added; the manifest now has ${manifest.pairs.length}`,
+);
