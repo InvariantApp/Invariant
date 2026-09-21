@@ -22,6 +22,7 @@ import {
   readManifest,
   shardOf,
 } from "./manifest.mts";
+import { compareRuns } from "./regressions.mts";
 
 /**
  * What each unexplained kind actually means for this system.
@@ -303,11 +304,25 @@ if (reportInputs) {
   for (const input of reportInputs) {
     merged.push(...(JSON.parse(await readFile(input, "utf8")) as WorkerResult[]));
   }
+  // Compared with the run recorded in the repository before either is
+  // replaced, so a nightly run that made anything worse fails, names the
+  // pairs, and records nothing.
+  const recorded = JSON.parse(
+    await readFile(resultsFor(mode), "utf8").catch(() => "[]"),
+  ) as PairResult[];
+  const { regressions, notes } = compareRuns(recorded, merged);
   const report = render(summarizeReal(merged), merged, mode);
   await writeFile(reportFor(mode), report, "utf8");
+  await writeFile(resultsFor(mode), `${JSON.stringify(merged, null, 2)}\n`, "utf8");
   console.log(
     `${merged.length} results from ${reportInputs.length} shards, report written`,
   );
+  for (const note of notes) console.log(`note: ${note}`);
+  if (regressions.length > 0) {
+    console.error(`\n${regressions.length} regressions since the recorded run:`);
+    for (const regression of regressions) console.error(`  ${regression}`);
+    process.exit(1);
+  }
   process.exit(0);
 }
 

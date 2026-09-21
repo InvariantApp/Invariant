@@ -195,11 +195,15 @@ for (const source of SOURCES) {
       } catch {}
     }
 
-    const name =
-      path
-        .split("/")
-        .pop()
-        ?.replace(/\.(json|ya?ml)$/, "") ?? path;
+    // Named by where the document sits under the source's directory, not by
+    // its file name alone: Intercom publishes every API version as
+    // descriptions/<version>/api.intercom.io.yaml, and naming them all
+    // api.intercom.io made different pairs indistinguishable.
+    const name = (
+      source.dir
+        ? path.slice(source.dir.length).replace(/^\//, "")
+        : (path.split("/").pop() ?? path)
+    ).replace(/\.(json|ya?ml)$/, "");
     for (let index = 0; index < states.length - 1; index += 1) {
       const from = states[index] as (typeof states)[number];
       const to = states[index + 1] as (typeof states)[number];
@@ -221,7 +225,7 @@ for (const source of SOURCES) {
 }
 
 manifest.pairs.push(...added);
-await writeFile(MANIFEST, `${JSON.stringify(manifest, null, 1)}\n`, "utf8");
+await writeFile(MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 const byProvider = new Map<string, number>();
 for (const pair of added) {
   byProvider.set(pair.provider, (byProvider.get(pair.provider) ?? 0) + 1);

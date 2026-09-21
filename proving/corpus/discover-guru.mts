@@ -152,7 +152,7 @@ for (const candidate of chosen.slice(0, limit)) {
 }
 
 manifest.pairs.push(...added);
-await writeFile(MANIFEST, `${JSON.stringify(manifest, null, 1)}\n`, "utf8");
+await writeFile(MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 console.log(
   `\n${added.length} new pairs added; the manifest now has ${manifest.pairs.length}`,
 );

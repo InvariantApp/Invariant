@@ -11,7 +11,7 @@
  * them and are megabytes each. They are downloaded into `.cache/corpus/`, named
  * by their hash, and checked on the way in.
  */
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -61,28 +61,38 @@ export function cachePath(file: ManifestFile): string {
   return join(CACHE, `${file.sha256}.${file.format === "json" ? "json" : "yaml"}`);
 }
 
-/**
- * The file on disk, downloaded if it is not there, and refused if its bytes
- * are not the ones the manifest names.
- */
-export async function materialize(file: ManifestFile): Promise<string> {
-  const path = cachePath(file);
-  if (existsSync(path)) {
-    if (sha256(await readFile(path)) === file.sha256) return path;
-  }
+/** Retries after a server error or a dropped connection. */
+const BACKOFF_MS = [1_000, 3_000, 9_000];
 
-  await mkdir(CACHE, { recursive: true });
+async function fetchBytes(url: string): Promise<Buffer> {
   const token = process.env["GITHUB_TOKEN"];
-  const response = await fetch(file.url, {
-    headers: {
-      "user-agent": "invariant-proving",
-      ...(token && file.url.startsWith("https://raw.githubusercontent.com/")
-        ? { authorization: `Bearer ${token}` }
-        : {}),
-    },
-  });
-  if (!response.ok) throw new Error(`${response.status} fetching ${file.url}`);
-  const bytes = Buffer.from(await response.arrayBuffer());
+  const headers = {
+    "user-agent": "invariant-proving",
+    ...(token && url.startsWith("https://raw.githubusercontent.com/")
+      ? { authorization: `Bearer ${token}` }
+      : {}),
+  };
+  let failure = "";
+  for (let attempt = 0; attempt <= BACKOFF_MS.length; attempt += 1) {
+    if (attempt > 0) {
+      await new Promise((done) => setTimeout(done, BACKOFF_MS[attempt - 1]));
+    }
+    try {
+      const response = await fetch(url, { headers });
+      if (response.ok) return Buffer.from(await response.arrayBuffer());
+      failure = String(response.status);
+      if (response.status < 500 && response.status !== 429) break;
+    } catch (error) {
+      failure = error instanceof Error ? error.message : String(error);
+    }
+  }
+  throw new Error(`${failure} fetching ${url}`);
+}
+
+async function download(file: ManifestFile, path: string): Promise<string> {
+  if (existsSync(path) && sha256(await readFile(path)) === file.sha256) return path;
+  await mkdir(CACHE, { recursive: true });
+  const bytes = await fetchBytes(file.url);
   const actual = sha256(bytes);
   if (actual !== file.sha256) {
     throw new Error(
@@ -90,11 +100,32 @@ export async function materialize(file: ManifestFile): Promise<string> {
     );
   }
   // Written aside and renamed, so an interrupted download never leaves a
-  // truncated file under a name that claims to be verified.
-  const partial = `${path}.partial`;
+  // truncated file under a name that claims to be verified. The aside name is
+  // this writer's own: another process fetching the same file renames its own
+  // copy of the same bytes, and whichever lands last changes nothing.
+  const partial = `${path}.${process.pid}.${randomUUID()}.partial`;
   await writeFile(partial, bytes);
   await rename(partial, path);
   return path;
+}
+
+// Consecutive pairs share a specification, the newer half of one being the
+// older half of the next, so concurrent pairs ask for the same file. It is
+// fetched once per process.
+const inFlight = new Map<string, Promise<string>>();
+
+/**
+ * The file on disk, downloaded if it is not there, and refused if its bytes
+ * are not the ones the manifest names.
+ */
+export function materialize(file: ManifestFile): Promise<string> {
+  const path = cachePath(file);
+  let pending = inFlight.get(path);
+  if (!pending) {
+    pending = download(file, path).finally(() => inFlight.delete(path));
+    inFlight.set(path, pending);
+  }
+  return pending;
 }
 
 export async function materializePair(pair: ManifestPair): Promise<LocalPair> {

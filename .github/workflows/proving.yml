@@ -81,15 +81,10 @@ jobs:
           merge-multiple: true
 
       - name: Merge the shards into one report
-        run: |
-          node --import tsx proving/corpus/run.mts --report corpus-*.json
-          node --import tsx -e '
-            const fs = require("node:fs");
-            const all = [0, 1, 2, 3].flatMap((i) => JSON.parse(fs.readFileSync(`corpus-${i}.json`, "utf8")));
-            fs.writeFileSync("proving/corpus/results.json", JSON.stringify(all, null, 2) + "\n");
-          '
+        run: node --import tsx proving/corpus/run.mts --report corpus-*.json
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: corpus-report
           path: |
