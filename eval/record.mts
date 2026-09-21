@@ -2,6 +2,7 @@
  * Records fresh judge answers into the cache. A deliberate act, run by hand.
  */
 
+import { fileURLToPath } from "node:url";
 import {
   bySource,
   byTag,
@@ -16,8 +17,8 @@ import {
 } from "@invariant/eval";
 import { JevJudge, RulesJudge } from "@invariant/proposer";
 
-const CORPUS = new URL("corpus", import.meta.url).pathname;
-const CACHE = new URL("cache", import.meta.url).pathname;
+const CORPUS = fileURLToPath(new URL("corpus", import.meta.url));
+const CACHE = fileURLToPath(new URL("cache", import.meta.url));
 
 const cases = await loadCorpus(CORPUS);
 console.log(`corpus: ${cases.length} cases\n`);

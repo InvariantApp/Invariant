@@ -20,8 +20,9 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ROOT = new URL("../../", import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const CACHE = join(ROOT, ".cache/real-specs");
 const INDEX = join(ROOT, "eval/real/pairs.json");
 

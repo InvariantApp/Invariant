@@ -8,8 +8,11 @@
  */
 import { copyFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = new URL("..", import.meta.url).pathname;
+// fileURLToPath rather than URL.pathname, which on Windows yields "/D:/..." and
+// then "D:\D:\..." once joined.
+const root = fileURLToPath(new URL("..", import.meta.url));
 for (const name of ["LICENSE", "NOTICE"]) {
   await copyFile(join(root, name), join(process.cwd(), name));
 }

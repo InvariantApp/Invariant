@@ -13,6 +13,7 @@
 import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { type PairResult, type RealSummary, summarizeReal } from "@invariant/eval";
 
 /**
@@ -55,7 +56,7 @@ const DIAGNOSIS: Record<string, string> = {
     "a caller who omitted it will now be refused. `add` with a default expresses it.",
 };
 
-const ROOT = new URL("../../", import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 /**
  * Two indexes, deliberately kept apart until they are read.
  *

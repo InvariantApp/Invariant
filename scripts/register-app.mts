@@ -11,9 +11,10 @@
  */
 import { chmod, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { registerApp } from "@invariant/github";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const OUT_DIR = join(ROOT, ".secrets");
 const OUT = join(OUT_DIR, "github-app.json");
 
