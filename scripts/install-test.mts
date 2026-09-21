@@ -86,9 +86,15 @@ async function installed(cwd: string, env: NodeJS.ProcessEnv): Promise<string> {
     ([name, target]) =>
       `${name} -> ${target} (${existsSync(join(cli, target)) ? "exists" : "MISSING"})`,
   );
+  const dist = await readdir(join(cli, "dist")).catch(() => ["(no dist directory)"]);
+  const built = await readdir(join(ROOT, "packages", "cli", "dist")).catch(() => [
+    "(no dist directory)",
+  ]);
   return (
     `npm ls:\n${listing.stdout}\nnode_modules/.bin: ${bins.join(", ")}\n` +
-    `@invariant/cli bin: ${targets.join(", ") || "none"}`
+    `@invariant/cli bin: ${targets.join(", ") || "none"}\n` +
+    `installed @invariant/cli/dist: ${dist.join(", ")}\n` +
+    `built packages/cli/dist: ${built.join(", ")}`
   );
 }
 

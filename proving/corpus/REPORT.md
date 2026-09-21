@@ -10,10 +10,10 @@ or a corpus written for it.
 ## Did the pipeline survive
 
 - 686 version pairs
-- 672 ran every stage (98.0%)
+- 671 ran every stage (97.8%)
 - 13 stopped after `load`
-- 1 stopped after `budget`
-- median 232 ms per pair
+- 2 stopped after `budget`
+- median 675 ms per pair
 
 ### What stopped them
 
@@ -22,11 +22,12 @@ or a corpus written for it.
 | 7 | `ContractError: `#/components/schemas/custom_attributes` is referenced but not defined, from 4 places including #/components/schemas/conversation_list_item/properties/custom_attributes. The document has to define everything it points at before it can be compared.` |
 | 2 | `ContractError: `#/components/schemas/Address` is referenced but not defined, from 3 places including #/components/schemas/Individual/properties/residentialAddress. The document has to define everything it points at before it can be compared.` |
 | 2 | `ContractError: `#/components/schemas/BankAccountInfo` is referenced but not defined, from 2 places including #/components/schemas/TransferInstrument/properties/bankAccount. The document has to define everything it points at before it can be compared.` |
-| 1 | `OasdiffError: /home/akirt/go/bin/oasdiff exited with 104.
+| 1 | `OasdiffError: /home/runner/work/Invariant/Invariant/packages/oasdiff-linux-x64/bin/oasdiff exited with 102.
+Error` |
+| 1 | `OasdiffError: /home/runner/work/Invariant/Invariant/packages/oasdiff-linux-x64/bin/oasdiff exited with 104.
 Error` |
 | 1 | `The worker was killed, which on this path means it ran out of memory.` |
-| 1 | `OasdiffError: /home/akirt/go/bin/oasdiff exited with 102.
-Error` |
+| 1 | `Stopped after 180000 ms. The difference between these two versions is larger than one pair's budget.` |
 
 ## What real API changes look like
 
@@ -34,8 +35,8 @@ Of the 686 pairs, 450 were purely additive:
 the new version broke nothing. That is itself worth knowing, because it is
 the case this system should stay out of the way of.
 
-A raw diff of the rest finds 104215 breaking deltas.
-Lining the endpoints up first finds 104753.
+A raw diff of the rest finds 93883 breaking deltas.
+Lining the endpoints up first finds 94421.
 
 **538 of those are only visible after lining up.** Most real APIs
 put the version in the URL, so bumping it moves every endpoint at once. A diff
@@ -46,11 +47,11 @@ not otherwise have been told about.
 
 | Breaking change | Times | Pairs |
 |---|---|---|
-| `response-property-enum-value-added` | 67917 | 66 |
+| `response-property-enum-value-added` | 59652 | 65 |
 | `response-property-enum-value-removed` | 18738 | 16 |
-| `response-required-property-added` | 6394 | 27 |
-| `response-property-any-of-added` | 4106 | 3 |
+| `response-required-property-added` | 6391 | 26 |
 | `response-required-property-removed` | 2102 | 10 |
+| `response-property-any-of-added` | 2042 | 2 |
 | `api-path-removed-without-deprecation` | 1436 | 34 |
 | `response-body-type-changed` | 918 | 4 |
 | `response-property-became-optional` | 804 | 12 |
@@ -85,22 +86,22 @@ place, which is what this system is actually for.
 
 | Provider | Pairs | Completed | Over budget | Aligned breaking | Unexplained | Drafted |
 |---|---|---|---|---|---|---|
-| adyen.com | 304 | 299 | 0 | 2279 | 2183 | 199 |
-| twilio.com | 270 | 270 | 0 | 1145 | 1081 | 96 |
-| intercom.com | 42 | 35 | 0 | 56 | 56 | 10 |
+| adyen.com | 304 | 299 | 0 | 2279 | 2183 | 94 |
+| twilio.com | 270 | 270 | 0 | 1145 | 1075 | 74 |
+| intercom.com | 42 | 35 | 0 | 56 | 56 | 0 |
 | googleapis.com | 17 | 16 | 0 | 398 | 33 | 373 |
 | amazonaws.com | 15 | 15 | 0 | 2026 | 1529 | 505 |
-| github.com | 8 | 8 | 0 | 964 | 153 | 849 |
-| stripe.com | 7 | 6 | 1 | 92192 | 92192 | 15 |
+| github.com | 8 | 8 | 0 | 964 | 153 | 845 |
+| openai.com | 7 | 7 | 0 | 8 | 8 | 0 |
+| plaid.com | 7 | 7 | 0 | 5611 | 5608 | 4 |
+| stripe.com | 7 | 5 | 2 | 81860 | 81860 | 0 |
 | box.com | 7 | 7 | 0 | 7 | 7 | 0 |
-| openai.com | 7 | 7 | 0 | 8 | 8 | 1 |
-| plaid.com | 7 | 7 | 0 | 5611 | 5609 | 61 |
-| apicurio.local | 1 | 1 | 0 | 46 | 14 | 35 |
 | chaingateway.io | 1 | 1 | 0 | 21 | 0 | 21 |
+| apicurio.local | 1 | 1 | 0 | 46 | 14 | 35 |
 
 ## Pairs that cost more than they were given
 
-1 of 686 pairs were stopped rather than finished.
+2 of 686 pairs were stopped rather than finished.
 
 This is a real limit, not a crash. The differ's cost tracks the size of
 the difference rather than the size of the documents: two 13 MB GitHub
@@ -116,10 +117,11 @@ says which bound it hit.
 | API | Step | Why |
 |---|---|---|
 | stripe.com:spec3 | 2026-07-01 d5d11f6 to 2026-07-29 af5309c | The worker was killed, which on this path means it ran out of memory. |
+| stripe.com:spec3 | 2026-07-29 af5309c to 2026-08-26 30d3391 | Stopped after 180000 ms. The difference between these two versions is larger than one pair's budget. |
 
 ## Changes waiting on one decision
 
-202 response fields across 85 pairs gained a value
+228 response fields across 94 pairs gained a value
 their old contract never named. That is the largest category of real
 breaking change there is, and it was described here as inexpressible until
 it turned out not to be: `enumMap` takes a `fold` saying which existing
@@ -133,9 +135,16 @@ the values available to fold onto. The release stays blocked until somebody
 fills it in, which is the right place for the cost to sit: the provider
 makes the change and the caller pays for it.
 
+The ratio is the useful number: 59649 breaking deltas of this kind
+come from 228 fields, about 262
+to one. A schema field that a hundred operations reference produces a
+hundred deltas and still only needs deciding once, so a count of deltas
+badly overstates how much work this is. Stripe is the extreme: 61,517
+breaking deltas of this kind across 15 fields.
+
 ## What we could not explain
 
-2165 Changes were drafted, by deterministic rules alone, with no model asked anything.
+1951 Changes were drafted, by deterministic rules alone, with no model asked anything.
 
 The table below is the to-do list, and it is ordered by how often real
 companies actually do each thing. Three categories in it are already
@@ -143,109 +152,43 @@ reachable with ops that exist and are simply not wired up.
 
 | Unexplained | Times | Pairs | What it would take |
 |---|---|---|---|
-| `response-property-enum-value-added` | 67917 | 66 | a new value a client switching exhaustively would not know. Expressible: `enumMap` takes a `fold`, which says which existing value an old caller should be shown instead. Which value that is cannot be read off the documents, so it needs one sentence from the provider, and it is declared lossy because the caller cannot tell the new case apart. **Reachable, needs a decision.** |
-| `response-property-enum-value-removed` | 18736 | 15 | a value a client may still be storing. `enumMap` can express it once someone says what it became, which is exactly the question the model is asked. |
-| `response-required-property-added` | 6394 | 27 | a new required field in a response. `add` expresses it, given a value for callers who predate it, which is not in the document. |
-| `response-property-any-of-added` | 4106 | 3 | not yet diagnosed |
+| `response-property-enum-value-added` | 59649 | 64 | a new value a client switching exhaustively would not know. Expressible: `enumMap` takes a `fold`, which says which existing value an old caller should be shown instead. Which value that is cannot be read off the documents, so it needs one sentence from the provider, and it is declared lossy because the caller cannot tell the new case apart. **Reachable, needs a decision.** |
+| `response-property-enum-value-removed` | 18733 | 14 | a value a client may still be storing. `enumMap` can express it once someone says what it became, which is exactly the question the model is asked. |
+| `response-required-property-added` | 6391 | 26 | a new required field in a response. `add` expresses it, given a value for callers who predate it, which is not in the document. |
 | `response-required-property-removed` | 2102 | 10 | a required response field gone. `remove` with a restore value expresses it; again the value is not in the document. |
+| `response-property-any-of-added` | 2042 | 2 | not yet diagnosed |
 | `response-body-type-changed` | 918 | 4 | a response schema replaced wholesale, often with an empty one. Not expressible and probably should not be: it is a rewrite, not a rename. |
 | `response-property-became-optional` | 804 | 12 | a field a caller relied on may now be absent. Expressible only by supplying a value, which is a judgement. |
 | `response-property-type-changed` | 304 | 21 | a response field whose declared type moved. `cast` covers the scalar cases once someone says the two are the same field, which is the alignment question. |
 | `response-property-max-increased` | 292 | 2 | not yet diagnosed |
 | `api-operation-id-removed` | 237 | 8 | not yet diagnosed |
-| `request-property-enum-value-removed` | 184 | 50 | not yet diagnosed |
+| `request-property-enum-value-removed` | 183 | 50 | not yet diagnosed |
 | `request-property-removed` | 176 | 24 | a field dropped from a request. `remove` expresses it; the rules judge abstains on removals by design, so this needs the model or a person. |
 | `request-property-type-changed` | 152 | 10 | `cast` covers the scalar cases. Anything structural is out of scope on purpose. |
 | `request-property-became-required` | 86 | 9 | a caller who omitted it will now be refused. `add` with a default expresses it. |
 | `request-parameter-type-changed` | 62 | 7 | not yet diagnosed |
 | `request-parameter-max-decreased` | 57 | 7 | not yet diagnosed |
 | `response-property-max-length-unset` | 52 | 3 | not yet diagnosed |
-| `request-parameter-removed` | 45 | 6 | a query or path parameter dropped. Same cause: parameters are invisible to the proposer. **Reachable, not wired up.** |
+| `request-parameter-removed` | 45 | 6 | a query or path parameter dropped. The proposer reads parameters now but drafts only narrowed enums, and the runtime does not yet rewrite parameters at all. **Not yet servable.** |
 | `response-property-one-of-added` | 30 | 9 | not yet diagnosed |
 | `new-required-request-property` | 29 | 6 | a new required request field. `add` with a default expresses it, and the default is a decision rather than a fact. |
-
-## Drafts that would not compile
-
-A draft that does not apply to the document it was drafted from is a bug
-here, not a hard case. These are the highest priority in the report.
-
-- **openai.com:openapi** 2026-09-18 724d9e9 to 2026-09-18 7d515d6
-  - chg_audit_log_type: convert on AuditLog: enumMap applies only to a schema with an enum
-- **plaid.com:2020-09-14** 2026-04-27 22052fb to 2026-06-10 5c2920e
-  - chg_cashflow_report_transaction_transaction_code: convert on CashflowReportTransaction: enumMap applies only to a schema with an enum
-  - chg_credit_session_bank_employment_result_status: convert on CreditSessionBankEmploymentResult: enumMap applies only to a schema with an enum
-  - chg_credit_session_bank_income_result_status: convert on CreditSessionBankIncomeResult: enumMap applies only to a schema with an enum
-- **plaid.com:2020-09-14** 2026-06-10 5c2920e to 2026-06-25 050cfa0
-  - chg_beacon_user_idnumber_type: convert on BeaconUserIDNumber: enumMap applies only to a schema with an enum
-  - chg_plaid_error_error_type: convert on PlaidError: enumMap applies only to a schema with an enum
-  - chg_transfer_platform_person_idnumber_type: convert on TransferPlatformPersonIDNumber: enumMap applies only to a schema with an enum
-- **plaid.com:2020-09-14** 2026-06-25 050cfa0 to 2026-07-22 8a493a5
-  - chg_cashflow_report_transaction_transaction_code: convert on CashflowReportTransaction: enumMap applies only to a schema with an enum
-  - chg_document_metadata_doc_type: convert on DocumentMetadata: enumMap applies only to a schema with an enum
-  - chg_plaid_error_error_type: convert on PlaidError: enumMap applies only to a schema with an enum
-- **plaid.com:2020-09-14** 2026-07-22 8a493a5 to 2026-07-22 e3d940a
-  - chg_asset_detail_asset_retirement_indicator: convert on AssetDetail: enumMap applies only to string enums, found boolean
-  - chg_asset_detail_asset_employer_sponsored_indicator: convert on AssetDetail: enumMap applies only to string enums, found boolean
-  - chg_asset_holding_asset_holding_restricted_indicator: convert on AssetHolding: enumMap applies only to string enums, found boolean
-- **plaid.com:2020-09-14** 2026-07-22 e3d940a to 2026-07-24 bae08e2
-  - chg_recurring_transfer_skipped_webhook_authorization_decision_rationale_code: convert on RecurringTransferSkippedWebhook: enumMap applies only to a schema with an enum
-  - chg_transfer_authorization_decision_rationale_code: convert on TransferAuthorizationDecisionRationale: enumMap applies only to a schema with an enum
-- **plaid.com:2020-09-14** 2026-07-24 bae08e2 to 2026-08-17 82f90e9
-  - chg_account_assets_subtype: convert on AccountAssets: enumMap applies only to a schema with an enum
-  - chg_account_base_subtype: convert on AccountBase: enumMap applies only to a schema with an enum
-  - chg_base_report_account_subtype: convert on BaseReportAccount: enumMap applies only to a schema with an enum
-- **plaid.com:2020-09-14** 2026-08-17 82f90e9 to 2026-09-01 7d1446f
-  - chg_protect_cash_advance_repayment_create_request_status: convert on ProtectCashAdvanceRepaymentCreateRequest: enumMap applies only to a schema with an enum
-  - chg_sandbox_cra_servicing_simulate_request_options_error_webhook_code: convert on SandboxCraServicingSimulateRequestOptions: enumMap applies only to a schema with an enum
-- **twilio.com:twilio_conversations_v1** 2025-07-24 bf8a616 to 2025-08-18 a3f1069
-  - chg_conversations_v1_conversation_state: convert on conversations.v1.conversation: enumMap applies only to a schema with an enum
-  - chg_conversations_v1_conversation_with_participants_state: convert on conversations.v1.conversation_with_participants: enumMap applies only to a schema with an enum
-  - chg_conversations_v1_service_service_conversation_with_participants_state: convert on conversations.v1.service.service_conversation_with_participants: enumMap applies only to a schema with an enum
-- **twilio.com:twilio_conversations_v1** 2025-08-18 a3f1069 to 2025-09-30 bcf1d20
-  - chg_conversations_v1_service_service_binding_binding_type: convert on conversations.v1.service.service_binding: enumMap applies only to a schema with an enum
-  - chg_conversations_v1_service_service_conversation_state: convert on conversations.v1.service.service_conversation: enumMap applies only to a schema with an enum
-- **twilio.com:twilio_flex_v1** 2025-09-04 266302d to 2025-09-18 e88d059
-  - chg_flex_v1_interaction_interaction_channel_status: convert on flex.v1.interaction.interaction_channel: enumMap applies only to a schema with an enum
-- **twilio.com:twilio_flex_v1** 2025-10-14 68f1d53 to 2025-10-28 af3dd9e
-  - chg_flex_v1_interaction_interaction_channel_status: convert on flex.v1.interaction.interaction_channel: enumMap applies only to a schema with an enum
-- **twilio.com:twilio_chat_v2** 2025-07-03 4ae76f3 to 2025-10-28 af3dd9e
-  - chg_chat_v2_service_user_user_channel_status: convert on chat.v2.service.user.user_channel: enumMap applies only to a schema with an enum
-- **twilio.com:twilio_conversations_v2** 2026-08-27 ef1d81e to 2026-09-09 5aa7f31
-  - chg_conversations_v2_address_channel: convert on conversations.v2.address: enumMap applies only to a schema with an enum
-  - chg_conversations_v2_participant_address_channel: convert on conversations.v2.participant_address: enumMap applies only to a schema with an enum
-  - chg_conversations_v2_send_message_participant_channel: convert on conversations.v2.send_message_participant: enumMap applies only to a schema with an enum
-- **twilio.com:twilio_preview** 2025-11-20 f647a89 to 2025-12-03 733ecb2
-  - chg_preview_hosted_numbers_authorization_document_dependent_hosted_number_order_status: convert on preview.hosted_numbers.authorization_document.dependent_hosted_number_order: enumMap applies only to a schema with an enum
-  - chg_preview_hosted_numbers_hosted_number_order_status: convert on preview.hosted_numbers.hosted_number_order: enumMap applies only to a schema with an enum
-- **twilio.com:twilio_serverless_v1** 2025-03-20 b55425e to 2025-05-05 245ab7c
-  - chg_serverless_v1_service_build_runtime: convert on serverless.v1.service.build: enumMap applies only to a schema with an enum
-- **twilio.com:twilio_serverless_v1** 2026-02-05 55a17be to 2026-08-11 591755b
-  - chg_serverless_v1_service_build_runtime: convert on serverless.v1.service.build: enumMap applies only to a schema with an enum
-- **twilio.com:twilio_intelligence_v2** 2025-09-30 bcf1d20 to 2025-10-28 af3dd9e
-  - chg_intelligence_v2_custom_operator_availability: convert on intelligence.v2.custom_operator: enumMap applies only to a schema with an enum
-  - chg_intelligence_v2_operator_availability: convert on intelligence.v2.operator: enumMap applies only to a schema with an enum
-  - chg_intelligence_v2_operator_type_output_type: convert on intelligence.v2.operator_type: enumMap applies only to a schema with an enum
-- **twilio.com:twilio_intelligence_v2** 2025-10-28 af3dd9e to 2025-11-11 3267dfd
-  - chg_intelligence_v2_transcript_status: convert on intelligence.v2.transcript: enumMap applies only to a schema with an enum
-- **twilio.com:twilio_content_v1** 2026-02-05 55a17be to 2026-08-11 591755b
-  - chg_call_to_action_action_type: convert on callToActionAction: enumMap applies only to a schema with an enum
 
 ## The hardest pairs
 
 | API | Versions | Raw | Aligned | Unexplained | Drafted |
 |---|---|---|---|---|---|
-| stripe.com:spec3 | 2026-04-20 d771243 to 2026-05-23 6a1ea0a | 24616 | 24616 | 24616 | 8 |
+| stripe.com:spec3 | 2026-04-20 d771243 to 2026-05-23 6a1ea0a | 24616 | 24616 | 24616 | 0 |
 | stripe.com:spec3 | 2026-07-01 7061322 to 2026-07-01 d5d11f6 | 20451 | 20451 | 20451 | 0 |
-| stripe.com:spec3 | 2026-06-23 f4ac6d9 to 2026-07-01 7061322 | 20403 | 20403 | 20403 | 2 |
-| stripe.com:spec3 | 2026-05-23 fbd0091 to 2026-06-23 f4ac6d9 | 16390 | 16390 | 16390 | 4 |
-| stripe.com:spec3 | 2026-07-29 af5309c to 2026-08-26 30d3391 | 10332 | 10332 | 10332 | 1 |
-| plaid.com:2020-09-14 | 2026-06-25 050cfa0 to 2026-07-22 8a493a5 | 4312 | 4312 | 4312 | 11 |
+| stripe.com:spec3 | 2026-06-23 f4ac6d9 to 2026-07-01 7061322 | 20403 | 20403 | 20403 | 0 |
+| stripe.com:spec3 | 2026-05-23 fbd0091 to 2026-06-23 f4ac6d9 | 16390 | 16390 | 16390 | 0 |
+| plaid.com:2020-09-14 | 2026-06-25 050cfa0 to 2026-07-22 8a493a5 | 4312 | 4312 | 4312 | 0 |
 | amazonaws.com:clouddirectory | 2016-05-10 to 2017-01-11 | 600 | 600 | 600 | 0 |
-| adyen.com:AccountService-v6 | 2022-10-06 49d15b1 to 2023-03-22 68a6f20 | 579 | 579 | 579 | 1 |
-| plaid.com:2020-09-14 | 2026-07-24 bae08e2 to 2026-08-17 82f90e9 | 435 | 435 | 435 | 14 |
-| plaid.com:2020-09-14 | 2026-06-10 5c2920e to 2026-06-25 050cfa0 | 413 | 413 | 413 | 5 |
-| plaid.com:2020-09-14 | 2026-04-27 22052fb to 2026-06-10 5c2920e | 367 | 367 | 365 | 12 |
+| adyen.com:AccountService-v6 | 2022-10-06 49d15b1 to 2023-03-22 68a6f20 | 579 | 579 | 579 | 0 |
+| plaid.com:2020-09-14 | 2026-07-24 bae08e2 to 2026-08-17 82f90e9 | 435 | 435 | 435 | 0 |
+| plaid.com:2020-09-14 | 2026-06-10 5c2920e to 2026-06-25 050cfa0 | 413 | 413 | 413 | 0 |
+| plaid.com:2020-09-14 | 2026-04-27 22052fb to 2026-06-10 5c2920e | 367 | 367 | 365 | 3 |
 | amazonaws.com:cloudfront | 2017-10-30 to 2018-06-18 | 45 | 362 | 362 | 1 |
 | twilio.com:twilio_memory_v1 | 2026-07-30 bb2d4be to 2026-08-11 591755b | 314 | 314 | 314 | 0 |
-| adyen.com:BalancePlatformService | 1 to 2 | 271 | 271 | 260 | 12 |
-| adyen.com:ManagementService-v3 | 2026-02-02 9c9bc16 to 2026-05-01 9a8c347 | 176 | 176 | 176 | 2 |
+| adyen.com:BalancePlatformService | 1 to 2 | 271 | 271 | 260 | 11 |
+| adyen.com:ManagementService-v3 | 2026-02-02 9c9bc16 to 2026-05-01 9a8c347 | 176 | 176 | 176 | 0 |
+| adyen.com:ManagementService-v1 | 2026-02-02 9c9bc16 to 2026-05-01 9a8c347 | 176 | 176 | 176 | 0 |
