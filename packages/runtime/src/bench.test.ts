@@ -108,13 +108,21 @@ describe("latency budget", () => {
   it("costs nothing when a site has no compiled work", () => {
     // The current contract, and every operation that never changed, take this
     // path. The body is never read, let alone parsed.
+    // Held to the rule above. Its p99 once had a 10us budget with no warm-up,
+    // and failed at 13us on a busy machine, which measured the scheduler.
     const samples: number[] = [];
-    for (let i = 0; i < 20_000; i += 1) {
+    for (let i = 0; i < 22_000; i += 1) {
       const start = performance.now();
       execute(SINGLE, []);
-      samples.push(performance.now() - start);
+      if (i >= 2000) samples.push(performance.now() - start);
     }
-    expect(percentile(samples, 0.99)).toBeLessThan(0.01);
+    const p50 = percentile(samples, 0.5);
+    const p99 = percentile(samples, 0.99);
+    console.log(
+      `no compiled work: p50 ${(p50 * 1000).toFixed(3)}us, p99 ${(p99 * 1000).toFixed(3)}us`,
+    );
+    expect(p50).toBeLessThan(0.001);
+    expect(p99).toBeLessThan(0.5);
   });
 
   it("transforms a single resource in microseconds", () => {
