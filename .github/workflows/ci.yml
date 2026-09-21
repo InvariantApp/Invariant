@@ -26,6 +26,22 @@ jobs:
           go vet ./...
           go test ./...
 
+  # The runtime and every Node adapter on the oldest Node a provider may run,
+  # beside the check job's Node 24 (launch gate L10).
+  node-22:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: The runtime and the Node adapters pass on Node 22
+        run: pnpm exec vitest run packages/runtime packages/runtime-node packages/runtime-hono packages/sidecar
+
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -40,6 +56,14 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      # The Node adapter suite also runs against the Go engine's net/http
+      # middleware (launch gate L10b), so this job needs Go, and the suite is
+      # told to fail rather than skip it.
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: engines/go/go.mod
+          cache-dependency-path: engines/go/go.mod
 
       # The release binary a provider actually gets, verified against upstream's
       # checksums and the hash committed in packages/diff/src/binaries.ts. CI
@@ -59,6 +83,13 @@ jobs:
 
       - name: Test
         run: pnpm test
+        env:
+          INVARIANT_REQUIRE_GO: "1"
+
+      # A latency gate, so in a step of its own: beside other tests competing
+      # for the runner's CPU it would fail for reasons that are not the proxy's.
+      - name: The proxy's overhead is within its budget (L19)
+        run: node --import tsx proving/overhead/measure.mts --check
 
       # What a provider would actually install: every published package built,
       # packed as a publish would pack it, and checked for undeclared imports,

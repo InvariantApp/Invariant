@@ -16,6 +16,7 @@ import { catalogueEntry, isUnclassified } from "@invariant/diff";
 import type { PairResult as CorpusResult } from "@invariant/eval";
 import type { BUDGET, ChainCost } from "./chains/cost.ts";
 import { ROOT } from "./corpus/manifest.mts";
+import type { BUDGET as OVERHEAD_BUDGET, OverheadResult } from "./overhead/overhead.ts";
 import type { ReplayIndex } from "./replay/mine.mts";
 import type { PairResult as ServerResult } from "./servers/run.mts";
 import type { TrafficResult } from "./traffic/run.mts";
@@ -59,6 +60,7 @@ export function scoreboard(inputs: {
   replay: ReplayIndex | undefined;
   fuzz: string | undefined;
   chains?: (ChainCost & { budget: typeof BUDGET }) | undefined;
+  overhead?: (OverheadResult & { budget: typeof OVERHEAD_BUDGET }) | undefined;
   vectors?: VectorCounts | undefined;
 }): Line[] {
   const lines: Line[] = [];
@@ -258,10 +260,19 @@ export function scoreboard(inputs: {
       claim: "In-process adapters for every major Node framework pass one suite.",
       status: "not met",
       value:
-        "Hono, node:http, Express 4 and 5, Koa, Fastify 4 and 5 and NestJS 12 pass one suite on Node 24; NestJS 10 and 11, Next.js and Node 22 are not yet in it",
-      evidence: "packages/runtime-node/src/conformance.test.ts, packages/runtime-hono",
+        "Hono, node:http, Express 4 and 5, Koa, Fastify 4 and 5 and NestJS 12 pass one suite on Node 22 and 24; NestJS 10 and 11 and Next.js are not yet in it",
+      evidence:
+        "packages/runtime-node/src/conformance.test.ts, packages/runtime-hono, in CI on Node 22 and 24",
     },
-    unmeasured("L10b", "A Go net/http adapter passes the same suite.", "M4.9."),
+    {
+      id: "L10b",
+      claim: "A Go net/http adapter passes the same suite.",
+      status: "met",
+      value:
+        "the Go engine's net/http middleware passes every case of the Node adapter suite, run against a Go server on the same program",
+      evidence:
+        "packages/runtime-node/src/conformance.test.ts (go net/http), required in CI by INVARIANT_REQUIRE_GO",
+    },
     unmeasured("L11", "A 24-hour proxy soak under chaos with zero violations.", "M10.4."),
     {
       id: "L12",
@@ -303,9 +314,39 @@ export function scoreboard(inputs: {
       evidence: "packages/runtime/src/skew.test.ts, on every commit",
     },
     chainLine(inputs.chains),
-    unmeasured("L19", "Proxy p99 overhead asserted in CI.", "M4.10."),
+    overheadLine(inputs.overhead),
   );
   return lines;
+}
+
+function overheadLine(
+  overhead: (OverheadResult & { budget: typeof OVERHEAD_BUDGET }) | undefined,
+): Line {
+  const claim = "Proxy p99 overhead asserted in CI.";
+  if (!overhead) {
+    return {
+      id: "L19",
+      claim,
+      status: "not measured",
+      value: "",
+      evidence: "proving/overhead/",
+    };
+  }
+  const { budget } = overhead;
+  const errors =
+    overhead.direct.errors + overhead.current.errors + overhead.adapted.errors;
+  return {
+    id: "L19",
+    claim,
+    status: errors === 0 && overhead.addedP99Ms <= budget.addedP99Ms ? "met" : "not met",
+    value:
+      `at ${overhead.rps} requests a second of a ${(overhead.bodyBytes / 1024).toFixed(1)} KiB list, every item adapted: ` +
+      `${overhead.addedP99Ms} ms added at p99 (budget ${budget.addedP99Ms}); ` +
+      `p99 ${overhead.direct.p99Ms} ms direct, ${overhead.current.p99Ms} ms through the proxy for a current caller, ` +
+      `${overhead.adapted.p99Ms} ms adapted`,
+    evidence:
+      "proving/overhead/results.json, asserted by proving/overhead/measure.mts --check in its own CI step",
+  };
 }
 
 function chainLine(chains: (ChainCost & { budget: typeof BUDGET }) | undefined): Line {
@@ -373,6 +414,9 @@ if (process.argv[1]?.endsWith("scoreboard.mts")) {
     fuzz: process.env["FUZZ_RESULT"],
     chains: read<ChainCost & { budget: typeof BUDGET }>("proving/chains/results.json"),
     vectors: read<VectorCounts>("conformance/vectors.json"),
+    overhead: read<OverheadResult & { budget: typeof OVERHEAD_BUDGET }>(
+      "proving/overhead/results.json",
+    ),
   });
   const page = render(lines);
   await writeFile(join(ROOT, "proving/SCOREBOARD.md"), page, "utf8");

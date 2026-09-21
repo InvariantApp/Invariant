@@ -18,6 +18,7 @@ product; the first two are what make it mean something.
 | E. Migration replay | `replay/` | The migration engine's edits against the edits humans actually made when they upgraded an SDK. | Code nobody published. |
 | F. Hostile input | `fuzz/` | The runtime, the proxy and the parsers survive input designed to break them. | Anything not fuzzed. |
 | Long chains | `chains/` | A 50-step chain over a Stripe-sized, generated API stays within stated budgets for program size, compile time, load time and p99 transform (L18), and means what its steps run in turn mean. | The cost of a real provider's history, whose steps reach fewer sites than these. |
+| Proxy overhead | `overhead/` | The proxy adds no more than a stated p99 to an old caller's list response, every item adapted, at a fixed request rate, with the upstream, proxy and client in separate processes (L19). | Overhead on the provider's own hardware, network and body sizes, which a shared CI runner only approximates. |
 
 ## Rig A: the corpus
 

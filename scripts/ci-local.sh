@@ -70,6 +70,8 @@ if command -v go >/dev/null 2>&1; then
   step "Go engine passes the vectors" bash -c \
     'cd engines/go && test -z "$(gofmt -l .)" && go vet ./... && go test ./...'
 fi
+step "proxy overhead within its budget" \
+  node --import tsx proving/overhead/measure.mts --check
 step "control plane contract passes its gate" \
   node --import tsx packages/cli/src/main.ts check --config packages/client/invariant.yaml
 
