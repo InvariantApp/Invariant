@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "revoked",
+    "confidence": 0.9,
+    "scores": {
+      "revoked": 0.9
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "claude-opus-5",
+  "latencyMs": 3004.270498999991,
+  "inputTokens": 1277,
+  "costUsd": 0
+}

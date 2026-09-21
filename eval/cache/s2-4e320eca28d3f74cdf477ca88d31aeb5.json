@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "reading_kwh",
+    "confidence": 0.97,
+    "scores": {
+      "reading_kwh": 0.97
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "claude-opus-5",
+  "latencyMs": 2378.0786779999908,
+  "inputTokens": 1319,
+  "costUsd": 0
+}

@@ -16,6 +16,7 @@ import {
   summarize,
 } from "@invariant/eval";
 import {
+  ANTHROPIC_PRICING,
   EscalatingJudge,
   HybridJudge,
   JevJudge,
@@ -32,7 +33,11 @@ console.log(`corpus: ${cases.length} cases\n`);
 
 const rules = new RulesJudge();
 const jev = new JevJudge();
-const judges: Judge[] = [rules, jev];
+// Labelled here rather than by id: a chain of judges reports under its own name.
+const judges: { label: string; judge: Judge }[] = [
+  { label: "rules", judge: rules },
+  { label: "jev", judge: jev },
+];
 // S2 only with a key, and only once its pinned model is confirmed to exist.
 // The escalation chain is recorded beside it, because that is what drafts.
 if (process.env["ANTHROPIC_API_KEY"]) {
@@ -42,20 +47,24 @@ if (process.env["ANTHROPIC_API_KEY"]) {
   const s2 = new S2Judge({
     client: anthropicMessages(client),
     model: await verifiedModel(client),
+    pricing: ANTHROPIC_PRICING,
   });
   judges.push(
-    s2,
-    new EscalatingJudge(new HybridJudge(rules, jev), s2, { threshold: 0.9 }),
+    { label: "s2", judge: s2 },
+    {
+      label: "rules+jev, escalating to s2 below 0.9",
+      judge: new EscalatingJudge(new HybridJudge(rules, jev), s2, { threshold: 0.9 }),
+    },
   );
 } else {
   console.log("ANTHROPIC_API_KEY is not set: S2 is not recorded.\n");
 }
 
-for (const judge of judges) {
+for (const { label, judge } of judges) {
   const run = await runJudge(judge, cases, { cacheDir: CACHE, record: true });
   const outcomes = outcomesOf(cases, run.results);
   const metrics = summarize(outcomes);
-  console.log(renderMetrics(judge.id, metrics));
+  console.log(renderMetrics(label, metrics));
   console.log(`  (${run.fromCache} cached, ${run.recorded} newly recorded)`);
   console.log(renderVerdict(ownership(judge.id, metrics)));
   console.log("  by where the cases came from:");
@@ -82,7 +91,7 @@ for (const judge of judges) {
       );
     }
   }
-  if (judge.id === "jev") {
+  if (judge.id !== "rules") {
     // The threshold is only a mechanism if the errors are all below it. This is
     // the line that says whether it is one.
     for (const floor of [0.6, 0.8]) {

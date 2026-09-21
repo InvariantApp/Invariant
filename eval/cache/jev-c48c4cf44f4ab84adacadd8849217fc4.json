@@ -1,0 +1,13 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.9,
+    "scores": {},
+    "stated": false,
+    "abstained": false
+  },
+  "model": "claude-opus-5",
+  "latencyMs": 2388.4884589999856,
+  "inputTokens": 1329,
+  "costUsd": 0
+}

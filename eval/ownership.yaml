@@ -82,6 +82,45 @@ tasks:
         the wrong field. Below the threshold is now reported as an open
         question instead.
 
+    s2:
+      verdict: owns
+      model: claude-opus-5
+      measuredOn: 2026-09-21
+      confidenceThreshold: 0.85
+      selectiveAccuracy: 0.963
+      coverage: 1.0
+      # Not calibrated like Jev, and the threshold is where that shows. Nine
+      # answers were wrong between 0.6 and 0.8; none above 0.81. 0.85 is the
+      # floor with margin above the last error, not the last error itself.
+      atThreshold:
+        answered: 187
+        coverage: 0.779
+        selectiveAccuracy: 1.0
+        answeredAndWrong: 0
+        mined: { answered: 27, outOf: 45, selectiveAccuracy: 1.0, answeredAndWrong: 0 }
+      cost: >-
+        About $2.50 for the whole corpus: 311,748 input tokens at $5 per
+        million, and output estimated at $0.90, since output tokens were not
+        yet recorded. Median latency 2.5 s against Jev's 0.2 s.
+      note: >-
+        Every error is the same kind: a merge or a relocation answered as
+        "nothing replaced it", where the label names the field it went into.
+        That drafts a removal the provider then decides about, never a move
+        of real data to the wrong field. Adversarial cases, including the
+        injected ones, were all right.
+
+    escalation:
+      # What drafts: rules and Jev together, handing a question to S2 only
+      # where they are less than 0.9 sure.
+      chain: rules+jev, escalating to s2 below 0.9
+      selectiveAccuracy: 0.971
+      coverage: 1.0
+      answeredAndWrong: 7
+      note: >-
+        More right than either judge alone, and every one of the seven errors
+        is again a merge or relocation said to have no successor. Each answer
+        is held to the threshold of the judge that gave it.
+
     byProvenance:
       mined: { cases: 45, selectiveAccuracy: 0.91 }
       written: { cases: 195, selectiveAccuracy: 0.97 }

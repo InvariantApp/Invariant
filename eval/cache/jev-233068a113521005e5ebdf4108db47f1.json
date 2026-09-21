@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "party_size",
+    "confidence": 0.995,
+    "scores": {
+      "party_size": 0.995,
+      "room_count": 0.03
+    },
+    "stated": true,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 172.7630370000261,
+  "inputTokens": 1300,
+  "costUsd": 0.0000546
+}

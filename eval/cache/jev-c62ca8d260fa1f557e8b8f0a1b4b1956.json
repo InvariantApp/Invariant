@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "default_branch",
+    "confidence": 1,
+    "scores": {
+      "default_branch": 1,
+      "source_branch": 0.08
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 213.24994899999,
+  "inputTokens": 1238,
+  "costUsd": 0.000051996
+}

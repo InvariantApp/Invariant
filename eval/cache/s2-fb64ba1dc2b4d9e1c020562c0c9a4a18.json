@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "product_code",
+    "confidence": 0.94,
+    "scores": {
+      "product_code": 0.94
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "claude-opus-5",
+  "latencyMs": 2636.117844999997,
+  "inputTokens": 1332,
+  "costUsd": 0
+}

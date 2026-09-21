@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "decline_code",
+    "confidence": 0.985,
+    "scores": {
+      "decline_code": 0.985,
+      "network_message": 0.215
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 244.55192500000703,
+  "inputTokens": 1302,
+  "costUsd": 0.000054684
+}

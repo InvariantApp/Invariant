@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "emails",
+    "confidence": 1,
+    "scores": {
+      "emails": 1,
+      "email": 0.25
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.006171999993966892,
+  "inputTokens": 0,
+  "costUsd": 0
+}

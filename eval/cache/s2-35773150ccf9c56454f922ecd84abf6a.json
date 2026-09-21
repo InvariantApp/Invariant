@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "granularity_ms",
+    "confidence": 0.95,
+    "scores": {
+      "granularity_ms": 0.95
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "claude-opus-5",
+  "latencyMs": 2323.5190960000036,
+  "inputTokens": 1342,
+  "costUsd": 0
+}

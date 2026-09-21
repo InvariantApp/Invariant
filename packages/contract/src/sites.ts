@@ -485,6 +485,10 @@ function walk(ctx: WalkContext, schema: JsonValue, segments: string[]): void {
 
   const items = schema["items"];
   if (items !== undefined) walk(ctx, items, [...segments, "*"]);
+
+  // A map: every value, whatever its key, is one of these.
+  const values = schema["additionalProperties"];
+  if (isJsonObject(values)) walk(ctx, values, [...segments, "{}"]);
 }
 
 function scanRoot(
@@ -659,9 +663,11 @@ export function variantGuard(
     current =
       segment === "*"
         ? resolved["items"]
-        : isJsonObject(resolved["properties"])
-          ? (resolved["properties"] as JsonObject)[segment]
-          : undefined;
+        : segment === "{}"
+          ? resolved["additionalProperties"]
+          : isJsonObject(resolved["properties"])
+            ? (resolved["properties"] as JsonObject)[segment]
+            : undefined;
     if (current === undefined) return undefined;
   }
   const union =
@@ -739,6 +745,8 @@ export function refsWithin(
     }
     const items = schema["items"];
     if (items !== undefined) found.push(...visit(items, [...segments, "*"]));
+    const values = schema["additionalProperties"];
+    if (isJsonObject(values)) found.push(...visit(values, [...segments, "{}"]));
     return found;
   };
   return { placements: visit(root, []), unsupported };

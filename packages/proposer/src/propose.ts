@@ -45,6 +45,19 @@ const RENAME_GUESS_CONFIDENCE = 0.5;
 /** Below this, a draft is marked for explicit attention rather than assumed good. */
 export const DEFAULT_ATTENTION_THRESHOLD = 0.6;
 
+/**
+ * The confidence each judge's answer needs before it becomes a draft, as
+ * `eval/ownership.yaml` measured it. Confidence is not comparable between
+ * judges: Jev is right on everything it answers from 0.6, while S2 was wrong
+ * nine times between 0.6 and 0.8 and never above 0.81, so one floor for both
+ * would let the second guess where the first would not.
+ */
+export const ANSWER_THRESHOLDS: Readonly<Record<JudgeId, number>> = {
+  rules: DEFAULT_ATTENTION_THRESHOLD,
+  jev: 0.6,
+  s2: 0.85,
+};
+
 export interface Proposal {
   change: Change;
   judge: JudgeId;
@@ -307,7 +320,8 @@ export async function propose(
   newContract: Parameters<typeof schemaDeltas>[1],
   options: ProposeOptions,
 ): Promise<ProposeOutcome> {
-  const threshold = options.attentionThreshold ?? DEFAULT_ATTENTION_THRESHOLD;
+  const thresholdFor = (judge: JudgeId) =>
+    options.attentionThreshold ?? ANSWER_THRESHOLDS[judge] ?? DEFAULT_ATTENTION_THRESHOLD;
   // A schema no operation reaches has nothing to serve, and the gate reports
   // nothing for it. Plaid documents every webhook payload that way; asking a
   // judge about them costs a question and drafts a Change for nobody.
@@ -473,7 +487,7 @@ export async function propose(
     //
     // A wrong alignment is not a harmless suggestion. It relocates a value, so
     // a merged one would send real data to the wrong field.
-    if (result.answer.confidence < threshold) {
+    if (result.answer.confidence < thresholdFor(result.judge)) {
       unresolved.push({
         schema: question.schema,
         field: question.removed.name,

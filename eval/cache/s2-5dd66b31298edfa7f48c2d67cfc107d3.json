@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "payment_method",
+    "confidence": 0.82,
+    "scores": {
+      "payment_method": 0.82
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "claude-opus-5",
+  "latencyMs": 2745.133668999999,
+  "inputTokens": 1255,
+  "costUsd": 0
+}

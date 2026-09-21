@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "political_exposure",
+    "confidence": 1,
+    "scores": {
+      "political_exposure": 1,
+      "relationship": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.010799000010592863,
+  "inputTokens": 0,
+  "costUsd": 0
+}

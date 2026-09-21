@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "status",
+    "confidence": 0.9,
+    "scores": {
+      "status": 0.9
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "claude-opus-5",
+  "latencyMs": 3466.873120000004,
+  "inputTokens": 1295,
+  "costUsd": 0
+}

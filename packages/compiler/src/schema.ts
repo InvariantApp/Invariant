@@ -29,9 +29,19 @@ function clone<T extends JsonValue>(value: T): T {
   return structuredClone(value);
 }
 
-/** A schema navigation step: an object property, or every element of an array. */
+/**
+ * The keyword a wildcard segment stands for: `*` every item of a list, and
+ * `{}` every value of a map.
+ */
+const WILDCARD_KEYWORD: Readonly<Record<string, string>> = {
+  "*": "items",
+  "{}": "additionalProperties",
+};
+
+/** A schema navigation step: an object property, every item of a list, or every value of a map. */
 function childOf(schema: JsonObject, segment: string): JsonValue | undefined {
-  if (segment === "*") return schema["items"];
+  const keyword = WILDCARD_KEYWORD[segment];
+  if (keyword) return schema[keyword];
   const properties = schema["properties"];
   if (!isJsonObject(properties)) return undefined;
   return properties[segment];
@@ -115,10 +125,11 @@ function parentFor(
 
   let current = ownRoot(document, root);
   for (const segment of segments.slice(0, -1)) {
-    if (segment === "*") {
-      if (!isJsonObject(current["items"]))
-        throw new SchemaOpError("Cannot walk into a non-object items");
-      current = own(document, current, "items");
+    const keyword = WILDCARD_KEYWORD[segment];
+    if (keyword) {
+      if (!isJsonObject(current[keyword]))
+        throw new SchemaOpError(`Cannot walk into a non-object ${keyword}`);
+      current = own(document, current, keyword);
       continue;
     }
     let properties = current["properties"];
@@ -144,14 +155,14 @@ function readSlot(
   segments: readonly string[],
 ): { parent: JsonObject; last: string; schema: JsonValue; required: boolean } {
   const { parent, last } = parentFor(document, root, segments, false);
-  const schema =
-    last === "*"
-      ? parent["items"]
-      : (parent["properties"] as JsonObject | undefined)?.[last];
+  const keyword = WILDCARD_KEYWORD[last];
+  const schema = keyword
+    ? parent[keyword]
+    : (parent["properties"] as JsonObject | undefined)?.[last];
   if (schema === undefined) {
     throw new SchemaOpError(`Nothing to read at "${segments.join("/")}"`);
   }
-  return { parent, last, schema, required: last !== "*" && isRequired(parent, last) };
+  return { parent, last, schema, required: !keyword && isRequired(parent, last) };
 }
 
 function deleteSlot(
@@ -160,8 +171,9 @@ function deleteSlot(
   segments: readonly string[],
 ): void {
   const { parent, last } = parentFor(document, root, segments, false);
-  if (last === "*") {
-    delete parent["items"];
+  const keyword = WILDCARD_KEYWORD[last];
+  if (keyword) {
+    delete parent[keyword];
     return;
   }
   const properties = parent["properties"];
@@ -177,8 +189,9 @@ function writeSlot(
   required: boolean,
 ): void {
   const { parent, last } = parentFor(document, root, segments, true);
-  if (last === "*") {
-    parent["items"] = schema;
+  const keyword = WILDCARD_KEYWORD[last];
+  if (keyword) {
+    parent[keyword] = schema;
     return;
   }
   let properties = parent["properties"];
@@ -196,7 +209,7 @@ function writeSlot(
     const ancestorPath = segments.slice(0, depth);
     const grand = parentFor(document, root, ancestorPath, false);
     const name = ancestorPath[ancestorPath.length - 1] as string;
-    if (name === "*") continue;
+    if (WILDCARD_KEYWORD[name]) continue;
     if (required && !isRequired(grand.parent, name))
       setRequired(grand.parent, name, true);
   }
@@ -449,8 +462,9 @@ export function schemaRelax(
     node = ownRoot(document, root);
   } else {
     const { parent, last } = parentFor(document, root, segments, false);
-    if (last === "*") {
-      node = own(document, parent, "items");
+    const keyword = WILDCARD_KEYWORD[last];
+    if (keyword) {
+      node = own(document, parent, keyword);
     } else {
       const properties = parent["properties"];
       if (!isJsonObject(properties) || properties[last] === undefined) {
@@ -511,7 +525,9 @@ export function schemaSetRequired(
 ): void {
   const segments = parsePointer(path);
   const slot = readSlot(document, root, segments);
-  if (slot.last === "*") throw new SchemaOpError("A list element is not optional");
+  if (WILDCARD_KEYWORD[slot.last]) {
+    throw new SchemaOpError("A list item or a map value is not optional");
+  }
   setRequired(slot.parent, slot.last, required);
 }
 
@@ -531,7 +547,8 @@ function ownSlot(
   segments: readonly string[],
 ): JsonObject {
   const slot = readSlot(document, root, segments);
-  if (slot.last === "*") return own(document, slot.parent, "items");
+  const wildcard = WILDCARD_KEYWORD[slot.last];
+  if (wildcard) return own(document, slot.parent, wildcard);
   return own(document, slot.parent["properties"] as JsonObject, slot.last);
 }
 

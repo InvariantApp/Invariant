@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "interval",
+    "confidence": 1,
+    "scores": {
+      "interval": 1,
+      "interval_count": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.01437299998360686,
+  "inputTokens": 0,
+  "costUsd": 0
+}

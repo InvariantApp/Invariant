@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "estimated_arrival_at",
+    "confidence": 1,
+    "scores": {
+      "estimated_arrival_at": 1,
+      "driver_id": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 215.67993099999148,
+  "inputTokens": 1300,
+  "costUsd": 0.0000546
+}

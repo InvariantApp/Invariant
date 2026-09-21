@@ -193,9 +193,11 @@ function navigate(
     const next =
       segment === "*"
         ? current["items"]
-        : isJsonObject(current["properties"])
-          ? (current["properties"] as JsonObject)[segment]
-          : undefined;
+        : segment === "{}"
+          ? current["additionalProperties"]
+          : isJsonObject(current["properties"])
+            ? (current["properties"] as JsonObject)[segment]
+            : undefined;
     if (next === undefined) return undefined;
     current = resolveSchema(document, next);
   }

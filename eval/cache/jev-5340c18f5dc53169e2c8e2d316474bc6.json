@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "arrives_at",
+    "confidence": 1,
+    "scores": {
+      "created_at": 0.01,
+      "arrives_at": 1
+    },
+    "stated": true,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 136.0428580000007,
+  "inputTokens": 1317,
+  "costUsd": 0.000055314000000000006
+}

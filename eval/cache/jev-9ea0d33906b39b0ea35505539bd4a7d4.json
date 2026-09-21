@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "destination_address",
+    "confidence": 0.96,
+    "scores": {
+      "destination_address": 0.985,
+      "destination_code": 0.06
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 207.96766999998363,
+  "inputTokens": 1268,
+  "costUsd": 0.000053256000000000006
+}

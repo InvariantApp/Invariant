@@ -69,9 +69,11 @@ function typesAlong(
     const next: JsonValue | undefined =
       segment === "*"
         ? current["items"]
-        : isJsonObject(current["properties"])
-          ? (current["properties"] as JsonObject)[segment]
-          : undefined;
+        : segment === "{}"
+          ? current["additionalProperties"]
+          : isJsonObject(current["properties"])
+            ? (current["properties"] as JsonObject)[segment]
+            : undefined;
     if (next === undefined) return;
     current = resolveSchema(document, next);
     const type = typeOf(current);

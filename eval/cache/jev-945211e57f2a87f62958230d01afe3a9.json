@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "total_minor",
+    "confidence": 1,
+    "scores": {
+      "total_minor": 0.8,
+      "subtotal_minor": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.00813400000333786,
+  "inputTokens": 0,
+  "costUsd": 0
+}

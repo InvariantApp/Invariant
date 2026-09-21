@@ -55,6 +55,20 @@ export const S2_MODEL = "claude-opus-5";
 /** Dollars per million tokens, input and output, for each model S2 may run. */
 export type Pricing = Record<string, { input: number; output: number }>;
 
+/**
+ * Anthropic's published base prices, in dollars per million tokens, as the
+ * pricing page stated them on 2026-09-21
+ * (https://platform.claude.com/docs/en/about-claude/pricing). Passed in
+ * where a cost is reported, and never assumed for a model not listed: an
+ * unlisted model's cost is reported as unknown rather than guessed.
+ */
+export const ANTHROPIC_PRICING: Pricing = {
+  "claude-opus-5": { input: 5, output: 25 },
+  "claude-sonnet-5": { input: 2, output: 10 },
+  "claude-fable-5-1": { input: 10, output: 50 },
+  "claude-haiku-4-5-20251001": { input: 1, output: 5 },
+};
+
 export interface S2JudgeOptions {
   client: MessagesClient;
   model?: string;

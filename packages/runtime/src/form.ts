@@ -17,7 +17,7 @@
 import { BodyTooDeepError } from "./errors.ts";
 import { type CompiledInstr, TransformError, touchedPaths } from "./interpreter.ts";
 import { type Json, type NumberFidelity, numberTextOf, parseJson } from "./json.ts";
-import { isUnsafeKey } from "./pointer.ts";
+import { EACH_ITEM, EACH_VALUE, isUnsafeKey, isWildcard } from "./pointer.ts";
 
 export interface FormField {
   style: "form" | "deepObject";
@@ -165,11 +165,15 @@ function applyTypes(
     const visit = (holder: Node | unknown[], at: number): void => {
       const segment = segments[at] as string;
       const keys =
-        segment === "*"
+        segment === EACH_ITEM
           ? Array.isArray(holder)
             ? holder.map((_, index) => String(index))
             : []
-          : [segment];
+          : segment === EACH_VALUE
+            ? Array.isArray(holder)
+              ? []
+              : Object.keys(holder).filter((key) => !isUnsafeKey(key))
+            : [segment];
       for (const key of keys) {
         const container = holder as Record<string, unknown>;
         if (!Object.hasOwn(container, key)) continue;
@@ -350,7 +354,7 @@ export function formRoots(instrs: readonly CompiledInstr[], depth: number): Set<
     for (const path of touchedPaths(instr)) {
       if (depth === 1 && path[0] !== "@body") continue;
       const root = path[depth];
-      if (root !== undefined && root !== "*") roots.add(root);
+      if (root !== undefined && !isWildcard(root)) roots.add(root);
     }
   }
   return roots;

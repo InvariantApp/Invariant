@@ -10,6 +10,7 @@
 import type { OpenApiDocument } from "@invariant/contract";
 import { describe, expect, it } from "vitest";
 import { decisionChange } from "./decisions.ts";
+import type { Judge } from "./judge.ts";
 import { propose } from "./propose.ts";
 import { RulesJudge } from "./rules.ts";
 import { CHOOSE_ONE } from "./vocabulary.ts";
@@ -577,5 +578,53 @@ describe("a bound on a value that moved", () => {
       ),
     ).toBe(false);
     expect(outcome.unresolved.map((entry) => entry.reason).join()).toMatch(/refused/);
+  });
+});
+
+describe("how sure a judge has to be", () => {
+  /** Answers every question with the first candidate, as one judge, at one confidence. */
+  const sure = (judge: "jev" | "s2", confidence: number): Judge => ({
+    id: judge,
+    fingerprint: `stub:${judge}:${confidence}`,
+    align: (questions) =>
+      Promise.resolve(
+        questions.map((question) => ({
+          answer: {
+            successor: question.candidates[0]?.name ?? null,
+            confidence,
+            scores: {},
+            stated: false,
+            abstained: false,
+          },
+          judge,
+          model: undefined,
+          latencyMs: 0,
+          inputTokens: 0,
+          costUsd: 0,
+        })),
+      ),
+  });
+  const renamed = async (judge: Judge) =>
+    propose(
+      contract(base),
+      contract({
+        ...base,
+        Thing: object({ identifier: { type: "string" } }, ["identifier"]),
+      }),
+      { judge },
+    );
+
+  it("is measured per judge: the same answer drafts from one and is asked from another", async () => {
+    const fromJev = await renamed(sure("jev", 0.7));
+    expect(
+      fromJev.proposals.some((p) => p.change.ops.some((op) => op.op === "move")),
+    ).toBe(true);
+    const fromS2 = await renamed(sure("s2", 0.7));
+    expect(
+      fromS2.proposals.some((p) => p.change.ops.some((op) => op.op === "move")),
+    ).toBe(false);
+    expect(fromS2.unresolved.map((entry) => entry.reason).join()).toMatch(
+      /below the threshold/,
+    );
   });
 });

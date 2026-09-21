@@ -12552,6 +12552,8 @@ function walk$1(ctx, schema, segments) {
 	if (isJsonObject(properties)) for (const name of Object.keys(properties).sort()) walk$1(ctx, properties[name], [...segments, name]);
 	const items = schema["items"];
 	if (items !== void 0) walk$1(ctx, items, [...segments, "*"]);
+	const values = schema["additionalProperties"];
+	if (isJsonObject(values)) walk$1(ctx, values, [...segments, "{}"]);
 }
 function scanRoot(document, target, root, leads = leadingTo(document, target), budget = freshBudget()) {
 	const ctx = {
@@ -12680,7 +12682,7 @@ function variantGuard(document, schemaRef, pointer, variantRef) {
 	for (const segment of pointer.split("/").slice(1).map(unescapeSegment)) {
 		const resolved = resolveSchema(document, current ?? {});
 		if (!isJsonObject(resolved)) return void 0;
-		current = segment === "*" ? resolved["items"] : isJsonObject(resolved["properties"]) ? resolved["properties"][segment] : void 0;
+		current = segment === "*" ? resolved["items"] : segment === "{}" ? resolved["additionalProperties"] : isJsonObject(resolved["properties"]) ? resolved["properties"][segment] : void 0;
 		if (current === void 0) return void 0;
 	}
 	const union = isJsonObject(current) && typeof current["$ref"] === "string" ? resolveRef(document, current["$ref"]) : current;
@@ -12737,6 +12739,8 @@ function refsWithin(document, root, keep) {
 		if (isJsonObject(properties)) for (const name of Object.keys(properties).sort()) found.push(...visit(properties[name], [...segments, name]));
 		const items = schema["items"];
 		if (items !== void 0) found.push(...visit(items, [...segments, "*"]));
+		const values = schema["additionalProperties"];
+		if (isJsonObject(values)) found.push(...visit(values, [...segments, "{}"]));
 		return found;
 	};
 	return {
@@ -12822,7 +12826,7 @@ function typesAlong(document, root, pointer, into) {
 	let current = resolveSchema(document, root);
 	for (const [index, segment] of segments.entries()) {
 		if (!isJsonObject(current)) return;
-		const next = segment === "*" ? current["items"] : isJsonObject(current["properties"]) ? current["properties"][segment] : void 0;
+		const next = segment === "*" ? current["items"] : segment === "{}" ? current["additionalProperties"] : isJsonObject(current["properties"]) ? current["properties"][segment] : void 0;
 		if (next === void 0) return;
 		current = resolveSchema(document, next);
 		const type = typeOf$1(current);
@@ -13225,9 +13229,18 @@ var SchemaOpError = class extends Error {
 function clone$1(value) {
 	return structuredClone(value);
 }
-/** A schema navigation step: an object property, or every element of an array. */
+/**
+* The keyword a wildcard segment stands for: `*` every item of a list, and
+* `{}` every value of a map.
+*/
+const WILDCARD_KEYWORD = {
+	"*": "items",
+	"{}": "additionalProperties"
+};
+/** A schema navigation step: an object property, every item of a list, or every value of a map. */
 function childOf(schema, segment) {
-	if (segment === "*") return schema["items"];
+	const keyword = WILDCARD_KEYWORD[segment];
+	if (keyword) return schema[keyword];
 	const properties = schema["properties"];
 	if (!isJsonObject(properties)) return void 0;
 	return properties[segment];
@@ -13288,9 +13301,10 @@ function parentFor(document, root, segments, create) {
 	if (segments.length === 0) throw new SchemaOpError("Cannot target the schema root");
 	let current = ownRoot(document, root);
 	for (const segment of segments.slice(0, -1)) {
-		if (segment === "*") {
-			if (!isJsonObject(current["items"])) throw new SchemaOpError("Cannot walk into a non-object items");
-			current = own(document, current, "items");
+		const keyword = WILDCARD_KEYWORD[segment];
+		if (keyword) {
+			if (!isJsonObject(current[keyword])) throw new SchemaOpError(`Cannot walk into a non-object ${keyword}`);
+			current = own(document, current, keyword);
 			continue;
 		}
 		let properties = current["properties"];
@@ -13316,19 +13330,21 @@ function parentFor(document, root, segments, create) {
 }
 function readSlot$1(document, root, segments) {
 	const { parent, last } = parentFor(document, root, segments, false);
-	const schema = last === "*" ? parent["items"] : parent["properties"]?.[last];
+	const keyword = WILDCARD_KEYWORD[last];
+	const schema = keyword ? parent[keyword] : parent["properties"]?.[last];
 	if (schema === void 0) throw new SchemaOpError(`Nothing to read at "${segments.join("/")}"`);
 	return {
 		parent,
 		last,
 		schema,
-		required: last !== "*" && isRequired(parent, last)
+		required: !keyword && isRequired(parent, last)
 	};
 }
 function deleteSlot$1(document, root, segments) {
 	const { parent, last } = parentFor(document, root, segments, false);
-	if (last === "*") {
-		delete parent["items"];
+	const keyword = WILDCARD_KEYWORD[last];
+	if (keyword) {
+		delete parent[keyword];
 		return;
 	}
 	const properties = parent["properties"];
@@ -13337,8 +13353,9 @@ function deleteSlot$1(document, root, segments) {
 }
 function writeSlot$1(document, root, segments, schema, required) {
 	const { parent, last } = parentFor(document, root, segments, true);
-	if (last === "*") {
-		parent["items"] = schema;
+	const keyword = WILDCARD_KEYWORD[last];
+	if (keyword) {
+		parent[keyword] = schema;
 		return;
 	}
 	let properties = parent["properties"];
@@ -13353,7 +13370,7 @@ function writeSlot$1(document, root, segments, schema, required) {
 		const ancestorPath = segments.slice(0, depth);
 		const grand = parentFor(document, root, ancestorPath, false);
 		const name = ancestorPath[ancestorPath.length - 1];
-		if (name === "*") continue;
+		if (WILDCARD_KEYWORD[name]) continue;
 		if (required && !isRequired(grand.parent, name)) setRequired(grand.parent, name, true);
 	}
 }
@@ -13502,7 +13519,8 @@ function schemaRelax(document, root, path, set, sentByOldCallers) {
 	if (segments.length === 0) node = ownRoot(document, root);
 	else {
 		const { parent, last } = parentFor(document, root, segments, false);
-		if (last === "*") node = own(document, parent, "items");
+		const keyword = WILDCARD_KEYWORD[last];
+		if (keyword) node = own(document, parent, keyword);
 		else {
 			const properties = parent["properties"];
 			if (!isJsonObject(properties) || properties[last] === void 0) throw new SchemaOpError(`Nothing to read at "${segments.join("/")}"`);
@@ -13538,7 +13556,7 @@ function schemaRemove(document, root, path) {
 */
 function schemaSetRequired(document, root, path, required) {
 	const slot = readSlot$1(document, root, parsePointer(path));
-	if (slot.last === "*") throw new SchemaOpError("A list element is not optional");
+	if (WILDCARD_KEYWORD[slot.last]) throw new SchemaOpError("A list item or a map value is not optional");
 	setRequired(slot.parent, slot.last, required);
 }
 /** Whether a field must be present, read through references on the way. */
@@ -13548,7 +13566,8 @@ function schemaRequiredAt(document, root, path) {
 /** The field's own schema, made this change's own so it can be edited. */
 function ownSlot(document, root, segments) {
 	const slot = readSlot$1(document, root, segments);
-	if (slot.last === "*") return own(document, slot.parent, "items");
+	const wildcard = WILDCARD_KEYWORD[slot.last];
+	if (wildcard) return own(document, slot.parent, wildcard);
 	return own(document, slot.parent["properties"], slot.last);
 }
 const isNullSchema = (branch) => isJsonObject(branch) && branch["type"] === "null" && Object.keys(branch).length === 1;
@@ -13973,7 +13992,7 @@ function navigate(document, schema, segments) {
 	let current = resolveSchema(document, schema);
 	for (const segment of segments) {
 		if (!isJsonObject(current)) return void 0;
-		const next = segment === "*" ? current["items"] : isJsonObject(current["properties"]) ? current["properties"][segment] : void 0;
+		const next = segment === "*" ? current["items"] : segment === "{}" ? current["additionalProperties"] : isJsonObject(current["properties"]) ? current["properties"][segment] : void 0;
 		if (next === void 0) return void 0;
 		current = resolveSchema(document, next);
 	}
@@ -14311,7 +14330,8 @@ function overlaps(a, b) {
 	for (let i = 0; i < shared; i += 1) {
 		const x = left[i];
 		const y = right[i];
-		if (x !== y && x !== "*" && y !== "*") return false;
+		const any = (segment) => segment === "*" || segment === "{}";
+		if (x !== y && !any(x) && !any(y)) return false;
 	}
 	return true;
 }
@@ -28967,8 +28987,9 @@ function numberTextOf(value) {
 function numberFromText(text) {
 	return JSON.rawJSON(text);
 }
-//#endregion
-//#region ../runtime/src/pointer.ts
+function isWildcard(segment) {
+	return segment === "*" || segment === "{}";
+}
 /**
 * A path selected more slots than an instruction may touch.
 *
@@ -29035,6 +29056,18 @@ function resolveSlots(root, segments, limit) {
 				}
 				continue;
 			}
+			if (segment === "{}") {
+				if (Array.isArray(node.value)) continue;
+				for (const key of Object.keys(node.value)) {
+					if (isUnsafeKey(key)) continue;
+					if (next.length >= limit) throw new FanOutExceeded(limit);
+					next.push({
+						value: node.value[key],
+						captures: [...node.captures, key]
+					});
+				}
+				continue;
+			}
 			const child = readChild(node.value, segment);
 			if (child === void 0) continue;
 			next.push({
@@ -29057,6 +29090,19 @@ function resolveSlots(root, segments, limit) {
 					container: node.value,
 					key: String(index),
 					captures: [...node.captures, index]
+				});
+			}
+			continue;
+		}
+		if (last === "{}") {
+			if (Array.isArray(node.value)) continue;
+			for (const key of Object.keys(node.value)) {
+				if (isUnsafeKey(key)) continue;
+				if (slots.length >= limit) throw new FanOutExceeded(limit);
+				slots.push({
+					container: node.value,
+					key,
+					captures: [...node.captures, key]
 				});
 			}
 			continue;
@@ -29105,8 +29151,17 @@ function createSlot(root, segments, captures) {
 		if (raw === "*") {
 			const index = captures[captureIndex];
 			captureIndex += 1;
-			if (index === void 0 || !Array.isArray(current)) return void 0;
+			if (typeof index !== "number" || !Array.isArray(current)) return void 0;
 			const child = current[index];
+			if (child === void 0) return void 0;
+			current = child;
+			continue;
+		}
+		if (raw === "{}") {
+			const key = captures[captureIndex];
+			captureIndex += 1;
+			if (typeof key !== "string" || Array.isArray(current) || isUnsafeKey(key)) return;
+			const child = Object.hasOwn(current, key) ? current[key] : void 0;
 			if (child === void 0) return void 0;
 			current = child;
 			continue;
@@ -29124,10 +29179,19 @@ function createSlot(root, segments, captures) {
 	if (!isContainer(current)) return void 0;
 	if (last === "*") {
 		const index = captures[captureIndex];
-		if (index === void 0 || !Array.isArray(current)) return void 0;
+		if (typeof index !== "number" || !Array.isArray(current)) return void 0;
 		return {
 			container: current,
 			key: String(index),
+			captures: [...captures]
+		};
+	}
+	if (last === "{}") {
+		const key = captures[captureIndex];
+		if (typeof key !== "string" || Array.isArray(current) || isUnsafeKey(key)) return;
+		return {
+			container: current,
+			key,
 			captures: [...captures]
 		};
 	}
@@ -29331,7 +29395,7 @@ function applySet(root, instr, limits) {
 		}
 		return written;
 	}
-	const lastWildcard = instr.path.lastIndexOf("*");
+	const lastWildcard = instr.path.findLastIndex(isWildcard);
 	if (lastWildcard >= 0) {
 		const elements = resolveSlots(root, instr.path.slice(0, lastWildcard + 1), limits.maxMatches);
 		const rest = instr.path.slice(lastWildcard + 1);
@@ -29909,7 +29973,7 @@ function applyTypes(tree, types, fidelity) {
 		const segments = pointer.split("/").slice(1).map((segment) => segment.replace(/~1/g, "/").replace(/~0/g, "~"));
 		const visit = (holder, at) => {
 			const segment = segments[at];
-			const keys = segment === "*" ? Array.isArray(holder) ? holder.map((_, index) => String(index)) : [] : [segment];
+			const keys = segment === "*" ? Array.isArray(holder) ? holder.map((_, index) => String(index)) : [] : segment === "{}" ? Array.isArray(holder) ? [] : Object.keys(holder).filter((key) => !isUnsafeKey(key)) : [segment];
 			for (const key of keys) {
 				const container = holder;
 				if (!Object.hasOwn(container, key)) continue;
@@ -30029,7 +30093,7 @@ function formRoots(instrs, depth) {
 	for (const instr of instrs) for (const path of touchedPaths(instr)) {
 		if (depth === 1 && path[0] !== "@body") continue;
 		const root = path[depth];
-		if (root !== void 0 && root !== "*") roots.add(root);
+		if (root !== void 0 && !isWildcard(root)) roots.add(root);
 	}
 	return roots;
 }
@@ -30193,13 +30257,14 @@ function segmentsOf(pointer, where) {
 	if (!pointer.startsWith("/")) throw new ProgramError(`${where} must be a JSON Pointer, got "${pointer}"`);
 	return pointer.slice(1).split("/").map((raw) => {
 		if (raw !== "*" && !POINTER_SEGMENT.test(raw)) throw new ProgramError(`${where} has an invalid segment "${raw}"`);
-		const decoded = raw === "*" ? "*" : raw.replace(/~1/g, "/").replace(/~0/g, "~");
+		const decoded = isWildcard(raw) ? raw : raw.replace(/~1/g, "/").replace(/~0/g, "~");
 		if (isUnsafeKey(decoded)) throw new ProgramError(`${where} may not name "${decoded}"`);
 		return decoded;
 	});
 }
-function countWildcards(segments) {
-	return segments.filter((segment) => segment === "*").length;
+/** The wildcards in a path, in order; a move has to take list to list and map to map. */
+function wildcardsOf(segments) {
+	return segments.filter(isWildcard).join(",");
 }
 /**
 * How deeply blocks may nest. A union inside a union inside a list is three;
@@ -30269,7 +30334,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 		case "has":
 		case "is": {
 			const path = segmentsOf(string(value["path"], `${where}.path`), `${where}.path`);
-			if (path.includes("*")) throw new ProgramError(`${where}.path reads a key through a wildcard`);
+			if (path.some(isWildcard)) throw new ProgramError(`${where}.path reads a key through a wildcard`);
 			if (kind === "has") {
 				expectKeys(value, [
 					"k",
@@ -30329,7 +30394,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 			], where);
 			const from = segmentsOf(string(value["from"], `${where}.from`), `${where}.from`);
 			const to = segmentsOf(string(value["to"], `${where}.to`), `${where}.to`);
-			if (countWildcards(from) !== countWildcards(to)) throw new ProgramError(`${where} moves between paths with different wildcard counts`);
+			if (wildcardsOf(from) !== wildcardsOf(to)) throw new ProgramError(`${where} moves between paths whose wildcards do not line up`);
 			if (from.length === 0) throw new ProgramError(`${where} cannot move the document root`);
 			itself(to, "to");
 			return {
@@ -32463,7 +32528,7 @@ function withoutLossy(value, pointers) {
 		const [segment, ...rest] = segments;
 		if (segment === void 0) return;
 		const holder = cursor;
-		const keys = segment === "*" && Array.isArray(cursor) ? Object.keys(cursor) : [segment];
+		const keys = segment === "*" && Array.isArray(cursor) || segment === "{}" && !Array.isArray(cursor) ? Object.keys(cursor) : [segment];
 		for (const key of keys) if (rest.length === 0) {
 			if (!Array.isArray(cursor)) delete holder[key];
 		} else remove(holder[key], rest);

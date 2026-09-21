@@ -35,8 +35,9 @@ function overlaps(a: string, b: string): boolean {
   for (let i = 0; i < shared; i += 1) {
     const x = left[i];
     const y = right[i];
-    // A wildcard stands for every element, so it overlaps any sibling index.
-    if (x !== y && x !== "*" && y !== "*") return false;
+    // A wildcard stands for every item or every value, so it overlaps any one.
+    const any = (segment: string | undefined) => segment === "*" || segment === "{}";
+    if (x !== y && !any(x) && !any(y)) return false;
   }
   return true;
 }

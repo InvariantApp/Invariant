@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "expires_at",
+    "confidence": 0.95,
+    "scores": {
+      "expires_at": 0.95
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "claude-opus-5",
+  "latencyMs": 2275.4389059999958,
+  "inputTokens": 1311,
+  "costUsd": 0
+}

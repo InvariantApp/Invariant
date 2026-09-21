@@ -74,14 +74,17 @@ export interface LawReport {
 function withoutLossy(value: unknown, pointers: readonly string[]): unknown {
   if (pointers.length === 0) return value;
   const copy = structuredClone(value);
-  // `*` is every item of a list, where a Change on a nested schema declared it.
+  // `*` is every item of a list and `{}` every value of a map.
   const remove = (cursor: unknown, segments: readonly string[]): void => {
     if (cursor === null || typeof cursor !== "object") return;
     const [segment, ...rest] = segments;
     if (segment === undefined) return;
     const holder = cursor as Record<string, unknown>;
     const keys =
-      segment === "*" && Array.isArray(cursor) ? Object.keys(cursor) : [segment];
+      (segment === "*" && Array.isArray(cursor)) ||
+      (segment === "{}" && !Array.isArray(cursor))
+        ? Object.keys(cursor)
+        : [segment];
     for (const key of keys) {
       if (rest.length === 0) {
         if (!Array.isArray(cursor)) delete holder[key];

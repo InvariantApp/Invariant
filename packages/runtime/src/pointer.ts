@@ -1,13 +1,27 @@
 /**
  * Pointer navigation over data.
  *
- * The path language is JSON Pointer plus a single wildcard segment. That is
- * deliberately not expressive: there are no filters, no descendants and no
- * expressions, so the cost of an instruction is bounded by the shape of the
- * document rather than by anything the path can say.
+ * The path language is JSON Pointer plus two wildcard segments: `*` for every
+ * item of a list, and `{}` for every value of a map, an object whose keys are
+ * data rather than field names, as Stripe's `metadata` or a price table keyed
+ * by currency. That is deliberately not expressive: there are no filters, no
+ * descendants and no expressions, so the cost of an instruction is bounded by
+ * the shape of the document rather than by anything the path can say.
  */
 
 export type Segments = readonly string[];
+
+/** Every item of a list. */
+export const EACH_ITEM = "*";
+/** Every value of a map. */
+export const EACH_VALUE = "{}";
+
+export function isWildcard(segment: string): boolean {
+  return segment === EACH_ITEM || segment === EACH_VALUE;
+}
+
+/** Where a wildcard went: a list index, or a map key. */
+export type Capture = number | string;
 
 export interface Slot {
   /** The object or array that directly holds the value. */
@@ -15,7 +29,7 @@ export interface Slot {
   /** Property name, or array index as a string. */
   key: string;
   /** Wildcard positions taken to reach here, in order. */
-  captures: number[];
+  captures: Capture[];
 }
 
 /**
@@ -70,21 +84,30 @@ function readChild(container: Record<string, unknown> | unknown[], key: string):
 export function resolveSlots(root: unknown, segments: Segments, limit: number): Slot[] {
   if (segments.length === 0) return [];
 
-  let frontier: { value: unknown; captures: number[] }[] = [
+  let frontier: { value: unknown; captures: Capture[] }[] = [
     { value: root, captures: [] },
   ];
 
   for (let depth = 0; depth < segments.length - 1; depth += 1) {
     const segment = segments[depth] as string;
-    const next: { value: unknown; captures: number[] }[] = [];
+    const next: { value: unknown; captures: Capture[] }[] = [];
 
     for (const node of frontier) {
       if (!isContainer(node.value)) continue;
-      if (segment === "*") {
+      if (segment === EACH_ITEM) {
         if (!Array.isArray(node.value)) continue;
         for (const [index, item] of node.value.entries()) {
           if (next.length >= limit) throw new FanOutExceeded(limit);
           next.push({ value: item, captures: [...node.captures, index] });
+        }
+        continue;
+      }
+      if (segment === EACH_VALUE) {
+        if (Array.isArray(node.value)) continue;
+        for (const key of Object.keys(node.value)) {
+          if (isUnsafeKey(key)) continue;
+          if (next.length >= limit) throw new FanOutExceeded(limit);
+          next.push({ value: node.value[key], captures: [...node.captures, key] });
         }
         continue;
       }
@@ -102,7 +125,7 @@ export function resolveSlots(root: unknown, segments: Segments, limit: number): 
 
   for (const node of frontier) {
     if (!isContainer(node.value)) continue;
-    if (last === "*") {
+    if (last === EACH_ITEM) {
       if (!Array.isArray(node.value)) continue;
       for (const index of node.value.keys()) {
         if (slots.length >= limit) throw new FanOutExceeded(limit);
@@ -111,6 +134,15 @@ export function resolveSlots(root: unknown, segments: Segments, limit: number): 
           key: String(index),
           captures: [...node.captures, index],
         });
+      }
+      continue;
+    }
+    if (last === EACH_VALUE) {
+      if (Array.isArray(node.value)) continue;
+      for (const key of Object.keys(node.value)) {
+        if (isUnsafeKey(key)) continue;
+        if (slots.length >= limit) throw new FanOutExceeded(limit);
+        slots.push({ container: node.value, key, captures: [...node.captures, key] });
       }
       continue;
     }
@@ -152,7 +184,7 @@ export function deleteSlot(slot: Slot): void {
 export function createSlot(
   root: unknown,
   segments: Segments,
-  captures: readonly number[],
+  captures: readonly Capture[],
 ): Slot | undefined {
   if (segments.length === 0) return undefined;
 
@@ -163,11 +195,22 @@ export function createSlot(
     const raw = segments[depth] as string;
     if (!isContainer(current)) return undefined;
 
-    if (raw === "*") {
+    if (raw === EACH_ITEM) {
       const index = captures[captureIndex];
       captureIndex += 1;
-      if (index === undefined || !Array.isArray(current)) return undefined;
+      if (typeof index !== "number" || !Array.isArray(current)) return undefined;
       const child = current[index];
+      if (child === undefined) return undefined;
+      current = child;
+      continue;
+    }
+    if (raw === EACH_VALUE) {
+      const key = captures[captureIndex];
+      captureIndex += 1;
+      if (typeof key !== "string" || Array.isArray(current) || isUnsafeKey(key)) {
+        return undefined;
+      }
+      const child = Object.hasOwn(current, key) ? current[key] : undefined;
       if (child === undefined) return undefined;
       current = child;
       continue;
@@ -186,10 +229,17 @@ export function createSlot(
   const last = segments[segments.length - 1] as string;
   if (!isContainer(current)) return undefined;
 
-  if (last === "*") {
+  if (last === EACH_ITEM) {
     const index = captures[captureIndex];
-    if (index === undefined || !Array.isArray(current)) return undefined;
+    if (typeof index !== "number" || !Array.isArray(current)) return undefined;
     return { container: current, key: String(index), captures: [...captures] };
+  }
+  if (last === EACH_VALUE) {
+    const key = captures[captureIndex];
+    if (typeof key !== "string" || Array.isArray(current) || isUnsafeKey(key)) {
+      return undefined;
+    }
+    return { container: current, key, captures: [...captures] };
   }
   if (Array.isArray(current) || isUnsafeKey(last)) return undefined;
   return { container: current, key: last, captures: [...captures] };
@@ -199,7 +249,7 @@ export function createSlot(
 export function pruneEmptyAncestors(
   root: unknown,
   segments: Segments,
-  captures: readonly number[],
+  captures: readonly Capture[],
 ): void {
   for (let depth = segments.length - 1; depth >= 1; depth -= 1) {
     const slot = createSlot(root, segments.slice(0, depth), captures);

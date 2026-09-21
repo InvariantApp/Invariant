@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "balance_cents",
+    "confidence": 1,
+    "scores": {
+      "balance_cents": 0.8500000000000001,
+      "nickname": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.008408999972743914,
+  "inputTokens": 0,
+  "costUsd": 0
+}

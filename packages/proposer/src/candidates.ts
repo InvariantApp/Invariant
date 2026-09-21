@@ -202,6 +202,9 @@ function fieldsOf(
             },
           ];
     if (depth >= NESTING || !inline(raw)) return [field, ...listed];
+    const mapValues = isJsonObject(value["additionalProperties"])
+      ? (value["additionalProperties"] as JsonObject)
+      : undefined;
     const nested = isJsonObject(value["properties"])
       ? fieldsOf(document, value, here, depth + 1)
       : items && isJsonObject(resolveSchema(document, items))
@@ -211,7 +214,15 @@ function fieldsOf(
             { name: `${here.name}.*`, pointer: `${here.pointer}/*` },
             depth + 1,
           )
-        : [];
+        : mapValues && inline(mapValues)
+          ? // A map: every value, whatever its key, has these fields.
+            fieldsOf(
+              document,
+              mapValues,
+              { name: `${here.name}.{}`, pointer: `${here.pointer}/{}` },
+              depth + 1,
+            )
+          : [];
     return [field, ...listed, ...nested];
   });
 }

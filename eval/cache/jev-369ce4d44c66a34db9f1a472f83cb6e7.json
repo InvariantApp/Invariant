@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "is_enabled",
+    "confidence": 1,
+    "scores": {
+      "is_enabled": 0.76,
+      "rollout_percentage": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.09639700001571327,
+  "inputTokens": 0,
+  "costUsd": 0
+}

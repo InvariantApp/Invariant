@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "timeout_ms",
+    "confidence": 1,
+    "scores": {
+      "timeout": 0.6,
+      "timeout_ms": 1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.007847000000765547,
+  "inputTokens": 0,
+  "costUsd": 0
+}

@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "assignee_id",
+    "confidence": 0.95,
+    "scores": {
+      "assignee_id": 0.95
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "claude-opus-5",
+  "latencyMs": 2727.8765989999993,
+  "inputTokens": 1351,
+  "costUsd": 0
+}

@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "reading",
+    "confidence": 1,
+    "scores": {
+      "reading": 1,
+      "reading_at": 0.21
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.06651100001181476,
+  "inputTokens": 0,
+  "costUsd": 0
+}

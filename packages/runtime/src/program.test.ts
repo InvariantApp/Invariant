@@ -65,7 +65,7 @@ describe("decoding", () => {
       decodeProgram(
         program({ "post /x": { request: [{ ...MOVE, from: "/d/*/a", to: "/b" }] } }),
       ),
-    ).toThrow(/different wildcard counts/);
+    ).toThrow(/wildcards do not line up/);
   });
 
   it("refuses a path that is not a JSON Pointer", () => {

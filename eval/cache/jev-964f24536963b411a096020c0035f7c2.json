@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "tax_rate_bps",
+    "confidence": 0.96,
+    "scores": {
+      "tax_amount_minor": 0.05,
+      "tax_rate_bps": 0.98
+    },
+    "stated": true,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 194.03233600000385,
+  "inputTokens": 1322,
+  "costUsd": 0.000055524000000000006
+}

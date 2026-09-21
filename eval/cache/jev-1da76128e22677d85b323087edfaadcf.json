@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "minimum_schedule_delay_days",
+    "confidence": 0.975,
+    "scores": {
+      "minimum_schedule_delay_days": 0.975,
+      "interval": 0.065
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 203.57440900002257,
+  "inputTokens": 1284,
+  "costUsd": 0.000053928
+}

@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "customerJourneySummary",
+    "confidence": 0.82,
+    "scores": {
+      "customerJourneySummary": 0.82
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "claude-opus-5",
+  "latencyMs": 3212.7254519999988,
+  "inputTokens": 1306,
+  "costUsd": 0
+}

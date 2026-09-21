@@ -23,7 +23,7 @@ import {
   touchedPaths,
 } from "./interpreter.ts";
 import type { Json } from "./json.ts";
-import { isUnsafeKey } from "./pointer.ts";
+import { isUnsafeKey, isWildcard } from "./pointer.ts";
 
 export class ProgramError extends Error {
   constructor(message: string) {
@@ -141,7 +141,7 @@ function segmentsOf(pointer: string, where: string): string[] {
       if (raw !== "*" && !POINTER_SEGMENT.test(raw)) {
         throw new ProgramError(`${where} has an invalid segment "${raw}"`);
       }
-      const decoded = raw === "*" ? "*" : raw.replace(/~1/g, "/").replace(/~0/g, "~");
+      const decoded = isWildcard(raw) ? raw : raw.replace(/~1/g, "/").replace(/~0/g, "~");
       if (isUnsafeKey(decoded)) {
         throw new ProgramError(`${where} may not name "${decoded}"`);
       }
@@ -149,8 +149,9 @@ function segmentsOf(pointer: string, where: string): string[] {
     });
 }
 
-function countWildcards(segments: readonly string[]): number {
-  return segments.filter((segment) => segment === "*").length;
+/** The wildcards in a path, in order; a move has to take list to list and map to map. */
+function wildcardsOf(segments: readonly string[]): string {
+  return segments.filter(isWildcard).join(",");
 }
 
 /**
@@ -242,7 +243,7 @@ function decodeInstr(
     case "is": {
       const path = segmentsOf(string(value["path"], `${where}.path`), `${where}.path`);
       // A key is one value, read at one place.
-      if (path.includes("*")) {
+      if (path.some(isWildcard)) {
         throw new ProgramError(`${where}.path reads a key through a wildcard`);
       }
       if (kind === "has") {
@@ -298,11 +299,11 @@ function decodeInstr(
       expectKeys(value, ["k", "from", "to", "c"], where);
       const from = segmentsOf(string(value["from"], `${where}.from`), `${where}.from`);
       const to = segmentsOf(string(value["to"], `${where}.to`), `${where}.to`);
-      if (countWildcards(from) !== countWildcards(to)) {
-        // Each wildcard on the left has to line up with one on the right, or
-        // there is no telling which element a value belongs to.
+      if (wildcardsOf(from) !== wildcardsOf(to)) {
+        // Each wildcard on the left has to line up with one of the same kind
+        // on the right, or there is no telling which element a value belongs to.
         throw new ProgramError(
-          `${where} moves between paths with different wildcard counts`,
+          `${where} moves between paths whose wildcards do not line up`,
         );
       }
       if (from.length === 0) {

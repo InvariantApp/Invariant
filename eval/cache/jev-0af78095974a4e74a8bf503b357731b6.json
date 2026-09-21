@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": "balancing_policy",
+    "confidence": 1,
+    "scores": {
+      "balancing_policy": 1,
+      "algorithm_version": 0.115,
+      "health_check_path": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 146.702117000008,
+  "inputTokens": 1583,
+  "costUsd": 0.000066486
+}

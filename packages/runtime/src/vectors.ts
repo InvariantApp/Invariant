@@ -451,6 +451,42 @@ export const CONFORMANCE_VECTORS: Vector[] = [
     expect: { refuses: "decode" },
   },
   {
+    name: "a map wildcard reaches every value of an object",
+    why:
+      "A price table keyed by currency, or metadata keyed by whatever the " +
+      "caller chose: the keys are data, and a Change reaches each value.",
+    instrs: [
+      { k: "move", from: "/prices/{}/amount", to: "/prices/{}/unit_amount", c: C },
+    ],
+    input: { prices: { usd: { amount: 100 }, eur: { amount: 90 } } },
+    expect: {
+      output: { prices: { usd: { unit_amount: 100 }, eur: { unit_amount: 90 } } },
+    },
+  },
+  {
+    name: "a move between maps keeps each value under its own key",
+    why: "Each map wildcard on the left lines up with one on the right, key by key.",
+    instrs: [{ k: "move", from: "/limits/{}", to: "/quotas/{}", c: C }],
+    input: { limits: { reads: 10, writes: 2 } },
+    expect: { output: { quotas: { reads: 10, writes: 2 } } },
+  },
+  {
+    name: "a move from a list to a map is refused",
+    why: "A list index is not a key, so there is no telling where each value goes.",
+    instrs: [{ k: "move", from: "/items/*/id", to: "/byId/{}", c: C }],
+    input: {},
+    expect: { refuses: "decode" },
+  },
+  {
+    name: "a map wildcard passes over a key that would reach a prototype",
+    why: "A body's keys are the caller's; one named __proto__ is never followed.",
+    instrs: [{ k: "set", path: "/metadata/{}/seen", value: true, ifAbsent: false, c: C }],
+    input: JSON.parse('{"metadata":{"a":{},"__proto__":{}}}') as unknown,
+    expect: {
+      output: JSON.parse('{"metadata":{"a":{"seen":true},"__proto__":{}}}') as unknown,
+    },
+  },
+  {
     name: "a key read through a wildcard is refused",
     why: "A key is one value at one place; a wildcard would make it several.",
     instrs: [{ k: "switch", path: "/data/*/type", cases: {}, c: C }],

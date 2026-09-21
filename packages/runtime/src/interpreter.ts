@@ -16,6 +16,7 @@ import {
   createSlot,
   deleteSlot,
   FanOutExceeded,
+  isWildcard,
   pruneEmptyAncestors,
   readSlot,
   resolveSlots,
@@ -374,7 +375,7 @@ function applySet(
   // A wildcard names existing elements, but the field being written into them
   // is usually the one that does not exist yet. So resolve as far as the last
   // wildcard, then create the rest of the path inside each element found.
-  const lastWildcard = instr.path.lastIndexOf("*");
+  const lastWildcard = instr.path.findLastIndex(isWildcard);
   if (lastWildcard >= 0) {
     const elements = resolveSlots(
       root,
