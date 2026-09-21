@@ -21,6 +21,7 @@ import { createRuntime, type InvariantRuntime } from "@invariant/runtime";
 import express from "express";
 import express4 from "express4";
 import Fastify from "fastify";
+import Fastify4 from "fastify4";
 import Koa from "koa";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { adaptListener, adaptMiddleware, type Listener } from "./index.ts";
@@ -88,6 +89,34 @@ const HANDLERS = {
 };
 
 type Build = (runtime: InvariantRuntime) => Promise<Server>;
+
+/** Fastify runs the listener its serverFactory is given, so the adapter wraps that. */
+async function fastifyWith(
+  make: typeof Fastify,
+  runtime: InvariantRuntime,
+): Promise<Server> {
+  let server: Server | undefined;
+  const app = make({
+    serverFactory: (handler) => {
+      server = createServer(adaptListener(handler as Listener, { runtime }));
+      return server;
+    },
+  });
+  app.post("/v1/payments", async (request, reply) => {
+    const out = HANDLERS.create(request.body as Record<string, unknown>);
+    return reply.code(out.status).send(out.body);
+  });
+  app.get("/v1/payments/:id", async (request, reply) => {
+    const out = HANDLERS.read(request.headers["if-none-match"] as string | undefined);
+    reply.header("etag", out.etag).code(out.status);
+    return out.status === 304 ? reply.send() : reply.send(out.body);
+  });
+  app.get("/v1/export", async (_request, reply) =>
+    reply.type("text/csv").send(HANDLERS.csv()),
+  );
+  await app.ready();
+  return listen(server as Server);
+}
 
 const listen = async (server: Server) => {
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -197,29 +226,8 @@ const FRAMEWORKS: Record<string, Build> = {
     });
     return listen(createServer(adaptListener(app.callback(), { runtime })));
   },
-  fastify: async (runtime) => {
-    let server: Server | undefined;
-    const app = Fastify({
-      serverFactory: (handler) => {
-        server = createServer(adaptListener(handler as Listener, { runtime }));
-        return server;
-      },
-    });
-    app.post("/v1/payments", async (request, reply) => {
-      const out = HANDLERS.create(request.body as Record<string, unknown>);
-      return reply.code(out.status).send(out.body);
-    });
-    app.get("/v1/payments/:id", async (request, reply) => {
-      const out = HANDLERS.read(request.headers["if-none-match"] as string | undefined);
-      reply.header("etag", out.etag).code(out.status);
-      return out.status === 304 ? reply.send() : reply.send(out.body);
-    });
-    app.get("/v1/export", async (_request, reply) =>
-      reply.type("text/csv").send(HANDLERS.csv()),
-    );
-    await app.ready();
-    return listen(server as Server);
-  },
+  "fastify 5": (runtime) => fastifyWith(Fastify, runtime),
+  "fastify 4": (runtime) => fastifyWith(Fastify4 as unknown as typeof Fastify, runtime),
 };
 
 for (const [name, build] of Object.entries(FRAMEWORKS)) {
