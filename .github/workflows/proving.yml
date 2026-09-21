@@ -160,6 +160,40 @@ jobs:
           FUZZ_RUNS: "200000"
         run: pnpm exec vitest run proving/fuzz --testTimeout=3000000
 
+  replay-mine:
+    name: replay miner (rig E)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Reads pull request metadata through the API and commits only the index.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Find where humans migrated code across an SDK's major release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node --import tsx proving/replay/mine.mts --months 36 --limit 150
+
+      - name: Record the index
+        if: github.event_name == 'schedule'
+        run: |
+          git config user.name "invariant-proving"
+          git config user.email "proving@users.noreply.github.com"
+          git add proving/replay/index.json
+          git diff --cached --quiet || git commit -m "Record newly mined replay cases"
+          git pull --rebase
+          git push
+
   report:
     needs: corpus
     runs-on: ubuntu-latest

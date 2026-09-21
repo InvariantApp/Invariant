@@ -1,0 +1,342 @@
+/**
+ * Rig E, the miner: where humans migrated real code across an SDK's breaking
+ * release.
+ *
+ * A bot opens a pull request that bumps an SDK's major version; when the
+ * bump breaks the build, a human pushes the call-site fixes onto the same
+ * pull request. Those fixes are the ground truth the migration engine is
+ * replayed against. GitHub's code search sees only the default branch, so
+ * the history is found through the pull requests instead: merged Dependabot
+ * and Renovate bumps whose files include source code as well as manifests.
+ *
+ * Only an index is kept: the repository, the commits on either side, the
+ * package and versions, the licence and the source files touched. Nobody's
+ * code is copied here, and a repository without a permissive licence is left
+ * out.
+ *
+ * Usage:
+ *   GITHUB_TOKEN=... node --import tsx proving/replay/mine.mts [--months 24] [--limit 200]
+ *     [--package stripe]
+ */
+import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
+import { ROOT } from "../corpus/manifest.mts";
+
+export type Ecosystem = "npm" | "pypi" | "go";
+
+interface Target {
+  /** The name the bump titles use. */
+  package: string;
+  ecosystems: Ecosystem[];
+  /** Search phrases; each is searched as an exact title phrase. */
+  titles: string[];
+}
+
+/** SDKs of the APIs the corpus measures, in the languages the engine supports. */
+const TARGETS: Target[] = [
+  {
+    package: "stripe",
+    ecosystems: ["npm", "pypi"],
+    titles: ["Bump stripe from", "update dependency stripe to"],
+  },
+  {
+    package: "github.com/stripe/stripe-go",
+    ecosystems: ["go"],
+    titles: [
+      "Bump github.com/stripe/stripe-go",
+      "update module github.com/stripe/stripe-go",
+    ],
+  },
+  {
+    package: "twilio",
+    ecosystems: ["npm", "pypi"],
+    titles: ["Bump twilio from", "update dependency twilio to"],
+  },
+  {
+    package: "plaid",
+    ecosystems: ["npm"],
+    titles: ["Bump plaid from", "update dependency plaid to"],
+  },
+  {
+    package: "plaid-python",
+    ecosystems: ["pypi"],
+    titles: ["Bump plaid-python from", "update dependency plaid-python to"],
+  },
+  {
+    package: "@octokit/rest",
+    ecosystems: ["npm"],
+    titles: ["Bump @octokit/rest from", "update dependency @octokit/rest to"],
+  },
+  {
+    package: "github.com/google/go-github",
+    ecosystems: ["go"],
+    titles: [
+      "Bump github.com/google/go-github",
+      "update module github.com/google/go-github",
+    ],
+  },
+  {
+    package: "@shopify/shopify-api",
+    ecosystems: ["npm"],
+    titles: [
+      "Bump @shopify/shopify-api from",
+      "update dependency @shopify/shopify-api to",
+    ],
+  },
+];
+
+/** Licences under which a repository's history may be indexed and replayed. */
+const PERMISSIVE = new Set([
+  "MIT",
+  "Apache-2.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "0BSD",
+  "Unlicense",
+  "MPL-2.0",
+]);
+
+const MANIFESTS: Record<Ecosystem, RegExp> = {
+  npm: /(^|\/)(package\.json|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|npm-shrinkwrap\.json)$/,
+  pypi: /(^|\/)(requirements[^/]*\.txt|pyproject\.toml|poetry\.lock|Pipfile(\.lock)?|setup\.(py|cfg)|uv\.lock)$/,
+  go: /(^|\/)(go\.mod|go\.sum)$/,
+};
+
+const SOURCES: Record<Ecosystem, RegExp> = {
+  npm: /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/,
+  pypi: /\.py$/,
+  go: /\.go$/,
+};
+
+export interface ReplayCase {
+  id: string;
+  repo: string;
+  pr: number;
+  /** The commit the bump was made on: what the engine migrates. */
+  base: string;
+  /** The pull request's last commit: what the humans made of it. */
+  head: string;
+  package: string;
+  ecosystem: Ecosystem;
+  from: string;
+  to: string;
+  license: string;
+  mergedAt: string;
+  /** Source files the humans changed. */
+  files: string[];
+}
+
+export interface ReplayIndex {
+  about: string;
+  cases: ReplayCase[];
+}
+
+const INDEX = join(ROOT, "proving/replay/index.json");
+
+/** The versions a bump title names, if it names them. */
+export function parseBump(
+  title: string,
+  target: Pick<Target, "package">,
+): { from: string; to: string } | undefined {
+  const escaped = target.package.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+  const dependabot = new RegExp(
+    `[Bb]ump ${escaped}(?:/v\\d+)? from v?([\\w.+-]+) to v?([\\w.+-]+)`,
+  ).exec(title);
+  if (dependabot) return { from: dependabot[1] as string, to: dependabot[2] as string };
+  // Renovate names only the target: "Update dependency stripe to v14".
+  const renovate = new RegExp(
+    `[Uu]pdate (?:dependency|module) ${escaped}(?:/v(\\d+))? to v?([\\w.+-]+)`,
+  ).exec(title);
+  if (renovate) return { from: "", to: renovate[2] as string };
+  return undefined;
+}
+
+/** Whether a bump crosses a major version, where breaking changes live. */
+export function isMajor(from: string, to: string): boolean {
+  const major = (version: string) => {
+    const [first, second] = version.split(".");
+    // Before 1.0 the minor version is the breaking one.
+    return first === "0" ? `0.${second ?? ""}` : (first ?? "");
+  };
+  // Renovate does not say where it came from; the target alone is kept, and
+  // the base commit's manifest says the rest when the case is replayed.
+  if (from === "") return /^v?\d+(\.0)*$/.test(to) || to.endsWith(".0.0");
+  return major(from) !== major(to);
+}
+
+export function classify(
+  files: readonly string[],
+  ecosystems: readonly Ecosystem[],
+): { ecosystem: Ecosystem; sources: string[] } | undefined {
+  for (const ecosystem of ecosystems) {
+    if (!files.some((file) => MANIFESTS[ecosystem].test(file))) continue;
+    const sources = files.filter(
+      (file) =>
+        SOURCES[ecosystem].test(file) && !/(^|\/)(vendor|node_modules|dist)\//.test(file),
+    );
+    return { ecosystem, sources };
+  }
+  return undefined;
+}
+
+const TOKEN = process.env["GITHUB_TOKEN"] ?? "";
+
+async function github<T>(path: string, attempt = 0): Promise<T> {
+  const response = await fetch(`https://api.github.com${path}`, {
+    headers: {
+      accept: "application/vnd.github+json",
+      "user-agent": "invariant-proving",
+      ...(TOKEN ? { authorization: `Bearer ${TOKEN}` } : {}),
+    },
+  });
+  if ((response.status === 403 || response.status === 429) && attempt < 5) {
+    // Rate limited, most often the search API's thirty a minute.
+    const reset = Number(response.headers.get("x-ratelimit-reset") ?? 0) * 1000;
+    const retryAfter = Number(response.headers.get("retry-after") ?? 0) * 1000;
+    await sleep(Math.min(Math.max(reset - Date.now(), retryAfter, 5_000), 120_000));
+    return github(path, attempt + 1);
+  }
+  if (response.status >= 500 && attempt < 3) {
+    await sleep(2_000 * (attempt + 1));
+    return github(path, attempt + 1);
+  }
+  if (!response.ok) throw new Error(`${response.status} for ${path}`);
+  return (await response.json()) as T;
+}
+
+interface SearchItem {
+  number: number;
+  title: string;
+  repository_url: string;
+  pull_request?: { merged_at: string | null };
+}
+
+function months(count: number): { from: string; to: string }[] {
+  const windows: { from: string; to: string }[] = [];
+  const now = new Date();
+  for (let back = 0; back < count; back += 1) {
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - back, 1));
+    const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - back + 1, 0));
+    windows.push({
+      from: start.toISOString().slice(0, 10),
+      to: end.toISOString().slice(0, 10),
+    });
+  }
+  return windows;
+}
+
+async function readIndex(): Promise<ReplayIndex> {
+  try {
+    return JSON.parse(await readFile(INDEX, "utf8")) as ReplayIndex;
+  } catch {
+    return {
+      about:
+        "Rig E. Merged pull requests where a bot bumped an SDK across a major version and humans edited source files on the same pull request. Only this index is kept; the code stays in its repositories.",
+      cases: [],
+    };
+  }
+}
+
+async function mine(): Promise<void> {
+  const args = process.argv.slice(2);
+  const option = (name: string) => {
+    const at = args.indexOf(`--${name}`);
+    return at === -1 ? undefined : args[at + 1];
+  };
+  const monthCount = Number(option("months") ?? 24);
+  const limit = Number(option("limit") ?? 200);
+  const only = option("package");
+
+  const index = await readIndex();
+  const known = new Set(index.cases.map((entry) => entry.id));
+  const licences = new Map<string, { license: string; fork: boolean }>();
+  let added = 0;
+
+  for (const target of TARGETS.filter((entry) => !only || entry.package === only)) {
+    for (const window of months(monthCount)) {
+      for (const phrase of target.titles) {
+        if (added >= limit) break;
+        const query = `"${phrase}" in:title is:pr is:merged created:${window.from}..${window.to}`;
+        const found = await github<{ items: SearchItem[] }>(
+          `/search/issues?per_page=100&q=${encodeURIComponent(query)}`,
+        );
+        for (const item of found.items) {
+          if (added >= limit) break;
+          const repo = item.repository_url.replace("https://api.github.com/repos/", "");
+          const id = `${repo}#${item.number}`;
+          if (known.has(id)) continue;
+          const bump = parseBump(item.title, target);
+          if (!bump || !isMajor(bump.from, bump.to)) continue;
+
+          let owner = licences.get(repo);
+          if (!owner) {
+            const meta = await github<{
+              license: { spdx_id: string } | null;
+              fork: boolean;
+            }>(`/repos/${repo}`).catch(() => undefined);
+            owner = {
+              license: meta?.license?.spdx_id ?? "NOASSERTION",
+              fork: meta?.fork ?? true,
+            };
+            licences.set(repo, owner);
+          }
+          if (owner.fork || !PERMISSIVE.has(owner.license)) continue;
+
+          const files = await github<{ filename: string }[]>(
+            `/repos/${repo}/pulls/${item.number}/files?per_page=100`,
+          ).catch(() => []);
+          const kind = classify(
+            files.map((file) => file.filename),
+            target.ecosystems,
+          );
+          if (!kind || kind.sources.length === 0 || kind.sources.length > 50) continue;
+
+          const pull = await github<{
+            base: { sha: string };
+            head: { sha: string };
+            merged_at: string | null;
+          }>(`/repos/${repo}/pulls/${item.number}`).catch(() => undefined);
+          if (!pull?.merged_at) continue;
+
+          index.cases.push({
+            id,
+            repo,
+            pr: item.number,
+            base: pull.base.sha,
+            head: pull.head.sha,
+            package: target.package,
+            ecosystem: kind.ecosystem,
+            from: bump.from,
+            to: bump.to,
+            license: owner.license,
+            mergedAt: pull.merged_at,
+            files: kind.sources,
+          });
+          known.add(id);
+          added += 1;
+          process.stdout.write(
+            `${id} ${target.package} ${bump.from} -> ${bump.to} (${kind.sources.length} files)\n`,
+          );
+        }
+        // The search API allows thirty requests a minute.
+        await sleep(2_100);
+      }
+    }
+  }
+
+  index.cases.sort((a, b) => a.id.localeCompare(b.id));
+  await writeFile(INDEX, `${JSON.stringify(index, null, 2)}\n`, "utf8");
+  const byEcosystem = new Map<string, number>();
+  for (const entry of index.cases) {
+    byEcosystem.set(entry.ecosystem, (byEcosystem.get(entry.ecosystem) ?? 0) + 1);
+  }
+  process.stdout.write(
+    `\n${added} cases added; ${index.cases.length} in the index (${[...byEcosystem]
+      .map(([name, count]) => `${name} ${count}`)
+      .join(", ")})\n`,
+  );
+}
+
+if (process.argv[1]?.endsWith("mine.mts")) await mine();

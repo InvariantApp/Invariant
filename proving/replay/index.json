@@ -1,0 +1,66 @@
+{
+  "about": "Rig E. Merged pull requests where a bot bumped an SDK across a major version and humans edited source files on the same pull request. Only this index is kept; the code stays in its repositories.",
+  "cases": [
+    {
+      "id": "appstrate/appstrate#1301",
+      "repo": "appstrate/appstrate",
+      "pr": 1301,
+      "base": "091caac12b041cadd09f2e7114e1c855ac77bbcd",
+      "head": "3bc79734ae97839cae6c88dfbae26c2dfa0394b1",
+      "package": "stripe",
+      "ecosystem": "npm",
+      "from": "18.5.0",
+      "to": "22.6.1",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-09-09T10:28:09Z",
+      "files": ["packages/module-ee/src/stripe/client.ts"]
+    },
+    {
+      "id": "CleanExpo/NodeJS-Starter-V1#60",
+      "repo": "CleanExpo/NodeJS-Starter-V1",
+      "pr": 60,
+      "base": "5fa984515f07d8a704b0b9b53a0fd0f2d0b7b793",
+      "head": "be73ee4be8e825f07aa93c42268daf21441c057d",
+      "package": "stripe",
+      "ecosystem": "npm",
+      "from": "20.4.1",
+      "to": "22.3.1",
+      "license": "MIT",
+      "mergedAt": "2026-07-16T01:58:16Z",
+      "files": ["apps/web/lib/api/stripe.ts"]
+    },
+    {
+      "id": "KeepSoftwareSimple/compass-calendar#3603",
+      "repo": "KeepSoftwareSimple/compass-calendar",
+      "pr": 3603,
+      "base": "8febf9eb7507d070c2b8844afde590dee6335a04",
+      "head": "5374a419e24b4e3faa5ce35369d902b1686dd871",
+      "package": "stripe",
+      "ecosystem": "npm",
+      "from": "18.5.0",
+      "to": "22.6.1",
+      "license": "MIT",
+      "mergedAt": "2026-09-11T15:07:23Z",
+      "files": [
+        "packages/backend/src/billing/billing.constants.ts",
+        "packages/backend/src/billing/services/billing.webhook.service.ts",
+        "packages/backend/src/billing/services/stripe.client.ts",
+        "packages/backend/src/billing/services/stripe.service.ts"
+      ]
+    },
+    {
+      "id": "vineethkrishnan/mcp-pool#42",
+      "repo": "vineethkrishnan/mcp-pool",
+      "pr": 42,
+      "base": "b3b6d43d57654e543d7d0a46cf3aa9cfa06912e4",
+      "head": "914051b5ce78393ce35f62d6b4d88d9f2fc3dbe5",
+      "package": "stripe",
+      "ecosystem": "npm",
+      "from": "21.0.1",
+      "to": "22.3.0",
+      "license": "MIT",
+      "mergedAt": "2026-07-27T03:50:23Z",
+      "files": ["packages/stripe/src/services/stripe.service.ts"]
+    }
+  ]
+}

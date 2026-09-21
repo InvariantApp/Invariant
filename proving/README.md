@@ -90,3 +90,21 @@ A counterexample is fixed where it broke and kept there as a regression test.
 The first deep run found three: a number a double cannot hold was forwarded
 as `null`, a cast of a value it could not express threw an untyped error, and
 a number kept with its original digits was treated as an object.
+
+## Rig E: migration replay
+
+`replay/index.json` lists merged pull requests where a bot bumped an SDK
+across a major version and humans edited source files on the same pull
+request: the call-site fixes the migration engine is replayed against. It
+holds the repository, both commits, the package, versions, licence and the
+files touched, and never the code. Only permissively licensed repositories
+that are not forks are indexed.
+
+```console
+GITHUB_TOKEN=... node --import tsx proving/replay/mine.mts --months 36 --limit 150
+GITHUB_TOKEN=... node --import tsx proving/replay/mine.mts --package github.com/google/go-github
+```
+
+The nightly run adds up to 150 cases. Replaying them, and scoring the
+engine's edits against the humans', follows once the engine reads code it did
+not write (M6).
