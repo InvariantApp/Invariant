@@ -22,21 +22,15 @@
 import {
   type AdaptedRequest,
   CONTRACT_HINT_HEADER,
-  CONTRACT_RESPONSE_HEADER,
   DEFAULT_ERROR_SHAPER,
   type DecodedSite,
   ERROR_CODES,
   type ErrorShaper,
-  FOLDED_HEADER,
   GONE_STATUSES,
   goneWith,
-  headersForText,
   type InvariantRuntime,
-  isJsonMediaType,
   RetiredEndpointError,
-  readBodyText,
   requestFailure,
-  responseFailure,
   type ShapedError,
   UnsupportedContractError,
 } from "@invariant/runtime";
@@ -84,9 +78,6 @@ export function createProxy(options: ProxyOptions): FetchHandler {
   const runtime = options.runtime;
   const upstream = new URL(options.upstream);
   const send = options.fetch ?? fetch;
-  // One limit for both directions: the runtime's, which it also enforces on
-  // every request it adapts.
-  const maxBody = runtime.maxBodyBytes;
   const timeoutMs = options.upstreamTimeoutMs ?? DEFAULT_TIMEOUT_MS;
   const healthPath = options.healthPath ?? DEFAULT_HEALTH_PATH;
   const errors = options.errors ?? DEFAULT_ERROR_SHAPER;
@@ -160,7 +151,9 @@ export function createProxy(options: ProxyOptions): FetchHandler {
     let adapted: AdaptedRequest = {
       path: decision.path,
       search: url.search,
-      headers,
+      // Tags this runtime marked for the caller's contract are unmarked, so
+      // the provider can answer a conditional request from its own tags.
+      headers: runtime.conditionalHeaders(headers, contract, site),
       body: request.body,
     };
     if (site) {
@@ -263,40 +256,15 @@ export function createProxy(options: ProxyOptions): FetchHandler {
     out.delete("content-encoding");
     out.delete("content-length");
 
-    const current = runtime.currentLabel;
-    if (adapted && adapted.contract !== current) {
-      out.set(CONTRACT_RESPONSE_HEADER, adapted.contract);
-    }
-
-    const site = adapted?.site;
-    if (
-      !site ||
-      !answer.body ||
-      !runtime.respondsTo(site, answer.status) ||
-      !isJsonMediaType(answer.headers.get("content-type"))
-    ) {
-      // Nothing to rewrite, or nothing this proxy can safely read: an upstream
-      // error page in HTML is passed through as it is rather than mangled.
+    if (!adapted)
       return new Response(answer.body, { status: answer.status, headers: out });
-    }
-
-    try {
-      // `fetch` has already decoded the body, so it is read as it stands.
-      const original = await readBodyText(answer, { limit: maxBody, encoded: false });
-      const transformed = runtime.transformResponseDetailed(
-        site,
-        answer.status,
-        original.text,
-        adapted.context,
-      );
-      const rebuilt = headersForText(out, transformed.body, false);
-      if (transformed.folded.length > 0) {
-        rebuilt.set(FOLDED_HEADER, transformed.folded.join(", "));
-      }
-      return new Response(transformed.body, { status: answer.status, headers: rebuilt });
-    } catch (error) {
-      return failResponse(errors, error);
-    }
+    // `fetch` has already decoded the body, so it is read as it stands.
+    return runtime.adaptResponse(
+      adapted.site,
+      new Response(answer.body, { status: answer.status, headers: out }),
+      adapted.context,
+      { encoded: false, method: request.method, errors },
+    );
   }
 }
 
@@ -353,12 +321,6 @@ function shapedResponse(shaped: ShapedError): Response {
 
 function failRequest(errors: ErrorShaper, error: unknown): Response {
   const shaped = requestFailure(errors, error);
-  if (!shaped) throw error;
-  return shapedResponse(shaped);
-}
-
-function failResponse(errors: ErrorShaper, error: unknown): Response {
-  const shaped = responseFailure(errors, error);
   if (!shaped) throw error;
   return shapedResponse(shaped);
 }

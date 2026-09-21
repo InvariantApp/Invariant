@@ -9,20 +9,14 @@
  */
 import {
   CONTRACT_HINT_HEADER,
-  CONTRACT_RESPONSE_HEADER,
   DEFAULT_ERROR_SHAPER,
   ERROR_CODES,
   type ErrorShaper,
-  FOLDED_HEADER,
   GONE_STATUSES,
   goneWith,
-  headersForText,
   InvariantRuntime,
-  isJsonMediaType,
   RetiredEndpointError,
-  readBodyText,
   requestFailure,
-  responseFailure,
   UnsupportedContractError,
 } from "@invariant/runtime";
 import type { Context, MiddlewareHandler, Next } from "hono";
@@ -224,17 +218,25 @@ export function adapt(options: HonoBindingOptions): MiddlewareHandler {
     // whether or not this operation has any compiled work of its own.
     c.set(CONTRACT_KEY, contract);
 
-    if (!site) {
-      await next();
-      answerRetired(c, runtime, errors, contract);
-      if (contract !== runtime.currentLabel) {
-        c.res.headers.set(CONTRACT_RESPONSE_HEADER, contract);
-      }
-      return undefined;
-    }
-
     const operation = `${c.req.method.toLowerCase()} ${c.req.path}`;
     const consumer = consumerId?.(c);
+
+    if (!site) {
+      await next();
+      if (answerRetired(c, runtime, errors, contract)) return undefined;
+      // Nothing to rewrite, but the answer still names its contract and
+      // varies on the header that chose it.
+      replaceResponse(
+        c,
+        await runtime.adaptResponse(
+          undefined,
+          c.res,
+          { contract, operation, consumer },
+          { encoded: true, method: c.req.method, errors },
+        ),
+      );
+      return undefined;
+    }
 
     // Only a JSON body is something the program describes. Anything else, a
     // form, an upload, is passed on as it came, and the provider's own handler
@@ -265,50 +267,28 @@ export function adapt(options: HonoBindingOptions): MiddlewareHandler {
       }
     }
 
+    // Tags this runtime marked for the caller's contract are unmarked, so the
+    // handler can answer a conditional request from its own tags.
+    const conditional = runtime.conditionalHeaders(c.req.raw.headers, contract, site);
+    if (conditional !== c.req.raw.headers) {
+      c.req.raw = new Request(c.req.raw, {
+        headers: conditional,
+        duplex: "half",
+      } as RequestInit);
+    }
+
     await next();
     if (answerRetired(c, runtime, errors, contract)) return undefined;
 
-    const answer = c.res;
-    if (
-      !answer.body ||
-      !runtime.respondsTo(site, answer.status) ||
-      !isJsonMediaType(answer.headers.get("content-type"))
-    ) {
-      // Nothing to rewrite, or nothing a program describes: an HTML error page
-      // or an event stream is passed through as it is, never buffered, rather
-      // than mangled.
-      answer.headers.set(CONTRACT_RESPONSE_HEADER, contract);
-      return undefined;
-    }
-
-    try {
-      const original = await readBodyText(answer.clone(), {
-        limit: runtime.maxBodyBytes,
-        encoded: true,
-      });
-      const transformed = runtime.transformResponseDetailed(
+    replaceResponse(
+      c,
+      await runtime.adaptResponse(
         site,
-        answer.status,
-        original.text,
+        c.res,
         { contract, operation, consumer },
-      );
-      const headers = headersForText(answer.headers, transformed.body, original.decoded);
-      headers.set(CONTRACT_RESPONSE_HEADER, contract);
-      if (transformed.folded.length > 0) {
-        // Only when a fold fired. The caller was shown a value their contract
-        // names in place of one it does not, and this is how they can know.
-        headers.set(FOLDED_HEADER, transformed.folded.join(", "));
-      }
-      replaceResponse(
-        c,
-        new Response(transformed.body, { status: answer.status, headers }),
-      );
-    } catch (error) {
-      // Assigned, not returned: once the handler has run, Hono ignores a
-      // Response handed back from middleware, and returning it here used to
-      // send the untranslated body to the caller with the handler's status.
-      replaceResponse(c, failResponse(errors, error, contract));
-    }
+        { encoded: true, method: request.method, errors },
+      ),
+    );
 
     return undefined;
   };
@@ -356,16 +336,4 @@ function failRequest(c: Context, errors: ErrorShaper, error: unknown): Response 
   const shaped = requestFailure(errors, error);
   if (!shaped) throw error;
   return c.json(shaped.body as never, shaped.status as never);
-}
-
-function failResponse(errors: ErrorShaper, error: unknown, contract: string): Response {
-  const shaped = responseFailure(errors, error);
-  if (!shaped) throw error;
-  return new Response(JSON.stringify(shaped.body), {
-    status: shaped.status,
-    headers: {
-      "content-type": "application/json",
-      [CONTRACT_RESPONSE_HEADER]: contract,
-    },
-  });
 }

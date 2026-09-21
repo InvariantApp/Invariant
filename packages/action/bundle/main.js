@@ -13013,7 +13013,7 @@ function resolveAt(document, schema, depth) {
 	const branches = target["allOf"];
 	if (!Array.isArray(branches)) return target;
 	const { allOf: _, ...siblings } = target;
-	const parts = [...branches.map((branch) => resolveAt(document, branch, depth + 1)), siblings].filter(isJsonObject);
+	const parts = [siblings, ...branches.map((branch) => resolveAt(document, branch, depth + 1))].filter(isJsonObject);
 	const merged = parts.reduce((result, part) => mergeSchemas(document, result, part, depth), {});
 	if (parts.every((part) => part["nullable"] === true)) merged["nullable"] = true;
 	else delete merged["nullable"];
@@ -14443,6 +14443,40 @@ function numberToDecimalText(value) {
 	if (text.includes("e") || text.includes("E")) throw new DecimalError(`Exponential notation is not supported: ${text}`);
 	return text;
 }
+//#endregion
+//#region ../runtime/src/errors.ts
+/**
+* How a refusal is reported to a caller, in the provider's own error shape.
+*
+* Shared by every binding, because the rules for what a caller is told are
+* part of the product rather than part of any one framework. When they lived
+* in the Hono binding alone, a second binding would have needed its own copy,
+* and two copies of "what does a caller hear when their contract is retired"
+* is how the two drift until one of them answers 500.
+*/
+const shaped = (type, status) => (message, code) => ({
+	body: { error: {
+		type,
+		message,
+		code
+	} },
+	status
+});
+const DEFAULT_ERROR_SHAPER = {
+	badRequest: shaped("invalid_request_error", 400),
+	serverError: shaped("api_error", 502),
+	gone: shaped("invalid_request_error", 410)
+};
+/** Codes a caller or an operator can search for. Stable once published. */
+const ERROR_CODES = {
+	contractUnsupported: "invariant_contract_unsupported",
+	endpointRetired: "invariant_endpoint_retired",
+	bodyTooLarge: "invariant_body_too_large",
+	requestNotTranslatable: "invariant_request_not_translatable",
+	responseNotTranslatable: "invariant_response_not_translatable",
+	upstreamUnavailable: "invariant_upstream_unavailable",
+	encodingUnsupported: "invariant_encoding_unsupported"
+};
 var BodyTooLargeError = class extends Error {
 	constructor(limit) {
 		super(`Request body exceeds the ${limit} byte limit for a transformed operation`);
@@ -14475,6 +14509,16 @@ var UnsupportedEncodingError = class extends Error {
 		this.encoding = encoding;
 	}
 };
+/**
+* What a caller is told when the answer could not be translated back.
+*
+* The operation already ran. What must not happen now is handing back a body
+* shaped for a contract the caller does not speak, and that includes a body
+* the provider sent that was not valid JSON at all.
+*/
+function responseFailure(errors, error) {
+	if (error instanceof TransformError || error instanceof BodyTooLargeError || error instanceof UnsupportedEncodingError || error instanceof SyntaxError) return errors.serverError("The response could not be expressed in the contract this integration uses.", ERROR_CODES.responseNotTranslatable);
+}
 //#endregion
 //#region ../runtime/src/json.ts
 /**
@@ -16000,6 +16044,73 @@ function headersForText(source, text, decoded) {
 	headers.set("content-length", String(new TextEncoder().encode(text).byteLength));
 	return headers;
 }
+/**
+* What separates a handler's entity tag from the contract it was adapted for.
+* Legal inside an entity tag, and not in a contract label.
+*/
+const ETAG_MARK = "~";
+/**
+* The entity tag a response adapted for `contract` carries: the handler's,
+* marked with the contract, or nothing when the handler's cannot be read.
+*
+* The handler's tag names the bytes it produced, and an old caller is sent
+* other bytes. Passed on unchanged, a cache holding one contract's shape would
+* revalidate it for another's, and a client sending `If-Match` would be told
+* its copy is current when it is not.
+*/
+function markEtag(etag, contract) {
+	const match = /^(W\/)?"([^"]*)"$/.exec(etag.trim());
+	if (!match) return void 0;
+	return `${match[1] ?? ""}"${match[2]}${ETAG_MARK}${contract}"`;
+}
+/** An entity tag no handler issued, so a precondition naming it cannot hold. */
+const NO_MATCH = "\"~\"";
+/**
+* Conditional request headers as the handler should compare them, for a
+* caller on `contract`: each tag marked for that contract has its mark taken
+* off, so the handler compares against its own tags and can still answer
+* `304`. A tag without that mark names the bytes of another contract, never
+* the ones this caller holds, so it must not match: it is dropped from
+* `If-None-Match`, which then asks for the whole answer, and replaced in
+* `If-Match` by one no handler issued, so the write is refused rather than
+* made against a copy the caller never saw. `*` is kept. The headers
+* themselves when nothing changed.
+*/
+function unmarkConditionals(headers, contract) {
+	const suffix = `${ETAG_MARK}${contract}"`;
+	let out;
+	for (const name of ["if-none-match", "if-match"]) {
+		const value = headers.get(name);
+		if (value === null) continue;
+		const kept = value.split(",").map((tag) => tag.trim()).filter(Boolean).flatMap((tag) => {
+			if (tag === "*") return [tag];
+			if (tag.endsWith(suffix)) return [`${tag.slice(0, -suffix.length)}"`];
+			return name === "if-match" ? [NO_MATCH] : [];
+		});
+		const next = [...new Set(kept)].join(", ");
+		if (next === value) continue;
+		out ??= new Headers(headers);
+		if (next === "") out.delete(name);
+		else out.set(name, next);
+	}
+	return out ?? headers;
+}
+/**
+* Adds header names to `Vary`, once each.
+*
+* A response shaped by which contract the caller named is a different
+* representation for each value of that header, and a shared cache that does
+* not know it would hand one contract's shape to another's callers.
+*/
+function appendVary(headers, names) {
+	if (names.length === 0) return;
+	const current = headers.get("vary");
+	if (current?.trim() === "*") return;
+	const held = new Set((current ?? "").split(",").map((name) => name.trim().toLowerCase()).filter(Boolean));
+	const missing = names.filter((name) => !held.has(name.toLowerCase()));
+	if (missing.length === 0) return;
+	headers.set("vary", [...current ? [current] : [], ...missing].join(", "));
+}
 //#endregion
 //#region ../runtime/src/version.ts
 const VERSION = "0.1.0";
@@ -16943,8 +17054,17 @@ function readParameters(codecs, template, request) {
 function pathsOfInstr(instr) {
 	return touchedPaths(instr);
 }
+/**
+* The response header naming folded fields.
+*
+* Present only when a fold fired, so its absence is a guarantee rather than an
+* omission: a caller who sees no header was shown values their contract names
+* because those were the values the API produced.
+*/
+const FOLDED_HEADER = "invariant-folded";
 /** Header stage one uses to tell stage two what it concluded. */
 const CONTRACT_HINT_HEADER = "x-invariant-contract-hint";
+const CONTRACT_RESPONSE_HEADER = "invariant-contract";
 const INTERNAL_PREFIX = "x-invariant-";
 /**
 * Every Change a list of instructions can run, through the blocks it nests
@@ -17267,7 +17387,7 @@ var InvariantRuntime = class {
 	*/
 	siteFor(label, method, path, context) {
 		try {
-			return this.#siteFor(label, method, path);
+			return this.#siteFor(label, method.toUpperCase() === "HEAD" ? "get" : method, path);
 		} catch (error) {
 			if (error instanceof UnsupportedContractError) this.#onOutcome?.({
 				contract: label,
@@ -17384,6 +17504,88 @@ var InvariantRuntime = class {
 	get rewritesPathParameters() {
 		for (const contract of this.#program.contracts.values()) for (const site of contract.sites.values()) if (site.envelope?.instrs.some((instr) => pathsOfInstr(instr)[0]?.[0] === "@path")) return true;
 		return false;
+	}
+	/**
+	* The request headers a caller sent, as the handler should compare them,
+	* on a site whose answers are adapted for an older contract: tags this
+	* runtime marked for the caller's contract are unmarked, so a conditional
+	* request can still be answered `304`, and tags it did not mark, which name
+	* another contract's bytes, are made unable to match.
+	*/
+	conditionalHeaders(headers, contract, site) {
+		return contract === this.currentLabel || !site ? headers : unmarkConditionals(headers, contract);
+	}
+	/** The request headers that choose a contract, which every response varies on. */
+	get varyOn() {
+		return this.#identity.flatMap((strategy) => strategy.kind === "header" ? [strategy.name] : []);
+	}
+	/**
+	* The handler's response as the caller's contract describes it: the one
+	* place every binding adapts a response, so they cannot disagree about it.
+	*
+	* Every response varies on the header that chose its contract, current
+	* callers' included, since a cache keyed on the URL alone would hand one
+	* contract's shape to another's callers, and one served under an older
+	* contract names it. A body is
+	* read only where the site has work for its status and it is JSON;
+	* anything else passes through as a stream. An adapted body's entity tag
+	* is marked with the contract, and so is a `304`'s or a `HEAD`'s for a
+	* site whose bodies are adapted, whose length is dropped because it
+	* describes bytes the caller is never sent. A body that cannot be
+	* expressed becomes the provider's error, never the untranslated body.
+	*/
+	async adaptResponse(site, response, context, options) {
+		const headers = new Headers(response.headers);
+		const adapted = context.contract !== this.currentLabel;
+		if (adapted) headers.set(CONTRACT_RESPONSE_HEADER, context.contract);
+		appendVary(headers, this.varyOn);
+		const mark = (into) => {
+			const etag = into.get("etag");
+			if (etag === null) return;
+			const marked = markEtag(etag, context.contract);
+			if (marked === void 0) into.delete("etag");
+			else into.set("etag", marked);
+		};
+		const head = options.method?.toUpperCase() === "HEAD";
+		const stands = response.status === 304 ? 200 : response.status;
+		if (adapted && site && (head || response.status === 304) && this.respondsTo(site, stands)) {
+			mark(headers);
+			if (head) headers.delete("content-length");
+			return new Response(null, {
+				status: response.status,
+				headers
+			});
+		}
+		if (!site || !response.body || !this.respondsTo(site, response.status) || !isJsonMediaType(response.headers.get("content-type"))) return new Response(response.body, {
+			status: response.status,
+			headers
+		});
+		try {
+			const original = await readBodyText(response, {
+				limit: this.#maxBodyBytes,
+				encoded: options.encoded
+			});
+			const transformed = this.transformResponseDetailed(site, response.status, original.text, context);
+			const rebuilt = headersForText(headers, transformed.body, original.decoded);
+			if (transformed.body !== original.text) mark(rebuilt);
+			if (transformed.folded.length > 0) rebuilt.set(FOLDED_HEADER, transformed.folded.join(", "));
+			return new Response(transformed.body, {
+				status: response.status,
+				headers: rebuilt
+			});
+		} catch (error) {
+			const shaped = responseFailure(options.errors ?? DEFAULT_ERROR_SHAPER, error);
+			if (!shaped) throw error;
+			const failed = new Headers({
+				"content-type": "application/json",
+				[CONTRACT_RESPONSE_HEADER]: context.contract
+			});
+			appendVary(failed, this.varyOn);
+			return new Response(JSON.stringify(shaped.body), {
+				status: shaped.status,
+				headers: failed
+			});
+		}
 	}
 	/**
 	* An incoming request as the provider's handler should see it: the one
@@ -20730,15 +20932,8 @@ function expand(document, slot, depth) {
 	const statement = statementOf(document, slot.raw() ?? null);
 	if (!statement || !Array.isArray(statement["allOf"]) || depth > MAX_DEPTH$1) return [slot];
 	const own = () => editable(document, slot);
-	return [...statement["allOf"].flatMap((_, index) => expand(document, {
-		raw: () => {
-			const current = statementOf(document, slot.raw() ?? null)?.["allOf"];
-			return Array.isArray(current) ? current[index] : void 0;
-		},
-		write: (next) => {
-			own()["allOf"][index] = next;
-		}
-	}, depth + 1)), {
+	const branches = statement["allOf"];
+	return [{
 		raw: () => {
 			const { allOf: _, ...siblings } = statementOf(document, slot.raw() ?? null) ?? {};
 			return siblings;
@@ -20747,14 +20942,24 @@ function expand(document, slot, depth) {
 			const target = own();
 			for (const key of Object.keys(target)) if (key !== "allOf") delete target[key];
 			Object.assign(target, next);
+		},
+		live: own
+	}, ...branches.flatMap((_, index) => expand(document, {
+		raw: () => {
+			const current = statementOf(document, slot.raw() ?? null)?.["allOf"];
+			return Array.isArray(current) ? current[index] : void 0;
+		},
+		write: (next) => {
+			own()["allOf"][index] = next;
 		}
-	}];
+	}, depth + 1))];
 }
 /**
 * The schema a slot holds, made safe to change: a `$ref` is replaced by a
 * copy of what it refers to, so the schema it names is untouched elsewhere.
 */
 function editable(document, slot) {
+	if (slot.live) return slot.live();
 	const raw = slot.raw();
 	if (isJsonObject(raw) && typeof raw["$ref"] !== "string") return raw;
 	const copy = structuredClone(statementOf(document, raw ?? null) ?? {});

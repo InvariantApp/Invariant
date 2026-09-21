@@ -13,9 +13,21 @@
  */
 
 import { closeEnvelope, type EnvelopeRequest, openEnvelope } from "./envelope.ts";
-import { BodyTooLargeError } from "./errors.ts";
+import {
+  BodyTooLargeError,
+  DEFAULT_ERROR_SHAPER,
+  type ErrorShaper,
+  responseFailure,
+} from "./errors.ts";
 import { closeForm, formRoots, isFormMediaType, openForm } from "./form.ts";
-import { headersForText, isJsonMediaType, readBodyText } from "./http.ts";
+import {
+  appendVary,
+  headersForText,
+  isJsonMediaType,
+  markEtag,
+  readBodyText,
+  unmarkConditionals,
+} from "./http.ts";
 import {
   type CompiledInstr,
   DEFAULT_LIMITS,
@@ -647,7 +659,9 @@ export class InvariantRuntime {
     context?: { operation?: string; consumer?: string | undefined },
   ): DecodedSite | undefined {
     try {
-      return this.#siteFor(label, method, path);
+      // A HEAD is answered as its GET would be, headers and all, so it is
+      // served by the GET's program.
+      return this.#siteFor(label, method.toUpperCase() === "HEAD" ? "get" : method, path);
     } catch (error) {
       if (error instanceof UnsupportedContractError) {
         // A caller turned away entirely. Counted, because a kill switch left on
@@ -841,6 +855,130 @@ export class InvariantRuntime {
       }
     }
     return false;
+  }
+
+  /**
+   * The request headers a caller sent, as the handler should compare them,
+   * on a site whose answers are adapted for an older contract: tags this
+   * runtime marked for the caller's contract are unmarked, so a conditional
+   * request can still be answered `304`, and tags it did not mark, which name
+   * another contract's bytes, are made unable to match.
+   */
+  conditionalHeaders(
+    headers: Headers,
+    contract: string,
+    site: DecodedSite | undefined,
+  ): Headers {
+    return contract === this.currentLabel || !site
+      ? headers
+      : unmarkConditionals(headers, contract);
+  }
+
+  /** The request headers that choose a contract, which every response varies on. */
+  get varyOn(): readonly string[] {
+    return this.#identity.flatMap((strategy) =>
+      strategy.kind === "header" ? [strategy.name] : [],
+    );
+  }
+
+  /**
+   * The handler's response as the caller's contract describes it: the one
+   * place every binding adapts a response, so they cannot disagree about it.
+   *
+   * Every response varies on the header that chose its contract, current
+   * callers' included, since a cache keyed on the URL alone would hand one
+   * contract's shape to another's callers, and one served under an older
+   * contract names it. A body is
+   * read only where the site has work for its status and it is JSON;
+   * anything else passes through as a stream. An adapted body's entity tag
+   * is marked with the contract, and so is a `304`'s or a `HEAD`'s for a
+   * site whose bodies are adapted, whose length is dropped because it
+   * describes bytes the caller is never sent. A body that cannot be
+   * expressed becomes the provider's error, never the untranslated body.
+   */
+  async adaptResponse(
+    site: DecodedSite | undefined,
+    response: Response,
+    context: { contract: string; operation: string; consumer?: string | undefined },
+    options: {
+      /** Whether the body bytes are still encoded, as they are in-process. */
+      encoded: boolean;
+      /** The request's method, so a `HEAD` is answered as its `GET` would be. */
+      method?: string;
+      errors?: ErrorShaper;
+    },
+  ): Promise<Response> {
+    const headers = new Headers(response.headers);
+    const adapted = context.contract !== this.currentLabel;
+    // A current caller's answer is left as it was, but for `Vary`: a cache
+    // holding it must not hand it to a caller who named an older contract.
+    if (adapted) headers.set(CONTRACT_RESPONSE_HEADER, context.contract);
+    appendVary(headers, this.varyOn);
+    const mark = (into: Headers) => {
+      const etag = into.get("etag");
+      if (etag === null) return;
+      const marked = markEtag(etag, context.contract);
+      if (marked === undefined) into.delete("etag");
+      else into.set("etag", marked);
+    };
+
+    // A 304 stands for the 200 it revalidates; a HEAD for the GET it mirrors.
+    const head = options.method?.toUpperCase() === "HEAD";
+    const stands = response.status === 304 ? 200 : response.status;
+    if (
+      adapted &&
+      site &&
+      (head || response.status === 304) &&
+      this.respondsTo(site, stands)
+    ) {
+      mark(headers);
+      if (head) headers.delete("content-length");
+      return new Response(null, { status: response.status, headers });
+    }
+    if (
+      !site ||
+      !response.body ||
+      !this.respondsTo(site, response.status) ||
+      !isJsonMediaType(response.headers.get("content-type"))
+    ) {
+      return new Response(response.body, { status: response.status, headers });
+    }
+
+    try {
+      const original = await readBodyText(response, {
+        limit: this.#maxBodyBytes,
+        encoded: options.encoded,
+      });
+      const transformed = this.transformResponseDetailed(
+        site,
+        response.status,
+        original.text,
+        context,
+      );
+      const rebuilt = headersForText(headers, transformed.body, original.decoded);
+      if (transformed.body !== original.text) mark(rebuilt);
+      if (transformed.folded.length > 0) {
+        // Only when a fold fired. The caller was shown a value their contract
+        // names in place of one it does not, and this is how they can know.
+        rebuilt.set(FOLDED_HEADER, transformed.folded.join(", "));
+      }
+      return new Response(transformed.body, {
+        status: response.status,
+        headers: rebuilt,
+      });
+    } catch (error) {
+      const shaped = responseFailure(options.errors ?? DEFAULT_ERROR_SHAPER, error);
+      if (!shaped) throw error;
+      const failed = new Headers({
+        "content-type": "application/json",
+        [CONTRACT_RESPONSE_HEADER]: context.contract,
+      });
+      appendVary(failed, this.varyOn);
+      return new Response(JSON.stringify(shaped.body), {
+        status: shaped.status,
+        headers: failed,
+      });
+    }
   }
 
   /**

@@ -141,3 +141,84 @@ export function headersForText(source: Headers, text: string, decoded: boolean):
   headers.set("content-length", String(new TextEncoder().encode(text).byteLength));
   return headers;
 }
+
+/**
+ * What separates a handler's entity tag from the contract it was adapted for.
+ * Legal inside an entity tag, and not in a contract label.
+ */
+const ETAG_MARK = "~";
+
+/**
+ * The entity tag a response adapted for `contract` carries: the handler's,
+ * marked with the contract, or nothing when the handler's cannot be read.
+ *
+ * The handler's tag names the bytes it produced, and an old caller is sent
+ * other bytes. Passed on unchanged, a cache holding one contract's shape would
+ * revalidate it for another's, and a client sending `If-Match` would be told
+ * its copy is current when it is not.
+ */
+export function markEtag(etag: string, contract: string): string | undefined {
+  const match = /^(W\/)?"([^"]*)"$/.exec(etag.trim());
+  if (!match) return undefined;
+  return `${match[1] ?? ""}"${match[2]}${ETAG_MARK}${contract}"`;
+}
+
+/** An entity tag no handler issued, so a precondition naming it cannot hold. */
+const NO_MATCH = '"~"';
+
+/**
+ * Conditional request headers as the handler should compare them, for a
+ * caller on `contract`: each tag marked for that contract has its mark taken
+ * off, so the handler compares against its own tags and can still answer
+ * `304`. A tag without that mark names the bytes of another contract, never
+ * the ones this caller holds, so it must not match: it is dropped from
+ * `If-None-Match`, which then asks for the whole answer, and replaced in
+ * `If-Match` by one no handler issued, so the write is refused rather than
+ * made against a copy the caller never saw. `*` is kept. The headers
+ * themselves when nothing changed.
+ */
+export function unmarkConditionals(headers: Headers, contract: string): Headers {
+  const suffix = `${ETAG_MARK}${contract}"`;
+  let out: Headers | undefined;
+  for (const name of ["if-none-match", "if-match"]) {
+    const value = headers.get(name);
+    if (value === null) continue;
+    const tags = value
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+    const kept = tags.flatMap((tag) => {
+      if (tag === "*") return [tag];
+      if (tag.endsWith(suffix)) return [`${tag.slice(0, -suffix.length)}"`];
+      return name === "if-match" ? [NO_MATCH] : [];
+    });
+    const next = [...new Set(kept)].join(", ");
+    if (next === value) continue;
+    out ??= new Headers(headers);
+    if (next === "") out.delete(name);
+    else out.set(name, next);
+  }
+  return out ?? headers;
+}
+
+/**
+ * Adds header names to `Vary`, once each.
+ *
+ * A response shaped by which contract the caller named is a different
+ * representation for each value of that header, and a shared cache that does
+ * not know it would hand one contract's shape to another's callers.
+ */
+export function appendVary(headers: Headers, names: readonly string[]): void {
+  if (names.length === 0) return;
+  const current = headers.get("vary");
+  if (current?.trim() === "*") return;
+  const held = new Set(
+    (current ?? "")
+      .split(",")
+      .map((name) => name.trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const missing = names.filter((name) => !held.has(name.toLowerCase()));
+  if (missing.length === 0) return;
+  headers.set("vary", [...(current ? [current] : []), ...missing].join(", "));
+}

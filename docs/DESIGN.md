@@ -2269,6 +2269,29 @@ typed by shape so the package depends on nothing, under the names in 11.3. A
 heartbeat says which program and runtime are running, which is what will tell
 "no traffic" from "never wired". None of it throws into the request path.
 
+### One answer per contract, as a cache sees it
+
+The same URL is answered in a different shape for each contract, and nothing
+told a cache so. No response carried `Vary` on the header that chose the
+contract, so a CDN could keep a current caller's answer and hand it to an old
+one; an adapted body went out under the handler's entity tag, so a
+conditional request could be told a copy was current when its bytes were
+another contract's; a `HEAD` found no program at all, since sites are keyed
+by `GET`, and reported the canonical body's length. The Hono binding and the
+proxy each had their own copy of how a response is adapted, and they
+disagreed about when to name the contract.
+
+`adaptResponse` in the runtime is now the one place both bindings adapt a
+response (M4.2). Every response varies on the identity headers, current
+callers' included, and is otherwise left alone for current callers. An
+adapted body's tag is the handler's marked with the contract, as is a 304's
+or a HEAD's on a site whose bodies are adapted, whose length is dropped. On
+the way in, tags marked for the caller's contract are unmarked so the handler
+can still answer 304, and tags it did not mark, which name another contract's
+bytes, cannot match: dropped from `If-None-Match`, which then asks for the
+whole answer, and replaced in `If-Match` by a tag no handler issued, so a
+write is refused rather than made against a copy the caller never saw.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no
