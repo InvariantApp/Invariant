@@ -97,3 +97,52 @@ describe("the oracle on an OpenAPI 3.0 contract", () => {
     expect(oracle.request(things, { size: 1 })).toEqual([]);
   });
 });
+
+describe("a nullable union in OpenAPI 3.0", () => {
+  it("accepts null, and still judges the branches", () => {
+    // GitHub's installation account.
+    const oracle = new Oracle({
+      openapi: "3.0.3",
+      info: { title: "gh", version: "1" },
+      paths: {
+        "/installation": {
+          get: {
+            responses: {
+              "200": {
+                description: "ok",
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: {
+                        account: {
+                          anyOf: [
+                            {
+                              type: "object",
+                              required: ["login"],
+                              properties: { login: { type: "string" } },
+                            },
+                            {
+                              type: "object",
+                              required: ["slug"],
+                              properties: { slug: { type: "string" } },
+                            },
+                          ],
+                          nullable: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    const op = { method: "get", path: "/installation" };
+    expect(oracle.response(op, 200, { account: null })).toEqual([]);
+    expect(oracle.response(op, 200, { account: { slug: "acme" } })).toEqual([]);
+    expect(oracle.response(op, 200, { account: 7 })?.length).toBeGreaterThan(0);
+  });
+});

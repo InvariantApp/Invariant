@@ -327,6 +327,34 @@ export function decodeProgram(raw: unknown): DecodedProgram {
   };
 }
 
+const PARAMETER = /\{[^{}]+\}/g;
+
+/**
+ * A template segment with literal text around its parameters, such as
+ * `{name}:cancel`, the custom-method form of Google's design guide, or
+ * `{id}.{format}`. Compiled once per segment: the literal parts are escaped,
+ * each parameter matches one or more characters of that segment only, since
+ * an OpenAPI path parameter never spans a `/`.
+ */
+const mixedSegments = new Map<string, RegExp>();
+function mixedSegment(template: string): RegExp {
+  let compiled = mixedSegments.get(template);
+  if (!compiled) {
+    const source = template
+      .split(PARAMETER)
+      .map((literal) => literal.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&"))
+      .join("(.+)");
+    compiled = new RegExp(`^${source}$`, "s");
+    mixedSegments.set(template, compiled);
+  }
+  return compiled;
+}
+
+const isWholeParameter = (segment: string): boolean =>
+  segment.startsWith("{") &&
+  segment.endsWith("}") &&
+  segment.indexOf("}") === segment.length - 1;
+
 /** Matches a concrete request path against a route template. */
 export function matchTemplate(
   template: readonly string[],
@@ -338,9 +366,15 @@ export function matchTemplate(
   const params: string[] = [];
   for (const [index, expected] of template.entries()) {
     const segment = actual[index] as string;
-    if (expected.startsWith("{") && expected.endsWith("}")) {
+    if (isWholeParameter(expected)) {
       if (segment === "") return undefined;
       params.push(segment);
+      continue;
+    }
+    if (expected.includes("{")) {
+      const matched = mixedSegment(expected).exec(segment);
+      if (!matched) return undefined;
+      params.push(...matched.slice(1));
       continue;
     }
     if (expected !== segment) return undefined;
@@ -354,14 +388,13 @@ export function fillTemplate(
 ): string {
   let next = 0;
   return template
-    .map((segment) => {
-      if (segment.startsWith("{") && segment.endsWith("}")) {
+    .map((segment) =>
+      segment.replace(PARAMETER, () => {
         const value = params[next] ?? "";
         next += 1;
         return value;
-      }
-      return segment;
-    })
+      }),
+    )
     .join("/");
 }
 

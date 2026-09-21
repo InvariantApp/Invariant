@@ -57,6 +57,44 @@ jobs:
           name: corpus-${{ matrix.shard }}
           path: corpus-${{ matrix.shard }}.json
 
+  traffic:
+    name: traffic (rig C)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/cache@v4
+        with:
+          path: .cache/corpus
+          key: corpus-${{ hashFiles('proving/corpus/manifest.json') }}
+
+      # Every pair the recorded corpus run found closing, 100 generated
+      # requests per adapted site, three arms each. Fails on any violation.
+      - name: Generated traffic through the adapter
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm proving:traffic
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: traffic-report
+          path: |
+            proving/traffic/REPORT.md
+            proving/traffic/results.json
+
   report:
     needs: corpus
     runs-on: ubuntu-latest

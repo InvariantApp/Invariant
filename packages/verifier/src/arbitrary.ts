@@ -12,9 +12,10 @@
  * the wrong reason. `enum` fixes the vocabulary, so a value map can be tested
  * against exactly the values it claims to cover.
  */
-import { deref, type OpenApiDocument } from "@invariant/contract";
+import { deref, type OpenApiDocument, resolveSchema } from "@invariant/contract";
 import { isJsonObject, type JsonValue } from "@invariant/ir";
 import fc from "fast-check";
+import { validateSchema } from "./validate.ts";
 
 export class ArbitraryError extends Error {
   constructor(message: string) {
@@ -25,6 +26,14 @@ export class ArbitraryError extends Error {
 
 /** How deep to follow nested objects before giving up on a recursive schema. */
 const MAX_DEPTH = 6;
+/**
+ * Beyond MAX_DEPTH only what the schema requires is generated. Real contracts
+ * nest deeper than six levels, Adyen's terminal API well past it, and an
+ * object cut to `{}` there is missing its required fields, which makes the
+ * value invalid under its own contract. A required cycle has no finite value
+ * at all, so generation stops for good here.
+ */
+const HARD_DEPTH = 32;
 
 function typesOf(schema: Record<string, JsonValue>): string[] {
   const declared = schema["type"];
@@ -91,25 +100,76 @@ function stringFor(schema: Record<string, JsonValue>): fc.Arbitrary<JsonValue> {
   if (format === "email") return fc.emailAddress();
   if (format === "uri" || format === "url") return fc.webUrl();
   if (format === "ipv4") return fc.ipV4();
+  if (format === "byte") return fc.base64String({ maxLength: 24 });
+  if (format === "uri-reference") return fc.webUrl();
+  // RFC 6570 leaves the apostrophe out of the literals a template may hold.
+  if (format === "uri-template") return fc.webUrl().map((url) => url.replaceAll("'", ""));
+  if (format === "ipv6") return fc.ipV6();
+  if (format === "hostname") return fc.domain();
+  if (format === "time") {
+    return DATES.map((date) => `${date.toISOString().slice(11, 19)}Z`);
+  }
+  if (format === "duration") {
+    // ISO 8601, which is what the format means to a JSON Schema validator.
+    return fc
+      .tuple(fc.nat(30), fc.nat(23), fc.nat(59), fc.nat(59))
+      .map(([days, hours, minutes, seconds]) =>
+        days === 0 && hours === 0 && minutes === 0 && seconds === 0
+          ? "PT0S"
+          : `P${days ? `${days}D` : ""}${hours || minutes || seconds ? `T${hours ? `${hours}H` : ""}${minutes ? `${minutes}M` : ""}${seconds ? `${seconds}S` : ""}` : ""}`,
+      );
+  }
 
   const minLength = typeof schema["minLength"] === "number" ? schema["minLength"] : 0;
-  const maxLength =
-    typeof schema["maxLength"] === "number"
-      ? schema["maxLength"]
-      : Math.max(minLength, 24);
+  const declaredMax =
+    typeof schema["maxLength"] === "number" ? schema["maxLength"] : undefined;
   const pattern = schema["pattern"];
   if (typeof pattern === "string") {
+    let regex: RegExp | undefined;
     try {
-      // Generated to match the declared pattern, and then held to the declared
-      // length too, since a real API enforces both.
-      return fc
-        .stringMatching(new RegExp(pattern, "u"))
-        .filter((text) => text.length >= minLength && text.length <= maxLength);
+      regex = new RegExp(pattern, "u");
     } catch {
       // A pattern JavaScript cannot compile. Fall through to plain text, which
       // the oracle will then refuse, so the gap is counted rather than hidden.
     }
+    if (regex) {
+      const matching = fc.stringMatching(regex);
+      // Held to the lengths the schema declares, and only those: a pattern
+      // decides its own length, and a default cap once filtered out every
+      // candidate for a 44-character Twilio id, so generation never returned.
+      const fits = (text: string) =>
+        text.length >= minLength &&
+        (declaredMax === undefined || text.length <= declaredMax);
+      if (minLength === 0 && declaredMax === undefined) return matching;
+      // One repeated atom, `^[0-9a-f]+$` or `^\d*$`, is by far the commonest
+      // patterned string with lengths declared, as for a 40-character commit
+      // sha. Its quantifier is rewritten to the declared lengths, so every
+      // value fits rather than only the rare one a filter would keep.
+      const single = /^\^((?:\[(?:\\.|[^\]\\])+\]|\\[dDwWsS]|\.))([+*])\$$/.exec(pattern);
+      if (single) {
+        return fc.stringMatching(
+          new RegExp(
+            `^${single[1]}{${single[2] === "+" ? Math.max(minLength, 1) : minLength},${declaredMax ?? ""}}$`,
+            "u",
+          ),
+          declaredMax === undefined ? {} : { size: "max" },
+        );
+      }
+      // A filter that nothing passes never returns either, so a fixed sample
+      // is probed first, at growing sizes: a 40-character commit sha is past
+      // what the default size repeats a character class to. If no size
+      // yields a fit, the declared lengths contradict the pattern; matches
+      // are returned as they are and the oracle counts it.
+      for (const size of ["small", "medium", "large"] as const) {
+        const sized = fc.stringMatching(regex, { size });
+        if (fc.sample(sized, { numRuns: 64, seed: 0 }).some(fits)) {
+          return sized.filter(fits);
+        }
+      }
+      return matching;
+    }
   }
+  const maxLength = declaredMax ?? Math.max(minLength, 24);
   // Printable ASCII only. A transform never inspects text, and unprintable
   // characters make a counterexample far harder to read than it needs to be.
   return fc.string({ minLength, maxLength, unit: "grapheme-ascii" });
@@ -170,8 +230,32 @@ function arbitraryFor(
   for (const key of ["oneOf", "anyOf"] as const) {
     const branches = schema[key];
     if (Array.isArray(branches) && branches.length > 0) {
+      // Keywords beside the union hold whichever branch is taken, as GitHub's
+      // `anyOf: [{required: [reviewers]}, {required: [team_reviewers]}]` beside
+      // the properties it constrains. Each branch is merged with them first;
+      // generating a bare branch lost every property the parent declared.
+      const { [key]: _, nullable: __, ...parent } = schema;
+      const shared = Object.keys(parent).some((name) => name !== "description");
+      const alternatives = branches.map((branch) =>
+        shared ? { allOf: [parent, branch as JsonValue] } : (branch as JsonValue),
+      );
       const chosen = fc.oneof(
-        ...branches.map((branch) => arbitraryFor(document, branch as JsonValue, depth)),
+        ...alternatives.map((branch, index) => {
+          const value = arbitraryFor(document, branch, depth);
+          if (key === "anyOf") return value;
+          // oneOf means exactly one. Branches overlap in real contracts, as
+          // GitHub's labels body where `{}` is both of its object forms, so a
+          // value another branch also accepts is dropped. The probe keeps a
+          // branch no value can have to itself from filtering forever.
+          const alone = (candidate: JsonValue) =>
+            alternatives.every(
+              (other, at) =>
+                at === index || validateSchema(document, other, candidate).length > 0,
+            );
+          return fc.sample(value, { numRuns: 32, seed: 0 }).some(alone)
+            ? value.filter(alone)
+            : value;
+        }),
       );
       return schema["nullable"] === true
         ? fc.oneof(
@@ -184,18 +268,20 @@ function arbitraryFor(
 
   const allOf = schema["allOf"];
   if (Array.isArray(allOf) && allOf.length > 0) {
-    // Every branch has to hold at once, so generate each and merge. Only
-    // object branches compose this way, which matches what the compiler
-    // accepts as a site in the first place.
-    return fc
-      .tuple(...allOf.map((branch) => arbitraryFor(document, branch as JsonValue, depth)))
-      .map((parts) => {
-        const merged: Record<string, JsonValue> = {};
-        for (const part of parts) {
-          if (isJsonObject(part)) Object.assign(merged, part);
-        }
-        return merged;
-      });
+    // Every branch has to hold at once, so the value is generated from the
+    // merged schema, by the same merge the rest of the product reads schemas
+    // with. Merging only the object branches lost every other kind: AWS's
+    // specifications write nearly each field as allOf of a string and a
+    // description, and those came out as `{}`.
+    let merged: JsonValue;
+    try {
+      merged = resolveSchema(document, schema);
+    } catch {
+      return fc.constant({});
+    }
+    if (isJsonObject(merged) && merged["allOf"] === undefined) {
+      return arbitraryFor(document, merged, depth);
+    }
   }
 
   const types = typesOf(schema);
@@ -226,10 +312,16 @@ function arbitraryFor(
         );
       }
       case "array": {
-        if (depth >= MAX_DEPTH) return fc.constant([]);
         const items = schema["items"];
-        if (items === undefined) return fc.constant([]);
         const minItems = typeof schema["minItems"] === "number" ? schema["minItems"] : 0;
+        if (items === undefined || depth >= HARD_DEPTH) return fc.constant([]);
+        if (depth >= MAX_DEPTH) {
+          if (minItems === 0) return fc.constant([]);
+          return fc.array(arbitraryFor(document, items, depth + 1), {
+            minLength: minItems,
+            maxLength: minItems,
+          });
+        }
         const maxItems =
           typeof schema["maxItems"] === "number"
             ? schema["maxItems"]
@@ -256,7 +348,8 @@ function arbitraryFor(
           }
           return fc.constant({});
         }
-        if (depth >= MAX_DEPTH) return fc.constant({});
+        if (depth >= HARD_DEPTH) return fc.constant({});
+        const minimal = depth >= MAX_DEPTH;
 
         const required = new Set(
           Array.isArray(schema["required"])
@@ -266,17 +359,28 @@ function arbitraryFor(
             : [],
         );
 
-        const entries = Object.entries(properties).map(([name, child]) => {
-          const value = arbitraryFor(document, child, depth + 1);
-          return [
-            name,
-            required.has(name)
-              ? value
-              : // An optional field that is sometimes absent is the case that
-                // finds missing-slot bugs, so generate both.
-                fc.option(value, { nil: undefined, freq: 4 }),
-          ] as const;
-        });
+        const entries = Object.entries(properties)
+          .filter(([name]) => !minimal || required.has(name))
+          .map(([name, child]) => {
+            const value = arbitraryFor(document, child, depth + 1);
+            return [
+              name,
+              required.has(name)
+                ? value
+                : // An optional field that is sometimes absent is the case that
+                  // finds missing-slot bugs, so generate both.
+                  fc.option(value, { nil: undefined, freq: 4 }),
+            ] as const;
+          });
+
+        // A required name the schema never describes, as in GitHub's docker
+        // metadata requiring `tags` while declaring `tag`, may hold any value
+        // under JSON Schema, and still has to be present.
+        for (const name of required) {
+          if (!(name in properties)) {
+            entries.push([name, fc.string({ maxLength: 8, unit: "grapheme-ascii" })]);
+          }
+        }
 
         return fc.record(Object.fromEntries(entries)).map((value) => {
           const out: Record<string, JsonValue> = {};

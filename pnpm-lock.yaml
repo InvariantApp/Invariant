@@ -65,6 +65,9 @@ importers:
       '@invariant/runtime':
         specifier: workspace:*
         version: link:packages/runtime
+      '@invariant/sidecar':
+        specifier: workspace:*
+        version: link:packages/sidecar
       '@invariant/verifier':
         specifier: workspace:*
         version: link:packages/verifier

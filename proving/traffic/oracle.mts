@@ -43,15 +43,20 @@ function fromOpenApi30(value: Json): Json {
 
   if (out["nullable"] === true) {
     delete out["nullable"];
-    if (typeof out["type"] === "string") out["type"] = [out["type"], "null"];
     if (Array.isArray(out["enum"]) && !out["enum"].includes(null)) {
       out["enum"] = [...out["enum"], null];
     }
-    if (out["type"] === undefined && out["$ref"] !== undefined) {
-      // A nullable reference: either the thing referred to, or null.
-      const ref = out["$ref"];
-      delete out["$ref"];
-      out["anyOf"] = [{ $ref: ref }, { type: "null" }];
+    if (typeof out["type"] === "string") {
+      out["type"] = [out["type"], "null"];
+    } else if (out["type"] === undefined) {
+      // A nullable schema with no type of its own, a reference or a union
+      // such as GitHub's `anyOf: [simple-user, enterprise]`: either what it
+      // describes, or null.
+      const { description, ...rest } = out;
+      return {
+        ...(description === undefined ? {} : { description }),
+        anyOf: [rest, { type: "null" }],
+      };
     }
   } else if (out["nullable"] === false) {
     delete out["nullable"];
@@ -105,9 +110,16 @@ export class Oracle {
     const openapi = String(document["openapi"] ?? "");
     const is31 = openapi.startsWith("3.1");
     this.#document = (is31 ? document : fromOpenApi30(document)) as JsonObject;
-    this.#ajv = is31
-      ? new Ajv2020({ strict: false, allErrors: true, validateFormats: true })
-      : new Ajv({ strict: false, allErrors: true, validateFormats: true });
+    // A format no validator knows, such as GitHub's `repo.nwo`, is an
+    // annotation under JSON Schema and asserts nothing, so it is ignored
+    // without a warning per schema compiled.
+    const options = {
+      strict: false,
+      allErrors: true,
+      validateFormats: true,
+      logger: { log: () => {}, warn: () => {}, error: console.error },
+    } as const;
+    this.#ajv = is31 ? new Ajv2020(options) : new Ajv(options);
     addFormats(this.#ajv as Ajv);
     // The whole document is one schema resource, so every `$ref` in it is
     // resolved by Ajv, in Ajv's own way.

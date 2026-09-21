@@ -34,3 +34,23 @@ pnpm proving:discover                        # add newly published pairs
 
 Specifications are downloaded into `.cache/corpus/`, named by hash, and never
 committed. They belong to the providers who wrote them.
+
+## Rig C: generated traffic
+
+For every pair the recorded corpus run found closing, the Changes are drafted
+again, compiled into a program, and loaded into the real proxy. Each adapted
+site gets 100 seeded requests shaped by the old contract, sent to a mock of
+the old API, to a mock of the new one, and to the new one through the proxy.
+
+```console
+pnpm proving:traffic                                   # every closing pair; writes the report
+pnpm proving:traffic --provider googleapis.com         # one provider; results only
+pnpm proving:traffic --api adyen.com:TerminalAPI-v1 --samples 20
+```
+
+`traffic/mock.mts` answers from a contract alone, and `traffic/oracle.mts`
+judges every body with Ajv, which shares no code with the product. A sample
+the rig cannot judge, because the old mock could not produce a valid value of
+its own contract, is counted and explained in the report rather than passed.
+Retired operations are scored only against what was declared: a 410, and the
+API never reached. A violation fails the run.

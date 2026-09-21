@@ -3,7 +3,13 @@
  * live traffic. Everything it will not accept is as important as what it will.
  */
 import { describe, expect, it } from "vitest";
-import { decodeProgram, findSite, matchTemplate, ProgramError } from "./program.ts";
+import {
+  decodeProgram,
+  fillTemplate,
+  findSite,
+  matchTemplate,
+  ProgramError,
+} from "./program.ts";
 
 function program(sites: Record<string, unknown>, routes: unknown[] = []): unknown {
   return {
@@ -121,6 +127,25 @@ describe("template matching", () => {
     expect(matchTemplate("/v1/p/{id}".split("/"), "/v1/p")).toBeUndefined();
     expect(matchTemplate("/v1/p/{id}".split("/"), "/v1/p/abc/x")).toBeUndefined();
     expect(matchTemplate("/v1/p/{id}".split("/"), "/v1/p/")).toBeUndefined();
+  });
+
+  it("matches a parameter that shares its segment with literal text", () => {
+    const cancel = "/v1/{name}:cancel".split("/");
+    expect(matchTemplate(cancel, "/v1/op-7:cancel")).toEqual(["op-7"]);
+    expect(matchTemplate(cancel, "/v1/:cancel")).toBeUndefined();
+    expect(matchTemplate(cancel, "/v1/op-7:get")).toBeUndefined();
+    expect(matchTemplate(cancel, "/v1/a/b:cancel")).toBeUndefined();
+    const file = "/files/{id}.{format}".split("/");
+    expect(matchTemplate(file, "/files/report.v2.json")).toEqual(["report.v2", "json"]);
+    // Literal text is literal, not a pattern.
+    expect(matchTemplate("/v1/{id}.x".split("/"), "/v1/abcxx")).toBeUndefined();
+  });
+
+  it("fills a template with its parameters wherever they sit", () => {
+    expect(fillTemplate("/v2/{name}:cancel".split("/"), ["op-7"])).toBe(
+      "/v2/op-7:cancel",
+    );
+    expect(fillTemplate("/f/{id}.{format}".split("/"), ["a", "json"])).toBe("/f/a.json");
   });
 
   it("finds a site through its template", () => {

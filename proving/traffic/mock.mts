@@ -40,6 +40,8 @@ export interface Judged {
   status: number;
   /** Whether the generated response conformed to the mock's own contract. */
   responseValid: boolean | undefined;
+  /** Why it did not, when it did not. */
+  responseViolations?: OracleViolation[];
 }
 
 export interface ContractMock {
@@ -196,6 +198,7 @@ export function createContractMock(
       request: requestViolations,
       status,
       responseValid: violations === undefined ? undefined : violations.length === 0,
+      ...(violations && violations.length > 0 ? { responseViolations: violations } : {}),
     });
     return Response.json(value, { status });
   };

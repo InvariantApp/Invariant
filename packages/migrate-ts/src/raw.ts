@@ -94,7 +94,10 @@ function pathSegments(node: Node): (string | undefined)[] | undefined {
 }
 
 /** Whether a path's segments match a template, ignoring parameter values. */
-function matchesTemplate(template: string, segments: (string | undefined)[]): boolean {
+export function matchesTemplate(
+  template: string,
+  segments: (string | undefined)[],
+): boolean {
   const left = template.split("/");
   if (left.length !== segments.length) return false;
   return left.every((segment, index) => {
@@ -102,7 +105,18 @@ function matchesTemplate(template: string, segments: (string | undefined)[]): bo
     // A parameter in the template matches anything; a variable in the caller's
     // path matches a parameter but not a fixed segment, because a fixed one
     // would be a different endpoint.
-    if (segment.startsWith("{") && segment.endsWith("}")) return true;
+    if (/^\{[^{}]+\}$/.test(segment)) return true;
+    if (segment.includes("{")) {
+      // Literal text around a parameter, as in the custom method
+      // `{name}:cancel`: a fixed segment has to fit it, and a variable one
+      // might.
+      if (actual === undefined) return true;
+      const pattern = segment
+        .split(/\{[^{}]+\}/)
+        .map((literal) => literal.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&"))
+        .join(".+");
+      return new RegExp(`^${pattern}$`, "s").test(actual);
+    }
     return actual === segment;
   });
 }

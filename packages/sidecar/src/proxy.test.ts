@@ -54,6 +54,11 @@ const PROGRAM = {
           guidance: "Use POST /v1/payments/{id}/reverse instead.",
           c: "chg_retired_refunds",
         },
+        {
+          method: "post",
+          path: "/v1/{name}:cancel",
+          c: "chg_retired_cancel",
+        },
       ],
     },
   },
@@ -188,6 +193,19 @@ describe("an old caller, through the proxy", () => {
     expect(body.error.code).toBe("invariant_endpoint_retired");
     expect(body.error.message).toContain("Use POST /v1/payments/{id}/reverse instead.");
     // The provider never sees a request for an operation that no longer exists.
+    expect(calls).toHaveLength(0);
+  });
+
+  // Google's APIs, and every API following its design guide, name custom
+  // methods with a colon after a path parameter. Rig C found a retired one
+  // reaching the provider as a 404 instead of being answered 410.
+  it("is told a custom method is gone when the parameter shares its segment", async () => {
+    const { fetchImpl, calls } = upstream(() => jsonAnswer({}));
+    const response = await proxyWith(fetchImpl)(
+      post("/v1/operations-42:cancel", {}, "2026-01-01"),
+    );
+
+    expect(response.status).toBe(410);
     expect(calls).toHaveLength(0);
   });
 

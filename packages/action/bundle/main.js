@@ -25166,351 +25166,6 @@ const __commitHash = "e93c6a8d525c8d54560c81a016d4828360190b09";
 /** @deprecated Prefer a namespace import instead: `import * as fc from 'fast-check'` */
 var fast_check_default = fast_check_default_exports;
 //#endregion
-//#region ../verifier/src/arbitrary.ts
-/**
-* Turning a contract's schemas into generators.
-*
-* The values a property test runs on have to be values the contract actually
-* allows, or the test proves nothing about the API. Generating them from the
-* declared schema is what makes the lens laws meaningful: a counterexample is
-* by construction a body a real caller could have sent.
-*
-* Two declarations matter more than the rest. `multipleOf` fixes how many
-* decimal places a number really has, so a generator that ignores it would
-* invent precision the contract never promised and fail a scale conversion for
-* the wrong reason. `enum` fixes the vocabulary, so a value map can be tested
-* against exactly the values it claims to cover.
-*/
-var ArbitraryError = class extends Error {
-	constructor(message) {
-		super(message);
-		this.name = "ArbitraryError";
-	}
-};
-/** How deep to follow nested objects before giving up on a recursive schema. */
-const MAX_DEPTH = 6;
-function typesOf$1(schema) {
-	const declared = schema["type"];
-	if (Array.isArray(declared)) return declared.filter((entry) => typeof entry === "string");
-	if (typeof declared === "string") return [declared];
-	return [];
-}
-/**
-* Numbers that land exactly on the declared step.
-*
-* A step of 0.01 means two decimal places and nothing finer, so the generator
-* produces a whole number of steps and scales it back. Doing the scaling in
-* integer space keeps the generated value free of the binary-fraction noise
-* that multiplying by 0.01 would introduce.
-*/
-function numberWithStep(step, integral, range = {
-	min: -1e6,
-	max: 1e6
-}) {
-	const factor = 10 ** decimalPlaces$1(step);
-	const unit = Math.round(step * factor);
-	if (unit === 0) return fast_check_default.integer({
-		min: -1e6,
-		max: 1e6
-	});
-	const lowest = Math.ceil(range.min * factor / unit);
-	const highest = Math.floor(range.max * factor / unit);
-	return fast_check_default.integer({
-		min: Math.max(lowest, -1e6),
-		max: Math.max(Math.min(highest, 1e6), Math.max(lowest, -1e6))
-	}).map((count) => count * unit / factor).filter((value) => !integral || Number.isInteger(value));
-}
-function decimalPlaces$1(value) {
-	const text = String(value);
-	const exponent = text.indexOf("e");
-	if (exponent !== -1) {
-		const power = Number(text.slice(exponent + 1));
-		return power < 0 ? -power : 0;
-	}
-	const dot = text.indexOf(".");
-	return dot === -1 ? 0 : text.length - dot - 1;
-}
-const DATES = fast_check_default.date({
-	min: /* @__PURE__ */ new Date("2020-01-01T00:00:00Z"),
-	max: /* @__PURE__ */ new Date("2030-01-01T00:00:00Z"),
-	noInvalidDate: true
-});
-function stringFor(schema) {
-	const format = schema["format"];
-	if (format === "date-time") return DATES.map((date) => date.toISOString());
-	if (format === "date") return DATES.map((date) => date.toISOString().slice(0, 10));
-	if (format === "uuid") return fast_check_default.uuid();
-	if (format === "email") return fast_check_default.emailAddress();
-	if (format === "uri" || format === "url") return fast_check_default.webUrl();
-	if (format === "ipv4") return fast_check_default.ipV4();
-	const minLength = typeof schema["minLength"] === "number" ? schema["minLength"] : 0;
-	const maxLength = typeof schema["maxLength"] === "number" ? schema["maxLength"] : Math.max(minLength, 24);
-	const pattern = schema["pattern"];
-	if (typeof pattern === "string") try {
-		return fast_check_default.stringMatching(new RegExp(pattern, "u")).filter((text) => text.length >= minLength && text.length <= maxLength);
-	} catch {}
-	return fast_check_default.string({
-		minLength,
-		maxLength,
-		unit: "grapheme-ascii"
-	});
-}
-function integerFor(schema) {
-	const step = schema["multipleOf"];
-	const { min, max } = bounds(schema, true);
-	if (typeof step === "number") return numberWithStep(step, true, {
-		min,
-		max
-	});
-	return fast_check_default.integer({
-		min: Math.ceil(min),
-		max: Math.floor(max)
-	});
-}
-/**
-* The declared range, as inclusive bounds. Both OpenAPI spellings of an
-* exclusive bound are read: 3.1's number and 3.0's flag beside the bound.
-*/
-function bounds(schema, integral) {
-	const unit = integral ? 1 : .01;
-	let min = -1e6;
-	let max = 1e6;
-	if (typeof schema["minimum"] === "number") min = schema["exclusiveMinimum"] === true ? schema["minimum"] + unit : schema["minimum"];
-	if (typeof schema["exclusiveMinimum"] === "number") min = schema["exclusiveMinimum"] + unit;
-	if (typeof schema["maximum"] === "number") max = schema["exclusiveMaximum"] === true ? schema["maximum"] - unit : schema["maximum"];
-	if (typeof schema["exclusiveMaximum"] === "number") max = schema["exclusiveMaximum"] - unit;
-	return {
-		min,
-		max: Math.max(min, max)
-	};
-}
-function arbitraryFor(document, raw, depth) {
-	const resolved = deref(document, raw);
-	if (!isJsonObject(resolved)) return fast_check_default.constant(null);
-	const schema = resolved;
-	const constant = schema["const"];
-	if (constant !== void 0) return fast_check_default.constant(constant);
-	const enumValues = schema["enum"];
-	if (Array.isArray(enumValues) && enumValues.length > 0) return fast_check_default.constantFrom(...enumValues);
-	for (const key of ["oneOf", "anyOf"]) {
-		const branches = schema[key];
-		if (Array.isArray(branches) && branches.length > 0) {
-			const chosen = fast_check_default.oneof(...branches.map((branch) => arbitraryFor(document, branch, depth)));
-			return schema["nullable"] === true ? fast_check_default.oneof({
-				weight: 4,
-				arbitrary: chosen
-			}, {
-				weight: 1,
-				arbitrary: fast_check_default.constant(null)
-			}) : chosen;
-		}
-	}
-	const allOf = schema["allOf"];
-	if (Array.isArray(allOf) && allOf.length > 0) return fast_check_default.tuple(...allOf.map((branch) => arbitraryFor(document, branch, depth))).map((parts) => {
-		const merged = {};
-		for (const part of parts) if (isJsonObject(part)) Object.assign(merged, part);
-		return merged;
-	});
-	const types = typesOf$1(schema);
-	const nullable = types.includes("null") || schema["nullable"] === true;
-	const primary = types.find((type) => type !== "null");
-	const base = (() => {
-		switch (primary) {
-			case "string": return stringFor(schema);
-			case "boolean": return fast_check_default.boolean();
-			case "integer": return integerFor(schema);
-			case "number": {
-				const step = schema["multipleOf"];
-				if (typeof step === "number") return numberWithStep(step, false, bounds(schema, false));
-				const { min, max } = bounds(schema, false);
-				return numberWithStep(.01, false).map((value) => Math.min(max, Math.max(min, value)));
-			}
-			case "array": {
-				if (depth >= MAX_DEPTH) return fast_check_default.constant([]);
-				const items = schema["items"];
-				if (items === void 0) return fast_check_default.constant([]);
-				const minItems = typeof schema["minItems"] === "number" ? schema["minItems"] : 0;
-				const maxItems = typeof schema["maxItems"] === "number" ? schema["maxItems"] : Math.max(minItems, 3);
-				return fast_check_default.array(arbitraryFor(document, items, depth + 1), {
-					minLength: minItems,
-					maxLength: Math.min(maxItems, minItems + 3)
-				});
-			}
-			default: {
-				const properties = schema["properties"];
-				const additional = schema["additionalProperties"];
-				if (!isJsonObject(properties)) {
-					if (isJsonObject(additional) && depth < MAX_DEPTH) return fast_check_default.dictionary(fast_check_default.string({
-						minLength: 1,
-						maxLength: 8,
-						unit: "grapheme-ascii"
-					}), arbitraryFor(document, additional, depth + 1), { maxKeys: 3 });
-					return fast_check_default.constant({});
-				}
-				if (depth >= MAX_DEPTH) return fast_check_default.constant({});
-				const required = new Set(Array.isArray(schema["required"]) ? schema["required"].filter((entry) => typeof entry === "string") : []);
-				const entries = Object.entries(properties).map(([name, child]) => {
-					const value = arbitraryFor(document, child, depth + 1);
-					return [name, required.has(name) ? value : fast_check_default.option(value, {
-						nil: void 0,
-						freq: 4
-					})];
-				});
-				return fast_check_default.record(Object.fromEntries(entries)).map((value) => {
-					const out = {};
-					for (const [name, child] of Object.entries(value)) if (child !== void 0) out[name] = child;
-					return out;
-				});
-			}
-		}
-	})();
-	return nullable ? fast_check_default.oneof({
-		weight: 4,
-		arbitrary: base
-	}, {
-		weight: 1,
-		arbitrary: fast_check_default.constant(null)
-	}) : base;
-}
-/** A generator for values of one named schema in a contract. */
-function schemaArbitrary(document, ref) {
-	const resolved = deref(document, { $ref: ref });
-	if (!isJsonObject(resolved)) throw new ArbitraryError(`${ref} is not a schema in this contract`);
-	return arbitraryFor(document, resolved, 0);
-}
-//#endregion
-//#region ../verifier/src/evidence.ts
-/**
-* What a release is allowed to count as proof.
-*
-* Nine kinds, each naming something a machine checked or a person did. The
-* list is closed on purpose: "the model was confident" is not on it, and there
-* is no kind that could carry it. Everything a reviewer sees in a pull request
-* traces back to one of these records, and every record names the inputs it
-* ran against so a claim cannot outlive the thing it was about.
-*/
-/**
-* The digest that binds a record to its inputs.
-*
-* Two runs over the same specifications and the same Changes produce the same
-* digest, which is what lets a bundle be rebuilt and compared. A record whose
-* digest does not match the release it is attached to is not evidence about
-* that release.
-*/
-function inputsDigest(...parts) {
-	const hash = createHash("sha256");
-	for (const part of parts) hash.update(JSON.stringify(part ?? null));
-	return `sha256:${hash.digest("hex")}`;
-}
-//#endregion
-//#region ../verifier/src/scenarios.ts
-/**
-* Scenarios: what to ask both builds.
-*
-* A single request proves very little about an API. What breaks in practice is
-* a sequence - create something, read it back, list it - because that is where
-* an identifier minted by one call has to be understood by the next. So a
-* scenario is an ordered list of requests with captures, and a later step can
-* refer to what an earlier one returned.
-*
-* Scenarios are written against a historical contract, in that contract's own
-* shapes, because that is the traffic whose meaning has to be preserved.
-*/
-var ScenarioError = class extends Error {
-	constructor(message) {
-		super(message);
-		this.name = "ScenarioError";
-	}
-};
-function str(value, where) {
-	if (typeof value !== "string") throw new ScenarioError(`${where} must be a string`);
-	return value;
-}
-function stepFrom(raw, index, where) {
-	if (!isJsonObject(raw)) throw new ScenarioError(`${where} step ${index} is not a mapping`);
-	const request = raw["request"];
-	if (!isJsonObject(request)) throw new ScenarioError(`${where} step ${index} needs a request`);
-	const headers = {};
-	const rawHeaders = request["headers"];
-	if (isJsonObject(rawHeaders)) for (const [name, value] of Object.entries(rawHeaders)) headers[name.toLowerCase()] = str(value, `${where} step ${index} header ${name}`);
-	const capture = {};
-	const rawCapture = raw["capture"];
-	if (isJsonObject(rawCapture)) for (const [name, pointer] of Object.entries(rawCapture)) capture[name] = str(pointer, `${where} capture ${name}`);
-	const status = raw["expectStatus"];
-	return {
-		id: typeof raw["id"] === "string" ? raw["id"] : `step${index}`,
-		method: str(request["method"], `${where} step ${index} method`).toUpperCase(),
-		path: str(request["path"], `${where} step ${index} path`),
-		headers,
-		body: request["body"],
-		capture,
-		expectStatus: typeof status === "number" ? status : void 0
-	};
-}
-function parseScenario(text, where) {
-	const raw = (0, import_dist.parse)(text);
-	if (!isJsonObject(raw)) throw new ScenarioError(`${where} is not a mapping`);
-	const steps = raw["steps"];
-	if (!Array.isArray(steps) || steps.length === 0) throw new ScenarioError(`${where} needs at least one step`);
-	const acknowledged = [];
-	const rawAcknowledged = raw["acknowledged"];
-	if (Array.isArray(rawAcknowledged)) rawAcknowledged.forEach((entry, index) => {
-		if (!isJsonObject(entry)) throw new ScenarioError(`${where} acknowledged ${index} is not a mapping`);
-		const reason = str(entry["reason"], `${where} acknowledged ${index} reason`);
-		if (reason.trim().length < 10) throw new ScenarioError(`${where} acknowledged ${index} needs a reason saying why this difference is acceptable for a caller on the old contract`);
-		acknowledged.push({
-			step: str(entry["step"], `${where} acknowledged ${index} step`),
-			pointer: str(entry["pointer"], `${where} acknowledged ${index} pointer`),
-			reason
-		});
-	});
-	return {
-		name: str(raw["name"], `${where} name`),
-		contract: str(raw["contract"], `${where} contract`),
-		steps: steps.map((step, index) => stepFrom(step, index, where)),
-		acknowledged
-	};
-}
-async function loadScenarios(directory) {
-	let names;
-	try {
-		names = (await readdir(directory)).filter((name) => name.endsWith(".yaml")).sort();
-	} catch {
-		return [];
-	}
-	return Promise.all(names.map(async (name) => parseScenario(await readFile(join(directory, name), "utf8"), name)));
-}
-/**
-* Fills `${step.name}` references from what earlier steps captured.
-*
-* A missing reference is an error rather than an empty string. Substituting
-* nothing would turn a broken scenario into a request for `/v1/payments/`,
-* which fails somewhere else entirely and sends whoever reads the report after
-* the wrong thing.
-*/
-function substitute(value, captured) {
-	if (typeof value === "string") {
-		const whole = /^\$\{([A-Za-z0-9_.]+)\}$/.exec(value);
-		if (whole) return lookup(whole[1], captured);
-		return value.replace(/\$\{([A-Za-z0-9_.]+)\}/g, (_match, name) => {
-			const found = lookup(name, captured);
-			return typeof found === "string" ? found : JSON.stringify(found);
-		});
-	}
-	if (Array.isArray(value)) return value.map((entry) => substitute(entry, captured));
-	if (isJsonObject(value)) {
-		const out = {};
-		for (const [key, entry] of Object.entries(value)) out[key] = substitute(entry, captured);
-		return out;
-	}
-	return value;
-}
-function lookup(name, captured) {
-	const found = captured.get(name);
-	if (found === void 0) throw new ScenarioError(`\${${name}} was never captured. Known: ${[...captured.keys()].join(", ") || "nothing"}`);
-	return found;
-}
-//#endregion
 //#region ../verifier/src/validate.ts
 /**
 * Checking a value against a contract's schema.
@@ -25526,7 +25181,7 @@ function lookup(name, captured) {
 * silently passing something nobody validated is the failure this whole layer
 * exists to prevent.
 */
-function typesOf(schema) {
+function typesOf$1(schema) {
 	const declared = schema["type"];
 	if (Array.isArray(declared)) return declared.filter((entry) => typeof entry === "string");
 	if (typeof declared === "string") return [declared];
@@ -25544,10 +25199,10 @@ function typeSatisfies(actual, declared) {
 }
 function stepsCleanly(value, step) {
 	if (step === 0) return true;
-	const factor = 10 ** Math.max(decimalPlaces(value), decimalPlaces(step));
+	const factor = 10 ** Math.max(decimalPlaces$1(value), decimalPlaces$1(step));
 	return Math.round(value * factor) % Math.round(step * factor) === 0;
 }
-function decimalPlaces(value) {
+function decimalPlaces$1(value) {
 	const text = String(value);
 	const exponent = text.indexOf("e");
 	if (exponent !== -1) {
@@ -25575,7 +25230,7 @@ function walk(document, raw, value, segments, out) {
 			return;
 		}
 	}
-	const declared = typesOf(schema);
+	const declared = typesOf$1(schema);
 	if (declared.length > 0) {
 		const actual = typeOf(value);
 		if (!declared.some((entry) => typeSatisfies(actual, entry))) {
@@ -25647,448 +25302,281 @@ function validateSchema(document, schema, value) {
 	return out;
 }
 //#endregion
-//#region ../verifier/src/conformance.ts
+//#region ../verifier/src/arbitrary.ts
 /**
-* Conformance: does the code actually do what its specification says?
+* Turning a contract's schemas into generators.
 *
-* Everything else in this system reasons about the specification. The diff is
-* taken between two of them, closure is proved against one, the lens laws
-* generate values from one. All of that is worth nothing if the document does
-* not describe the running code, and a specification drifting from its
-* implementation is the most ordinary failure in the whole area.
+* The values a property test runs on have to be values the contract actually
+* allows, or the test proves nothing about the API. Generating them from the
+* declared schema is what makes the lens laws meaningful: a counterexample is
+* by construction a body a real caller could have sent.
 *
-* So the current build is asked real questions and every answer is checked
-* against what the contract promised. It is the cheapest check here and the one
-* that holds the others up.
+* Two declarations matter more than the rest. `multipleOf` fixes how many
+* decimal places a number really has, so a generator that ignores it would
+* invent precision the contract never promised and fail a scale conversion for
+* the wrong reason. `enum` fixes the vocabulary, so a value map can be tested
+* against exactly the values it claims to cover.
 */
-/** Matches a concrete path against a path template, ignoring parameter values. */
-function matches(template, path) {
-	const left = template.split("/");
-	const right = path.split("?")[0]?.split("/") ?? [];
-	if (left.length !== right.length) return false;
-	return left.every((segment, index) => segment.startsWith("{") && segment.endsWith("}") || segment === right[index]);
-}
-function schemaFor(document, method, path, status) {
-	for (const operation of operationsOf(document)) {
-		if (operation.method !== method.toLowerCase()) continue;
-		if (!matches(operation.path, path)) continue;
-		const declared = responseSchemas(document, operation.operation);
-		const exact = declared.find((entry) => entry.status === String(status));
-		const byClass = declared.find((entry) => entry.status === `${Math.floor(status / 100)}XX`.toLowerCase() || entry.status === `${Math.floor(status / 100)}xx`);
-		const fallback = declared.find((entry) => entry.status === "default");
-		return {
-			operationId: operation.operationId,
-			schema: (exact ?? byClass ?? fallback)?.schema
-		};
-	}
-}
-/**
-* Runs scenarios against one build and validates every response.
-*
-* The scenarios have to be written in the contract being checked, because the
-* point is to compare the build's own output with its own promises. Running
-* old-contract traffic here would only prove things about the adapter.
-*/
-async function checkConformance(document, label, scenarios, open) {
-	const failures = [];
-	const unknownOperations = [];
-	const evidence = [];
-	for (const scenario of scenarios) {
-		const found = [];
-		const target = await open();
-		let checked = 0;
-		try {
-			const captured = /* @__PURE__ */ new Map();
-			for (const step of scenario.steps) {
-				const path = substitute(step.path, captured);
-				const body = step.body === void 0 ? void 0 : substitute(step.body, captured);
-				const headers = new Headers(step.headers);
-				if (body !== void 0) headers.set("content-type", "application/json");
-				const response = await target.fetch(new Request(`http://conform${path}`, {
-					method: step.method,
-					headers,
-					...body === void 0 ? {} : { body: JSON.stringify(body) }
-				}));
-				const text = await response.text();
-				let parsed = null;
-				try {
-					parsed = text === "" ? null : JSON.parse(text);
-				} catch {
-					parsed = text;
-				}
-				for (const [name, pointer] of Object.entries(step.capture)) captured.set(`${step.id}.${name}`, valueAt$1(parsed, pointer));
-				const target_ = schemaFor(document, step.method, path, response.status);
-				if (!target_) {
-					unknownOperations.push(`${scenario.name}/${step.id}: ${step.method} ${path}`);
-					continue;
-				}
-				if (!target_.schema) {
-					found.push({
-						scenario: scenario.name,
-						step: step.id,
-						operation: target_.operationId,
-						status: response.status,
-						violations: [{
-							pointer: "/",
-							message: `the contract does not describe a ${response.status} response for this operation`
-						}]
-					});
-					continue;
-				}
-				checked += 1;
-				const violations = validateSchema(document, target_.schema, parsed);
-				if (violations.length > 0) found.push({
-					scenario: scenario.name,
-					step: step.id,
-					operation: target_.operationId,
-					status: response.status,
-					violations
-				});
-			}
-		} finally {
-			await target.close();
-		}
-		failures.push(...found);
-		evidence.push({
-			kind: "E7-conformance",
-			subject: `${label}: ${scenario.name}`,
-			result: found.length > 0 ? "fail" : "pass",
-			inputsDigest: inputsDigest(scenario, label),
-			tool: "invariant conformance",
-			summary: found.length > 0 ? `${found.length} responses do not match what the contract describes` : `${checked} responses match what contract ${label} describes`,
-			...found.length > 0 ? { detail: found.map((entry) => `${entry.step} (${entry.operation} ${entry.status}): ` + entry.violations.slice(0, 5).map((violation) => `${violation.pointer} ${violation.message}`).join("; ")) } : {}
-		});
-	}
-	return {
-		evidence,
-		failures,
-		unknownOperations
-	};
-}
-function valueAt$1(body, pointer) {
-	let cursor = body;
-	for (const segment of pointer.split("/").slice(1)) if (Array.isArray(cursor)) cursor = cursor[Number(segment)] ?? null;
-	else if (cursor !== null && typeof cursor === "object") cursor = cursor[segment] ?? null;
-	else return null;
-	return cursor;
-}
-//#endregion
-//#region ../verifier/src/differential.ts
-/**
-* The differential check: does the new build, with the adapter, still behave
-* like the old build did?
-*
-* This is the only layer that runs the provider's real code, and so the only
-* one that can catch a fault that is invisible in a specification. Two matter
-* especially. A value map whose pairs are swapped round trips perfectly and
-* preserves the set of allowed values, so neither closure nor the lens laws can
-* see it - but the old build says `succeeded` where the new one says
-* `processing`, and that shows up here on the first request. And a handler
-* whose behaviour changed underneath an unchanged shape is not a shape problem
-* at all; only running both can find it.
-*
-* Production traffic is never replayed. Both builds are stood up fresh, with
-* fresh state, and asked the same scripted questions.
-*
-* `≈` is defined here, and defining it is most of the work. Two responses are
-* equivalent when they have the same status, the same structure, and the same
-* values at every path that is not volatile. Volatility is measured rather than
-* configured: the old build is run twice before the comparison, and any path
-* that disagrees with itself is one the API was never promising to keep stable.
-* Identifiers and timestamps fall out of that automatically, and so does
-* anything else the provider happens to generate, without a list to maintain.
-*/
-const DEFAULT_COMPARED_HEADERS = ["content-type"];
-/**
-* The name a scenario uses for "whatever the current contract is".
-*
-* A contract label is minted at release time from the date, so a scenario
-* written weeks earlier cannot name it. `head` is how the provider says it
-* means the build they are about to ship.
-*/
-const CURRENT_CONTRACT_ALIAS = "head";
-function isCurrent(contract, currentLabel) {
-	return contract === "head" || contract === currentLabel;
-}
-/** Flattens a body into pointer-to-scalar, which is what comparison works on. */
-function flatten(value, prefix = "", out = /* @__PURE__ */ new Map()) {
-	if (Array.isArray(value)) {
-		out.set(`${prefix}[]`, value.length);
-		value.forEach((entry, index) => {
-			flatten(entry, `${prefix}/${index}`, out);
-		});
-		return out;
-	}
-	if (isJsonObject(value)) {
-		for (const [key, entry] of Object.entries(value)) flatten(entry, `${prefix}/${key}`, out);
-		return out;
-	}
-	out.set(prefix || "/", value);
-	return out;
-}
-async function observe(target, scenario, extraHeaders, compared) {
-	const captured = /* @__PURE__ */ new Map();
-	const out = [];
-	for (const step of scenario.steps) {
-		const path = substitute(step.path, captured);
-		const body = step.body === void 0 ? void 0 : substitute(step.body, captured);
-		const headers = new Headers({
-			...step.headers,
-			...extraHeaders
-		});
-		if (body !== void 0) headers.set("content-type", "application/json");
-		const response = await target.fetch(new Request(`http://verify${path}`, {
-			method: step.method,
-			headers,
-			...body === void 0 ? {} : { body: JSON.stringify(body) }
-		}));
-		const text = await response.text();
-		let parsed;
-		try {
-			parsed = text === "" ? null : JSON.parse(text);
-		} catch {
-			parsed = text;
-		}
-		const seen = {};
-		for (const name of compared) {
-			const value = response.headers.get(name);
-			if (value !== null) seen[name] = value;
-		}
-		out.push({
-			id: step.id,
-			status: response.status,
-			headers: seen,
-			body: parsed
-		});
-		for (const [name, pointer] of Object.entries(step.capture)) captured.set(`${step.id}.${name}`, valueAt(parsed, pointer));
-	}
-	return out;
-}
-function valueAt(body, pointer) {
-	let cursor = body;
-	for (const segment of pointer.split("/").slice(1)) if (Array.isArray(cursor)) cursor = cursor[Number(segment)] ?? null;
-	else if (isJsonObject(cursor)) cursor = cursor[segment] ?? null;
-	else return null;
-	return cursor;
-}
-/**
-* Waits until the wall clock crosses into the next whole second.
-*
-* The two calibration runs have to be capable of disagreeing, or the
-* calibration proves nothing. Fresh state is enough to expose a generated
-* identifier, but a timestamp at second resolution is identical in two runs a
-* few milliseconds apart, so it would look stable, and then differ between the
-* old build and the new one whenever the comparison happened to straddle a
-* tick. That is a test that fails once a minute for no reason, which is worse
-* than one that never runs.
-*
-* Crossing a tick between the two runs makes anything derived from the clock
-* reveal itself, without a list of field names to keep up to date.
-*/
-async function nextTick() {
-	const now = Date.now();
-	await new Promise((resolve) => setTimeout(resolve, 1e3 - now % 1e3 + 5));
-}
-/**
-* Paths the old build did not reproduce when asked the same thing twice.
-*
-* Running base against itself is what makes the comparison trustworthy. Without
-* it every identifier and timestamp would report as a difference, and the only
-* way to get a green run would be to maintain a list of fields to ignore, which
-* drifts and eventually hides something real.
-*/
-var CalibrationError = class extends Error {
+var ArbitraryError = class extends Error {
 	constructor(message) {
 		super(message);
-		this.name = "CalibrationError";
+		this.name = "ArbitraryError";
 	}
 };
-function volatilePaths(a, b) {
-	if (a.length !== b.length) throw new CalibrationError(`The old build answered ${a.length} steps and then ${b.length} for the same scenario, so nothing can be said about which of its values are stable. Calibration has to be repeatable before a comparison against it means anything.`);
-	const volatile = /* @__PURE__ */ new Set();
-	a.forEach((left, index) => {
-		const right = b[index];
-		if (!right) throw new CalibrationError(`The old build skipped ${left.id} on the second run.`);
-		const leftPaths = flatten(left.body);
-		const rightPaths = flatten(right.body);
-		for (const [pointer, value] of leftPaths) {
-			const other = rightPaths.get(pointer);
-			if (other === void 0 || JSON.stringify(other) !== JSON.stringify(value)) volatile.add(`${left.id}${pointer}`);
-		}
-		for (const pointer of rightPaths.keys()) if (!leftPaths.has(pointer)) volatile.add(`${left.id}${pointer}`);
-	});
-	return volatile;
-}
-function kindOf(value) {
-	if (value === null) return "null";
-	if (Array.isArray(value)) return "array";
-	return typeof value;
-}
-function compare(scenario, base, head, volatile) {
-	const out = [];
-	base.forEach((left, index) => {
-		const right = head[index];
-		if (!right) {
-			out.push({
-				scenario,
-				step: left.id,
-				pointer: "/",
-				detail: "the new build did not answer this step at all"
-			});
-			return;
-		}
-		if (left.status !== right.status) out.push({
-			scenario,
-			step: left.id,
-			pointer: "/",
-			detail: `the old build answered ${left.status}, the new one answered ${right.status}`
-		});
-		for (const [name, value] of Object.entries(left.headers)) if (right.headers[name] !== value) out.push({
-			scenario,
-			step: left.id,
-			pointer: `header ${name}`,
-			detail: `was ${value}, now ${right.headers[name] ?? "absent"}`
-		});
-		const leftPaths = flatten(left.body);
-		const rightPaths = flatten(right.body);
-		for (const [pointer, value] of leftPaths) {
-			const key = `${left.id}${pointer}`;
-			const other = rightPaths.get(pointer);
-			if (other === void 0) {
-				out.push({
-					scenario,
-					step: left.id,
-					pointer,
-					detail: "the old build returned this, the new one does not"
-				});
-				continue;
-			}
-			if (volatile.has(key)) {
-				if (kindOf(other) !== kindOf(value)) out.push({
-					scenario,
-					step: left.id,
-					pointer,
-					detail: `was a ${kindOf(value)}, now a ${kindOf(other)}`
-				});
-				continue;
-			}
-			if (JSON.stringify(other) !== JSON.stringify(value)) out.push({
-				scenario,
-				step: left.id,
-				pointer,
-				detail: `was ${JSON.stringify(value)}, now ${JSON.stringify(other)}`
-			});
-		}
-		for (const pointer of rightPaths.keys()) if (!leftPaths.has(pointer)) out.push({
-			scenario,
-			step: left.id,
-			pointer,
-			detail: "the new build returned this, which the old contract never had"
-		});
-	});
-	return out;
+/** How deep to follow nested objects before giving up on a recursive schema. */
+const MAX_DEPTH = 6;
+/**
+* Beyond MAX_DEPTH only what the schema requires is generated. Real contracts
+* nest deeper than six levels, Adyen's terminal API well past it, and an
+* object cut to `{}` there is missing its required fields, which makes the
+* value invalid under its own contract. A required cycle has no finite value
+* at all, so generation stops for good here.
+*/
+const HARD_DEPTH = 32;
+function typesOf(schema) {
+	const declared = schema["type"];
+	if (Array.isArray(declared)) return declared.filter((entry) => typeof entry === "string");
+	if (typeof declared === "string") return [declared];
+	return [];
 }
 /**
-* Runs every scenario against the old build and the new build plus adapter.
+* Numbers that land exactly on the declared step.
 *
-* Three runs per scenario, and the order matters: both base runs happen before
-* head is consulted, so volatility is established from the old build alone and
-* cannot be influenced by whatever the new one does.
+* A step of 0.01 means two decimal places and nothing finer, so the generator
+* produces a whole number of steps and scales it back. Doing the scaling in
+* integer space keeps the generated value free of the binary-fraction noise
+* that multiplying by 0.01 would introduce.
 */
-async function checkDifferential(scenarios, options) {
-	const compared = options.compareHeaders ?? DEFAULT_COMPARED_HEADERS;
-	const differences = [];
-	const acknowledgedOut = [];
-	const evidence = [];
-	const volatileByScenario = /* @__PURE__ */ new Map();
-	for (const scenario of scenarios) {
-		if (isCurrent(scenario.contract, options.currentLabel)) {
-			evidence.push({
-				kind: "E6-differential",
-				subject: `${scenario.contract}: ${scenario.name}`,
-				result: "skipped",
-				inputsDigest: inputsDigest(scenario),
-				tool: "invariant differential",
-				summary: "written in the current contract, so there is no earlier build to compare against. The conformance check covers it instead."
-			});
-			continue;
-		}
-		if (options.knownContracts && !options.knownContracts.includes(scenario.contract)) {
-			const problem = {
-				scenario: scenario.name,
-				step: "-",
-				pointer: "/",
-				detail: `it is written against contract "${scenario.contract}", which is not one this provider still serves (${options.knownContracts.join(", ")}). Nothing was compared.`
-			};
-			differences.push(problem);
-			evidence.push({
-				kind: "E6-differential",
-				subject: `${scenario.contract}: ${scenario.name}`,
-				result: "fail",
-				inputsDigest: inputsDigest(scenario),
-				tool: "invariant differential",
-				summary: problem.detail
-			});
-			continue;
-		}
-		const found = [];
-		let volatile = /* @__PURE__ */ new Set();
-		try {
-			const note = options.onProgress ?? (() => {});
-			const started = Date.now();
-			note(`${scenario.name}: starting ${scenario.contract} to calibrate`);
-			const first = await withTarget(options.launch, scenario.contract, (target) => observe(target, scenario, {}, compared));
-			await nextTick();
-			note(`${scenario.name}: starting ${scenario.contract} again`);
-			volatile = volatilePaths(first, await withTarget(options.launch, scenario.contract, (target) => observe(target, scenario, {}, compared)));
-			note(`${scenario.name}: starting the current build`);
-			const head = await withTarget(options.launch, "head", (target) => observe(target, scenario, options.contractHeader ? { [options.contractHeader]: scenario.contract } : {}, compared));
-			note(`${scenario.name}: compared in ${((Date.now() - started) / 1e3).toFixed(1)}s`);
-			found.push(...compare(scenario.name, first, head, volatile));
-		} catch (error) {
-			found.push({
-				scenario: scenario.name,
-				step: "-",
-				pointer: "/",
-				detail: `the scenario could not be run: ${error instanceof Error ? error.message : String(error)}`
-			});
-		}
-		volatileByScenario.set(scenario.name, [...volatile].sort());
-		const marked = found.map((entry) => {
-			const note = scenario.acknowledged.find((item) => item.step === entry.step && item.pointer === entry.pointer);
-			return note ? {
-				...entry,
-				acknowledged: note.reason
-			} : entry;
-		});
-		const open = marked.filter((entry) => entry.acknowledged === void 0);
-		const accepted = marked.filter((entry) => entry.acknowledged !== void 0);
-		differences.push(...open);
-		acknowledgedOut.push(...accepted);
-		evidence.push({
-			kind: "E6-differential",
-			subject: `${scenario.contract}: ${scenario.name}`,
-			result: open.length > 0 ? "fail" : "pass",
-			inputsDigest: inputsDigest(scenario),
-			tool: "invariant differential",
-			summary: open.length > 0 ? `${open.length} observable differences between the old build and the new one` : `${scenario.steps.length} requests answered the same by both builds, ignoring ${volatile.size} generated values the old build did not keep stable` + (accepted.length > 0 ? `, with ${accepted.length} acknowledged` : ""),
-			...open.length > 0 || accepted.length > 0 ? { detail: [...open.map((entry) => `${entry.step} ${entry.pointer}: ${entry.detail}`), ...accepted.map((entry) => `acknowledged - ${entry.step} ${entry.pointer}: ${entry.detail} (${entry.acknowledged})`)] } : {}
-		});
+function numberWithStep(step, integral, range = {
+	min: -1e6,
+	max: 1e6
+}) {
+	const factor = 10 ** decimalPlaces(step);
+	const unit = Math.round(step * factor);
+	if (unit === 0) return fast_check_default.integer({
+		min: -1e6,
+		max: 1e6
+	});
+	const lowest = Math.ceil(range.min * factor / unit);
+	const highest = Math.floor(range.max * factor / unit);
+	return fast_check_default.integer({
+		min: Math.max(lowest, -1e6),
+		max: Math.max(Math.min(highest, 1e6), Math.max(lowest, -1e6))
+	}).map((count) => count * unit / factor).filter((value) => !integral || Number.isInteger(value));
+}
+function decimalPlaces(value) {
+	const text = String(value);
+	const exponent = text.indexOf("e");
+	if (exponent !== -1) {
+		const power = Number(text.slice(exponent + 1));
+		return power < 0 ? -power : 0;
 	}
+	const dot = text.indexOf(".");
+	return dot === -1 ? 0 : text.length - dot - 1;
+}
+const DATES = fast_check_default.date({
+	min: /* @__PURE__ */ new Date("2020-01-01T00:00:00Z"),
+	max: /* @__PURE__ */ new Date("2030-01-01T00:00:00Z"),
+	noInvalidDate: true
+});
+function stringFor(schema) {
+	const format = schema["format"];
+	if (format === "date-time") return DATES.map((date) => date.toISOString());
+	if (format === "date") return DATES.map((date) => date.toISOString().slice(0, 10));
+	if (format === "uuid") return fast_check_default.uuid();
+	if (format === "email") return fast_check_default.emailAddress();
+	if (format === "uri" || format === "url") return fast_check_default.webUrl();
+	if (format === "ipv4") return fast_check_default.ipV4();
+	if (format === "byte") return fast_check_default.base64String({ maxLength: 24 });
+	if (format === "uri-reference") return fast_check_default.webUrl();
+	if (format === "uri-template") return fast_check_default.webUrl().map((url) => url.replaceAll("'", ""));
+	if (format === "ipv6") return fast_check_default.ipV6();
+	if (format === "hostname") return fast_check_default.domain();
+	if (format === "time") return DATES.map((date) => `${date.toISOString().slice(11, 19)}Z`);
+	if (format === "duration") return fast_check_default.tuple(fast_check_default.nat(30), fast_check_default.nat(23), fast_check_default.nat(59), fast_check_default.nat(59)).map(([days, hours, minutes, seconds]) => days === 0 && hours === 0 && minutes === 0 && seconds === 0 ? "PT0S" : `P${days ? `${days}D` : ""}${hours || minutes || seconds ? `T${hours ? `${hours}H` : ""}${minutes ? `${minutes}M` : ""}${seconds ? `${seconds}S` : ""}` : ""}`);
+	const minLength = typeof schema["minLength"] === "number" ? schema["minLength"] : 0;
+	const declaredMax = typeof schema["maxLength"] === "number" ? schema["maxLength"] : void 0;
+	const pattern = schema["pattern"];
+	if (typeof pattern === "string") {
+		let regex;
+		try {
+			regex = new RegExp(pattern, "u");
+		} catch {}
+		if (regex) {
+			const matching = fast_check_default.stringMatching(regex);
+			const fits = (text) => text.length >= minLength && (declaredMax === void 0 || text.length <= declaredMax);
+			if (minLength === 0 && declaredMax === void 0) return matching;
+			const single = /^\^((?:\[(?:\\.|[^\]\\])+\]|\\[dDwWsS]|\.))([+*])\$$/.exec(pattern);
+			if (single) return fast_check_default.stringMatching(new RegExp(`^${single[1]}{${single[2] === "+" ? Math.max(minLength, 1) : minLength},${declaredMax ?? ""}}$`, "u"), declaredMax === void 0 ? {} : { size: "max" });
+			for (const size of [
+				"small",
+				"medium",
+				"large"
+			]) {
+				const sized = fast_check_default.stringMatching(regex, { size });
+				if (fast_check_default.sample(sized, {
+					numRuns: 64,
+					seed: 0
+				}).some(fits)) return sized.filter(fits);
+			}
+			return matching;
+		}
+	}
+	const maxLength = declaredMax ?? Math.max(minLength, 24);
+	return fast_check_default.string({
+		minLength,
+		maxLength,
+		unit: "grapheme-ascii"
+	});
+}
+function integerFor(schema) {
+	const step = schema["multipleOf"];
+	const { min, max } = bounds(schema, true);
+	if (typeof step === "number") return numberWithStep(step, true, {
+		min,
+		max
+	});
+	return fast_check_default.integer({
+		min: Math.ceil(min),
+		max: Math.floor(max)
+	});
+}
+/**
+* The declared range, as inclusive bounds. Both OpenAPI spellings of an
+* exclusive bound are read: 3.1's number and 3.0's flag beside the bound.
+*/
+function bounds(schema, integral) {
+	const unit = integral ? 1 : .01;
+	let min = -1e6;
+	let max = 1e6;
+	if (typeof schema["minimum"] === "number") min = schema["exclusiveMinimum"] === true ? schema["minimum"] + unit : schema["minimum"];
+	if (typeof schema["exclusiveMinimum"] === "number") min = schema["exclusiveMinimum"] + unit;
+	if (typeof schema["maximum"] === "number") max = schema["exclusiveMaximum"] === true ? schema["maximum"] - unit : schema["maximum"];
+	if (typeof schema["exclusiveMaximum"] === "number") max = schema["exclusiveMaximum"] - unit;
 	return {
-		evidence,
-		differences,
-		acknowledged: acknowledgedOut,
-		volatile: volatileByScenario
+		min,
+		max: Math.max(min, max)
 	};
 }
-async function withTarget(launch, build, use) {
-	const target = await launch(build);
-	try {
-		return await use(target);
-	} finally {
-		await target.close();
+function arbitraryFor(document, raw, depth) {
+	const resolved = deref(document, raw);
+	if (!isJsonObject(resolved)) return fast_check_default.constant(null);
+	const schema = resolved;
+	const constant = schema["const"];
+	if (constant !== void 0) return fast_check_default.constant(constant);
+	const enumValues = schema["enum"];
+	if (Array.isArray(enumValues) && enumValues.length > 0) return fast_check_default.constantFrom(...enumValues);
+	for (const key of ["oneOf", "anyOf"]) {
+		const branches = schema[key];
+		if (Array.isArray(branches) && branches.length > 0) {
+			const { [key]: _, nullable: __, ...parent } = schema;
+			const shared = Object.keys(parent).some((name) => name !== "description");
+			const alternatives = branches.map((branch) => shared ? { allOf: [parent, branch] } : branch);
+			const chosen = fast_check_default.oneof(...alternatives.map((branch, index) => {
+				const value = arbitraryFor(document, branch, depth);
+				if (key === "anyOf") return value;
+				const alone = (candidate) => alternatives.every((other, at) => at === index || validateSchema(document, other, candidate).length > 0);
+				return fast_check_default.sample(value, {
+					numRuns: 32,
+					seed: 0
+				}).some(alone) ? value.filter(alone) : value;
+			}));
+			return schema["nullable"] === true ? fast_check_default.oneof({
+				weight: 4,
+				arbitrary: chosen
+			}, {
+				weight: 1,
+				arbitrary: fast_check_default.constant(null)
+			}) : chosen;
+		}
 	}
+	const allOf = schema["allOf"];
+	if (Array.isArray(allOf) && allOf.length > 0) {
+		let merged;
+		try {
+			merged = resolveSchema(document, schema);
+		} catch {
+			return fast_check_default.constant({});
+		}
+		if (isJsonObject(merged) && merged["allOf"] === void 0) return arbitraryFor(document, merged, depth);
+	}
+	const types = typesOf(schema);
+	const nullable = types.includes("null") || schema["nullable"] === true;
+	const primary = types.find((type) => type !== "null");
+	const base = (() => {
+		switch (primary) {
+			case "string": return stringFor(schema);
+			case "boolean": return fast_check_default.boolean();
+			case "integer": return integerFor(schema);
+			case "number": {
+				const step = schema["multipleOf"];
+				if (typeof step === "number") return numberWithStep(step, false, bounds(schema, false));
+				const { min, max } = bounds(schema, false);
+				return numberWithStep(.01, false).map((value) => Math.min(max, Math.max(min, value)));
+			}
+			case "array": {
+				const items = schema["items"];
+				const minItems = typeof schema["minItems"] === "number" ? schema["minItems"] : 0;
+				if (items === void 0 || depth >= HARD_DEPTH) return fast_check_default.constant([]);
+				if (depth >= MAX_DEPTH) {
+					if (minItems === 0) return fast_check_default.constant([]);
+					return fast_check_default.array(arbitraryFor(document, items, depth + 1), {
+						minLength: minItems,
+						maxLength: minItems
+					});
+				}
+				const maxItems = typeof schema["maxItems"] === "number" ? schema["maxItems"] : Math.max(minItems, 3);
+				return fast_check_default.array(arbitraryFor(document, items, depth + 1), {
+					minLength: minItems,
+					maxLength: Math.min(maxItems, minItems + 3)
+				});
+			}
+			default: {
+				const properties = schema["properties"];
+				const additional = schema["additionalProperties"];
+				if (!isJsonObject(properties)) {
+					if (isJsonObject(additional) && depth < MAX_DEPTH) return fast_check_default.dictionary(fast_check_default.string({
+						minLength: 1,
+						maxLength: 8,
+						unit: "grapheme-ascii"
+					}), arbitraryFor(document, additional, depth + 1), { maxKeys: 3 });
+					return fast_check_default.constant({});
+				}
+				if (depth >= HARD_DEPTH) return fast_check_default.constant({});
+				const minimal = depth >= MAX_DEPTH;
+				const required = new Set(Array.isArray(schema["required"]) ? schema["required"].filter((entry) => typeof entry === "string") : []);
+				const entries = Object.entries(properties).filter(([name]) => !minimal || required.has(name)).map(([name, child]) => {
+					const value = arbitraryFor(document, child, depth + 1);
+					return [name, required.has(name) ? value : fast_check_default.option(value, {
+						nil: void 0,
+						freq: 4
+					})];
+				});
+				for (const name of required) if (!(name in properties)) entries.push([name, fast_check_default.string({
+					maxLength: 8,
+					unit: "grapheme-ascii"
+				})]);
+				return fast_check_default.record(Object.fromEntries(entries)).map((value) => {
+					const out = {};
+					for (const [name, child] of Object.entries(value)) if (child !== void 0) out[name] = child;
+					return out;
+				});
+			}
+		}
+	})();
+	return nullable ? fast_check_default.oneof({
+		weight: 4,
+		arbitrary: base
+	}, {
+		weight: 1,
+		arbitrary: fast_check_default.constant(null)
+	}) : base;
+}
+/** A generator for values of one named schema in a contract. */
+function schemaArbitrary(document, ref) {
+	const resolved = deref(document, { $ref: ref });
+	if (!isJsonObject(resolved)) throw new ArbitraryError(`${ref} is not a schema in this contract`);
+	return arbitraryFor(document, resolved, 0);
 }
 //#endregion
 //#region ../runtime/src/json.ts
@@ -26758,6 +26246,25 @@ function decodeProgram(raw) {
 		contracts
 	};
 }
+const PARAMETER = /\{[^{}]+\}/g;
+/**
+* A template segment with literal text around its parameters, such as
+* `{name}:cancel`, the custom-method form of Google's design guide, or
+* `{id}.{format}`. Compiled once per segment: the literal parts are escaped,
+* each parameter matches one or more characters of that segment only, since
+* an OpenAPI path parameter never spans a `/`.
+*/
+const mixedSegments = /* @__PURE__ */ new Map();
+function mixedSegment(template) {
+	let compiled = mixedSegments.get(template);
+	if (!compiled) {
+		const source = template.split(PARAMETER).map((literal) => literal.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&")).join("(.+)");
+		compiled = new RegExp(`^${source}$`, "s");
+		mixedSegments.set(template, compiled);
+	}
+	return compiled;
+}
+const isWholeParameter = (segment) => segment.startsWith("{") && segment.endsWith("}") && segment.indexOf("}") === segment.length - 1;
 /** Matches a concrete request path against a route template. */
 function matchTemplate(template, path) {
 	const actual = path.split("/");
@@ -26765,9 +26272,15 @@ function matchTemplate(template, path) {
 	const params = [];
 	for (const [index, expected] of template.entries()) {
 		const segment = actual[index];
-		if (expected.startsWith("{") && expected.endsWith("}")) {
+		if (isWholeParameter(expected)) {
 			if (segment === "") return void 0;
 			params.push(segment);
+			continue;
+		}
+		if (expected.includes("{")) {
+			const matched = mixedSegment(expected).exec(segment);
+			if (!matched) return void 0;
+			params.push(...matched.slice(1));
 			continue;
 		}
 		if (expected !== segment) return void 0;
@@ -26776,14 +26289,11 @@ function matchTemplate(template, path) {
 }
 function fillTemplate(template, params) {
 	let next = 0;
-	return template.map((segment) => {
-		if (segment.startsWith("{") && segment.endsWith("}")) {
-			const value = params[next] ?? "";
-			next += 1;
-			return value;
-		}
-		return segment;
-	}).join("/");
+	return template.map((segment) => segment.replace(PARAMETER, () => {
+		const value = params[next] ?? "";
+		next += 1;
+		return value;
+	})).join("/");
 }
 /** The compiled site for a concrete request, found by template match. */
 function findSite(contract, method, path) {
@@ -27171,6 +26681,583 @@ var InvariantRuntime = class {
 };
 function createRuntime(options) {
 	return new InvariantRuntime(options);
+}
+//#endregion
+//#region ../verifier/src/evidence.ts
+/**
+* What a release is allowed to count as proof.
+*
+* Nine kinds, each naming something a machine checked or a person did. The
+* list is closed on purpose: "the model was confident" is not on it, and there
+* is no kind that could carry it. Everything a reviewer sees in a pull request
+* traces back to one of these records, and every record names the inputs it
+* ran against so a claim cannot outlive the thing it was about.
+*/
+/**
+* The digest that binds a record to its inputs.
+*
+* Two runs over the same specifications and the same Changes produce the same
+* digest, which is what lets a bundle be rebuilt and compared. A record whose
+* digest does not match the release it is attached to is not evidence about
+* that release.
+*/
+function inputsDigest(...parts) {
+	const hash = createHash("sha256");
+	for (const part of parts) hash.update(JSON.stringify(part ?? null));
+	return `sha256:${hash.digest("hex")}`;
+}
+//#endregion
+//#region ../verifier/src/scenarios.ts
+/**
+* Scenarios: what to ask both builds.
+*
+* A single request proves very little about an API. What breaks in practice is
+* a sequence - create something, read it back, list it - because that is where
+* an identifier minted by one call has to be understood by the next. So a
+* scenario is an ordered list of requests with captures, and a later step can
+* refer to what an earlier one returned.
+*
+* Scenarios are written against a historical contract, in that contract's own
+* shapes, because that is the traffic whose meaning has to be preserved.
+*/
+var ScenarioError = class extends Error {
+	constructor(message) {
+		super(message);
+		this.name = "ScenarioError";
+	}
+};
+function str(value, where) {
+	if (typeof value !== "string") throw new ScenarioError(`${where} must be a string`);
+	return value;
+}
+function stepFrom(raw, index, where) {
+	if (!isJsonObject(raw)) throw new ScenarioError(`${where} step ${index} is not a mapping`);
+	const request = raw["request"];
+	if (!isJsonObject(request)) throw new ScenarioError(`${where} step ${index} needs a request`);
+	const headers = {};
+	const rawHeaders = request["headers"];
+	if (isJsonObject(rawHeaders)) for (const [name, value] of Object.entries(rawHeaders)) headers[name.toLowerCase()] = str(value, `${where} step ${index} header ${name}`);
+	const capture = {};
+	const rawCapture = raw["capture"];
+	if (isJsonObject(rawCapture)) for (const [name, pointer] of Object.entries(rawCapture)) capture[name] = str(pointer, `${where} capture ${name}`);
+	const status = raw["expectStatus"];
+	return {
+		id: typeof raw["id"] === "string" ? raw["id"] : `step${index}`,
+		method: str(request["method"], `${where} step ${index} method`).toUpperCase(),
+		path: str(request["path"], `${where} step ${index} path`),
+		headers,
+		body: request["body"],
+		capture,
+		expectStatus: typeof status === "number" ? status : void 0
+	};
+}
+function parseScenario(text, where) {
+	const raw = (0, import_dist.parse)(text);
+	if (!isJsonObject(raw)) throw new ScenarioError(`${where} is not a mapping`);
+	const steps = raw["steps"];
+	if (!Array.isArray(steps) || steps.length === 0) throw new ScenarioError(`${where} needs at least one step`);
+	const acknowledged = [];
+	const rawAcknowledged = raw["acknowledged"];
+	if (Array.isArray(rawAcknowledged)) rawAcknowledged.forEach((entry, index) => {
+		if (!isJsonObject(entry)) throw new ScenarioError(`${where} acknowledged ${index} is not a mapping`);
+		const reason = str(entry["reason"], `${where} acknowledged ${index} reason`);
+		if (reason.trim().length < 10) throw new ScenarioError(`${where} acknowledged ${index} needs a reason saying why this difference is acceptable for a caller on the old contract`);
+		acknowledged.push({
+			step: str(entry["step"], `${where} acknowledged ${index} step`),
+			pointer: str(entry["pointer"], `${where} acknowledged ${index} pointer`),
+			reason
+		});
+	});
+	return {
+		name: str(raw["name"], `${where} name`),
+		contract: str(raw["contract"], `${where} contract`),
+		steps: steps.map((step, index) => stepFrom(step, index, where)),
+		acknowledged
+	};
+}
+async function loadScenarios(directory) {
+	let names;
+	try {
+		names = (await readdir(directory)).filter((name) => name.endsWith(".yaml")).sort();
+	} catch {
+		return [];
+	}
+	return Promise.all(names.map(async (name) => parseScenario(await readFile(join(directory, name), "utf8"), name)));
+}
+/**
+* Fills `${step.name}` references from what earlier steps captured.
+*
+* A missing reference is an error rather than an empty string. Substituting
+* nothing would turn a broken scenario into a request for `/v1/payments/`,
+* which fails somewhere else entirely and sends whoever reads the report after
+* the wrong thing.
+*/
+function substitute(value, captured) {
+	if (typeof value === "string") {
+		const whole = /^\$\{([A-Za-z0-9_.]+)\}$/.exec(value);
+		if (whole) return lookup(whole[1], captured);
+		return value.replace(/\$\{([A-Za-z0-9_.]+)\}/g, (_match, name) => {
+			const found = lookup(name, captured);
+			return typeof found === "string" ? found : JSON.stringify(found);
+		});
+	}
+	if (Array.isArray(value)) return value.map((entry) => substitute(entry, captured));
+	if (isJsonObject(value)) {
+		const out = {};
+		for (const [key, entry] of Object.entries(value)) out[key] = substitute(entry, captured);
+		return out;
+	}
+	return value;
+}
+function lookup(name, captured) {
+	const found = captured.get(name);
+	if (found === void 0) throw new ScenarioError(`\${${name}} was never captured. Known: ${[...captured.keys()].join(", ") || "nothing"}`);
+	return found;
+}
+//#endregion
+//#region ../verifier/src/conformance.ts
+/**
+* Conformance: does the code actually do what its specification says?
+*
+* Everything else in this system reasons about the specification. The diff is
+* taken between two of them, closure is proved against one, the lens laws
+* generate values from one. All of that is worth nothing if the document does
+* not describe the running code, and a specification drifting from its
+* implementation is the most ordinary failure in the whole area.
+*
+* So the current build is asked real questions and every answer is checked
+* against what the contract promised. It is the cheapest check here and the one
+* that holds the others up.
+*/
+/**
+* Matches a concrete path against a path template, ignoring parameter values,
+* by the rule the runtime routes with, so a custom method such as
+* `{name}:cancel` is the same operation to both.
+*/
+function matches(template, path) {
+	return matchTemplate(template.split("/"), path.split("?")[0] ?? "") !== void 0;
+}
+function schemaFor(document, method, path, status) {
+	for (const operation of operationsOf(document)) {
+		if (operation.method !== method.toLowerCase()) continue;
+		if (!matches(operation.path, path)) continue;
+		const declared = responseSchemas(document, operation.operation);
+		const exact = declared.find((entry) => entry.status === String(status));
+		const byClass = declared.find((entry) => entry.status === `${Math.floor(status / 100)}XX`.toLowerCase() || entry.status === `${Math.floor(status / 100)}xx`);
+		const fallback = declared.find((entry) => entry.status === "default");
+		return {
+			operationId: operation.operationId,
+			schema: (exact ?? byClass ?? fallback)?.schema
+		};
+	}
+}
+/**
+* Runs scenarios against one build and validates every response.
+*
+* The scenarios have to be written in the contract being checked, because the
+* point is to compare the build's own output with its own promises. Running
+* old-contract traffic here would only prove things about the adapter.
+*/
+async function checkConformance(document, label, scenarios, open) {
+	const failures = [];
+	const unknownOperations = [];
+	const evidence = [];
+	for (const scenario of scenarios) {
+		const found = [];
+		const target = await open();
+		let checked = 0;
+		try {
+			const captured = /* @__PURE__ */ new Map();
+			for (const step of scenario.steps) {
+				const path = substitute(step.path, captured);
+				const body = step.body === void 0 ? void 0 : substitute(step.body, captured);
+				const headers = new Headers(step.headers);
+				if (body !== void 0) headers.set("content-type", "application/json");
+				const response = await target.fetch(new Request(`http://conform${path}`, {
+					method: step.method,
+					headers,
+					...body === void 0 ? {} : { body: JSON.stringify(body) }
+				}));
+				const text = await response.text();
+				let parsed = null;
+				try {
+					parsed = text === "" ? null : JSON.parse(text);
+				} catch {
+					parsed = text;
+				}
+				for (const [name, pointer] of Object.entries(step.capture)) captured.set(`${step.id}.${name}`, valueAt$1(parsed, pointer));
+				const target_ = schemaFor(document, step.method, path, response.status);
+				if (!target_) {
+					unknownOperations.push(`${scenario.name}/${step.id}: ${step.method} ${path}`);
+					continue;
+				}
+				if (!target_.schema) {
+					found.push({
+						scenario: scenario.name,
+						step: step.id,
+						operation: target_.operationId,
+						status: response.status,
+						violations: [{
+							pointer: "/",
+							message: `the contract does not describe a ${response.status} response for this operation`
+						}]
+					});
+					continue;
+				}
+				checked += 1;
+				const violations = validateSchema(document, target_.schema, parsed);
+				if (violations.length > 0) found.push({
+					scenario: scenario.name,
+					step: step.id,
+					operation: target_.operationId,
+					status: response.status,
+					violations
+				});
+			}
+		} finally {
+			await target.close();
+		}
+		failures.push(...found);
+		evidence.push({
+			kind: "E7-conformance",
+			subject: `${label}: ${scenario.name}`,
+			result: found.length > 0 ? "fail" : "pass",
+			inputsDigest: inputsDigest(scenario, label),
+			tool: "invariant conformance",
+			summary: found.length > 0 ? `${found.length} responses do not match what the contract describes` : `${checked} responses match what contract ${label} describes`,
+			...found.length > 0 ? { detail: found.map((entry) => `${entry.step} (${entry.operation} ${entry.status}): ` + entry.violations.slice(0, 5).map((violation) => `${violation.pointer} ${violation.message}`).join("; ")) } : {}
+		});
+	}
+	return {
+		evidence,
+		failures,
+		unknownOperations
+	};
+}
+function valueAt$1(body, pointer) {
+	let cursor = body;
+	for (const segment of pointer.split("/").slice(1)) if (Array.isArray(cursor)) cursor = cursor[Number(segment)] ?? null;
+	else if (cursor !== null && typeof cursor === "object") cursor = cursor[segment] ?? null;
+	else return null;
+	return cursor;
+}
+//#endregion
+//#region ../verifier/src/differential.ts
+/**
+* The differential check: does the new build, with the adapter, still behave
+* like the old build did?
+*
+* This is the only layer that runs the provider's real code, and so the only
+* one that can catch a fault that is invisible in a specification. Two matter
+* especially. A value map whose pairs are swapped round trips perfectly and
+* preserves the set of allowed values, so neither closure nor the lens laws can
+* see it - but the old build says `succeeded` where the new one says
+* `processing`, and that shows up here on the first request. And a handler
+* whose behaviour changed underneath an unchanged shape is not a shape problem
+* at all; only running both can find it.
+*
+* Production traffic is never replayed. Both builds are stood up fresh, with
+* fresh state, and asked the same scripted questions.
+*
+* `≈` is defined here, and defining it is most of the work. Two responses are
+* equivalent when they have the same status, the same structure, and the same
+* values at every path that is not volatile. Volatility is measured rather than
+* configured: the old build is run twice before the comparison, and any path
+* that disagrees with itself is one the API was never promising to keep stable.
+* Identifiers and timestamps fall out of that automatically, and so does
+* anything else the provider happens to generate, without a list to maintain.
+*/
+const DEFAULT_COMPARED_HEADERS = ["content-type"];
+/**
+* The name a scenario uses for "whatever the current contract is".
+*
+* A contract label is minted at release time from the date, so a scenario
+* written weeks earlier cannot name it. `head` is how the provider says it
+* means the build they are about to ship.
+*/
+const CURRENT_CONTRACT_ALIAS = "head";
+function isCurrent(contract, currentLabel) {
+	return contract === "head" || contract === currentLabel;
+}
+/** Flattens a body into pointer-to-scalar, which is what comparison works on. */
+function flatten(value, prefix = "", out = /* @__PURE__ */ new Map()) {
+	if (Array.isArray(value)) {
+		out.set(`${prefix}[]`, value.length);
+		value.forEach((entry, index) => {
+			flatten(entry, `${prefix}/${index}`, out);
+		});
+		return out;
+	}
+	if (isJsonObject(value)) {
+		for (const [key, entry] of Object.entries(value)) flatten(entry, `${prefix}/${key}`, out);
+		return out;
+	}
+	out.set(prefix || "/", value);
+	return out;
+}
+async function observe(target, scenario, extraHeaders, compared) {
+	const captured = /* @__PURE__ */ new Map();
+	const out = [];
+	for (const step of scenario.steps) {
+		const path = substitute(step.path, captured);
+		const body = step.body === void 0 ? void 0 : substitute(step.body, captured);
+		const headers = new Headers({
+			...step.headers,
+			...extraHeaders
+		});
+		if (body !== void 0) headers.set("content-type", "application/json");
+		const response = await target.fetch(new Request(`http://verify${path}`, {
+			method: step.method,
+			headers,
+			...body === void 0 ? {} : { body: JSON.stringify(body) }
+		}));
+		const text = await response.text();
+		let parsed;
+		try {
+			parsed = text === "" ? null : JSON.parse(text);
+		} catch {
+			parsed = text;
+		}
+		const seen = {};
+		for (const name of compared) {
+			const value = response.headers.get(name);
+			if (value !== null) seen[name] = value;
+		}
+		out.push({
+			id: step.id,
+			status: response.status,
+			headers: seen,
+			body: parsed
+		});
+		for (const [name, pointer] of Object.entries(step.capture)) captured.set(`${step.id}.${name}`, valueAt(parsed, pointer));
+	}
+	return out;
+}
+function valueAt(body, pointer) {
+	let cursor = body;
+	for (const segment of pointer.split("/").slice(1)) if (Array.isArray(cursor)) cursor = cursor[Number(segment)] ?? null;
+	else if (isJsonObject(cursor)) cursor = cursor[segment] ?? null;
+	else return null;
+	return cursor;
+}
+/**
+* Waits until the wall clock crosses into the next whole second.
+*
+* The two calibration runs have to be capable of disagreeing, or the
+* calibration proves nothing. Fresh state is enough to expose a generated
+* identifier, but a timestamp at second resolution is identical in two runs a
+* few milliseconds apart, so it would look stable, and then differ between the
+* old build and the new one whenever the comparison happened to straddle a
+* tick. That is a test that fails once a minute for no reason, which is worse
+* than one that never runs.
+*
+* Crossing a tick between the two runs makes anything derived from the clock
+* reveal itself, without a list of field names to keep up to date.
+*/
+async function nextTick() {
+	const now = Date.now();
+	await new Promise((resolve) => setTimeout(resolve, 1e3 - now % 1e3 + 5));
+}
+/**
+* Paths the old build did not reproduce when asked the same thing twice.
+*
+* Running base against itself is what makes the comparison trustworthy. Without
+* it every identifier and timestamp would report as a difference, and the only
+* way to get a green run would be to maintain a list of fields to ignore, which
+* drifts and eventually hides something real.
+*/
+var CalibrationError = class extends Error {
+	constructor(message) {
+		super(message);
+		this.name = "CalibrationError";
+	}
+};
+function volatilePaths(a, b) {
+	if (a.length !== b.length) throw new CalibrationError(`The old build answered ${a.length} steps and then ${b.length} for the same scenario, so nothing can be said about which of its values are stable. Calibration has to be repeatable before a comparison against it means anything.`);
+	const volatile = /* @__PURE__ */ new Set();
+	a.forEach((left, index) => {
+		const right = b[index];
+		if (!right) throw new CalibrationError(`The old build skipped ${left.id} on the second run.`);
+		const leftPaths = flatten(left.body);
+		const rightPaths = flatten(right.body);
+		for (const [pointer, value] of leftPaths) {
+			const other = rightPaths.get(pointer);
+			if (other === void 0 || JSON.stringify(other) !== JSON.stringify(value)) volatile.add(`${left.id}${pointer}`);
+		}
+		for (const pointer of rightPaths.keys()) if (!leftPaths.has(pointer)) volatile.add(`${left.id}${pointer}`);
+	});
+	return volatile;
+}
+function kindOf(value) {
+	if (value === null) return "null";
+	if (Array.isArray(value)) return "array";
+	return typeof value;
+}
+function compare(scenario, base, head, volatile) {
+	const out = [];
+	base.forEach((left, index) => {
+		const right = head[index];
+		if (!right) {
+			out.push({
+				scenario,
+				step: left.id,
+				pointer: "/",
+				detail: "the new build did not answer this step at all"
+			});
+			return;
+		}
+		if (left.status !== right.status) out.push({
+			scenario,
+			step: left.id,
+			pointer: "/",
+			detail: `the old build answered ${left.status}, the new one answered ${right.status}`
+		});
+		for (const [name, value] of Object.entries(left.headers)) if (right.headers[name] !== value) out.push({
+			scenario,
+			step: left.id,
+			pointer: `header ${name}`,
+			detail: `was ${value}, now ${right.headers[name] ?? "absent"}`
+		});
+		const leftPaths = flatten(left.body);
+		const rightPaths = flatten(right.body);
+		for (const [pointer, value] of leftPaths) {
+			const key = `${left.id}${pointer}`;
+			const other = rightPaths.get(pointer);
+			if (other === void 0) {
+				out.push({
+					scenario,
+					step: left.id,
+					pointer,
+					detail: "the old build returned this, the new one does not"
+				});
+				continue;
+			}
+			if (volatile.has(key)) {
+				if (kindOf(other) !== kindOf(value)) out.push({
+					scenario,
+					step: left.id,
+					pointer,
+					detail: `was a ${kindOf(value)}, now a ${kindOf(other)}`
+				});
+				continue;
+			}
+			if (JSON.stringify(other) !== JSON.stringify(value)) out.push({
+				scenario,
+				step: left.id,
+				pointer,
+				detail: `was ${JSON.stringify(value)}, now ${JSON.stringify(other)}`
+			});
+		}
+		for (const pointer of rightPaths.keys()) if (!leftPaths.has(pointer)) out.push({
+			scenario,
+			step: left.id,
+			pointer,
+			detail: "the new build returned this, which the old contract never had"
+		});
+	});
+	return out;
+}
+/**
+* Runs every scenario against the old build and the new build plus adapter.
+*
+* Three runs per scenario, and the order matters: both base runs happen before
+* head is consulted, so volatility is established from the old build alone and
+* cannot be influenced by whatever the new one does.
+*/
+async function checkDifferential(scenarios, options) {
+	const compared = options.compareHeaders ?? DEFAULT_COMPARED_HEADERS;
+	const differences = [];
+	const acknowledgedOut = [];
+	const evidence = [];
+	const volatileByScenario = /* @__PURE__ */ new Map();
+	for (const scenario of scenarios) {
+		if (isCurrent(scenario.contract, options.currentLabel)) {
+			evidence.push({
+				kind: "E6-differential",
+				subject: `${scenario.contract}: ${scenario.name}`,
+				result: "skipped",
+				inputsDigest: inputsDigest(scenario),
+				tool: "invariant differential",
+				summary: "written in the current contract, so there is no earlier build to compare against. The conformance check covers it instead."
+			});
+			continue;
+		}
+		if (options.knownContracts && !options.knownContracts.includes(scenario.contract)) {
+			const problem = {
+				scenario: scenario.name,
+				step: "-",
+				pointer: "/",
+				detail: `it is written against contract "${scenario.contract}", which is not one this provider still serves (${options.knownContracts.join(", ")}). Nothing was compared.`
+			};
+			differences.push(problem);
+			evidence.push({
+				kind: "E6-differential",
+				subject: `${scenario.contract}: ${scenario.name}`,
+				result: "fail",
+				inputsDigest: inputsDigest(scenario),
+				tool: "invariant differential",
+				summary: problem.detail
+			});
+			continue;
+		}
+		const found = [];
+		let volatile = /* @__PURE__ */ new Set();
+		try {
+			const note = options.onProgress ?? (() => {});
+			const started = Date.now();
+			note(`${scenario.name}: starting ${scenario.contract} to calibrate`);
+			const first = await withTarget(options.launch, scenario.contract, (target) => observe(target, scenario, {}, compared));
+			await nextTick();
+			note(`${scenario.name}: starting ${scenario.contract} again`);
+			volatile = volatilePaths(first, await withTarget(options.launch, scenario.contract, (target) => observe(target, scenario, {}, compared)));
+			note(`${scenario.name}: starting the current build`);
+			const head = await withTarget(options.launch, "head", (target) => observe(target, scenario, options.contractHeader ? { [options.contractHeader]: scenario.contract } : {}, compared));
+			note(`${scenario.name}: compared in ${((Date.now() - started) / 1e3).toFixed(1)}s`);
+			found.push(...compare(scenario.name, first, head, volatile));
+		} catch (error) {
+			found.push({
+				scenario: scenario.name,
+				step: "-",
+				pointer: "/",
+				detail: `the scenario could not be run: ${error instanceof Error ? error.message : String(error)}`
+			});
+		}
+		volatileByScenario.set(scenario.name, [...volatile].sort());
+		const marked = found.map((entry) => {
+			const note = scenario.acknowledged.find((item) => item.step === entry.step && item.pointer === entry.pointer);
+			return note ? {
+				...entry,
+				acknowledged: note.reason
+			} : entry;
+		});
+		const open = marked.filter((entry) => entry.acknowledged === void 0);
+		const accepted = marked.filter((entry) => entry.acknowledged !== void 0);
+		differences.push(...open);
+		acknowledgedOut.push(...accepted);
+		evidence.push({
+			kind: "E6-differential",
+			subject: `${scenario.contract}: ${scenario.name}`,
+			result: open.length > 0 ? "fail" : "pass",
+			inputsDigest: inputsDigest(scenario),
+			tool: "invariant differential",
+			summary: open.length > 0 ? `${open.length} observable differences between the old build and the new one` : `${scenario.steps.length} requests answered the same by both builds, ignoring ${volatile.size} generated values the old build did not keep stable` + (accepted.length > 0 ? `, with ${accepted.length} acknowledged` : ""),
+			...open.length > 0 || accepted.length > 0 ? { detail: [...open.map((entry) => `${entry.step} ${entry.pointer}: ${entry.detail}`), ...accepted.map((entry) => `acknowledged - ${entry.step} ${entry.pointer}: ${entry.detail} (${entry.acknowledged})`)] } : {}
+		});
+	}
+	return {
+		evidence,
+		differences,
+		acknowledged: acknowledgedOut,
+		volatile: volatileByScenario
+	};
+}
+async function withTarget(launch, build, use) {
+	const target = await launch(build);
+	try {
+		return await use(target);
+	} finally {
+		await target.close();
+	}
 }
 //#endregion
 //#region ../verifier/src/run.ts

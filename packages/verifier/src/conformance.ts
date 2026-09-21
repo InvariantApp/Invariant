@@ -13,6 +13,7 @@
  */
 import { type OpenApiDocument, operationsOf, responseSchemas } from "@invariant/contract";
 import type { JsonValue } from "@invariant/ir";
+import { matchTemplate } from "@invariant/runtime";
 import type { Target } from "./differential.ts";
 import { type Evidence, inputsDigest } from "./evidence.ts";
 import { type Scenario, substitute } from "./scenarios.ts";
@@ -33,15 +34,13 @@ export interface ConformanceReport {
   unknownOperations: string[];
 }
 
-/** Matches a concrete path against a path template, ignoring parameter values. */
+/**
+ * Matches a concrete path against a path template, ignoring parameter values,
+ * by the rule the runtime routes with, so a custom method such as
+ * `{name}:cancel` is the same operation to both.
+ */
 function matches(template: string, path: string): boolean {
-  const left = template.split("/");
-  const right = path.split("?")[0]?.split("/") ?? [];
-  if (left.length !== right.length) return false;
-  return left.every(
-    (segment, index) =>
-      (segment.startsWith("{") && segment.endsWith("}")) || segment === right[index],
-  );
+  return matchTemplate(template.split("/"), path.split("?")[0] ?? "") !== undefined;
 }
 
 function schemaFor(

@@ -51,7 +51,8 @@ export {
   readBodyText,
 } from "./http.ts";
 export type { DecodedProgram, DecodedSite };
-export { decodeProgram, MatchLimitError, ProgramError, TransformError };
+// matchTemplate is the rule the runtime routes by, for anything that has to agree with it.
+export { decodeProgram, MatchLimitError, matchTemplate, ProgramError, TransformError };
 
 /** A transformed body, and the paths at which a value was folded to produce it. */
 export interface Transformed {
