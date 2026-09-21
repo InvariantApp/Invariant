@@ -105,6 +105,19 @@ export function scoreboard(inputs: {
   const breakingPairs = done.filter((result) => result.breakingAligned > 0);
   const closed = breakingPairs.filter((result) => result.breakingAfter === 0);
   const explained = aligned === 0 ? 0 : (aligned - after) / aligned;
+  // The same closure with every open decision answered synthetically: what a
+  // provider who answered them would reach. A pair recorded before the corpus
+  // measured it counts as it stood without decisions.
+  const decided = done.reduce(
+    (sum, result) => sum + (result.breakingAfterDecided ?? result.breakingAfter),
+    0,
+  );
+  const measuredDecided = done.filter(
+    (result) => result.breakingAfterDecided !== undefined,
+  ).length;
+  const closedDecided = breakingPairs.filter(
+    (result) => (result.breakingAfterDecided ?? result.breakingAfter) === 0,
+  );
   lines.push({
     id: "L4",
     claim:
@@ -115,8 +128,12 @@ export function scoreboard(inputs: {
         : explained >= 0.95 && closed.length >= 0.8 * breakingPairs.length
           ? "met"
           : "not met",
-    value: `${percent(aligned - after, aligned)} of breaking deltas explained; ${closed.length} of ${breakingPairs.length} breaking pairs closed (${percent(closed.length, breakingPairs.length)}). Counted per instance, not yet per (id, schema).`,
-    evidence: "proving/corpus/results.json (rules judge, no decisions)",
+    value:
+      `${percent(aligned - after, aligned)} of breaking deltas explained; ${closed.length} of ${breakingPairs.length} breaking pairs closed (${percent(closed.length, breakingPairs.length)}). ` +
+      `With every open decision answered synthetically: ${percent(aligned - decided, aligned)} explained, ${closedDecided.length} pairs closed (${percent(closedDecided.length, breakingPairs.length)}), measured on ${measuredDecided} of ${done.length} completed pairs. ` +
+      "Counted per instance, not yet per (id, schema).",
+    evidence:
+      "proving/corpus/results.json (rules judge; without decisions, and with synthetic answers)",
   });
   lines.push(
     unmeasured(
