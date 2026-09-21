@@ -167,6 +167,14 @@ export class UnsupportedContractError extends Error {
  * caller needs to know that rather than retry. A bare 404 says neither, and is
  * indistinguishable from a typo in the path.
  */
+/**
+ * What a provider answers for an operation it no longer serves, and nothing
+ * else. A 404 is left out on purpose: it also means a record that does not
+ * exist, and turning that into "this operation was retired" would tell a
+ * caller something false about an operation that still works.
+ */
+export const GONE_STATUSES: ReadonlySet<number> = new Set([405, 410]);
+
 export class RetiredEndpointError extends Error {
   readonly contract: string;
   readonly changeId: string;
@@ -513,6 +521,42 @@ export class InvariantRuntime {
     }
   }
 
+  #retiredIn(
+    contract: DecodedContract,
+    method: string,
+    path: string,
+  ): DecodedContract["retired"][number] | undefined {
+    return contract.retired.find(
+      (entry) =>
+        entry.method === method.toLowerCase() &&
+        matchTemplate(entry.path.split("/"), path) !== undefined,
+    );
+  }
+
+  /**
+   * An operation retired after this contract that is still passed on to the
+   * provider, and what to tell the caller if the provider says it is gone.
+   *
+   * A binding forwards the call as usual and, when the answer is one of
+   * `GONE_STATUSES`, replaces it with a 410 carrying this error's guidance.
+   * The Change sets `refuse` when the provider's server no longer serves the
+   * operation at all, and then the call never gets this far.
+   * Anything else the provider answers goes back untouched: a specification
+   * that dropped an operation its server still serves must not become an
+   * outage the adapter caused.
+   */
+  retiredFor(
+    label: string,
+    method: string,
+    path: string,
+  ): RetiredEndpointError | undefined {
+    if (label === this.#program.currentLabel) return undefined;
+    const contract = this.#program.contracts.get(label);
+    const gone = contract && this.#retiredIn(contract, method, path);
+    if (!gone || gone.refuse) return undefined;
+    return new RetiredEndpointError(label, method, path, gone.c, gone.guidance);
+  }
+
   #siteFor(label: string, method: string, path: string): DecodedSite | undefined {
     if (label === this.#program.currentLabel) return undefined;
 
@@ -522,15 +566,11 @@ export class InvariantRuntime {
       throw new UnsupportedContractError(label, "no compiled program for this contract");
     }
 
-    // Checked before the kill switch and before any site lookup: a retired
-    // endpoint is gone whatever else is configured, and saying so is more
-    // useful than any of the other answers available here.
-    const gone = contract.retired.find(
-      (entry) =>
-        entry.method === method.toLowerCase() &&
-        matchTemplate(entry.path.split("/"), path) !== undefined,
-    );
-    if (gone) {
+    // Checked before the kill switch and before any site lookup: an endpoint
+    // refused outright is gone whatever else is configured. One that is passed
+    // on is answered by the binding once the provider has answered.
+    const gone = this.#retiredIn(contract, method, path);
+    if (gone?.refuse) {
       throw new RetiredEndpointError(label, method, path, gone.c, gone.guidance);
     }
     if (flags.allDisabled) {

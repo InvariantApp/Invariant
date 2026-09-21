@@ -53,11 +53,19 @@ const PROGRAM = {
           path: "/v1/refunds",
           guidance: "Use POST /v1/payments/{id}/reverse instead.",
           c: "chg_retired_refunds",
+          refuse: true,
         },
         {
           method: "post",
           path: "/v1/{name}:cancel",
           c: "chg_retired_cancel",
+          refuse: true,
+        },
+        {
+          method: "post",
+          path: "/v1/payouts",
+          guidance: "Use POST /v1/transfers instead.",
+          c: "chg_retired_payouts",
         },
       ],
     },
@@ -207,6 +215,32 @@ describe("an old caller, through the proxy", () => {
 
     expect(response.status).toBe(410);
     expect(calls).toHaveLength(0);
+  });
+
+  // Retired without being refused: the provider's server may still serve it,
+  // as Qdrant 1.19's still served the search its specification had dropped.
+  it("still reaches an operation retired without being refused", async () => {
+    const { fetchImpl, calls } = upstream(() => jsonAnswer({ id: "po_1" }));
+    const response = await proxyWith(fetchImpl)(post("/v1/payouts", {}, "2026-01-01"));
+    expect(calls).toHaveLength(1);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ id: "po_1" });
+  });
+
+  it("keeps the provider's 404 for such an operation, which may mean a missing record", async () => {
+    const { fetchImpl } = upstream(() => jsonAnswer({ error: "no such payout" }, 404));
+    const response = await proxyWith(fetchImpl)(post("/v1/payouts", {}, "2026-01-01"));
+    expect(response.status).toBe(404);
+  });
+
+  it("hands over the guidance when the provider says such an operation is gone", async () => {
+    for (const status of [405, 410]) {
+      const { fetchImpl } = upstream(() => new Response(null, { status }));
+      const response = await proxyWith(fetchImpl)(post("/v1/payouts", {}, "2026-01-01"));
+      expect(response.status).toBe(410);
+      const body = (await response.json()) as { error: { message: string } };
+      expect(body.error.message).toContain("Use POST /v1/transfers instead.");
+    }
   });
 
   it("is refused for a contract that does not exist", async () => {

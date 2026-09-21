@@ -3013,10 +3013,19 @@ const RetireOp = Type.Object({
 	guidance: Type.Optional(Type.String({
 		minLength: 1,
 		maxLength: 300
-	}))
+	})),
+	/**
+	* The provider's server no longer serves this operation, so an old
+	* caller is answered 410 without reaching it. Left unset, the call is
+	* passed on and only an answer of 405 or 410 is replaced with the
+	* guidance: a specification can drop an operation its server still
+	* serves, as Qdrant 1.19 did with search, and a drafted retirement nobody
+	* checked must not turn working calls into failures.
+	*/
+	refuse: Type.Optional(Type.Boolean())
 }, {
 	additionalProperties: false,
-	description: "An operation that is gone. No transform can serve it; the runtime refuses it by name instead of returning a bare 404."
+	description: "An operation that is gone. No transform can serve it; the runtime answers a caller with the provider's guidance instead of a bare 404."
 });
 const BehaviorOp = Type.Object({
 	op: Type.Literal("behavior"),
@@ -3261,7 +3270,15 @@ const ContractProgram = Type.Object({
 		method: Type.String(),
 		path: Type.String(),
 		guidance: Type.Optional(Type.String()),
-		c: Type.String()
+		c: Type.String(),
+		/**
+		* Answer 410 without reaching the provider: the Change says the
+		* server no longer serves the operation, or passing the call on
+		* could reach a different operation of the new contract. Otherwise
+		* the call is passed on, and only a 405 or 410 from the provider is
+		* replaced with the guidance.
+		*/
+		refuse: Type.Optional(Type.Literal(true))
 	}, { additionalProperties: false }))
 }, { additionalProperties: false });
 Type.Object({
@@ -11416,12 +11433,12 @@ function shiftDecimal(text, exponent) {
 function compareDecimal(a, b) {
 	const left = parseDecimal(a);
 	const right = parseDecimal(b);
-	if (left.negative !== right.negative) return left.negative ? -1 : 1;
 	const scale = Math.max(left.scale, right.scale);
-	const leftDigits = BigInt(left.digits) * 10n ** BigInt(scale - left.scale);
-	const rightDigits = BigInt(right.digits) * 10n ** BigInt(scale - right.scale);
-	const sign = left.negative ? -1n : 1n;
-	const diff = (leftDigits - rightDigits) * sign;
+	const value = (decimal) => {
+		const magnitude = BigInt(decimal.digits) * 10n ** BigInt(scale - decimal.scale);
+		return decimal.negative ? -magnitude : magnitude;
+	};
+	const diff = value(left) - value(right);
 	return diff === 0n ? 0 : diff > 0n ? 1 : -1;
 }
 /** Converts a JavaScript number to decimal text, refusing exponential forms. */
@@ -12288,7 +12305,8 @@ function projectStep(label, oldContract, changes, newContract) {
 			method: op.endpoint.method,
 			path: op.endpoint.path,
 			...op.guidance === void 0 ? {} : { guidance: op.guidance },
-			c: change.id
+			c: change.id,
+			...op.refuse === true || reachesAnother(op.endpoint, newContract) ? { refuse: true } : {}
 		});
 	}
 	for (const change of changes) collectForward(change, oldContract, routes, sites, issues);
@@ -12311,6 +12329,24 @@ function projectStep(label, oldContract, changes, newContract) {
 		},
 		issues
 	};
+}
+/**
+* Whether a call to a retired operation could land on a different operation
+* of the new contract, if it were passed on.
+*
+* Only then is it refused outright. Two templates can match the same path
+* when every pair of segments either is the same text or contains a
+* parameter, which is deliberately generous: a parameter could hold anything.
+* Without the new contract nothing is known, and the refusal is kept.
+*/
+function reachesAnother(endpoint, newContract) {
+	if (!newContract) return true;
+	const retired = endpoint.path.split("/");
+	return operationsOf(newContract).some((operation) => {
+		if (operation.webhook || operation.method !== endpoint.method) return false;
+		const other = operation.path.split("/");
+		return other.length === retired.length && other.every((segment, index) => segment === retired[index] || segment.includes("{") || retired[index].includes("{"));
+	});
 }
 function sitesOf(change, oldContract, issues) {
 	const found = [];
@@ -26247,11 +26283,14 @@ function decodeProgram(raw) {
 				const at = `${where}.retired[${index}]`;
 				const row = object(entry, at);
 				const guidance = row["guidance"];
+				const refuse = row["refuse"];
+				if (refuse !== void 0 && refuse !== true) throw new ProgramError(`${at}.refuse must be true when present`);
 				return {
 					method: string(row["method"], `${at}.method`).toLowerCase(),
 					path: string(row["path"], `${at}.path`),
 					guidance: guidance === void 0 ? void 0 : string(guidance, `${at}.guidance`),
-					c: string(row["c"], `${at}.c`)
+					c: string(row["c"], `${at}.c`),
+					refuse: refuse === true
 				};
 			})
 		});
@@ -26361,14 +26400,6 @@ var UnsupportedContractError = class UnsupportedContractError extends Error {
 		return new UnsupportedContractError(contract, "unknown", `No contract is called "${contract}". This API serves ${list}.`);
 	}
 };
-/**
-* A caller reached an endpoint that no longer exists.
-*
-* Separate from `UnsupportedContractError` because the answer is different. An
-* unsupported contract might come back; a retired endpoint will not, and the
-* caller needs to know that rather than retry. A bare 404 says neither, and is
-* indistinguishable from a typo in the path.
-*/
 var RetiredEndpointError = class extends Error {
 	contract;
 	changeId;
@@ -26587,13 +26618,35 @@ var InvariantRuntime = class {
 			throw error;
 		}
 	}
+	#retiredIn(contract, method, path) {
+		return contract.retired.find((entry) => entry.method === method.toLowerCase() && matchTemplate(entry.path.split("/"), path) !== void 0);
+	}
+	/**
+	* An operation retired after this contract that is still passed on to the
+	* provider, and what to tell the caller if the provider says it is gone.
+	*
+	* A binding forwards the call as usual and, when the answer is one of
+	* `GONE_STATUSES`, replaces it with a 410 carrying this error's guidance.
+	* The Change sets `refuse` when the provider's server no longer serves the
+	* operation at all, and then the call never gets this far.
+	* Anything else the provider answers goes back untouched: a specification
+	* that dropped an operation its server still serves must not become an
+	* outage the adapter caused.
+	*/
+	retiredFor(label, method, path) {
+		if (label === this.#program.currentLabel) return void 0;
+		const contract = this.#program.contracts.get(label);
+		const gone = contract && this.#retiredIn(contract, method, path);
+		if (!gone || gone.refuse) return void 0;
+		return new RetiredEndpointError(label, method, path, gone.c, gone.guidance);
+	}
 	#siteFor(label, method, path) {
 		if (label === this.#program.currentLabel) return void 0;
 		const flags = this.#flags();
 		const contract = this.#program.contracts.get(label);
 		if (!contract) throw new UnsupportedContractError(label, "no compiled program for this contract");
-		const gone = contract.retired.find((entry) => entry.method === method.toLowerCase() && matchTemplate(entry.path.split("/"), path) !== void 0);
-		if (gone) throw new RetiredEndpointError(label, method, path, gone.c, gone.guidance);
+		const gone = this.#retiredIn(contract, method, path);
+		if (gone?.refuse) throw new RetiredEndpointError(label, method, path, gone.c, gone.guidance);
 		if (flags.allDisabled) throw new UnsupportedContractError(label, "compatibility is switched off");
 		if (flags.disabledContracts?.includes(label)) throw new UnsupportedContractError(label, "this contract is switched off");
 		const site = findSite(contract, method, path);

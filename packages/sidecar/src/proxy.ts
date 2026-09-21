@@ -27,6 +27,7 @@ import {
   ERROR_CODES,
   type ErrorShaper,
   FOLDED_HEADER,
+  GONE_STATUSES,
   goneWith,
   headersForText,
   type InvariantRuntime,
@@ -166,11 +167,21 @@ export function createProxy(options: ProxyOptions): FetchHandler {
       }
     }
 
-    return forward(request, decision.path, url.search, outgoing, body, {
+    const answer = await forward(request, decision.path, url.search, outgoing, body, {
       site,
       contract,
       context,
     });
+    // An operation retired after the caller's contract reached the provider;
+    // if the provider says it is gone, the caller hears why and what to use.
+    const retired = runtime.retiredFor(contract, request.method, decision.path);
+    if (retired && GONE_STATUSES.has(answer.status)) {
+      await answer.body?.cancel();
+      return shapedResponse(
+        goneWith(errors)(retired.message, ERROR_CODES.endpointRetired),
+      );
+    }
+    return answer;
   };
 
   async function forward(

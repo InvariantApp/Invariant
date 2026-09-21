@@ -50,6 +50,7 @@ ops:
   - op: retire
     endpoint: { method: post, path: /v1/refunds }
     guidance: Issue refunds from the dashboard instead.
+    refuse: true
 assertions:
   same_concept: true
   side_effects_unchanged: true

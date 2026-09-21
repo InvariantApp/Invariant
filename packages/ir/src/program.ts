@@ -153,6 +153,14 @@ export const ContractProgram = Type.Object(
           path: Type.String(),
           guidance: Type.Optional(Type.String()),
           c: Type.String(),
+          /**
+           * Answer 410 without reaching the provider: the Change says the
+           * server no longer serves the operation, or passing the call on
+           * could reach a different operation of the new contract. Otherwise
+           * the call is passed on, and only a 405 or 410 from the provider is
+           * replaced with the guidance.
+           */
+          refuse: Type.Optional(Type.Literal(true)),
         },
         { additionalProperties: false },
       ),

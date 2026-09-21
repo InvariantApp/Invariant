@@ -14,6 +14,7 @@ import {
   ERROR_CODES,
   type ErrorShaper,
   FOLDED_HEADER,
+  GONE_STATUSES,
   goneWith,
   headersForText,
   InvariantRuntime,
@@ -198,6 +199,7 @@ export function adapt(options: HonoBindingOptions): MiddlewareHandler {
 
     if (!site) {
       await next();
+      answerRetired(c, runtime, errors, contract);
       if (contract !== runtime.currentLabel) {
         c.res.headers.set(CONTRACT_RESPONSE_HEADER, contract);
       }
@@ -239,6 +241,7 @@ export function adapt(options: HonoBindingOptions): MiddlewareHandler {
     }
 
     await next();
+    if (answerRetired(c, runtime, errors, contract)) return undefined;
 
     const answer = c.res;
     if (
@@ -284,6 +287,31 @@ export function adapt(options: HonoBindingOptions): MiddlewareHandler {
 
     return undefined;
   };
+}
+
+/**
+ * An operation retired after the caller's contract reached the handler. If
+ * the handler says it is gone, the caller is told why and what to use
+ * instead; any other answer, including a 404 for a missing record, goes back
+ * as the handler gave it. True when the answer was replaced.
+ */
+function answerRetired(
+  c: Context,
+  runtime: InvariantRuntime,
+  errors: ErrorShaper,
+  contract: string,
+): boolean {
+  const retired = runtime.retiredFor(contract, c.req.method, c.req.path);
+  if (!retired || !GONE_STATUSES.has(c.res.status)) return false;
+  const shaped = goneWith(errors)(retired.message, ERROR_CODES.endpointRetired);
+  replaceResponse(
+    c,
+    new Response(JSON.stringify(shaped.body), {
+      status: shaped.status,
+      headers: { "content-type": "application/json" },
+    }),
+  );
+  return true;
 }
 
 /**

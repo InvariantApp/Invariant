@@ -1899,6 +1899,31 @@ is where every uncompilable draft on Plaid, Twilio and OpenAI came from.
 inlines a private copy of any node it writes through, so a Change never edits a
 schema shared with something it does not name.
 
+### What a real server said that its specification did not
+
+The proving ground put Qdrant's own images and Qdrant's own API suite behind
+the proxy, across three of its releases. Between 1.18 and 1.19 the
+specification dropped search, recommend and discover in favour of `query`. The
+rules judge drafted a `retire` for each, the gate passed them, and the proxy
+answered 410 to every such call. The 1.19 server still serves all eight, so 399
+tests that passed against it directly failed through the adapter. A provider
+who merged those drafts would have had an outage that Invariant caused.
+
+A specification is the provider's statement about their API, not the API. A
+retirement is now passed on by default: the provider's answer goes back as it
+is, and only a 405 or 410, which say nothing but "gone", is replaced with the
+guidance. A 404 is left alone, because it also means a record that does not
+exist, and Qdrant's own suite expects exactly that for a missing collection.
+`refuse: true` on the Change answers 410 without reaching a server that no
+longer serves the operation, and the compiler refuses on its own whenever
+passing the call on could reach a different operation of the new contract.
+Nothing a judge drafts can now turn a working call into a failure.
+
+The same week, the traffic rig found the runtime could not route Google's
+custom methods (`/v1/{name}:cancel`), and the fuzzers found a number too large
+for a double forwarded as `null` and three untyped errors escaping the proxy.
+Each is fixed where it broke and kept as a regression test.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no

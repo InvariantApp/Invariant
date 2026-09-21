@@ -7,7 +7,7 @@
  */
 export const DIAGNOSIS: Record<string, string> = {
   "api-path-removed-without-deprecation":
-    "an endpoint genuinely gone, not moved. `retire` expresses it and the proposer drafts one for explicit attention; the runtime answers an old caller with 410 and the provider's guidance. Nothing can serve the call, so the gate weighs it against the usage ledger.",
+    "an endpoint gone from the specification, not moved. `retire` expresses it and the proposer drafts one for explicit attention. The call is still passed on, since a server can keep serving what its specification dropped, as Qdrant 1.19 did with search; a 405 or 410 from the provider becomes the provider's guidance, and `refuse: true` answers 410 without reaching a server that no longer serves it. The gate weighs it against the usage ledger.",
   "response-body-type-changed":
     "a response schema replaced wholesale, often with an empty one. Not expressible and probably should not be: it is a rewrite, not a rename.",
   "request-parameter-enum-value-removed":

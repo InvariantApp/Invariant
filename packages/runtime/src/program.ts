@@ -38,7 +38,14 @@ export interface DecodedContract {
   sites: Map<string, DecodedSite>;
   behaviors: string[];
   /** Endpoints this contract had that the current one does not. */
-  retired: { method: string; path: string; guidance: string | undefined; c: string }[];
+  retired: {
+    method: string;
+    path: string;
+    guidance: string | undefined;
+    c: string;
+    /** Refused without reaching the provider; otherwise passed on. */
+    refuse: boolean;
+  }[];
 }
 
 export interface DecodedProgram {
@@ -307,12 +314,17 @@ export function decodeProgram(raw: unknown): DecodedProgram {
           const at = `${where}.retired[${index}]`;
           const row = object(entry, at);
           const guidance = row["guidance"];
+          const refuse = row["refuse"];
+          if (refuse !== undefined && refuse !== true) {
+            throw new ProgramError(`${at}.refuse must be true when present`);
+          }
           return {
             method: string(row["method"], `${at}.method`).toLowerCase(),
             path: string(row["path"], `${at}.path`),
             guidance:
               guidance === undefined ? undefined : string(guidance, `${at}.guidance`),
             c: string(row["c"], `${at}.c`),
+            refuse: refuse === true,
           };
         },
       ),

@@ -232,6 +232,7 @@ export function projectStep(
     path: string;
     guidance?: string;
     c: string;
+    refuse?: true;
   }[] = [];
   for (const change of changes) {
     for (const op of change.ops) {
@@ -242,6 +243,9 @@ export function projectStep(
           path: op.endpoint.path,
           ...(op.guidance === undefined ? {} : { guidance: op.guidance }),
           c: change.id,
+          ...(op.refuse === true || reachesAnother(op.endpoint, newContract)
+            ? { refuse: true as const }
+            : {}),
         });
       }
     }
@@ -275,6 +279,36 @@ export function projectStep(
     program: { label, routes: routeRules, sites: out, behaviors, retired },
     issues,
   };
+}
+
+/**
+ * Whether a call to a retired operation could land on a different operation
+ * of the new contract, if it were passed on.
+ *
+ * Only then is it refused outright. Two templates can match the same path
+ * when every pair of segments either is the same text or contains a
+ * parameter, which is deliberately generous: a parameter could hold anything.
+ * Without the new contract nothing is known, and the refusal is kept.
+ */
+function reachesAnother(
+  endpoint: { method: string; path: string },
+  newContract: OpenApiDocument | undefined,
+): boolean {
+  if (!newContract) return true;
+  const retired = endpoint.path.split("/");
+  return operationsOf(newContract).some((operation) => {
+    if (operation.webhook || operation.method !== endpoint.method) return false;
+    const other = operation.path.split("/");
+    return (
+      other.length === retired.length &&
+      other.every(
+        (segment, index) =>
+          segment === retired[index] ||
+          segment.includes("{") ||
+          (retired[index] as string).includes("{"),
+      )
+    );
+  });
 }
 
 function sitesOf(

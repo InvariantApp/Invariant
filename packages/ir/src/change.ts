@@ -184,11 +184,20 @@ export const RetireOp = Type.Object(
     endpoint: Endpoint,
     /** What callers should use instead, in a sentence. Shown in the refusal. */
     guidance: Type.Optional(Type.String({ minLength: 1, maxLength: 300 })),
+    /**
+     * The provider's server no longer serves this operation, so an old
+     * caller is answered 410 without reaching it. Left unset, the call is
+     * passed on and only an answer of 405 or 410 is replaced with the
+     * guidance: a specification can drop an operation its server still
+     * serves, as Qdrant 1.19 did with search, and a drafted retirement nobody
+     * checked must not turn working calls into failures.
+     */
+    refuse: Type.Optional(Type.Boolean()),
   },
   {
     additionalProperties: false,
     description:
-      "An operation that is gone. No transform can serve it; the runtime refuses it by name instead of returning a bare 404.",
+      "An operation that is gone. No transform can serve it; the runtime answers a caller with the provider's guidance instead of a bare 404.",
   },
 );
 
