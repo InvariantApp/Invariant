@@ -19,7 +19,11 @@ import { isJsonObject, type JsonObject, type JsonValue } from "@invariant/ir";
 
 export interface FieldShape {
   name: string;
-  /** JSON Pointer within the schema. Top level only for now. */
+  /**
+   * JSON Pointer within the schema. Nested inline objects are followed, and
+   * array items appear as `*`; a property that refers to another named
+   * schema is not, because that schema has a delta of its own.
+   */
   pointer: string;
   type: string | undefined;
   format: string | undefined;
@@ -46,7 +50,25 @@ export interface SchemaDelta {
   operations: string[];
 }
 
-function fieldsOf(document: OpenApiDocument, schema: JsonValue): FieldShape[] {
+/** How far below the schema's own properties nested inline objects are followed. */
+const NESTING = 3;
+
+const escapePointer = (segment: string) =>
+  segment.replaceAll("~", "~0").replaceAll("/", "~1");
+
+/**
+ * Whether a property is written inline rather than as a reference to another
+ * named schema. A referenced schema is compared as itself, under its own name,
+ * and following it from here too would draft every Change to it twice.
+ */
+const inline = (raw: JsonValue): boolean => !JSON.stringify(raw).includes('"$ref"');
+
+function fieldsOf(
+  document: OpenApiDocument,
+  schema: JsonValue,
+  prefix: { name: string; pointer: string } = { name: "", pointer: "" },
+  depth = 0,
+): FieldShape[] {
   // The same view the differ compares and the compiler writes: references
   // followed and `allOf` merged, so a field reported as changed is a field
   // this can see and the compiler can then reach.
@@ -58,12 +80,12 @@ function fieldsOf(document: OpenApiDocument, schema: JsonValue): FieldShape[] {
   const required = Array.isArray(resolved["required"])
     ? new Set(
         (resolved["required"] as JsonValue[]).filter(
-          (v): v is string => typeof v === "string",
+          (entry): entry is string => typeof entry === "string",
         ),
       )
     : new Set<string>();
 
-  return Object.entries(properties).map(([name, raw]) => {
+  return Object.entries(properties).flatMap(([name, raw]) => {
     const child = resolveSchema(document, raw);
     const value: JsonObject = isJsonObject(child) ? child : {};
     const declared = value["type"];
@@ -82,9 +104,13 @@ function fieldsOf(document: OpenApiDocument, schema: JsonValue): FieldShape[] {
         ? (declaredEnum as string[])
         : undefined;
 
-    return {
-      name,
-      pointer: `/${name}`,
+    const here = {
+      name: prefix.name === "" ? name : `${prefix.name}.${name}`,
+      pointer: `${prefix.pointer}/${escapePointer(name)}`,
+    };
+    const field: FieldShape = {
+      name: here.name,
+      pointer: here.pointer,
       type: types.filter((t) => t !== "null")[0],
       format: typeof value["format"] === "string" ? value["format"] : undefined,
       enumValues,
@@ -95,6 +121,22 @@ function fieldsOf(document: OpenApiDocument, schema: JsonValue): FieldShape[] {
       ...(value["default"] === undefined ? {} : { default: value["default"] }),
       ...(value["readOnly"] === true ? { readOnly: true } : {}),
     };
+
+    // Inline objects, and inline objects inside lists, are part of this
+    // schema: most real changes happen a level or two down.
+    if (depth >= NESTING || !inline(raw)) return [field];
+    const items = isJsonObject(value["items"]) ? value["items"] : undefined;
+    const nested = isJsonObject(value["properties"])
+      ? fieldsOf(document, value, here, depth + 1)
+      : items && isJsonObject(resolveSchema(document, items))
+        ? fieldsOf(
+            document,
+            items,
+            { name: `${here.name}.*`, pointer: `${here.pointer}/*` },
+            depth + 1,
+          )
+        : [];
+    return [field, ...nested];
   });
 }
 
@@ -178,14 +220,16 @@ export function schemaDeltas(
 
     const before = fieldsOf(oldContract, oldSchemas[name] as JsonValue);
     const after = fieldsOf(newContract, newSchemas[counterpart] as JsonValue);
-    const afterByName = new Map(after.map((field) => [field.name, field]));
-    const beforeByName = new Map(before.map((field) => [field.name, field]));
+    // Keyed by pointer, which is what identifies a field; a nested name is
+    // only for reading.
+    const afterAt = new Map(after.map((field) => [field.pointer, field]));
+    const beforeAt = new Map(before.map((field) => [field.pointer, field]));
 
-    const removed = before.filter((field) => !afterByName.has(field.name));
-    const added = after.filter((field) => !beforeByName.has(field.name));
+    const removed = before.filter((field) => !afterAt.has(field.pointer));
+    const added = after.filter((field) => !beforeAt.has(field.pointer));
     const altered = before
-      .filter((field) => afterByName.has(field.name))
-      .map((field) => ({ old: field, new: afterByName.get(field.name) as FieldShape }))
+      .filter((field) => afterAt.has(field.pointer))
+      .map((field) => ({ old: field, new: afterAt.get(field.pointer) as FieldShape }))
       .filter((pair) => shapeDiffers(pair.old, pair.new));
 
     if (removed.length === 0 && added.length === 0 && altered.length === 0) continue;

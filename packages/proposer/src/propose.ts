@@ -287,7 +287,13 @@ export async function propose(
   options: ProposeOptions,
 ): Promise<ProposeOutcome> {
   const threshold = options.attentionThreshold ?? DEFAULT_ATTENTION_THRESHOLD;
-  const deltas = schemaDeltas(oldContract, newContract);
+  // A schema no operation reaches has nothing to serve, and the gate reports
+  // nothing for it. Plaid documents every webhook payload that way; asking a
+  // judge about them costs a question and drafts a Change for nobody.
+  const deltas = schemaDeltas(oldContract, newContract).filter((delta) => {
+    const sides = sidesOf(oldContract, delta.schema);
+    return sides.request || sides.response;
+  });
 
   // Before anything about fields: did the whole API move? Versioning by URL
   // prefix is how most real APIs express a version, and left undetected it
@@ -471,7 +477,7 @@ export async function propose(
   const accountedFor = new Set(
     proposals.flatMap((proposal) =>
       proposal.change.ops.flatMap((op) =>
-        op.op === "move" ? [`${scopeName(proposal)}.${op.to.replace("/", "")}`] : [],
+        op.op === "move" ? [`${scopeName(proposal)}.${nameAt(op.to)}`] : [],
       ),
     ),
   );
@@ -486,6 +492,15 @@ export async function propose(
     impasses: impassesIn(open),
     decisions: foldDecisions(deltas),
   };
+}
+
+/** A field's name, as the candidates name nested fields, from its pointer. */
+function nameAt(pointer: string): string {
+  return pointer
+    .slice(1)
+    .split("/")
+    .map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"))
+    .join(".");
 }
 
 /** The schema a proposal is scoped to, for matching against an unresolved field. */

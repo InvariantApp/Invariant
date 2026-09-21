@@ -50,6 +50,7 @@ const object = (properties: Record<string, Schema>, required: string[] = []): Sc
 });
 
 const base = {
+  Webhook: object({ id: { type: "string" } }),
   Thing: object({ id: { type: "string" } }, ["id"]),
   ThingCreate: object({ name: { type: "string" }, legacy: { type: "string" } }),
   Shared: object({ id: { type: "string" } }, ["id"]),
@@ -182,5 +183,98 @@ describe("a whole API moved to a new prefix", () => {
       to: { method: "get", path: "/2017-03-25/distribution" },
       operationId: { from: "Getdistribution2016_11_25", to: "Getdistribution2017_03_25" },
     });
+  });
+});
+
+describe("nested fields", () => {
+  const nestedBase = {
+    ...base,
+    ThingCreate: object({
+      name: { type: "string" },
+      shipping: object({ city: { type: "string" }, legacy_code: { type: "string" } }),
+      lines: {
+        type: "array",
+        items: object({ sku: { type: "string" }, price: { type: "number" } }),
+      },
+    }),
+  };
+  const nested = async (after: Record<string, Schema>) =>
+    propose(contract(nestedBase), contract({ ...nestedBase, ...after }), {
+      judge: new RulesJudge(),
+    });
+
+  it("are followed into inline objects and lists", async () => {
+    const outcome = await nested({
+      ThingCreate: object({
+        name: { type: "string" },
+        shipping: object({ city: { type: "string" } }),
+        lines: {
+          type: "array",
+          items: object({ sku: { type: "string" }, price: { type: "number" } }),
+        },
+      }),
+    });
+    const change = outcome.proposals.find((proposal) =>
+      proposal.change.ops.some((op) => op.op === "remove"),
+    );
+    expect(change?.change.ops).toEqual([
+      { op: "remove", path: "/shipping/legacy_code", restore: null },
+    ]);
+  });
+
+  it("are renamed where they sit, inside a list's items too", async () => {
+    const outcome = await nested({
+      ThingCreate: object({
+        name: { type: "string" },
+        shipping: object({ city: { type: "string" }, legacy_code: { type: "string" } }),
+        lines: {
+          type: "array",
+          items: object({ sku: { type: "string" }, price_cents: { type: "integer" } }),
+        },
+      }),
+    });
+    const moves = outcome.proposals.flatMap((proposal) =>
+      proposal.change.ops.filter((op) => op.op === "move"),
+    );
+    expect(moves).toContainEqual({
+      op: "move",
+      from: "/lines/*/price",
+      to: "/lines/*/price_cents",
+    });
+  });
+
+  it("are not followed into another named schema, which is compared as itself", async () => {
+    const withRef = {
+      ...base,
+      Address: object({ city: { type: "string" }, zip: { type: "string" } }),
+      Thing: object(
+        { id: { type: "string" }, address: { $ref: "#/components/schemas/Address" } },
+        ["id"],
+      ),
+    };
+    const outcome = await propose(
+      contract(withRef),
+      contract({ ...withRef, Address: object({ city: { type: "string" } }) }),
+      { judge: new RulesJudge() },
+    );
+    // Only Address speaks for its own fields; Thing never reaches into it.
+    expect(
+      outcome.unresolved
+        .filter((entry) => entry.field.includes("zip"))
+        .map((e) => e.schema),
+    ).not.toContain("Thing");
+  });
+});
+
+describe("a schema no operation uses", () => {
+  it("gets no drafts, since the gate reports nothing for it", async () => {
+    // Plaid documents its webhook payloads as schemas nothing refers to.
+    const outcome = await drafts({
+      Webhook: object({ environment: { type: "string" } }, ["environment"]),
+    });
+    expect(
+      outcome.proposals.some((proposal) => proposal.change.id.includes("webhook")),
+    ).toBe(false);
+    expect(outcome.unresolved.some((entry) => entry.schema === "Webhook")).toBe(false);
   });
 });
