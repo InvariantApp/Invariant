@@ -15,7 +15,8 @@
       "!proving/**/results*.json",
       "!proving/corpus/manifest.json",
       "!proving/replay/index.json",
-      "!packages/action/bundle"
+      "!packages/action/bundle",
+      "!packages/client/src/schema.ts"
     ]
   },
   "formatter": {

@@ -248,6 +248,18 @@ importers:
         specifier: workspace:*
         version: link:../runtime
 
+  packages/client:
+    devDependencies:
+      '@invariant/contract':
+        specifier: workspace:*
+        version: link:../contract
+      openapi-typescript:
+        specifier: 7.13.0
+        version: 7.13.0(typescript@6.0.3)
+      yaml:
+        specifier: ^2.8.2
+        version: 2.9.1
+
   packages/compiler:
     dependencies:
       '@invariant/contract':

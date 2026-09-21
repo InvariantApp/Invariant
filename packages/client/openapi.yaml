@@ -1,0 +1,1372 @@
+openapi: 3.1.0
+info:
+  title: Invariant control plane
+  version: "2026-09-21"
+  summary: What the CLI, the runtime and the GitHub App call.
+  description: |
+    The machine-facing API of the hosted service: publishing signed bundles,
+    reporting what production did, reading and flipping the kill switch, and
+    asking which old contracts are still in use.
+
+    Nothing here is in a provider's request path. A runtime that cannot reach
+    this API keeps serving every old contract exactly as before, because the
+    compiled program ships inside the provider's own build; it loses only its
+    counters and its remote flags, and keeps the last flags it read.
+
+    Every call carries a token, and the token decides which API it is about.
+    No path, query or body names the API, so a token for one provider cannot be
+    used to read or write another's.
+
+    This API is versioned by Invariant itself. A client names the contract it
+    was written against in `Invariant-Version`; one that names none is served
+    the oldest contract still offered.
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
+
+security:
+  - token: []
+
+tags:
+  - name: Bundles
+    description: Signed records of a release, published from CI.
+  - name: Telemetry
+    description: What running adapters report. Counters only, never bodies or field values.
+  - name: Flags
+    description: The kill switch and canary a runtime polls.
+  - name: Contracts
+    description: Which old contracts are served and who still uses them.
+  - name: Drafting
+    description: Changes drafted from two versions of a contract.
+  - name: Consumers
+    description: The provider's callers, their repositories and their migration pull requests.
+  - name: Access
+    description: Tokens and publisher keys.
+  - name: Public
+    description: Unauthenticated reads anyone can make, for migrating without an account.
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Whether the service is up.
+      tags: [Public]
+      security: []
+      responses:
+        "200":
+          description: The service is up.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, const: true }
+
+  /v1/bundles:
+    post:
+      operationId: publishBundle
+      summary: Publish a signed evolution bundle.
+      description: |
+        The bundle is verified here, against a publisher key registered for
+        this API before the request was made, not trusted because it arrived.
+        Publishing the same bundle again is not an error and changes nothing.
+      tags: [Bundles]
+      x-invariant-scope: publish
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DsseEnvelope" }
+      responses:
+        "201":
+          description: Published.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BundlePublished" }
+        "200":
+          description: Already published; nothing changed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BundlePublished" }
+        "400": { $ref: "#/components/responses/Malformed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/TooLarge" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    get:
+      operationId: listBundles
+      summary: The bundles published for this API, newest first.
+      tags: [Bundles]
+      x-invariant-scope: read
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: One page of bundles.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BundlePage" }
+        "400": { $ref: "#/components/responses/Malformed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/bundles/{digest}:
+    get:
+      operationId: getBundle
+      summary: One bundle, as the signed envelope it was published as.
+      tags: [Bundles]
+      x-invariant-scope: read
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - $ref: "#/components/parameters/Digest"
+      responses:
+        "200":
+          description: The envelope, to be verified by the reader against the publisher's key.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DsseEnvelope" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/ingest:
+    post:
+      operationId: ingest
+      summary: Report what running adapters did, as hourly counters.
+      description: |
+        Counts are added to what is already recorded for the same hour, so a
+        batch retried with the same `Idempotency-Key` is counted once and a
+        batch sent twice without one is counted twice. Rows this API cannot
+        read are skipped and counted in `ignored`, never the whole batch: a
+        runtime must not lose an hour of counters over one bad row.
+      tags: [Telemetry]
+      x-invariant-scope: ingest
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IngestBatch" }
+      responses:
+        "200":
+          description: Recorded.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IngestResult" }
+        "400": { $ref: "#/components/responses/Malformed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { $ref: "#/components/responses/TooLarge" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/heartbeat:
+    post:
+      operationId: heartbeat
+      summary: Say that a runtime is running, and with what.
+      description: |
+        Sent on start and then periodically. It is what tells "no caller used
+        this contract" apart from "the usage sink was never wired up", which
+        counters alone cannot, and what shows a fleet running two programs at
+        once during a deploy.
+      tags: [Telemetry]
+      x-invariant-scope: ingest
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Heartbeat" }
+      responses:
+        "204":
+          description: Recorded.
+        "400": { $ref: "#/components/responses/Malformed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/flags:
+    get:
+      operationId: getFlags
+      summary: The flags a runtime should apply now.
+      description: |
+        Polled by every running runtime, so the usual answer is `304`. A
+        runtime that cannot reach this keeps the last flags it read, on disk
+        across restarts, which is why this being down is not an incident.
+      tags: [Flags]
+      x-invariant-scope: flags:read
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - name: If-None-Match
+          in: header
+          required: false
+          description: The `ETag` of the flags the runtime already holds.
+          schema: { type: string }
+      responses:
+        "200":
+          description: The current flags.
+          headers:
+            ETag:
+              required: true
+              description: Sent back as `If-None-Match` on the next poll, and as `If-Match` to change them.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FlagsState" }
+        "304":
+          description: Unchanged since the flags named in `If-None-Match`.
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    put:
+      operationId: setFlags
+      summary: Change the flags, saying why.
+      description: |
+        The flags a person changes are the ones they last read: a change made
+        from a stale view is refused with `412` rather than silently undoing
+        somebody else's kill switch. Every change is kept, with who made it
+        and why.
+      tags: [Flags]
+      x-invariant-scope: flags:write
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - name: If-Match
+          in: header
+          required: true
+          description: The `ETag` of the flags this change was made from.
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FlagsChange" }
+      responses:
+        "200":
+          description: Changed.
+          headers:
+            ETag:
+              required: true
+              description: The new flags' tag.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FlagsState" }
+        "400": { $ref: "#/components/responses/Malformed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "412": { $ref: "#/components/responses/Stale" }
+        "428": { $ref: "#/components/responses/PreconditionRequired" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/flags/history:
+    get:
+      operationId: listFlagChanges
+      summary: Every change to the flags, newest first.
+      tags: [Flags]
+      x-invariant-scope: read
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: One page of changes.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FlagChangePage" }
+        "400": { $ref: "#/components/responses/Malformed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/contracts:
+    get:
+      operationId: listContracts
+      summary: Every contract this API has released, and whether it is still used.
+      tags: [Contracts]
+      x-invariant-scope: read
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+      responses:
+        "200":
+          description: The contracts, oldest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [contracts]
+                properties:
+                  contracts:
+                    type: array
+                    items: { $ref: "#/components/schemas/Contract" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/contracts/{label}:
+    get:
+      operationId: getContract
+      summary: One contract, and the Changes still applied for its callers.
+      tags: [Contracts]
+      x-invariant-scope: read
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - $ref: "#/components/parameters/Label"
+      responses:
+        "200":
+          description: The contract.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContractDetail" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/impact:
+    get:
+      operationId: getImpact
+      summary: How much traffic each Change still carries, and whether a contract can retire.
+      description: |
+        What the release gate reads before blocking a breaking change that
+        active consumers cannot be migrated past, and what a provider reads
+        before retiring a contract.
+      tags: [Contracts]
+      x-invariant-scope: read
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - name: days
+          in: query
+          required: false
+          description: How far back to count, in days.
+          schema: { type: integer, minimum: 1, maximum: 90, default: 30 }
+      responses:
+        "200":
+          description: Usage per contract and Change.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Impact" }
+        "400": { $ref: "#/components/responses/Malformed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/propose:
+    post:
+      operationId: propose
+      summary: Draft Changes between two versions of a contract.
+      description: |
+        The same drafting the CLI does offline with rules alone, with the
+        model judges added, whose keys live only in this service. The CLI
+        falls back to rules when this cannot be reached. Documents are read
+        with external references refused, so nothing here fetches a URL a
+        document names.
+      tags: [Drafting]
+      x-invariant-scope: propose
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProposeRequest" }
+      responses:
+        "200":
+          description: The drafts, the decisions only the provider can make, and what nothing expresses.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Proposal" }
+        "400": { $ref: "#/components/responses/Malformed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { $ref: "#/components/responses/TooLarge" }
+        "422": { $ref: "#/components/responses/Unreadable" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/consumers:
+    get:
+      operationId: listConsumers
+      summary: The callers seen on old contracts, most recently seen first.
+      description: |
+        A consumer is known only by the hashed key the runtime reported, and
+        by the repositories linked to it, if its owner linked any.
+      tags: [Consumers]
+      x-invariant-scope: read
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - name: contract
+          in: query
+          required: false
+          description: Only consumers seen on this contract.
+          schema: { $ref: "#/components/schemas/ContractLabel" }
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: One page of consumers.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConsumerPage" }
+        "400": { $ref: "#/components/responses/Malformed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/links:
+    post:
+      operationId: createLink
+      summary: A single-use link a consumer follows to connect their repositories.
+      description: |
+        Sent by the provider to a consumer who is still on an old contract.
+        Following it installs the GitHub App on the repositories the consumer
+        chooses and binds them to this API and that consumer, after which
+        migration pull requests arrive without anyone asking for them.
+      tags: [Consumers]
+      x-invariant-scope: admin
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [consumer]
+              properties:
+                consumer: { $ref: "#/components/schemas/ConsumerKey" }
+                expiresInDays:
+                  type: integer
+                  minimum: 1
+                  maximum: 30
+                  default: 14
+      responses:
+        "201":
+          description: The link, shown once.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, expiresAt]
+                properties:
+                  url: { type: string, format: uri }
+                  expiresAt: { $ref: "#/components/schemas/Timestamp" }
+        "400": { $ref: "#/components/responses/Malformed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/integrations:
+    get:
+      operationId: listIntegrations
+      summary: The consumer repositories connected to this API.
+      tags: [Consumers]
+      x-invariant-scope: read
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: One page of integrations.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationPage" }
+        "400": { $ref: "#/components/responses/Malformed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/migrations:
+    get:
+      operationId: listMigrations
+      summary: Migration pull requests opened in consumer repositories, newest first.
+      tags: [Consumers]
+      x-invariant-scope: read
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/MigrationStatus" }
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: One page of migrations.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MigrationPage" }
+        "400": { $ref: "#/components/responses/Malformed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/tokens:
+    get:
+      operationId: listTokens
+      summary: The tokens issued for this API. A token's secret is never shown again.
+      tags: [Access]
+      x-invariant-scope: admin
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+      responses:
+        "200":
+          description: Every token, revoked ones included.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tokens]
+                properties:
+                  tokens:
+                    type: array
+                    items: { $ref: "#/components/schemas/Token" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    post:
+      operationId: createToken
+      summary: Issue a token with the scopes a job needs and no more.
+      description: |
+        A runtime needs `ingest` and `flags:read`; CI needs `publish` and
+        `read`. A token that can write flags should not be sitting in every
+        container.
+      tags: [Access]
+      x-invariant-scope: admin
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, scopes]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+                scopes:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items: { $ref: "#/components/schemas/Scope" }
+                expiresAt: { $ref: "#/components/schemas/Timestamp" }
+      responses:
+        "201":
+          description: The token, whose secret is shown this once.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IssuedToken" }
+        "400": { $ref: "#/components/responses/Malformed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/tokens/{id}:
+    delete:
+      operationId: revokeToken
+      summary: Revoke a token. It stops working at once and cannot be restored.
+      tags: [Access]
+      x-invariant-scope: admin
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, pattern: "^tok_[A-Za-z0-9]{8,64}$" }
+      responses:
+        "204":
+          description: Revoked, or already revoked.
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/keys:
+    get:
+      operationId: listKeys
+      summary: The keys bundles for this API may be signed with.
+      tags: [Access]
+      x-invariant-scope: read
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+      responses:
+        "200":
+          description: Every key, revoked ones included.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [keys]
+                properties:
+                  keys:
+                    type: array
+                    items: { $ref: "#/components/schemas/PublisherKey" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    post:
+      operationId: addKey
+      summary: Register a public key bundles may be signed with.
+      tags: [Access]
+      x-invariant-scope: admin
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, publicKey]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+                publicKey:
+                  type: string
+                  description: An Ed25519 or ECDSA P-256 public key, PEM encoded (SPKI).
+                  pattern: "^-----BEGIN PUBLIC KEY-----"
+                notAfter: { $ref: "#/components/schemas/Timestamp" }
+      responses:
+        "201":
+          description: Registered.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublisherKey" }
+        "400": { $ref: "#/components/responses/Malformed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/keys/{keyid}/revoke:
+    post:
+      operationId: revokeKey
+      summary: Revoke a publisher key, and quarantine every bundle it signed.
+      description: |
+        A key that leaked may have signed bundles nobody meant to publish, so
+        revoking it withdraws everything it signed from distribution. A bundle
+        that should stay published is signed again with a key still trusted.
+      tags: [Access]
+      x-invariant-scope: admin
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - $ref: "#/components/parameters/KeyId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        "200":
+          description: Revoked.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [key, quarantined]
+                properties:
+                  key: { $ref: "#/components/schemas/PublisherKey" }
+                  quarantined:
+                    type: integer
+                    minimum: 0
+                    description: Bundles signed with this key, now withdrawn.
+        "400": { $ref: "#/components/responses/Malformed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /public/v1/apis/{api}/bundles:
+    get:
+      operationId: listPublicBundles
+      summary: An API's published bundles, for anyone.
+      description: |
+        What a consumer with no account reads to migrate locally. Served from
+        a cache. Trust never rests on this service: a reader verifies each
+        bundle against the publisher key the provider serves from its own
+        domain, at `/.well-known/invariant.json`.
+      tags: [Public]
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - $ref: "#/components/parameters/Api"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: One page of bundles.
+          headers:
+            Cache-Control:
+              required: true
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BundlePage" }
+        "400": { $ref: "#/components/responses/Malformed" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /public/v1/apis/{api}/bundles/{digest}:
+    get:
+      operationId: getPublicBundle
+      summary: One published bundle, for anyone.
+      tags: [Public]
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+        - $ref: "#/components/parameters/Api"
+        - $ref: "#/components/parameters/Digest"
+      responses:
+        "200":
+          description: The envelope. Immutable, so cached indefinitely.
+          headers:
+            Cache-Control:
+              required: true
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DsseEnvelope" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+components:
+  securitySchemes:
+    token:
+      type: http
+      scheme: bearer
+      description: |
+        A token issued for one API. It decides which API every call is about.
+        Each operation names the scope it needs in `x-invariant-scope`:
+        `read`, `publish`, `ingest`, `flags:read`, `flags:write`, `propose` or
+        `admin`, and `admin` implies every other.
+
+  parameters:
+    InvariantVersion:
+      name: Invariant-Version
+      in: header
+      required: false
+      description: The contract of this API the client was written against.
+      schema: { $ref: "#/components/schemas/ContractLabel" }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: |
+        Makes a retried write take effect once. A key reused within a day with
+        a different body is refused with `409`.
+      schema: { type: string, minLength: 8, maxLength: 128 }
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: The `next` of the previous page.
+      schema: { type: string, maxLength: 512 }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    Digest:
+      name: digest
+      in: path
+      required: true
+      schema: { $ref: "#/components/schemas/Digest" }
+    Label:
+      name: label
+      in: path
+      required: true
+      schema: { $ref: "#/components/schemas/ContractLabel" }
+    KeyId:
+      name: keyid
+      in: path
+      required: true
+      schema: { $ref: "#/components/schemas/KeyId" }
+    Api:
+      name: api
+      in: path
+      required: true
+      schema: { $ref: "#/components/schemas/ApiId" }
+
+  responses:
+    Malformed:
+      description: The request could not be read as this contract describes it.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthenticated:
+      description: No token, or a token this service did not issue, has revoked, or has seen expire.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: The token lacks the scope this operation needs, or is for another API.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Nothing by that name for this API.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: The request contradicts what is already recorded.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TooLarge:
+      description: The body is larger than this operation accepts.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unreadable:
+      description: A document in the request is not a contract this service can read.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Stale:
+      description: What is being changed has changed since the client read it.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    PreconditionRequired:
+      description: This change must name the version it was made from, in `If-Match`.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RateLimited:
+      description: Too many requests. Wait as long as `Retry-After` says.
+      headers:
+        Retry-After:
+          required: true
+          description: Seconds to wait.
+          schema: { type: integer, minimum: 1 }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { $ref: "#/components/schemas/ErrorCode" }
+            message:
+              type: string
+              description: What went wrong and what to do about it, for a person.
+            requestId:
+              type: string
+              description: Quote this when asking for help.
+    ErrorCode:
+      type: string
+      description: Stable once published, so a client can branch on it.
+      enum:
+        - malformed
+        - unauthenticated
+        - insufficient_scope
+        - wrong_api
+        - not_found
+        - no_publisher_key
+        - rejected
+        - idempotency_conflict
+        - already_exists
+        - too_large
+        - unreadable_contract
+        - stale
+        - precondition_required
+        - rate_limited
+        - internal
+
+    ApiId:
+      type: string
+      pattern: "^[a-z0-9][a-z0-9-]{0,62}$"
+    ContractLabel:
+      type: string
+      description: A contract's label, as the provider named it, such as `2026-01-15`.
+      pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    Digest:
+      type: string
+      pattern: "^sha256:[0-9a-f]{64}$"
+    KeyId:
+      type: string
+      description: The SHA-256 of the key's SPKI encoding.
+      pattern: "^sha256:[0-9a-f]{64}$"
+    ChangeId:
+      type: string
+      description: A Change's id, as its file names it.
+      pattern: "^[a-z][a-z0-9_]{0,127}$"
+    ConsumerKey:
+      type: string
+      description: |
+        A consumer's key as the runtime hashed it, so the key itself never
+        leaves the provider.
+      pattern: "^[0-9a-f]{16,64}$"
+    Timestamp:
+      type: integer
+      description: Seconds since the Unix epoch.
+      minimum: 0
+    Hour:
+      type: integer
+      description: The start of an hour, in seconds since the Unix epoch.
+      minimum: 0
+      multipleOf: 3600
+    Scope:
+      type: string
+      enum: [read, publish, ingest, "flags:read", "flags:write", propose, admin]
+
+    DsseEnvelope:
+      type: object
+      description: A DSSE envelope carrying an in-toto statement about one release.
+      required: [payloadType, payload, signatures]
+      properties:
+        payloadType: { type: string, const: "application/vnd.in-toto+json" }
+        payload:
+          type: string
+          description: The statement, base64 encoded.
+          contentEncoding: base64
+        signatures:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [keyid, sig]
+            properties:
+              keyid: { type: string }
+              sig: { type: string, contentEncoding: base64 }
+    BundlePublished:
+      type: object
+      required: [digest, created, api, to]
+      properties:
+        digest: { $ref: "#/components/schemas/Digest" }
+        created: { type: boolean }
+        api: { $ref: "#/components/schemas/ApiId" }
+        to: { $ref: "#/components/schemas/ContractLabel" }
+    BundleSummary:
+      type: object
+      required: [digest, from, to, keyid, publishedAt]
+      properties:
+        digest: { $ref: "#/components/schemas/Digest" }
+        from: { $ref: "#/components/schemas/ContractLabel" }
+        to: { $ref: "#/components/schemas/ContractLabel" }
+        keyid: { $ref: "#/components/schemas/KeyId" }
+        publishedAt: { $ref: "#/components/schemas/Timestamp" }
+    BundlePage:
+      type: object
+      required: [bundles]
+      properties:
+        bundles:
+          type: array
+          items: { $ref: "#/components/schemas/BundleSummary" }
+        next:
+          type: string
+          description: Pass as `cursor` for the next page. Absent on the last.
+
+    IngestBatch:
+      type: object
+      description: At most 5,000 rows in all.
+      properties:
+        usage:
+          type: array
+          maxItems: 5000
+          items: { $ref: "#/components/schemas/UsageRow" }
+        outcomes:
+          type: array
+          maxItems: 5000
+          items: { $ref: "#/components/schemas/OutcomeRow" }
+    UsageRow:
+      type: object
+      description: How many times one Change was applied for one consumer in one hour.
+      required: [contract, changeId, hour, count]
+      properties:
+        consumer:
+          $ref: "#/components/schemas/ConsumerKey"
+          description: Absent when the runtime could not tell who called.
+        contract: { $ref: "#/components/schemas/ContractLabel" }
+        changeId: { $ref: "#/components/schemas/ChangeId" }
+        hour: { $ref: "#/components/schemas/Hour" }
+        count: { type: integer, minimum: 1 }
+    OutcomeRow:
+      type: object
+      description: |
+        How adapted requests, responses and payloads ended, in one hour. Never
+        a body or a field value: `reason` is the runtime's own message.
+      required: [contract, operation, direction, outcome, hour, count]
+      properties:
+        contract: { $ref: "#/components/schemas/ContractLabel" }
+        operation: { type: string, maxLength: 200 }
+        direction: { type: string, enum: [request, response, outbound] }
+        outcome: { type: string, enum: [adapted, refused, failed] }
+        reason: { type: string, maxLength: 500 }
+        hour: { $ref: "#/components/schemas/Hour" }
+        count: { type: integer, minimum: 1 }
+    IngestResult:
+      type: object
+      required: [accepted, ignored]
+      properties:
+        accepted: { type: integer, minimum: 0 }
+        ignored:
+          type: integer
+          minimum: 0
+          description: Rows skipped because they could not be read.
+    Heartbeat:
+      type: object
+      required: [instance, runtime, program, startedAt]
+      properties:
+        instance:
+          type: string
+          description: Stable for the life of one process, and nothing that identifies a host.
+          minLength: 8
+          maxLength: 64
+        runtime:
+          type: object
+          required: [version, binding]
+          properties:
+            version: { type: string, maxLength: 64 }
+            binding:
+              type: string
+              description: How the runtime is attached, such as `hono`, `express` or `proxy`.
+              maxLength: 64
+        program:
+          type: object
+          required: [digest]
+          properties:
+            digest: { $ref: "#/components/schemas/Digest" }
+            compiledBy: { type: string, maxLength: 128 }
+            minRuntime: { type: string, maxLength: 64 }
+            currentLabel: { $ref: "#/components/schemas/ContractLabel" }
+        flags:
+          type: object
+          properties:
+            etag:
+              type: string
+              description: The flags in force, or absent when none were ever read.
+            source:
+              type: string
+              enum: [remote, disk, file, none]
+        startedAt: { $ref: "#/components/schemas/Timestamp" }
+
+    Flags:
+      type: object
+      additionalProperties: false
+      properties:
+        allDisabled:
+          type: boolean
+          description: Stops all compatibility work. Old contracts are refused rather than mis-served.
+        disabledContracts:
+          type: array
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/ContractLabel" }
+        disabledChanges:
+          type: array
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/ChangeId" }
+        canary:
+          type: object
+          description: |
+            The share of consumers, in percent, a Change is applied for while it
+            is being rolled out, chosen by a stable hash of the consumer so the
+            same consumer stays on the same side.
+          propertyNames: { $ref: "#/components/schemas/ChangeId" }
+          additionalProperties: { type: number, minimum: 0, maximum: 100 }
+    FlagsState:
+      type: object
+      required: [flags, updatedAt]
+      properties:
+        flags: { $ref: "#/components/schemas/Flags" }
+        updatedAt: { $ref: "#/components/schemas/Timestamp" }
+        updatedBy:
+          type: string
+          description: The token or person that made the last change.
+    FlagsChange:
+      type: object
+      additionalProperties: false
+      required: [flags, reason]
+      properties:
+        flags: { $ref: "#/components/schemas/Flags" }
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Why, for whoever reads the history during the incident.
+    FlagChange:
+      type: object
+      required: [flags, reason, actor, at]
+      properties:
+        flags: { $ref: "#/components/schemas/Flags" }
+        reason: { type: string }
+        actor: { type: string }
+        at: { $ref: "#/components/schemas/Timestamp" }
+    FlagChangePage:
+      type: object
+      required: [changes]
+      properties:
+        changes:
+          type: array
+          items: { $ref: "#/components/schemas/FlagChange" }
+        next: { type: string }
+
+    ContractStatus:
+      type: string
+      description: |
+        `current` is what the provider's handlers speak. `served` is an old
+        contract adapted for its callers. `retiring` has a date after which it
+        is refused. `retired` is refused with guidance now.
+      enum: [current, served, retiring, retired]
+    Contract:
+      type: object
+      required: [label, status, releasedAt]
+      properties:
+        label: { $ref: "#/components/schemas/ContractLabel" }
+        status: { $ref: "#/components/schemas/ContractStatus" }
+        releasedAt: { $ref: "#/components/schemas/Timestamp" }
+        retireAfter: { $ref: "#/components/schemas/Timestamp" }
+        consumers:
+          type: integer
+          minimum: 0
+          description: Distinct consumers seen on it in the last 30 days.
+        lastSeen: { $ref: "#/components/schemas/Timestamp" }
+    ContractDetail:
+      allOf:
+        - $ref: "#/components/schemas/Contract"
+        - type: object
+          required: [changes]
+          properties:
+            bundle: { $ref: "#/components/schemas/Digest" }
+            changes:
+              type: array
+              description: The Changes a caller on this contract is served through.
+              items:
+                type: object
+                required: [id, summary]
+                properties:
+                  id: { $ref: "#/components/schemas/ChangeId" }
+                  summary: { type: string }
+                  applied:
+                    type: integer
+                    minimum: 0
+                    description: Times applied in the last 30 days.
+    Impact:
+      type: object
+      required: [days, contracts]
+      properties:
+        days: { type: integer, minimum: 1 }
+        contracts:
+          type: array
+          items:
+            type: object
+            required: [label, consumers, requests, changes, retirable]
+            properties:
+              label: { $ref: "#/components/schemas/ContractLabel" }
+              consumers: { type: integer, minimum: 0 }
+              requests: { type: integer, minimum: 0 }
+              changes:
+                type: array
+                items:
+                  type: object
+                  required: [id, applied, consumers]
+                  properties:
+                    id: { $ref: "#/components/schemas/ChangeId" }
+                    applied: { type: integer, minimum: 0 }
+                    consumers: { type: integer, minimum: 0 }
+              retirable:
+                type: boolean
+                description: |
+                  No consumer used it in the window and a runtime reported
+                  throughout it, so the silence is not a missing sink.
+
+    ProposeRequest:
+      type: object
+      additionalProperties: false
+      required: [from, to]
+      description: At most 20 MB in all.
+      properties:
+        from:
+          type: object
+          additionalProperties: true
+          description: The released contract, as an OpenAPI 3 or Swagger 2.0 document.
+        to:
+          type: object
+          additionalProperties: true
+          description: The contract being released.
+        context:
+          type: string
+          maxLength: 20000
+          description: Anything the provider wants the judges to know, such as a changelog entry.
+    Proposal:
+      type: object
+      required: [drafts, decisions, unresolved]
+      properties:
+        drafts:
+          type: array
+          items:
+            type: object
+            required: [change, judge, confidence, attention]
+            properties:
+              change:
+                type: object
+                additionalProperties: true
+                description: A Change, in the IR's own format.
+                required: [irVersion, id, summary, ops]
+              judge: { type: string, enum: [rules, jev, s2] }
+              confidence: { type: number, minimum: 0, maximum: 1 }
+              attention:
+                type: string
+                enum: [normal, review]
+              notes:
+                type: array
+                items: { type: string }
+        decisions:
+          type: array
+          items:
+            type: object
+            description: A question only the provider can answer, with the Change it completes.
+            required: [kind, schema, field, why]
+            properties:
+              kind: { type: string, enum: [vocabulary, value] }
+              schema: { type: string }
+              field: { type: string }
+              why: { type: string }
+        unresolved:
+          type: array
+          items:
+            type: object
+            required: [schema, field, reason]
+            properties:
+              schema: { type: string }
+              field: { type: string }
+              reason: { type: string }
+
+    Consumer:
+      type: object
+      required: [consumer, contracts, lastSeen]
+      properties:
+        consumer: { $ref: "#/components/schemas/ConsumerKey" }
+        contracts:
+          type: array
+          items:
+            type: object
+            required: [label, lastSeen, requests]
+            properties:
+              label: { $ref: "#/components/schemas/ContractLabel" }
+              lastSeen: { $ref: "#/components/schemas/Timestamp" }
+              requests: { type: integer, minimum: 0 }
+        lastSeen: { $ref: "#/components/schemas/Timestamp" }
+        integrations:
+          type: array
+          items: { type: string }
+          description: The ids of the integrations linked to this consumer.
+    ConsumerPage:
+      type: object
+      required: [consumers]
+      properties:
+        consumers:
+          type: array
+          items: { $ref: "#/components/schemas/Consumer" }
+        next: { type: string }
+    Integration:
+      type: object
+      required: [id, consumer, provider, repositories, connectedAt]
+      properties:
+        id: { type: string }
+        consumer: { $ref: "#/components/schemas/ConsumerKey" }
+        provider: { type: string, enum: [github] }
+        repositories:
+          type: array
+          items:
+            type: string
+            description: A repository as its host names it, such as `acme/storefront`.
+        connectedAt: { $ref: "#/components/schemas/Timestamp" }
+    IntegrationPage:
+      type: object
+      required: [integrations]
+      properties:
+        integrations:
+          type: array
+          items: { $ref: "#/components/schemas/Integration" }
+        next: { type: string }
+    MigrationStatus:
+      type: string
+      enum: [queued, running, opened, merged, closed, failed]
+    Migration:
+      type: object
+      required: [id, integration, repository, bundle, status, updatedAt]
+      properties:
+        id: { type: string }
+        integration: { type: string }
+        repository: { type: string }
+        bundle: { $ref: "#/components/schemas/Digest" }
+        status: { $ref: "#/components/schemas/MigrationStatus" }
+        pullRequest: { type: string, format: uri }
+        reason:
+          type: string
+          description: Why it failed or was closed, when it was.
+        updatedAt: { $ref: "#/components/schemas/Timestamp" }
+    MigrationPage:
+      type: object
+      required: [migrations]
+      properties:
+        migrations:
+          type: array
+          items: { $ref: "#/components/schemas/Migration" }
+        next: { type: string }
+
+    Token:
+      type: object
+      required: [id, name, prefix, scopes, createdAt]
+      properties:
+        id: { type: string, pattern: "^tok_[A-Za-z0-9]{8,64}$" }
+        name: { type: string }
+        prefix:
+          type: string
+          description: The first characters of the secret, so a leaked token can be recognised.
+        scopes:
+          type: array
+          items: { $ref: "#/components/schemas/Scope" }
+        createdAt: { $ref: "#/components/schemas/Timestamp" }
+        expiresAt: { $ref: "#/components/schemas/Timestamp" }
+        lastUsedAt: { $ref: "#/components/schemas/Timestamp" }
+        revokedAt: { $ref: "#/components/schemas/Timestamp" }
+    IssuedToken:
+      allOf:
+        - $ref: "#/components/schemas/Token"
+        - type: object
+          required: [secret]
+          properties:
+            secret:
+              type: string
+              description: The token. Shown only in this response.
+    PublisherKey:
+      type: object
+      required: [keyid, name, publicKey, addedAt]
+      properties:
+        keyid: { $ref: "#/components/schemas/KeyId" }
+        name: { type: string }
+        publicKey: { type: string }
+        addedAt: { $ref: "#/components/schemas/Timestamp" }
+        notAfter: { $ref: "#/components/schemas/Timestamp" }
+        revokedAt: { $ref: "#/components/schemas/Timestamp" }
+        revokedReason: { type: string }

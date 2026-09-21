@@ -33623,12 +33623,23 @@ function arbitraryFor(document, raw, depth) {
 				const properties = schema["properties"];
 				const additional = schema["additionalProperties"];
 				if (!isJsonObject(properties)) {
-					if (isJsonObject(additional) && depth < MAX_DEPTH) return fast_check_default.dictionary(fast_check_default.string({
+					const named = Array.isArray(schema["required"]) ? schema["required"].filter((entry) => typeof entry === "string") : [];
+					const keys = schema["propertyNames"];
+					if (!isJsonObject(additional) && !isJsonObject(keys) && named.length === 0 || depth >= MAX_DEPTH) return fast_check_default.constant({});
+					const value = isJsonObject(additional) ? arbitraryFor(document, additional, depth + 1) : fast_check_default.string({
+						maxLength: 8,
+						unit: "grapheme-ascii"
+					});
+					const key = isJsonObject(keys) ? arbitraryFor(document, keys, depth + 1).filter((name) => typeof name === "string") : fast_check_default.string({
 						minLength: 1,
 						maxLength: 8,
 						unit: "grapheme-ascii"
-					}), arbitraryFor(document, additional, depth + 1), { maxKeys: 3 });
-					return fast_check_default.constant({});
+					});
+					const present = fast_check_default.record(Object.fromEntries(named.map((name) => [name, value])));
+					return fast_check_default.tuple(fast_check_default.dictionary(key, value, { maxKeys: 3 }), present).map(([map, fixed]) => ({
+						...map,
+						...fixed
+					}));
 				}
 				if (depth >= HARD_DEPTH) return fast_check_default.constant({});
 				const minimal = depth >= MAX_DEPTH;

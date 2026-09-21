@@ -66,6 +66,8 @@ step "action bundle is current" bash -c '
   [ "$before" = "$after" ] || { echo "the bundle was stale; it has been rebuilt, commit it"; exit 1; }'
 step "release gate on the fixture (--full)" bash -c \
   'cd fixtures/provider-acme && timeout 360 pnpm exec invariant check --full'
+step "control plane contract passes its gate" \
+  node --import tsx packages/cli/src/main.ts check --config packages/client/invariant.yaml
 
 if $image; then
   step "proxy image" bash -c 'pnpm bundle:sidecar && node --import tsx scripts/image.mts'

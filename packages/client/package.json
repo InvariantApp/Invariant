@@ -1,0 +1,47 @@
+{
+  "name": "@invariant/client",
+  "version": "0.1.0",
+  "description": "The control plane's contract, and a typed client for it with no dependencies",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/InvariantApp/Invariant.git",
+    "directory": "packages/client"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./openapi.yaml": "./openapi.yaml"
+  },
+  "files": [
+    "dist",
+    "openapi.yaml",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "generate": "openapi-typescript openapi.yaml --output src/schema.ts",
+    "prepack": "node ../../scripts/prepack.mjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./openapi.yaml": "./openapi.yaml"
+    }
+  },
+  "devDependencies": {
+    "@invariant/contract": "workspace:*",
+    "openapi-typescript": "7.13.0",
+    "yaml": "^2.8.2"
+  }
+}

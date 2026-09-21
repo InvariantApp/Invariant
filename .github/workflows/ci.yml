@@ -74,6 +74,13 @@ jobs:
           config: fixtures/provider-acme/invariant.yaml
           comment: "false"
 
+      # The control plane's own contract, gated like any provider's.
+      - name: Gate the control plane's contract
+        uses: ./
+        with:
+          config: packages/client/invariant.yaml
+          comment: "false"
+
       # The layers that need the provider's code running. They start real
       # processes, so they are not part of `pnpm test`, and leaving them out of
       # CI would mean the only checks that can catch a swapped value map or a

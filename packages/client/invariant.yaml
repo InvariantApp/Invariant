@@ -1,0 +1,23 @@
+# The control plane's own contract, gated by Invariant like any provider's.
+#
+# Once a contract is released here, a change to openapi.yaml that breaks a
+# client written against it fails this repository's CI until it is explained
+# by a Change, exactly as it would for a customer. Released for the first time
+# when the service first deploys (M7.8); until then nothing has been written
+# against it, and every edit is still design.
+api: invariant-control-plane
+
+spec:
+  current: openapi.yaml
+  currentLabel: "2026-09-21"
+  released: {}
+
+identity:
+  - kind: header
+    name: invariant-version
+  - kind: default
+    label: "2026-09-21"
+
+gate:
+  declaredLossy: block
+  unmigratableWithActiveConsumers: block

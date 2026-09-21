@@ -2229,6 +2229,28 @@ from `package.json` through `scripts/sync-versions.mts`, run after
 programs made to look newer; the arm that installs the previously published
 runtime needs a published release to install.
 
+### The control plane's contract, before the control plane
+
+Telemetry, remote flags, `invariant publish` and the hosted service all meet
+at one API, and until now it was seven routes on an embedded database with
+nothing written down. `packages/client/openapi.yaml` is that API as a contract
+first (M4.0): publishing and reading signed bundles, hourly usage and outcome
+counters, a heartbeat that tells "no traffic" from "never wired", flags with
+an ETag to poll and `If-Match` plus a reason to change, contracts and impact,
+drafting with the model judges whose keys live only in the service, consumers,
+integrations and migrations, scoped tokens, publisher keys whose revocation
+quarantines what they signed, and an unauthenticated read of published
+bundles for consumers with no account. The token decides the API on every
+route; nothing a caller sends can name another. `@invariant/client` is
+generated from it and has no dependencies, since a runtime's telemetry will
+use it. Its tests call every operation against the proving ground's contract
+mock, judged by the independent validator, so the client and the document
+cannot drift apart silently; that exposed two gaps in the mock's generator,
+map keys ignoring `propertyNames` and required keys with no declared
+property, which Rig C now covers too. The contract is gated by Invariant
+itself through `packages/client/invariant.yaml`, and is released for the first
+time when the service first deploys.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no

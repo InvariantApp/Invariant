@@ -145,10 +145,29 @@ for (const name of packages) {
       },
     );
     const tarball = (JSON.parse(stdout) as { filename: string }).filename;
-    await run("npx", ["attw", tarball, "--profile", "esm-only", "--format", "ascii"], {
-      cwd: ROOT,
-      maxBuffer: 16 * 1024 * 1024,
-    });
+    // Exports that are data rather than code, such as the control plane's
+    // contract, have no types to find and are not what this checks.
+    const exported = Object.keys(
+      (manifest as { publishConfig?: { exports?: Record<string, unknown> } })
+        .publishConfig?.exports ?? {},
+    );
+    const data = exported.filter((path) => /\.(ya?ml|json)$/.test(path));
+    await run(
+      "npx",
+      [
+        "attw",
+        tarball,
+        "--profile",
+        "esm-only",
+        "--format",
+        "ascii",
+        ...(data.length > 0 ? ["--exclude-entrypoints", ...data] : []),
+      ],
+      {
+        cwd: ROOT,
+        maxBuffer: 16 * 1024 * 1024,
+      },
+    );
   } catch (error) {
     const output = (error as { stdout?: string }).stdout ?? String(error);
     failures.push(`${manifest.name}: arethetypeswrong\n${output.trim()}`);

@@ -338,15 +338,36 @@ function arbitraryFor(
         const properties = schema["properties"];
         const additional = schema["additionalProperties"];
         if (!isJsonObject(properties)) {
-          // A map: keys the provider chooses, values of one declared shape.
-          if (isJsonObject(additional) && depth < MAX_DEPTH) {
-            return fc.dictionary(
-              fc.string({ minLength: 1, maxLength: 8, unit: "grapheme-ascii" }),
-              arbitraryFor(document, additional, depth + 1),
-              { maxKeys: 3 },
-            );
+          const named = Array.isArray(schema["required"])
+            ? (schema["required"] as JsonValue[]).filter(
+                (entry): entry is string => typeof entry === "string",
+              )
+            : [];
+          const keys = schema["propertyNames"];
+          if (
+            (!isJsonObject(additional) && !isJsonObject(keys) && named.length === 0) ||
+            depth >= MAX_DEPTH
+          ) {
+            return fc.constant({});
           }
-          return fc.constant({});
+          const value = isJsonObject(additional)
+            ? arbitraryFor(document, additional, depth + 1)
+            : fc.string({ maxLength: 8, unit: "grapheme-ascii" });
+          // A map: keys the provider chooses, written as `propertyNames` says
+          // when it says, and values of one declared shape.
+          const key = isJsonObject(keys)
+            ? arbitraryFor(document, keys, depth + 1).filter(
+                (name): name is string => typeof name === "string",
+              )
+            : fc.string({ minLength: 1, maxLength: 8, unit: "grapheme-ascii" });
+          // A required name with no declared property still has to be there,
+          // holding a value the map allows.
+          const present = fc.record(
+            Object.fromEntries(named.map((name) => [name, value] as const)),
+          );
+          return fc
+            .tuple(fc.dictionary(key, value, { maxKeys: 3 }), present)
+            .map(([map, fixed]) => ({ ...map, ...fixed }) as JsonValue);
         }
         if (depth >= HARD_DEPTH) return fc.constant({});
         const minimal = depth >= MAX_DEPTH;

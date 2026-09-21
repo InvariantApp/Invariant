@@ -108,13 +108,18 @@ function routesOf(document: OpenApiDocument): Route[] {
 function successSchema(
   document: OpenApiDocument,
   operation: JsonObject,
-): { status: number; schema: JsonValue | undefined } {
+): {
+  status: number;
+  schema: JsonValue | undefined;
+  /** Headers the response must carry, which a client may depend on. */
+  headers: { name: string; schema: JsonValue }[];
+} {
   const responses = isObject(operation["responses"]) ? operation["responses"] : {};
   const statuses = Object.keys(responses)
     .filter((status) => /^2\d\d$/.test(status) || status === "2XX")
     .sort();
   const status = statuses[0];
-  if (status === undefined) return { status: 204, schema: undefined };
+  if (status === undefined) return { status: 204, schema: undefined, headers: [] };
   let response = responses[status];
   for (
     let hops = 0;
@@ -133,9 +138,16 @@ function successSchema(
     isObject(response) && isObject(response["content"]) ? response["content"] : {};
   const media = Object.keys(content).find((type) => /json/i.test(type));
   const holder = media ? content[media] : undefined;
+  const declared =
+    isObject(response) && isObject(response["headers"]) ? response["headers"] : {};
   return {
     status: status === "2XX" ? 200 : Number(status),
     schema: isObject(holder) ? holder["schema"] : undefined,
+    headers: Object.entries(declared).flatMap(([name, header]) =>
+      isObject(header) && header["required"] === true && isObject(header["schema"])
+        ? [{ name, schema: header["schema"] }]
+        : [],
+    ),
   };
 }
 
@@ -191,8 +203,16 @@ export function createContractMock(
       requestViolations = oracle.request(route, body, "form");
     }
     const matched = route.pattern.exec(url.pathname);
+    // Decoded as a server's router decodes them before a handler sees them.
+    const decoded = (raw: string) => {
+      try {
+        return decodeURIComponent(raw);
+      } catch {
+        return raw;
+      }
+    };
     const pathValues = Object.fromEntries(
-      route.names.map((name, index) => [name, matched?.[index + 1] ?? ""]),
+      route.names.map((name, index) => [name, decoded(matched?.[index + 1] ?? "")]),
     );
     const parameterViolations = oracle.parameters(route, {
       url,
@@ -216,7 +236,23 @@ export function createContractMock(
       );
     }
 
-    const { status, schema } = successSchema(document, route.operation);
+    const {
+      status,
+      schema,
+      headers: declared,
+    } = successSchema(document, route.operation);
+    // Every header the contract says a response carries, generated from its
+    // schema like the body, so a client that depends on one is tested with it.
+    const headers = new Headers();
+    for (const { name, schema: headerSchema } of declared) {
+      const [value] = fc.sample(valueArbitrary(document, headerSchema), {
+        numRuns: 1,
+        seed: (options.seed ?? 42) + counter,
+      });
+      const text = typeof value === "string" ? value : JSON.stringify(value);
+      // A header carries visible ASCII only; a generated string may not.
+      headers.set(name, text.replace(/[^\x21-\x7e]/g, "x") || "x");
+    }
     if (schema === undefined) {
       log.push({
         method,
@@ -225,7 +261,7 @@ export function createContractMock(
         status,
         responseValid: undefined,
       });
-      return new Response(null, { status: status === 200 ? 204 : status });
+      return new Response(null, { status: status === 200 ? 204 : status, headers });
     }
     const key = `${method} ${route.path}`;
     let generator = generators.get(key);
@@ -247,7 +283,7 @@ export function createContractMock(
       responseValid: violations === undefined ? undefined : violations.length === 0,
       ...(violations && violations.length > 0 ? { responseViolations: violations } : {}),
     });
-    return Response.json(value, { status });
+    return Response.json(value, { status, headers });
   };
 
   return {
