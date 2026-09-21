@@ -428,9 +428,18 @@ importers:
 
   packages/sidecar:
     dependencies:
+      '@invariant/client':
+        specifier: workspace:*
+        version: link:../client
+      '@invariant/flags':
+        specifier: workspace:*
+        version: link:../flags
       '@invariant/runtime':
         specifier: workspace:*
         version: link:../runtime
+      '@invariant/telemetry':
+        specifier: workspace:*
+        version: link:../telemetry
     devDependencies:
       '@invariant/compiler':
         specifier: workspace:*

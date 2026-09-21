@@ -21,6 +21,42 @@ export interface SidecarConfig {
   healthPath: string;
   /** Paths passed through untouched, matched as exact paths or `prefix*`. */
   skip: string[];
+  /** The hosted service, for remote flags and telemetry. */
+  controlPlane?: ControlPlaneConfig;
+  /** Where the kill switch is read from. Absent means nothing is ever switched off. */
+  flags?: FlagsConfig;
+  /** Where counters go. Absent means nowhere. */
+  telemetry?: TelemetryConfig;
+}
+
+export interface ControlPlaneConfig {
+  url: string;
+  /**
+   * The environment variable holding the token. Only its name is written
+   * here: a token in a configuration file is a token in a repository.
+   */
+  tokenEnv: string;
+}
+
+export interface FlagsConfig {
+  /** A JSON file, re-read when it changes. */
+  file?: string;
+  /** An environment variable holding the same JSON, for a machine with no writable disk. */
+  env?: string;
+  /** Poll the control plane, which needs `controlPlane`. */
+  remote?: {
+    /** Where the last flags read are kept, so a switch survives a restart. */
+    cache?: string;
+    pollMs: number;
+  };
+}
+
+export interface TelemetryConfig {
+  /** A JSONL file, rotated by size, whose outcome lines `invariant release` reads. */
+  file?: string;
+  /** Send counters and a heartbeat to the control plane, which needs `controlPlane`. */
+  controlPlane: boolean;
+  flushMs: number;
 }
 
 export class ConfigError extends Error {
@@ -39,6 +75,9 @@ const KEYS = new Set([
   "upstreamTimeoutMs",
   "healthPath",
   "skip",
+  "controlPlane",
+  "flags",
+  "telemetry",
 ]);
 
 export async function loadConfig(path: string): Promise<SidecarConfig> {
@@ -91,7 +130,109 @@ export function parseConfig(raw: unknown, relativeTo: string): SidecarConfig {
     upstreamTimeoutMs: positiveInt(value, "upstreamTimeoutMs", 30_000),
     healthPath: optionalPath(value, "healthPath", "/__invariant/health"),
     skip: stringList(value, "skip"),
+    ...optionalServices(value, relativeTo),
   };
+}
+
+/** The control plane, flags and telemetry sections, each checked against the others. */
+function optionalServices(
+  value: Record<string, unknown>,
+  relativeTo: string,
+): Pick<SidecarConfig, "controlPlane" | "flags" | "telemetry"> {
+  const out: Pick<SidecarConfig, "controlPlane" | "flags" | "telemetry"> = {};
+
+  if (value["controlPlane"] !== undefined) {
+    const plane = section(value, "controlPlane", ["url", "tokenEnv"]);
+    const url = requireString(plane, "url", "controlPlane");
+    try {
+      const parsed = new URL(url);
+      if (
+        parsed.protocol !== "https:" &&
+        parsed.hostname !== "127.0.0.1" &&
+        parsed.hostname !== "localhost"
+      ) {
+        throw new ConfigError(
+          `"controlPlane.url" must be https: the token travels with every call.`,
+        );
+      }
+    } catch (error) {
+      if (error instanceof ConfigError) throw error;
+      throw new ConfigError(`"controlPlane.url" is not a URL: ${url}`);
+    }
+    out.controlPlane = {
+      url,
+      tokenEnv: requireString(plane, "tokenEnv", "controlPlane"),
+    };
+  }
+
+  if (value["flags"] !== undefined) {
+    const flags = section(value, "flags", ["file", "env", "remote"]);
+    const config: FlagsConfig = {};
+    if (flags["file"] !== undefined) {
+      config.file = resolve(relativeTo, requireString(flags, "file", "flags"));
+    }
+    if (flags["env"] !== undefined) config.env = requireString(flags, "env", "flags");
+    if (flags["remote"] !== undefined) {
+      if (!out.controlPlane) {
+        throw new ConfigError(
+          `"flags.remote" reads from the control plane, so set "controlPlane" too.`,
+        );
+      }
+      const remote = section(flags, "remote", ["cache", "pollMs"], "flags.");
+      config.remote = {
+        pollMs: positiveInt(remote, "pollMs", 15_000),
+        ...(remote["cache"] === undefined
+          ? {}
+          : {
+              cache: resolve(relativeTo, requireString(remote, "cache", "flags.remote")),
+            }),
+      };
+    }
+    out.flags = config;
+  }
+
+  if (value["telemetry"] !== undefined) {
+    const telemetry = section(value, "telemetry", ["file", "controlPlane", "flushMs"]);
+    const toPlane = telemetry["controlPlane"] ?? false;
+    if (typeof toPlane !== "boolean") {
+      throw new ConfigError(`"telemetry.controlPlane" must be true or false.`);
+    }
+    if (toPlane && !out.controlPlane) {
+      throw new ConfigError(
+        `"telemetry.controlPlane" sends to the control plane, so set "controlPlane" too.`,
+      );
+    }
+    out.telemetry = {
+      controlPlane: toPlane,
+      flushMs: positiveInt(telemetry, "flushMs", 60_000),
+      ...(telemetry["file"] === undefined
+        ? {}
+        : { file: resolve(relativeTo, requireString(telemetry, "file", "telemetry")) }),
+    };
+  }
+
+  return out;
+}
+
+/** A nested object whose keys are all known. */
+function section(
+  value: Record<string, unknown>,
+  key: string,
+  known: readonly string[],
+  prefix = "",
+): Record<string, unknown> {
+  const found = value[key];
+  if (typeof found !== "object" || found === null || Array.isArray(found)) {
+    throw new ConfigError(`"${prefix}${key}" must be an object.`);
+  }
+  for (const name of Object.keys(found)) {
+    if (!known.includes(name)) {
+      throw new ConfigError(
+        `Unknown setting "${prefix}${key}.${name}". Known: ${known.join(", ")}.`,
+      );
+    }
+  }
+  return found as Record<string, unknown>;
 }
 
 function identityFrom(raw: unknown): IdentityStrategy[] {

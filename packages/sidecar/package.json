@@ -42,7 +42,10 @@
     }
   },
   "dependencies": {
-    "@invariant/runtime": "workspace:*"
+    "@invariant/client": "workspace:*",
+    "@invariant/flags": "workspace:*",
+    "@invariant/runtime": "workspace:*",
+    "@invariant/telemetry": "workspace:*"
   },
   "devDependencies": {
     "@invariant/compiler": "workspace:*",
