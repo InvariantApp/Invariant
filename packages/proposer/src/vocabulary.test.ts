@@ -54,15 +54,31 @@ describe("a response vocabulary that grew", () => {
     expect(decision?.why).toMatch(/pending_review/);
   });
 
-  it("writes the change out so that deciding is editing one word", () => {
+  it("writes the change out with the likeliest answer filled in, for a person to check", () => {
     const [decision] = foldDecisions([grown]);
     expect(decision?.scaffold).toContain("kind: enumMap");
     // Existing values map to themselves, so the schema still type-checks.
     expect(decision?.scaffold).toContain("- [pending, pending]");
     expect(decision?.scaffold).toContain("- [done, done]");
-    // And the new value is the only thing left to answer.
-    expect(decision?.scaffold).toContain("- [pending_review, CHOOSE_ONE]");
-    expect(decision?.scaffold).toContain("one of: pending, done");
+    // The new value shares a name part with `pending`, so that is suggested.
+    expect(decision?.suggested.fold).toEqual([["pending_review", "pending"]]);
+    expect(decision?.scaffold).toContain("- [pending_review, pending]");
+    expect(decision?.scaffold).toContain("Check every");
+  });
+
+  it("prefers a catch-all when the names share nothing more specific, as Plaid's errors", () => {
+    const [decision] = foldDecisions([
+      delta(
+        field("error_type", ["INVALID_REQUEST", "API_ERROR", "ITEM_ERROR"]),
+        field("error_type", [
+          "INVALID_REQUEST",
+          "API_ERROR",
+          "ITEM_ERROR",
+          "CRA_MONITORING_ERROR",
+        ]),
+      ),
+    ]);
+    expect(decision?.suggested.fold).toEqual([["CRA_MONITORING_ERROR", "API_ERROR"]]);
   });
 
   it("says nothing when the vocabulary did not grow", () => {
@@ -71,12 +87,27 @@ describe("a response vocabulary that grew", () => {
     ).toEqual([]);
   });
 
-  it("stays out of the way when values were also lost", () => {
-    // Values leaving have to be mapped somewhere, which is the alignment
-    // question. Asking both at once would get a worse answer to each.
+  it("leaves one value out and one in to the rename draft", () => {
+    // Drafted there as a rename for a person to confirm; asking again here
+    // would ask twice.
     expect(
       foldDecisions([delta(field("s", ["a", "b"]), field("s", ["a", "c"]))]),
     ).toEqual([]);
+  });
+
+  it("asks once when values were both lost and gained, pairing and folding", () => {
+    const [decision] = foldDecisions([
+      delta(
+        field("status", ["open", "in_review", "void"]),
+        field("status", ["open", "review_pending", "canceled", "disputed"]),
+      ),
+    ]);
+    expect(decision?.lost).toEqual(["in_review", "void"]);
+    expect(decision?.suggested.pairs).toContainEqual(["in_review", "review_pending"]);
+    // A gained value a lost one became is its new name, not a fold.
+    expect(decision?.suggested.fold.map(([value]) => value)).not.toContain(
+      "review_pending",
+    );
   });
 
   it("ignores fields that are not enums at all", () => {
@@ -88,7 +119,28 @@ describe("a response vocabulary that grew", () => {
       delta(field("s", ["a"]), field("s", ["a", "b", "c"])),
     ]);
     expect(decision?.gained).toEqual(["b", "c"]);
+    // Nothing about `b` or `c` resembles `a`, so nothing is suggested.
     expect(decision?.scaffold).toContain("- [b, CHOOSE_ONE]");
     expect(decision?.scaffold).toContain("- [c, CHOOSE_ONE]");
+  });
+});
+
+describe("a suggestion", () => {
+  it("is not made where the names share nothing, and never onto a value that means something", () => {
+    const [decision] = foldDecisions([
+      delta(
+        field("status", ["succeeded", "failed", "pending"]),
+        field("status", ["paid", "failed", "processing"]),
+      ),
+    ]);
+    expect(decision?.suggested.pairs).toEqual([
+      ["succeeded", "CHOOSE_ONE"],
+      ["pending", "CHOOSE_ONE"],
+    ]);
+    // `processing` is not a failure, whatever the ranking would have liked.
+    expect(decision?.suggested.fold).toEqual([
+      ["paid", "CHOOSE_ONE"],
+      ["processing", "CHOOSE_ONE"],
+    ]);
   });
 });

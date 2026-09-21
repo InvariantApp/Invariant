@@ -415,7 +415,9 @@ export async function propose(
       proposals: altered.proposals,
       unresolved,
       impasses: impassesIn(unresolved),
-      decisions: foldDecisions(deltas),
+      decisions: foldDecisions(
+        deltas.filter((delta) => sidesOfDelta(oldContract, delta).response),
+      ),
     };
   }
 
@@ -525,7 +527,9 @@ export async function propose(
     proposals,
     unresolved: open,
     impasses: impassesIn(open),
-    decisions: foldDecisions(deltas),
+    decisions: foldDecisions(
+      deltas.filter((delta) => sidesOfDelta(oldContract, delta).response),
+    ),
   };
 }
 

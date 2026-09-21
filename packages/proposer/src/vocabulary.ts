@@ -19,35 +19,98 @@
  * makes the change and the caller pays for it, so the provider is the one who
  * should have to say what the caller sees.
  */
+import type { Change } from "@invariant/ir";
 import type { SchemaDelta } from "./candidates.ts";
 
 export interface FoldDecision {
   schema: string;
+  /** What a Change making this decision is scoped to, when it is not the named schema. */
+  scope?: SchemaDelta["scope"];
   field: string;
   pointer: string;
   /** Values the new contract can produce and the old one cannot name. */
   gained: string[];
+  /** Values the old contract names that the new one no longer does. */
+  lost: string[];
   /** Values the old contract names. Each gained value folds onto one of these. */
   choices: string[];
+  /**
+   * The likeliest choice for each gained value, and for each lost value the
+   * likeliest new one, ranked by what their names share. A suggestion, never
+   * an answer: the draft built from it is marked for a person, and a fold is
+   * a declared loss the gate will not pass until someone acknowledges it.
+   */
+  suggested: { fold: [string, string][]; pairs: [string, string][] };
   /** Why this is a decision rather than something derivable. */
   why: string;
-  /** Lines to paste into a Change file, with one placeholder per gained value. */
+  /** Lines to paste into a Change file, pre-filled with the suggestions. */
   scaffold: string;
 }
 
-const PLACEHOLDER = "CHOOSE_ONE";
+/** The parts of a value's name: `CRA_MONITORING_ERROR` is cra, monitoring, error. */
+function tokens(value: string): string[] {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((part) => part.length > 0);
+}
+
+/**
+ * Values that exist to catch what nothing else names. Deliberately not
+ * `failed` or `invalid`: those mean something, and showing a payment that is
+ * still processing as failed would be worse than asking.
+ */
+const CATCH_ALLS = new Set([
+  "other",
+  "unknown",
+  "unspecified",
+  "generic",
+  "api_error",
+  "error",
+]);
+
+/** Placed where nothing suggests an answer, so the draft cannot pass without one. */
+export const CHOOSE_ONE = "CHOOSE_ONE";
+
+/**
+ * The choice whose name most resembles `value`, or nothing when nothing does.
+ *
+ * Shared name parts count most, then a shared start of three characters, with
+ * a catch-all breaking a tie. With no resemblance at all, a catch-all is
+ * suggested if there is one, and otherwise nothing: a guess with no evidence
+ * behind it is worse than a question.
+ */
+export function likeliest(value: string, choices: readonly string[]): string | undefined {
+  const mine = new Set(tokens(value));
+  let best: { choice: string; score: number } | undefined;
+  for (const choice of choices) {
+    const theirs = tokens(choice);
+    const shared = theirs.filter((token) => mine.has(token)).length;
+    let prefix = 0;
+    const a = value.toLowerCase();
+    const b = choice.toLowerCase();
+    while (prefix < a.length && prefix < b.length && a[prefix] === b[prefix]) prefix += 1;
+    const evidence = shared * 4 + (prefix >= 3 ? 2 : 0);
+    if (evidence === 0) continue;
+    const score = evidence + (CATCH_ALLS.has(choice.toLowerCase()) ? 1 : 0);
+    if (!best || score > best.score) best = { choice, score };
+  }
+  return best?.choice ?? choices.find((choice) => CATCH_ALLS.has(choice.toLowerCase()));
+}
 
 function yamlPairs(pairs: readonly (readonly [string, string])[]): string {
   return pairs.map(([a, b]) => `      - [${a}, ${b}]`).join("\n");
 }
 
 /**
- * One decision per response field that gained values and lost none.
+ * One decision per response field whose vocabulary changed in a way the
+ * documents do not settle: it gained values, with or without losing some.
  *
- * Losing values at the same time is a different question: the old values still
- * have to go somewhere, which is what `pairs` is for, and pairing them is the
- * alignment problem rather than this one. Mixing the two into a single prompt
- * would ask the provider two things at once and get a worse answer to both.
+ * Gained values need a fold: which value the old caller is shown instead.
+ * Lost values need a pair: which new value the old one became. Both are
+ * questions about meaning, asked once per field, with the likeliest answer
+ * filled in for a person to check.
  */
 export function foldDecisions(deltas: readonly SchemaDelta[]): FoldDecision[] {
   const out: FoldDecision[] = [];
@@ -60,35 +123,104 @@ export function foldDecisions(deltas: readonly SchemaDelta[]): FoldDecision[] {
 
       const gained = to.filter((value) => !from.includes(value));
       const lost = from.filter((value) => !to.includes(value));
-      if (gained.length === 0 || lost.length > 0) continue;
+      if (gained.length === 0) continue;
+      // One out and one in is drafted as a rename elsewhere, for a person to
+      // confirm; asking again here would ask twice.
+      if (lost.length === 1 && gained.length === 1) continue;
+
+      const kept = from.filter((value) => to.includes(value));
+      const pairs: [string, string][] = lost.map((value) => [
+        value,
+        likeliest(value, gained) ?? likeliest(value, kept) ?? CHOOSE_ONE,
+      ]);
+      const pairedTo = new Set(pairs.map(([, target]) => target));
+      // A gained value some lost value became is that value's new name, not
+      // something to fold.
+      const toFold = gained.filter((value) => !pairedTo.has(value));
+      const fold: [string, string][] = toFold.map((value) => [
+        value,
+        likeliest(value, kept.length > 0 ? kept : from) ?? CHOOSE_ONE,
+      ]);
 
       out.push({
         schema: delta.schema,
+        ...(delta.scope ? { scope: delta.scope } : {}),
         field: before.name,
         pointer: before.pointer,
         gained,
+        lost,
         choices: from,
+        suggested: { fold, pairs },
         why:
           `\`${before.name}\` can now answer with ` +
           `${gained.map((value) => `\`${value}\``).join(", ")}, which the old ` +
-          "contract never named. A caller that switches on this field has no " +
-          "branch for it. Which of its own values it should be shown instead is " +
-          "a decision about meaning, so it is not derivable from the two documents.",
+          "contract never named" +
+          (lost.length > 0
+            ? `, and no longer with ${lost.map((value) => `\`${value}\``).join(", ")}`
+            : "") +
+          ". A caller that switches on this field has no branch for a new value. " +
+          "Which of its own values it should be shown instead is a decision about " +
+          "meaning, so it is not derivable from the two documents.",
         scaffold: [
           "  - op: convert",
           `    path: ${before.pointer}`,
           "    codec:",
           "      kind: enumMap",
           "      pairs:",
-          yamlPairs(from.map((value) => [value, value] as const)),
-          `      # One line per new value. Replace ${PLACEHOLDER} with one of: ` +
-            from.join(", "),
+          yamlPairs([...kept.map((value) => [value, value] as const), ...pairs]),
+          `      # Each answer below was suggested by what the names share, and ${CHOOSE_ONE}`,
+          `      # marks where nothing did. Check every one; the old values are: ${from.join(", ")}`,
           "      fold:",
-          yamlPairs(gained.map((value) => [value, PLACEHOLDER] as const)),
+          yamlPairs(fold),
         ].join("\n"),
       });
     }
   }
 
   return out;
+}
+
+/**
+ * A decision as a Change file, every answer left as a placeholder.
+ *
+ * The suggestions go beside it, never into it: a placeholder is not a value
+ * the old contract names, so verification fails and the gate refuses the
+ * release until a person has put an answer in, whatever the provider has set
+ * the gate to do about declared loss. A suggestion can never pass as a
+ * decision on its own.
+ */
+export function decisionChange(decision: FoldDecision): Change {
+  const slug = (text: string) =>
+    text
+      .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+  const kept = decision.choices.filter((value) => !decision.lost.includes(value));
+  return {
+    irVersion: 1,
+    id: `chg_${slug(decision.schema)}_${slug(decision.field)}_vocabulary`.slice(0, 120),
+    summary: `\`${decision.field}\` on ${decision.schema} can answer with values old callers never saw.`,
+    scopes: [decision.scope ?? { schema: `#/components/schemas/${decision.schema}` }],
+    ops: [
+      {
+        op: "convert",
+        path: decision.pointer,
+        codec: {
+          kind: "enumMap",
+          pairs: [
+            ...kept.map((value) => [value, value] as [string, string]),
+            ...decision.lost.map((value) => [value, CHOOSE_ONE] as [string, string]),
+          ],
+          ...(decision.gained.length > 0
+            ? {
+                fold: decision.suggested.fold.map(
+                  ([value]) => [value, CHOOSE_ONE] as [string, string],
+                ),
+              }
+            : {}),
+        },
+      },
+    ],
+  };
 }

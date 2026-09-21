@@ -8,9 +8,13 @@
  */
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { findInterference } from "@invariant/compiler";
 import { loadContract, loadPendingChanges } from "@invariant/contract";
 import type { Change } from "@invariant/ir";
 import {
+  CHOOSE_ONE,
+  decisionChange,
+  type FoldDecision,
   HybridJudge,
   type Impasse,
   JevJudge,
@@ -24,6 +28,8 @@ import type { InvariantConfig } from "./config.ts";
 
 export interface ProposeResult {
   proposals: Proposal[];
+  /** Vocabularies that grew, each a decision drafted with suggestions filled in. */
+  decisions: FoldDecision[];
   /** Changes the proposer would not draft, with the reason it would not. */
   unresolved: Unresolved[];
   /** Changes no Change could express, named as one problem each. */
@@ -51,6 +57,37 @@ function render(proposal: Proposal): string {
   return `${header.join("\n")}\n${stringifyYaml(proposal.change as unknown as Record<string, unknown>)}`;
 }
 
+/**
+ * A decision drafted with every answer left as `CHOOSE_ONE` and the
+ * suggestions beside it, headed so no one mistakes it for one already made.
+ */
+function renderDecision(decision: FoldDecision, change: Change): string {
+  const suggestion = (value: string, target: string) =>
+    target === CHOOSE_ONE
+      ? `#   ${value}: nothing in the names suggests an answer`
+      : `#   ${value}: ${target}, suggested because the names share a part`;
+  const header = [
+    "# DECISION NEEDED. Nothing below has been decided.",
+    "#",
+    ...(decision.why.match(/.{1,74}(\s|$)/g) ?? []).map((line) => `# ${line.trimEnd()}`),
+    "#",
+    `# Replace every ${CHOOSE_ONE} below with one of: ${decision.choices.join(", ")}`,
+    ...(decision.suggested.fold.length > 0
+      ? ["#", "# What each new value could be shown as:"]
+      : []),
+    ...decision.suggested.fold.map(([value, target]) => suggestion(value, target)),
+    ...(decision.suggested.pairs.length > 0
+      ? ["#", "# What each value that went could have become:"]
+      : []),
+    ...decision.suggested.pairs.map(([value, target]) => suggestion(value, target)),
+    "#",
+    "# The suggestions come from what the names share, not what they mean.",
+    "# The release gate refuses this Change while any placeholder is left,",
+    "# and a fold is a declared loss you then acknowledge under assertions.",
+  ];
+  return `${header.join("\n")}\n${stringifyYaml(change as unknown as Record<string, unknown>)}`;
+}
+
 export async function runPropose(
   config: InvariantConfig,
   options: { write?: boolean; context?: string; offline?: boolean } = {},
@@ -58,7 +95,14 @@ export async function runPropose(
   const labels = [...config.releasedSpecs.keys()].sort();
   const latest = labels[labels.length - 1];
   if (!latest) {
-    return { proposals: [], unresolved: [], impasses: [], skipped: [], written: [] };
+    return {
+      proposals: [],
+      decisions: [],
+      unresolved: [],
+      impasses: [],
+      skipped: [],
+      written: [],
+    };
   }
 
   const [previous, current, existing] = await Promise.all([
@@ -72,7 +116,7 @@ export async function runPropose(
     ? new RulesJudge()
     : new HybridJudge(new RulesJudge(), new JevJudge());
 
-  const { proposals, unresolved, impasses } = await propose(
+  const { proposals, unresolved, impasses, decisions } = await propose(
     previous.document,
     current.document,
     {
@@ -82,11 +126,22 @@ export async function runPropose(
   );
 
   const declared = new Set(existing.map((change: Change) => change.id));
-  const fresh = proposals.filter((proposal) => !declared.has(proposal.change.id));
+  // A draft touching what a Change already in the repository touches is
+  // that Change said again under another name, and the two would collide at
+  // the gate. The one a person wrote or merged stands.
+  const covered = (change: Change) =>
+    findInterference([...existing, change]).some((issue) => issue.changeId === change.id);
+  const fresh = proposals.filter(
+    (proposal) => !declared.has(proposal.change.id) && !covered(proposal.change),
+  );
   const skipped = proposals
-    .filter((proposal) => declared.has(proposal.change.id))
+    .filter((proposal) => !fresh.includes(proposal))
     .map((proposal) => proposal.change.id);
 
+  const freshDecisions = decisions.filter((decision) => {
+    const change = decisionChange(decision);
+    return !declared.has(change.id) && !covered(change);
+  });
   const written: string[] = [];
   if (options.write) {
     for (const proposal of fresh) {
@@ -94,9 +149,22 @@ export async function runPropose(
       await writeFile(path, render(proposal), "utf8");
       written.push(path);
     }
+    for (const decision of freshDecisions) {
+      const change = decisionChange(decision);
+      const path = join(config.invariantDir, "changes", `${change.id}.yaml`);
+      await writeFile(path, renderDecision(decision, change), "utf8");
+      written.push(path);
+    }
   }
 
-  return { proposals: fresh, unresolved, impasses, skipped, written };
+  return {
+    proposals: fresh,
+    decisions: freshDecisions,
+    unresolved,
+    impasses,
+    skipped,
+    written,
+  };
 }
 
 /**
@@ -152,9 +220,46 @@ function renderUnresolved(result: ProposeResult): string[] {
   ];
 }
 
+/** Vocabularies that grew: a decision each, drafted with suggestions for a person to check. */
+function renderDecisions(result: ProposeResult): string[] {
+  if (result.decisions.length === 0) return [];
+  const lines = [
+    `${result.decisions.length} ${result.decisions.length === 1 ? "decision needs" : "decisions need"} you, drafted with suggestions:`,
+    "",
+  ];
+  for (const decision of result.decisions) {
+    lines.push(`  ${decision.schema}.${decision.field}`);
+    for (const [value, target] of decision.suggested.fold) {
+      lines.push(
+        target === CHOOSE_ONE
+          ? `    show ${value} as what? (no suggestion)`
+          : `    show ${value} as ${target}?`,
+      );
+    }
+    for (const [value, target] of decision.suggested.pairs) {
+      lines.push(
+        target === CHOOSE_ONE
+          ? `    ${value} became what? (no suggestion)`
+          : `    ${value} became ${target}?`,
+      );
+    }
+    lines.push("");
+  }
+  lines.push(
+    "  Each suggestion comes from what the names share, not what they mean. The",
+    `  gate refuses these until every ${CHOOSE_ONE} is replaced with an answer.`,
+    "",
+  );
+  return lines;
+}
+
 export function renderProposals(result: ProposeResult): string {
   if (result.proposals.length === 0) {
-    const nothing = [...renderImpasses(result), ...renderUnresolved(result)];
+    const nothing = [
+      ...renderDecisions(result),
+      ...renderImpasses(result),
+      ...renderUnresolved(result),
+    ];
     if (nothing.length > 0) return nothing.join("\n").trimEnd();
     return result.skipped.length > 0
       ? `Every change this release makes is already declared (${result.skipped.length} of them).`
@@ -172,7 +277,11 @@ export function renderProposals(result: ProposeResult): string {
     for (const note of proposal.notes) lines.push(`    - ${note}`);
     lines.push("");
   }
-  lines.push(...renderImpasses(result), ...renderUnresolved(result));
+  lines.push(
+    ...renderDecisions(result),
+    ...renderImpasses(result),
+    ...renderUnresolved(result),
+  );
 
   if (result.written.length > 0) {
     lines.push(`Wrote ${result.written.length} files into invariant/changes.`);
