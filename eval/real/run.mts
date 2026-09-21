@@ -100,11 +100,44 @@ const mode = process.argv[2] ?? "rules";
  * The cost follows the size of the difference, not the size of the files.
  */
 const PAIR_TIMEOUT_MS = Number(process.env["REAL_PAIR_TIMEOUT_MS"] ?? 180_000);
-const HEAP_MB = Number(process.env["REAL_HEAP_MB"] ?? 1536);
+/**
+ * Deliberately small. The worker holds two parsed documents; the differ it
+ * spawns can want twenty times as much. When the ceiling is reached the system
+ * kills the largest process, and that has to be the differ rather than the
+ * worker, or the result is "the worker died" instead of "this pair is too
+ * expensive, try the reduced path".
+ */
+const HEAP_MB = Number(process.env["REAL_HEAP_MB"] ?? 512);
 /** Kept low on purpose: several differs at once is how a small box dies. */
 const CONCURRENCY = Number(process.env["REAL_CONCURRENCY"] ?? 2);
 
 const WORKER = join(ROOT, "eval/real/worker.mts");
+
+/**
+ * Every worker still running, so none is left behind.
+ *
+ * A worker owns a Go subprocess that can hold a gigabyte. If this process goes
+ * away without tidying up, that subprocess keeps running and the next thing to
+ * ask for memory is the thing that gets killed.
+ */
+const live = new Set<number>();
+function reapAll(): void {
+  for (const pid of live) {
+    try {
+      process.kill(-pid, "SIGKILL");
+    } catch {
+      // Already gone.
+    }
+  }
+  live.clear();
+}
+process.on("exit", reapAll);
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, () => {
+    reapAll();
+    process.exit(1);
+  });
+}
 
 interface Pair {
   api: string;
@@ -148,7 +181,15 @@ function analyseIsolated(pair: Pair): Promise<WorkerResult> {
         pair.fromFile,
         pair.toFile,
       ],
-      { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] },
+      {
+        cwd: ROOT,
+        stdio: ["ignore", "pipe", "pipe"],
+        // Its own process group, so killing it kills the differ it spawned.
+        // Without this a worker stopped on timeout leaves an orphaned Go
+        // process holding a gigabyte, and a long run accumulates them until
+        // the machine has none left. One outlived the run that started it.
+        detached: true,
+      },
     );
 
     const stopped = (error: string): WorkerResult => ({
@@ -163,11 +204,17 @@ function analyseIsolated(pair: Pair): Promise<WorkerResult> {
       breakingAfter: 0,
       drafts: 0,
       unresolved: 0,
+      impasses: 0,
       compileIssues: [],
-      wild: [],
-      holes: [],
+      // These two are the tallies the summary walks. Leaving them off produced
+      // a result that looked fine in the file and crashed the report after 686
+      // pairs had already been computed.
+      breakingKinds: {},
+      unexplainedKinds: {},
       elapsedMs: PAIR_TIMEOUT_MS,
     });
+
+    if (child.pid !== undefined) live.add(child.pid);
 
     let out = "";
     let err = "";
@@ -176,11 +223,21 @@ function analyseIsolated(pair: Pair): Promise<WorkerResult> {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      if (child.pid !== undefined) live.delete(child.pid);
       resolve(result);
     };
 
+    /** Kills the worker and every process it started. */
+    const killTree = (): void => {
+      try {
+        if (child.pid !== undefined) process.kill(-child.pid, "SIGKILL");
+      } catch {
+        // Already gone, which is the outcome being asked for.
+      }
+    };
+
     const timer = setTimeout(() => {
-      child.kill("SIGKILL");
+      killTree();
       done(
         stopped(
           `Stopped after ${PAIR_TIMEOUT_MS} ms. The difference between these two ` +
@@ -413,6 +470,32 @@ function render(
     );
   }
   lines.push("");
+
+  const reduced = all.filter((r) => r.mode !== undefined && r.mode !== "changelog");
+  if (reduced.length > 0) {
+    lines.push("## Pairs compared at reduced fidelity", "");
+    lines.push(
+      `${reduced.length} pairs could not be compared in full. Their counts below`,
+      "are upper bounds rather than measurements, and they are listed here so no",
+      "number from them is read as though it were measured the same way as the",
+      "rest.",
+      "",
+      "The full changelog could not be computed for these, so a breaking-only",
+      "comparison was used instead. For the largest it also had to stop merging",
+      "`allOf` before comparing, which no longer collapses composition and so",
+      "reports a superset. Every comparison of one pair uses the same rung, or",
+      "the residual and the total would not be subtractable.",
+      "",
+      "| API | Step | Rung | Aligned breaking |",
+      "|---|---|---|---|",
+    );
+    for (const result of reduced.slice(0, 20)) {
+      lines.push(
+        `| ${result.api} | ${result.fromVersion} to ${result.toVersion} | \`${result.mode}\` | ${result.breakingAligned} |`,
+      );
+    }
+    lines.push("");
+  }
 
   const overBudget = all.filter((result) => result.reached === "budget");
   if (overBudget.length > 0) {

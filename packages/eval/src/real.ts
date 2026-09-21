@@ -17,7 +17,13 @@
  */
 import { predictDocument } from "@invariant/compiler";
 import { loadContract } from "@invariant/contract";
-import { breakingEntries, type DiffEntry, diffDocuments } from "@invariant/diff";
+import {
+  breakingEntries,
+  type DiffEntry,
+  type DiffMode,
+  diffDocuments,
+  diffOutcome,
+} from "@invariant/diff";
 import type { Change } from "@invariant/ir";
 import { type Judge, propose } from "@invariant/proposer";
 
@@ -55,6 +61,15 @@ export interface PairResult {
   toVersion: string;
   /** The last stage that completed. `done` means all of them. */
   reached: Stage;
+  /**
+   * Which comparison rung produced these numbers.
+   *
+   * Anything other than `changelog` means fidelity was traded for being able to
+   * compare the documents at all, so the counts are an upper bound rather than a
+   * measurement, and the report has to say so instead of printing them beside
+   * numbers that were measured.
+   */
+  mode?: DiffMode;
   /** Why it stopped, when it did not reach `done`. */
   error?: string;
   /** Every delta, breaking or not. */
@@ -174,9 +189,27 @@ export async function analysePair(
   }));
   if (!loaded.ok) return finish({ ...base, error: loaded.error });
 
-  const diffed = await stage(() =>
-    diffDocuments(loaded.value.from.document, loaded.value.to.document),
-  );
+  /**
+   * Above this many breaking entries the comparison is repeated and thrown away
+   * unless both runs agree.
+   *
+   * oasdiff 1.32.1 is not reproducible on very large comparisons. Three runs of
+   * one Stripe pair, same command and same bytes, returned 18,990, 38,442 and
+   * 23,838 entries, and no run's findings were a subset of another's. Pairs at
+   * ordinary sizes were stable across three runs each, so the repeat is spent
+   * only where instability has actually been seen.
+   */
+  const CONFIRM_ABOVE = 1_000;
+
+  const diffed = await stage(async () => {
+    const first = await diffOutcome(loaded.value.from.document, loaded.value.to.document);
+    if (breakingEntries(first.entries).length <= CONFIRM_ABOVE) return first;
+    return diffOutcome(loaded.value.from.document, loaded.value.to.document, {
+      mode: first.mode,
+      fallback: false,
+      confirm: true,
+    });
+  });
   if (!diffed.ok) {
     // A differ that ran out of memory or time did not fail to read the
     // documents, it failed to afford them, and those are different findings.
@@ -189,11 +222,30 @@ export async function analysePair(
     });
   }
 
-  const breaking = breakingEntries(diffed.value);
+  /**
+   * The rung the first comparison settled on, and every later comparison of
+   * this pair is pinned to it with the fallback switched off.
+   *
+   * Passing the rung alone was not enough: the ladder still fired underneath
+   * and quietly compared at a different fidelity. One Stripe pair drafted no
+   * changes at all, so its residual had to equal its aligned count of 4524, and
+   * reported 94,966 instead. A number that cannot be subtracted from the one
+   * beside it is worse than a missing number, so a pinned comparison that
+   * cannot be made is recorded as over budget rather than answered at a
+   * fidelity nobody asked for.
+   */
+  const mode: DiffMode = diffed.value.mode;
+  const breaking = breakingEntries(diffed.value.entries);
+  const pinned = {
+    mode,
+    fallback: false,
+    confirm: breaking.length > CONFIRM_ABOVE,
+  } as const;
   const afterDiff: PairResult = {
     ...base,
+    mode,
     reached: "diff",
-    deltas: diffed.value.length,
+    deltas: diffed.value.entries.length,
     breakingBefore: breaking.length,
     breakingAligned: breaking.length,
     breakingKinds: tally(breaking),
@@ -226,7 +278,7 @@ export async function analysePair(
         routeOnly,
       );
       return breakingEntries(
-        await diffDocuments(predicted.document, loaded.value.to.document),
+        await diffDocuments(predicted.document, loaded.value.to.document, pinned),
       );
     });
     if (lined.ok) {
@@ -262,7 +314,7 @@ export async function analysePair(
 
   const residual = await stage(async () =>
     breakingEntries(
-      await diffDocuments(predicted.value.document, loaded.value.to.document),
+      await diffDocuments(predicted.value.document, loaded.value.to.document, pinned),
     ),
   );
   if (!residual.ok) {
@@ -321,7 +373,9 @@ function rank(
   const count = new Map<string, number>();
   const pairs = new Map<string, number>();
   for (const result of results) {
-    for (const [kind, n] of Object.entries(pick(result))) {
+    // A result assembled somewhere other than `analysePair` may be missing a
+    // tally, and losing a whole run's report to that is a poor trade.
+    for (const [kind, n] of Object.entries(pick(result) ?? {})) {
       count.set(kind, (count.get(kind) ?? 0) + n);
       pairs.set(kind, (pairs.get(kind) ?? 0) + 1);
     }

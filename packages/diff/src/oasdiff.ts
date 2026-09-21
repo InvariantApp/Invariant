@@ -3,7 +3,9 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import type { OpenApiDocument } from "@invariant/contract";
+import { ambiguousPaths, type OpenApiDocument, schemasOf } from "@invariant/contract";
+import { isJsonObject, type JsonValue } from "@invariant/ir";
+import { BREAKING_INFO_IDS } from "./policy.ts";
 
 const run = promisify(execFile);
 
@@ -43,31 +45,92 @@ export async function oasdiffAvailable(): Promise<boolean> {
 /**
  * How long one diff may run before it is abandoned.
  *
- * Diff cost tracks the size of the difference rather than the size of the
- * documents. Two 13 MB GitHub specifications a day apart diff in three
- * seconds; two 7.6 MB Stripe specifications a month apart ran for nearly six
- * minutes of CPU and were still going. Without a bound the gate does not fail,
- * it hangs, and the provider most worth having is the one it hangs on.
+ * Five minutes rather than two, because two was not enough for a real
+ * provider and a gate that gives up on the largest one is not a gate. A full
+ * Stripe step takes about a minute for the first comparison and longer for the
+ * closure check that follows it.
+ *
+ * An earlier version of this comment claimed the cost tracks the size of the
+ * difference. That turned out to be wrong and is recorded here because it sent
+ * the investigation in the wrong direction for some time: Stripe's month-apart
+ * step changes two paths and 55 schemas, which is tiny. What actually drives
+ * the cost is composition and whether `allOf` merging is switched on, and a
+ * bound is still needed because without one the gate hangs rather than fails.
  */
-const DEFAULT_TIMEOUT_MS = 120_000;
+const DEFAULT_TIMEOUT_MS = 300_000;
 
 /**
- * What the Go runtime is told to stay under.
+ * No memory limit by default, which is the opposite of what was tried first.
  *
- * A soft limit: Go collects harder as it approaches rather than refusing to
- * allocate. That is the behaviour wanted here, because finishing slowly beats
- * being killed. The same Stripe pair reached 3.1 GB resident with no limit set
- * and took the whole machine down with it.
+ * `GOMEMLIMIT` was set to 2 GiB on the reasoning that a soft limit makes Go
+ * collect harder rather than be killed. That reasoning is wrong when the limit
+ * is below the live heap: there is nothing to collect, so Go collects
+ * continuously and makes no progress. Setting it to 1200 MiB on a pair whose
+ * live heap is about 2.4 GB turned a twenty second diff into one still running
+ * eight minutes later, and it did not reduce the peak at all.
+ *
+ * Memory is therefore bounded from outside, by whoever runs this, and the
+ * timeout is what protects the caller. A limit is still accepted for a caller
+ * who knows their documents fit under it.
  */
-const DEFAULT_MEMORY_LIMIT = "2GiB";
+const DEFAULT_MEMORY_LIMIT: string | undefined = undefined;
+
+/**
+ * How many changed component schemas the full changelog is trusted to survive.
+ *
+ * Measured, not chosen: 16 changed schemas on Stripe's documents completed in
+ * twenty-four seconds and 28 exhausted three gigabytes, so the line sits
+ * between them, nearer the side that is known to work.
+ */
+const CHANGED_SCHEMA_LIMIT = 20;
 
 export interface DiffOptions {
-  /** Merge allOf subschemas before diffing, so composition noise does not appear as change. */
+  /**
+   * Merge allOf subschemas before diffing, so composition noise does not appear
+   * as change. Decided per document rather than always on: see `hasAllOf`.
+   */
   flattenAllOf?: boolean;
+  /** Resolved from `flattenAllOf` and the documents. Internal. */
+  flatten?: boolean;
   /** Abandon the diff after this long. Defaults to two minutes. */
   timeoutMs?: number;
-  /** Passed to the differ as `GOMEMLIMIT`. Defaults to 2 GiB. */
+  /** Passed to the differ as `GOMEMLIMIT`. Unset by default: see above. */
   memoryLimit?: string;
+  /** Which subcommand to run. Internal: the fallback sets it. */
+  mode?: DiffMode;
+  /** Extra arguments. Internal: the fallback sets it. */
+  extraArgs?: string[];
+  /**
+   * Whether to retry with the reduced breaking-only path when the full
+   * changelog cannot be computed. On by default, because a provider large
+   * enough to exhaust the differ still has to be able to release.
+   */
+  fallback?: boolean;
+  /** Overrides the measured limit above which the reduced path is used first. */
+  changedSchemaLimit?: number;
+  /**
+   * Repeat the comparison and refuse the result if it does not come back the
+   * same. Off by default because it doubles the work; on wherever a number is
+   * about to be trusted.
+   */
+  confirm?: boolean;
+}
+
+/** Raised when the differ gives two different answers for the same input. */
+export class UnstableDiffError extends Error {
+  constructor(
+    readonly first: number,
+    readonly second: number,
+  ) {
+    super(
+      `The differ returned ${first} entries and then ${second} for the same two ` +
+        "documents, so its answer here is not reproducible and no count from it " +
+        "means anything. This is a defect in oasdiff 1.32.1 rather than in the " +
+        "documents: three runs of one Stripe comparison returned 18,990, 38,442 " +
+        "and 23,838 entries, and no run's findings were a subset of another's.",
+    );
+    this.name = "UnstableDiffError";
+  }
 }
 
 /** What `execFile` attaches to a failure, none of which is declared on `Error`. */
@@ -102,8 +165,8 @@ function describeFailure(error: unknown, binary: string, timeoutMs: number): str
   if (failure.killed === true || failure.signal === "SIGTERM") {
     return (
       `${binary} did not finish within ${timeoutMs} ms and was stopped. ` +
-      "Diff cost grows with the size of the difference, so this usually means " +
-      `the two documents are far apart rather than large.${tail}`
+      "Comparison cost is driven by how the documents compose their schemas " +
+      `rather than by how far apart the two versions are.${tail}`
     );
   }
   if (failure.signal === "SIGKILL") {
@@ -116,36 +179,115 @@ function describeFailure(error: unknown, binary: string, timeoutMs: number): str
   return `${binary} exited with ${String(failure.code ?? "an error")}.${tail || `\n${detail}`}`;
 }
 
+/**
+ * How the entries were obtained.
+ *
+ * `changelog` is every delta, breaking and additive. `breaking` is the reduced
+ * path taken when the full changelog cannot be computed: it answers the only
+ * question the gate must answer, and gives up the additive counts to do it.
+ */
+/**
+ * Which rung of the ladder produced the entries.
+ *
+ * Each step down buys affordability with fidelity, and every step is forced by
+ * a measurement rather than chosen:
+ *
+ * - `changelog` is every delta, breaking and additive. It cannot be computed
+ *   for two consecutive Stripe documents at any memory this project has tried.
+ * - `breaking` drops the additive half. Verified against the full changelog on
+ *   58 real pairs to report exactly the same breaking entries.
+ * - `breaking-unflattened` also stops merging `allOf` before comparing, which
+ *   is the single thing that made Stripe unaffordable: with the merge it
+ *   exhausted 3.4 GB in eight seconds, and without it the same pair finished in
+ *   thirty. The cost is that composition noise is no longer collapsed, so this
+ *   rung reports a superset. It fails closed, which is the right direction for
+ *   a gate, but a count from it is an upper bound rather than a measurement.
+ */
+export type DiffMode = "changelog" | "breaking" | "breaking-unflattened";
+
+export interface DiffOutcome {
+  entries: DiffEntry[];
+  mode: DiffMode;
+}
+
+function exhausted(error: unknown): boolean {
+  if (error instanceof OasdiffError) {
+    return /did not finish within|ran out of|killed by the system/.test(error.message);
+  }
+  const failure = (error ?? {}) as SpawnFailure;
+  return (
+    failure.killed === true ||
+    failure.signal === "SIGTERM" ||
+    failure.signal === "SIGKILL"
+  );
+}
+
+/**
+ * Promotes the checks this policy calls breaking but oasdiff rates INFO.
+ *
+ * `oasdiff breaking` reports WARN and ERR only, so without this the reduced
+ * path would silently lose two checks the policy depends on: a required
+ * response property appearing, and a response enum value going away. Written
+ * from `BREAKING_INFO_IDS` rather than typed out, so it cannot drift from the
+ * policy it exists to preserve.
+ */
+async function severityFile(dir: string): Promise<string> {
+  const path = join(dir, "severity.txt");
+  await writeFile(
+    path,
+    `${[...BREAKING_INFO_IDS].map((id) => `${id} warn`).join("\n")}\n`,
+  );
+  return path;
+}
+
 async function changelogFiles(
   baseFile: string,
   revisionFile: string,
   options: DiffOptions,
 ): Promise<DiffEntry[]> {
+  const subcommand =
+    options.mode === "breaking-unflattened" ? "breaking" : (options.mode ?? "changelog");
   const args = [
-    "changelog",
+    subcommand,
     baseFile,
     revisionFile,
     "--format",
     "json",
     // Specs are untrusted input, so never let the differ fetch a remote ref.
     "--allow-external-refs=false",
+    ...(options.extraArgs ?? []),
   ];
-  if (options.flattenAllOf !== false) args.push("--flatten-allof");
+  if (options.flatten === true) args.push("--flatten-allof");
 
   const timeoutMs =
     options.timeoutMs ?? Number(process.env["OASDIFF_TIMEOUT_MS"] ?? DEFAULT_TIMEOUT_MS);
   const memoryLimit =
     options.memoryLimit ?? process.env["OASDIFF_MEMORY_LIMIT"] ?? DEFAULT_MEMORY_LIMIT;
 
+  if (process.env["OASDIFF_DEBUG"]) {
+    process.stderr.write(`[oasdiff] ${args.join(" ")}\n`);
+  }
+
   let stdout: string;
   try {
     ({ stdout } = await run(oasdiffBinary(), args, {
-      maxBuffer: 64 * 1024 * 1024,
+      // 64 MiB was not enough for a real provider. One Stripe step reports
+      // 166,331 breaking entries, about 66 MiB of JSON, and truncating that
+      // surfaced as a child-process error rather than as anything a reader
+      // could act on. The entries are held as text only until they are parsed,
+      // and the differ that produced them is far larger while it runs.
+      maxBuffer: 512 * 1024 * 1024,
       timeout: timeoutMs,
-      // SIGTERM lets the differ unwind; the caller is told which signal ended
-      // it, which is how a timeout is told apart from an out-of-memory kill.
-      killSignal: "SIGTERM",
-      env: { ...process.env, GOMEMLIMIT: memoryLimit },
+      // SIGKILL rather than SIGTERM. A differ that has run out of time is often
+      // one thrashing its collector, and in that state it does not get around
+      // to handling a polite signal: one ignored SIGTERM for minutes. A timeout
+      // is still told apart from an out-of-memory kill, because Node reports
+      // `killed` for the deadline it enforced and not for a kill from outside.
+      killSignal: "SIGKILL",
+      env:
+        memoryLimit === undefined
+          ? process.env
+          : { ...process.env, GOMEMLIMIT: memoryLimit },
     }));
   } catch (error) {
     throw new OasdiffError(describeFailure(error, oasdiffBinary(), timeoutMs));
@@ -161,12 +303,26 @@ async function changelogFiles(
   return parsed as DiffEntry[];
 }
 
-/** Structural changelog between two in-memory documents. */
-export async function diffDocuments(
+/**
+ * Structural changelog between two in-memory documents.
+ *
+ * Falls back to the breaking-only path when the full changelog cannot be
+ * computed. That is not a theoretical case: two consecutive Stripe documents
+ * generate over 55,000 changelog entries from a dozen changed schemas, because
+ * a schema Stripe reuses across 589 operations fans out once per operation, and
+ * the differ builds all of them in memory before any level filter applies. The
+ * breaking-only path evaluates fewer checks and completes on the same pair in
+ * about twenty seconds.
+ *
+ * The trade is explicit: the reduced path answers the question the gate must
+ * answer and gives up the additive counts, and it says which path it took so
+ * nothing downstream reports a count it did not measure.
+ */
+export async function diffOutcome(
   base: OpenApiDocument,
   revision: OpenApiDocument,
   options: DiffOptions = {},
-): Promise<DiffEntry[]> {
+): Promise<DiffOutcome> {
   const dir = await mkdtemp(join(tmpdir(), "invariant-diff-"));
   try {
     const baseFile = join(dir, "base.json");
@@ -175,8 +331,176 @@ export async function diffDocuments(
       writeFile(baseFile, JSON.stringify(base)),
       writeFile(revisionFile, JSON.stringify(revision)),
     ]);
-    return await changelogFiles(baseFile, revisionFile, options);
+
+    // Above the measured limit the full changelog is not merely slow, it does
+    // not finish, and attempting it first costs a minute and a memory spike
+    // before the reduced path can even start. Below it the full changelog is
+    // attempted and the fallback still catches anything surprising, so the
+    // threshold being imprecise costs additive counts rather than correctness.
+    const overLimit =
+      options.mode === undefined &&
+      options.fallback !== false &&
+      changedSchemaCount(base, revision) >
+        (options.changedSchemaLimit ?? CHANGED_SCHEMA_LIMIT);
+    // Straight to the bottom rung, not the middle one. The middle rung expands
+    // to fill whatever ceiling it is given before dying, which starves the rung
+    // that would have worked: given 3.4 GB it took all of it, and the same pair
+    // completes in thirty seconds and 2.6 GB with the `allOf` merge switched
+    // off. Trying it first costs the attempt and the one after it.
+    const requested: DiffMode =
+      options.mode ?? (overLimit ? "breaking-unflattened" : "changelog");
+    const flatten = options.flattenAllOf ?? (hasAllOf(base) || hasAllOf(revision));
+    // Any breaking-only rung needs the promotions, not just the first one.
+    // Without them the two checks this policy calls breaking at INFO are not
+    // reported at all, which is how a reduced run quietly loses 154 real Plaid
+    // enum removals.
+    const extra =
+      requested !== "changelog" && options.extraArgs === undefined
+        ? ["--severity-levels", await severityFile(dir)]
+        : (options.extraArgs ?? []);
+    try {
+      const call = () =>
+        changelogFiles(baseFile, revisionFile, {
+          ...options,
+          mode: requested,
+          extraArgs: extra,
+          flatten,
+        });
+      const entries = await call();
+      if (options.confirm === true) {
+        const again = await call();
+        if (!sameFindings(entries, again)) {
+          throw new UnstableDiffError(entries.length, again.length);
+        }
+      }
+      return { entries, mode: requested };
+    } catch (error) {
+      if (error instanceof UnstableDiffError) throw error;
+      // Only a differ that was stopped is worth retrying. A malformed document
+      // or a dangling reference fails the same way twice, and retrying it would
+      // just double the wait before reporting the same thing.
+      if (options.fallback === false || !exhausted(error))
+        throw explain(error, base, revision);
+
+      const severity = ["--severity-levels", await severityFile(dir)];
+      const rungs: DiffMode[] =
+        requested === "changelog" ? ["breaking", "breaking-unflattened"] : [];
+
+      let last = error;
+      for (const rung of rungs) {
+        try {
+          return {
+            entries: await changelogFiles(baseFile, revisionFile, {
+              ...options,
+              mode: rung,
+              extraArgs: severity,
+              flatten: rung === "breaking-unflattened" ? false : flatten,
+            }),
+            mode: rung,
+          };
+        } catch (next) {
+          if (!exhausted(next)) throw next;
+          last = next;
+        }
+      }
+      throw last;
+    }
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+/**
+ * How many component schemas the two documents define differently.
+ *
+ * This is the one thing measured to predict whether the full changelog is
+ * affordable, and it is cheap to compute. Neither size nor reuse predicts it:
+ * GitHub's 13 MB document with 990 schemas and 4.3 references each diffs in
+ * three seconds, while Stripe's 7.6 MB document with 1431 schemas and 2.7
+ * references each cannot be diffed at all. What separates them is how many
+ * shared schemas moved at once. Holding Stripe's documents fixed and varying
+ * only that number: 1 changed schema took one second, 4 took two, 8 took
+ * twenty-four, and 28 exhausted three gigabytes.
+ */
+/**
+ * Whether a document composes anything with `allOf`.
+ *
+ * `--flatten-allof` was passed unconditionally, on the reasoning that merging
+ * composition keeps it from showing up as change. On a document that uses no
+ * composition there is nothing to merge, and the flag is not free: Stripe
+ * declares zero `allOf` and 2002 `anyOf`, and passing it exhausted 3.4 GB in
+ * eight seconds where the same comparison without it finished in thirty. It
+ * also changed the answer, reporting 110,324 breaking entries against 166,331,
+ * so on a document with no `allOf` it was suppressing real differences rather
+ * than collapsing noise.
+ *
+ * The flag is therefore passed when there is something for it to do.
+ */
+export function hasAllOf(document: OpenApiDocument): boolean {
+  const seen = (value: JsonValue): boolean => {
+    if (Array.isArray(value)) return value.some(seen);
+    if (!isJsonObject(value)) return false;
+    if (value["allOf"] !== undefined) return true;
+    return Object.values(value).some((child) => seen(child as JsonValue));
+  };
+  return seen(document as JsonValue);
+}
+
+export function changedSchemaCount(
+  base: OpenApiDocument,
+  revision: OpenApiDocument,
+): number {
+  const from = schemasOf(base);
+  const to = schemasOf(revision);
+  let changed = 0;
+  for (const name of Object.keys(from)) {
+    const other = to[name];
+    if (other === undefined) continue;
+    if (JSON.stringify(from[name]) !== JSON.stringify(other)) changed += 1;
+  }
+  return changed;
+}
+
+/** Whether two runs found the same things, by fingerprint. */
+function sameFindings(
+  first: readonly DiffEntry[],
+  second: readonly DiffEntry[],
+): boolean {
+  if (first.length !== second.length) return false;
+  const seen = new Set(second.map((entry) => entry.fingerprint));
+  return first.every((entry) => seen.has(entry.fingerprint));
+}
+
+/**
+ * Adds what this side knows to a failure from the differ.
+ *
+ * The differ refuses documents whose endpoints collide, and it says `exited
+ * with 104`, which sends the reader to their own installation. Colliding
+ * templates are cheap to find here, so the number becomes a sentence naming the
+ * two paths. Only added when they are actually present: plenty of providers
+ * ship colliding templates that the differ accepts, so this is a diagnosis
+ * rather than a rule.
+ */
+function explain(
+  error: unknown,
+  base: OpenApiDocument,
+  revision: OpenApiDocument,
+): unknown {
+  if (!(error instanceof OasdiffError)) return error;
+  const clash = ambiguousPaths(base)[0] ?? ambiguousPaths(revision)[0];
+  if (!clash) return error;
+  return new OasdiffError(
+    `${error.message}\n\n${clash.join(" and ")} are the same endpoint once the ` +
+      "parameter names are taken out, which is usually what the differ is " +
+      "objecting to.",
+  );
+}
+
+/** The entries alone, for callers that do not care how they were obtained. */
+export async function diffDocuments(
+  base: OpenApiDocument,
+  revision: OpenApiDocument,
+  options: DiffOptions = {},
+): Promise<DiffEntry[]> {
+  return (await diffOutcome(base, revision, options)).entries;
 }

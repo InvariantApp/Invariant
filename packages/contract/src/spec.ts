@@ -26,49 +26,133 @@ export interface OperationRef {
   method: HttpMethod;
   path: string;
   operation: JsonObject;
+  /**
+   * True for an entry under `webhooks` rather than `paths`.
+   *
+   * It travels with the operation because the difference matters downstream:
+   * nothing calls a webhook, the provider sends it, so the request and response
+   * middleware has no point at which to rewrite one. A change here is real and
+   * worth reporting, and it cannot be adapted by this runtime.
+   */
+  webhook?: true;
 }
+
+/**
+ * Places whose contents describe an API without constraining the wire, so a
+ * reference that dangles inside one is not a reason to refuse the document.
+ *
+ * `stripNonWire` already leaves these out of the digest for the same reason.
+ * Adyen publishes contracts that reference example components they never
+ * define, 55 times in one of them, and refusing those cost real comparisons
+ * over missing illustrations.
+ */
+const NON_WIRE_CONTAINERS = new Set(["examples", "example"]);
 
 /**
  * External `$ref`s are refused rather than fetched. A provider spec is
  * untrusted input to the control plane, and resolving a remote reference would
  * turn parsing it into an outbound request.
  */
-function assertNoExternalRefs(value: JsonValue, where = "#"): void {
+function collectRefs(value: JsonValue, found: Map<string, string[]>, where = "#"): void {
   if (Array.isArray(value)) {
     for (const [index, item] of value.entries()) {
-      assertNoExternalRefs(item, `${where}/${index}`);
+      collectRefs(item, found, `${where}/${index}`);
     }
     return;
   }
   if (!isJsonObject(value)) return;
 
   const ref = value["$ref"];
-  if (typeof ref === "string" && !ref.startsWith("#/")) {
-    throw new ContractError(`External $ref is not allowed at ${where}: ${ref}`);
+  if (typeof ref === "string") {
+    if (!ref.startsWith("#/")) {
+      throw new ContractError(`External $ref is not allowed at ${where}: ${ref}`);
+    }
+    const sites = found.get(ref);
+    if (sites) sites.push(where);
+    else found.set(ref, [where]);
   }
   for (const [key, child] of Object.entries(value)) {
-    assertNoExternalRefs(child, `${where}/${key}`);
+    if (NON_WIRE_CONTAINERS.has(key)) continue;
+    collectRefs(child, found, `${where}/${key}`);
   }
 }
 
+/**
+ * Every internal `$ref` must point at something that exists.
+ *
+ * A document with a dangling reference is not a document this system can reason
+ * about: the schema behind a field is simply missing, so no site resolves and
+ * no closure check means anything. It also is not hypothetical. Intercom's
+ * published contract references `#/components/schemas/custom_attributes` from
+ * four places and defines 213 schemas, none of them that one.
+ *
+ * The reason this is checked here rather than left to the differ is what the
+ * differ says about it: `exited with 102`. A provider reading that learns
+ * nothing, and the gate that produced it looks broken rather than the document
+ * it was given.
+ */
+function assertRefsResolve(document: OpenApiDocument): void {
+  const found = new Map<string, string[]>();
+  collectRefs(document, found);
+
+  const dangling = [...found].filter(([ref]) => resolveRef(document, ref) === undefined);
+  if (dangling.length === 0) return;
+
+  const [firstRef, sites] = dangling[0] as [string, string[]];
+  const more =
+    dangling.length > 1
+      ? ` (and ${dangling.length - 1} other unresolved reference${dangling.length > 2 ? "s" : ""})`
+      : "";
+  throw new ContractError(
+    `\`${firstRef}\` is referenced but not defined, from ${sites.length} ` +
+      `place${sites.length === 1 ? "" : "s"} including ${sites[0]}${more}. ` +
+      "The document has to define everything it points at before it can be compared.",
+  );
+}
+
+/**
+ * Path templates that are the same endpoint once the parameter names come out.
+ *
+ * Reported rather than refused, which is a correction. Refusing them looked
+ * right: a request for `/v1/x/dataExchanges` matches both
+ * `/v1/{organization}/dataExchanges` and `/v1/{parent}/dataExchanges`, so there
+ * is no fact about which operation it belongs to. But real providers ship this
+ * deliberately and it mostly works, because the value's own shape tells the two
+ * apart. GitHub declares `/orgs/{org}/attestations/{attestation_id}` beside
+ * `/orgs/{org}/attestations/{subject_digest}`, and refusing that traded one
+ * Google document for seven GitHub ones that had been comparing fine.
+ *
+ * So this is used to explain a failure rather than to cause one. The differ
+ * refuses some of these itself, with `exited with 104`, and this turns that
+ * number into a sentence.
+ */
+export function ambiguousPaths(document: OpenApiDocument): string[][] {
+  const paths = document["paths"];
+  if (!isJsonObject(paths)) return [];
+
+  const byShape = new Map<string, string[]>();
+  for (const path of Object.keys(paths)) {
+    const shape = path.replace(/\{[^}]*\}/g, "{}");
+    const seen = byShape.get(shape);
+    if (seen) seen.push(path);
+    else byShape.set(shape, [path]);
+  }
+  return [...byShape.values()].filter((group) => group.length > 1);
+}
+
 export function normalizeDocument(document: OpenApiDocument): OpenApiDocument {
-  assertNoExternalRefs(document);
+  assertRefsResolve(document);
   const version = document["openapi"];
   if (typeof version !== "string" || !version.startsWith("3.")) {
     throw new ContractError(`Only OpenAPI 3.x is supported, got ${String(version)}`);
   }
-  if (!isJsonObject(document["paths"])) {
-    // A 3.1 document may describe webhooks instead of paths, and several real
-    // ones do: Adyen publishes its notification contracts that way. Those are
-    // valid documents this system does not cover yet, and saying "no paths
-    // object" reads as if they were malformed.
-    if (isJsonObject(document["webhooks"])) {
-      throw new ContractError(
-        "Document describes webhooks rather than paths. Outbound webhooks are " +
-          "not supported yet, so there is no request path to adapt.",
-      );
-    }
-    throw new ContractError("Document has no paths object");
+  // A 3.1 document may carry `webhooks` instead of `paths`, and real ones do:
+  // Adyen publishes its notification contracts that way. Such a document is
+  // loaded and compared like any other. What cannot be done is adapting one at
+  // request time, and that is refused where the adapter is built rather than
+  // here, so a provider still gets told what changed.
+  if (!isJsonObject(document["paths"]) && !isJsonObject(document["webhooks"])) {
+    throw new ContractError("Document has no paths or webhooks object");
   }
   return document;
 }
@@ -100,12 +184,32 @@ export function schemasOf(document: OpenApiDocument): JsonObject {
 
 /** Every operation in the document, in a stable order. */
 export function operationsOf(document: OpenApiDocument): OperationRef[] {
-  const paths = document["paths"];
-  if (!isJsonObject(paths)) return [];
+  const paths = isJsonObject(document["paths"]) ? document["paths"] : {};
+  const webhooks = isJsonObject(document["webhooks"]) ? document["webhooks"] : {};
+
+  // Named the way the differ names them, so a delta it reports against
+  // `webhook:AUTHORISATION` lines up with the operation found here instead of
+  // looking like a delta about an endpoint nobody declared.
+  const entries: [string, JsonValue, boolean][] = [
+    ...Object.keys(paths)
+      .sort()
+      .map((path): [string, JsonValue, boolean] => [
+        path,
+        paths[path] as JsonValue,
+        false,
+      ]),
+    ...Object.keys(webhooks)
+      .sort()
+      .map((name): [string, JsonValue, boolean] => [
+        `webhook:${name}`,
+        webhooks[name] as JsonValue,
+        true,
+      ]),
+  ];
 
   const out: OperationRef[] = [];
-  for (const path of Object.keys(paths).sort()) {
-    const item = paths[path];
+  for (const [path, rawItem, isWebhook] of entries) {
+    const item = rawItem;
     if (!isJsonObject(item)) continue;
     for (const method of HTTP_METHODS) {
       const operation = item[method];
@@ -120,7 +224,13 @@ export function operationsOf(document: OpenApiDocument): OperationRef[] {
         typeof declared === "string" && declared !== ""
           ? declared
           : `${method}${path.replace(/[^a-zA-Z0-9]+/g, "_").replace(/_+$/, "")}`;
-      out.push({ operationId, method, path, operation });
+      out.push({
+        operationId,
+        method,
+        path,
+        operation,
+        ...(isWebhook ? { webhook: true as const } : {}),
+      });
     }
   }
   return out;

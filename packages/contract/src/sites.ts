@@ -110,7 +110,21 @@ export function findSchemaSites(
   const sites: Site[] = [];
   const unsupported: string[] = [];
 
-  for (const { operationId, method, path, operation } of operationsOf(document)) {
+  for (const { operationId, method, path, operation, webhook } of operationsOf(
+    document,
+  )) {
+    if (webhook === true) {
+      // A webhook is sent by the provider, so there is no inbound request to
+      // rewrite and no response of the provider's own to rewrite back. The
+      // change is still real and still reported; what cannot exist is an
+      // adapter site for it, and saying so here is what keeps a drafted
+      // transform from being compiled into a program that could never run.
+      unsupported.push(
+        `${operationId} is a webhook, which this runtime cannot adapt. ` +
+          "Describe it as a `behavior` change, or send the new shape.",
+      );
+      continue;
+    }
     const request = requestBodySchema(document, operation);
     if (request !== undefined) {
       const scan = scanRoot(document, schemaRef, request);

@@ -1613,6 +1613,133 @@ the differ reporting every failure as "not installed". A stale pass is worse
 than no result, because the run goes green while the numbers describe
 something that did not happen.
 
+### Fixing what 686 real pairs broke, and four wrong diagnoses on the way
+
+34 of 686 pairs did not complete. Every one is now either fixed or refused for a
+reason a provider can act on, and the work turned up more about the differ than
+about the providers.
+
+**`--flatten-allof` was passed unconditionally, and that was the Stripe bug.**
+The flag exists so composition does not show up as change. Stripe declares
+*zero* `allOf` and 2002 `anyOf`, so there was nothing for it to merge, and
+passing it anyway exhausted 3.4 GB in eight seconds where the same comparison
+without it finished in thirty. It also changed the answer, reporting 110,324
+breaking entries against 166,331, which means on a document with no `allOf` it
+was suppressing real differences rather than collapsing noise. It is now passed
+when the documents actually compose something with `allOf`.
+
+Four diagnoses were wrong before that one was right, and they are recorded
+because each sent the work somewhere useless. It was not the size of the
+documents: GitHub's 13 MB pair diffs in three seconds while Stripe's 7.6 MB pair
+does not diff at all. It was not the size of the difference: Stripe's
+month-apart step changes two paths and 55 schemas. It was not one pathological
+schema: both halves of the 55 blew up separately. And it was not the machine,
+which is where a full day could have gone.
+
+**`GOMEMLIMIT` made things worse, not safer.** It was set to 2 GiB on the
+reasoning that a soft limit makes Go collect rather than die. That reasoning
+fails when the limit is below the live heap: there is nothing to collect, so Go
+collects continuously and never finishes. At 1200 MiB against a live heap of
+about 2.4 GB it turned a twenty second diff into one still running eight minutes
+later, and the peak did not drop at all. No limit is set now. Memory is bounded
+from outside and the timeout is what protects the caller.
+
+**A reduced comparison path, for when the full changelog cannot be computed.**
+`oasdiff breaking` evaluates fewer checks and completes on documents the full
+changelog cannot. It reports WARN and ERR only, so the two checks this policy
+calls breaking at INFO are promoted for it, and an agreement check over 58 real
+pairs holds the two paths to reporting exactly the same breaking entries.
+
+**Promoting those checks broke the policy, which is the more interesting bug.**
+`isBreaking` dispatched on oasdiff's level: ERR always, a pinned set at WARN,
+another at INFO. A promoted entry then arrived at WARN, was not in the WARN set,
+and stopped counting, so 154 real Plaid enum removals silently left the totals.
+The classification now decides by id, which is what the comment at the top of
+that file had claimed all along: the levels are oasdiff's question, not ours.
+
+**Refusals that say what is wrong, and one that had to be walked back.**
+Intercom references `#/components/schemas/custom_attributes` from four places
+and defines 213 schemas, none of them that one. That is now checked before the
+differ is called and named precisely, rather than surfacing as `exited with
+102`. It is still a refusal, because a schema that is not there is a defect in
+the document rather than something this system can work around.
+
+Colliding path templates were made a refusal too, and that was wrong. Google
+declares both `/v1/{organization}/dataExchanges` and `/v1/{parent}/dataExchanges`,
+which are the same endpoint once the parameter names come out, so no request can
+be attributed to either, and the differ refuses the document with `exited with
+104`. Refusing it here looked like the same judgement made earlier. But GitHub
+ships `/orgs/{org}/attestations/{attestation_id}` beside
+`/orgs/{org}/attestations/{subject_digest}` on purpose, and the differ accepts
+it, so the rule traded one unusable document for seven that had been comparing
+perfectly well. Collisions are now found and used to explain a failure the
+differ raises, and never to cause one.
+
+The same over-reach appeared in the reference check. Requiring every `$ref` to
+resolve rejected Adyen contracts that point at example components they never
+define, 55 times in one of them. An example does not constrain the wire, and
+`stripNonWire` already leaves examples out of the digest for exactly that
+reason, so the check now applies where a reference affects the contract and
+nowhere else. Both of these were the same mistake: a rule that is correct about
+what the documents say, applied where it stops real work.
+
+**Webhooks are loaded and compared.** 14 pairs were rejected for having no
+`paths`; they are Adyen's notification contracts, valid OpenAPI 3.1 describing
+`webhooks`. The differ supports them natively, so the only obstacle was this
+loader. They are now first-class operations, named `webhook:NAME` the way the
+differ names them. What is still refused is building a request-time adapter for
+one, and that refusal happens where the adapter is built rather than at load, so
+a provider is told what changed even though nothing can be rewritten: nobody
+calls a webhook, so there is no inbound request to adapt.
+
+**Two smaller things the same run found.** The 64 MiB cap on the differ's output
+was not enough for a real provider, since one Stripe step reports 166,331
+breaking entries at about 66 MiB of JSON, and exceeding it surfaced as a
+child-process error rather than as anything a reader could act on. And a worker
+killed on timeout left its Go subprocess running: one outlived the run that
+started it, holding a gigabyte, so workers now run in their own process group
+and are killed as a group.
+
+**Where Stripe stands.** The comparison completes and reports 128,785 breaking
+deltas against 15 drafts, which is the first time any of this has been measured
+against Stripe at all. The closure check, which diffs the predicted document
+against the real one, still exceeds what a 5.9 GB development machine can give
+it. That is recorded as `budget` rather than hidden, and the unexplained count
+for those pairs is an upper bound rather than a measurement.
+
+### The differ does not always give the same answer twice
+
+The largest finding from this round is not about memory, and it invalidated
+every Stripe number reported before it.
+
+Given the same command and the same two Stripe documents three times, oasdiff
+1.32.1 returned 18,990 entries, then 38,442, then 23,838. The runs are not
+truncations of one another: 16,563 findings appear only in the first and 36,015
+only in the second, across the same 11 check ids, which is what a
+non-deterministic pairing of endpoints looks like rather than an output that got
+cut short. Pairs at ordinary sizes were stable across three runs each, so it is
+something the very large comparisons provoke.
+
+It was found by an arithmetic impossibility rather than by looking for it. One
+pair drafted no changes at all, which means the predicted document is the
+original document, which means the residual has to equal the aligned count. It
+did not: 18,838 against 146,635. `predictDocument(from, to, [])` was confirmed
+to return `from` exactly, so the two comparisons had identical inputs and
+disagreed anyway.
+
+The gate decides whether a release may ship, so an answer that changes between
+runs has to be refused rather than averaged or believed. `diffOutcome` takes a
+`confirm` option that repeats the comparison and raises `UnstableDiffError`
+unless both runs find the same fingerprints, and the evaluation harness turns it
+on above a thousand breaking entries, which is where instability has actually
+been observed. It doubles the work, so it stays off by default and goes on
+wherever a number is about to be trusted.
+
+What this says about the earlier numbers is worth stating plainly: any Stripe
+count in an earlier report was one sample from a distribution, and the right
+response to that is to stop reporting it rather than to pick the sample that
+looks best.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no

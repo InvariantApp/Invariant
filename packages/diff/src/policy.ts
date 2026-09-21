@@ -37,10 +37,24 @@ export const BREAKING_INFO_IDS: ReadonlySet<string> = new Set([
   "response-property-enum-value-removed",
 ]);
 
+/**
+ * Whether an entry is breaking, decided by its id rather than by its level.
+ *
+ * This used to dispatch on the level: ERR always, a pinned set at WARN, another
+ * pinned set at INFO. That made the classification depend on a number oasdiff
+ * is free to change, and it broke the moment anything else moved a level. The
+ * reduced diff path promotes the INFO ids so the breaking-only subcommand will
+ * report them at all, and under the old rule that promotion silently *unmade*
+ * them breaking: the entry arrived at WARN, the WARN set did not list it, and
+ * 154 real Plaid enum removals disappeared from the count.
+ *
+ * An id this policy has explicitly classified is breaking wherever it shows up.
+ * The comment at the top of this file already said the levels were oasdiff's
+ * question and not ours; now the code says it too.
+ */
 export function isBreaking(entry: DiffEntry): boolean {
   if (entry.level >= LEVEL_ERR) return true;
-  if (entry.level === LEVEL_WARN) return BREAKING_WARN_IDS.has(entry.id);
-  return BREAKING_INFO_IDS.has(entry.id);
+  return BREAKING_WARN_IDS.has(entry.id) || BREAKING_INFO_IDS.has(entry.id);
 }
 
 export function breakingEntries(entries: readonly DiffEntry[]): DiffEntry[] {
