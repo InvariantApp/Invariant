@@ -11,7 +11,7 @@ function run(vector: FormVector): { output?: string; refusedBy?: string } {
   try {
     runtime = createRuntime({
       program: {
-        irVersion: 1,
+        irVersion: 2,
         api: "conformance",
         current: "sha256:0",
         currentLabel: "current",

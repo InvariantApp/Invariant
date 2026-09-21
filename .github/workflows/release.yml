@@ -47,7 +47,7 @@ jobs:
       # publishes once that pull request is merged.
       - uses: changesets/action@v1
         with:
-          version: pnpm changeset version
+          version: pnpm version-packages
           publish: pnpm changeset publish
           commit: "Version packages"
           title: "Version packages"

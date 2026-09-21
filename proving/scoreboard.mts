@@ -252,11 +252,17 @@ export function scoreboard(inputs: {
   });
   lines.push(
     unmeasured("L16", "Docs complete, tested from manifests.", "M8.4."),
-    unmeasured(
-      "L17",
-      "Older runtimes either run newer programs or refuse with a typed error.",
-      "M3.17.",
-    ),
+    {
+      id: "L17",
+      claim: "Older runtimes either run newer programs or refuse with a typed error.",
+      status: "not met",
+      value:
+        "every program states its format, compiler and oldest runtime, and a runtime " +
+        "refuses one it is too old for before reading any of it. Proven against " +
+        "programs made to look newer; the arm that installs the previous published " +
+        "runtime starts with the first release",
+      evidence: "packages/runtime/src/skew.test.ts, on every commit",
+    },
     chainLine(inputs.chains),
     unmeasured("L19", "Proxy p99 overhead asserted in CI.", "M4.10."),
   );

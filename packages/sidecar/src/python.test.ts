@@ -20,7 +20,7 @@ import { createProxy } from "./proxy.ts";
 import { type Listening, serve } from "./server.ts";
 
 const PROGRAM = {
-  irVersion: 1,
+  irVersion: 2,
   api: "payments",
   currentLabel: "2026-09-20",
   current: "sha256:head",

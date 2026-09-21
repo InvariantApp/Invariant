@@ -21,7 +21,7 @@ const query = (name: string, type = "integer") => ({
 
 function program(envelope: unknown, path = "/v1/items") {
   return {
-    irVersion: 1,
+    irVersion: 2,
     api: "items",
     currentLabel: "2",
     current: "sha256:2",

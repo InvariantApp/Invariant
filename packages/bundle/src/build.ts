@@ -17,7 +17,12 @@
  * check.
  */
 import { canonicalize, digestOf } from "@invariant/contract";
-import type { Change, CompiledProgram, JsonValue } from "@invariant/ir";
+import {
+  type Change,
+  type CompiledProgram,
+  type JsonValue,
+  withoutProvenance,
+} from "@invariant/ir";
 import type { Evidence } from "@invariant/verifier";
 import { type DsseEnvelope, PREDICATE_TYPE, sign, verify } from "./dsse.ts";
 
@@ -116,7 +121,10 @@ export function buildBundle(input: BuildInput): {
     // in whatever order the layers ran, and that order can depend on the
     // filesystem, which would make two builds of the same release differ.
     evidence: [...input.evidence].sort(compareEvidence),
-    compiled: { programDigest: digestOf(input.program as unknown as JsonValue) },
+    // What the program does, not which compiler release wrote it down.
+    compiled: {
+      programDigest: digestOf(withoutProvenance(input.program) as unknown as JsonValue),
+    },
     gate: { result: input.gate.result, unexplained: [...input.gate.unexplained] },
   };
 

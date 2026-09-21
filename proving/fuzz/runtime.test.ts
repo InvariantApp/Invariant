@@ -57,7 +57,7 @@ function programWith(
   blocks: Pick<Vector, "blocks" | "programBlocks"> = {},
 ): unknown {
   return {
-    irVersion: 1,
+    irVersion: 2,
     api: "fuzz",
     currentLabel: "new",
     current: "sha256:fuzz",
@@ -282,7 +282,7 @@ const ENVELOPES = (
   try {
     const runtime = createRuntime({
       program: {
-        irVersion: 1,
+        irVersion: 2,
         api: "fuzz",
         currentLabel: "new",
         current: "sha256:fuzz",
@@ -398,7 +398,7 @@ const FORMS = (
   try {
     const runtime = createRuntime({
       program: {
-        irVersion: 1,
+        irVersion: 2,
         api: "fuzz",
         currentLabel: "new",
         current: "sha256:fuzz",

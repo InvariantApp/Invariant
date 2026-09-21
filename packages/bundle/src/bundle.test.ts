@@ -43,7 +43,9 @@ const CHANGE: Change = {
 };
 
 const PROGRAM: CompiledProgram = {
-  irVersion: 1,
+  irVersion: 2,
+  compiledBy: "test",
+  minRuntime: "0.1.0",
   api: "acme-payments",
   current: "sha256:aaaa",
   currentLabel: "2026-09-20",
@@ -179,6 +181,22 @@ describe("the evolution bundle", () => {
     );
 
     expect(() => openBundle(envelope, [publicKeyPem])).toThrow(/not an evolution bundle/);
+  });
+
+  it("reproduces when a later compiler release writes the same program", () => {
+    // What compiled a program is recorded in it, but a rebuild by the next
+    // release that produces the same instructions has produced the same
+    // release, and the registry must not refuse it for that.
+    const original = buildBundle(input()).bundle;
+    const rebuilt = buildBundle(
+      input({ program: { ...PROGRAM, compiledBy: "@invariant/compiler@9.9.9" } }),
+    ).bundle;
+    expect(reproduces(original, rebuilt).same).toBe(true);
+
+    const different = buildBundle(
+      input({ program: { ...PROGRAM, currentLabel: "2026-09-21" } }),
+    ).bundle;
+    expect(reproduces(original, different).differences).toEqual(["compiled"]);
   });
 
   it("names which part of a rebuild did not match", () => {

@@ -2207,6 +2207,28 @@ meant to test. What remains is sites times steps: each contract still lists
 every site it serves. Loading contracts lazily would take that off the load
 path if a provider ever needs it.
 
+### A program that says what it needs
+
+The CLI that compiles a program and the runtime that runs it are upgraded
+separately, and until now a program said nothing about either. A runtime
+handed a program from a newer CLI found out by failing on the first key it did
+not know, if the new part happened to be a key, and ran it if the new part
+was a value it read differently. The program format is now `irVersion: 2` and
+carries `compiledBy` and `minRuntime`. `minRuntime` is worked out from the
+features the program actually uses, each entered at the release that first
+runs it, so a program that uses nothing new still runs on a runtime older than
+its compiler rather than forcing both to move together. The runtime reads the
+two before anything else and refuses a program it is too old for with
+`ProgramTooNewError`, naming the runtime it needs. `compiledBy` is left out of
+the program's digest, because otherwise every CLI upgrade would make a
+committed program look stale and a bundle built by one release fail to
+reproduce on the next while nothing a caller could observe had changed. Change
+files stay at `irVersion: 1`: their format did not change. The versions come
+from `package.json` through `scripts/sync-versions.mts`, run after
+`changeset version`, and a test fails if they drift. L17 is proven against
+programs made to look newer; the arm that installs the previously published
+runtime needs a published release to install.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no

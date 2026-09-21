@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { createProxy } from "./proxy.ts";
 
 const PROGRAM = {
-  irVersion: 1,
+  irVersion: 2,
   api: "items",
   currentLabel: "2",
   current: "sha256:2",

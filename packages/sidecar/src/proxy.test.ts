@@ -13,7 +13,7 @@ import { describe, expect, it } from "vitest";
 import { createProxy, targetFor } from "./proxy.ts";
 
 const PROGRAM = {
-  irVersion: 1,
+  irVersion: 2,
   api: "payments",
   currentLabel: "2026-09-20",
   current: "sha256:head",

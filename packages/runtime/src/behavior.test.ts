@@ -21,7 +21,7 @@ import { createRuntime, UnknownBehaviorError, type UsageEvent } from "./index.ts
  */
 function program(): unknown {
   return {
-    irVersion: 1,
+    irVersion: 2,
     api: "acme-payments",
     currentLabel: "2026-09-20",
     current: "sha256:head",

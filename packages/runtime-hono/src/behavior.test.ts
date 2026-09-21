@@ -18,7 +18,7 @@ import { describe, expect, it, vi } from "vitest";
 import { adapt, before, contractOf, wrapFetch } from "./index.ts";
 
 const PROGRAM = {
-  irVersion: 1,
+  irVersion: 2,
   api: "contacts",
   currentLabel: "2026-09-20",
   current: "sha256:head",

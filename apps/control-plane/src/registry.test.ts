@@ -20,7 +20,9 @@ const CHANGE: Change = {
 };
 
 const PROGRAM: CompiledProgram = {
-  irVersion: 1,
+  irVersion: 2,
+  compiledBy: "test",
+  minRuntime: "0.1.0",
   api: "acme-payments",
   current: "sha256:aaaa",
   currentLabel: "2026-09-20",

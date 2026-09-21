@@ -23,9 +23,12 @@ import type {
   SiteProgram,
 } from "@invariant/ir";
 import {
+  BRAND,
   formatPointer,
-  IR_VERSION,
   isJsonObject,
+  minRuntimeFor,
+  PRODUCT_VERSION,
+  PROGRAM_VERSION,
   parsePointer,
   siteKey,
 } from "@invariant/ir";
@@ -564,15 +567,20 @@ export function chainProgram(
 
   const base = basePathOf(steps.at(-1)?.to);
   const used = Object.fromEntries(Object.entries(blocks).sort());
+  const body = {
+    api,
+    ...(base === undefined ? {} : { basePath: base }),
+    current: currentDigest,
+    currentLabel,
+    contracts: Object.fromEntries(Object.entries(contracts).sort()),
+    ...(Object.keys(used).length > 0 ? { blocks: used } : {}),
+  };
   return {
     program: {
-      irVersion: IR_VERSION,
-      api,
-      ...(base === undefined ? {} : { basePath: base }),
-      current: currentDigest,
-      currentLabel,
-      contracts: Object.fromEntries(Object.entries(contracts).sort()),
-      ...(Object.keys(used).length > 0 ? { blocks: used } : {}),
+      irVersion: PROGRAM_VERSION,
+      compiledBy: `${BRAND.scope}/compiler@${PRODUCT_VERSION}`,
+      minRuntime: minRuntimeFor({ irVersion: PROGRAM_VERSION, ...body }),
+      ...body,
     },
     issues,
   };

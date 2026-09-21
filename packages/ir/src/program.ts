@@ -10,7 +10,8 @@
  * counted and switched off on its own.
  */
 import { type Static, Type } from "@sinclair/typebox";
-import { IR_VERSION, StringCase, TimeFormat } from "./change.ts";
+import { StringCase, TimeFormat } from "./change.ts";
+import { PROGRAM_VERSION } from "./format.ts";
 
 const Pointer = Type.String();
 const ChangeId = Type.String();
@@ -451,7 +452,14 @@ export const ContractProgram = Type.Object(
 
 export const CompiledProgram = Type.Object(
   {
-    irVersion: Type.Literal(IR_VERSION),
+    irVersion: Type.Literal(PROGRAM_VERSION),
+    /** What compiled the program, as `<package>@<version>`, for anyone reading it later. */
+    compiledBy: Type.String({ minLength: 1 }),
+    /**
+     * The oldest runtime that runs everything the program uses. An older one
+     * refuses the program at load rather than misread it.
+     */
+    minRuntime: Type.String({ pattern: "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?$" }),
     api: Type.String(),
     /** Digest of the canonical current contract this program targets. */
     current: Type.String(),

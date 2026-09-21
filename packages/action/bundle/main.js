@@ -59,6 +59,35 @@ function narrows(keyword, before, after) {
 	return after !== before;
 }
 //#endregion
+//#region ../ir/src/brand.ts
+/**
+* Every name this product is published under, in one place.
+*
+* The product name, the npm scope and the domain are not settled: "Invariant"
+* is also the name of an AI security company, and the scope and domain have
+* to be owned before anything is published under them. When they change, this
+* is the file that changes, and a test fails on any copy of them written
+* anywhere else.
+*/
+const BRAND = {
+	/** What the product is called in prose. */
+	name: "Invariant",
+	/** The command a provider types. */
+	command: "invariant",
+	/** The npm scope every published package lives under. */
+	scope: "@invariant",
+	/** The public repository, which also hosts the GitHub Action. */
+	repository: "InvariantApp/Invariant",
+	/** Where the documentation lives. */
+	docs: "https://github.com/InvariantApp/Invariant/blob/main/docs",
+	/**
+	* The in-toto predicate type a signed bundle carries. Embedded in every
+	* bundle ever signed, so it must be a URL this project controls before the
+	* first bundle is published.
+	*/
+	predicateType: "https://invariant.dev/evolution-bundle/v1"
+};
+//#endregion
 //#region ../../node_modules/.pnpm/@sinclair+typebox@0.34.52/node_modules/@sinclair/typebox/build/esm/type/guard/value.mjs
 /** Returns true if this value is an async iterator */
 function IsAsyncIterator$3(value) {
@@ -3426,6 +3455,112 @@ function isDeniedHeader(name) {
 	return DENIED_HEADERS.has(lower) || DENIED_WORDS.test(lower);
 }
 //#endregion
+//#region ../ir/src/format.ts
+/** The product version this package was released as, which the compiler records. */
+const PRODUCT_VERSION = "0.1.0";
+/**
+* The first runtime release that runs each feature.
+*
+* A feature added after a release is entered at the version it will ship in,
+* which is always later than any runtime already published, so a runtime that
+* predates it refuses the program instead of misreading it. Typed as a record
+* over every instruction kind, so a new instruction does not compile until it
+* is entered here.
+*/
+const FEATURE_SINCE = {
+	move: "0.1.0",
+	scale: "0.1.0",
+	enum: "0.1.0",
+	cast: "0.1.0",
+	time: "0.1.0",
+	case: "0.1.0",
+	wrap: "0.1.0",
+	unwrap: "0.1.0",
+	set: "0.1.0",
+	del: "0.1.0",
+	within: "0.1.0",
+	switch: "0.1.0",
+	has: "0.1.0",
+	is: "0.1.0",
+	call: "0.1.0",
+	envelope: "0.1.0",
+	form: "0.1.0",
+	outbound: "0.1.0",
+	"contract-blocks": "0.1.0",
+	"program-blocks": "0.1.0",
+	"base-path": "0.1.0",
+	retired: "0.1.0",
+	behaviors: "0.1.0"
+};
+function instrFeatures(list, into) {
+	for (const instr of list) {
+		into.add(instr.k);
+		if (instr.k === "within" || instr.k === "has" || instr.k === "is") instrFeatures(instr.block, into);
+		else if (instr.k === "switch") for (const block of Object.values(instr.cases)) instrFeatures(block, into);
+	}
+}
+/** The features a program uses. */
+function featuresOf(program) {
+	const used = /* @__PURE__ */ new Set();
+	if (program.basePath !== void 0) used.add("base-path");
+	if (program.blocks) {
+		used.add("program-blocks");
+		for (const list of Object.values(program.blocks)) instrFeatures(list, used);
+	}
+	for (const contract of Object.values(program.contracts)) {
+		if (contract.basePath !== void 0) used.add("base-path");
+		if (contract.retired.length > 0) used.add("retired");
+		if (contract.behaviors.length > 0) used.add("behaviors");
+		if (contract.blocks) {
+			used.add("contract-blocks");
+			for (const list of Object.values(contract.blocks)) instrFeatures(list, used);
+		}
+		if (contract.outbound) {
+			used.add("outbound");
+			for (const list of Object.values(contract.outbound)) instrFeatures(list, used);
+		}
+		for (const site of Object.values(contract.sites)) {
+			if (site.form) used.add("form");
+			if (site.request) instrFeatures(site.request, used);
+			if (site.envelope) {
+				used.add("envelope");
+				instrFeatures(site.envelope.instrs, used);
+			}
+			for (const list of Object.values(site.response ?? {})) instrFeatures(list, used);
+		}
+	}
+	return used;
+}
+/** Orders two `major.minor.patch` versions; a pre-release sorts before its release. */
+function compareVersions$2(a, b) {
+	const parse = (version) => {
+		const [core = "", pre] = version.split("-", 2);
+		return {
+			parts: core.split(".").map((part) => Number(part) || 0),
+			pre
+		};
+	};
+	const left = parse(a);
+	const right = parse(b);
+	for (let index = 0; index < 3; index += 1) {
+		const difference = (left.parts[index] ?? 0) - (right.parts[index] ?? 0);
+		if (difference !== 0) return Math.sign(difference);
+	}
+	if (left.pre === right.pre) return 0;
+	if (left.pre === void 0) return 1;
+	if (right.pre === void 0) return -1;
+	return left.pre < right.pre ? -1 : 1;
+}
+/** The oldest runtime that runs every feature a program uses. */
+function minRuntimeFor(program) {
+	let oldest = "0.1.0";
+	for (const feature of featuresOf(program)) {
+		const since = FEATURE_SINCE[feature];
+		if (compareVersions$2(since, oldest) > 0) oldest = since;
+	}
+	return oldest;
+}
+//#endregion
 //#region ../ir/src/json.ts
 function isJsonObject(value) {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -3816,7 +3951,14 @@ const ContractProgram = Type.Object({
 	}, { additionalProperties: false }))
 }, { additionalProperties: false });
 Type.Object({
-	irVersion: Type.Literal(1),
+	irVersion: Type.Literal(2),
+	/** What compiled the program, as `<package>@<version>`, for anyone reading it later. */
+	compiledBy: Type.String({ minLength: 1 }),
+	/**
+	* The oldest runtime that runs everything the program uses. An older one
+	* refuses the program at load rather than misread it.
+	*/
+	minRuntime: Type.String({ pattern: "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?$" }),
 	api: Type.String(),
 	/** Digest of the canonical current contract this program targets. */
 	current: Type.String(),
@@ -15859,6 +16001,9 @@ function headersForText(source, text, decoded) {
 	return headers;
 }
 //#endregion
+//#region ../runtime/src/version.ts
+const VERSION = "0.1.0";
+//#endregion
 //#region ../runtime/src/program.ts
 var ProgramError = class extends Error {
 	constructor(message) {
@@ -16522,10 +16667,66 @@ function onlyTrue(value, where) {
 	if (value !== true) throw new ProgramError(`${where} must be true when present`);
 	return true;
 }
+/**
+* A program this runtime is too old to run, refused before anything in it is
+* read. A newer program is never partly run: an instruction skipped because it
+* was not understood is a response in a shape nobody promised.
+*/
+var ProgramTooNewError = class extends ProgramError {
+	code = "invariant_program_too_new";
+	/** The runtime the program asks for, or the format it is written in. */
+	needs;
+	/** What compiled it, when it says. */
+	compiledBy;
+	constructor(needs, compiledBy) {
+		super(`This program needs ${needs}, and this runtime is ${VERSION}` + (compiledBy === void 0 ? "" : `; it was compiled by ${compiledBy}`) + ". Upgrade the runtime to at least that version, or compile with a CLI no newer than it.");
+		this.name = "ProgramTooNewError";
+		this.needs = needs;
+		this.compiledBy = compiledBy;
+	}
+};
+/** Orders two `major.minor.patch` versions; a pre-release sorts before its release. */
+function compareVersions$1(a, b) {
+	const parse = (version) => {
+		const [core = "", pre] = version.split("-", 2);
+		return {
+			parts: core.split(".").map((part) => Number(part) || 0),
+			pre
+		};
+	};
+	const left = parse(a);
+	const right = parse(b);
+	for (let index = 0; index < 3; index += 1) {
+		const difference = (left.parts[index] ?? 0) - (right.parts[index] ?? 0);
+		if (difference !== 0) return Math.sign(difference);
+	}
+	if (left.pre === right.pre) return 0;
+	if (left.pre === void 0) return 1;
+	if (right.pre === void 0) return -1;
+	return left.pre < right.pre ? -1 : 1;
+}
+/**
+* Whether this runtime can run the program at all, read before anything else
+* in it: a newer program's first unfamiliar key should say which runtime it
+* needs, not that the key is unknown.
+*/
+function checkVersion(value) {
+	const compiledBy = typeof value["compiledBy"] === "string" ? value["compiledBy"] : void 0;
+	const format = value["irVersion"];
+	if (typeof format === "number" && format > 2) throw new ProgramTooNewError(`program format ${format}`, compiledBy);
+	if (format !== 2) throw new ProgramError(`Unsupported program format ${String(format)}; this runtime reads format 2. Compile the program again with a current CLI.`);
+	const minRuntime = value["minRuntime"];
+	if (minRuntime === void 0) return;
+	if (typeof minRuntime !== "string" || !/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(minRuntime)) throw new ProgramError("program.minRuntime must be a version such as 1.2.3");
+	if (compareVersions$1(minRuntime, "0.1.0") > 0) throw new ProgramTooNewError(`runtime ${minRuntime}`, compiledBy);
+}
 function decodeProgram(raw) {
 	const value = object$1(raw, "program");
+	checkVersion(value);
 	expectKeys(value, [
 		"irVersion",
+		"compiledBy",
+		"minRuntime",
 		"api",
 		"current",
 		"currentLabel",
@@ -16533,9 +16734,9 @@ function decodeProgram(raw) {
 		"blocks",
 		"basePath"
 	], "program");
+	if (value["compiledBy"] !== void 0 && typeof value["compiledBy"] !== "string") throw new ProgramError("program.compiledBy must be a string");
 	const basePath = value["basePath"];
 	if (basePath !== void 0 && (typeof basePath !== "string" || !basePath.startsWith("/") || basePath.endsWith("/"))) throw new ProgramError("program.basePath must be a path such as /v1, without a trailing /");
-	if (value["irVersion"] !== 1) throw new ProgramError(`Unsupported IR version ${String(value["irVersion"])}`);
 	const shared = decodeBlocks(value["blocks"], "program.blocks");
 	const contracts = /* @__PURE__ */ new Map();
 	for (const [label, entry] of Object.entries(object$1(value["contracts"], "program.contracts"))) {
@@ -19882,15 +20083,23 @@ function chainProgram(api, currentLabel, currentDigest, steps) {
 	}
 	const base = basePathOf(steps.at(-1)?.to);
 	const used = Object.fromEntries(Object.entries(blocks).sort());
+	const body = {
+		api,
+		...base === void 0 ? {} : { basePath: base },
+		current: currentDigest,
+		currentLabel,
+		contracts: Object.fromEntries(Object.entries(contracts).sort()),
+		...Object.keys(used).length > 0 ? { blocks: used } : {}
+	};
 	return {
 		program: {
-			irVersion: 1,
-			api,
-			...base === void 0 ? {} : { basePath: base },
-			current: currentDigest,
-			currentLabel,
-			contracts: Object.fromEntries(Object.entries(contracts).sort()),
-			...Object.keys(used).length > 0 ? { blocks: used } : {}
+			irVersion: 2,
+			compiledBy: `${BRAND.scope}/compiler@${PRODUCT_VERSION}`,
+			minRuntime: minRuntimeFor({
+				irVersion: 2,
+				...body
+			}),
+			...body
 		},
 		issues
 	};
@@ -34055,7 +34264,7 @@ const LABEL$1 = "old";
 function lensFor(forward, backward, blocks = {}) {
 	const runtime = createRuntime({
 		program: {
-			irVersion: 1,
+			irVersion: 2,
 			api: "verify",
 			current: "sha256:0",
 			currentLabel: "current",
@@ -34283,7 +34492,7 @@ function checkParameterLaws(oldContract, predicted, changes, options) {
 		if (projected.issues.length > 0 || !envelope) continue;
 		const runtime = createRuntime({
 			program: {
-				irVersion: 1,
+				irVersion: 2,
 				api: "verify",
 				current: "sha256:0",
 				currentLabel: "current",

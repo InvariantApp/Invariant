@@ -1,5 +1,7 @@
 {
-  "irVersion": 1,
+  "irVersion": 2,
+  "compiledBy": "@invariant/compiler@0.1.0",
+  "minRuntime": "0.1.0",
   "api": "acme-payments",
   "current": "sha256:915cbd712ab605cd065ba5bc05da3db032e75fb5c66ac602b8c192dd3e1373b2",
   "currentLabel": "2026-09-20",

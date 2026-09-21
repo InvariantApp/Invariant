@@ -40,7 +40,7 @@ export function lensFor(
 ): Lens {
   const runtime: InvariantRuntime = createRuntime({
     program: {
-      irVersion: 1,
+      irVersion: 2,
       api: "verify",
       current: "sha256:0",
       currentLabel: "current",

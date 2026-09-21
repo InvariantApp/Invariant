@@ -15,7 +15,7 @@ import { adapt, wrapFetch } from "./index.ts";
 const OLD = "2026-01-01";
 
 const PROGRAM = {
-  irVersion: 1,
+  irVersion: 2,
   api: "payments",
   currentLabel: "2026-09-20",
   current: "sha256:head",

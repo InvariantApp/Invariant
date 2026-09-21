@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ENVELOPE_VECTORS } from "./envelope-vectors.ts";
 import { FORM_VECTORS } from "./form-vectors.ts";
+import { PROGRAM_VERSION } from "./program.ts";
 import { CONFORMANCE_VECTORS } from "./vectors.ts";
 
 const PATH = join(import.meta.dirname, "../../../conformance/vectors.json");
@@ -19,7 +20,7 @@ const PATH = join(import.meta.dirname, "../../../conformance/vectors.json");
 function serialise(): string {
   return `${JSON.stringify(
     {
-      irVersion: 1,
+      irVersion: PROGRAM_VERSION,
       about:
         "Golden vectors for the Invariant compiled-program IR. Any engine " +
         "claiming to run this IR must produce these outputs, including the " +

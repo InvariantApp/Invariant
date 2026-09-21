@@ -14,7 +14,7 @@ import { readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { digestOf, loadContract, loadPendingChanges } from "@invariant/contract";
 import { assertUsableOasdiff, OASDIFF_VERSION, oasdiffBinary } from "@invariant/diff";
-import { BRAND, type JsonValue } from "@invariant/ir";
+import { BRAND, type JsonValue, withoutProvenance } from "@invariant/ir";
 import { check } from "./check.ts";
 import type { InvariantConfig } from "./config.ts";
 
@@ -127,7 +127,9 @@ export async function doctor(
       fix: `Run "${BRAND.command} compile" if this API serves old contracts through the runtime.`,
     });
   } else if (findings.every((finding) => finding.severity !== "error")) {
-    const shipped = JSON.parse(await readFile(programPath, "utf8")) as JsonValue;
+    const shipped = JSON.parse(await readFile(programPath, "utf8")) as {
+      compiledBy?: string;
+    };
     const report = await check(config);
     if (!report.program) {
       findings.push({
@@ -135,7 +137,11 @@ export async function doctor(
         what: "the release does not pass the gate, so no current program exists to compare",
         fix: `Run "${BRAND.command} check" for the reasons.`,
       });
-    } else if (digestOf(report.program as unknown as JsonValue) !== digestOf(shipped)) {
+    } else if (
+      // Compiled by an older CLI but otherwise the same is not stale.
+      digestOf(withoutProvenance(report.program) as unknown as JsonValue) !==
+      digestOf(withoutProvenance(shipped) as unknown as JsonValue)
+    ) {
       findings.push({
         severity: "error",
         what:

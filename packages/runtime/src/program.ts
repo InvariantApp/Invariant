@@ -26,6 +26,7 @@ import {
 } from "./interpreter.ts";
 import type { Json } from "./json.ts";
 import { isUnsafeKey, isWildcard } from "./pointer.ts";
+import { VERSION } from "./version.ts";
 
 export class ProgramError extends Error {
   constructor(message: string) {
@@ -877,13 +878,102 @@ function onlyTrue(value: unknown, where: string): boolean {
   return true;
 }
 
+/** The program format this runtime reads. */
+export const PROGRAM_VERSION = 2;
+
+/**
+ * A program this runtime is too old to run, refused before anything in it is
+ * read. A newer program is never partly run: an instruction skipped because it
+ * was not understood is a response in a shape nobody promised.
+ */
+export class ProgramTooNewError extends ProgramError {
+  readonly code = "invariant_program_too_new";
+  /** The runtime the program asks for, or the format it is written in. */
+  readonly needs: string;
+  /** What compiled it, when it says. */
+  readonly compiledBy: string | undefined;
+  constructor(needs: string, compiledBy: string | undefined) {
+    super(
+      `This program needs ${needs}, and this runtime is ${VERSION}` +
+        (compiledBy === undefined ? "" : `; it was compiled by ${compiledBy}`) +
+        ". Upgrade the runtime to at least that version, or compile with a CLI no newer than it.",
+    );
+    this.name = "ProgramTooNewError";
+    this.needs = needs;
+    this.compiledBy = compiledBy;
+  }
+}
+
+/** Orders two `major.minor.patch` versions; a pre-release sorts before its release. */
+function compareVersions(a: string, b: string): number {
+  const parse = (version: string) => {
+    const [core = "", pre] = version.split("-", 2);
+    return { parts: core.split(".").map((part) => Number(part) || 0), pre };
+  };
+  const left = parse(a);
+  const right = parse(b);
+  for (let index = 0; index < 3; index += 1) {
+    const difference = (left.parts[index] ?? 0) - (right.parts[index] ?? 0);
+    if (difference !== 0) return Math.sign(difference);
+  }
+  if (left.pre === right.pre) return 0;
+  if (left.pre === undefined) return 1;
+  if (right.pre === undefined) return -1;
+  return left.pre < right.pre ? -1 : 1;
+}
+
+/**
+ * Whether this runtime can run the program at all, read before anything else
+ * in it: a newer program's first unfamiliar key should say which runtime it
+ * needs, not that the key is unknown.
+ */
+function checkVersion(value: Record<string, unknown>): void {
+  const compiledBy =
+    typeof value["compiledBy"] === "string" ? value["compiledBy"] : undefined;
+  const format = value["irVersion"];
+  if (typeof format === "number" && format > PROGRAM_VERSION) {
+    throw new ProgramTooNewError(`program format ${format}`, compiledBy);
+  }
+  if (format !== PROGRAM_VERSION) {
+    throw new ProgramError(
+      `Unsupported program format ${String(format)}; this runtime reads format ` +
+        `${PROGRAM_VERSION}. Compile the program again with a current CLI.`,
+    );
+  }
+  const minRuntime = value["minRuntime"];
+  if (minRuntime === undefined) return;
+  if (
+    typeof minRuntime !== "string" ||
+    !/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(minRuntime)
+  ) {
+    throw new ProgramError("program.minRuntime must be a version such as 1.2.3");
+  }
+  if (compareVersions(minRuntime, VERSION) > 0) {
+    throw new ProgramTooNewError(`runtime ${minRuntime}`, compiledBy);
+  }
+}
+
 export function decodeProgram(raw: unknown): DecodedProgram {
   const value = object(raw, "program");
+  checkVersion(value);
   expectKeys(
     value,
-    ["irVersion", "api", "current", "currentLabel", "contracts", "blocks", "basePath"],
+    [
+      "irVersion",
+      "compiledBy",
+      "minRuntime",
+      "api",
+      "current",
+      "currentLabel",
+      "contracts",
+      "blocks",
+      "basePath",
+    ],
     "program",
   );
+  if (value["compiledBy"] !== undefined && typeof value["compiledBy"] !== "string") {
+    throw new ProgramError("program.compiledBy must be a string");
+  }
   const basePath = value["basePath"];
   if (
     basePath !== undefined &&
@@ -892,10 +982,6 @@ export function decodeProgram(raw: unknown): DecodedProgram {
     throw new ProgramError(
       "program.basePath must be a path such as /v1, without a trailing /",
     );
-  }
-
-  if (value["irVersion"] !== 1) {
-    throw new ProgramError(`Unsupported IR version ${String(value["irVersion"])}`);
   }
 
   const shared = decodeBlocks(value["blocks"], "program.blocks");

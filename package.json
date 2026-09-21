@@ -26,7 +26,8 @@
     "proving:traffic": "node --import tsx proving/traffic/run.mts",
     "proving:corpus": "node --env-file-if-exists=.env --import tsx proving/corpus/run.mts",
     "proving:discover": "node --import tsx proving/corpus/discover-git.mts",
-    "ci:local": "bash scripts/ci-local.sh"
+    "ci:local": "bash scripts/ci-local.sh",
+    "version-packages": "changeset version && node --import tsx scripts/sync-versions.mts"
   },
   "devDependencies": {
     "@acme/sdk-v3": "workspace:*",

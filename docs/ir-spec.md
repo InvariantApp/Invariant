@@ -146,7 +146,9 @@ list of primitives per site, already inverted where inversion was needed.
 
 ```json
 {
-  "irVersion": 1,
+  "irVersion": 2,
+  "compiledBy": "@invariant/compiler@0.1.0",
+  "minRuntime": "0.1.0",
   "api": "acme-payments",
   "current": "sha256:...",
   "currentLabel": "2026-09-20",
@@ -167,6 +169,24 @@ list of primitives per site, already inverted where inversion was needed.
   }
 }
 ```
+
+### Versions
+
+`irVersion` is the program format, 2 since long chains were linked through
+shared blocks and every program began to say what it needs. It is raised only
+for a change an older engine would misread rather than refuse.
+
+`minRuntime` is the oldest runtime that runs everything the program uses,
+worked out from the features it actually contains, so a program that uses
+nothing new keeps running on runtimes older than the compiler that built it.
+`compiledBy` records the compiler release, for whoever reads the program
+later, and is left out of the program's digest: two releases that write the
+same instructions have written the same program.
+
+An engine reads both before anything else in the program, and refuses a
+program it is too old for with a typed error naming the runtime it needs. It
+never runs part of a program: an instruction skipped because it was not
+understood is a response in a shape nobody promised.
 
 ### Instructions
 
@@ -244,6 +264,9 @@ rounds where this one rejects is not compatible; it is dangerous.
   the round trip.
 - An `unwrap` of a list that does not hold exactly one item, unless `first`.
 - A program containing a pointer with a prototype key, at decode time.
+- A program in a newer format, or asking for a newer runtime, at load, before
+  any of it is read.
+- A program with an instruction, key or feature it does not know, at load.
 - A body larger than the configured cap, on a site that has work to do.
 
 On a request, a refusal happens **before** the handler, so there is no side
@@ -279,8 +302,9 @@ to a warning rather than clearing it.
 
 ## 8. Conformance
 
-`conformance/vectors.json` holds twenty cases as data: a program, an input, and
-either an expected output or the refusal that must happen. Three of them are
+`conformance/vectors.json` holds cases as data: 69 over bodies, 19 over whole
+requests and 10 over form-encoded bodies, each a program, an input, and either
+an expected output or the refusal that must happen. 21 of the body cases are
 refusals. An engine claiming to run this IR must reproduce all of them.
 
 The file is generated from the same source the reference engine is tested

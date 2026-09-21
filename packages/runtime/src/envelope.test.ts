@@ -13,7 +13,7 @@ function run(vector: EnvelopeVector): { request?: unknown; refusedBy?: string } 
   try {
     runtime = createRuntime({
       program: {
-        irVersion: 1,
+        irVersion: 2,
         api: "conformance",
         current: "sha256:0",
         currentLabel: "current",
@@ -78,7 +78,7 @@ describe("a site whose path is not all lowercase", () => {
   it("is found, since only the method is case-insensitive", () => {
     const runtime = createRuntime({
       program: {
-        irVersion: 1,
+        irVersion: 2,
         api: "a",
         current: "sha256:0",
         currentLabel: "current",

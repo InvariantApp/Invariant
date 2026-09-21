@@ -34,7 +34,9 @@ import {
   fillTemplate,
   findSite,
   matchTemplate,
+  PROGRAM_VERSION,
   ProgramError,
+  ProgramTooNewError,
 } from "./program.ts";
 
 export {
@@ -65,9 +67,19 @@ export {
   readBodyText,
 } from "./http.ts";
 export { type ParameterValues, readParameters, writeParameters } from "./parameters.ts";
+/** This runtime's version, which a program's `minRuntime` is compared against. */
+export { VERSION as RUNTIME_VERSION } from "./version.ts";
 export type { DecodedProgram, DecodedSite };
 // matchTemplate is the rule the runtime routes by, for anything that has to agree with it.
-export { decodeProgram, MatchLimitError, matchTemplate, ProgramError, TransformError };
+export {
+  decodeProgram,
+  MatchLimitError,
+  matchTemplate,
+  PROGRAM_VERSION,
+  ProgramError,
+  ProgramTooNewError,
+  TransformError,
+};
 
 /** A request as the provider's handler should receive it. */
 export interface AdaptedRequest {

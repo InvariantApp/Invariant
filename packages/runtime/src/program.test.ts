@@ -15,7 +15,7 @@ import {
 
 function program(sites: Record<string, unknown>, routes: unknown[] = []): unknown {
   return {
-    irVersion: 1,
+    irVersion: 2,
     api: "acme",
     current: "sha256:abc",
     currentLabel: "2026-09-20",
@@ -34,10 +34,10 @@ describe("decoding", () => {
     expect(decoded.contracts.get("2026-01-15")?.sites.size).toBe(1);
   });
 
-  it("refuses an IR version it does not implement", () => {
+  it("refuses a program format it does not implement", () => {
     const value = program({}) as Record<string, unknown>;
-    value["irVersion"] = 2;
-    expect(() => decodeProgram(value)).toThrow(/Unsupported IR version/);
+    value["irVersion"] = 1;
+    expect(() => decodeProgram(value)).toThrow(/Unsupported program format 1/);
   });
 
   it("refuses an instruction it does not know", () => {
