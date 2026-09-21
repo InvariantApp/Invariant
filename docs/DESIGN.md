@@ -2118,6 +2118,33 @@ the service still may not refer outside itself. `init` and `release` keep the
 assembled document as the snapshot, because a snapshot that still pointed at
 the files would change when they did.
 
+### A hundred and seventy pairs that never loaded
+
+One in nine corpus pairs stopped at loading and was counted nowhere. Grouped by
+cause, most were ours to fix, and each provider was lost whole to one of them.
+A reference into a list by position (`.../oneOf/0`) resolved to nothing,
+because the pointer walker stepped into objects only; that was PagerDuty.
+Langfuse reuses one YAML anchor a few hundred times and the parser's guard,
+which multiplies uses by nesting depth, called that an attack while allowing
+the classic expansion attack itself; the guard is now the exact expanded size,
+counted once per shared node. Okta, Mistral and PagerDuty write `allOf`
+branches that restate a default for their own case, which the differ refuses
+to flatten, so the differ is given the reading the resolver already had: the
+first statement stands, and a list of allowed values with nothing in common
+with the first is read as the first, which covers PagerDuty's
+`acknowledgement_log_entry` typo and Cloudflare's 4XX envelope that is both
+success and failure at once. PagerDuty also points references into the
+middle of other schemas and under `paths`, one of them through a
+discriminator mapping that passes through a `$ref`, which the differ could
+load in one document and not in the second of a pair; those targets get a
+schema of their own in the copy the differ reads. And a response that refers
+to a request body with exactly a response's shape is read as a response.
+
+Langfuse went from 3 of 39 pairs to all of them, PagerDuty from none to all
+39, Okta from none to 22 of 25. What still does not load is the providers' own
+invalid YAML, dangling references, and Mistral's list-valued `items`, each
+refused with where and why.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no
