@@ -25,6 +25,7 @@ import {
   type Change,
   isDataOp,
   isJsonObject,
+  isParameterScope,
   type JsonValue,
   type ParamCodec,
   siteKey,
@@ -50,7 +51,7 @@ function byOperation(changes: readonly Change[]): Map<string, Change[]> {
   for (const change of changes) {
     if (!change.ops.some(isDataOp)) continue;
     for (const scope of change.scopes ?? []) {
-      if ("schema" in scope) continue;
+      if (!isParameterScope(scope)) continue;
       const list = groups.get(scope.operation) ?? [];
       if (!list.includes(change)) list.push(change);
       groups.set(scope.operation, list);

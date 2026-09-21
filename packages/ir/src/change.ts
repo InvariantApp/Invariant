@@ -498,7 +498,23 @@ export const ParameterScope = Type.Object(
   },
 );
 
-export const Scope = Type.Union([SchemaScope, ParameterScope]);
+/**
+ * One operation's response body at one status, where the schema is written
+ * in place rather than named: PayPal's error responses are an `allOf` written
+ * into each operation, and a field changed there has no schema to scope a
+ * Change to. `response` is the status key as the old contract writes it,
+ * `"400"`, `"4XX"` or `"default"`. A body that is a named schema is changed
+ * with a schema scope, which reaches every place that schema is used.
+ */
+export const ResponseScope = Type.Object(
+  {
+    operation: Type.String(),
+    response: Type.String({ pattern: "^([1-5](\\d\\d|XX|xx)|default)$" }),
+  },
+  { additionalProperties: false },
+);
+
+export const Scope = Type.Union([SchemaScope, ParameterScope, ResponseScope]);
 
 export const Assertions = Type.Object(
   {
@@ -584,6 +600,7 @@ export type BehaviorOp = Static<typeof BehaviorOp>;
 export type Op = Static<typeof Op>;
 export type SchemaScope = Static<typeof SchemaScope>;
 export type ParameterScope = Static<typeof ParameterScope>;
+export type ResponseScope = Static<typeof ResponseScope>;
 export type Scope = Static<typeof Scope>;
 export type Assertions = Static<typeof Assertions>;
 export type Provenance = Static<typeof Provenance>;
@@ -617,6 +634,14 @@ export function isDataOp(op: Op): op is DataOp {
 
 export function isSchemaScope(scope: Scope): scope is SchemaScope {
   return "schema" in scope;
+}
+
+export function isParameterScope(scope: Scope): scope is ParameterScope {
+  return "location" in scope;
+}
+
+export function isResponseScope(scope: Scope): scope is ResponseScope {
+  return "response" in scope;
 }
 
 /** How safely a Change can be served at runtime, derived by the compiler. */

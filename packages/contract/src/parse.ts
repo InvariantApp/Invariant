@@ -17,10 +17,11 @@ import { isJsonObject, type JsonValue } from "@invariant/ir";
 import { parse as parseYaml } from "yaml";
 
 /**
- * The most values a document may hold once every alias is written out.
- * Stripe's specification, among the largest published, is about two million.
+ * The most values a document may hold once every alias is written out, which
+ * it then is. Stripe's specification, among the largest published, is about
+ * two million.
  */
-export const MAX_EXPANDED_VALUES = 50_000_000;
+export const MAX_EXPANDED_VALUES = 10_000_000;
 
 export class DocumentTooLargeError extends Error {
   constructor(values: number) {
@@ -59,9 +60,14 @@ export function expandedSize(value: JsonValue, limit = MAX_EXPANDED_VALUES): num
 export function parseDocumentText(path: string, text: string): JsonValue {
   if (extname(path).toLowerCase() === ".json") return JSON.parse(text) as JsonValue;
   const value = parseYaml(text, { maxAliasCount: -1 }) as JsonValue;
-  if (isJsonObject(value) || Array.isArray(value)) {
-    const size = expandedSize(value);
-    if (size > MAX_EXPANDED_VALUES) throw new DocumentTooLargeError(size);
-  }
-  return value;
+  if (!isJsonObject(value) && !Array.isArray(value)) return value;
+  const size = expandedSize(value);
+  if (size > MAX_EXPANDED_VALUES) throw new DocumentTooLargeError(size);
+  // Written out once, now that it is known to be small enough, so no two
+  // places in the document are the same object. Everything downstream edits
+  // documents in place, and an anchor shared by two operations would carry
+  // an edit to one into the other.
+  // Only a document with an alias can share anything, and one is written
+  // `*name`; a star in a pattern or a description costs one copy, no more.
+  return text.includes("*") ? (JSON.parse(JSON.stringify(value)) as JsonValue) : value;
 }

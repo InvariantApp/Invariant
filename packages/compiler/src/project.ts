@@ -26,6 +26,8 @@ import {
   formatPointer,
   type Instr,
   isDataOp,
+  isParameterScope,
+  isResponseScope,
   isSchemaScope,
   type ParamCodec,
   type ParameterScope,
@@ -439,6 +441,26 @@ function sitesOf(
 ): Site[] {
   const found: Site[] = [];
   for (const scope of change.scopes ?? []) {
+    // One operation's response body, at its root.
+    if (isResponseScope(scope)) {
+      const operation = operationById(oldContract, scope.operation);
+      if (!operation) {
+        issues.push({
+          changeId: change.id,
+          message: `no operation called ${scope.operation} to scope a response change to`,
+        });
+        continue;
+      }
+      found.push({
+        operationId: operation.operationId,
+        method: operation.method,
+        path: operation.path,
+        direction: "response",
+        status: scope.response,
+        prefix: "",
+      });
+      continue;
+    }
     // A parameter scope reaches one operation's request, collected on its own.
     if (!isSchemaScope(scope)) continue;
     // Served by the blocks that follow the value, placed once for all of it.
@@ -553,7 +575,7 @@ function collectParameters(
   const refuse = (message: string) => issues.push({ changeId: change.id, message });
 
   for (const scope of change.scopes ?? []) {
-    if (isSchemaScope(scope)) continue;
+    if (!isParameterScope(scope)) continue;
     const operation = operationById(oldContract, scope.operation);
     if (!operation) {
       refuse(`no operation called ${scope.operation} to scope a parameter change to`);

@@ -2145,6 +2145,32 @@ Langfuse went from 3 of 39 pairs to all of them, PagerDuty from none to all
 invalid YAML, dangling references, and Mistral's list-valued `items`, each
 refused with where and why.
 
+### Response bodies written in place, and a thousand drafts that could not compile
+
+A Change could be scoped to a named schema, or to an operation's parameters
+and inline request body, and to nothing else, so a field changed in a
+response body written into an operation had no scope at all. PayPal writes its
+error responses that way. A response scope names the operation and the status;
+the prediction takes that operation's own copy of the response, so one shared
+from `components/responses` or reused through a YAML anchor is not changed for
+anyone else, and a body that is a named schema is refused in favour of a
+schema scope. The L1 property generates response scopes like any other, and
+requires that some pass the gate.
+
+Measuring it on PayPal found that PayPal, added to the corpus after the L2 line
+was last measured, had 1022 drafts that did not compile, so L2 had been false
+without anyone reporting it. Every one was a field removed together with the
+object holding it: the object's removal was drafted, and then each field's
+inside it, which had nothing left to act on. A field that went with its parent
+is covered by the parent's op and is no longer drafted on its own. PayPal is at
+zero, and 29.3% of its breaking deltas are explained, from 17.6% this morning.
+
+YAML anchors surfaced one more thing on the way. The parser returns the same
+object for every use of an anchor, and everything downstream edits documents
+in place, so an edit to one use was an edit to all. Documents with an alias
+are written out once after the size check, so no two places are ever the
+same object.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no

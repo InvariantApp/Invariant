@@ -36,11 +36,17 @@ const LOWER = /* @__PURE__ */ new Set([
 	"minItems",
 	"minProperties"
 ]);
+/** Numeric formats and the wider ones that hold every value they do. */
+const WIDER_FORMATS = {
+	int32: ["int64"],
+	float: ["double"]
+};
 /**
 * Whether moving a bound from `before` to `after` rules out a value that was
-* allowed. A bound that appears narrows; one that goes widens. A pattern that
-* changes at all is taken to narrow, since nothing here can compare two
-* patterns, and a new `multipleOf` narrows unless it divides the old one.
+* allowed. A bound that appears narrows; one that goes widens. A pattern or a
+* format that changes at all is taken to narrow, since nothing here can
+* compare two of them, except a numeric format moving to one that holds it;
+* a new `multipleOf` narrows unless it divides the old one.
 */
 function narrows(keyword, before, after) {
 	if (after === null) return false;
@@ -49,6 +55,7 @@ function narrows(keyword, before, after) {
 	if (LOWER.has(keyword)) return Number(after) > Number(before);
 	if (keyword === "multipleOf") return Number(before) % Number(after) !== 0;
 	if (keyword === "uniqueItems") return after === true && before !== true;
+	if (keyword === "format" && typeof before === "string" && typeof after === "string") return after !== before && !(WIDER_FORMATS[before] ?? []).includes(after);
 	return after !== before;
 }
 //#endregion
@@ -3172,6 +3179,12 @@ const RelaxOp = Type.Object({
 		maxProperties: Type.Optional(Count),
 		minProperties: Type.Optional(Count),
 		pattern: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+		/**
+		* What the text or number claims to be. PayPal drops its own formats
+		* (`payer_v1`, `ppaas_date_notime_v2`) from responses release after
+		* release, which frees the value from a claim an old caller may check.
+		*/
+		format: Type.Optional(Type.Union([Type.String(), Type.Null()])),
 		multipleOf: Type.Optional(Type.Union([Type.Number({ exclusiveMinimum: 0 }), Type.Null()])),
 		uniqueItems: Type.Optional(Type.Union([Type.Boolean(), Type.Null()]))
 	}, {
@@ -3282,7 +3295,23 @@ const ParameterScope = Type.Object({
 	additionalProperties: false,
 	description: "Where a Change's data ops apply to one operation's request. A pointer names a parameter of this location, `/limit`, or with `body` a field of the operation's own request body, for a body declared inline rather than as a named schema. One starting with `@` names another part of the request, `/@header/x-limit` or `/@body/limit`, which is how a parameter moves between them."
 });
-const Scope = Type.Union([SchemaScope, ParameterScope]);
+/**
+* One operation's response body at one status, where the schema is written
+* in place rather than named: PayPal's error responses are an `allOf` written
+* into each operation, and a field changed there has no schema to scope a
+* Change to. `response` is the status key as the old contract writes it,
+* `"400"`, `"4XX"` or `"default"`. A body that is a named schema is changed
+* with a schema scope, which reaches every place that schema is used.
+*/
+const ResponseScope = Type.Object({
+	operation: Type.String(),
+	response: Type.String({ pattern: "^([1-5](\\d\\d|XX|xx)|default)$" })
+}, { additionalProperties: false });
+const Scope = Type.Union([
+	SchemaScope,
+	ParameterScope,
+	ResponseScope
+]);
 const Assertions = Type.Object({
 	same_concept: Type.Optional(Type.Boolean()),
 	side_effects_unchanged: Type.Optional(Type.Boolean()),
@@ -3339,6 +3368,12 @@ function isDataOp(op) {
 }
 function isSchemaScope(scope) {
 	return "schema" in scope;
+}
+function isParameterScope(scope) {
+	return "location" in scope;
+}
+function isResponseScope(scope) {
+	return "response" in scope;
 }
 //#endregion
 //#region ../ir/src/envelope.ts
@@ -11354,10 +11389,11 @@ var import_dist = (/* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.visitAsync = visit.visitAsync;
 })))();
 /**
-* The most values a document may hold once every alias is written out.
-* Stripe's specification, among the largest published, is about two million.
+* The most values a document may hold once every alias is written out, which
+* it then is. Stripe's specification, among the largest published, is about
+* two million.
 */
-const MAX_EXPANDED_VALUES = 5e7;
+const MAX_EXPANDED_VALUES = 1e7;
 var DocumentTooLargeError = class extends Error {
 	constructor(values) {
 		super(`The document expands to more than ${MAX_EXPANDED_VALUES.toLocaleString("en")} values through YAML aliases (at least ${values.toLocaleString("en")}), which no real specification does and an expansion attack does.`);
@@ -11386,11 +11422,10 @@ function expandedSize(value, limit = MAX_EXPANDED_VALUES) {
 function parseDocumentText(path, text) {
 	if (extname(path).toLowerCase() === ".json") return JSON.parse(text);
 	const value = (0, import_dist.parse)(text, { maxAliasCount: -1 });
-	if (isJsonObject(value) || Array.isArray(value)) {
-		const size = expandedSize(value);
-		if (size > 5e7) throw new DocumentTooLargeError(size);
-	}
-	return value;
+	if (!isJsonObject(value) && !Array.isArray(value)) return value;
+	const size = expandedSize(value);
+	if (size > 1e7) throw new DocumentTooLargeError(size);
+	return text.includes("*") ? JSON.parse(JSON.stringify(value)) : value;
 }
 //#endregion
 //#region ../contract/src/bundle.ts
@@ -18049,6 +18084,127 @@ function applyOne(document, newContract, located, scope, op) {
 	}
 }
 //#endregion
+//#region ../compiler/src/predict-responses.ts
+/**
+* A Change to one operation's response body where the body's schema is
+* written in place, predicted into the operation's own copy of it.
+*
+* The same schema ops as anywhere else, rooted at the body. What differs is
+* finding the body: the operation the old one's calls now reach, its response
+* at the status the scope names, and that response's own copy, so a response
+* shared from `components/responses` is not changed for every operation that
+* uses it. A body that is a named schema is refused, because a schema scope
+* says the same thing for every place the schema is used.
+*/
+/** The JSON representation a response is served in, or the only one it has. */
+function mediaOf(content) {
+	const json = Object.entries(content).find(([type, media]) => isJsonObject(media) && /[/+]json(;|$)/.test(type));
+	return json && isJsonObject(json[1]) ? json[1] : void 0;
+}
+/**
+* The body schema of `status` on the predicted operation, as the operation's
+* own, or the reason there is none to change.
+*/
+function ownBody(document, operation, status) {
+	const responses = operation["responses"];
+	if (!isJsonObject(responses)) throw new SchemaOpError("the operation has no responses");
+	let response = responses[status];
+	if (response === void 0) throw new SchemaOpError(`the operation has no ${status} response`);
+	const declared = isJsonObject(response) && typeof response["$ref"] === "string" ? resolveRef(document, response["$ref"]) : response;
+	response = isJsonObject(declared) ? JSON.parse(JSON.stringify(declared)) : void 0;
+	if (response !== void 0) responses[status] = response;
+	const content = isJsonObject(response) ? response["content"] : void 0;
+	const schema = (isJsonObject(content) ? mediaOf(content) : void 0)?.["schema"];
+	if (!isJsonObject(schema)) throw new SchemaOpError(`the ${status} response has no JSON body`);
+	if (typeof schema["$ref"] === "string") throw new SchemaOpError(`the ${status} response's body is ${schema["$ref"]}; a Change to it is scoped to that schema`);
+	return schema;
+}
+/**
+* The field as the new contract declares it in the response at the same
+* place, reference and all, and whether it is required there.
+*/
+function shapeInNew(newContract, method, path, status, pointer) {
+	const operation = operationsOf(newContract).find((candidate) => candidate.method === method && candidate.path === path);
+	if (!operation) return void 0;
+	let declared = bodySchemaFor(newContract, operation.operation, "response", status);
+	let required = false;
+	for (const segment of parsePointer(pointer)) {
+		const parent = resolveSchema(newContract, declared ?? {});
+		const properties = isJsonObject(parent) ? parent["properties"] : void 0;
+		if (!isJsonObject(properties) || properties[segment] === void 0) return void 0;
+		declared = properties[segment];
+		required = isJsonObject(parent) && Array.isArray(parent["required"]) && parent["required"].includes(segment);
+	}
+	return declared === void 0 ? void 0 : {
+		shape: declared,
+		required
+	};
+}
+function applyResponseScope(document, oldContract, newContract, routes, scope, ops, issues, changeId) {
+	const refuse = (message) => issues.push({
+		changeId,
+		message
+	});
+	const old = operationById(oldContract, scope.operation);
+	if (!old) {
+		refuse(`no operation called ${scope.operation} to scope a response change to`);
+		return;
+	}
+	const target = mapEndpoint(routes, old.method, old.path);
+	const paths = document["paths"];
+	const item = isJsonObject(paths) ? paths[target.path] : void 0;
+	const operation = isJsonObject(item) ? item[target.method] : void 0;
+	if (!isJsonObject(operation)) {
+		refuse(`${scope.operation} has no operation in the predicted contract`);
+		return;
+	}
+	let root;
+	try {
+		root = ownBody(document, operation, scope.response);
+	} catch (error) {
+		refuse(`${scope.operation} ${scope.response}: ${error instanceof Error ? error.message : String(error)}`);
+		return;
+	}
+	for (const op of ops) try {
+		switch (op.op) {
+			case "move":
+				schemaMove(document, root, op.from, op.to);
+				break;
+			case "convert":
+				schemaConvert(document, root, op.path, op.codec);
+				break;
+			case "remove":
+				schemaRemove(document, root, op.path);
+				break;
+			case "add": {
+				const found = shapeInNew(newContract, target.method, target.path, scope.response, op.path);
+				if (!found) throw new SchemaOpError(`the new contract's ${scope.response} response has no ${op.path}`);
+				importReferences(document, newContract, found.shape);
+				schemaAdd(document, root, op.path, found.shape, found.required);
+				break;
+			}
+			case "default": {
+				const looser = op.toward === "old";
+				if (op.when !== "null") schemaSetRequired(document, root, op.path, !looser);
+				if (op.when !== "absent") schemaSetNullable(document, root, op.path, looser);
+				break;
+			}
+			case "dropNull":
+				schemaSetNullable(document, root, op.path, op.toward === "old");
+				break;
+			case "relax":
+				schemaRelax(document, root, op.path, op.set, false);
+				break;
+			case "widen":
+				if (resolveRef(newContract, op.variant) === void 0) throw new SchemaOpError(`${op.variant} is not in the new contract`);
+				importReferences(document, newContract, { $ref: op.variant });
+				schemaWiden(document, root, op.path, op.variant, op.show);
+		}
+	} catch (error) {
+		refuse(`${op.op} on ${scope.operation}'s ${scope.response} response: ${error instanceof Error ? error.message : String(error)}`);
+	}
+}
+//#endregion
 //#region ../compiler/src/predict.ts
 /**
 * Replaying declared Changes over the old contract to predict the new one.
@@ -18215,7 +18371,11 @@ function predictDocument(oldContract, newContract, changes) {
 			continue;
 		}
 		for (const scope of scopes) {
-			if (!isSchemaScope(scope)) {
+			if (isResponseScope(scope)) {
+				applyResponseScope(document, oldContract, newContract, routes, scope, dataOps, issues, change.id);
+				continue;
+			}
+			if (isParameterScope(scope)) {
 				applyParameterScope(document, oldContract, newContract, routes, scope, dataOps, issues, change.id);
 				continue;
 			}
@@ -18881,6 +19041,25 @@ function reachesAnother(endpoint, newContract) {
 function sitesOf(change, oldContract, issues, shared) {
 	const found = [];
 	for (const scope of change.scopes ?? []) {
+		if (isResponseScope(scope)) {
+			const operation = operationById(oldContract, scope.operation);
+			if (!operation) {
+				issues.push({
+					changeId: change.id,
+					message: `no operation called ${scope.operation} to scope a response change to`
+				});
+				continue;
+			}
+			found.push({
+				operationId: operation.operationId,
+				method: operation.method,
+				path: operation.path,
+				direction: "response",
+				status: scope.response,
+				prefix: ""
+			});
+			continue;
+		}
 		if (!isSchemaScope(scope)) continue;
 		if (shared.has(scope.schema)) continue;
 		const scan = findSchemaSites(oldContract, scope.schema);
@@ -18972,7 +19151,7 @@ function collectParameters(change, oldContract, newContract, routes, sites, issu
 		message
 	});
 	for (const scope of change.scopes ?? []) {
-		if (isSchemaScope(scope)) continue;
+		if (!isParameterScope(scope)) continue;
 		const operation = operationById(oldContract, scope.operation);
 		if (!operation) {
 			refuse(`no operation called ${scope.operation} to scope a parameter change to`);
@@ -33803,7 +33982,7 @@ function byOperation(changes) {
 	for (const change of changes) {
 		if (!change.ops.some(isDataOp)) continue;
 		for (const scope of change.scopes ?? []) {
-			if ("schema" in scope) continue;
+			if (!isParameterScope(scope)) continue;
 			const list = groups.get(scope.operation) ?? [];
 			if (!list.includes(change)) list.push(change);
 			groups.set(scope.operation, list);

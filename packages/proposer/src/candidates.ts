@@ -300,8 +300,18 @@ function compare(
   // only for reading.
   const afterAt = new Map(after.map((field) => [field.pointer, field]));
   const beforeAt = new Map(before.map((field) => [field.pointer, field]));
-  const removed = before.filter((field) => !afterAt.has(field.pointer));
-  const added = after.filter((field) => !beforeAt.has(field.pointer));
+  // A field that went with the object holding it went because the object
+  // did, and the op for the object says so; one of its own would then act on
+  // something already gone. PayPal removed `office_bearers` and every field
+  // inside it, and each inner removal was a draft that could not compile.
+  const outermost = (fields: FieldShape[]) => {
+    const pointers = fields.map((field) => field.pointer);
+    return fields.filter(
+      (field) => !pointers.some((other) => field.pointer.startsWith(`${other}/`)),
+    );
+  };
+  const removed = outermost(before.filter((field) => !afterAt.has(field.pointer)));
+  const added = outermost(after.filter((field) => !beforeAt.has(field.pointer)));
   const altered = before
     .filter((field) => afterAt.has(field.pointer))
     .map((field) => ({ old: field, new: afterAt.get(field.pointer) as FieldShape }))
@@ -411,6 +421,42 @@ export function schemaDeltas(
       scope: { operation: operation.operationId, location: "body" },
       sides: { request: true, response: false },
     });
+  }
+
+  // Response bodies written in place, as PayPal writes its errors, compared
+  // per operation and status the same way, and scoped to that response.
+  for (const operation of operationsOf(oldContract)) {
+    if (operation.webhook) continue;
+    const counterpart =
+      newAt.get(`${operation.method} ${operation.path}`) ??
+      newById.get(operationRenames.get(operation.operationId) ?? operation.operationId);
+    if (!counterpart) continue;
+    const after = new Map(
+      responseSchemas(newContract, counterpart.operation).map((entry) => [
+        entry.status,
+        entry.schema,
+      ]),
+    );
+    for (const { status, schema } of responseSchemas(oldContract, operation.operation)) {
+      if (!isJsonObject(schema) || typeof schema["$ref"] === "string") continue;
+      const next = after.get(status);
+      if (next === undefined) continue;
+      const compared = compare(
+        fieldsOf(oldContract, schema),
+        fieldsOf(newContract, next),
+      );
+      if (!compared) continue;
+      deltas.push({
+        schema: `${operation.operationId} ${status} response`,
+        newSchema: `${counterpart.operationId} ${status} response`,
+        ...compared,
+        operations: [
+          `${operation.operationId} ${status} response (${operation.method.toUpperCase()} ${operation.path})`,
+        ],
+        scope: { operation: operation.operationId, response: status },
+        sides: { request: false, response: true },
+      });
+    }
   }
 
   return deltas;

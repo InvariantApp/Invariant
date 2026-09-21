@@ -27,6 +27,13 @@ describe("reading YAML with aliases", () => {
     expect(Date.now() - started).toBeLessThan(5000);
   });
 
+  it("gives each use of an anchor its own copy, so an edit to one is not an edit to all", () => {
+    const text = "shared: &body { type: object }\na: *body\nb: *body\n";
+    const document = parseDocumentText("openapi.yaml", text) as Record<string, object>;
+    expect(document["a"]).toEqual(document["b"]);
+    expect(document["a"]).not.toBe(document["b"]);
+  });
+
   it("counts a shared value once for each place it is used", () => {
     const shared = { a: 1, b: [1, 2] };
     // The object, its number, and its list with the list's two numbers.

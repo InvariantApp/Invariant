@@ -16,6 +16,8 @@ import {
   type Change,
   isDataOp,
   isJsonObject,
+  isParameterScope,
+  isResponseScope,
   isSchemaScope,
   type JsonObject,
   type JsonValue,
@@ -27,6 +29,7 @@ import {
 } from "@invariant/ir";
 import { importReferences } from "./import.ts";
 import { applyParameterScope } from "./predict-parameters.ts";
+import { applyResponseScope } from "./predict-responses.ts";
 import {
   schemaAdd,
   schemaConvert,
@@ -314,7 +317,20 @@ export function predictDocument(
     }
 
     for (const scope of scopes) {
-      if (!isSchemaScope(scope)) {
+      if (isResponseScope(scope)) {
+        applyResponseScope(
+          document,
+          oldContract,
+          newContract,
+          routes,
+          scope,
+          dataOps,
+          issues,
+          change.id,
+        );
+        continue;
+      }
+      if (isParameterScope(scope)) {
         applyParameterScope(
           document,
           oldContract,

@@ -131,6 +131,32 @@ const OLD = {
         responses: { "204": { description: "done" } },
       },
     },
+    // A response body written in place, reached by a response scope.
+    "/v1/orders/{id}/summary": {
+      get: {
+        operationId: "getOrderSummary",
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" } },
+        ],
+        responses: {
+          "200": {
+            description: "a summary",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    state: { type: "string", enum: ["open", "closed"] },
+                    total: { type: "integer" },
+                    note: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     // A schema that contains itself, served by blocks that follow the value.
     "/v1/threads": {
       post: {
@@ -248,6 +274,19 @@ for (const name of ["Order", "OrderCreate"]) {
     name
   ] as Schema;
   (schema["properties"] as Record<string, unknown>)["added_field"] = { type: "string" };
+}
+{
+  const summary = JSON.parse(
+    JSON.stringify(
+      (NEW["paths"] as Record<string, Record<string, Schema>>)["/v1/orders/{id}/summary"],
+    ),
+  ) as {
+    get: { responses: Record<string, { content: Record<string, { schema: Schema }> }> };
+  };
+  const body = summary.get.responses["200"]?.content["application/json"]
+    ?.schema as Schema;
+  (body["properties"] as Record<string, unknown>)["added_field"] = { type: "string" };
+  (NEW["paths"] as Record<string, unknown>)["/v1/orders/{id}/summary"] = summary;
 }
 (
   ((NEW["paths"] as Record<string, Schema>)["/v1/orders"] as Record<string, Schema>)[
@@ -462,7 +501,76 @@ function fit(change: Change | undefined): fc.Arbitrary<Change | undefined> {
     fc
       .constantFrom("query", "header", "cookie")
       .map((location) => fitToParameters(change, location)),
+    fc.constant(fitToResponse(change)),
   );
+}
+
+/** The Change's data ops aimed at the fields of a response body written in place. */
+function fitToResponse(change: Change): Change | undefined {
+  const ops = change.ops.map((op) => {
+    switch (op.op) {
+      case "move":
+        return { op: "move", from: "/note", to: "/memo" };
+      case "convert":
+        switch (op.codec.kind) {
+          case "enumMap":
+            return {
+              op: "convert",
+              path: "/state",
+              codec: {
+                kind: "enumMap",
+                pairs: [
+                  ["open", "opened"],
+                  ["closed", "shut"],
+                ],
+              },
+            };
+          case "stringCase":
+            return {
+              op: "convert",
+              path: "/state",
+              codec: { kind: "stringCase", from: "snake", to: "screaming" },
+            };
+          case "dateFormat":
+            return {
+              op: "convert",
+              path: "/total",
+              codec: { kind: "dateFormat", from: "epoch-s", to: "rfc3339" },
+            };
+          case "wrapArray":
+            return { op: "convert", path: "/note", codec: { kind: "wrapArray" } };
+          case "unwrapSingle":
+            return op;
+          default:
+            return {
+              op: "convert",
+              path: "/total",
+              codec: { kind: "cast", from: "integer", to: "string" },
+            };
+        }
+      case "add":
+        return { ...op, path: "/added_field" };
+      case "remove":
+        return { ...op, path: "/note" };
+      case "default":
+      case "dropNull":
+        // A response faces old callers only.
+        return { ...op, path: "/note", toward: "old" };
+      case "relax":
+        return { op: "relax", path: "/total", set: { maximum: null } };
+      default:
+        return op;
+    }
+  });
+  try {
+    return parseChange({
+      ...change,
+      scopes: [{ operation: "getOrderSummary", response: "200" }],
+      ops,
+    });
+  } catch {
+    return undefined;
+  }
 }
 
 /** The Change's data ops aimed at real parameters of one location. */
@@ -705,8 +813,30 @@ function unserved(change: Change, program: unknown): string[] {
         ? direction === "response"
         : op.op !== "relax";
   const dataOps = change.ops.filter(isDataOp);
-  const parameterScoped = (change.scopes ?? []).some((scope) => !("schema" in scope));
-  if (dataOps.length > 0 && parameterScoped) {
+  const parameterScoped = (change.scopes ?? []).some((scope) => "location" in scope);
+  const responseScoped = (change.scopes ?? []).filter(
+    (scope): scope is { operation: string; response: string } => "response" in scope,
+  );
+  if (dataOps.length > 0 && responseScoped.length > 0) {
+    // Each response the Change names needs work in that response's program
+    // for every op that acts on the way back.
+    const acting = dataOps.filter((op) => actsOn(op, "response"));
+    // Filed under the endpoint a call arrives at, which a route in the same
+    // Change may have moved, so every site is searched.
+    const sites = Object.values(
+      (contract["sites"] ?? {}) as Record<string, { response?: Record<string, unknown> }>,
+    );
+    for (const scope of responseScoped) {
+      const found = sites.some((site) =>
+        JSON.stringify(site.response?.[scope.response] ?? []).includes(
+          `"c":"${change.id}"`,
+        ),
+      );
+      if (acting.length > 0 && !found) {
+        missing.push(`${scope.operation} ${scope.response}: no response instructions`);
+      }
+    }
+  } else if (dataOps.length > 0 && parameterScoped) {
     // A parameter only exists on the way in, so every op that faces new has
     // to have left a request instruction: in the operation's envelope, or,
     // for a scope on the operation's own body alone, in its body program.
@@ -792,6 +922,7 @@ const THREAD_OPS: Change["ops"] = [
   { op: "convert", path: "/title", codec: { kind: "wrapArray" } },
   { op: "convert", path: "/replies", codec: { kind: "unwrapSingle" } },
   { op: "add", path: "/label", value: "x" },
+  { op: "relax", path: "/count", set: { maximum: null } },
   { op: "remove", path: "/title", restore: "x" },
   { op: "default", path: "/title", value: "x", when: "absent", toward: "new" },
   { op: "dropNull", path: "/title", toward: "old" },
@@ -830,8 +961,11 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
           const kind = op.op === "convert" ? `convert ${op.codec.kind}` : op.op;
           passed.set(kind, (passed.get(kind) ?? 0) + 1);
         }
-        if ((change.scopes ?? []).some((scope) => !("schema" in scope))) {
+        if ((change.scopes ?? []).some((scope) => "location" in scope)) {
           passed.set("parameters", (passed.get("parameters") ?? 0) + 1);
+        }
+        if ((change.scopes ?? []).some((scope) => "response" in scope)) {
+          passed.set("response bodies", (passed.get("response bodies") ?? 0) + 1);
         }
         if (chained.program.contracts["old"]?.blocks) {
           passed.set("shared blocks", (passed.get("shared blocks") ?? 0) + 1);
@@ -906,6 +1040,7 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
       "retire",
       "behavior",
       "parameters",
+      "response bodies",
       "shared blocks",
     ]) {
       expect(passed.get(kind) ?? 0, kind).toBeGreaterThan(0);
