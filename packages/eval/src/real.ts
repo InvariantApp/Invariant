@@ -19,6 +19,7 @@ import { predictDocument } from "@invariant/compiler";
 import { loadContract } from "@invariant/contract";
 import {
   breakingEntries,
+  catalogueEntry,
   type DiffEntry,
   type DiffMode,
   diffDocuments,
@@ -131,7 +132,20 @@ export interface PairResult {
    * operation: the aligned denominator, what the drafts left, and what
    * answered decisions leave. See `placeOf`.
    */
-  places?: { aligned: number; after: number; decided?: number };
+  places?: {
+    aligned: number;
+    after: number;
+    decided?: number;
+    /**
+     * Of the places left, how many the catalogue classes as behavior-only:
+     * breaks no translation can hide, which a `behavior` flag declares.
+     * Assigned by the catalogue's rule for the check, never per instance.
+     */
+    behaviorOnly?: number;
+    behaviorOnlyDecided?: number;
+  };
+  /** The places left unexplained, by check id, so the largest are seen. */
+  unexplainedPlaceKinds?: Record<string, number>;
 }
 
 function tally(entries: readonly DiffEntry[]): Record<string, number> {
@@ -174,6 +188,21 @@ export function placeOf(entry: DiffEntry): string {
 
 function placesIn(entries: readonly DiffEntry[]): number {
   return new Set(entries.map(placeOf)).size;
+}
+
+function behaviorOnlyPlacesIn(entries: readonly DiffEntry[]): number {
+  return placesIn(
+    entries.filter((entry) => catalogueEntry(entry.id).class === "behavior-only"),
+  );
+}
+
+function placeKinds(entries: readonly DiffEntry[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const place of new Set(entries.map(placeOf))) {
+    const id = place.slice(0, place.indexOf("\n"));
+    out[id] = (out[id] ?? 0) + 1;
+  }
+  return out;
 }
 
 function message(error: unknown): string {
@@ -418,12 +447,17 @@ export async function analysePair(
     });
   }
 
-  const places = { aligned: placesIn(alignedEntries), after: placesIn(residual.value) };
+  const places = {
+    aligned: placesIn(alignedEntries),
+    after: placesIn(residual.value),
+    behaviorOnly: behaviorOnlyPlacesIn(residual.value),
+  };
   const closed: PairResult = {
     ...afterCompile,
     reached: "done",
     breakingAfter: residual.value.length,
     unexplainedKinds: tally(residual.value),
+    unexplainedPlaceKinds: placeKinds(residual.value),
     places,
   };
   if (drafted.value.decisions.length === 0) {
@@ -431,7 +465,11 @@ export async function analysePair(
       ...closed,
       breakingAfterDecided: closed.breakingAfter,
       unexplainedDecidedKinds: closed.unexplainedKinds,
-      places: { ...places, decided: places.after },
+      places: {
+        ...places,
+        decided: places.after,
+        behaviorOnlyDecided: places.behaviorOnly,
+      },
     });
   }
 
@@ -460,7 +498,11 @@ export async function analysePair(
           ...closed,
           breakingAfterDecided: decided.value.length,
           unexplainedDecidedKinds: tally(decided.value),
-          places: { ...places, decided: placesIn(decided.value) },
+          places: {
+            ...places,
+            decided: placesIn(decided.value),
+            behaviorOnlyDecided: behaviorOnlyPlacesIn(decided.value),
+          },
         }
       : { ...closed, decidedError: decided.error },
   );

@@ -660,6 +660,35 @@ function render(
   }
   lines.push("");
 
+  // The same, counted once per place, which is how the gate is judged: one
+  // enum value added to a schema Stripe returns from two hundred operations
+  // is one place, not two hundred entries.
+  const byPlace = new Map<string, { places: number; pairs: number }>();
+  for (const result of all) {
+    for (const [kind, count] of Object.entries(result.unexplainedPlaceKinds ?? {})) {
+      const entry = byPlace.get(kind) ?? { places: 0, pairs: 0 };
+      entry.places += count;
+      entry.pairs += 1;
+      byPlace.set(kind, entry);
+    }
+  }
+  if (byPlace.size > 0) {
+    lines.push(
+      "Counted once per place, which is how the launch gate is judged:",
+      "",
+      "| Unexplained | Places | Pairs | Class |",
+      "|---|---|---|---|",
+    );
+    for (const [kind, entry] of [...byPlace]
+      .sort((a, b) => b[1].places - a[1].places)
+      .slice(0, 20)) {
+      lines.push(
+        `| \`${kind}\` | ${entry.places} | ${entry.pairs} | ${catalogueEntry(kind).class} |`,
+      );
+    }
+    lines.push("");
+  }
+
   const compileFailures = all.filter((result) => result.compileIssues.length > 0);
   if (compileFailures.length > 0) {
     lines.push("## Drafts that would not compile", "");

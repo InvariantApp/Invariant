@@ -30,6 +30,12 @@ interface Line {
   evidence: string;
 }
 
+/**
+ * The most of the L4 denominator that behavior-only places may make up. The
+ * class is the catalogue's, by rule, and the share is published beside it.
+ */
+export const BEHAVIOR_ONLY_CAP = 0.05;
+
 /** The sections of the conformance vector file, counted. */
 export interface VectorCounts {
   vectors: unknown[];
@@ -137,8 +143,20 @@ export function scoreboard(inputs: {
       0,
     );
   const placesAligned = placeSum((places) => places.aligned);
-  const placesAfter = placeSum((places) => places.after);
-  const placesDecided = placeSum((places) => places.decided ?? places.after);
+  // A break the catalogue classes behavior-only is explained by declaring a
+  // `behavior` flag rather than by a transform, so it counts as explained, up
+  // to a cap: the class is assigned by rule, and a gate that could be met by
+  // calling things behavior-only would measure nothing.
+  const behaviorCap = Math.floor(placesAligned * BEHAVIOR_ONLY_CAP);
+  const behaviorOnly = placeSum((places) => places.behaviorOnly ?? 0);
+  const behaviorOnlyDecided = placeSum(
+    (places) => places.behaviorOnlyDecided ?? places.behaviorOnly ?? 0,
+  );
+  const placesAfter =
+    placeSum((places) => places.after) - Math.min(behaviorOnly, behaviorCap);
+  const placesDecided =
+    placeSum((places) => places.decided ?? places.after) -
+    Math.min(behaviorOnlyDecided, behaviorCap);
   const byPlace = placed.length > 0;
   const headline = byPlace
     ? placesAligned === 0
@@ -157,7 +175,7 @@ export function scoreboard(inputs: {
           : "not met",
     value:
       (byPlace
-        ? `Per place, on ${placed.length} of ${done.length} completed pairs: ${percent(placesAligned - placesAfter, placesAligned)} of breaking deltas explained, ${percent(placesAligned - placesDecided, placesAligned)} with every open decision answered synthetically. `
+        ? `Per place, on ${placed.length} of ${done.length} completed pairs: ${percent(placesAligned - placesAfter, placesAligned)} of breaking deltas explained, ${percent(placesAligned - placesDecided, placesAligned)} with every open decision answered synthetically; behavior-only by catalogue rule ${percent(Math.min(behaviorOnly, behaviorCap), placesAligned)} of places (cap ${percent(BEHAVIOR_ONLY_CAP, 1)}). `
         : "") +
       `Per instance: ${percent(aligned - after, aligned)} explained, ${percent(aligned - decided, aligned)} with synthetic answers (measured on ${measuredDecided} pairs). ` +
       `${closed.length} of ${breakingPairs.length} breaking pairs closed (${percent(closed.length, breakingPairs.length)}), ${closedDecided.length} with synthetic answers (${percent(closedDecided.length, breakingPairs.length)}).`,
