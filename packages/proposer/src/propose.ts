@@ -14,6 +14,8 @@ import { findSchemaSites } from "@invariant/contract";
 import type { Change, Op, ScalarType, Scope } from "@invariant/ir";
 import { type FieldShape, type SchemaDelta, schemaDeltas } from "./candidates.ts";
 import {
+  methodMoveChanges,
+  methodMoves,
   operationIdChanges,
   parameterDeltas,
   parameterDrafts,
@@ -323,6 +325,27 @@ export async function propose(
   const relocated = new Set(
     (move?.moved ?? []).map((entry) => `${entry.method} ${entry.from}`),
   );
+  // Operations that kept their path and changed method, and whatever query
+  // parameters went into their new body with them.
+  const methodMoved = methodMoves(oldContract, newContract, relocated);
+  for (const entry of methodMoved)
+    relocated.add(`${entry.from.method} ${entry.from.path}`);
+  const methodChanges: Proposal[] = methodMoved.flatMap((entry) =>
+    methodMoveChanges(entry).map((change) => ({
+      change,
+      judge: "rules" as const,
+      confidence: 1,
+      // The same path under a new method is very likely the same operation,
+      // and a person should still say so.
+      attention: "explicit" as const,
+      notes: [
+        `${entry.from.method.toUpperCase()} ${entry.from.path} is gone and the same path is now served by ${entry.to.method.toUpperCase()}` +
+          (entry.intoBody.length > 0
+            ? `, with ${entry.intoBody.join(", ")} moved from the query string into the body`
+            : ""),
+      ],
+    })),
+  );
   const retired: Proposal[] = retiredEndpoints(oldContract, newContract, relocated).map(
     (endpoint) => ({
       change: retireChange(endpoint),
@@ -364,6 +387,7 @@ export async function propose(
   const gone = removals(deltas, oldContract);
   altered.proposals.unshift(
     ...moved,
+    ...methodChanges,
     ...retired,
     ...parameters,
     ...renamedOperations,

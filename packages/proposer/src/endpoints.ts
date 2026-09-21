@@ -20,6 +20,7 @@ import {
   type HttpMethod,
   type OpenApiDocument,
   operationsOf,
+  requestBodySchema,
   resolveRef,
   resolveSchema,
 } from "@invariant/contract";
@@ -63,6 +64,132 @@ export function retiredEndpoints(
       path: operation.path,
       operationId: operation.operationId,
     }));
+}
+
+/**
+ * An operation that stayed at its path and changed its method, and the query
+ * parameters that became fields of its new request body under the same name.
+ *
+ * The case this exists for is a search that outgrew its query string: `GET
+ * /search?q=` became `POST /search` with `{"q": ...}`. It is claimed only when
+ * the path is served under exactly one new method that the old document did
+ * not have there, so two unrelated operations sharing a path are never paired.
+ */
+export interface MethodMove {
+  operationId: string;
+  from: { method: HttpMethod; path: string };
+  to: { method: HttpMethod; path: string; operationId: string };
+  /** Query parameters now written as top-level body fields of the same name. */
+  intoBody: string[];
+}
+
+export function methodMoves(
+  before: OpenApiDocument,
+  after: OpenApiDocument,
+  moved: ReadonlySet<string> = new Set(),
+): MethodMove[] {
+  const oldOps = operationsOf(before);
+  const newOps = operationsOf(after);
+  const oldKeys = new Set(
+    oldOps.map((operation) => `${operation.method} ${operation.path}`),
+  );
+  const newKeys = new Set(
+    newOps.map((operation) => `${operation.method} ${operation.path}`),
+  );
+  const out: MethodMove[] = [];
+  for (const operation of oldOps) {
+    const key = `${operation.method} ${operation.path}`;
+    if (operation.webhook || newKeys.has(key) || moved.has(key)) continue;
+    const arrivals = newOps.filter(
+      (candidate) =>
+        candidate.path === operation.path &&
+        !candidate.webhook &&
+        !oldKeys.has(`${candidate.method} ${candidate.path}`),
+    );
+    if (arrivals.length !== 1) continue;
+    const arrival = arrivals[0] as (typeof arrivals)[number];
+    const body = resolveSchema(after, requestBodySchema(after, arrival.operation) ?? {});
+    const fields =
+      isJsonObject(body) && isJsonObject(body["properties"])
+        ? new Set(Object.keys(body["properties"]))
+        : new Set<string>();
+    const oldItem = isJsonObject(before["paths"])
+      ? before["paths"][operation.path]
+      : undefined;
+    const newItem = isJsonObject(after["paths"])
+      ? after["paths"][arrival.path]
+      : undefined;
+    const stillQuery = new Set(
+      parametersOf(after, arrival.operation, isJsonObject(newItem) ? newItem : {})
+        .filter((parameter) => parameter.location === "query")
+        .map((parameter) => parameter.name),
+    );
+    const intoBody = parametersOf(
+      before,
+      operation.operation,
+      isJsonObject(oldItem) ? oldItem : {},
+    )
+      .filter(
+        (parameter) =>
+          parameter.location === "query" &&
+          !stillQuery.has(parameter.name) &&
+          fields.has(parameter.name),
+      )
+      .map((parameter) => parameter.name);
+    out.push({
+      operationId: operation.operationId,
+      from: { method: operation.method, path: operation.path },
+      to: {
+        method: arrival.method,
+        path: arrival.path,
+        operationId: arrival.operationId,
+      },
+      intoBody,
+    });
+  }
+  return out;
+}
+
+/** The Changes a method move is: the route, and each query parameter's move into the body. */
+export function methodMoveChanges(move: MethodMove): Change[] {
+  const slug = `${move.operationId}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  const route: Change = {
+    irVersion: 1,
+    id: `chg_method_${slug}`.slice(0, 120),
+    summary:
+      `${move.from.method.toUpperCase()} ${move.from.path} is now ` +
+      `${move.to.method.toUpperCase()} ${move.to.path}.`,
+    ops: [
+      {
+        op: "route",
+        from: move.from,
+        to: { method: move.to.method, path: move.to.path },
+        ...(move.to.operationId !== move.operationId
+          ? { operationId: { from: move.operationId, to: move.to.operationId } }
+          : {}),
+      },
+    ],
+    provenance: { proposed_by: { judge: "rules", confidence: 1 } },
+  };
+  if (move.intoBody.length === 0) return [route];
+  return [
+    route,
+    {
+      irVersion: 1,
+      id: `chg_method_${slug}_body`.slice(0, 120),
+      summary: `${move.intoBody.map((name) => `\`${name}\``).join(", ")} moved from the query string into the body.`,
+      scopes: [{ operation: move.operationId, location: "query" }],
+      ops: move.intoBody.map((name) => ({
+        op: "move" as const,
+        from: `/${name}`,
+        to: `/@body/${name}`,
+      })),
+      provenance: { proposed_by: { judge: "rules", confidence: 1 } },
+    },
+  ];
 }
 
 /**

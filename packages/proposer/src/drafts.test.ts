@@ -421,3 +421,44 @@ describe("a field that may now be left out or null, or no longer may", () => {
     expect(outcome.unresolved).toEqual([]);
   });
 });
+
+describe("an operation that kept its path and changed its method", () => {
+  it("is routed, and its query parameters follow into the new body", async () => {
+    const search = (method: string, operation: Record<string, unknown>) =>
+      ({
+        openapi: "3.0.3",
+        info: { title: "t", version: "1" },
+        paths: { "/search": { [method]: { operationId: "search", ...operation } } },
+      }) as unknown as OpenApiDocument;
+    const outcome = await propose(
+      search("get", {
+        parameters: [
+          { name: "q", in: "query", required: true, schema: { type: "string" } },
+          { name: "limit", in: "query", schema: { type: "integer" } },
+        ],
+        responses: { "200": { description: "ok" } },
+      }),
+      search("post", {
+        parameters: [{ name: "limit", in: "query", schema: { type: "integer" } }],
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: { type: "object", properties: { q: { type: "string" } } },
+            },
+          },
+        },
+        responses: { "200": { description: "ok" } },
+      }),
+      { judge: new RulesJudge() },
+    );
+    const ops = outcome.proposals.flatMap((proposal) => proposal.change.ops);
+    expect(ops).toContainEqual({
+      op: "route",
+      from: { method: "get", path: "/search" },
+      to: { method: "post", path: "/search" },
+    });
+    expect(ops).toContainEqual({ op: "move", from: "/q", to: "/@body/q" });
+    // Not reported as retired as well.
+    expect(ops.some((op) => op.op === "retire")).toBe(false);
+  });
+});
