@@ -12006,7 +12006,11 @@ function resolveAt(document, schema, depth) {
 	const branches = target["allOf"];
 	if (!Array.isArray(branches)) return target;
 	const { allOf: _, ...siblings } = target;
-	return [...branches.map((branch) => resolveAt(document, branch, depth + 1)), siblings].filter(isJsonObject).reduce((merged, part) => mergeSchemas(document, merged, part, depth), {});
+	const parts = [...branches.map((branch) => resolveAt(document, branch, depth + 1)), siblings].filter(isJsonObject);
+	const merged = parts.reduce((result, part) => mergeSchemas(document, result, part, depth), {});
+	if (parts.every((part) => part["nullable"] === true)) merged["nullable"] = true;
+	else delete merged["nullable"];
+	return merged;
 }
 const LOWER_BOUNDS = [
 	"minimum",

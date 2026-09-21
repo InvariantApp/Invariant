@@ -45,10 +45,18 @@ function resolveAt(
     ...branches.map((branch) => resolveAt(document, branch, depth + 1)),
     siblings,
   ].filter(isJsonObject);
-  return parts.reduce<JsonObject>(
-    (merged, part) => mergeSchemas(document, merged, part, depth),
+  const merged = parts.reduce<JsonObject>(
+    (result, part) => mergeSchemas(document, result, part, depth),
     {},
   );
+  // A value can be null only if every part says it can, a part that says
+  // nothing included: `nullable: true` beside an `allOf` of a schema that
+  // does not allow null allows nothing more. The differ merges it this way,
+  // and closure is judged by the differ, so reading it any other way drafted
+  // a nullability change on a Plaid field that no document made.
+  if (parts.every((part) => part["nullable"] === true)) merged["nullable"] = true;
+  else delete merged["nullable"];
+  return merged;
 }
 
 const LOWER_BOUNDS = [
