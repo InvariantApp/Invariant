@@ -913,6 +913,163 @@
       }
     },
     {
+      "name": "an object a within reached becomes its own id",
+      "why": "A union gained a kind of object old callers never heard of. Stripe sends the id of an object a caller did not expand, and the old union allows it.",
+      "instrs": [
+        {
+          "k": "within",
+          "path": "/data/*",
+          "block": [
+            {
+              "k": "switch",
+              "path": "/object",
+              "cases": {
+                "terminal": [
+                  {
+                    "k": "move",
+                    "from": "/id",
+                    "to": "",
+                    "c": "chg_vector"
+                  }
+                ]
+              },
+              "c": "chg_vector"
+            }
+          ],
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "data": [
+          {
+            "object": "card",
+            "id": "card_1"
+          },
+          {
+            "object": "terminal",
+            "id": "tm_1"
+          },
+          "src_1"
+        ]
+      },
+      "expect": {
+        "output": {
+          "data": [
+            {
+              "object": "card",
+              "id": "card_1"
+            },
+            "tm_1",
+            "src_1"
+          ]
+        }
+      }
+    },
+    {
+      "name": "list items a within reached are removed, however many",
+      "why": "Removing an item shifts the ones after it. Every one chosen has to go, and no other, whatever order they were found in.",
+      "instrs": [
+        {
+          "k": "within",
+          "path": "/data/*",
+          "block": [
+            {
+              "k": "has",
+              "path": "/deleted",
+              "block": [
+                {
+                  "k": "del",
+                  "path": "",
+                  "c": "chg_vector"
+                }
+              ],
+              "c": "chg_vector"
+            }
+          ],
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "data": [
+          {
+            "id": "a"
+          },
+          {
+            "id": "b",
+            "deleted": true
+          },
+          {
+            "id": "c"
+          },
+          {
+            "id": "d",
+            "deleted": true
+          }
+        ]
+      },
+      "expect": {
+        "output": {
+          "data": [
+            {
+              "id": "a"
+            },
+            {
+              "id": "c"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a value a within reached is replaced with null",
+      "why": "Where old callers could be sent null, a value they cannot read becomes one.",
+      "instrs": [
+        {
+          "k": "within",
+          "path": "/customer",
+          "block": [
+            {
+              "k": "set",
+              "path": "",
+              "value": null,
+              "ifAbsent": false,
+              "c": "chg_vector"
+            }
+          ],
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "customer": {
+          "object": "account",
+          "id": "acct_1"
+        }
+      },
+      "expect": {
+        "output": {
+          "customer": null
+        }
+      }
+    },
+    {
+      "name": "an instruction that would replace a whole body is refused",
+      "why": "Only a value inside a body can be replaced; a body is what the caller sent.",
+      "instrs": [
+        {
+          "k": "move",
+          "from": "/id",
+          "to": "",
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "id": "x"
+      },
+      "expect": {
+        "refuses": "decode"
+      }
+    },
+    {
       "name": "a key read through a wildcard is refused",
       "why": "A key is one value at one place; a wildcard would make it several.",
       "instrs": [

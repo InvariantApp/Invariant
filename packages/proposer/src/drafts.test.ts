@@ -492,3 +492,54 @@ describe("a value that went and one that arrived", () => {
     expect(renamed?.notes.join(" ")).toContain("confirm");
   });
 });
+
+describe("a response union that can hold a new kind of object", () => {
+  const typed = (value: string) =>
+    object({ object: { type: "string", enum: [value] }, id: { type: "string" } }, [
+      "object",
+    ]);
+  const expandable = (...variants: string[]) => ({
+    anyOf: [
+      { type: "string" },
+      ...variants.map((name) => ({ $ref: `#/components/schemas/${name}` })),
+    ],
+  });
+  const withUnion = (...variants: string[]) => ({
+    ...base,
+    Customer: typed("customer"),
+    Guest: typed("guest"),
+    Thing: object({ id: { type: "string" }, owner: expandable(...variants) }, ["id"]),
+  });
+
+  it("shows old callers the new kind as its id, where the union took an id", async () => {
+    const outcome = await propose(
+      contract(withUnion("Customer")),
+      contract(withUnion("Customer", "Guest")),
+      { judge: new RulesJudge() },
+    );
+    const draft = outcome.proposals.find((proposal) =>
+      proposal.change.ops.some((op) => op.op === "widen"),
+    );
+    expect(draft?.change.ops).toEqual([
+      { op: "widen", path: "/owner", variant: "#/components/schemas/Guest", show: "id" },
+    ]);
+    expect(draft?.notes.join()).toMatch(/declared loss/);
+  });
+
+  it("leaves a request union that accepts more alone", async () => {
+    const request = (...variants: string[]) => ({
+      ...withUnion("Customer"),
+      ThingCreate: object({ name: { type: "string" }, owner: expandable(...variants) }),
+    });
+    const outcome = await propose(
+      contract(request("Customer")),
+      contract(request("Customer", "Guest")),
+      { judge: new RulesJudge() },
+    );
+    expect(
+      outcome.proposals.some((proposal) =>
+        proposal.change.ops.some((op) => op.op === "widen"),
+      ),
+    ).toBe(false);
+  });
+});

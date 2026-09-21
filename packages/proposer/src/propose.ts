@@ -777,7 +777,16 @@ function alteredProposals(
           why: question.why,
         });
       }
-      const ops = [...shape.ops, ...presence.ops];
+      const widened = widenOps(pair.old, pair.new, sides ?? NEITHER);
+      if (widened.unresolved) {
+        unresolved.push({
+          schema: delta.schema,
+          field: pair.old.name,
+          reason: widened.unresolved,
+          side: "removed",
+        });
+      }
+      const ops = [...shape.ops, ...presence.ops, ...widened.ops];
       // Whether a field may be left out or null changed only in the direction
       // no old caller is hurt by, which the gate does not report either.
       if (ops.length === 0) continue;
@@ -811,6 +820,7 @@ function alteredProposals(
             : "the field kept its name and its values",
           ...shape.notes,
           ...presence.notes,
+          ...widened.notes,
           ...(guessed
             ? [
                 "a value that went is paired with the one that arrived only because each was the only one; confirm it is the same thing renamed, and not one retired and an unrelated one added",
@@ -825,6 +835,54 @@ function alteredProposals(
 }
 
 const NEITHER = { request: false, response: false };
+
+/**
+ * A union in a response that can now hold a kind of object old callers do not
+ * know, drafted as a `widen` for each one, shown as whatever the old union
+ * already allows: its id where the union took a plain string, as Stripe's
+ * expandable fields do; null where it could be null; left out where it could
+ * be. A union that allows none of those has nothing to show, and says so.
+ *
+ * A union in a request that accepts more breaks nobody, and is left alone.
+ */
+export function widenOps(
+  old: FieldShape,
+  next: FieldShape,
+  sides: { request: boolean; response: boolean },
+): { ops: Op[]; notes: string[]; unresolved?: string } {
+  const known = new Set(
+    (old.variants ?? []).map((ref) => ref.slice(ref.lastIndexOf("/") + 1)),
+  );
+  const gained = (next.variants ?? []).filter(
+    (ref) => !known.has(ref.slice(ref.lastIndexOf("/") + 1)),
+  );
+  if (!sides.response || old.variants === undefined || gained.length === 0) {
+    return { ops: [], notes: [] };
+  }
+  const show = old.idBranch
+    ? "id"
+    : old.nullable
+      ? "null"
+      : !old.required
+        ? "absent"
+        : undefined;
+  const names = gained
+    .map((ref) => `\`${ref.slice(ref.lastIndexOf("/") + 1)}\``)
+    .join(", ");
+  if (show === undefined) {
+    return {
+      ops: [],
+      notes: [],
+      unresolved: `\`${old.name}\` can now hold ${names}, and the old union allows no id, no null and no leaving it out, so there is nothing old callers could be shown instead`,
+    };
+  }
+  return {
+    ops: gained.map((variant) => ({ op: "widen", path: next.pointer, variant, show })),
+    notes: [
+      `\`${old.name}\` can now hold ${names}, which old callers never heard of; they are shown ${show === "id" ? "its id, as for a field they did not expand" : show === "null" ? "null" : "the field left out"} instead, a declared loss to acknowledge`,
+    ],
+  };
+}
 
 /** Whether the values a field can hold changed, apart from null and absence. */
 function valuesDiffer(a: FieldShape, b: FieldShape): boolean {

@@ -34,6 +34,7 @@ import {
   schemaRequiredAt,
   schemaSetNullable,
   schemaSetRequired,
+  schemaWiden,
 } from "./schema.ts";
 
 export interface PredictionIssue {
@@ -376,6 +377,15 @@ export function predictDocument(
                 schemaSetRequired(document, schema, op.path, !looser);
               if (op.when !== "absent")
                 schemaSetNullable(document, schema, op.path, looser);
+              break;
+            }
+            case "widen": {
+              // The variant is the new contract's, and comes over with it.
+              if (resolveRef(newContract, op.variant) === undefined) {
+                throw new Error(`${op.variant} is not in the new contract`);
+              }
+              importReferences(document, newContract, { $ref: op.variant });
+              schemaWiden(document, schema, op.path, op.variant, op.show);
               break;
             }
             case "dropNull":

@@ -361,6 +361,13 @@ const RULES: Rule[] = [
     sentence:
       "A response body may now be null. Giving old callers a body in its place needs an op on the whole body, which is not served yet.",
   }),
+  rule(/^response-property-(any-of|one-of)-added$/, {
+    class: "needs-decision",
+    op: "widen",
+    served: "yes",
+    sentence:
+      "A response field can now hold a kind of object old callers do not know. A `widen` shows it to them as its id where the field already allowed an id, or leaves it out or sends null where it could be; that is a declared loss you acknowledge.",
+  }),
   rule(
     /^response-(body|property)-(any-of-added|one-of-added|all-of-removed|wrapped-in-one-of(-original-preserved)?)$/,
     {

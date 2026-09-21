@@ -35,6 +35,26 @@ export interface FieldShape {
   default?: JsonValue;
   /** Declared `readOnly`: it appears in responses and never in requests. */
   readOnly?: boolean;
+  /** For a union, the named schemas it can hold, as references. */
+  variants?: string[];
+  /** For a union, whether one of its branches is a plain string, as an id is. */
+  idBranch?: boolean;
+}
+
+/** The named schemas a union can hold, and whether it can also be a string. */
+function unionOf(value: JsonObject): Pick<FieldShape, "variants" | "idBranch"> {
+  const branches = (value["anyOf"] ?? value["oneOf"]) as JsonValue[] | undefined;
+  if (!Array.isArray(branches)) return {};
+  const variants = branches.flatMap((branch) =>
+    isJsonObject(branch) && typeof branch["$ref"] === "string" ? [branch["$ref"]] : [],
+  );
+  if (variants.length === 0) return {};
+  return {
+    variants,
+    idBranch: branches.some(
+      (branch) => isJsonObject(branch) && branch["type"] === "string",
+    ),
+  };
 }
 
 export interface SchemaDelta {
@@ -139,12 +159,30 @@ function fieldsOf(
         ),
       ...(value["default"] === undefined ? {} : { default: value["default"] }),
       ...(value["readOnly"] === true ? { readOnly: true } : {}),
+      ...unionOf(value),
     };
 
     // Inline objects, and inline objects inside lists, are part of this
     // schema: most real changes happen a level or two down.
-    if (depth >= NESTING || !inline(raw)) return [field];
     const items = isJsonObject(value["items"]) ? value["items"] : undefined;
+    // A list of a union, as Stripe's `discounts` are: each item is the field.
+    const itemUnion = items ? unionOf(items) : {};
+    const listed: FieldShape[] =
+      itemUnion.variants === undefined
+        ? []
+        : [
+            {
+              ...field,
+              name: `${here.name}.*`,
+              pointer: `${here.pointer}/*`,
+              type: undefined,
+              enumValues: undefined,
+              required: true,
+              nullable: false,
+              ...itemUnion,
+            },
+          ];
+    if (depth >= NESTING || !inline(raw)) return [field, ...listed];
     const nested = isJsonObject(value["properties"])
       ? fieldsOf(document, value, here, depth + 1)
       : items && isJsonObject(resolveSchema(document, items))
@@ -155,7 +193,7 @@ function fieldsOf(
             depth + 1,
           )
         : [];
-    return [field, ...nested];
+    return [field, ...listed, ...nested];
   });
 }
 
@@ -217,7 +255,8 @@ function shapeDiffers(a: FieldShape, b: FieldShape): boolean {
     return true;
   const left = a.enumValues?.join("|");
   const right = b.enumValues?.join("|");
-  return left !== right;
+  if (left !== right) return true;
+  return a.variants?.join("|") !== b.variants?.join("|");
 }
 
 /**

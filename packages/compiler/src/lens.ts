@@ -6,7 +6,7 @@
  * schemas that contain themselves, and the verifier's lens, so all three run
  * the same instructions for the same op.
  */
-import type { Site } from "@invariant/contract";
+import type { Guard, Site } from "@invariant/contract";
 import {
   type Change,
   type DataOp,
@@ -15,6 +15,7 @@ import {
   formatPointer,
   type Instr,
   parsePointer,
+  type WidenOp,
 } from "@invariant/ir";
 
 export function prefixed(prefix: string, path: string): string {
@@ -97,12 +98,78 @@ export function forwardInstrs(op: DataOp, prefix: string, changeId: string): Ins
       return op.toward === "new" ? [fill(op, prefix, changeId)] : [];
     case "dropNull":
       return op.toward === "new" ? [dropNull(op, prefix, changeId)] : [];
+    case "widen":
+      // An old caller never sends a variant its contract does not describe.
+      return [];
   }
   return [];
 }
 
+/**
+ * How a widened union's new variant is told apart from the variants old
+ * callers know, which only the documents can say. Undefined where nothing
+ * does, and then nothing is compiled and the projection says why.
+ */
+export type VariantGuards = (op: WidenOp) => Guard | undefined;
+
+const NO_VARIANTS: VariantGuards = () => undefined;
+
+/** The value itself replaced as `show` says, by an instruction standing on it. */
+function shown(op: WidenOp, changeId: string): Instr {
+  switch (op.show) {
+    case "id":
+      return { k: "move", from: "/id", to: "", c: changeId };
+    case "null":
+      return { k: "set", path: "", value: null, ifAbsent: false, c: changeId };
+    case "absent":
+      return { k: "del", path: "", c: changeId };
+  }
+}
+
+/** Runs `block` on a value only when the guard says it is the variant. */
+function testing(guard: Guard, block: Instr[], changeId: string): Instr {
+  if ("type" in guard) return { k: "is", path: "", type: guard.type, block, c: changeId };
+  if ("key" in guard) {
+    const chosen: Instr[] =
+      guard.has !== undefined
+        ? [{ k: "has", path: formatPointer([guard.has]), block, c: changeId }]
+        : guard.lacks !== undefined
+          ? [
+              {
+                k: "has",
+                path: formatPointer([guard.lacks]),
+                absent: true,
+                block,
+                c: changeId,
+              },
+            ]
+          : block;
+    return {
+      k: "switch",
+      path: guard.key,
+      cases: Object.fromEntries(guard.values.map((value) => [value, chosen])),
+      c: changeId,
+    };
+  }
+  if ("lacks" in guard) {
+    return {
+      k: "has",
+      path: formatPointer([guard.lacks]),
+      absent: true,
+      block,
+      c: changeId,
+    };
+  }
+  return { k: "has", path: formatPointer([guard.has]), block, c: changeId };
+}
+
 /** Canonical-back-to-old-shape primitives: each op's inverse. */
-export function backwardInstrs(op: DataOp, prefix: string, changeId: string): Instr[] {
+export function backwardInstrs(
+  op: DataOp,
+  prefix: string,
+  changeId: string,
+  variants: VariantGuards = NO_VARIANTS,
+): Instr[] {
   switch (op.op) {
     case "move":
       return [
@@ -171,6 +238,20 @@ export function backwardInstrs(op: DataOp, prefix: string, changeId: string): In
       return op.toward === "old" ? [fill(op, prefix, changeId)] : [];
     case "dropNull":
       return op.toward === "old" ? [dropNull(op, prefix, changeId)] : [];
+    case "widen": {
+      const guard = variants(op);
+      if (!guard) return [];
+      // Standing on each value at the union's place, one of the new kind is
+      // replaced where it is, in a list item or a field alike.
+      return [
+        {
+          k: "within",
+          path: prefixed(prefix, op.path),
+          block: [testing(guard, [shown(op, changeId)], changeId)],
+          c: changeId,
+        },
+      ];
+    }
   }
   return [];
 }
@@ -205,46 +286,33 @@ export function guarded(
     // On the way out, the branch itself has not been put back yet, so a key
     // or field this Change renames is still under its new name.
     const own = direction === "backward" && guard.at === site.prefix;
-    const present = (field: string) =>
-      formatPointer([own ? (movedTo(change, field) ?? field) : field]);
-    let inner: Instr;
-    if ("type" in guard) {
-      inner = { k: "is", path: "", type: guard.type, block, c: change.id };
-    } else if ("key" in guard) {
-      const renames = own ? renamesOf(change, guard.key) : new Map<string, string>();
-      const values = [
-        ...new Set(guard.values.map((value) => renames.get(value) ?? value)),
-      ];
-      const chosen: Instr[] =
-        guard.has !== undefined
-          ? [{ k: "has", path: present(guard.has), block, c: change.id }]
-          : guard.lacks !== undefined
-            ? [
-                {
-                  k: "has",
-                  path: present(guard.lacks),
-                  absent: true,
-                  block,
-                  c: change.id,
-                },
-              ]
-            : block;
-      inner = {
-        k: "switch",
-        path: guard.key,
-        cases: Object.fromEntries(values.map((value) => [value, chosen])),
-        c: change.id,
-      };
-    } else if ("lacks" in guard) {
-      inner = { k: "has", path: present(guard.lacks), absent: true, block, c: change.id };
-    } else {
-      inner = { k: "has", path: present(guard.has), block, c: change.id };
-    }
+    const inner = testing(renamed(guard, own ? change : undefined), block, change.id);
     block = [
       { k: "within", path: relative(outer, guard.at), block: [inner], c: change.id },
     ];
   }
   return block;
+}
+
+/**
+ * The guard as the value still reads when this Change has not yet been undone
+ * on it: its key's values and its fields under their new names.
+ */
+function renamed(guard: Guard, change: Change | undefined): Guard {
+  if (!change) return guard;
+  const field = (name: string) => movedTo(change, name) ?? name;
+  if ("type" in guard) return guard;
+  if ("key" in guard) {
+    const renames = renamesOf(change, guard.key);
+    return {
+      ...guard,
+      values: [...new Set(guard.values.map((value) => renames.get(value) ?? value))],
+      ...(guard.has === undefined ? {} : { has: field(guard.has) }),
+      ...(guard.lacks === undefined ? {} : { lacks: field(guard.lacks) }),
+    };
+  }
+  if ("lacks" in guard) return { ...guard, lacks: field(guard.lacks) };
+  return { ...guard, has: field(guard.has) };
 }
 
 /** What a Change's enum map at `path` renames each old value to. */

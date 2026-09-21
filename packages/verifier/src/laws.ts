@@ -159,7 +159,11 @@ interface Case {
  * other one's values too, and checking the outer schema without it once
  * reported a correct release as producing values the new contract refuses.
  */
-function casesFor(oldContract: OpenApiDocument, changes: readonly Change[]): Case[] {
+function casesFor(
+  oldContract: OpenApiDocument,
+  predicted: OpenApiDocument,
+  changes: readonly Change[],
+): Case[] {
   const served = changes.filter((change) => derive(change).runtime !== "none");
   const scopes = new Set<string>();
   for (const change of served) {
@@ -169,7 +173,7 @@ function casesFor(oldContract: OpenApiDocument, changes: readonly Change[]): Cas
   }
   return [...scopes].map((scope) => ({
     scope,
-    ...schemaLens(oldContract, served, scope),
+    ...schemaLens(oldContract, served, scope, predicted),
   }));
 }
 
@@ -203,7 +207,7 @@ export function checkLaws(
   const failures: LawFailure[] = [];
   const evidence: Evidence[] = [];
 
-  for (const entry of casesFor(oldContract, changes)) {
+  for (const entry of casesFor(oldContract, predicted, changes)) {
     const ids = entry.changes.map((change) => change.id);
     const digest = inputsDigest(entry.changes, entry.scope, runs);
     const found: LawFailure[] = [];

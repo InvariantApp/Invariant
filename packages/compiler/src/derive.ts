@@ -140,6 +140,19 @@ export function derive(change: Change): Derived {
         );
         (op.toward === "old" ? lossy.backward : lossy.forward).push(op.path);
         break;
+      case "widen": {
+        // A kind of object the old caller cannot read is shown to them as
+        // something they can, and they cannot tell that it was not.
+        runtime = worse(runtime, "declared-lossy");
+        source = "assisted";
+        const variant = op.variant.slice(op.variant.lastIndexOf("/") + 1);
+        reasons.push(
+          `${op.path} can now hold a ${variant}, which old callers never heard of, ` +
+            `so it is shown to them ${op.show === "id" ? "as its id" : op.show === "null" ? "as null" : "left out"} instead`,
+        );
+        lossy.backward.push(op.path);
+        break;
+      }
       case "retire":
         runtime = "none";
         source = "manual";

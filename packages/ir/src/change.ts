@@ -177,6 +177,34 @@ export const DropNullOp = Type.Object(
   },
 );
 
+/**
+ * A union in a response that can now hold a variant old callers were never
+ * told about.
+ *
+ * Nothing can make a new kind of object into an old one, so this is a
+ * declared loss, as a fold is: the provider chooses what old callers see in
+ * its place. `id` shows the object's id, which is what Stripe itself sends
+ * for an expandable field the caller did not expand, and is only possible
+ * where the old union already allows a string. `absent` leaves the field
+ * out, where old callers could be sent it left out; `null`, where they could
+ * be sent null. Requests are untouched: an old caller never sends a variant
+ * its contract does not describe.
+ */
+export const WidenOp = Type.Object(
+  {
+    op: Type.Literal("widen"),
+    path: Pointer,
+    /** The new variant, as the new contract names it. */
+    variant: Type.String({ pattern: "^#/components/schemas/" }),
+    show: Type.Union([Type.Literal("id"), Type.Literal("absent"), Type.Literal("null")]),
+  },
+  {
+    additionalProperties: false,
+    description:
+      "A response union gained `variant`. Old callers are shown a value of it as its `id`, left out, or as null, as `show` says; a declared loss.",
+  },
+);
+
 export const RouteOp = Type.Object(
   {
     op: Type.Literal("route"),
@@ -265,6 +293,7 @@ export const Op = Type.Union([
   RemoveOp,
   DefaultOp,
   DropNullOp,
+  WidenOp,
   RouteOp,
   RetireOp,
   BehaviorOp,
@@ -370,6 +399,7 @@ export type AddOp = Static<typeof AddOp>;
 export type RemoveOp = Static<typeof RemoveOp>;
 export type DefaultOp = Static<typeof DefaultOp>;
 export type DropNullOp = Static<typeof DropNullOp>;
+export type WidenOp = Static<typeof WidenOp>;
 export type RouteOp = Static<typeof RouteOp>;
 export type RetireOp = Static<typeof RetireOp>;
 export type BehaviorOp = Static<typeof BehaviorOp>;
@@ -382,9 +412,24 @@ export type Provenance = Static<typeof Provenance>;
 export type JudgeKind = Static<typeof JudgeKind>;
 export type Change = Static<typeof Change>;
 
-export type DataOp = MoveOp | ConvertOp | AddOp | RemoveOp | DefaultOp | DropNullOp;
+export type DataOp =
+  | MoveOp
+  | ConvertOp
+  | AddOp
+  | RemoveOp
+  | DefaultOp
+  | DropNullOp
+  | WidenOp;
 
-const DATA_OPS = new Set(["move", "convert", "add", "remove", "default", "dropNull"]);
+const DATA_OPS = new Set([
+  "move",
+  "convert",
+  "add",
+  "remove",
+  "default",
+  "dropNull",
+  "widen",
+]);
 
 export function isDataOp(op: Op): op is DataOp {
   return DATA_OPS.has(op.op);

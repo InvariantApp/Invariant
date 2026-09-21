@@ -10,7 +10,8 @@
     "add",
     "remove",
     "default",
-    "dropNull"
+    "dropNull",
+    "widen"
   ],
   "cells": {
     "body request": {
@@ -23,7 +24,8 @@
     },
     "cookie request": {
       "status": "served",
-      "why": "Cookies are addressed one by one; the rest of the Cookie header is kept as it came."
+      "why": "Cookies are addressed one by one; the rest of the Cookie header is kept as it came. A new kind of value in a union only reaches a caller in a response body, so `widen` is refused on a parameter.",
+      "except": ["widen"]
     },
     "cookie response": {
       "status": "not expressible",
@@ -31,7 +33,8 @@
     },
     "header request": {
       "status": "served",
-      "why": "As for the query, with names compared case-insensitively. Credential, framing and signature headers, and any header the document's security schemes read, are refused: no Change may touch them."
+      "why": "As for the query, with names compared case-insensitively. Credential, framing and signature headers, and any header the document's security schemes read, are refused: no Change may touch them. A new kind of value in a union only reaches a caller in a response body, so `widen` is refused on a parameter.",
+      "except": ["widen"]
     },
     "header response": {
       "status": "not expressible",
@@ -48,7 +51,8 @@
     },
     "query request": {
       "status": "served",
-      "why": "A parameter scope reaches the operation's request envelope; each named query parameter is decoded and re-encoded in the style its declaration states, and every other one passes through byte for byte."
+      "why": "A parameter scope reaches the operation's request envelope; each named query parameter is decoded and re-encoded in the style its declaration states, and every other one passes through byte for byte. A new kind of value in a union only reaches a caller in a response body, so `widen` is refused on a parameter.",
+      "except": ["widen"]
     },
     "query response": {
       "status": "not expressible",
@@ -68,5 +72,8 @@
       "status": "served",
       "why": "The runtime exposes the flag, and the provider branches on it in its own code."
     }
+  },
+  "inert": {
+    "widen request": "An old caller never sends a kind of value its contract does not describe, so nothing is translated on the way in; the op still says what the new contract accepts."
   }
 }

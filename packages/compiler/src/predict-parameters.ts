@@ -46,6 +46,7 @@ import {
   schemaRequiredAt,
   schemaSetNullable,
   schemaSetRequired,
+  schemaWiden,
   setNullable,
 } from "./schema.ts";
 
@@ -288,6 +289,15 @@ function applyToBody(
       }
       schemaSetNullable(document, root, op.path, op.toward === "old");
       return;
+    case "widen":
+      // A request body that accepts one more kind of value breaks nobody,
+      // but saying so is still a true account of what changed.
+      if (resolveRef(newContract, op.variant) === undefined) {
+        throw new SchemaOpError(`${op.variant} is not in the new contract`);
+      }
+      importReferences(document, newContract, { $ref: op.variant });
+      schemaWiden(document, root, op.path, op.variant, op.show);
+      return;
   }
 }
 
@@ -437,6 +447,10 @@ function applyOne(
       if (op.when !== "absent") setNullable(document, schemaOf(parameter), false, name);
       return;
     }
+    case "widen":
+      throw new SchemaOpError(
+        "a parameter is only ever sent, and a caller never sends a kind of value its contract does not describe",
+      );
     case "dropNull": {
       if (op.toward === "old") {
         throw new SchemaOpError(

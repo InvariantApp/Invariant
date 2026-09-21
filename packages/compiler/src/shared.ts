@@ -36,7 +36,7 @@ import {
   isSchemaScope,
   type JsonValue,
 } from "@invariant/ir";
-import { backwardInstrs, forwardInstrs, guarded } from "./lens.ts";
+import { backwardInstrs, forwardInstrs, guarded, type VariantGuards } from "./lens.ts";
 import type { ProjectionIssue } from "./project.ts";
 
 export type Direction = "forward" | "backward";
@@ -101,6 +101,7 @@ export function sharedBlocks(
   label: string,
   oldContract: OpenApiDocument,
   changes: readonly Change[],
+  variants?: VariantGuards,
 ): SharedBlocks {
   const targets = sharedTargets(oldContract, changes);
   if (targets.size === 0) return NONE;
@@ -184,7 +185,7 @@ export function sharedBlocks(
       .flatMap((change) =>
         [...change.ops.filter(isDataOp)]
           .reverse()
-          .flatMap((op) => backwardInstrs(op, "", change.id)),
+          .flatMap((op) => backwardInstrs(op, "", change.id, variants)),
       );
     blocks[blockName(label, ref, "forward")] = [
       ...descend(body, "forward", ref),

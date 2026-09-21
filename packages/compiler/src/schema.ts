@@ -6,7 +6,7 @@
  * specification has to reproduce the new one. Anything left over is a change
  * nobody explained.
  */
-import { type OpenApiDocument, resolveSchema } from "@invariant/contract";
+import { jsonKindOf, type OpenApiDocument, resolveSchema } from "@invariant/contract";
 import { compareDecimal, numberToDecimalText, shiftDecimal } from "@invariant/decimal";
 import {
   type Codec,
@@ -376,6 +376,57 @@ export function schemaConvert(
   const slot = readSlot(document, root, segments);
   const converted = applyCodecToSchema(resolveSchema(document, slot.schema), codec);
   writeSlot(document, root, segments, converted, slot.required);
+}
+
+/**
+ * `widen`: the union at `path` gains `variant` as a branch. What old callers
+ * are shown in its place has to be something their contract allows, and that
+ * is checked here, where the old union is still in hand: an id needs a branch
+ * that is a string, null needs a union that allows null, and a field left out
+ * needs a field that may be left out.
+ */
+export function schemaWiden(
+  document: OpenApiDocument,
+  root: JsonObject,
+  path: string,
+  variant: string,
+  show: "id" | "absent" | "null",
+): void {
+  const segments = parsePointer(path);
+  const slot = readSlot(document, root, segments);
+  const union = slot.schema;
+  if (!isJsonObject(union) || typeof union["$ref"] === "string") {
+    throw new SchemaOpError(
+      `${path} is not a union written in place; declare the change on the schema that is`,
+    );
+  }
+  const key = Array.isArray(union["anyOf"])
+    ? "anyOf"
+    : Array.isArray(union["oneOf"])
+      ? "oneOf"
+      : undefined;
+  if (!key) throw new SchemaOpError(`${path} is not a union`);
+  const branches = union[key] as JsonValue[];
+  if (branches.some((branch) => isJsonObject(branch) && branch["$ref"] === variant)) {
+    throw new SchemaOpError(`${path} already holds ${variant}`);
+  }
+  const kinds = branches.map((branch) => jsonKindOf(document, branch));
+  if (show === "id" && !kinds.includes("string")) {
+    throw new SchemaOpError(
+      `old callers cannot be shown an id at ${path}: no branch of the union is a string`,
+    );
+  }
+  if (show === "null" && union["nullable"] !== true && !kinds.includes("null")) {
+    throw new SchemaOpError(
+      `old callers cannot be shown null at ${path}: it is never null`,
+    );
+  }
+  if (show === "absent" && slot.required) {
+    throw new SchemaOpError(
+      `old callers cannot be sent ${path} left out: it is required`,
+    );
+  }
+  union[key] = [...branches, { $ref: variant }];
 }
 
 /**

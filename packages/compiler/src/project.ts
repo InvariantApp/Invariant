@@ -8,6 +8,7 @@
 import {
   findSchemaSites,
   findSchemaWithin,
+  type Guard,
   type OpenApiDocument,
   operationsOf,
   type RequestBodyMedia,
@@ -15,6 +16,7 @@ import {
   requestBodySchema,
   responseSchemas,
   type Site,
+  variantGuard,
 } from "@invariant/contract";
 import {
   type Change,
@@ -31,12 +33,19 @@ import {
   type RouteRule,
   type SiteProgram,
   siteKey,
+  type WidenOp,
 } from "@invariant/ir";
 import { derive } from "./derive.ts";
 import { errorParamTargets, paramRenames } from "./error-params.ts";
 import { formProgramFor, takesForm } from "./form.ts";
 import { findInterference } from "./independence.ts";
-import { backwardInstrs, forwardInstrs, guarded, prefixed } from "./lens.ts";
+import {
+  backwardInstrs,
+  forwardInstrs,
+  guarded,
+  prefixed,
+  type VariantGuards,
+} from "./lens.ts";
 import {
   addressOf,
   codecOf,
@@ -67,13 +76,43 @@ export interface Projection {
 export function instrsFor(
   change: Change,
   prefix = "",
+  variants?: VariantGuards,
 ): { forward: Instr[]; backward: Instr[] } {
   const dataOps = change.ops.filter(isDataOp);
   return {
     forward: dataOps.flatMap((op) => forwardInstrs(op, prefix, change.id)),
     backward: [...dataOps]
       .reverse()
-      .flatMap((op) => backwardInstrs(op, prefix, change.id)),
+      .flatMap((op) => backwardInstrs(op, prefix, change.id, variants)),
+  };
+}
+
+/**
+ * How each widened union's new variant is recognised, from the contract it
+ * arrives in, where the union and the variant both are.
+ */
+export function variantGuardsFor(
+  changes: readonly Change[],
+  newContract: OpenApiDocument | undefined,
+): VariantGuards {
+  const scopes = new Map<WidenOp, string>();
+  for (const change of changes) {
+    const scope = (change.scopes ?? []).find(isSchemaScope);
+    if (!scope) continue;
+    for (const op of change.ops) if (op.op === "widen") scopes.set(op, scope.schema);
+  }
+  const known = new Map<WidenOp, Guard | undefined>();
+  return (op) => {
+    if (!known.has(op)) {
+      const scope = scopes.get(op);
+      known.set(
+        op,
+        scope === undefined || newContract === undefined
+          ? undefined
+          : variantGuard(newContract, scope, op.path, op.variant),
+      );
+    }
+    return known.get(op);
   };
 }
 
@@ -89,6 +128,7 @@ export function schemaLens(
   oldContract: OpenApiDocument,
   changes: readonly Change[],
   schemaRef: string,
+  newContract?: OpenApiDocument,
 ): {
   forward: Instr[];
   backward: Instr[];
@@ -98,7 +138,8 @@ export function schemaLens(
   /** The shared blocks the instructions call, for schemas whose places cannot be listed. */
   blocks: Record<string, Instr[]>;
 } {
-  const shared = sharedBlocks("lens", oldContract, changes);
+  const variants = variantGuardsFor(changes, newContract);
+  const shared = sharedBlocks("lens", oldContract, changes, variants);
   const forward: Instr[] = [];
   const backward: Instr[][] = [];
   const involved: Change[] = [];
@@ -142,7 +183,9 @@ export function schemaLens(
         // Undone in the reverse of the order it was applied in.
         back = [
           ...guarded(place, change, "backward", (prefix) =>
-            [...dataOps].reverse().flatMap((op) => backwardInstrs(op, prefix, change.id)),
+            [...dataOps]
+              .reverse()
+              .flatMap((op) => backwardInstrs(op, prefix, change.id, variants)),
           ),
           ...back,
         ];
@@ -241,7 +284,18 @@ export function projectStep(
     }
   }
 
-  const shared = sharedBlocks(label, oldContract, changes);
+  const variants = variantGuardsFor(changes, newContract);
+  for (const change of changes) {
+    for (const op of change.ops) {
+      if (op.op === "widen" && variants(op) === undefined) {
+        issues.push({
+          changeId: change.id,
+          message: `${op.variant} cannot be told apart from the other kinds of value at ${op.path}, so it cannot be shown to old callers as anything else`,
+        });
+      }
+    }
+  }
+  const shared = sharedBlocks(label, oldContract, changes, variants);
   issues.push(...shared.issues);
 
   // Requests apply Changes in declared order; responses undo them in reverse.
@@ -258,7 +312,7 @@ export function projectStep(
     collectParameters(change, oldContract, newContract, routes, sites, issues);
   }
   for (const change of [...changes].reverse()) {
-    collectBackward(change, oldContract, routes, sites, issues, shared.targets);
+    collectBackward(change, oldContract, routes, sites, issues, shared.targets, variants);
   }
 
   collectShared(shared, oldContract, newContract, routes, sites);
@@ -719,6 +773,7 @@ function collectBackward(
   sites: Map<string, SiteAccumulator>,
   issues: ProjectionIssue[],
   shared: ReadonlySet<string>,
+  variants: VariantGuards,
 ): void {
   const dataOps = change.ops.filter(isDataOp);
   if (dataOps.length === 0) return;
@@ -734,7 +789,9 @@ function collectBackward(
     }
     instrs.push(
       ...guarded(site, change, "backward", (prefix) =>
-        [...dataOps].reverse().flatMap((op) => backwardInstrs(op, prefix, change.id)),
+        [...dataOps]
+          .reverse()
+          .flatMap((op) => backwardInstrs(op, prefix, change.id, variants)),
       ),
     );
   }

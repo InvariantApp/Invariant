@@ -642,6 +642,44 @@ export function findSchemaWithin(
   };
 }
 
+/**
+ * How a union at `pointer` inside `schemaRef` tells `variantRef` apart from
+ * its other branches, or undefined where nothing does.
+ */
+export function variantGuard(
+  document: OpenApiDocument,
+  schemaRef: string,
+  pointer: string,
+  variantRef: string,
+): Guard | undefined {
+  let current: JsonValue | undefined = resolveRef(document, schemaRef);
+  for (const segment of pointer.split("/").slice(1).map(unescapeSegment)) {
+    const resolved = resolveSchema(document, current ?? {});
+    if (!isJsonObject(resolved)) return undefined;
+    current =
+      segment === "*"
+        ? resolved["items"]
+        : isJsonObject(resolved["properties"])
+          ? (resolved["properties"] as JsonObject)[segment]
+          : undefined;
+    if (current === undefined) return undefined;
+  }
+  const union =
+    isJsonObject(current) && typeof current["$ref"] === "string"
+      ? resolveRef(document, current["$ref"])
+      : current;
+  if (!isJsonObject(union)) return undefined;
+  const branches = (union["anyOf"] ?? union["oneOf"]) as JsonValue[] | undefined;
+  if (!Array.isArray(branches)) return undefined;
+  const index = branches.findIndex(
+    (branch) => isJsonObject(branch) && branch["$ref"] === variantRef,
+  );
+  return index < 0 ? undefined : guardFor(document, union, branches, index, "");
+}
+
+const unescapeSegment = (segment: string): string =>
+  segment.replaceAll("~1", "/").replaceAll("~0", "~");
+
 /** A referenced schema directly inside another, where it sits and how its union branch is told apart. */
 export interface RefPlacement {
   prefix: Pointer;

@@ -179,21 +179,36 @@ function decodeBlock(
   where: string,
   depth: number,
   blocks: Blocks,
+  descended: boolean,
 ): CompiledInstr[] {
   if (depth > MAX_BLOCK_DEPTH) {
     throw new ProgramError(`${where} nests blocks more than ${MAX_BLOCK_DEPTH} deep`);
   }
   return (array(raw, where) as unknown[]).map((instr, index) =>
-    decodeInstr(instr, `${where}[${index}]`, depth, blocks),
+    decodeInstr(instr, `${where}[${index}]`, depth, blocks, descended),
   );
 }
 
+/**
+ * `descended` is whether the instruction runs on a value a `within` went down
+ * to, the only place one may write the value itself: an object replaced by
+ * its id, or a list item removed. A named block may be called anywhere, so it
+ * is allowed there and refused at run time where it stands on a whole body.
+ */
 function decodeInstr(
   raw: unknown,
   where: string,
   depth = 0,
   blocks: Blocks = NO_BLOCKS,
+  descended = false,
 ): CompiledInstr {
+  const itself = (path: readonly string[], field: string) => {
+    if (path.length === 0 && !descended) {
+      throw new ProgramError(
+        `${where}.${field} writes a whole body, which only a value inside one can be`,
+      );
+    }
+  };
   const value = object(raw, where);
   const kind = string(value["k"], `${where}.k`);
   const changeId = string(value["c"], `${where}.c`);
@@ -201,10 +216,17 @@ function decodeInstr(
   switch (kind) {
     case "within": {
       expectKeys(value, ["k", "path", "block", "c"], where);
+      const path = segmentsOf(string(value["path"], `${where}.path`), `${where}.path`);
       return {
         k: "within",
-        path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
-        block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks),
+        path,
+        block: decodeBlock(
+          value["block"],
+          `${where}.block`,
+          depth + 1,
+          blocks,
+          descended || path.length > 0,
+        ),
         c: changeId,
       };
     }
@@ -229,7 +251,13 @@ function decodeInstr(
         return {
           k: "has",
           path,
-          block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks),
+          block: decodeBlock(
+            value["block"],
+            `${where}.block`,
+            depth + 1,
+            blocks,
+            descended,
+          ),
           ...(onlyTrue(value["absent"], `${where}.absent`) ? { absent: true } : {}),
           c: changeId,
         };
@@ -244,7 +272,13 @@ function decodeInstr(
           k: "is",
           path,
           type: type as JsonKind,
-          block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks),
+          block: decodeBlock(
+            value["block"],
+            `${where}.block`,
+            depth + 1,
+            blocks,
+            descended,
+          ),
           c: changeId,
         };
       }
@@ -253,7 +287,10 @@ function decodeInstr(
       for (const [key, block] of Object.entries(
         object(value["cases"], `${where}.cases`),
       )) {
-        cases.set(key, decodeBlock(block, `${where}.cases.${key}`, depth + 1, blocks));
+        cases.set(
+          key,
+          decodeBlock(block, `${where}.cases.${key}`, depth + 1, blocks, descended),
+        );
       }
       return { k: "switch", path, cases, c: changeId };
     }
@@ -268,9 +305,11 @@ function decodeInstr(
           `${where} moves between paths with different wildcard counts`,
         );
       }
-      if (from.length === 0 || to.length === 0) {
+      if (from.length === 0) {
         throw new ProgramError(`${where} cannot move the document root`);
       }
+      // Moving onto the value itself replaces it with one of its own fields.
+      itself(to, "to");
       return { k: "move", from, to, c: changeId };
     }
     case "scale": {
@@ -339,9 +378,17 @@ function decodeInstr(
       if (typeof value["ifAbsent"] !== "boolean") {
         throw new ProgramError(`${where}.ifAbsent must be a boolean`);
       }
+      const path = segmentsOf(string(value["path"], `${where}.path`), `${where}.path`);
+      itself(path, "path");
+      if (path.length === 0 && (value["ifAbsent"] || value["ifNull"] !== undefined)) {
+        // The value is there, or nothing would be running on it.
+        throw new ProgramError(
+          `${where} replaces the value itself, which is never absent`,
+        );
+      }
       return {
         k: "set",
-        path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
+        path,
         value: value["value"] as Json,
         ifAbsent: value["ifAbsent"],
         ...(onlyTrue(value["ifNull"], `${where}.ifNull`) ? { ifNull: true } : {}),
@@ -350,9 +397,14 @@ function decodeInstr(
     }
     case "del": {
       expectKeys(value, ["k", "path", "ifNull", "c"], where);
+      const path = segmentsOf(string(value["path"], `${where}.path`), `${where}.path`);
+      itself(path, "path");
+      if (path.length === 0 && value["ifNull"] !== undefined) {
+        throw new ProgramError(`${where} removes the value itself, which is never null`);
+      }
       return {
         k: "del",
-        path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
+        path,
         ...(onlyTrue(value["ifNull"], `${where}.ifNull`) ? { ifNull: true } : {}),
         c: changeId,
       };
@@ -443,6 +495,7 @@ function decodeBlocks(raw: unknown, where: string): Blocks {
       `${where}["${name}"]`,
       0,
       blocks,
+      true,
     );
   }
   refuseStandingCycles(blocks, where);

@@ -20,6 +20,7 @@ import {
   readSlot,
   resolveSlots,
   type Segments,
+  type Slot,
   writeSlot,
 } from "./pointer.ts";
 
@@ -436,7 +437,7 @@ export function execute(
 
   for (const instr of program) {
     try {
-      step(root, instr, limits, result, 0);
+      step(root, instr, limits, result, 0, undefined);
     } catch (error) {
       if (error instanceof FanOutExceeded)
         throw new MatchLimitError(instr.c, error.limit);
@@ -450,18 +451,49 @@ export function execute(
   return result;
 }
 
+/**
+ * Where the value a block runs on is held, when a `within` descended to it.
+ * An instruction whose path is empty writes the value itself through it:
+ * replacing it, or removing it from its container once the `within` is done.
+ */
+interface Here {
+  slot: Slot;
+  removals: Slot[];
+}
+
+function hereFor(instr: CompiledInstr, here: Here | undefined): Here {
+  if (!here) {
+    throw new TransformError(instr.c, "An instruction cannot replace a whole body");
+  }
+  return here;
+}
+
 function step(
   root: Json,
   instr: CompiledInstr,
   limits: ExecuteLimits,
   result: ExecuteResult,
   calls: number,
+  here: Here | undefined,
 ): void {
-  const run = (at: Json, block: readonly CompiledInstr[], depth = calls) => {
-    for (const inner of block) step(at, inner, limits, result, depth);
+  const run = (
+    at: Json,
+    block: readonly CompiledInstr[],
+    depth = calls,
+    where: Here | undefined = here,
+  ) => {
+    for (const inner of block) step(at, inner, limits, result, depth, where);
   };
   switch (instr.k) {
     case "move":
+      if (instr.to.length === 0) {
+        // The value becomes what it holds at `from`, as an object becomes its id.
+        const [source] = resolveSlots(root, instr.from, limits.maxMatches);
+        if (source === undefined) break;
+        writeSlot(hereFor(instr, here).slot, readSlot(source));
+        countApplied(result, instr.c, 1);
+        break;
+      }
       countApplied(result, instr.c, applyMove(root, instr, limits));
       break;
     case "scale":
@@ -474,21 +506,38 @@ function step(
       countApplied(result, instr.c, applyCast(root, instr, limits));
       break;
     case "set":
+      if (instr.path.length === 0) {
+        writeSlot(hereFor(instr, here).slot, instr.value);
+        countApplied(result, instr.c, 1);
+        break;
+      }
       countApplied(result, instr.c, applySet(root, instr, limits));
       break;
     case "del":
+      if (instr.path.length === 0) {
+        const at = hereFor(instr, here);
+        at.removals.push(at.slot);
+        countApplied(result, instr.c, 1);
+        break;
+      }
       countApplied(result, instr.c, applyDel(root, instr, limits));
       break;
     case "within": {
       // The block runs at each match, reading its pointers from there.
-      const nodes =
-        instr.path.length === 0
-          ? [root]
-          : resolveSlots(root, instr.path, limits.maxMatches).map(readSlot);
-      for (const node of nodes) {
-        if (typeof node !== "object" || node === null || JSON.isRawJSON(node)) continue;
-        run(node as Json, instr.block);
+      if (instr.path.length === 0) {
+        if (typeof root === "object" && root !== null && !JSON.isRawJSON(root)) {
+          run(root, instr.block);
+        }
+        break;
       }
+      const removals: Slot[] = [];
+      for (const slot of resolveSlots(root, instr.path, limits.maxMatches)) {
+        const node = readSlot(slot);
+        if (typeof node !== "object" || node === null || JSON.isRawJSON(node)) continue;
+        run(node as Json, instr.block, calls, { slot, removals });
+      }
+      // Back to front, so removing one list item never moves the next.
+      for (const slot of removals.reverse()) deleteSlot(slot);
       break;
     }
     case "switch": {

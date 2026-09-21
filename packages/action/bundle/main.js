@@ -3001,6 +3001,33 @@ const DropNullOp = Type.Object({
 	additionalProperties: false,
 	description: "An optional field one side allows to be null and the other does not. A null travelling toward the stricter side is deleted, so the field arrives left out; any other value is untouched. `toward: old` serves a field that became nullable, `toward: new` one that stopped being nullable. Only valid where the stricter side does not require the field."
 });
+/**
+* A union in a response that can now hold a variant old callers were never
+* told about.
+*
+* Nothing can make a new kind of object into an old one, so this is a
+* declared loss, as a fold is: the provider chooses what old callers see in
+* its place. `id` shows the object's id, which is what Stripe itself sends
+* for an expandable field the caller did not expand, and is only possible
+* where the old union already allows a string. `absent` leaves the field
+* out, where old callers could be sent it left out; `null`, where they could
+* be sent null. Requests are untouched: an old caller never sends a variant
+* its contract does not describe.
+*/
+const WidenOp = Type.Object({
+	op: Type.Literal("widen"),
+	path: Pointer$1,
+	/** The new variant, as the new contract names it. */
+	variant: Type.String({ pattern: "^#/components/schemas/" }),
+	show: Type.Union([
+		Type.Literal("id"),
+		Type.Literal("absent"),
+		Type.Literal("null")
+	])
+}, {
+	additionalProperties: false,
+	description: "A response union gained `variant`. Old callers are shown a value of it as its `id`, left out, or as null, as `show` says; a declared loss."
+});
 const RouteOp = Type.Object({
 	op: Type.Literal("route"),
 	from: Endpoint,
@@ -3076,6 +3103,7 @@ const Op = Type.Union([
 	RemoveOp,
 	DefaultOp,
 	DropNullOp,
+	WidenOp,
 	RouteOp,
 	RetireOp,
 	BehaviorOp
@@ -3147,7 +3175,8 @@ const DATA_OPS = /* @__PURE__ */ new Set([
 	"add",
 	"remove",
 	"default",
-	"dropNull"
+	"dropNull",
+	"widen"
 ]);
 function isDataOp(op) {
 	return DATA_OPS.has(op.op);
@@ -12534,6 +12563,26 @@ function findSchemaWithin(document, schemaRef, rootRef) {
 	};
 }
 /**
+* How a union at `pointer` inside `schemaRef` tells `variantRef` apart from
+* its other branches, or undefined where nothing does.
+*/
+function variantGuard(document, schemaRef, pointer, variantRef) {
+	let current = resolveRef(document, schemaRef);
+	for (const segment of pointer.split("/").slice(1).map(unescapeSegment)) {
+		const resolved = resolveSchema(document, current ?? {});
+		if (!isJsonObject(resolved)) return void 0;
+		current = segment === "*" ? resolved["items"] : isJsonObject(resolved["properties"]) ? resolved["properties"][segment] : void 0;
+		if (current === void 0) return void 0;
+	}
+	const union = isJsonObject(current) && typeof current["$ref"] === "string" ? resolveRef(document, current["$ref"]) : current;
+	if (!isJsonObject(union)) return void 0;
+	const branches = union["anyOf"] ?? union["oneOf"];
+	if (!Array.isArray(branches)) return void 0;
+	const index = branches.findIndex((branch) => isJsonObject(branch) && branch["$ref"] === variantRef);
+	return index < 0 ? void 0 : guardFor(document, union, branches, index, "");
+}
+const unescapeSegment = (segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~");
+/**
 * Where each reference in `keep` sits directly inside `root`, without
 * following any reference. This is one step of the shared blocks: the block
 * for a schema calls the blocks of the schemas it holds, at these places,
@@ -13312,6 +13361,27 @@ function schemaConvert(document, root, path, codec) {
 	writeSlot$1(document, root, segments, applyCodecToSchema(resolveSchema(document, slot.schema), codec), slot.required);
 }
 /**
+* `widen`: the union at `path` gains `variant` as a branch. What old callers
+* are shown in its place has to be something their contract allows, and that
+* is checked here, where the old union is still in hand: an id needs a branch
+* that is a string, null needs a union that allows null, and a field left out
+* needs a field that may be left out.
+*/
+function schemaWiden(document, root, path, variant, show) {
+	const slot = readSlot$1(document, root, parsePointer(path));
+	const union = slot.schema;
+	if (!isJsonObject(union) || typeof union["$ref"] === "string") throw new SchemaOpError(`${path} is not a union written in place; declare the change on the schema that is`);
+	const key = Array.isArray(union["anyOf"]) ? "anyOf" : Array.isArray(union["oneOf"]) ? "oneOf" : void 0;
+	if (!key) throw new SchemaOpError(`${path} is not a union`);
+	const branches = union[key];
+	if (branches.some((branch) => isJsonObject(branch) && branch["$ref"] === variant)) throw new SchemaOpError(`${path} already holds ${variant}`);
+	const kinds = branches.map((branch) => jsonKindOf(document, branch));
+	if (show === "id" && !kinds.includes("string")) throw new SchemaOpError(`old callers cannot be shown an id at ${path}: no branch of the union is a string`);
+	if (show === "null" && union["nullable"] !== true && !kinds.includes("null")) throw new SchemaOpError(`old callers cannot be shown null at ${path}: it is never null`);
+	if (show === "absent" && slot.required) throw new SchemaOpError(`old callers cannot be sent ${path} left out: it is required`);
+	union[key] = [...branches, { $ref: variant }];
+}
+/**
 * `add` takes the field's shape from the new contract and supplies only the
 * default, which the specification cannot express. Nothing about the shape is
 * invented here.
@@ -13559,6 +13629,11 @@ function applyToBody(document, newContract, located, op) {
 			if (op.toward === "new" && schemaRequiredAt(document, root, op.path)) throw new SchemaOpError(`${op.path} is required, so a null cannot be sent as it left out`);
 			schemaSetNullable(document, root, op.path, op.toward === "old");
 			return;
+		case "widen":
+			if (resolveRef(newContract, op.variant) === void 0) throw new SchemaOpError(`${op.variant} is not in the new contract`);
+			importReferences(document, newContract, { $ref: op.variant });
+			schemaWiden(document, root, op.path, op.variant, op.show);
+			return;
 	}
 }
 function applyOne(document, newContract, located, scope, op) {
@@ -13654,6 +13729,7 @@ function applyOne(document, newContract, located, scope, op) {
 			if (op.when !== "absent") setNullable(document, schemaOf(parameter), false, name);
 			return;
 		}
+		case "widen": throw new SchemaOpError("a parameter is only ever sent, and a caller never sends a kind of value its contract does not describe");
 		case "dropNull": {
 			if (op.toward === "old") throw new SchemaOpError("a parameter is only ever sent, never received, so there is no null to keep from old callers");
 			const parameter = existing(address.part, name);
@@ -13877,6 +13953,11 @@ function predictDocument(oldContract, newContract, changes) {
 						if (op.when !== "absent") schemaSetNullable(document, schema, op.path, looser);
 						break;
 					}
+					case "widen":
+						if (resolveRef(newContract, op.variant) === void 0) throw new Error(`${op.variant} is not in the new contract`);
+						importReferences(document, newContract, { $ref: op.variant });
+						schemaWiden(document, schema, op.path, op.variant, op.show);
+						break;
 					case "dropNull":
 						if (oldSites.some((site) => site.direction === (op.toward === "new" ? "request" : "response")) && schemaRequiredAt(document, schema, op.path)) throw new Error(`${op.path} is required, so a null cannot be sent as the field left out`);
 						schemaSetNullable(document, schema, op.path, op.toward === "old");
@@ -13959,6 +14040,14 @@ function derive(change) {
 			reasons.push(op.toward === "old" ? `${op.path} can now be null, so an old caller is sent the field left out instead` : `${op.path} can no longer be null, so a null from an old caller is sent as the field left out`);
 			(op.toward === "old" ? lossy.backward : lossy.forward).push(op.path);
 			break;
+		case "widen": {
+			runtime = worse(runtime, "declared-lossy");
+			source = "assisted";
+			const variant = op.variant.slice(op.variant.lastIndexOf("/") + 1);
+			reasons.push(`${op.path} can now hold a ${variant}, which old callers never heard of, so it is shown to them ${op.show === "id" ? "as its id" : op.show === "null" ? "as null" : "left out"} instead`);
+			lossy.backward.push(op.path);
+			break;
+		}
 		case "retire":
 			runtime = "none";
 			source = "manual";
@@ -14171,11 +14260,79 @@ function forwardInstrs(op, prefix, changeId) {
 		}];
 		case "default": return op.toward === "new" ? [fill(op, prefix, changeId)] : [];
 		case "dropNull": return op.toward === "new" ? [dropNull(op, prefix, changeId)] : [];
+		case "widen": return [];
 	}
 	return [];
 }
+const NO_VARIANTS = () => void 0;
+/** The value itself replaced as `show` says, by an instruction standing on it. */
+function shown(op, changeId) {
+	switch (op.show) {
+		case "id": return {
+			k: "move",
+			from: "/id",
+			to: "",
+			c: changeId
+		};
+		case "null": return {
+			k: "set",
+			path: "",
+			value: null,
+			ifAbsent: false,
+			c: changeId
+		};
+		case "absent": return {
+			k: "del",
+			path: "",
+			c: changeId
+		};
+	}
+}
+/** Runs `block` on a value only when the guard says it is the variant. */
+function testing(guard, block, changeId) {
+	if ("type" in guard) return {
+		k: "is",
+		path: "",
+		type: guard.type,
+		block,
+		c: changeId
+	};
+	if ("key" in guard) {
+		const chosen = guard.has !== void 0 ? [{
+			k: "has",
+			path: formatPointer([guard.has]),
+			block,
+			c: changeId
+		}] : guard.lacks !== void 0 ? [{
+			k: "has",
+			path: formatPointer([guard.lacks]),
+			absent: true,
+			block,
+			c: changeId
+		}] : block;
+		return {
+			k: "switch",
+			path: guard.key,
+			cases: Object.fromEntries(guard.values.map((value) => [value, chosen])),
+			c: changeId
+		};
+	}
+	if ("lacks" in guard) return {
+		k: "has",
+		path: formatPointer([guard.lacks]),
+		absent: true,
+		block,
+		c: changeId
+	};
+	return {
+		k: "has",
+		path: formatPointer([guard.has]),
+		block,
+		c: changeId
+	};
+}
 /** Canonical-back-to-old-shape primitives: each op's inverse. */
-function backwardInstrs(op, prefix, changeId) {
+function backwardInstrs(op, prefix, changeId, variants = NO_VARIANTS) {
 	switch (op.op) {
 		case "move": return [{
 			k: "move",
@@ -14223,6 +14380,16 @@ function backwardInstrs(op, prefix, changeId) {
 		}];
 		case "default": return op.toward === "old" ? [fill(op, prefix, changeId)] : [];
 		case "dropNull": return op.toward === "old" ? [dropNull(op, prefix, changeId)] : [];
+		case "widen": {
+			const guard = variants(op);
+			if (!guard) return [];
+			return [{
+				k: "within",
+				path: prefixed(prefix, op.path),
+				block: [testing(guard, [shown(op, changeId)], changeId)],
+				c: changeId
+			}];
+		}
 	}
 	return [];
 }
@@ -14248,50 +14415,7 @@ function guarded(site, change, direction, build) {
 	for (let index = guards.length - 1; index >= 0; index -= 1) {
 		const guard = guards[index];
 		const outer = index === 0 ? "" : guards[index - 1].at;
-		const own = direction === "backward" && guard.at === site.prefix;
-		const present = (field) => formatPointer([own ? movedTo(change, field) ?? field : field]);
-		let inner;
-		if ("type" in guard) inner = {
-			k: "is",
-			path: "",
-			type: guard.type,
-			block,
-			c: change.id
-		};
-		else if ("key" in guard) {
-			const renames = own ? renamesOf(change, guard.key) : /* @__PURE__ */ new Map();
-			const values = [...new Set(guard.values.map((value) => renames.get(value) ?? value))];
-			const chosen = guard.has !== void 0 ? [{
-				k: "has",
-				path: present(guard.has),
-				block,
-				c: change.id
-			}] : guard.lacks !== void 0 ? [{
-				k: "has",
-				path: present(guard.lacks),
-				absent: true,
-				block,
-				c: change.id
-			}] : block;
-			inner = {
-				k: "switch",
-				path: guard.key,
-				cases: Object.fromEntries(values.map((value) => [value, chosen])),
-				c: change.id
-			};
-		} else if ("lacks" in guard) inner = {
-			k: "has",
-			path: present(guard.lacks),
-			absent: true,
-			block,
-			c: change.id
-		};
-		else inner = {
-			k: "has",
-			path: present(guard.has),
-			block,
-			c: change.id
-		};
+		const inner = testing(renamed(guard, direction === "backward" && guard.at === site.prefix ? change : void 0), block, change.id);
 		block = [{
 			k: "within",
 			path: relative(outer, guard.at),
@@ -14300,6 +14424,32 @@ function guarded(site, change, direction, build) {
 		}];
 	}
 	return block;
+}
+/**
+* The guard as the value still reads when this Change has not yet been undone
+* on it: its key's values and its fields under their new names.
+*/
+function renamed(guard, change) {
+	if (!change) return guard;
+	const field = (name) => movedTo(change, name) ?? name;
+	if ("type" in guard) return guard;
+	if ("key" in guard) {
+		const renames = renamesOf(change, guard.key);
+		return {
+			...guard,
+			values: [...new Set(guard.values.map((value) => renames.get(value) ?? value))],
+			...guard.has === void 0 ? {} : { has: field(guard.has) },
+			...guard.lacks === void 0 ? {} : { lacks: field(guard.lacks) }
+		};
+	}
+	if ("lacks" in guard) return {
+		...guard,
+		lacks: field(guard.lacks)
+	};
+	return {
+		...guard,
+		has: field(guard.has)
+	};
 }
 /** What a Change's enum map at `path` renames each old value to. */
 function renamesOf(change, path) {
@@ -14377,7 +14527,7 @@ function sharedTargets(oldContract, changes) {
 	}
 	return targets;
 }
-function sharedBlocks(label, oldContract, changes) {
+function sharedBlocks(label, oldContract, changes, variants) {
 	const targets = sharedTargets(oldContract, changes);
 	if (targets.size === 0) return NONE;
 	const own = /* @__PURE__ */ new Map();
@@ -14436,7 +14586,7 @@ function sharedBlocks(label, oldContract, changes) {
 		if (body === void 0) continue;
 		const mine = own.get(ref) ?? [];
 		const forward = mine.flatMap((change) => change.ops.filter(isDataOp).flatMap((op) => forwardInstrs(op, "", change.id)));
-		const backward = [...mine].reverse().flatMap((change) => [...change.ops.filter(isDataOp)].reverse().flatMap((op) => backwardInstrs(op, "", change.id)));
+		const backward = [...mine].reverse().flatMap((change) => [...change.ops.filter(isDataOp)].reverse().flatMap((op) => backwardInstrs(op, "", change.id, variants)));
 		blocks[blockName(label, ref, "forward")] = [...descend(body, "forward", ref), ...forward];
 		blocks[blockName(label, ref, "backward")] = [...backward, ...descend(body, "backward", ref)];
 	}
@@ -14466,6 +14616,26 @@ function dedupe(issues) {
 * of the reasoning happens here, once, at build time.
 */
 /**
+* How each widened union's new variant is recognised, from the contract it
+* arrives in, where the union and the variant both are.
+*/
+function variantGuardsFor(changes, newContract) {
+	const scopes = /* @__PURE__ */ new Map();
+	for (const change of changes) {
+		const scope = (change.scopes ?? []).find(isSchemaScope);
+		if (!scope) continue;
+		for (const op of change.ops) if (op.op === "widen") scopes.set(op, scope.schema);
+	}
+	const known = /* @__PURE__ */ new Map();
+	return (op) => {
+		if (!known.has(op)) {
+			const scope = scopes.get(op);
+			known.set(op, scope === void 0 || newContract === void 0 ? void 0 : variantGuard(newContract, scope, op.path, op.variant));
+		}
+		return known.get(op);
+	};
+}
+/**
 * What a value of `schemaRef` goes through wherever it is a body, with every
 * Change in the release placed where its schema sits inside it: the lens the
 * compiler projects onto such a site, for checking on values.
@@ -14473,8 +14643,9 @@ function dedupe(issues) {
 * Requests apply the Changes in declared order and responses undo them in
 * reverse, as a site does.
 */
-function schemaLens(oldContract, changes, schemaRef) {
-	const shared = sharedBlocks("lens", oldContract, changes);
+function schemaLens(oldContract, changes, schemaRef, newContract) {
+	const variants = variantGuardsFor(changes, newContract);
+	const shared = sharedBlocks("lens", oldContract, changes, variants);
 	const forward = [];
 	const backward = [];
 	const involved = [];
@@ -14503,7 +14674,7 @@ function schemaLens(oldContract, changes, schemaRef) {
 				lossy.forward.push(...declared.forward.map((path) => prefixed(place.prefix, path)));
 				lossy.backward.push(...declared.backward.map((path) => prefixed(place.prefix, path)));
 				mine.push(...guarded(place, change, "forward", (prefix) => dataOps.flatMap((op) => forwardInstrs(op, prefix, change.id))));
-				back = [...guarded(place, change, "backward", (prefix) => [...dataOps].reverse().flatMap((op) => backwardInstrs(op, prefix, change.id))), ...back];
+				back = [...guarded(place, change, "backward", (prefix) => [...dataOps].reverse().flatMap((op) => backwardInstrs(op, prefix, change.id, variants))), ...back];
 			}
 		}
 		if (mine.length === 0 && back.length === 0) continue;
@@ -14559,13 +14730,18 @@ function projectStep(label, oldContract, changes, newContract) {
 			...op.refuse === true || reachesAnother(op.endpoint, newContract) ? { refuse: true } : {}
 		});
 	}
-	const shared = sharedBlocks(label, oldContract, changes);
+	const variants = variantGuardsFor(changes, newContract);
+	for (const change of changes) for (const op of change.ops) if (op.op === "widen" && variants(op) === void 0) issues.push({
+		changeId: change.id,
+		message: `${op.variant} cannot be told apart from the other kinds of value at ${op.path}, so it cannot be shown to old callers as anything else`
+	});
+	const shared = sharedBlocks(label, oldContract, changes, variants);
 	issues.push(...shared.issues);
 	for (const change of changes) {
 		collectForward(change, oldContract, newContract, routes, sites, issues, shared.targets);
 		collectParameters(change, oldContract, newContract, routes, sites, issues);
 	}
-	for (const change of [...changes].reverse()) collectBackward(change, oldContract, routes, sites, issues, shared.targets);
+	for (const change of [...changes].reverse()) collectBackward(change, oldContract, routes, sites, issues, shared.targets, variants);
 	collectShared(shared, oldContract, newContract, routes, sites);
 	if (newContract) collectErrorParams(oldContract, newContract, changes, routes, sites);
 	const out = {};
@@ -14914,7 +15090,7 @@ function prefixInstr(instr, part) {
 		};
 	}
 }
-function collectBackward(change, oldContract, routes, sites, issues, shared) {
+function collectBackward(change, oldContract, routes, sites, issues, shared, variants) {
 	const dataOps = change.ops.filter(isDataOp);
 	if (dataOps.length === 0) return;
 	for (const site of sitesOf(change, oldContract, issues, shared)) {
@@ -14926,7 +15102,7 @@ function collectBackward(change, oldContract, routes, sites, issues, shared) {
 			instrs = [];
 			entry.response.set(site.status, instrs);
 		}
-		instrs.push(...guarded(site, change, "backward", (prefix) => [...dataOps].reverse().flatMap((op) => backwardInstrs(op, prefix, change.id))));
+		instrs.push(...guarded(site, change, "backward", (prefix) => [...dataOps].reverse().flatMap((op) => backwardInstrs(op, prefix, change.id, variants))));
 	}
 }
 /**
@@ -15655,6 +15831,12 @@ const RULES = [
 		op: "default",
 		served: "planned",
 		sentence: "A response body may now be null. Giving old callers a body in its place needs an op on the whole body, which is not served yet."
+	}),
+	rule(/^response-property-(any-of|one-of)-added$/, {
+		class: "needs-decision",
+		op: "widen",
+		served: "yes",
+		sentence: "A response field can now hold a kind of object old callers do not know. A `widen` shows it to them as its id where the field already allowed an id, or leaves it out or sends null where it could be; that is a declared loss you acknowledge."
 	}),
 	rule(/^response-(body|property)-(any-of-added|one-of-added|all-of-removed|wrapped-in-one-of(-original-preserved)?)$/, {
 		class: "needs-decision",
@@ -29031,7 +29213,7 @@ function execute(root, program, limits = DEFAULT_LIMITS) {
 		folded: /* @__PURE__ */ new Set()
 	};
 	for (const instr of program) try {
-		step(root, instr, limits, result, 0);
+		step(root, instr, limits, result, 0, void 0);
 	} catch (error) {
 		if (error instanceof FanOutExceeded) throw new MatchLimitError(instr.c, error.limit);
 		if (error instanceof DecimalError) throw new TransformError(instr.c, error.message);
@@ -29039,12 +29221,23 @@ function execute(root, program, limits = DEFAULT_LIMITS) {
 	}
 	return result;
 }
-function step(root, instr, limits, result, calls) {
-	const run = (at, block, depth = calls) => {
-		for (const inner of block) step(at, inner, limits, result, depth);
+function hereFor(instr, here) {
+	if (!here) throw new TransformError(instr.c, "An instruction cannot replace a whole body");
+	return here;
+}
+function step(root, instr, limits, result, calls, here) {
+	const run = (at, block, depth = calls, where = here) => {
+		for (const inner of block) step(at, inner, limits, result, depth, where);
 	};
 	switch (instr.k) {
 		case "move":
+			if (instr.to.length === 0) {
+				const [source] = resolveSlots(root, instr.from, limits.maxMatches);
+				if (source === void 0) break;
+				writeSlot(hereFor(instr, here).slot, readSlot(source));
+				countApplied(result, instr.c, 1);
+				break;
+			}
 			countApplied(result, instr.c, applyMove(root, instr, limits));
 			break;
 		case "scale":
@@ -29057,17 +29250,37 @@ function step(root, instr, limits, result, calls) {
 			countApplied(result, instr.c, applyCast(root, instr, limits));
 			break;
 		case "set":
+			if (instr.path.length === 0) {
+				writeSlot(hereFor(instr, here).slot, instr.value);
+				countApplied(result, instr.c, 1);
+				break;
+			}
 			countApplied(result, instr.c, applySet(root, instr, limits));
 			break;
 		case "del":
+			if (instr.path.length === 0) {
+				const at = hereFor(instr, here);
+				at.removals.push(at.slot);
+				countApplied(result, instr.c, 1);
+				break;
+			}
 			countApplied(result, instr.c, applyDel(root, instr, limits));
 			break;
 		case "within": {
-			const nodes = instr.path.length === 0 ? [root] : resolveSlots(root, instr.path, limits.maxMatches).map(readSlot);
-			for (const node of nodes) {
-				if (typeof node !== "object" || node === null || JSON.isRawJSON(node)) continue;
-				run(node, instr.block);
+			if (instr.path.length === 0) {
+				if (typeof root === "object" && root !== null && !JSON.isRawJSON(root)) run(root, instr.block);
+				break;
 			}
+			const removals = [];
+			for (const slot of resolveSlots(root, instr.path, limits.maxMatches)) {
+				const node = readSlot(slot);
+				if (typeof node !== "object" || node === null || JSON.isRawJSON(node)) continue;
+				run(node, instr.block, calls, {
+					slot,
+					removals
+				});
+			}
+			for (const slot of removals.reverse()) deleteSlot(slot);
 			break;
 		}
 		case "switch": {
@@ -29841,28 +30054,39 @@ const JSON_KINDS = /* @__PURE__ */ new Set([
 	"boolean",
 	"null"
 ]);
-function decodeBlock(raw, where, depth, blocks) {
+function decodeBlock(raw, where, depth, blocks, descended) {
 	if (depth > MAX_BLOCK_DEPTH) throw new ProgramError(`${where} nests blocks more than ${MAX_BLOCK_DEPTH} deep`);
-	return array(raw, where).map((instr, index) => decodeInstr(instr, `${where}[${index}]`, depth, blocks));
+	return array(raw, where).map((instr, index) => decodeInstr(instr, `${where}[${index}]`, depth, blocks, descended));
 }
-function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS) {
+/**
+* `descended` is whether the instruction runs on a value a `within` went down
+* to, the only place one may write the value itself: an object replaced by
+* its id, or a list item removed. A named block may be called anywhere, so it
+* is allowed there and refused at run time where it stands on a whole body.
+*/
+function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = false) {
+	const itself = (path, field) => {
+		if (path.length === 0 && !descended) throw new ProgramError(`${where}.${field} writes a whole body, which only a value inside one can be`);
+	};
 	const value = object(raw, where);
 	const kind = string(value["k"], `${where}.k`);
 	const changeId = string(value["c"], `${where}.c`);
 	switch (kind) {
-		case "within":
+		case "within": {
 			expectKeys(value, [
 				"k",
 				"path",
 				"block",
 				"c"
 			], where);
+			const path = segmentsOf(string(value["path"], `${where}.path`), `${where}.path`);
 			return {
 				k: "within",
-				path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
-				block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks),
+				path,
+				block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks, descended || path.length > 0),
 				c: changeId
 			};
+		}
 		case "call": {
 			expectKeys(value, [
 				"k",
@@ -29896,7 +30120,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS) {
 				return {
 					k: "has",
 					path,
-					block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks),
+					block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks, descended),
 					...onlyTrue(value["absent"], `${where}.absent`) ? { absent: true } : {},
 					c: changeId
 				};
@@ -29915,7 +30139,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS) {
 					k: "is",
 					path,
 					type,
-					block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks),
+					block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks, descended),
 					c: changeId
 				};
 			}
@@ -29926,7 +30150,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS) {
 				"c"
 			], where);
 			const cases = /* @__PURE__ */ new Map();
-			for (const [key, block] of Object.entries(object(value["cases"], `${where}.cases`))) cases.set(key, decodeBlock(block, `${where}.cases.${key}`, depth + 1, blocks));
+			for (const [key, block] of Object.entries(object(value["cases"], `${where}.cases`))) cases.set(key, decodeBlock(block, `${where}.cases.${key}`, depth + 1, blocks, descended));
 			return {
 				k: "switch",
 				path,
@@ -29944,7 +30168,8 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS) {
 			const from = segmentsOf(string(value["from"], `${where}.from`), `${where}.from`);
 			const to = segmentsOf(string(value["to"], `${where}.to`), `${where}.to`);
 			if (countWildcards(from) !== countWildcards(to)) throw new ProgramError(`${where} moves between paths with different wildcard counts`);
-			if (from.length === 0 || to.length === 0) throw new ProgramError(`${where} cannot move the document root`);
+			if (from.length === 0) throw new ProgramError(`${where} cannot move the document root`);
+			itself(to, "to");
 			return {
 				k: "move",
 				from,
@@ -30013,7 +30238,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS) {
 				c: changeId
 			};
 		}
-		case "set":
+		case "set": {
 			expectKeys(value, [
 				"k",
 				"path",
@@ -30023,27 +30248,35 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS) {
 				"c"
 			], where);
 			if (typeof value["ifAbsent"] !== "boolean") throw new ProgramError(`${where}.ifAbsent must be a boolean`);
+			const path = segmentsOf(string(value["path"], `${where}.path`), `${where}.path`);
+			itself(path, "path");
+			if (path.length === 0 && (value["ifAbsent"] || value["ifNull"] !== void 0)) throw new ProgramError(`${where} replaces the value itself, which is never absent`);
 			return {
 				k: "set",
-				path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
+				path,
 				value: value["value"],
 				ifAbsent: value["ifAbsent"],
 				...onlyTrue(value["ifNull"], `${where}.ifNull`) ? { ifNull: true } : {},
 				c: changeId
 			};
-		case "del":
+		}
+		case "del": {
 			expectKeys(value, [
 				"k",
 				"path",
 				"ifNull",
 				"c"
 			], where);
+			const path = segmentsOf(string(value["path"], `${where}.path`), `${where}.path`);
+			itself(path, "path");
+			if (path.length === 0 && value["ifNull"] !== void 0) throw new ProgramError(`${where} removes the value itself, which is never null`);
 			return {
 				k: "del",
-				path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
+				path,
 				...onlyTrue(value["ifNull"], `${where}.ifNull`) ? { ifNull: true } : {},
 				c: changeId
 			};
+		}
 		default: throw new ProgramError(`${where} has an unknown instruction "${kind}"`);
 	}
 }
@@ -30102,7 +30335,7 @@ function decodeBlocks(raw, where) {
 		if (name.length === 0 || name.length > 256) throw new ProgramError(`${where} has a block name that is empty or too long`);
 		blocks.set(name, { instrs: [] });
 	}
-	for (const [name, list] of entries) blocks.get(name).instrs = decodeBlock(list, `${where}["${name}"]`, 0, blocks);
+	for (const [name, list] of entries) blocks.get(name).instrs = decodeBlock(list, `${where}["${name}"]`, 0, blocks, true);
 	refuseStandingCycles(blocks, where);
 	return blocks;
 }
@@ -32119,13 +32352,13 @@ function describe(violations) {
 * other one's values too, and checking the outer schema without it once
 * reported a correct release as producing values the new contract refuses.
 */
-function casesFor(oldContract, changes) {
+function casesFor(oldContract, predicted, changes) {
 	const served = changes.filter((change) => derive(change).runtime !== "none");
 	const scopes = /* @__PURE__ */ new Set();
 	for (const change of served) for (const scope of change.scopes ?? []) if (isSchemaScope(scope)) scopes.add(scope.schema);
 	return [...scopes].map((scope) => ({
 		scope,
-		...schemaLens(oldContract, served, scope)
+		...schemaLens(oldContract, served, scope, predicted)
 	}));
 }
 /**
@@ -32152,7 +32385,7 @@ function checkLaws(oldContract, predicted, changes, options = {}) {
 	const runs = options.runs ?? 500;
 	const failures = [];
 	const evidence = [];
-	for (const entry of casesFor(oldContract, changes)) {
+	for (const entry of casesFor(oldContract, predicted, changes)) {
 		const ids = entry.changes.map((change) => change.id);
 		const digest = inputsDigest(entry.changes, entry.scope, runs);
 		const found = [];

@@ -34,6 +34,11 @@ import { predictDocument } from "./predict.ts";
  * request body, a response body and a list, so every op kind has somewhere
  * real to land.
  */
+/** An expandable field, as Stripe writes them: the id, or the object. */
+const CUSTOMER_UNION = {
+  anyOf: [{ type: "string" }, { $ref: "#/components/schemas/Customer" }],
+};
+
 const OLD = {
   openapi: "3.0.3",
   info: { title: "shop", version: "1" },
@@ -146,6 +151,7 @@ const OLD = {
             type: "object",
             properties: { city: { type: "string" }, zip: { type: "string" } },
           },
+          customer: CUSTOMER_UNION,
         },
       },
       Order: {
@@ -162,6 +168,16 @@ const OLD = {
             type: "object",
             properties: { city: { type: "string" }, zip: { type: "string" } },
           },
+          customer: CUSTOMER_UNION,
+        },
+      },
+      Customer: {
+        type: "object",
+        required: ["object"],
+        properties: {
+          object: { type: "string", enum: ["customer"] },
+          id: { type: "string" },
+          name: { type: "string" },
         },
       },
       OrderList: {
@@ -192,6 +208,24 @@ type Schema = Record<string, unknown>;
  * since `add` and a rename take what arrives from the contract it arrives in.
  */
 const NEW = structuredClone(OLD) as OpenApiDocument;
+{
+  // A kind of customer old callers never heard of.
+  const schemas = (NEW["components"] as { schemas: Record<string, Schema> }).schemas;
+  schemas["Guest"] = {
+    type: "object",
+    required: ["object"],
+    properties: {
+      object: { type: "string", enum: ["guest"] },
+      id: { type: "string" },
+    },
+  };
+  for (const name of ["Order", "OrderCreate"]) {
+    const customer = (
+      (schemas[name] as Schema)["properties"] as Record<string, { anyOf: unknown[] }>
+    )["customer"] as { anyOf: unknown[] };
+    customer.anyOf.push({ $ref: "#/components/schemas/Guest" });
+  }
+}
 for (const name of ["Order", "OrderCreate"]) {
   const schema = (NEW["components"] as { schemas: Record<string, Schema> }).schemas[
     name
@@ -215,6 +249,8 @@ const schemas = (OLD["components"] as { schemas: Record<string, Schema> }).schem
 const SCHEMA_REFS = [
   ...Object.keys(schemas).map((name) => `#/components/schemas/${name}`),
   "#/components/schemas/NotInTheContract",
+  // Only in the new contract: what a union can newly hold.
+  "#/components/schemas/Guest",
 ];
 
 /** Every pointer into the contract's schemas, a level or two deep. */
@@ -565,7 +601,9 @@ function unserved(change: Change, program: unknown): string[] {
   const actsOn = (op: Change["ops"][number], direction: string) =>
     op.op === "dropNull" || op.op === "default"
       ? direction === (op.toward === "new" ? "request" : "response")
-      : true;
+      : op.op === "widen"
+        ? direction === "response"
+        : true;
   const dataOps = change.ops.filter(isDataOp);
   const parameterScoped = (change.scopes ?? []).some((scope) => !("schema" in scope));
   if (dataOps.length > 0 && parameterScoped) {
@@ -702,6 +740,24 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
               ops: [{ op: "add", path: "/shipping/zip", value: "x" }],
             } as Change,
           ],
+          // A union that gained a kind of value: rarely generated at random,
+          // since it needs the union's place and the new variant together.
+          [
+            {
+              irVersion: 1,
+              id: "chg_generated",
+              summary: "paid",
+              scopes: [{ schema: "#/components/schemas/Order" }],
+              ops: [
+                {
+                  op: "widen",
+                  path: "/customer",
+                  variant: "#/components/schemas/Guest",
+                  show: "id",
+                },
+              ],
+            } as Change,
+          ],
           // A schema that contains itself: every data op, through the blocks.
           ...THREAD_OPS.map((op): [Change] => [
             {
@@ -725,6 +781,7 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
       "remove",
       "default",
       "dropNull",
+      "widen",
       "route",
       "retire",
       "behavior",
@@ -751,6 +808,8 @@ describe("L1: the op x location x direction matrix", () => {
     ops: string[];
     cells: Record<string, { status: string; why: string }>;
     endpoint: Record<string, { status: string; why: string }>;
+    /** `op direction` cells where the op is served by doing nothing. */
+    inert: Record<string, string>;
   };
 
   const bodyOps: Record<string, unknown> = {
@@ -781,6 +840,12 @@ describe("L1: the op x location x direction matrix", () => {
     remove: { op: "remove", path: "/note", restore: "" },
     default: { op: "default", path: "/note", value: "", when: "absent-or-null" },
     dropNull: { op: "dropNull", path: "/note" },
+    widen: {
+      op: "widen",
+      path: "/customer",
+      variant: "#/components/schemas/Guest",
+      show: "id",
+    },
   };
   /** The op as it would be written for a body used in this direction. */
   const bodyOp = (op: string, direction: string) =>
@@ -831,6 +896,13 @@ describe("L1: the op x location x direction matrix", () => {
           value: 10,
           when: "absent",
           toward: "new",
+        };
+      case "widen":
+        return {
+          op: "widen",
+          path: `/${n.enum}`,
+          variant: "#/components/schemas/Guest",
+          show: "id",
         };
       default:
         return { op: "dropNull", path: `/${n.enum}`, toward: "new" };
@@ -905,6 +977,7 @@ describe("L1: the op x location x direction matrix", () => {
     "remove",
     "default",
     "dropNull",
+    "widen",
   ]) {
     for (const direction of ["request", "response"]) {
       it(`${op} in a body, ${direction}: ${"served"}`, () => {
@@ -928,15 +1001,21 @@ describe("L1: the op x location x direction matrix", () => {
             direction === "request" ? site["request"] : site["response"],
           )?.includes('"c":"chg_cell"'),
         );
-        expect(reached).toBe(true);
+        // An op with nothing to do in a direction is served by doing nothing,
+        // and the matrix says which those are.
+        expect(reached).toBe(matrix.inert[`${op} ${direction}`] === undefined);
       });
     }
     for (const location of ["query", "header", "cookie", "path"]) {
       const cell = matrix.cells[`${location} request`] as {
         status: string;
         only?: string[];
+        except?: string[];
       };
-      const served = cell.status === "served" && (!cell.only || cell.only.includes(op));
+      const served =
+        cell.status === "served" &&
+        (!cell.only || cell.only.includes(op)) &&
+        !cell.except?.includes(op);
       // A path parameter the fixture declares is a string, so only a cast
       // lands on it; scale and enum are the same instruction and covered there.
       if (location === "path" && (op === "convert scale10" || op === "convert enumMap")) {
