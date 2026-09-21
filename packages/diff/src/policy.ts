@@ -69,6 +69,11 @@ export function describeEntry(entry: DiffEntry): string {
   return `${entry.id} at ${entry.operation} ${entry.path}: ${entry.text}`;
 }
 
+/** The distinct check ids behind described deltas, in the order first seen. */
+export function kindsOf(described: readonly string[]): string[] {
+  return [...new Set(described.map((entry) => entry.split(" ")[0] as string))];
+}
+
 /** A stable digest of the policy, recorded in a bundle's gate result. */
 export function policyDigestInput(): string {
   return JSON.stringify({

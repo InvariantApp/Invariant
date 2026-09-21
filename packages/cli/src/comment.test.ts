@@ -62,6 +62,33 @@ describe.skipIf(!hasOasdiff)("the pull request comment", () => {
     expect(comment).toContain("does not hold when it is actually run");
   });
 
+  it("says what each unexplained kind of delta means, once per kind", async () => {
+    const report = await check(await loadConfig(`${FIXTURE}invariant.yaml`));
+    const described = [
+      "response-property-enum-value-added at GET /v1/payments/{id}: added the new 'refunded' enum value to the 'status' response property",
+      "response-property-enum-value-added at GET /v1/payments: added the new 'refunded' enum value to the 'data/items/status' response property",
+      "request-property-max-length-decreased at POST /v1/payments: the 'description' request property's maxLength was decreased",
+    ];
+    const withUnexplained = {
+      ...report,
+      result: "block" as const,
+      steps: report.steps.map((step, index) =>
+        index === 0 ? { ...step, unexplained: described } : step,
+      ),
+    };
+
+    const comment = renderComment(withUnexplained);
+    // The deltas themselves, verbatim, since a provider copies them into a
+    // behavior Change.
+    for (const line of described) expect(comment).toContain(`- ${line}`);
+    // And, once per kind, what the catalogue says can be done about it.
+    expect(comment.match(/`response-property-enum-value-added`:/g)).toHaveLength(1);
+    expect(comment).toContain("`fold`");
+    expect(comment).toContain(
+      "`request-property-max-length-decreased`: A request field now refuses",
+    );
+  });
+
   it("escapes a summary that would otherwise break the table", async () => {
     const report = await check(await loadConfig(`${FIXTURE}invariant.yaml`));
     const withPipe = {

@@ -23,8 +23,10 @@ import {
 import {
   assertUsableOasdiff,
   breakingEntries,
+  catalogueEntry,
   describeEntry,
   diffDocuments,
+  kindsOf,
 } from "@invariant/diff";
 import type { Change, CompiledProgram } from "@invariant/ir";
 import { type Evidence, inputsDigest } from "@invariant/verifier";
@@ -376,6 +378,10 @@ export function renderReport(report: CheckReport): string {
     if (pending.unexplained.length > 0) {
       lines.push(`  ${pending.unexplained.length} breaking deltas nothing accounts for:`);
       for (const entry of pending.unexplained) lines.push(`    - ${entry}`);
+      lines.push("", "  What each kind means, and what can serve it:");
+      for (const id of kindsOf(pending.unexplained)) {
+        lines.push(`    ${id}: ${catalogueEntry(id).sentence}`);
+      }
 
       // A provider whose change genuinely cannot be expressed needs these lines
       // verbatim, and asking them to retype the gate's own output is how a

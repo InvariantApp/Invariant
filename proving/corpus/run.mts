@@ -14,6 +14,7 @@ import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { catalogueEntry } from "@invariant/diff";
 import { type PairResult, type RealSummary, summarizeReal } from "@invariant/eval";
 import { DIAGNOSIS } from "./diagnosis.mts";
 import {
@@ -624,7 +625,7 @@ function render(
   );
   lines.push("| Unexplained | Times | Pairs | What it would take |", "|---|---|---|---|");
   for (const entry of summary.holes.slice(0, 20)) {
-    const why = DIAGNOSIS[entry.kind] ?? "not yet diagnosed";
+    const why = DIAGNOSIS[entry.kind] ?? catalogueEntry(entry.kind).sentence;
     lines.push(`| \`${entry.kind}\` | ${entry.count} | ${entry.pairs} | ${why} |`);
   }
   lines.push("");

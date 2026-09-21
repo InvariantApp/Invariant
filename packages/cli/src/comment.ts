@@ -10,6 +10,7 @@
  * that passed, because a reader who cannot tell the difference between "this
  * held" and "this never ran" has not been told anything.
  */
+import { catalogueEntry, kindsOf } from "@invariant/diff";
 import type { EvidenceKind } from "@invariant/verifier";
 import type { CheckReport } from "./check.ts";
 
@@ -78,6 +79,10 @@ export function renderComment(report: CheckReport): string {
       "",
     );
     for (const entry of unexplained) lines.push(`- ${entry}`);
+    lines.push("", "What each kind of delta means, and what can serve it:", "");
+    for (const id of kindsOf(unexplained)) {
+      lines.push(`- \`${id}\`: ${catalogueEntry(id).sentence}`);
+    }
     lines.push("");
   }
 

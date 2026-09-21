@@ -12757,6 +12757,289 @@ const PLATFORM_BINARIES = [
 function binaryFor(platform = process.platform, arch = process.arch) {
 	return PLATFORM_BINARIES.find((binary) => binary.targets.includes(`${platform}-${arch}`));
 }
+/** WARN-level ids Invariant still treats as breaking. */
+const BREAKING_WARN_IDS = /* @__PURE__ */ new Set([
+	"request-property-removed",
+	"request-parameter-removed",
+	"request-property-became-nullable",
+	"response-property-became-nullable",
+	"request-body-became-required",
+	"api-operation-id-removed"
+]);
+/**
+* INFO-level ids that Invariant also refuses to ignore. Adding a required
+* response property is additive for a tolerant reader but changes the contract
+* a strict one validates against, and Invariant promises the old contract
+* exactly.
+*/
+const BREAKING_INFO_IDS = /* @__PURE__ */ new Set(["response-required-property-added", "response-property-enum-value-removed"]);
+/**
+* Whether an entry is breaking, decided by its id rather than by its level.
+*
+* This used to dispatch on the level: ERR always, a pinned set at WARN, another
+* pinned set at INFO. That made the classification depend on a number oasdiff
+* is free to change, and it broke the moment anything else moved a level. The
+* reduced diff path promotes the INFO ids so the breaking-only subcommand will
+* report them at all, and under the old rule that promotion silently *unmade*
+* them breaking: the entry arrived at WARN, the WARN set did not list it, and
+* 154 real Plaid enum removals disappeared from the count.
+*
+* An id this policy has explicitly classified is breaking wherever it shows up.
+* The comment at the top of this file already said the levels were oasdiff's
+* question and not ours; now the code says it too.
+*/
+function isBreaking(entry) {
+	if (entry.level >= 3) return true;
+	return BREAKING_WARN_IDS.has(entry.id) || BREAKING_INFO_IDS.has(entry.id);
+}
+function breakingEntries(entries) {
+	return entries.filter(isBreaking);
+}
+function describeEntry(entry) {
+	return `${entry.id} at ${entry.operation} ${entry.path}: ${entry.text}`;
+}
+/** The distinct check ids behind described deltas, in the order first seen. */
+function kindsOf(described) {
+	return [...new Set(described.map((entry) => entry.split(" ")[0]))];
+}
+//#endregion
+//#region ../diff/src/catalogue.ts
+/**
+* What every breaking-change id the differ can report means for a provider.
+*
+* The differ names a delta; this says what can be done about it. Each id is
+* placed in one class, with the IR op that expresses it where there is one,
+* whether the runtime serves that today, and a sentence a provider reads in
+* the pull request comment. The gate, the comment and the documentation all
+* read it from here, so they cannot disagree about what a delta means.
+*
+* It is a table of rules over the ids' own structure, not a list: the pinned
+* oasdiff knows 755 checks, and their names say their area, direction and
+* kind. The first rule that matches decides. A test runs every id the pinned
+* binary prints through it and fails if any falls through to the fallback, so
+* a new differ release cannot add an id nobody classified.
+*/
+const BEHAVIOR = "No translation can hide this from an old caller. Declare it as a `behavior` flag and branch on it in your own code, or keep the old behaviour for old contracts.";
+const rule = (match, entry) => ({
+	match,
+	entry
+});
+/** Ordered: the first rule that matches an id decides it. */
+const RULES = [
+	rule(/^response-required-property-added$/, {
+		class: "adaptable",
+		op: "add",
+		served: "yes",
+		sentence: "Responses now always carry a field old callers were never promised. An `add` takes it out of their responses, so a strict client validating against its contract still passes."
+	}),
+	rule(/^api-operation-id-removed$/, {
+		class: "adaptable",
+		op: "route",
+		served: "yes",
+		sentence: "An operation's id changed. Nothing on the wire moves, but a generated client renames the method; a `route` with `operationId` records it, so consumers' calls are renamed in their migration."
+	}),
+	rule(/^api-(path-)?removed-(without-deprecation|before-sunset)$/, {
+		class: "adaptable",
+		op: "retire",
+		served: "yes",
+		sentence: "An operation is gone from the specification. A `retire` is drafted: old callers still reach your server, and when it answers 405 or 410 they are told what to use instead. Mark it `refuse: true` once your server no longer serves the operation."
+	}),
+	rule(/^webhook-removed$/, {
+		class: "behavior-only",
+		served: "not applicable",
+		sentence: "A webhook you sent is no longer sent. Nothing can stand in for an event that is not produced; tell the subscribers who depend on it."
+	}),
+	rule(/(^|-)(sunset|deprecated-sunset|stability)(-|$)|^api-invalid-stability-level$/, {
+		class: "process",
+		served: "not applicable",
+		sentence: "This is a rule about how an operation or field is deprecated, not a change an old caller sees. Fix the dates or stability levels in the specification."
+	}),
+	rule(/security/, {
+		class: "behavior-only",
+		served: "not applicable",
+		sentence: "Authentication changed. An adapter must never alter who is allowed to call what, so old callers have to update their credentials; tell them directly."
+	}),
+	rule(/^response-success-status-removed$/, {
+		class: "behavior-only",
+		served: "not applicable",
+		sentence: `A success status an old caller relies on is no longer returned. ${BEHAVIOR}`
+	}),
+	rule(/^(response-(body-)?media-type|response-body-content|response-media-type)-/, {
+		class: "behavior-only",
+		served: "not applicable",
+		sentence: `What a response is encoded as changed. ${BEHAVIOR}`
+	}),
+	rule(/^request-body-(media-type-removed|content-(encoding|media-type)-changed)$/, {
+		class: "needs-decision",
+		op: "convert",
+		served: "planned",
+		sentence: "The encoding a request body is accepted in changed. Translating one body encoding into another needs the body codecs, which are not served yet; until then keep accepting the old encoding."
+	}),
+	rule(/^request-body-media-type-(item-)?schema-added$/, {
+		class: "behavior-only",
+		served: "not applicable",
+		sentence: `A request body now has a schema it did not have. ${BEHAVIOR}`
+	}),
+	rule(/^request-body-(added-required|became-required)$/, {
+		class: "needs-decision",
+		op: "add",
+		served: "planned",
+		sentence: "A request body became required. Old callers who sent none need one supplied for them, which you decide; supplying a whole body is not served yet."
+	}),
+	rule(/^request-body-removed$/, {
+		class: "needs-decision",
+		op: "remove",
+		served: "planned",
+		sentence: "An operation no longer takes a body. Dropping the body old callers still send is not served yet; until then keep ignoring it."
+	}),
+	rule(/^request-(parameter|header-property)-.*(max|min|pattern|exclusive|items|length|properties|contains|multiple-of).*$/, {
+		class: "behavior-only",
+		served: "not applicable",
+		sentence: `A parameter now refuses values the old contract allowed. Rewriting a caller's value into a different one would change what they asked for. ${BEHAVIOR}`
+	}),
+	rule(/^request-parameter-(removed|removed-before-sunset)$/, {
+		class: "adaptable",
+		op: "remove",
+		served: "planned",
+		sentence: "A parameter was removed. Old callers who still send it can have it dropped, or moved if another parameter replaced it; parameters are served once the request envelope lands."
+	}),
+	rule(/^(new-required-request-(default-)?parameter|new-required-request-parameter|new-request-path-parameter|new-required-request-header-property|new-required-request-default-parameter-to-existing-path|request-(parameter|header-property)-became-required)/, {
+		class: "needs-decision",
+		op: "add",
+		served: "planned",
+		sentence: "A parameter old callers never sent is now required. It can be supplied for them with a value you decide; parameters are served once the request envelope lands."
+	}),
+	rule(/^request-(parameter|header-property)(-property)?-(became-enum|enum-value-removed|x-extensible-enum-value-removed)$/, {
+		class: "needs-decision",
+		op: "convert",
+		served: "planned",
+		sentence: "A parameter no longer accepts some values old callers send. An enum map can translate them into values it does accept, which you decide; parameters are served once the request envelope lands."
+	}),
+	rule(/^request-(parameter|header-property)(-property)?-/, {
+		class: "needs-decision",
+		op: "convert",
+		served: "planned",
+		sentence: "A parameter's type or nullability changed. A conversion can translate old callers' values, which you confirm; parameters are served once the request envelope lands."
+	}),
+	rule(/^response-header-.*(max|min|pattern|exclusive|items|length|properties|contains|multiple-of)/, {
+		class: "needs-decision",
+		served: "planned",
+		sentence: "A response header may now hold values outside what old callers were promised. Passing them through is a declared loss you acknowledge; clamping them is not served yet."
+	}),
+	rule(/^(required-response-header-removed|response-header-)/, {
+		class: "needs-decision",
+		op: "add",
+		served: "planned",
+		sentence: "A response header old callers relied on changed or may be missing. It can be restored or converted with a value you decide; headers are served once the request envelope lands."
+	}),
+	rule(/^request-(body|property)-(.*-)?(max|min|pattern|exclusive|items|length|properties|contains|multiple-of|unique-items)(-.*)?$/, {
+		class: "behavior-only",
+		served: "not applicable",
+		sentence: `A request field now refuses values the old contract allowed. Rewriting a caller's value into a different one would change what they asked for. ${BEHAVIOR}`
+	}),
+	rule(/^(new-required-request-property-with-default|request-property-became-required-with-default)$/, {
+		class: "adaptable",
+		op: "add",
+		served: "yes",
+		sentence: "A request field old callers never sent is now required, and the specification gives its default. An `add` supplies it for them."
+	}),
+	rule(/^(new-required-request-property|request-property-became-required)$/, {
+		class: "needs-decision",
+		op: "add",
+		served: "yes",
+		sentence: "A request field old callers never sent is now required. An `add` supplies it for them, with a value you decide."
+	}),
+	rule(/^request-property-removed$/, {
+		class: "adaptable",
+		op: "move",
+		served: "yes",
+		sentence: "A request field was removed. If another field replaced it, a `move` translates old callers' requests; if nothing did, a `remove` drops what they still send."
+	}),
+	rule(/^request-(body|property)-(became-enum|enum-value-removed|x-extensible-enum-value-removed)$/, {
+		class: "needs-decision",
+		op: "convert",
+		served: "yes",
+		sentence: "A request field no longer accepts some values old callers send. An enum map translates them into values it does accept, which you decide."
+	}),
+	rule(/^request-(body|property)-(type-changed|list-of-types-narrowed)$/, {
+		class: "needs-decision",
+		op: "convert",
+		served: "yes",
+		sentence: "A request field's type changed. A `cast` or `scale10` conversion translates old callers' values, which you confirm."
+	}),
+	rule(/^request-(body|property)-became-not-nullable$/, {
+		class: "needs-decision",
+		op: "remove",
+		served: "planned",
+		sentence: "A request field no longer accepts null. Dropping a null an old caller sends, or replacing it with a value you decide, is not served yet."
+	}),
+	rule(/^request-(body|property)-(any-of-removed|one-of-removed|all-of-added|wrapped-in-one-of(-original-preserved)?)$/, {
+		class: "needs-decision",
+		op: "convert",
+		served: "planned",
+		sentence: "A request field accepts fewer shapes than it did. Translating the shapes old callers send needs the union instructions, which are not served yet."
+	}),
+	rule(/^request-(body|property)-/, {
+		class: "behavior-only",
+		served: "not applicable",
+		sentence: `A request field now has a rule old callers' values may not satisfy. ${BEHAVIOR}`
+	}),
+	rule(/^response-property-enum-value-added$/, {
+		class: "needs-decision",
+		op: "convert",
+		served: "yes",
+		sentence: "A response field can now hold a value old callers do not know. An enum map with a `fold` shows them one they do, which you choose; that is a declared loss, and the pull request asks you to acknowledge it."
+	}),
+	rule(/^response-(body|property)-type-changed$/, {
+		class: "needs-decision",
+		op: "convert",
+		served: "yes",
+		sentence: "A response field's type changed. A `cast` or `scale10` conversion translates it back for old callers, which you confirm."
+	}),
+	rule(/^response-required-property-removed$/, {
+		class: "needs-decision",
+		op: "remove",
+		served: "yes",
+		sentence: "A response field old callers were always given is gone. A `remove` restores it for them with a value you decide, or a `move` if another field replaced it."
+	}),
+	rule(/^response-(body|property)-(became-optional|became-nullable)$/, {
+		class: "needs-decision",
+		op: "add",
+		served: "planned",
+		sentence: "A response field old callers were always given may now be missing or null. Filling it in for them with a value you decide is not served yet."
+	}),
+	rule(/^response-(body|property)-(any-of-added|one-of-added|all-of-removed|wrapped-in-one-of(-original-preserved)?)$/, {
+		class: "needs-decision",
+		op: "convert",
+		served: "planned",
+		sentence: "A response field can now take shapes old callers do not know. Folding a new shape into one they do needs the union instructions, which are not served yet."
+	}),
+	rule(/^response-(body|property)-/, {
+		class: "needs-decision",
+		served: "planned",
+		sentence: "Old callers may now receive values outside what their contract promised. Passing them through is a declared loss you acknowledge; clamping them is not served yet."
+	})
+];
+const FALLBACK = {
+	class: "behavior-only",
+	served: "not applicable",
+	sentence: `Not yet classified. ${BEHAVIOR}`
+};
+const NON_BREAKING = {
+	class: "non-breaking",
+	served: "not applicable",
+	sentence: "Reported for information. Old callers are not affected."
+};
+/**
+* What an id means. Whether it is a break at all is decided as the gate
+* decides it, from the differ's level and Invariant's own pinned exceptions,
+* so the catalogue can never call a delta harmless that the gate blocks on.
+* Without a level it is taken to be a break.
+*/
+function catalogueEntry(id, level) {
+	if (!(level === void 0 || level === "error" || BREAKING_WARN_IDS.has(id) || BREAKING_INFO_IDS.has(id))) return NON_BREAKING;
+	return RULES.find((candidate) => candidate.match.test(id))?.entry ?? FALLBACK;
+}
 //#endregion
 //#region ../diff/src/install.ts
 /**
@@ -12872,47 +13155,6 @@ async function installBinary(binary, dir, checksums) {
 async function assertPinnedVersion(executable) {
 	const { stdout } = await run$2(executable, ["--version"]);
 	if ((stdout.trim().split(/\s+/).at(-1) ?? "").replace(/^v/, "") !== "v1.33.0-rc.1".replace(/^v/, "")) throw new InstallError(`${executable} reports ${stdout.trim()}, not ${OASDIFF_VERSION}`);
-}
-/** WARN-level ids Invariant still treats as breaking. */
-const BREAKING_WARN_IDS = /* @__PURE__ */ new Set([
-	"request-property-removed",
-	"request-parameter-removed",
-	"request-property-became-nullable",
-	"response-property-became-nullable",
-	"request-body-became-required",
-	"api-operation-id-removed"
-]);
-/**
-* INFO-level ids that Invariant also refuses to ignore. Adding a required
-* response property is additive for a tolerant reader but changes the contract
-* a strict one validates against, and Invariant promises the old contract
-* exactly.
-*/
-const BREAKING_INFO_IDS = /* @__PURE__ */ new Set(["response-required-property-added", "response-property-enum-value-removed"]);
-/**
-* Whether an entry is breaking, decided by its id rather than by its level.
-*
-* This used to dispatch on the level: ERR always, a pinned set at WARN, another
-* pinned set at INFO. That made the classification depend on a number oasdiff
-* is free to change, and it broke the moment anything else moved a level. The
-* reduced diff path promotes the INFO ids so the breaking-only subcommand will
-* report them at all, and under the old rule that promotion silently *unmade*
-* them breaking: the entry arrived at WARN, the WARN set did not list it, and
-* 154 real Plaid enum removals disappeared from the count.
-*
-* An id this policy has explicitly classified is breaking wherever it shows up.
-* The comment at the top of this file already said the levels were oasdiff's
-* question and not ours; now the code says it too.
-*/
-function isBreaking(entry) {
-	if (entry.level >= 3) return true;
-	return BREAKING_WARN_IDS.has(entry.id) || BREAKING_INFO_IDS.has(entry.id);
-}
-function breakingEntries(entries) {
-	return entries.filter(isBreaking);
-}
-function describeEntry(entry) {
-	return `${entry.id} at ${entry.operation} ${entry.path}: ${entry.text}`;
 }
 //#endregion
 //#region ../diff/src/oasdiff.ts
@@ -28420,6 +28662,18 @@ async function check(config, options = {}) {
 }
 //#endregion
 //#region ../cli/src/comment.ts
+/**
+* The release check, written for a pull request rather than a terminal.
+*
+* A reviewer reading this has thirty seconds and one question: can I merge it?
+* So the verdict is first, the thing that would stop them is second, and the
+* proof that anything was checked at all is underneath, folded away.
+*
+* What is deliberately not here is a summary that sounds better than the run.
+* A layer that was skipped says it was skipped, in the same list as the ones
+* that passed, because a reader who cannot tell the difference between "this
+* held" and "this never ran" has not been told anything.
+*/
 const HEADINGS = {
 	pass: "Safe to merge",
 	warn: "Safe to merge, with something to read first",
@@ -28462,6 +28716,8 @@ function renderComment(report) {
 	if (unexplained.length > 0) {
 		lines.push(`### ${unexplained.length} breaking ${unexplained.length === 1 ? "delta" : "deltas"} nothing accounts for`, "", "The old contract cannot be served until each of these has a Change that", "explains it. `invariant propose` will draft what it can.", "");
 		for (const entry of unexplained) lines.push(`- ${entry}`);
+		lines.push("", "What each kind of delta means, and what can serve it:", "");
+		for (const id of kindsOf(unexplained)) lines.push(`- \`${id}\`: ${catalogueEntry(id).sentence}`);
 		lines.push("");
 	}
 	const issues = report.steps.flatMap((step) => step.issues);

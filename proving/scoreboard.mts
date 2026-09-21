@@ -12,8 +12,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { catalogueEntry, isUnclassified } from "@invariant/diff";
 import type { PairResult as CorpusResult } from "@invariant/eval";
-import { DIAGNOSIS } from "./corpus/diagnosis.mts";
 import { ROOT } from "./corpus/manifest.mts";
 import type { ReplayIndex } from "./replay/mine.mts";
 import type { PairResult as ServerResult } from "./servers/run.mts";
@@ -82,18 +82,21 @@ export function scoreboard(inputs: {
     evidence: "proving/corpus/results.json (rules judge)",
   });
 
-  const kinds = new Set(
-    corpus.flatMap((result) => Object.keys(result.unexplainedKinds ?? {})),
-  );
-  const undiagnosed = [...kinds].filter((kind) => DIAGNOSIS[kind] === undefined);
+  // Every id the pinned differ can print is classified; the catalogue's own
+  // test asks the binary on every commit. What the corpus shows is how many
+  // of the kinds real providers produce are served today.
+  const kinds = [
+    ...new Set(corpus.flatMap((result) => Object.keys(result.breakingKinds ?? {}))),
+  ];
+  const unclassified = kinds.filter((kind) => isUnclassified(kind));
+  const servedKinds = kinds.filter((kind) => catalogueEntry(kind).served === "yes");
   lines.push({
     id: "L3",
     claim: "Every breaking-change id the pinned differ reports is catalogued.",
-    status:
-      corpus.length === 0 ? "not measured" : undiagnosed.length === 0 ? "met" : "not met",
-    value: `${undiagnosed.length} of ${kinds.size} unexplained kinds seen in the corpus have no diagnosis`,
+    status: unclassified.length === 0 ? "met" : "not met",
+    value: `every breaking check the pinned differ knows is classified; of the ${kinds.length} kinds real providers produced, ${unclassified.length} unclassified and ${servedKinds.length} served today`,
     evidence:
-      "proving/corpus/diagnosis.mts; the catalogue of every id the binary can print is M3.11",
+      "packages/diff/src/catalogue.ts, checked against the binary on every commit",
   });
 
   const done = corpus.filter((result) => result.reached === "done");
