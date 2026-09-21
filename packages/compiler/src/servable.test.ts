@@ -315,7 +315,7 @@ function fieldsOf(schema: Schema, prefix = "", required = true): Field[] {
  * line up, and the converts never reach the path where they would be served.
  */
 function fit(change: Change | undefined): fc.Arbitrary<Change | undefined> {
-  if (!change || !change.ops.some(isDataOp)) return fc.constant(change);
+  if (!change?.ops.some(isDataOp)) return fc.constant(change);
   // One schema the contract uses, in place of whatever scopes were drawn: a
   // stray parameter scope would block the Change before it could be served.
   return fc.constantFrom("Order", "OrderCreate").chain((name) => fitTo(change, name));
