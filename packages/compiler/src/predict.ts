@@ -216,6 +216,28 @@ function shapeFromNewContract(
   return { shape, required };
 }
 
+/** The shape a field has in the new contract's schema of the same name. */
+function shapeByName(
+  newDocument: OpenApiDocument,
+  name: string,
+  path: string,
+): { shape: JsonValue; required: boolean } | undefined {
+  const components = newDocument["components"];
+  const schemas = isJsonObject(components) ? components["schemas"] : undefined;
+  if (!isJsonObject(schemas) || schemas[name] === undefined) return undefined;
+  const root = { $ref: `#/components/schemas/${name}` };
+  const segments = parsePointer(path);
+  const shape = navigate(newDocument, root, segments);
+  if (shape === undefined) return undefined;
+  const parent = navigate(newDocument, root, segments.slice(0, -1));
+  const field = segments[segments.length - 1] as string;
+  const required =
+    isJsonObject(parent) &&
+    Array.isArray(parent["required"]) &&
+    (parent["required"] as JsonValue[]).includes(field);
+  return { shape, required };
+}
+
 /**
  * Applies every declared Change to a copy of the old document.
  *
@@ -290,9 +312,13 @@ export function predictDocument(
               break;
             case "add": {
               const site = oldSites[0];
-              const resolved = site
-                ? shapeFromNewContract(newContract, routes, site, op.path)
-                : undefined;
+              // By position first, so a renamed schema still lines up; then
+              // by the schema's own name, for an operation whose path moved
+              // in a way no declared route follows.
+              const resolved =
+                (site
+                  ? shapeFromNewContract(newContract, routes, site, op.path)
+                  : undefined) ?? shapeByName(newContract, name, op.path);
               if (!resolved) {
                 issues.push({
                   changeId: change.id,

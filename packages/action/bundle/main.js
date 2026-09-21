@@ -13010,6 +13010,22 @@ function shapeFromNewContract(newDocument, routes, site, path) {
 		required: isJsonObject(parent) && Array.isArray(parent["required"]) && parent["required"].includes(name)
 	};
 }
+/** The shape a field has in the new contract's schema of the same name. */
+function shapeByName(newDocument, name, path) {
+	const components = newDocument["components"];
+	const schemas = isJsonObject(components) ? components["schemas"] : void 0;
+	if (!isJsonObject(schemas) || schemas[name] === void 0) return void 0;
+	const root = { $ref: `#/components/schemas/${name}` };
+	const segments = parsePointer(path);
+	const shape = navigate(newDocument, root, segments);
+	if (shape === void 0) return void 0;
+	const parent = navigate(newDocument, root, segments.slice(0, -1));
+	const field = segments[segments.length - 1];
+	return {
+		shape,
+		required: isJsonObject(parent) && Array.isArray(parent["required"]) && parent["required"].includes(field)
+	};
+}
 /**
 * Applies every declared Change to a copy of the old document.
 *
@@ -13065,7 +13081,7 @@ function predictDocument(oldContract, newContract, changes) {
 						break;
 					case "add": {
 						const site = oldSites[0];
-						const resolved = site ? shapeFromNewContract(newContract, routes, site, op.path) : void 0;
+						const resolved = (site ? shapeFromNewContract(newContract, routes, site, op.path) : void 0) ?? shapeByName(newContract, name, op.path);
 						if (!resolved) {
 							issues.push({
 								changeId: change.id,
@@ -14752,6 +14768,7 @@ async function changelogFiles(baseFile, revisionFile, options) {
 		"--format",
 		"json",
 		"--allow-external-refs=false",
+		"--flatten-params",
 		...options.extraArgs ?? []
 	];
 	if (options.flatten === true) args.push("--flatten-allof");

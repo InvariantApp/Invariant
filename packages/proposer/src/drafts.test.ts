@@ -186,6 +186,47 @@ describe("a whole API moved to a new prefix", () => {
   });
 });
 
+describe("a whole API moved under a prefix it did not have, or out of one", () => {
+  const paths = (prefix: string) =>
+    ({
+      openapi: "3.0.3",
+      info: { title: "t", version: "1" },
+      paths: Object.fromEntries(
+        ["meshes", "routes", "nodes"].map((name) => [
+          `${prefix}/${name}`,
+          {
+            get: {
+              operationId: `List${name}`,
+              responses: { "200": { description: "ok" } },
+            },
+          },
+        ]),
+      ),
+    }) as unknown as OpenApiDocument;
+  const routes = async (before: string, after: string) =>
+    (
+      await propose(paths(before), paths(after), { judge: new RulesJudge() })
+    ).proposals.flatMap((proposal) =>
+      proposal.change.ops.filter((op) => op.op === "route"),
+    );
+
+  it("routes every endpoint under the new prefix, as AWS App Mesh versioned", async () => {
+    expect(await routes("", "/v20190125")).toContainEqual({
+      op: "route",
+      from: { method: "get", path: "/meshes" },
+      to: { method: "get", path: "/v20190125/meshes" },
+    });
+  });
+
+  it("routes every endpoint out from under a prefix that was dropped", async () => {
+    expect(await routes("/v1", "")).toContainEqual({
+      op: "route",
+      from: { method: "get", path: "/v1/meshes" },
+      to: { method: "get", path: "/meshes" },
+    });
+  });
+});
+
 describe("nested fields", () => {
   const nestedBase = {
     ...base,

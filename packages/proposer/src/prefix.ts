@@ -46,8 +46,13 @@ const declaredId = (operation: {
     : undefined;
 
 export interface PrefixMove {
-  /** The leading segment as it was, without slashes. */
+  /**
+   * The leading segment as it was, without slashes. Empty when the paths had
+   * no prefix and gained one, as AWS App Mesh's did when every path moved
+   * under `/v20190125`.
+   */
   from: string;
+  /** Empty when the prefix was dropped rather than replaced. */
   to: string;
   /**
    * Endpoints this substitution accounts for, with their declared
@@ -105,17 +110,32 @@ export function detectPrefixMove(
   }
 
   // One tally per candidate substitution, counting the endpoints it lands on.
+  // A substitution replaces the first segment, adds one in front, or takes
+  // the first one away.
   const candidates = new Map<string, Moved[]>();
   for (const operation of gone) {
     const segment = firstSegment(operation.path);
     if (segment === undefined) continue;
 
     for (const path of byMethod.get(operation.method) ?? []) {
-      const replacement = firstSegment(path);
-      if (replacement === undefined || replacement === segment) continue;
-      if (withFirstSegment(operation.path, replacement) !== path) continue;
+      const first = firstSegment(path);
+      if (first === undefined) continue;
+      let from: string;
+      let replacement: string;
+      if (first !== segment && withFirstSegment(operation.path, first) === path) {
+        from = segment;
+        replacement = first;
+      } else if (path === `/${first}${operation.path}`) {
+        from = "";
+        replacement = first;
+      } else if (operation.path === `/${segment}${path}`) {
+        from = segment;
+        replacement = "";
+      } else {
+        continue;
+      }
 
-      const key = `${segment}\u0000${replacement}`;
+      const key = `${from}\u0000${replacement}`;
       const found = candidates.get(key) ?? [];
       const before = declaredId(operation);
       const after = idAt.get(`${operation.method} ${path}`);
@@ -174,13 +194,21 @@ export function prefixChange(move: PrefixMove): Change {
 
   return {
     irVersion: 1,
-    id: `chg_moved_to_${slug(move.to)}`,
-    summary:
-      `Every endpoint moved from \`/${move.from}\` to \`/${move.to}\`. ` +
-      `${move.moved.length} operations.`,
+    id:
+      move.to === ""
+        ? `chg_moved_out_of_${slug(move.from)}`
+        : `chg_moved_to_${slug(move.to)}`,
+    summary: `${describePrefixMove(move)} ${move.moved.length} operations.`,
     ops,
     provenance: {
       proposed_by: { judge: "rules", confidence: move.confidence },
     },
   };
+}
+
+/** The move in words, including a prefix that appeared or was dropped. */
+export function describePrefixMove(move: Pick<PrefixMove, "from" | "to">): string {
+  if (move.from === "") return `Every endpoint moved under \`/${move.to}\`.`;
+  if (move.to === "") return `Every endpoint moved out from under \`/${move.from}\`.`;
+  return `Every endpoint moved from \`/${move.from}\` to \`/${move.to}\`.`;
 }

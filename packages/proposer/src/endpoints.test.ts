@@ -13,11 +13,15 @@
 import type { OpenApiDocument } from "@invariant/contract";
 import { describe, expect, it } from "vitest";
 import {
-  parameterChanges,
+  type ParameterDelta,
   parameterDeltas,
+  parameterDrafts,
   retireChange,
   retiredEndpoints,
 } from "./endpoints.ts";
+
+const parameterChanges = (deltas: ParameterDelta[]) =>
+  parameterDrafts(deltas).drafts.map((draft) => draft.change);
 
 interface Op {
   parameters?: unknown[];
@@ -228,5 +232,77 @@ describe("parameters", () => {
       },
     };
     expect(parameterDeltas(doc(same), doc(same))).toEqual([]);
+  });
+});
+
+describe("parameter drafts that need no decision", () => {
+  const list = (parameters: unknown[]) => doc({ "/v1/orders": { get: { parameters } } });
+  const drafted = (before: unknown[], after: unknown[]) =>
+    parameterDrafts(parameterDeltas(list(before), list(after)));
+  const opsOf = (result: ReturnType<typeof drafted>) =>
+    result.drafts.flatMap((draft) => draft.change.ops);
+
+  it("drops a parameter that went, from old callers' requests", () => {
+    expect(
+      opsOf(
+        drafted([param("debug", "query"), param("q", "query")], [param("q", "query")]),
+      ),
+    ).toEqual([{ op: "remove", path: "/debug", restore: null }]);
+  });
+
+  it("moves the only parameter that went to the only one that arrived, for a reviewer to confirm", () => {
+    const result = drafted([param("limit", "query")], [param("page_size", "query")]);
+    expect(opsOf(result)).toEqual([{ op: "move", from: "/limit", to: "/page_size" }]);
+    expect(result.drafts[0]?.attention).toBe("explicit");
+  });
+
+  it("moves a parameter to another location when it arrives there under the same name", () => {
+    expect(
+      opsOf(drafted([param("api-version", "query")], [param("Api-Version", "header")])),
+    ).toEqual([{ op: "move", from: "/api-version", to: "/@header/api-version" }]);
+  });
+
+  it("gives a newly required parameter its declared default, and asks where there is none", () => {
+    const withDefault = drafted(
+      [],
+      [{ ...param("tier", "query", { default: "basic" }), required: true }],
+    );
+    expect(opsOf(withDefault)).toEqual([{ op: "add", path: "/tier", value: "basic" }]);
+    const without = drafted([], [{ ...param("tier", "query"), required: true }]);
+    expect(opsOf(without)).toEqual([]);
+    expect(without.questions.map((question) => question.field)).toEqual(["tier"]);
+  });
+
+  it("casts a parameter whose type changed, and supplies a default where one became required", () => {
+    const result = drafted(
+      [{ name: "limit", in: "query", schema: { type: "string" } }],
+      [
+        {
+          name: "limit",
+          in: "query",
+          required: true,
+          schema: { type: "integer", default: 20 },
+        },
+      ],
+    );
+    expect(opsOf(result)).toEqual([
+      {
+        op: "convert",
+        path: "/limit",
+        codec: { kind: "cast", from: "string", to: "integer" },
+      },
+      { op: "default", path: "/limit", value: 20, when: "absent", toward: "new" },
+    ]);
+  });
+
+  it("drops a null an old caller sends where the parameter can no longer be null", () => {
+    expect(
+      opsOf(
+        drafted(
+          [{ name: "cursor", in: "query", schema: { type: "string", nullable: true } }],
+          [param("cursor", "query")],
+        ),
+      ),
+    ).toEqual([{ op: "dropNull", path: "/cursor", toward: "new" }]);
   });
 });

@@ -319,6 +319,12 @@ async function changelogFiles(
     "json",
     // Specs are untrusted input, so never let the differ fetch a remote ref.
     "--allow-external-refs=false",
+    // Where a parameter is declared, once for a whole path or on each
+    // operation, is not something a caller can see. Without this, moving a
+    // shared parameter onto the operations that use it reads as removing it,
+    // and a prediction that copies one into a single operation fails closure
+    // over a difference no request would ever show.
+    "--flatten-params",
     ...(options.extraArgs ?? []),
   ];
   if (options.flatten === true) args.push("--flatten-allof");

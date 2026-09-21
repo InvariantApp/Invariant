@@ -284,3 +284,35 @@ describe("a request field that now accepts null", () => {
     );
   });
 });
+
+describe("a field added to a schema whose operations moved with no declared route", () => {
+  it("takes its shape from the new contract's schema of the same name", () => {
+    const before = contract("3.0.3", {
+      ThingCreate: thing({ name: { type: "string" } }, []),
+      Thing: thing({ id: { type: "string" } }, ["id"]),
+    });
+    const after = {
+      ...before,
+      paths: { "/v2/things": (before["paths"] as JsonObject)["/things"] },
+      components: {
+        schemas: {
+          ThingCreate: thing({ name: { type: "string" } }, []),
+          Thing: thing({ id: { type: "string" }, spec: { type: "string" } }, [
+            "id",
+            "spec",
+          ]),
+        },
+      },
+    } as unknown as OpenApiDocument;
+    const add = change("Thing", { op: "add", path: "/spec", value: null });
+    const prediction = predictDocument(before, after, [add]);
+    expect(prediction.issues).toEqual([]);
+    expect(
+      ((prediction.document["components"] as JsonObject)["schemas"] as JsonObject)[
+        "Thing"
+      ],
+    ).toEqual(
+      thing({ id: { type: "string" }, spec: { type: "string" } }, ["id", "spec"]),
+    );
+  });
+});

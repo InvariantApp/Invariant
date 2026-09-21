@@ -15,14 +15,14 @@ import type { Change, Op, ScalarType } from "@invariant/ir";
 import { type FieldShape, type SchemaDelta, schemaDeltas } from "./candidates.ts";
 import {
   operationIdChanges,
-  parameterChanges,
   parameterDeltas,
+  parameterDrafts,
   retireChange,
   retiredEndpoints,
 } from "./endpoints.ts";
 import type { Judge, JudgeId } from "./judge.ts";
 import { questionsFor } from "./judge.ts";
-import { detectPrefixMove, prefixChange } from "./prefix.ts";
+import { describePrefixMove, detectPrefixMove, prefixChange } from "./prefix.ts";
 import { stemOf, UNIT_SUFFIXES } from "./rules.ts";
 import { type FoldDecision, foldDecisions } from "./vocabulary.ts";
 
@@ -307,9 +307,9 @@ export async function propose(
           confidence: move.confidence,
           attention: "explicit",
           notes: [
-            `every endpoint under \`/${move.from}\` now lives under \`/${move.to}\`` +
+            describePrefixMove(move) +
               (move.unexplained > 0
-                ? `, and ${move.unexplained} others went that this does not explain`
+                ? ` ${move.unexplained} others went that this does not explain.`
                 : ""),
           ],
         },
@@ -337,14 +337,13 @@ export async function propose(
     }),
   );
 
-  const parameters: Proposal[] = parameterChanges(
-    parameterDeltas(oldContract, newContract),
-  ).map((change) => ({
-    change,
+  const parameterWork = parameterDrafts(parameterDeltas(oldContract, newContract));
+  const parameters: Proposal[] = parameterWork.drafts.map((entry) => ({
+    change: entry.change,
     judge: "rules" as const,
     confidence: 1,
-    attention: "normal" as const,
-    notes: ["the two documents state this mapping between them"],
+    attention: entry.attention,
+    notes: entry.notes,
   }));
 
   const renamedOperations: Proposal[] = operationIdChanges(oldContract, newContract).map(
@@ -374,6 +373,7 @@ export async function propose(
     ...altered.unresolved,
     ...added.unresolved,
     ...gone.unresolved,
+    ...parameterWork.questions,
   ];
 
   const questions = deltas.flatMap((delta: SchemaDelta) =>
