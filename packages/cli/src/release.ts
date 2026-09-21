@@ -13,7 +13,7 @@
  * depend on, so it has to be the same every time it is described.
  */
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import {
   type BundleSource,
   buildBundle,
@@ -29,7 +29,7 @@ import {
 } from "@invariant/contract";
 import type { Change } from "@invariant/ir";
 import { type Evidence, inputsDigest } from "@invariant/verifier";
-import { stringify as stringifyYaml } from "yaml";
+import { isMap, parseDocument, type Scalar, stringify as stringifyYaml } from "yaml";
 import { type CheckReport, check } from "./check.ts";
 import type { InvariantConfig } from "./config.ts";
 
@@ -102,9 +102,20 @@ export async function release(
   }
 
   const released = await listReleasedLabels(config.invariantDir);
-  // Minted from the clock here and only here. A release is the one moment that
-  // genuinely happens on a particular day; a build is not.
-  const label = mintLabel(new Date().toISOString().slice(0, 10), released);
+  // The name the provider gave the contract being built, which is the name the
+  // compiled program already uses for it. Minting a different one here would
+  // publish a bundle naming a contract the program calls something else, and a
+  // caller sending the published label would be told no such contract exists.
+  // Only when there is no name is one minted, from the clock, here and only
+  // here: a release is the one moment that genuinely happens on a given day.
+  const label =
+    config.currentLabel ?? mintLabel(new Date().toISOString().slice(0, 10), released);
+  if (released.includes(label) || config.releasedSpecs.has(label)) {
+    throw new ReleaseError(
+      `${label} is already released. Set spec.currentLabel to the name of the ` +
+        "contract this release builds.",
+    );
+  }
 
   const parent = released[released.length - 1];
   if (!parent) {
@@ -188,7 +199,43 @@ export async function release(
     "utf8",
   );
 
+  await recordRelease(config.path, label, relative(config.root, specPath));
+
   return { label, digest, bundle, wrote, report };
+}
+
+/**
+ * Adds the released contract to invariant.yaml, as the one now being served.
+ *
+ * Without this the next check compared the previous contract to head with no
+ * Changes pending, and blocked on everything this release had just explained.
+ * Edited through the YAML document rather than as text, so the provider's
+ * comments and layout survive, and with the label quoted because it looks
+ * exactly like a date.
+ */
+async function recordRelease(
+  configPath: string,
+  label: string,
+  spec: string,
+): Promise<void> {
+  const document = parseDocument(await readFile(configPath, "utf8"));
+  const key = document.createNode(label) as Scalar;
+  key.type = "QUOTE_DOUBLE";
+
+  const released = document.getIn(["spec", "released"]);
+  if (isMap(released)) {
+    released.set(key, spec);
+  } else {
+    document.setIn(["spec", "released"], document.createNode({ [label]: spec }));
+  }
+
+  // The contract just released is what head is until the next breaking
+  // change names a new one, so the name stays and stays quoted.
+  const current = document.createNode(label) as Scalar;
+  current.type = "QUOTE_DOUBLE";
+  document.setIn(["spec", "currentLabel"], current);
+
+  await writeFile(configPath, document.toString(), "utf8");
 }
 
 /**

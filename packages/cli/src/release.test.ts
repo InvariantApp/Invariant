@@ -16,6 +16,7 @@ import {
 } from "@invariant/contract";
 import { oasdiffAvailable } from "@invariant/diff";
 import { afterEach, describe, expect, it } from "vitest";
+import { check, renderReport } from "./check.ts";
 import { loadConfig } from "./config.ts";
 import { mintLabel, ReleaseError, release } from "./release.ts";
 
@@ -147,6 +148,71 @@ describe.skipIf(!hasOasdiff)("releasing", () => {
       "chg_money_in_minor_units",
       "chg_payment_status_vocabulary",
     ]);
+  });
+
+  /**
+   * A release has to leave a repository the gate can keep working in.
+   *
+   * It used to mint its label from the clock and ignore spec.currentLabel, so
+   * the program the gate compiled named the current contract one thing and
+   * the signed bundle another. A caller sending the published label got
+   * "unknown contract". It also never recorded the new contract in
+   * invariant.yaml, so the next check compared the old contract to head with
+   * no Changes, and blocked on everything this release had just explained.
+   */
+  it("leaves a repository whose next check passes, under the label it published", async () => {
+    const root = await copyProvider();
+    const config = await loadConfig(join(root, "invariant.yaml"));
+    const { privateKeyPem } = generateSigningKey();
+
+    const result = await release(config, {
+      source: SOURCE,
+      signingKeyPem: privateKeyPem,
+    });
+
+    // The name the provider gave the contract being built is the one released.
+    expect(result.label).toBe("2026-09-20");
+    expect(result.bundle.to.label).toBe(result.report.program?.currentLabel);
+
+    const again = await check(await loadConfig(join(root, "invariant.yaml")));
+    expect(again.result, renderReport(again)).not.toBe("block");
+    expect(again.program?.currentLabel).toBe("2026-09-20");
+    expect(Object.keys(again.program?.contracts ?? {}).sort()).toEqual([
+      "2026-01-15",
+      "2026-03-01",
+    ]);
+
+    // Comments the provider wrote survive the edit.
+    const yaml = await readFile(join(root, "invariant.yaml"), "utf8");
+    expect(yaml).toContain("# How a request declares which contract it expects.");
+    expect(yaml).toContain(`"2026-09-20": invariant/contracts/2026-09-20.openapi.json`);
+  });
+
+  it("refuses to build a new contract under a label that is already released", async () => {
+    const root = await copyProvider();
+    const config = await loadConfig(join(root, "invariant.yaml"));
+    const { privateKeyPem } = generateSigningKey();
+    await release(config, { source: SOURCE, signingKeyPem: privateKeyPem });
+
+    // The next pull request declares a Change but forgets to name the contract
+    // it builds, so it would be compiled under the label just published.
+    await writeFile(
+      join(root, "invariant/changes/chg_next.yaml"),
+      `irVersion: 1
+id: chg_next
+summary: Something else changed.
+scopes:
+  - schema: "#/components/schemas/Payment"
+ops:
+  - op: move
+    from: /currency
+    to: /currency_code
+`,
+      "utf8",
+    );
+    await expect(check(await loadConfig(join(root, "invariant.yaml")))).rejects.toThrow(
+      /already released/,
+    );
   });
 
   it("refuses a second release when nothing is pending", async () => {

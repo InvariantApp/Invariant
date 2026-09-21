@@ -45,6 +45,8 @@ export interface BuildConfig {
 }
 
 export interface InvariantConfig {
+  /** The configuration file itself, which a release edits. */
+  path: string;
   /** Directory the configuration was loaded from. */
   root: string;
   api: string;
@@ -208,6 +210,7 @@ export async function loadConfig(path: string): Promise<InvariantConfig> {
   const gate = isJsonObject(parsed["gate"]) ? parsed["gate"] : {};
 
   return {
+    path: resolve(path),
     root,
     api,
     currentSpec,

@@ -158,13 +158,22 @@ async function stepsFor(config: InvariantConfig): Promise<{
   }
 
   const last = released[released.length - 1];
+  const pending = await loadPendingChanges(config.invariantDir);
+  if (pending.length > 0 && config.releasedSpecs.has(current.label)) {
+    // Compiling new Changes under a published label would change what that
+    // label means to every caller already pinned to it.
+    throw new Error(
+      `spec.currentLabel is ${current.label}, which is already released. Name the ` +
+        "contract this pull request builds before declaring Changes for it.",
+    );
+  }
   if (last) {
     steps.push({
       label: current.label,
       parent: last.label,
       from: last.contract.document,
       to: current.document,
-      changes: await loadPendingChanges(config.invariantDir),
+      changes: pending,
     });
   }
 

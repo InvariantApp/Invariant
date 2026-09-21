@@ -198,6 +198,11 @@ export function chainProgram(
 
   steps.forEach((step, index) => {
     const label = step.parent;
+    // Right after a release the last step runs from the released contract to
+    // head, which is the same contract. It is still compared, so a breaking
+    // edit made without naming a new contract is caught, but there is nothing
+    // to serve: a caller on the current contract never reaches a program.
+    if (label === currentLabel) return;
     const chained = chainContract(label, steps.slice(index));
     issues.push(...chained.issues);
     contracts[label] = chained.program;
