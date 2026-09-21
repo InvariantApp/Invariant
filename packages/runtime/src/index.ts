@@ -11,11 +11,13 @@
  * compiled program ships inside the provider's build, so an adapter deploys and
  * rolls back with the code it belongs to.
  */
+import { BodyTooLargeError } from "./errors.ts";
 import {
   type CompiledInstr,
   DEFAULT_LIMITS,
   type ExecuteLimits,
   execute,
+  MatchLimitError,
   TransformError,
 } from "./interpreter.ts";
 import { type NumberFidelity, parseJson, stringifyJson } from "./json.ts";
@@ -31,14 +33,25 @@ import {
 } from "./program.ts";
 
 export {
+  BodyTooLargeError,
   DEFAULT_ERROR_SHAPER,
   ERROR_CODES,
   type ErrorShaper,
   goneWith,
+  requestFailure,
+  responseFailure,
   type ShapedError,
+  UnsupportedEncodingError,
 } from "./errors.ts";
+export {
+  type BodyText,
+  headersForText,
+  isJsonMediaType,
+  type ReadOptions,
+  readBodyText,
+} from "./http.ts";
 export type { DecodedProgram, DecodedSite };
-export { decodeProgram, ProgramError, TransformError };
+export { decodeProgram, MatchLimitError, ProgramError, TransformError };
 
 /** A transformed body, and the paths at which a value was folded to produce it. */
 export interface Transformed {
@@ -176,13 +189,6 @@ export class RetiredEndpointError extends Error {
   }
 }
 
-export class BodyTooLargeError extends Error {
-  constructor(limit: number) {
-    super(`Request body exceeds the ${limit} byte limit for a transformed operation`);
-    this.name = "BodyTooLargeError";
-  }
-}
-
 /**
  * A handler asked about a behaviour flag no Change declares.
  *
@@ -295,6 +301,11 @@ export class InvariantRuntime {
 
   get currentLabel(): string {
     return this.#program.currentLabel;
+  }
+
+  /** Largest body, in decoded bytes, a binding may buffer for a transform. */
+  get maxBodyBytes(): number {
+    return this.#maxBodyBytes;
   }
 
   get currentDigest(): string {

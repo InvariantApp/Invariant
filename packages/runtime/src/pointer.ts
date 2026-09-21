@@ -18,6 +18,23 @@ export interface Slot {
   captures: number[];
 }
 
+/**
+ * A path selected more slots than an instruction may touch.
+ *
+ * Thrown rather than returned as a short list, because a short list is a
+ * partly transformed document, and a partly transformed document is a body in
+ * the wrong shape that nothing reports. The interpreter attaches the Change.
+ */
+export class FanOutExceeded extends Error {
+  readonly limit: number;
+
+  constructor(limit: number) {
+    super(`more than ${limit} matches`);
+    this.name = "FanOutExceeded";
+    this.limit = limit;
+  }
+}
+
 function isContainer(value: unknown): value is Record<string, unknown> | unknown[] {
   return typeof value === "object" && value !== null;
 }
@@ -63,7 +80,7 @@ export function resolveSlots(root: unknown, segments: Segments, limit: number): 
       if (segment === "*") {
         if (!Array.isArray(node.value)) continue;
         for (const [index, item] of node.value.entries()) {
-          if (next.length >= limit) return [];
+          if (next.length >= limit) throw new FanOutExceeded(limit);
           next.push({ value: item, captures: [...node.captures, index] });
         }
         continue;
@@ -85,7 +102,7 @@ export function resolveSlots(root: unknown, segments: Segments, limit: number): 
     if (last === "*") {
       if (!Array.isArray(node.value)) continue;
       for (const index of node.value.keys()) {
-        if (slots.length >= limit) return slots;
+        if (slots.length >= limit) throw new FanOutExceeded(limit);
         slots.push({
           container: node.value,
           key: String(index),
@@ -96,7 +113,7 @@ export function resolveSlots(root: unknown, segments: Segments, limit: number): 
     }
     if (Array.isArray(node.value)) continue;
     if (!Object.hasOwn(node.value, last)) continue;
-    if (slots.length >= limit) return slots;
+    if (slots.length >= limit) throw new FanOutExceeded(limit);
     slots.push({ container: node.value, key: last, captures: node.captures });
   }
 

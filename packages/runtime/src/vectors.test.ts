@@ -30,6 +30,9 @@ function run(vector: Vector): { output?: unknown; refusedBy?: string } {
         },
       },
       identity: [{ kind: "default", label: "old" }],
+      ...(vector.maxMatches === undefined
+        ? {}
+        : { limits: { maxMatches: vector.maxMatches } }),
     });
   } catch {
     // A program the decoder refuses never reaches the interpreter, which is

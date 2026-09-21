@@ -8,7 +8,6 @@
  * disturbing anything computed over the original bytes.
  */
 import {
-  BodyTooLargeError,
   CONTRACT_HINT_HEADER,
   CONTRACT_RESPONSE_HEADER,
   DEFAULT_ERROR_SHAPER,
@@ -16,9 +15,13 @@ import {
   type ErrorShaper,
   FOLDED_HEADER,
   goneWith,
+  headersForText,
   InvariantRuntime,
+  isJsonMediaType,
   RetiredEndpointError,
-  TransformError,
+  readBodyText,
+  requestFailure,
+  responseFailure,
   UnsupportedContractError,
 } from "@invariant/runtime";
 import type { Context, MiddlewareHandler, Next } from "hono";
@@ -170,7 +173,10 @@ export function adapt(options: HonoBindingOptions): MiddlewareHandler {
         c.req.path,
         pinnedContract?.(c),
       ).label;
-      site = runtime.siteFor(contract, c.req.method, c.req.path);
+      site = runtime.siteFor(contract, c.req.method, c.req.path, {
+        operation: `${c.req.method.toLowerCase()} ${c.req.path}`,
+        consumer: consumerId?.(c),
+      });
     } catch (error) {
       if (error instanceof UnsupportedContractError) {
         const shaped = errors.badRequest(error.message, "invariant_contract_unsupported");
@@ -201,19 +207,30 @@ export function adapt(options: HonoBindingOptions): MiddlewareHandler {
     const operation = `${c.req.method.toLowerCase()} ${c.req.path}`;
     const consumer = consumerId?.(c);
 
-    if (site.request.length > 0 && c.req.raw.body) {
+    // Only a JSON body is something the program describes. Anything else, a
+    // form, an upload, is passed on as it came, and the provider's own handler
+    // answers it as it would for any caller.
+    const request = c.req.raw;
+    if (
+      site.request.length > 0 &&
+      request.body &&
+      isJsonMediaType(request.headers.get("content-type"))
+    ) {
       try {
-        const original = await c.req.raw.clone().text();
-        const transformed = runtime.transformRequest(site, original, {
+        const original = await readBodyText(request.clone(), {
+          limit: runtime.maxBodyBytes,
+          encoded: true,
+        });
+        const transformed = runtime.transformRequest(site, original.text, {
           contract,
           operation,
           consumer,
         });
         // Replace the request the handler will read, leaving everything the
         // caller signed already verified upstream.
-        c.req.raw = new Request(c.req.raw.url, {
-          method: c.req.raw.method,
-          headers: withContentLength(c.req.raw.headers, transformed),
+        c.req.raw = new Request(request.url, {
+          method: request.method,
+          headers: headersForText(request.headers, transformed, original.decoded),
           body: transformed,
         });
       } catch (error) {
@@ -223,63 +240,79 @@ export function adapt(options: HonoBindingOptions): MiddlewareHandler {
 
     await next();
 
-    if (!runtime.respondsTo(site, c.res.status)) {
-      c.res.headers.set(CONTRACT_RESPONSE_HEADER, contract);
+    const answer = c.res;
+    if (
+      !answer.body ||
+      !runtime.respondsTo(site, answer.status) ||
+      !isJsonMediaType(answer.headers.get("content-type"))
+    ) {
+      // Nothing to rewrite, or nothing a program describes: an HTML error page
+      // or an event stream is passed through as it is, never buffered, rather
+      // than mangled.
+      answer.headers.set(CONTRACT_RESPONSE_HEADER, contract);
       return undefined;
     }
 
     try {
-      const original = await c.res.clone().text();
+      const original = await readBodyText(answer.clone(), {
+        limit: runtime.maxBodyBytes,
+        encoded: true,
+      });
       const transformed = runtime.transformResponseDetailed(
         site,
-        c.res.status,
-        original,
+        answer.status,
+        original.text,
         { contract, operation, consumer },
       );
-      const headers = withContentLength(c.res.headers, transformed.body);
+      const headers = headersForText(answer.headers, transformed.body, original.decoded);
       headers.set(CONTRACT_RESPONSE_HEADER, contract);
       if (transformed.folded.length > 0) {
         // Only when a fold fired. The caller was shown a value their contract
         // names in place of one it does not, and this is how they can know.
         headers.set(FOLDED_HEADER, transformed.folded.join(", "));
       }
-      c.res = new Response(transformed.body, { status: c.res.status, headers });
+      replaceResponse(
+        c,
+        new Response(transformed.body, { status: answer.status, headers }),
+      );
     } catch (error) {
-      return failResponse(c, errors, error);
+      // Assigned, not returned: once the handler has run, Hono ignores a
+      // Response handed back from middleware, and returning it here used to
+      // send the untranslated body to the caller with the handler's status.
+      replaceResponse(c, failResponse(errors, error, contract));
     }
 
     return undefined;
   };
 }
 
-function withContentLength(source: Headers, body: string): Headers {
-  const headers = new Headers(source);
-  headers.set("content-length", String(new TextEncoder().encode(body).byteLength));
-  return headers;
+/**
+ * Swaps the response the handler produced for another one, whole.
+ *
+ * Assigning `c.res` directly merges the old response's headers over the new
+ * one's, so the handler's `content-encoding`, `content-length` or `etag` would
+ * describe a body that is no longer being sent. Clearing it first is how
+ * Hono's own middleware replaces a response.
+ */
+function replaceResponse(c: Context, response: Response): void {
+  c.res = undefined as unknown as Response;
+  c.res = response;
 }
 
 function failRequest(c: Context, errors: ErrorShaper, error: unknown): Response {
-  // Nothing has run yet, so refusing here means no side effect happened.
-  if (error instanceof BodyTooLargeError) {
-    const shaped = errors.badRequest(error.message, "invariant_body_too_large");
-    return c.json(shaped.body as never, 413 as never);
-  }
-  if (error instanceof TransformError || error instanceof SyntaxError) {
-    const shaped = errors.badRequest(error.message, "invariant_request_not_translatable");
-    return c.json(shaped.body as never, shaped.status as never);
-  }
-  throw error;
+  const shaped = requestFailure(errors, error);
+  if (!shaped) throw error;
+  return c.json(shaped.body as never, shaped.status as never);
 }
 
-function failResponse(c: Context, errors: ErrorShaper, error: unknown): Response {
-  // The operation already happened. The one thing that must not happen now is
-  // handing back a body shaped for a contract the caller does not speak.
-  if (error instanceof TransformError || error instanceof BodyTooLargeError) {
-    const shaped = errors.serverError(
-      "The response could not be expressed in the contract this integration uses.",
-      "invariant_response_not_translatable",
-    );
-    return c.json(shaped.body as never, shaped.status as never);
-  }
-  throw error;
+function failResponse(errors: ErrorShaper, error: unknown, contract: string): Response {
+  const shaped = responseFailure(errors, error);
+  if (!shaped) throw error;
+  return new Response(JSON.stringify(shaped.body), {
+    status: shaped.status,
+    headers: {
+      "content-type": "application/json",
+      [CONTRACT_RESPONSE_HEADER]: contract,
+    },
+  });
 }

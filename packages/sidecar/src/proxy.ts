@@ -20,7 +20,6 @@
  * body is never read.
  */
 import {
-  BodyTooLargeError,
   CONTRACT_HINT_HEADER,
   CONTRACT_RESPONSE_HEADER,
   DEFAULT_ERROR_SHAPER,
@@ -29,10 +28,14 @@ import {
   type ErrorShaper,
   FOLDED_HEADER,
   goneWith,
+  headersForText,
   type InvariantRuntime,
+  isJsonMediaType,
   RetiredEndpointError,
+  readBodyText,
+  requestFailure,
+  responseFailure,
   type ShapedError,
-  TransformError,
   UnsupportedContractError,
 } from "@invariant/runtime";
 
@@ -143,19 +146,27 @@ export function createProxy(options: ProxyOptions): FetchHandler {
     const operation = `${request.method.toLowerCase()} ${decision.path}`;
     const context = { contract, operation, consumer: undefined };
 
+    // Only a JSON body is something the program describes. A form or an
+    // upload goes on as it came, and the provider answers it as it would.
     let body: ReadableStream<Uint8Array> | string | null = request.body;
-    if (site && site.request.length > 0 && request.body) {
+    let outgoing = headers;
+    if (
+      site &&
+      site.request.length > 0 &&
+      request.body &&
+      isJsonMediaType(request.headers.get("content-type"))
+    ) {
       try {
-        const original = await readBounded(request, maxBody);
-        const rewritten = runtime.transformRequest(site, original, context);
+        const original = await readBodyText(request, { limit: maxBody, encoded: true });
+        const rewritten = runtime.transformRequest(site, original.text, context);
         body = rewritten;
-        headers.set("content-length", String(byteLength(rewritten)));
+        outgoing = headersForText(headers, rewritten, original.decoded);
       } catch (error) {
         return failRequest(errors, error);
       }
     }
 
-    return forward(request, decision.path, url.search, headers, body, {
+    return forward(request, decision.path, url.search, outgoing, body, {
       site,
       contract,
       context,
@@ -233,7 +244,7 @@ export function createProxy(options: ProxyOptions): FetchHandler {
       !site ||
       !answer.body ||
       !runtime.respondsTo(site, answer.status) ||
-      !isJson(answer.headers.get("content-type"))
+      !isJsonMediaType(answer.headers.get("content-type"))
     ) {
       // Nothing to rewrite, or nothing this proxy can safely read: an upstream
       // error page in HTML is passed through as it is rather than mangled.
@@ -241,18 +252,19 @@ export function createProxy(options: ProxyOptions): FetchHandler {
     }
 
     try {
-      const original = await readBounded(answer, maxBody);
+      // `fetch` has already decoded the body, so it is read as it stands.
+      const original = await readBodyText(answer, { limit: maxBody, encoded: false });
       const transformed = runtime.transformResponseDetailed(
         site,
         answer.status,
-        original,
+        original.text,
         adapted.context,
       );
-      out.set("content-length", String(byteLength(transformed.body)));
+      const rebuilt = headersForText(out, transformed.body, false);
       if (transformed.folded.length > 0) {
-        out.set(FOLDED_HEADER, transformed.folded.join(", "));
+        rebuilt.set(FOLDED_HEADER, transformed.folded.join(", "));
       }
-      return new Response(transformed.body, { status: answer.status, headers: out });
+      return new Response(transformed.body, { status: answer.status, headers: rebuilt });
     } catch (error) {
       return failResponse(errors, error);
     }
@@ -299,50 +311,6 @@ function forwardable(source: Headers): Headers {
   return out;
 }
 
-/**
- * Reads a body as text, refusing past the limit without holding the rest.
- *
- * A declared length over the limit is refused before a byte is read. One that
- * lies, or none at all, is counted as it arrives, so a caller cannot make this
- * proxy buffer an unbounded body by leaving the header off.
- */
-async function readBounded(message: Request | Response, limit: number): Promise<string> {
-  const declared = Number(message.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > limit) throw new BodyTooLargeError(limit);
-  if (!message.body) return "";
-
-  const reader = message.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > limit) {
-      await reader.cancel();
-      throw new BodyTooLargeError(limit);
-    }
-    chunks.push(value);
-  }
-  const whole = new Uint8Array(size);
-  let at = 0;
-  for (const chunk of chunks) {
-    whole.set(chunk, at);
-    at += chunk.byteLength;
-  }
-  return new TextDecoder().decode(whole);
-}
-
-function isJson(contentType: string | null): boolean {
-  if (!contentType) return false;
-  const media = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
-  return media === "application/json" || media.endsWith("+json");
-}
-
-function byteLength(text: string): number {
-  return new TextEncoder().encode(text).byteLength;
-}
-
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -355,35 +323,13 @@ function shapedResponse(shaped: ShapedError): Response {
 }
 
 function failRequest(errors: ErrorShaper, error: unknown): Response {
-  // Nothing has reached the provider yet, so refusing here has no side effect.
-  if (error instanceof BodyTooLargeError) {
-    return shapedResponse({
-      ...errors.badRequest(error.message, ERROR_CODES.bodyTooLarge),
-      status: 413,
-    });
-  }
-  if (error instanceof TransformError || error instanceof SyntaxError) {
-    return shapedResponse(
-      errors.badRequest(error.message, ERROR_CODES.requestNotTranslatable),
-    );
-  }
-  throw error;
+  const shaped = requestFailure(errors, error);
+  if (!shaped) throw error;
+  return shapedResponse(shaped);
 }
 
 function failResponse(errors: ErrorShaper, error: unknown): Response {
-  // The operation already happened. What must not happen now is handing back a
-  // body shaped for a contract the caller does not speak.
-  if (
-    error instanceof TransformError ||
-    error instanceof BodyTooLargeError ||
-    error instanceof SyntaxError
-  ) {
-    return shapedResponse(
-      errors.serverError(
-        "The response could not be expressed in the contract this integration uses.",
-        ERROR_CODES.responseNotTranslatable,
-      ),
-    );
-  }
-  throw error;
+  const shaped = responseFailure(errors, error);
+  if (!shaped) throw error;
+  return shapedResponse(shaped);
 }

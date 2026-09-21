@@ -15,6 +15,7 @@ import { type Json, numberFromText, numberTextOf } from "./json.ts";
 import {
   createSlot,
   deleteSlot,
+  FanOutExceeded,
   pruneEmptyAncestors,
   readSlot,
   resolveSlots,
@@ -52,6 +53,27 @@ export class TransformError extends Error {
     super(message);
     this.name = "TransformError";
     this.changeId = changeId;
+  }
+}
+
+/**
+ * An instruction matched more places than the configured cap allows.
+ *
+ * A request carrying this is refused as too large; a response carrying it is
+ * refused as untranslatable. Neither is ever answered with a body that was
+ * transformed in part.
+ */
+export class MatchLimitError extends TransformError {
+  readonly limit: number;
+
+  constructor(changeId: string, limit: number) {
+    super(
+      changeId,
+      `${changeId} would touch more than ${limit} places in one body. Raise ` +
+        "limits.maxMatches if bodies this large are expected.",
+    );
+    this.name = "MatchLimitError";
+    this.limit = limit;
   }
 }
 
@@ -299,29 +321,44 @@ export function execute(
   const result: ExecuteResult = { applied: new Map(), folded: new Set() };
 
   for (const instr of program) {
-    switch (instr.k) {
-      case "move":
-        countApplied(result, instr.c, applyMove(root, instr, limits));
-        break;
-      case "scale":
-        countApplied(result, instr.c, applyScale(root, instr, limits));
-        break;
-      case "enum":
-        countApplied(result, instr.c, applyEnum(root, instr, limits, result.folded));
-        break;
-      case "cast":
-        countApplied(result, instr.c, applyCast(root, instr, limits));
-        break;
-      case "set":
-        countApplied(result, instr.c, applySet(root, instr, limits));
-        break;
-      case "del":
-        countApplied(result, instr.c, applyDel(root, instr, limits));
-        break;
+    try {
+      step(root, instr, limits, result);
+    } catch (error) {
+      if (error instanceof FanOutExceeded)
+        throw new MatchLimitError(instr.c, error.limit);
+      throw error;
     }
   }
 
   return result;
+}
+
+function step(
+  root: Json,
+  instr: CompiledInstr,
+  limits: ExecuteLimits,
+  result: ExecuteResult,
+): void {
+  switch (instr.k) {
+    case "move":
+      countApplied(result, instr.c, applyMove(root, instr, limits));
+      break;
+    case "scale":
+      countApplied(result, instr.c, applyScale(root, instr, limits));
+      break;
+    case "enum":
+      countApplied(result, instr.c, applyEnum(root, instr, limits, result.folded));
+      break;
+    case "cast":
+      countApplied(result, instr.c, applyCast(root, instr, limits));
+      break;
+    case "set":
+      countApplied(result, instr.c, applySet(root, instr, limits));
+      break;
+    case "del":
+      countApplied(result, instr.c, applyDel(root, instr, limits));
+      break;
+  }
 }
 
 export { compareDecimal };

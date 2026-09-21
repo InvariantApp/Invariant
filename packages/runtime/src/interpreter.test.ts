@@ -1,6 +1,11 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { type CompiledInstr, execute, TransformError } from "./interpreter.ts";
+import {
+  type CompiledInstr,
+  execute,
+  MatchLimitError,
+  TransformError,
+} from "./interpreter.ts";
 import { parseJson, stringifyJson } from "./json.ts";
 
 function run(
@@ -258,5 +263,54 @@ describe("lens laws", () => {
       }),
       { numRuns: 200 },
     );
+  });
+});
+
+/**
+ * The fan-out cap, which used to fail silently in two different ways.
+ *
+ * Past the cap in the middle of a path, every match was dropped and the
+ * instruction did nothing. Past it at the end, the first ten thousand elements
+ * were transformed and the rest were not. Either way the caller got a body in
+ * the wrong shape and nothing said so, which is the one thing this interpreter
+ * promises never to do.
+ */
+describe("the fan-out cap", () => {
+  const list = (n: number) =>
+    JSON.stringify({ d: Array.from({ length: n }, (_, i) => ({ x: { a: i } })) });
+  const limits = { maxMatches: 10 };
+
+  it("transforms everything when the matches fit", () => {
+    const parsed = parseJson(list(10), "double");
+    execute(parsed, [move("/d/*/x/a", "/d/*/x/b")], limits);
+    expect(stringifyJson(parsed)).not.toContain('"a"');
+  });
+
+  it("refuses at the end of a path rather than transforming only the first part", () => {
+    const tags = JSON.stringify({ t: Array.from({ length: 11 }, () => "old") });
+    const parsed = parseJson(tags, "double");
+    expect(() => execute(parsed, [mapEnum("/t/*", { old: "new" })], limits)).toThrow(
+      MatchLimitError,
+    );
+  });
+
+  it("refuses in the middle of a path rather than transforming nothing", () => {
+    const parsed = parseJson(list(11), "double");
+    expect(() => execute(parsed, [scale("/d/*/x/a", 2)], limits)).toThrow(
+      MatchLimitError,
+    );
+  });
+
+  it("names the Change and the limit, so an operator knows what to raise", () => {
+    const parsed = parseJson(list(11), "double");
+    try {
+      execute(parsed, [{ ...move("/d/*/x/a", "/d/*/x/b"), c: "chg_rename" }], limits);
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(TransformError);
+      expect((error as MatchLimitError).changeId).toBe("chg_rename");
+      expect((error as MatchLimitError).limit).toBe(10);
+      expect((error as Error).message).toContain("maxMatches");
+    }
   });
 });

@@ -7,6 +7,8 @@
  * and two copies of "what does a caller hear when their contract is retired"
  * is how the two drift until one of them answers 500.
  */
+import { MatchLimitError, TransformError } from "./interpreter.ts";
+
 export interface ShapedError {
   body: unknown;
   status: number;
@@ -50,4 +52,80 @@ export const ERROR_CODES = {
   requestNotTranslatable: "invariant_request_not_translatable",
   responseNotTranslatable: "invariant_response_not_translatable",
   upstreamUnavailable: "invariant_upstream_unavailable",
+  encodingUnsupported: "invariant_encoding_unsupported",
 } as const;
+
+export class BodyTooLargeError extends Error {
+  constructor(limit: number) {
+    super(`Request body exceeds the ${limit} byte limit for a transformed operation`);
+    this.name = "BodyTooLargeError";
+  }
+}
+
+/** A `Content-Encoding` this runtime has no way to decode. */
+export class UnsupportedEncodingError extends Error {
+  readonly encoding: string;
+
+  constructor(encoding: string) {
+    super(
+      `The body is encoded as "${encoding}", which cannot be decoded here, so it ` +
+        "cannot be translated.",
+    );
+    this.name = "UnsupportedEncodingError";
+    this.encoding = encoding;
+  }
+}
+
+/**
+ * What a caller is told when their request could not be translated.
+ *
+ * Nothing has reached the provider's handler, so refusing has no side effect.
+ * Returns undefined for anything that is not a translation failure, which the
+ * binding must let propagate: an unrelated bug is not a caller's fault and
+ * must not be dressed up as one.
+ */
+export function requestFailure(
+  errors: ErrorShaper,
+  error: unknown,
+): ShapedError | undefined {
+  // Too much of it, whether by bytes or by how many places one instruction
+  // reaches. Either way the request is too large to translate.
+  if (error instanceof BodyTooLargeError || error instanceof MatchLimitError) {
+    return { ...errors.badRequest(error.message, ERROR_CODES.bodyTooLarge), status: 413 };
+  }
+  if (error instanceof UnsupportedEncodingError) {
+    return {
+      ...errors.badRequest(error.message, ERROR_CODES.encodingUnsupported),
+      status: 415,
+    };
+  }
+  if (error instanceof TransformError || error instanceof SyntaxError) {
+    return errors.badRequest(error.message, ERROR_CODES.requestNotTranslatable);
+  }
+  return undefined;
+}
+
+/**
+ * What a caller is told when the answer could not be translated back.
+ *
+ * The operation already ran. What must not happen now is handing back a body
+ * shaped for a contract the caller does not speak, and that includes a body
+ * the provider sent that was not valid JSON at all.
+ */
+export function responseFailure(
+  errors: ErrorShaper,
+  error: unknown,
+): ShapedError | undefined {
+  if (
+    error instanceof TransformError ||
+    error instanceof BodyTooLargeError ||
+    error instanceof UnsupportedEncodingError ||
+    error instanceof SyntaxError
+  ) {
+    return errors.serverError(
+      "The response could not be expressed in the contract this integration uses.",
+      ERROR_CODES.responseNotTranslatable,
+    );
+  }
+  return undefined;
+}

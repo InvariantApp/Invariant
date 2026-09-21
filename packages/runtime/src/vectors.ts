@@ -17,6 +17,11 @@ export interface Vector {
   why: string;
   instrs: Instr[];
   input: unknown;
+  /**
+   * The cap on places one instruction may touch, when the case is about it.
+   * Absent means the engine's default, which must be at least 10,000.
+   */
+  maxMatches?: number;
   /** Expected output, or the change id the transform must refuse with. */
   expect: { output: unknown } | { refuses: string };
 }
@@ -173,6 +178,36 @@ export const CONFORMANCE_VECTORS: Vector[] = [
     ],
     input: { amount: 19.99 },
     expect: { output: { amount_cents: 1999 } },
+  },
+  {
+    name: "a wildcard at the cap transforms every element",
+    why: "The cap is a ceiling, not a sample: a body within it is transformed whole.",
+    maxMatches: 3,
+    instrs: [{ k: "move", from: "/data/*/amount", to: "/data/*/amount_cents", c: C }],
+    input: { data: [{ amount: 1 }, { amount: 2 }, { amount: 3 }] },
+    expect: {
+      output: { data: [{ amount_cents: 1 }, { amount_cents: 2 }, { amount_cents: 3 }] },
+    },
+  },
+  {
+    name: "a wildcard past the cap at the end of a path is refused",
+    why:
+      "Transforming the first N elements and leaving the rest is a body in the " +
+      "wrong shape that nothing reports. It is refused whole instead.",
+    maxMatches: 3,
+    instrs: [{ k: "enum", path: "/tags/*", map: { old: "new" }, c: C }],
+    input: { tags: ["old", "old", "old", "old"] },
+    expect: { refuses: C },
+  },
+  {
+    name: "a wildcard past the cap in the middle of a path is refused",
+    why:
+      "Dropping every match here would skip the instruction entirely, which is " +
+      "the same silent wrong shape. It is refused whole instead.",
+    maxMatches: 3,
+    instrs: [{ k: "scale", path: "/data/*/amount", exp: 2, c: C }],
+    input: { data: [{ amount: 1 }, { amount: 2 }, { amount: 3 }, { amount: 4 }] },
+    expect: { refuses: C },
   },
   {
     name: "a program naming a prototype key is refused",

@@ -115,6 +115,35 @@ const post = (path: string, body: unknown, version?: string, headers = {}) =>
     body: JSON.stringify(body),
   });
 
+describe("bodies the program does not describe", () => {
+  it("passes a form request on untouched rather than parsing it as JSON", async () => {
+    const { fetchImpl, calls } = upstream(() => jsonAnswer({ amount_cents: 1 }));
+    const response = await proxyWith(fetchImpl)(
+      new Request("https://api.example.com/v1/charges", {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          "payments-version": "2026-01-01",
+        },
+        body: "amount=500",
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(calls[0]?.body).toBe("amount=500");
+  });
+
+  it("refuses a request encoding it cannot decode", async () => {
+    const { fetchImpl, calls } = upstream(() => jsonAnswer({}));
+    const response = await proxyWith(fetchImpl)(
+      post("/v1/charges", { amount: 500 }, "2026-01-01", {
+        "content-encoding": "compress",
+      }),
+    );
+    expect(response.status).toBe(415);
+    expect(calls).toHaveLength(0);
+  });
+});
+
 describe("an old caller, through the proxy", () => {
   it("reaches the new endpoint in the new shape", async () => {
     const { fetchImpl, calls } = upstream(() =>

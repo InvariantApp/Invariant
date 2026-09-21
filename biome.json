@@ -10,7 +10,8 @@
       "**",
       "!**/dist",
       "!**/*.tsbuildinfo",
-      "!fixtures/consumer-b-types-v2/src/acme-types.ts"
+      "!fixtures/consumer-b-types-v2/src/acme-types.ts",
+      "!conformance/vectors.json"
     ]
   },
   "formatter": {

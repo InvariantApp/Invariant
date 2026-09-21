@@ -431,6 +431,105 @@
       }
     },
     {
+      "name": "a wildcard at the cap transforms every element",
+      "why": "The cap is a ceiling, not a sample: a body within it is transformed whole.",
+      "maxMatches": 3,
+      "instrs": [
+        {
+          "k": "move",
+          "from": "/data/*/amount",
+          "to": "/data/*/amount_cents",
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "data": [
+          {
+            "amount": 1
+          },
+          {
+            "amount": 2
+          },
+          {
+            "amount": 3
+          }
+        ]
+      },
+      "expect": {
+        "output": {
+          "data": [
+            {
+              "amount_cents": 1
+            },
+            {
+              "amount_cents": 2
+            },
+            {
+              "amount_cents": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "a wildcard past the cap at the end of a path is refused",
+      "why": "Transforming the first N elements and leaving the rest is a body in the wrong shape that nothing reports. It is refused whole instead.",
+      "maxMatches": 3,
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/tags/*",
+          "map": {
+            "old": "new"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "tags": [
+          "old",
+          "old",
+          "old",
+          "old"
+        ]
+      },
+      "expect": {
+        "refuses": "chg_vector"
+      }
+    },
+    {
+      "name": "a wildcard past the cap in the middle of a path is refused",
+      "why": "Dropping every match here would skip the instruction entirely, which is the same silent wrong shape. It is refused whole instead.",
+      "maxMatches": 3,
+      "instrs": [
+        {
+          "k": "scale",
+          "path": "/data/*/amount",
+          "exp": 2,
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "data": [
+          {
+            "amount": 1
+          },
+          {
+            "amount": 2
+          },
+          {
+            "amount": 3
+          },
+          {
+            "amount": 4
+          }
+        ]
+      },
+      "expect": {
+        "refuses": "chg_vector"
+      }
+    },
+    {
       "name": "a program naming a prototype key is refused",
       "why": "`__proto__` reaches an object every other object shares. A program is data from a build, and a build can be wrong; this must not be reachable.",
       "instrs": [
