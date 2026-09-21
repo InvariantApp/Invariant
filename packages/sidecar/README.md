@@ -66,3 +66,15 @@ Both are optional, and neither is ever in a request's path.
 Every refusal carries `Invariant-Error-Id`, and the proxy writes each refusal
 and failure to stdout as a JSON line with the same id, the contract, the
 operation and the reason, so what a caller quotes can be found without a body.
+
+## A new program, and limits
+
+The proxy replaces its program while it runs, on `SIGHUP` or when the program
+file changes. Requests under way finish on the program they started with. A
+new program that does not load, because it is unreadable, half-written or
+needs a newer runtime, is reported on stderr and the running one keeps
+serving. Changes to `sidecar.json` itself need a restart.
+
+`requestTimeoutMs` (default 120,000) and `headersTimeoutMs` (default 30,000)
+bound how long a caller may take to send a request, and `maxConnections`
+(default 10,000) how many connections are held at once.

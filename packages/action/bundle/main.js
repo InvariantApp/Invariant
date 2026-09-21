@@ -17285,13 +17285,30 @@ var InvariantRuntime = class {
 	static sanitizeHeaders(headers) {
 		for (const name of [...headers.keys()]) if (name.toLowerCase().startsWith(INTERNAL_PREFIX)) headers.delete(name);
 	}
+	/**
+	* A caller refused before any operation is chosen, counted like every other
+	* refusal and with the id they are sent, or a typo in a version header
+	* would look like silence.
+	*/
+	#refused(error, path) {
+		this.#onOutcome?.({
+			contract: error.contract,
+			operation: path,
+			consumer: void 0,
+			direction: "request",
+			outcome: "refused",
+			reason: "UnsupportedContractError",
+			errorId: errorIdOf(error)
+		});
+		return error;
+	}
 	/** Whatever the pre-authentication signals say about the caller's contract. */
 	hintFrom(headers, path) {
 		for (const strategy of this.#identity) {
 			if (strategy.kind === "header") {
 				const value = headers.get(strategy.name);
 				if (value) {
-					if (!this.knows(value)) throw UnsupportedContractError.unknown(value, this.#knownList());
+					if (!this.knows(value)) throw this.#refused(UnsupportedContractError.unknown(value, this.#knownList()), path);
 					return {
 						label: value,
 						source: "header"
@@ -17415,7 +17432,7 @@ var InvariantRuntime = class {
 		if (direct) return direct;
 		for (const strategy of this.#identity) {
 			if (strategy.kind === "principal" && pinned !== void 0) {
-				if (!this.knows(pinned)) throw new UnsupportedContractError(pinned, "the account is pinned to an unknown contract");
+				if (!this.knows(pinned)) throw this.#refused(new UnsupportedContractError(pinned, "the account is pinned to an unknown contract"), path);
 				return {
 					label: pinned,
 					source: "principal"

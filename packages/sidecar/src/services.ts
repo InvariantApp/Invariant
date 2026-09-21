@@ -44,7 +44,7 @@ export interface Services {
    * Immediately when there is no remote source. Never rejects.
    */
   ready(): Promise<void>;
-  /** Begins the heartbeat, once the program is loaded. */
+  /** Begins the heartbeat once the program is loaded, and names a reloaded one. */
   started(program: { text: string; currentLabel: string }): void;
   /** Sends what is counted and stops polling. Never rejects. */
   close(): Promise<void>;
@@ -122,6 +122,9 @@ export function servicesFor(
       : undefined;
 
   let stopHeartbeat: (() => void) | undefined;
+  let running:
+    | { digest: string; currentLabel: string; compiledBy?: string; minRuntime?: string }
+    | undefined;
 
   return {
     ...(flags ? { flags: flags.read } : {}),
@@ -145,23 +148,24 @@ export function servicesFor(
     },
     ready: () => remote?.refresh() ?? Promise.resolve(),
     started(program) {
-      if (!client || !config.telemetry?.controlPlane) return;
-      const digest = `sha256:${createHash("sha256").update(program.text).digest("hex")}`;
+      // Called again after a reload, so the heartbeat names the new program.
       const parsed = JSON.parse(program.text) as {
         compiledBy?: string;
         minRuntime?: string;
       };
+      running = {
+        digest: `sha256:${createHash("sha256").update(program.text).digest("hex")}`,
+        currentLabel: program.currentLabel,
+        ...(parsed.compiledBy === undefined ? {} : { compiledBy: parsed.compiledBy }),
+        ...(parsed.minRuntime === undefined ? {} : { minRuntime: parsed.minRuntime }),
+      };
+      if (stopHeartbeat || !client || !config.telemetry?.controlPlane) return;
       stopHeartbeat = startHeartbeat({
         client,
         onError: log,
         describe: () => ({
           runtime: { version: RUNTIME_VERSION, binding: "proxy" },
-          program: {
-            digest,
-            currentLabel: program.currentLabel,
-            ...(parsed.compiledBy === undefined ? {} : { compiledBy: parsed.compiledBy }),
-            ...(parsed.minRuntime === undefined ? {} : { minRuntime: parsed.minRuntime }),
-          },
+          program: running as NonNullable<typeof running>,
           flags: {
             source: remote
               ? remote.stale()

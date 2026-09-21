@@ -18,6 +18,12 @@ export interface SidecarConfig {
   identity: IdentityStrategy[];
   maxBodyBytes: number;
   upstreamTimeoutMs: number;
+  /** Longest a caller's whole request may take to arrive. */
+  requestTimeoutMs: number;
+  /** Longest a caller's request headers may take to arrive. */
+  headersTimeoutMs: number;
+  /** Most caller connections held at once. */
+  maxConnections: number;
   healthPath: string;
   /** Paths passed through untouched, matched as exact paths or `prefix*`. */
   skip: string[];
@@ -73,6 +79,9 @@ const KEYS = new Set([
   "identity",
   "maxBodyBytes",
   "upstreamTimeoutMs",
+  "requestTimeoutMs",
+  "headersTimeoutMs",
+  "maxConnections",
   "healthPath",
   "skip",
   "controlPlane",
@@ -121,6 +130,14 @@ export function parseConfig(raw: unknown, relativeTo: string): SidecarConfig {
   const host = listen["host"] ?? "127.0.0.1";
   if (typeof host !== "string") throw new ConfigError(`"listen.host" must be a string.`);
 
+  const requestTimeoutMs = positiveInt(value, "requestTimeoutMs", 120_000);
+  const headersTimeoutMs = positiveInt(value, "headersTimeoutMs", 30_000);
+  if (headersTimeoutMs > requestTimeoutMs) {
+    throw new ConfigError(
+      `"headersTimeoutMs" (${headersTimeoutMs}) cannot be longer than "requestTimeoutMs" (${requestTimeoutMs}): the headers are part of the request.`,
+    );
+  }
+
   return {
     program: resolve(relativeTo, program),
     upstream,
@@ -128,6 +145,9 @@ export function parseConfig(raw: unknown, relativeTo: string): SidecarConfig {
     identity: identityFrom(value["identity"]),
     maxBodyBytes: positiveInt(value, "maxBodyBytes", 1024 * 1024),
     upstreamTimeoutMs: positiveInt(value, "upstreamTimeoutMs", 30_000),
+    requestTimeoutMs,
+    headersTimeoutMs,
+    maxConnections: positiveInt(value, "maxConnections", 10_000),
     healthPath: optionalPath(value, "healthPath", "/__invariant/health"),
     skip: stringList(value, "skip"),
     ...optionalServices(value, relativeTo),

@@ -5,10 +5,11 @@
  * Starts the proxy in front of a provider's API. Everything is read and checked
  * before the port opens, so a misconfigured proxy never takes a single request.
  */
-import { readFile } from "node:fs/promises";
+import { watch } from "node:fs";
 import { createRuntime } from "@invariant/runtime";
 import { ConfigError, loadConfig, skipper } from "./config.ts";
 import { createProxy } from "./proxy.ts";
+import { reloadable } from "./reload.ts";
 import { serve } from "./server.ts";
 import { servicesFor } from "./services.ts";
 
@@ -20,43 +21,61 @@ async function main(): Promise<void> {
   }
 
   const config = await loadConfig(path);
-  const text = await readFile(config.program, "utf8");
   const services = servicesFor(config);
-  const runtime = createRuntime({
-    program: JSON.parse(text),
-    identity: config.identity,
-    maxBodyBytes: config.maxBodyBytes,
-    ...(services.flags ? { flags: services.flags } : {}),
-    ...(services.onUsage ? { onUsage: services.onUsage } : {}),
-    onOutcome: services.onOutcome,
+  const log = (message: string) =>
+    process.stderr.write(`invariant-sidecar: ${message}\n`);
+
+  const program = await reloadable({
+    path: config.program,
+    log,
+    build: (text) => {
+      const runtime = createRuntime({
+        program: JSON.parse(text),
+        identity: config.identity,
+        maxBodyBytes: config.maxBodyBytes,
+        ...(services.flags ? { flags: services.flags } : {}),
+        ...(services.onUsage ? { onUsage: services.onUsage } : {}),
+        onOutcome: services.onOutcome,
+      });
+      services.started({ text, currentLabel: runtime.currentLabel });
+      return createProxy({
+        runtime,
+        upstream: config.upstream,
+        upstreamTimeoutMs: config.upstreamTimeoutMs,
+        healthPath: config.healthPath,
+        skip: skipper(config.skip),
+      });
+    },
   });
-  services.started({ text, currentLabel: runtime.currentLabel });
   // The kill switch is known before the first request, unless the control
   // plane is slow to say, in which case the last flags kept on disk serve.
   await Promise.race([
     services.ready(),
-    new Promise((resolve) => setTimeout(resolve, 2000)),
+    new Promise((resolve) => setTimeout(resolve, 2000).unref()),
   ]);
 
-  const listening = await serve(
-    createProxy({
-      runtime,
-      upstream: config.upstream,
-      upstreamTimeoutMs: config.upstreamTimeoutMs,
-      healthPath: config.healthPath,
-      skip: skipper(config.skip),
-    }),
-    {
-      port: config.listen.port,
-      host: config.listen.host,
-      onError: (error) => process.stderr.write(`invariant-sidecar: ${String(error)}\n`),
-    },
-  );
+  const listening = await serve(program.handler, {
+    port: config.listen.port,
+    host: config.listen.host,
+    requestTimeoutMs: config.requestTimeoutMs,
+    headersTimeoutMs: config.headersTimeoutMs,
+    maxConnections: config.maxConnections,
+    onError: (error) => log(String(error)),
+  });
 
   process.stdout.write(
-    `invariant-sidecar serving contract ${runtime.currentLabel} ` +
-      `(${runtime.currentDigest}) at ${listening.url}, in front of ${config.upstream}\n`,
+    `invariant-sidecar serving ${config.program} at ${listening.url}, in front of ${config.upstream}\n`,
   );
+
+  // A new program replaces the running one on SIGHUP, or when its file
+  // changes; one that does not load is reported and the running one kept.
+  process.on("SIGHUP", () => void program.reload("SIGHUP"));
+  let settle: NodeJS.Timeout | undefined;
+  watch(config.program, () => {
+    // Editors and deploy tools write a file in several steps; wait for quiet.
+    clearTimeout(settle);
+    settle = setTimeout(() => void program.reload("the file changed"), 250);
+  }).unref();
 
   let stopping = false;
   const stop = async (signal: string) => {

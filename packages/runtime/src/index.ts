@@ -493,6 +493,24 @@ export class InvariantRuntime {
     }
   }
 
+  /**
+   * A caller refused before any operation is chosen, counted like every other
+   * refusal and with the id they are sent, or a typo in a version header
+   * would look like silence.
+   */
+  #refused(error: UnsupportedContractError, path: string): UnsupportedContractError {
+    this.#onOutcome?.({
+      contract: error.contract,
+      operation: path,
+      consumer: undefined,
+      direction: "request",
+      outcome: "refused",
+      reason: "UnsupportedContractError",
+      errorId: errorIdOf(error) as string,
+    });
+    return error;
+  }
+
   /** Whatever the pre-authentication signals say about the caller's contract. */
   hintFrom(headers: Headers, path: string): ContractResolution | undefined {
     for (const strategy of this.#identity) {
@@ -506,7 +524,10 @@ export class InvariantRuntime {
           // breakage this product exists to prevent, arriving through its own
           // front door, and the design said to refuse it all along.
           if (!this.knows(value)) {
-            throw UnsupportedContractError.unknown(value, this.#knownList());
+            throw this.#refused(
+              UnsupportedContractError.unknown(value, this.#knownList()),
+              path,
+            );
           }
           return { label: value, source: "header" };
         }
@@ -643,9 +664,12 @@ export class InvariantRuntime {
     for (const strategy of this.#identity) {
       if (strategy.kind === "principal" && pinned !== undefined) {
         if (!this.knows(pinned)) {
-          throw new UnsupportedContractError(
-            pinned,
-            "the account is pinned to an unknown contract",
+          throw this.#refused(
+            new UnsupportedContractError(
+              pinned,
+              "the account is pinned to an unknown contract",
+            ),
+            path,
           );
         }
         return { label: pinned, source: "principal" };

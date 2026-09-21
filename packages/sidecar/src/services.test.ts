@@ -160,6 +160,29 @@ describe("the proxy connected to its control plane", () => {
     ]);
   });
 
+  it("logs and counts a caller naming a contract that does not exist", async () => {
+    const plane = controlPlane();
+    const { services, proxy } = running(config("unknown.jsonl"), plane);
+    const refused = await proxy(
+      new Request("https://api.example.com/v1/payments", {
+        method: "POST",
+        headers: { "content-type": "application/json", "payments-version": "1999-01-01" },
+        body: "{}",
+      }),
+    );
+    expect(refused.status).toBe(400);
+    expect(records.at(-1)).toMatchObject({
+      event: "refused",
+      errorId: refused.headers.get("invariant-error-id"),
+      contract: "1999-01-01",
+    });
+    await services.close();
+    const ingest = plane.received.find((entry) => entry.path === "/v1/ingest");
+    expect(ingest?.body).toMatchObject({
+      outcomes: [{ contract: "1999-01-01", outcome: "refused", count: 1 }],
+    });
+  });
+
   it("is refused before it starts when the token it names is not set", () => {
     expect(() => servicesFor(config(), { env: {} })).toThrow(
       /INVARIANT_TOKEN, which is not set/,

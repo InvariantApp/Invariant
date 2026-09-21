@@ -28,6 +28,17 @@ export interface Listening {
 export interface ServeOptions {
   port: number;
   host?: string;
+  /**
+   * Longest a whole request may take to arrive from the caller, so one
+   * trickling bytes cannot hold a connection open indefinitely. The upstream's
+   * answer is not included. Default two minutes, for large uploads on slow
+   * links.
+   */
+  requestTimeoutMs?: number;
+  /** Longest the request headers may take to arrive. Default 30 seconds. */
+  headersTimeoutMs?: number;
+  /** Most connections held at once; past it new ones are refused. Default 10,000. */
+  maxConnections?: number;
   /** Called with anything thrown past the proxy's own handling. */
   onError?: (error: unknown) => void;
 }
@@ -36,9 +47,16 @@ export async function serve(
   handler: FetchHandler,
   options: ServeOptions,
 ): Promise<Listening> {
-  const server = createServer((incoming, outgoing) => {
-    void handle(handler, incoming, outgoing, options.onError);
-  });
+  const server = createServer(
+    {
+      requestTimeout: options.requestTimeoutMs ?? 120_000,
+      headersTimeout: options.headersTimeoutMs ?? 30_000,
+    },
+    (incoming, outgoing) => {
+      void handle(handler, incoming, outgoing, options.onError);
+    },
+  );
+  server.maxConnections = options.maxConnections ?? 10_000;
   // Longer than a typical load balancer's idle timeout, so the balancer closes
   // idle connections rather than finding them closed under it.
   server.keepAliveTimeout = 65_000;
