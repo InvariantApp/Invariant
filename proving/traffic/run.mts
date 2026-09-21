@@ -28,11 +28,9 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { chainProgram } from "@invariant/compiler";
 import { loadContract, type OpenApiDocument } from "@invariant/contract";
 import type { PairResult } from "@invariant/eval";
 import type { JsonValue } from "@invariant/ir";
-import { propose, RulesJudge } from "@invariant/proposer";
 import { createRuntime } from "@invariant/runtime";
 import { createProxy } from "@invariant/sidecar";
 import { valueArbitrary } from "@invariant/verifier";
@@ -43,6 +41,7 @@ import {
   ROOT,
   readManifest,
 } from "../corpus/manifest.mts";
+import { draftProgram, NEW, OLD } from "../draft.mts";
 import { type ContractMock, createContractMock } from "./mock.mts";
 import { Oracle } from "./oracle.mts";
 
@@ -281,22 +280,17 @@ async function runPair(pair: ManifestPair): Promise<TrafficResult> {
     sites: [],
   };
   const local = await materializePair(pair);
-  const from = await loadContract(local.fromPath, "old");
-  const to = await loadContract(local.toPath, "new");
-  const drafted = await propose(from.document, to.document, { judge: new RulesJudge() });
-  const changes = drafted.proposals.map((proposal) => proposal.change);
-  result.changes = changes.length;
-
-  const chained = chainProgram(pair.api, "new", "sha256:rig-c", [
-    { label: "new", parent: "old", from: from.document, to: to.document, changes },
-  ]);
-  if (chained.issues.length > 0) {
-    result.error = `the gate would block this release: ${chained.issues[0]?.message ?? ""}`;
+  const from = await loadContract(local.fromPath, OLD);
+  const to = await loadContract(local.toPath, NEW);
+  const drafted = await draftProgram(pair.api, from.document, to.document);
+  result.changes = drafted.changes.length;
+  if (drafted.issues.length > 0) {
+    result.error = `the gate would block this release: ${drafted.issues[0]?.message ?? ""}`;
     return result;
   }
   const runtime = createRuntime({
-    program: chained.program,
-    identity: [{ kind: "default", label: "old" }],
+    program: drafted.program,
+    identity: [{ kind: "default", label: OLD }],
   });
 
   const oldOracle = new Oracle(from.document as never);
@@ -311,7 +305,7 @@ async function runPair(pair: ManifestPair): Promise<TrafficResult> {
     fetch: viaMock(newMock),
   });
 
-  for (const { old, current, retired } of adaptedSites(chained.program, "old")) {
+  for (const { old, current, retired } of adaptedSites(drafted.program, OLD)) {
     const operation = operationOf(from.document, old);
     const site: SiteResult = {
       old: keyOf(old),

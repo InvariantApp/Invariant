@@ -22,6 +22,7 @@
     "eval:record": "node --env-file=.env --import tsx eval/record.mts",
     "app:register": "node --import tsx scripts/register-app.mts",
     "app:status": "node --import tsx scripts/app-status.mts",
+    "proving:servers": "node --import tsx proving/servers/run.mts",
     "proving:traffic": "node --import tsx proving/traffic/run.mts",
     "proving:corpus": "node --env-file-if-exists=.env --import tsx proving/corpus/run.mts",
     "proving:discover": "node --import tsx proving/corpus/discover-git.mts"

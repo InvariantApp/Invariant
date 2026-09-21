@@ -1,0 +1,48 @@
+{
+  "about": "Rig D. Real open-source API servers across their own breaking releases. Each release is pinned by its tag's commit, for the specification and the old release's own API suite, and by its image digest, for the server. The suite of the old release, validating against the old specification, is run against the old server, the new server, and the new server through the proxy.",
+  "projects": [
+    {
+      "name": "qdrant",
+      "language": "Rust",
+      "repo": "qdrant/qdrant",
+      "image": "qdrant/qdrant",
+      "containerPort": 6333,
+      "ready": "/collections",
+      "spec": "docs/redoc/master/openapi.json",
+      "suite": {
+        "dir": "tests",
+        "sparse": ["tests", "docs/redoc/master"],
+        "lock": "poetry",
+        "run": ["pytest", "openapi", "-q", "-p", "no:cacheprovider", "--timeout", "120"],
+        "env": { "QDRANT_HOST": "{url}", "OPENAPI_FILE": "{spec}" }
+      },
+      "releases": {
+        "v1.13.0": {
+          "commit": "ffda0b90c8c44fc43c99adab518b9787fe57bde6",
+          "digest": "sha256:a3506c537c50d6a2eec11c6793bff4b16cc4fccae607612c6ecc28ca01aed0bd"
+        },
+        "v1.14.0": {
+          "commit": "3617a0111fc8590c4adcc6e88882b63ca4dda9e7",
+          "digest": "sha256:f21bbaf111837592b70f4d727c62cf6d6525b5374b1193e9faeac26a953702a8"
+        },
+        "v1.16.0": {
+          "commit": "0d79528705f04def1b52842f747e5a00ab1e338a",
+          "digest": "sha256:1005201498cf927d835383d0f918b17d8c9da7db58550f169f694455e42d78f4"
+        },
+        "v1.17.0": {
+          "commit": "4ab6d2ee0f6c718667e553b1055f3e944fef025f",
+          "digest": "sha256:f1c7272cdac52b38c1a0e89313922d940ba50afd90d593a1605dbbc214e66ffb"
+        },
+        "v1.18.0": {
+          "commit": "db3fca327851e360c521065649e0f65a57fe7d3c",
+          "digest": "sha256:b3063c673f3973877c038eeecc392bad5011f072ee7892b56c9a8e204a3bdea9"
+        },
+        "v1.19.0": {
+          "commit": "74f3e85b9473c62560006c043e13737ce6b48412",
+          "digest": "sha256:057ee3a8da769fe7310dd3537b4dc7583bf87a95ce8ac43c0af5a46bc580d1fc"
+        }
+      },
+      "pairs": [["v1.13.0", "v1.14.0"], ["v1.16.0", "v1.17.0"], ["v1.18.0", "v1.19.0"]]
+    }
+  ]
+}

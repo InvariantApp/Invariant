@@ -54,3 +54,21 @@ the rig cannot judge, because the old mock could not produce a valid value of
 its own contract, is counted and explained in the report rather than passed.
 Retired operations are scored only against what was declared: a 410, and the
 API never reached. A violation fails the run.
+
+## Rig D: real servers
+
+`servers/projects.json` names each project, pins every release by its tag's
+commit and its image digest, and lists the release pairs to run. For each
+pair the old release's own API suite, validating against the old
+specification, runs against the old server, the new server, and the new
+server through the proxy running the drafted program, each from a fresh
+container.
+
+```console
+pnpm proving:servers --project qdrant
+node --import tsx proving/servers/run.mts --project qdrant --pair v1.13.0:v1.14.0 --select test_alias
+```
+
+Needs Docker and `uv`. The suite is installed from the release's own lock
+file into a virtual environment of its own. A test that passes without the
+adapter and fails through it fails the run.
