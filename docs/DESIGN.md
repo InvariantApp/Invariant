@@ -1872,6 +1872,23 @@ E8 is produced: a release records who merged each Change, and a Change with no
 such record is marked skipped rather than omitted, because a missing record and
 a passing one must not look the same to whoever reads the bundle.
 
-Everything else the design asked for exists and is tested. Where a phase's
-acceptance criteria could not be met without credentials, that is said here
-rather than quietly counted as done.
+This section used to say that everything else the design asked for exists and
+is tested. That was not true, and it is corrected here rather than quietly
+edited away.
+
+**The sidecar was never built.** Sections 1.3, 5.1 and 12 describe a standalone
+proxy wrapping the same engine, so that a provider not running Node can adopt the
+runtime. There is no such package. The runtime works inside a Node application
+through `runtime-hono` and nowhere else, which means none of the eight providers
+in the real-data corpus could adopt it as they stand: not Stripe, GitHub, Twilio,
+Adyen, Plaid, Box, OpenAI or Intercom.
+
+**The control plane is not deployed.** It exists and its tests pass, but nothing
+runs it, so webhook receipt and sponsored-link redemption have never been
+exercised against a live service.
+
+**Consumer migration is TypeScript only.** A consumer written in anything else
+receives no pull request.
+
+Where a phase's acceptance criteria could not be met without credentials, that
+is said here rather than quietly counted as done.
