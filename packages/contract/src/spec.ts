@@ -6,9 +6,9 @@ import {
   type JsonValue,
 } from "@invariant/ir";
 import { upgradeFromTwoToThree } from "@scalar/openapi-upgrader/2.0-to-3.0";
-import { parse as parseYaml } from "yaml";
 import { BundleError, bundleDocument } from "./bundle.ts";
 import { digestOf, stripNonWire } from "./canonical.ts";
+import { DocumentTooLargeError, parseDocumentText } from "./parse.ts";
 import { correctUpgrade } from "./swagger.ts";
 
 export type OpenApiDocument = JsonObject;
@@ -283,8 +283,85 @@ export function isSwagger2(document: OpenApiDocument): boolean {
   return document["swagger"] === "2.0";
 }
 
+/** What a Response object may hold, so a component of another kind can stand in for one. */
+const RESPONSE_KEYS = new Set(["description", "content", "headers", "links"]);
+
+/** Every place a response may sit, with how to replace it. */
+function responseSlots(
+  document: OpenApiDocument,
+): { value: JsonValue; set: (next: JsonValue) => void }[] {
+  const slots: { value: JsonValue; set: (next: JsonValue) => void }[] = [];
+  const add = (responses: JsonValue | undefined) => {
+    if (!isJsonObject(responses)) return;
+    for (const [status, value] of Object.entries(responses)) {
+      slots.push({ value, set: (next) => (responses[status] = next) });
+    }
+  };
+  const paths = document["paths"];
+  if (isJsonObject(paths)) {
+    for (const item of Object.values(paths)) {
+      if (!isJsonObject(item)) continue;
+      for (const operation of Object.values(item)) {
+        if (isJsonObject(operation)) add(operation["responses"]);
+      }
+    }
+  }
+  const components = document["components"];
+  if (isJsonObject(components)) add(components["responses"]);
+  return slots;
+}
+
+/**
+ * A response that refers to a request body, written as a response.
+ *
+ * PagerDuty's document answers two operations with
+ * `$ref: "#/components/requestBodies/OrchestrationCacheVariableDataPutResponse"`,
+ * reusing a request body that happens to have exactly a response's shape: a
+ * description and content. Their tooling accepts it and the differ refuses
+ * it, which cost every PagerDuty pair. Only that case is taken: a target
+ * holding nothing a response cannot hold becomes a response of the same name.
+ * Anything else still fails, with the differ's reason. The input is not
+ * changed; a copy is, and only when there is something to change.
+ */
+function responsesFromRequestBodies(input: OpenApiDocument): OpenApiDocument {
+  const PREFIX = "#/components/requestBodies/";
+  const misplaced = (value: JsonValue) =>
+    isJsonObject(value) &&
+    typeof value["$ref"] === "string" &&
+    value["$ref"].startsWith(PREFIX);
+  if (!responseSlots(input).some((slot) => misplaced(slot.value))) return input;
+
+  const document = structuredClone(input);
+  const components = document["components"] as JsonObject;
+  const responses = isJsonObject(components["responses"]) ? components["responses"] : {};
+  components["responses"] = responses;
+  for (const slot of responseSlots(document)) {
+    if (!misplaced(slot.value)) continue;
+    const ref = (slot.value as JsonObject)["$ref"] as string;
+    const target = resolveRef(document, ref);
+    const fits =
+      isJsonObject(target) &&
+      typeof target["description"] === "string" &&
+      Object.keys(target).every((key) => RESPONSE_KEYS.has(key) || key.startsWith("x-"));
+    if (!fits) continue;
+    const name = ref.slice(PREFIX.length);
+    const existing = responses[name];
+    const key =
+      existing === undefined || JSON.stringify(existing) === JSON.stringify(target)
+        ? name
+        : `${name}_response`;
+    responses[key] = structuredClone(target);
+    slot.set({
+      $ref: `#/components/responses/${key.replaceAll("~", "~0").replaceAll("/", "~1")}`,
+    });
+  }
+  return document;
+}
+
 export function normalizeDocument(input: OpenApiDocument): OpenApiDocument {
-  const document = isSwagger2(input) ? upgradeSwagger(input) : input;
+  const document = responsesFromRequestBodies(
+    isSwagger2(input) ? upgradeSwagger(input) : input,
+  );
   assertRefsResolve(document);
   assertSchemasWellFormed(document);
   const version = document["openapi"];
@@ -317,7 +394,13 @@ export function contractOf(label: string, document: OpenApiDocument): Contract {
 /** A document as its file has it, before any conversion. */
 export async function readDocument(path: string): Promise<OpenApiDocument> {
   const text = await readFile(path, "utf8");
-  const parsed: unknown = path.endsWith(".json") ? JSON.parse(text) : parseYaml(text);
+  let parsed: JsonValue;
+  try {
+    parsed = parseDocumentText(path, text);
+  } catch (error) {
+    if (error instanceof DocumentTooLargeError) throw new ContractError(error.message);
+    throw error;
+  }
   if (!isJsonObject(parsed)) {
     throw new ContractError(`${path} does not contain an OpenAPI document`);
   }
@@ -408,9 +491,20 @@ export function resolveRef(
   if (!ref.startsWith("#/")) return undefined;
   let current: JsonValue = document;
   for (const raw of ref.slice(2).split("/")) {
-    const key = raw.replace(/~1/g, "/").replace(/~0/g, "~");
-    if (!isJsonObject(current)) return undefined;
-    const next: JsonValue | undefined = current[key];
+    // A fragment is a URI fragment first, so `%7B` is `{`, and a pointer
+    // after that, so `~1` is `/`.
+    let key: string;
+    try {
+      key = decodeURIComponent(raw).replace(/~1/g, "/").replace(/~0/g, "~");
+    } catch {
+      return undefined;
+    }
+    let next: JsonValue | undefined;
+    // PagerDuty points into a union's branches by position, which a pointer
+    // allows: `.../schema/oneOf/0`.
+    if (Array.isArray(current))
+      next = /^(0|[1-9]\d*)$/.test(key) ? current[Number(key)] : undefined;
+    else if (isJsonObject(current)) next = current[key];
     if (next === undefined) return undefined;
     current = next;
   }

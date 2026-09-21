@@ -11292,27 +11292,20 @@ var require_public_api = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.stringify = stringify;
 }));
 //#endregion
-//#region ../contract/src/bundle.ts
+//#region ../contract/src/parse.ts
 /**
-* A specification split across files, read as the one document it describes.
+* Specification text to a document, JSON or YAML, with one guard YAML needs.
 *
-* Many providers keep their OpenAPI document in pieces, a file per schema or
-* per path, joined by relative `$ref`s such as `./schemas/Pet.yaml`. Every
-* part of this system reads one self-contained document, and a Change names a
-* schema by where it sits in that document, so the pieces are gathered here,
-* once, when the file is loaded.
-*
-* A referenced schema is placed among the document's named schemas, under the
-* name its reference gives it (`#/Pet` or `Pet.yaml` names it `Pet`), so a
-* Change can be scoped to it like any other. Anything else, a path item or a
-* parameter kept in its own file, is written in where it is referenced, which
-* is what the reference means.
-*
-* Only files are read, never URLs, and never outside the repository the
-* document sits in: a specification is input, and resolving a reference must
-* not become a way to read or fetch anything else. Documents that arrive over
-* the network never come through here; they are refused any external
-* reference at all.
+* YAML anchors let one node be used in many places, and the parser returns
+* the same object for each use, so a document is a graph rather than a tree
+* until something writes it out. Written out, a few lines of nested aliases
+* can expand past any memory there is. The `yaml` library's own guard counts
+* how often an anchor is used times how deeply it nests, which refuses
+* Langfuse's specification (one anchor reused a few hundred times, harmless)
+* and allows the classic expansion attack (ten uses at each of eight levels).
+* So that guard is off, and the expanded size is measured exactly instead:
+* each shared node is counted once and its size reused, which is linear in
+* the size of the text however large the expansion would be.
 */
 var import_dist = (/* @__PURE__ */ __commonJSMin(((exports) => {
 	var composer = require_composer();
@@ -11360,6 +11353,68 @@ var import_dist = (/* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.visit = visit.visit;
 	exports.visitAsync = visit.visitAsync;
 })))();
+/**
+* The most values a document may hold once every alias is written out.
+* Stripe's specification, among the largest published, is about two million.
+*/
+const MAX_EXPANDED_VALUES = 5e7;
+var DocumentTooLargeError = class extends Error {
+	constructor(values) {
+		super(`The document expands to more than ${MAX_EXPANDED_VALUES.toLocaleString("en")} values through YAML aliases (at least ${values.toLocaleString("en")}), which no real specification does and an expansion attack does.`);
+		this.name = "DocumentTooLargeError";
+	}
+};
+/** How many values `value` holds written out as a tree, stopping once past `limit`. */
+function expandedSize(value, limit = MAX_EXPANDED_VALUES) {
+	const sizes = /* @__PURE__ */ new Map();
+	const measure = (node) => {
+		if (node === null || typeof node !== "object") return 1;
+		const known = sizes.get(node);
+		if (known !== void 0) return known;
+		sizes.set(node, 1);
+		let total = 1;
+		for (const child of Array.isArray(node) ? node : Object.values(node)) {
+			total += measure(child);
+			if (total > limit) break;
+		}
+		sizes.set(node, total);
+		return total;
+	};
+	return measure(value);
+}
+/** A document from its text, by the file's extension: `.json` is JSON, anything else YAML. */
+function parseDocumentText(path, text) {
+	if (extname(path).toLowerCase() === ".json") return JSON.parse(text);
+	const value = (0, import_dist.parse)(text, { maxAliasCount: -1 });
+	if (isJsonObject(value) || Array.isArray(value)) {
+		const size = expandedSize(value);
+		if (size > 5e7) throw new DocumentTooLargeError(size);
+	}
+	return value;
+}
+//#endregion
+//#region ../contract/src/bundle.ts
+/**
+* A specification split across files, read as the one document it describes.
+*
+* Many providers keep their OpenAPI document in pieces, a file per schema or
+* per path, joined by relative `$ref`s such as `./schemas/Pet.yaml`. Every
+* part of this system reads one self-contained document, and a Change names a
+* schema by where it sits in that document, so the pieces are gathered here,
+* once, when the file is loaded.
+*
+* A referenced schema is placed among the document's named schemas, under the
+* name its reference gives it (`#/Pet` or `Pet.yaml` names it `Pet`), so a
+* Change can be scoped to it like any other. Anything else, a path item or a
+* parameter kept in its own file, is written in where it is referenced, which
+* is what the reference means.
+*
+* Only files are read, never URLs, and never outside the repository the
+* document sits in: a specification is input, and resolving a reference must
+* not become a way to read or fetch anything else. Documents that arrive over
+* the network never come through here; they are refused any external
+* reference at all.
+*/
 var BundleError = class extends Error {
 	constructor(message) {
 		super(message);
@@ -11388,12 +11443,17 @@ const SCHEMA_MAP = /* @__PURE__ */ new Set([
 	"$defs"
 ]);
 function parseText(path, text) {
-	return extname(path).toLowerCase() === ".json" ? JSON.parse(text) : (0, import_dist.parse)(text);
+	try {
+		return parseDocumentText(path, text);
+	} catch (error) {
+		if (error instanceof DocumentTooLargeError) throw new BundleError(error.message);
+		throw error;
+	}
 }
 function pointerKey(segment) {
 	return decodeURIComponent(segment).replaceAll("~1", "/").replaceAll("~0", "~");
 }
-function at(value, pointer, where) {
+function at$1(value, pointer, where) {
 	let node = value;
 	for (const segment of pointer.split("/").slice(1)) {
 		const key = pointerKey(segment);
@@ -11487,7 +11547,7 @@ async function bundleDocument(path, options = {}) {
 				$ref: `#${target.pointer}`
 			};
 			const key = `${target.file}#${target.pointer}`;
-			const content = async () => at(await load(target.file, file), target.pointer, `${file}: ${ref}`);
+			const content = async () => at$1(await load(target.file, file), target.pointer, `${file}: ${ref}`);
 			if (schema) {
 				let name = placed.get(key);
 				if (name === void 0) {
@@ -12517,8 +12577,67 @@ function upgradeSwagger(document) {
 function isSwagger2(document) {
 	return document["swagger"] === "2.0";
 }
+/** What a Response object may hold, so a component of another kind can stand in for one. */
+const RESPONSE_KEYS = /* @__PURE__ */ new Set([
+	"description",
+	"content",
+	"headers",
+	"links"
+]);
+/** Every place a response may sit, with how to replace it. */
+function responseSlots(document) {
+	const slots = [];
+	const add = (responses) => {
+		if (!isJsonObject(responses)) return;
+		for (const [status, value] of Object.entries(responses)) slots.push({
+			value,
+			set: (next) => responses[status] = next
+		});
+	};
+	const paths = document["paths"];
+	if (isJsonObject(paths)) for (const item of Object.values(paths)) {
+		if (!isJsonObject(item)) continue;
+		for (const operation of Object.values(item)) if (isJsonObject(operation)) add(operation["responses"]);
+	}
+	const components = document["components"];
+	if (isJsonObject(components)) add(components["responses"]);
+	return slots;
+}
+/**
+* A response that refers to a request body, written as a response.
+*
+* PagerDuty's document answers two operations with
+* `$ref: "#/components/requestBodies/OrchestrationCacheVariableDataPutResponse"`,
+* reusing a request body that happens to have exactly a response's shape: a
+* description and content. Their tooling accepts it and the differ refuses
+* it, which cost every PagerDuty pair. Only that case is taken: a target
+* holding nothing a response cannot hold becomes a response of the same name.
+* Anything else still fails, with the differ's reason. The input is not
+* changed; a copy is, and only when there is something to change.
+*/
+function responsesFromRequestBodies(input) {
+	const PREFIX = "#/components/requestBodies/";
+	const misplaced = (value) => isJsonObject(value) && typeof value["$ref"] === "string" && value["$ref"].startsWith(PREFIX);
+	if (!responseSlots(input).some((slot) => misplaced(slot.value))) return input;
+	const document = structuredClone(input);
+	const components = document["components"];
+	const responses = isJsonObject(components["responses"]) ? components["responses"] : {};
+	components["responses"] = responses;
+	for (const slot of responseSlots(document)) {
+		if (!misplaced(slot.value)) continue;
+		const ref = slot.value["$ref"];
+		const target = resolveRef(document, ref);
+		if (!(isJsonObject(target) && typeof target["description"] === "string" && Object.keys(target).every((key) => RESPONSE_KEYS.has(key) || key.startsWith("x-")))) continue;
+		const name = ref.slice(27);
+		const existing = responses[name];
+		const key = existing === void 0 || JSON.stringify(existing) === JSON.stringify(target) ? name : `${name}_response`;
+		responses[key] = structuredClone(target);
+		slot.set({ $ref: `#/components/responses/${key.replaceAll("~", "~0").replaceAll("/", "~1")}` });
+	}
+	return document;
+}
 function normalizeDocument(input) {
-	const document = isSwagger2(input) ? upgradeSwagger(input) : input;
+	const document = responsesFromRequestBodies(isSwagger2(input) ? upgradeSwagger(input) : input);
 	assertRefsResolve(document);
 	assertSchemasWellFormed(document);
 	const version = document["openapi"];
@@ -12590,9 +12709,15 @@ function resolveRef(document, ref) {
 	if (!ref.startsWith("#/")) return void 0;
 	let current = document;
 	for (const raw of ref.slice(2).split("/")) {
-		const key = raw.replace(/~1/g, "/").replace(/~0/g, "~");
-		if (!isJsonObject(current)) return void 0;
-		const next = current[key];
+		let key;
+		try {
+			key = decodeURIComponent(raw).replace(/~1/g, "/").replace(/~0/g, "~");
+		} catch {
+			return;
+		}
+		let next;
+		if (Array.isArray(current)) next = /^(0|[1-9]\d*)$/.test(key) ? current[Number(key)] : void 0;
+		else if (isJsonObject(current)) next = current[key];
 		if (next === void 0) return void 0;
 		current = next;
 	}
@@ -12678,7 +12803,7 @@ function responseSchemas(document, operation) {
 * through the same view, so they cannot disagree about what a field is.
 */
 /** Deepest `allOf` nesting followed before giving up, which only a cycle reaches. */
-const MAX_DEPTH$2 = 32;
+const MAX_DEPTH$3 = 32;
 /**
 * The schema as it applies to a value: every `$ref` in the chain followed and
 * every `allOf` merged into one object.
@@ -12692,7 +12817,7 @@ function resolveSchema(document, schema) {
 	return resolveAt(document, schema, 0);
 }
 function resolveAt(document, schema, depth) {
-	if (depth > MAX_DEPTH$2) throw new ContractError("allOf nests too deeply to resolve");
+	if (depth > MAX_DEPTH$3) throw new ContractError("allOf nests too deeply to resolve");
 	const target = deref(document, schema);
 	if (!isJsonObject(target)) return target;
 	const branches = target["allOf"];
@@ -12745,7 +12870,8 @@ function mergeSchemas(document, left, right, depth) {
 		else if (key === "required" && Array.isArray(current) && Array.isArray(value)) out[key] = [.../* @__PURE__ */ new Set([...current, ...value])];
 		else if (key === "enum" && Array.isArray(current) && Array.isArray(value)) {
 			const allowed = new Set(value.map((entry) => JSON.stringify(entry)));
-			out[key] = current.filter((entry) => allowed.has(JSON.stringify(entry)));
+			const both = current.filter((entry) => allowed.has(JSON.stringify(entry)));
+			if (both.length > 0) out[key] = both;
 		} else if (LOWER_BOUNDS.includes(key) && typeof current === "number" && typeof value === "number") out[key] = Math.max(current, value);
 		else if (UPPER_BOUNDS.includes(key) && typeof current === "number" && typeof value === "number") out[key] = Math.min(current, value);
 		else if (key === "nullable") out[key] = current === true && value === true;
@@ -15685,7 +15811,7 @@ function expectKeys(value, allowed, where) {
 	for (const key of Object.keys(value)) if (!allowed.includes(key)) throw new ProgramError(`${where} has an unexpected field "${key}"`);
 }
 const POINTER_SEGMENT = /^([^/~]|~[01])*$/;
-function segmentsOf(pointer, where) {
+function segmentsOf$1(pointer, where) {
 	if (pointer === "") return [];
 	if (!pointer.startsWith("/")) throw new ProgramError(`${where} must be a JSON Pointer, got "${pointer}"`);
 	return pointer.slice(1).split("/").map((raw) => {
@@ -15739,7 +15865,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 				"block",
 				"c"
 			], where);
-			const path = segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`);
+			const path = segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`);
 			return {
 				k: "within",
 				path,
@@ -15766,7 +15892,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 		case "switch":
 		case "has":
 		case "is": {
-			const path = segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`);
+			const path = segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`);
 			if (path.some(isWildcard)) throw new ProgramError(`${where}.path reads a key through a wildcard`);
 			if (kind === "has") {
 				expectKeys(value, [
@@ -15825,8 +15951,8 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 				"to",
 				"c"
 			], where);
-			const from = segmentsOf(string$1(value["from"], `${where}.from`), `${where}.from`);
-			const to = segmentsOf(string$1(value["to"], `${where}.to`), `${where}.to`);
+			const from = segmentsOf$1(string$1(value["from"], `${where}.from`), `${where}.from`);
+			const to = segmentsOf$1(string$1(value["to"], `${where}.to`), `${where}.to`);
 			if (wildcardsOf(from) !== wildcardsOf(to)) throw new ProgramError(`${where} moves between paths whose wildcards do not line up`);
 			if (from.length === 0) throw new ProgramError(`${where} cannot move the document root`);
 			itself(to, "to");
@@ -15848,7 +15974,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 			if (typeof exp !== "number" || !Number.isInteger(exp) || exp < -9 || exp > 9) throw new ProgramError(`${where}.exp must be an integer between -9 and 9`);
 			return {
 				k: "scale",
-				path: segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`),
+				path: segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`),
 				exp,
 				c: changeId
 			};
@@ -15875,7 +16001,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 			}
 			return {
 				k: "enum",
-				path: segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`),
+				path: segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`),
 				map: decoded,
 				...lenient === true ? { lenient: true } : {},
 				...folded !== void 0 && folded.length > 0 ? { folded } : {},
@@ -15893,7 +16019,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 			if (!SCALARS.has(to)) throw new ProgramError(`${where}.to is not a scalar type`);
 			return {
 				k: "cast",
-				path: segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`),
+				path: segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`),
 				to,
 				c: changeId
 			};
@@ -15912,7 +16038,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 			if (!TIME_FORMATS.has(from) || !TIME_FORMATS.has(to) || from === to) throw new ProgramError(`${where} must name two different time formats`);
 			return {
 				k: "time",
-				path: segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`),
+				path: segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`),
 				from,
 				to,
 				...onlyTrue(value["truncate"], `${where}.truncate`) ? { truncate: true } : {},
@@ -15932,7 +16058,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 			if (!STRING_CASES.has(from) || !STRING_CASES.has(to) || from === to) throw new ProgramError(`${where} must name two different cases`);
 			return {
 				k: "case",
-				path: segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`),
+				path: segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`),
 				from,
 				to,
 				c: changeId
@@ -15946,7 +16072,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 			], where);
 			return {
 				k: "wrap",
-				path: segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`),
+				path: segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`),
 				c: changeId
 			};
 		case "unwrap":
@@ -15958,7 +16084,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 			], where);
 			return {
 				k: "unwrap",
-				path: segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`),
+				path: segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`),
 				...onlyTrue(value["first"], `${where}.first`) ? { first: true } : {},
 				c: changeId
 			};
@@ -15972,7 +16098,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 				"c"
 			], where);
 			if (typeof value["ifAbsent"] !== "boolean") throw new ProgramError(`${where}.ifAbsent must be a boolean`);
-			const path = segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`);
+			const path = segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`);
 			itself(path, "path");
 			if (path.length === 0 && (value["ifAbsent"] || value["ifNull"] !== void 0)) throw new ProgramError(`${where} replaces the value itself, which is never absent`);
 			return {
@@ -15991,7 +16117,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 				"ifNull",
 				"c"
 			], where);
-			const path = segmentsOf(string$1(value["path"], `${where}.path`), `${where}.path`);
+			const path = segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`);
 			itself(path, "path");
 			if (path.length === 0 && value["ifNull"] !== void 0) throw new ProgramError(`${where} removes the value itself, which is never null`);
 			return {
@@ -16229,7 +16355,7 @@ function decodeForm(raw, where) {
 	}
 	const types = /* @__PURE__ */ new Map();
 	for (const [pointer, type] of Object.entries(object$1(value["types"], `${where}.types`))) {
-		segmentsOf(pointer, `${where}.types`);
+		segmentsOf$1(pointer, `${where}.types`);
 		if (typeof type !== "string" || !FORM_TYPES.has(type)) throw new ProgramError(`${where}.types["${pointer}"] is not a type`);
 		types.set(pointer, type);
 	}
@@ -19923,6 +20049,274 @@ async function assertPinnedVersion(executable) {
 	if ((stdout.trim().split(/\s+/).at(-1) ?? "").replace(/^v/, "") !== "v1.33.0-rc.1".replace(/^v/, "")) throw new InstallError(`${executable} reports ${stdout.trim()}, not ${OASDIFF_VERSION}`);
 }
 //#endregion
+//#region ../diff/src/allof.ts
+/** The keywords the differ refuses to merge when branches disagree. */
+const MUST_AGREE = ["default", "type"];
+function resolveLocal(document, ref) {
+	if (!ref.startsWith("#/")) return void 0;
+	let node = document;
+	for (const raw of ref.slice(2).split("/")) {
+		let key;
+		try {
+			key = decodeURIComponent(raw).replaceAll("~1", "/").replaceAll("~0", "~");
+		} catch {
+			return;
+		}
+		node = Array.isArray(node) ? node[Number(key)] : isJsonObject(node) ? node[key] : void 0;
+		if (node === void 0) return void 0;
+	}
+	return node;
+}
+/** What a branch says, following one `$ref` as the differ does. */
+function statementOf(document, branch) {
+	if (!isJsonObject(branch)) return void 0;
+	const ref = branch["$ref"];
+	if (typeof ref !== "string") return branch;
+	const target = resolveLocal(document, ref);
+	return isJsonObject(target) ? target : void 0;
+}
+/** Deepest nesting followed; only a schema that contains itself goes further. */
+const MAX_DEPTH$1 = 32;
+/**
+* The slots a branch stands for once its own `allOf` is merged in: each of
+* its branches, then the keywords beside them, as the resolver reads it.
+*/
+function expand(document, slot, depth) {
+	const statement = statementOf(document, slot.raw() ?? null);
+	if (!statement || !Array.isArray(statement["allOf"]) || depth > MAX_DEPTH$1) return [slot];
+	const own = () => editable(document, slot);
+	return [...statement["allOf"].flatMap((_, index) => expand(document, {
+		raw: () => {
+			const current = statementOf(document, slot.raw() ?? null)?.["allOf"];
+			return Array.isArray(current) ? current[index] : void 0;
+		},
+		write: (next) => {
+			own()["allOf"][index] = next;
+		}
+	}, depth + 1)), {
+		raw: () => {
+			const { allOf: _, ...siblings } = statementOf(document, slot.raw() ?? null) ?? {};
+			return siblings;
+		},
+		write: (next) => {
+			const target = own();
+			for (const key of Object.keys(target)) if (key !== "allOf") delete target[key];
+			Object.assign(target, next);
+		}
+	}];
+}
+/**
+* The schema a slot holds, made safe to change: a `$ref` is replaced by a
+* copy of what it refers to, so the schema it names is untouched elsewhere.
+*/
+function editable(document, slot) {
+	const raw = slot.raw();
+	if (isJsonObject(raw) && typeof raw["$ref"] !== "string") return raw;
+	const copy = structuredClone(statementOf(document, raw ?? null) ?? {});
+	slot.write(copy);
+	return copy;
+}
+/**
+* Makes schemas that must hold at once agree, the way the resolver merges
+* them: the first statement of `default` or `type` stands, and properties
+* and items stated by more than one of them are merged the same way. Returns
+* whether they disagreed; with `apply` false nothing is changed, so a
+* document can be checked without a copy.
+*/
+function agree(document, slots, apply, depth) {
+	if (depth > MAX_DEPTH$1) return false;
+	const parts = slots.flatMap((slot) => expand(document, slot, depth));
+	if (parts.length < 2) return false;
+	let disagreed = false;
+	for (const keyword of MUST_AGREE) {
+		let first;
+		for (const part of parts) {
+			const value = statementOf(document, part.raw() ?? null)?.[keyword];
+			if (value === void 0) continue;
+			const text = JSON.stringify(value);
+			if (first === void 0) first = text;
+			else if (text !== first) {
+				disagreed = true;
+				if (apply) delete editable(document, part)[keyword];
+			}
+		}
+	}
+	let allowed;
+	for (const part of parts) {
+		const values = statementOf(document, part.raw() ?? null)?.["enum"];
+		if (!Array.isArray(values)) continue;
+		const texts = values.map((value) => JSON.stringify(value));
+		if (allowed === void 0) allowed = new Set(texts);
+		else if (!texts.some((text) => allowed.has(text))) {
+			disagreed = true;
+			if (apply) delete editable(document, part)["enum"];
+		} else allowed = new Set(texts.filter((text) => allowed.has(text)));
+	}
+	const nested = (keyword, name) => parts.flatMap((part) => {
+		const statement = statementOf(document, part.raw() ?? null);
+		const holder = keyword === "items" ? statement : statement?.["properties"];
+		const key = keyword === "items" ? "items" : name;
+		if (!isJsonObject(holder) || holder[key] === void 0) return [];
+		return [{
+			raw: () => {
+				const current = statementOf(document, part.raw() ?? null);
+				const at = keyword === "items" ? current : current?.["properties"];
+				return isJsonObject(at) ? at[key] : void 0;
+			},
+			write: (next) => {
+				const own = editable(document, part);
+				if (keyword === "items") own["items"] = next;
+				else own["properties"] = {
+					...own["properties"],
+					[key]: next
+				};
+			}
+		}];
+	});
+	const names = new Set(parts.flatMap((part) => {
+		const properties = statementOf(document, part.raw() ?? null)?.["properties"];
+		return isJsonObject(properties) ? Object.keys(properties) : [];
+	}));
+	for (const name of names) if (agree(document, nested("properties", name), apply, depth + 1)) disagreed = true;
+	if (agree(document, nested("items"), apply, depth + 1)) disagreed = true;
+	return disagreed;
+}
+/** The slot for the schema at `node`, as the only branch of its own merge. */
+function whole(node) {
+	return {
+		raw: () => node,
+		write: (next) => {
+			for (const key of Object.keys(node)) delete node[key];
+			Object.assign(node, next);
+		}
+	};
+}
+function eachAllOf(value, visit) {
+	if (Array.isArray(value)) return value.some((item) => eachAllOf(item, visit));
+	if (!isJsonObject(value)) return false;
+	if (Array.isArray(value["allOf"]) && visit(value)) return true;
+	return Object.values(value).some((child) => eachAllOf(child, visit));
+}
+/**
+* The document with every `allOf` made consistent for the differ, or the
+* document itself when nothing needed to change. Most need nothing, so the
+* input is only copied when one does.
+*/
+function agreeingAllOf(input) {
+	if (!eachAllOf(input, (node) => agree(input, [whole(node)], false, 0))) return input;
+	const document = structuredClone(input);
+	eachAllOf(document, (node) => {
+		agree(document, [whole(node)], true, 0);
+		return false;
+	});
+	return document;
+}
+//#endregion
+//#region ../diff/src/deep-refs.ts
+/** How many segments a reference to a whole component has: components, kind, name. */
+const WHOLE = 3;
+function segmentsOf(ref) {
+	if (!ref.startsWith("#/")) return void 0;
+	try {
+		return ref.slice(2).split("/").map((raw) => decodeURIComponent(raw).replaceAll("~1", "/").replaceAll("~0", "~"));
+	} catch {
+		return;
+	}
+}
+/**
+* What a pointer reaches, following a `$ref` met on the way. PagerDuty's
+* discriminator maps into a response's schema by the path it had when it was
+* written in place; that schema is now a `$ref`, and the path continues
+* inside what it refers to, which is how a reader following the pointer
+* would take it.
+*/
+function at(document, segments, hops = 0) {
+	let node = document;
+	for (const [index, key] of segments.entries()) {
+		if (isJsonObject(node) && node[key] === void 0 && typeof node["$ref"] === "string") {
+			const through = segmentsOf(node["$ref"]);
+			if (through === void 0 || hops > 16) return void 0;
+			return at(document, [...through, ...segments.slice(index)], hops + 1);
+		}
+		node = Array.isArray(node) ? node[Number(key)] : isJsonObject(node) ? node[key] : void 0;
+		if (node === void 0) return void 0;
+	}
+	return node;
+}
+/**
+* Whether a reference points inside something rather than at a whole
+* component: into a component's middle, or anywhere under `paths`, where
+* PagerDuty also points, six levels into a response's schema.
+*/
+function isDeep(ref) {
+	const segments = segmentsOf(ref);
+	if (segments === void 0) return false;
+	return segments[0] === "components" ? segments.length > WHOLE : segments[0] === "paths";
+}
+/** Only a schema can be moved among the schemas; anything else is left as it was. */
+function pointsAtSchema(segments) {
+	return segments[1] === "schemas" && segments.length > 3 || segments.slice(2).includes("schema");
+}
+function mentionsDeep(value) {
+	if (Array.isArray(value)) return value.some(mentionsDeep);
+	if (!isJsonObject(value)) return false;
+	if (typeof value["$ref"] === "string" && isDeep(value["$ref"])) return true;
+	const discriminator = value["discriminator"];
+	if (isJsonObject(discriminator) && isJsonObject(discriminator["mapping"]) && Object.values(discriminator["mapping"]).some((target) => typeof target === "string" && isDeep(target))) return true;
+	return Object.values(value).some(mentionsDeep);
+}
+/** The document with every reference into a schema's middle pointed at a copy of its own. */
+function wholeSchemaRefs(input) {
+	if (!mentionsDeep(input)) return input;
+	const document = structuredClone(input);
+	const components = isJsonObject(document["components"]) ? document["components"] : {};
+	document["components"] = components;
+	const schemas = isJsonObject(components["schemas"]) ? components["schemas"] : {};
+	components["schemas"] = schemas;
+	/** What each deep reference now points at. */
+	const moved = /* @__PURE__ */ new Map();
+	/** Where a deep reference now points, copying its target the first time. */
+	const whole = (ref) => {
+		const known = moved.get(ref);
+		if (known !== void 0) return known;
+		const segments = segmentsOf(ref);
+		if (!pointsAtSchema(segments)) return void 0;
+		const content = at(document, segments);
+		if (content === void 0) return void 0;
+		const name = segments.slice(1).join("__").replace(/[^A-Za-z0-9_.-]+/g, "_");
+		const target = `#/components/schemas/${name}`;
+		moved.set(ref, target);
+		const copy = structuredClone(content);
+		schemas[name] = copy;
+		rewrite(copy);
+		return target;
+	};
+	const rewrite = (value) => {
+		if (Array.isArray(value)) {
+			for (const item of value) rewrite(item);
+			return;
+		}
+		if (!isJsonObject(value)) return;
+		const ref = value["$ref"];
+		if (typeof ref === "string" && isDeep(ref)) {
+			const target = whole(ref);
+			if (target !== void 0) value["$ref"] = target;
+		}
+		const discriminator = value["discriminator"];
+		if (isJsonObject(discriminator) && isJsonObject(discriminator["mapping"])) {
+			const mapping = discriminator["mapping"];
+			for (const [key, target] of Object.entries(mapping)) {
+				if (typeof target !== "string" || !isDeep(target)) continue;
+				const replacement = whole(target);
+				if (replacement !== void 0) mapping[key] = replacement;
+			}
+		}
+		for (const [key, child] of Object.entries(value)) if (key !== "$ref") rewrite(child);
+	};
+	rewrite(document);
+	return document;
+}
+//#endregion
 //#region ../diff/src/oasdiff.ts
 const run$1 = promisify(execFile);
 var OasdiffError = class extends Error {
@@ -20116,9 +20510,13 @@ async function diffOutcome(base, revision, options = {}) {
 	try {
 		const baseFile = join(dir, "base.json");
 		const revisionFile = join(dir, "revision.json");
-		await Promise.all([writeFile(baseFile, JSON.stringify(base)), writeFile(revisionFile, JSON.stringify(revision))]);
 		const requested = options.mode ?? "changelog";
 		const flatten = options.flattenAllOf !== false;
+		const readable = (document) => {
+			const whole = wholeSchemaRefs(document);
+			return flatten ? agreeingAllOf(whole) : whole;
+		};
+		await Promise.all([writeFile(baseFile, JSON.stringify(readable(base))), writeFile(revisionFile, JSON.stringify(readable(revision)))]);
 		const extra = requested !== "changelog" && options.extraArgs === void 0 ? ["--severity-levels", await severityFile(dir)] : options.extraArgs ?? [];
 		try {
 			const call = () => changelogFiles(baseFile, revisionFile, {

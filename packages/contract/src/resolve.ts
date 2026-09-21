@@ -113,7 +113,13 @@ function mergeSchemas(
       out[key] = [...new Set([...current, ...value])];
     } else if (key === "enum" && Array.isArray(current) && Array.isArray(value)) {
       const allowed = new Set(value.map((entry) => JSON.stringify(entry)));
-      out[key] = current.filter((entry) => allowed.has(JSON.stringify(entry)));
+      const both = current.filter((entry) => allowed.has(JSON.stringify(entry)));
+      // Lists with nothing in common describe no value at all, which is a
+      // mistake in the document rather than an API: PagerDuty's
+      // `AcknowledgeLogEntry` allows `acknowledgement_log_entry` where its base
+      // allows `acknowledge_log_entry`. The first statement is kept, as for an
+      // annotation, and the differ is given the same reading.
+      if (both.length > 0) out[key] = both;
     } else if (
       LOWER_BOUNDS.includes(key) &&
       typeof current === "number" &&

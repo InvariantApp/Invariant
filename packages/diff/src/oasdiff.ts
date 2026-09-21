@@ -6,7 +6,9 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { ambiguousPaths, type OpenApiDocument } from "@invariant/contract";
+import { agreeingAllOf } from "./allof.ts";
 import { binaryFor } from "./binaries.ts";
+import { wholeSchemaRefs } from "./deep-refs.ts";
 import { BREAKING_INFO_IDS } from "./policy.ts";
 import { OASDIFF_INSTALL, unusableVersion } from "./version.ts";
 
@@ -397,17 +399,24 @@ export async function diffOutcome(
   try {
     const baseFile = join(dir, "base.json");
     const revisionFile = join(dir, "revision.json");
-    await Promise.all([
-      writeFile(baseFile, JSON.stringify(base)),
-      writeFile(revisionFile, JSON.stringify(revision)),
-    ]);
-
     const requested: DiffMode = options.mode ?? "changelog";
     // Always, which is what the design asked for and what a working differ
     // allows. It was made conditional while oasdiff 1.32.1 could not afford it,
     // and that reason is gone: on the pinned build the same Stripe pair
     // flattens in five seconds and returns the same answer every time.
     const flatten = options.flattenAllOf !== false;
+    // Flattening refuses branches that restate a default or a type
+    // differently, so they are given the reading the resolver gives them.
+    // References into the middle of a schema stop the differ loading the
+    // second document of a pair at all, flattened or not.
+    const readable = (document: OpenApiDocument) => {
+      const whole = wholeSchemaRefs(document);
+      return flatten ? agreeingAllOf(whole) : whole;
+    };
+    await Promise.all([
+      writeFile(baseFile, JSON.stringify(readable(base))),
+      writeFile(revisionFile, JSON.stringify(readable(revision))),
+    ]);
     // Any breaking-only rung needs the promotions, not just the first one.
     // Without them the two checks this policy calls breaking at INFO are not
     // reported at all, which is how a reduced run quietly loses 154 real Plaid

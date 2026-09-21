@@ -23,7 +23,8 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, relative, resolve } from "node:path";
 import { isJsonObject, type JsonObject, type JsonValue } from "@invariant/ir";
-import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
+import { stringify as stringifyYaml } from "yaml";
+import { DocumentTooLargeError, parseDocumentText } from "./parse.ts";
 
 export class BundleError extends Error {
   constructor(message: string) {
@@ -47,9 +48,12 @@ interface Target {
 }
 
 function parseText(path: string, text: string): JsonValue {
-  const value: unknown =
-    extname(path).toLowerCase() === ".json" ? JSON.parse(text) : parseYaml(text);
-  return value as JsonValue;
+  try {
+    return parseDocumentText(path, text);
+  } catch (error) {
+    if (error instanceof DocumentTooLargeError) throw new BundleError(error.message);
+    throw error;
+  }
 }
 
 function pointerKey(segment: string): string {
