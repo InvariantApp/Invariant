@@ -24,15 +24,15 @@ import { type PairResult, type RealSummary, summarizeReal } from "@invariant/eva
  */
 const DIAGNOSIS: Record<string, string> = {
   "api-path-removed-without-deprecation":
-    "an endpoint genuinely gone, not moved. No op covers removing a whole operation; `remove` works on fields. **Missing op.**",
+    "an endpoint genuinely gone, not moved. `retire` expresses it and the proposer drafts one for explicit attention; the runtime answers an old caller with 410 and the provider's guidance. Nothing can serve the call, so the gate weighs it against the usage ledger.",
   "response-body-type-changed":
     "a response schema replaced wholesale, often with an empty one. Not expressible and probably should not be: it is a rewrite, not a rename.",
   "request-parameter-enum-value-removed":
-    "allowed values narrowed on a query or path parameter. `enumMap` could express it, but the proposer only reads `components.schemas` and never looks at parameters. **Reachable, not wired up.**",
+    "allowed values narrowed on a query or path parameter. The proposer drafts an `enumMap` for it, and the gate then blocks, because the runtime does not yet rewrite parameters. **Drafted, not yet servable.**",
   "request-parameter-removed":
-    "a query or path parameter dropped. Same cause: parameters are invisible to the proposer. **Reachable, not wired up.**",
+    "a query or path parameter dropped. The proposer reads parameters now but drafts only narrowed enums, and the runtime does not yet rewrite parameters at all. **Not yet servable.**",
   "request-parameter-property-enum-value-removed":
-    "as above, one level in. **Reachable, not wired up.**",
+    "as above, one level in. **Not yet servable.**",
   "response-property-enum-value-added":
     "a new value a client switching exhaustively would not know. Expressible: `enumMap` takes a `fold`, which says which existing value an old caller should be shown instead. Which value that is cannot be read off the documents, so it needs one sentence from the provider, and it is declared lossy because the caller cannot tell the new case apart. **Reachable, needs a decision.**",
   "response-property-enum-value-removed":

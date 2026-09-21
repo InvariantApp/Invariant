@@ -1866,6 +1866,39 @@ running. The median keeps a tight budget; the tail is sized to catch a change in
 kind, such as buffering a body that used to stream, rather than to catch the
 scheduler. Retrying it until it passed would have been worse than the flake.
 
+### What the gate certified and the runtime could not serve
+
+An audit on 2026-09-21 went looking for places where a green check and a
+working adapter could come apart, and found five.
+
+- **A parameter Change closed and did nothing.** Renaming a query parameter is
+  predicted exactly, so closure passes, but the program only rewrites bodies,
+  and the projection's refusal was reported as a warning. Projection refusals
+  now block, in their own section of the report.
+- **Retiring an endpoint compiled and then vanished.** The chaining step
+  dropped the retired list, and the 410 with guidance had only been tested
+  against a hand-written program. A test now sends the Change through
+  `invariant check` and asks the real provider build.
+- **The wildcard cap failed silently**, dropping every match mid-path and
+  transforming a prefix at the end. It now raises, and three conformance
+  vectors pin that for any other engine.
+- **The Hono binding dropped every response-side refusal.** Hono ignores a
+  Response returned from middleware after the handler runs, so the untranslated
+  body went out with a 200. No test had exercised the path. Assigning `c.res`
+  also merged the handler's `content-length` and `content-encoding` over the new
+  body. The binding also read any body at any size and parsed CSV, multipart and
+  gzip as JSON. Body rules now live in `packages/runtime/src/http.ts` and every
+  binding uses them.
+- **Two gate settings were parsed and never read.** `declaredLossy` and
+  `unmigratableWithActiveConsumers` now do what their names say.
+
+Separately, the proposer, compiler and differ read schemas three different
+ways: through `$ref` and `allOf`, through `$ref` only, and through neither. That
+is where every uncompilable draft on Plaid, Twilio and OpenAI came from.
+`resolveSchema` in `packages/contract` is now the one view, and the compiler
+inlines a private copy of any node it writes through, so a Change never edits a
+schema shared with something it does not name.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no
@@ -1876,12 +1909,12 @@ This section used to say that everything else the design asked for exists and
 is tested. That was not true, and it is corrected here rather than quietly
 edited away.
 
-**The sidecar was never built.** Sections 1.3, 5.1 and 12 describe a standalone
-proxy wrapping the same engine, so that a provider not running Node can adopt the
-runtime. There is no such package. The runtime works inside a Node application
-through `runtime-hono` and nowhere else, which means none of the eight providers
-in the real-data corpus could adopt it as they stand: not Stripe, GitHub, Twilio,
-Adyen, Plaid, Box, OpenAI or Intercom.
+**The sidecar was never built, and now is.** Sections 1.3, 5.1 and 12 described
+a standalone proxy wrapping the same engine, and until `789c557` there was no
+such package, so none of the eight providers in the real-data corpus could have
+adopted the runtime as they stood. `packages/sidecar` is that proxy, proven in
+front of a Python server. It is not yet production grade: no TLS, no HTTP/2, no
+kill switch and no usage counters, all of which are planned work.
 
 **The control plane is not deployed.** It exists and its tests pass, but nothing
 runs it, so webhook receipt and sponsored-link redemption have never been

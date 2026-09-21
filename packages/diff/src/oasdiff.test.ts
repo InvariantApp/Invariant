@@ -11,6 +11,7 @@ import {
   breakingEntries,
   isBreaking,
 } from "./policy.ts";
+import { OASDIFF_INSTALL } from "./version.ts";
 
 interface DocParts {
   requestProperties: JsonObject;
@@ -74,12 +75,12 @@ describe("oasdiff availability", () => {
     if (process.env["CI"]) {
       expect(
         hasOasdiff,
-        'oasdiff is required on CI. Install with "go install github.com/oasdiff/oasdiff@latest".',
+        `oasdiff is required on CI. Install with "${OASDIFF_INSTALL}".`,
       ).toBe(true);
     } else if (!hasOasdiff) {
       console.warn(
         "oasdiff is not installed, so closure tests are skipped locally. " +
-          'Install with "go install github.com/oasdiff/oasdiff@latest".',
+          `Install with "${OASDIFF_INSTALL}".`,
       );
     }
   });

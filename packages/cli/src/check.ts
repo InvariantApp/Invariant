@@ -21,10 +21,10 @@ import {
   loadReleaseStep,
 } from "@invariant/contract";
 import {
+  assertUsableOasdiff,
   breakingEntries,
   describeEntry,
   diffDocuments,
-  oasdiffAvailable,
 } from "@invariant/diff";
 import type { Change, CompiledProgram } from "@invariant/ir";
 import { type Evidence, inputsDigest } from "@invariant/verifier";
@@ -175,11 +175,7 @@ export async function check(
   config: InvariantConfig,
   options: VerifyOptions = {},
 ): Promise<CheckReport> {
-  if (!(await oasdiffAvailable())) {
-    throw new Error(
-      'oasdiff is required. Install it with "go install github.com/oasdiff/oasdiff@latest".',
-    );
-  }
+  await assertUsableOasdiff();
 
   const { steps, current } = await stepsFor(config);
   const reports: StepReport[] = [];

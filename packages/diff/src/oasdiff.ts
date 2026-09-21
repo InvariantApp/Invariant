@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { ambiguousPaths, type OpenApiDocument } from "@invariant/contract";
 import { BREAKING_INFO_IDS } from "./policy.ts";
+import { OASDIFF_INSTALL, unusableVersion } from "./version.ts";
 
 const run = promisify(execFile);
 
@@ -39,6 +40,26 @@ export async function oasdiffAvailable(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Throws unless the installed oasdiff is one the gate can rely on.
+ *
+ * Missing and too old are different failures with different fixes, and both
+ * name the exact release to install.
+ */
+export async function assertUsableOasdiff(): Promise<void> {
+  let output: string;
+  try {
+    output = (await run(oasdiffBinary(), ["--version"])).stdout;
+  } catch {
+    throw new OasdiffError(
+      `oasdiff is required and was not found. Install it with "${OASDIFF_INSTALL}", ` +
+        "or set OASDIFF_BIN to its path.",
+    );
+  }
+  const problem = unusableVersion(output);
+  if (problem) throw new OasdiffError(problem);
 }
 
 /**
@@ -154,7 +175,7 @@ function describeFailure(error: unknown, binary: string, timeoutMs: number): str
   if (failure.code === "ENOENT") {
     return (
       `Could not find ${binary}. Install it with ` +
-      `"go install github.com/oasdiff/oasdiff@latest" or set OASDIFF_BIN.`
+      `"${OASDIFF_INSTALL}" or set OASDIFF_BIN.`
     );
   }
   if (failure.killed === true || failure.signal === "SIGTERM") {

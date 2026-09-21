@@ -529,7 +529,7 @@ Needs Node 22.12 or newer, pnpm, and
 [oasdiff](https://github.com/oasdiff/oasdiff):
 
 ```sh
-go install github.com/oasdiff/oasdiff@latest
+go install github.com/oasdiff/oasdiff@v1.33.0-rc.1
 ```
 
 Without it the safety checks skip locally and **fail** in CI, because a skipped

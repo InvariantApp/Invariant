@@ -93,10 +93,12 @@ export function signPayload(body: string, secret: string): string {
 
 export interface VerifyOptions {
   secret: string;
+  /**
+   * Where handled delivery ids are kept, which is the replay protection.
+   * GitHub sends no timestamp header, so an age check cannot be done here;
+   * `isFresh` exists for a caller that can find one inside a payload.
+   */
   log?: DeliveryLog;
-  /** How old a delivery may be. Defaults to five minutes. */
-  maxAgeMs?: number;
-  now?: number;
 }
 
 /**

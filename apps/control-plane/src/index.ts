@@ -12,7 +12,7 @@
  * verifies against a key the provider registered in advance, so the registry
  * distributes what a provider signed rather than what somebody uploaded.
  */
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash } from "node:crypto";
 import { type EvolutionBundle, openBundle } from "@invariant/bundle";
 import { isJsonObject } from "@invariant/ir";
 import { Hono } from "hono";
@@ -31,19 +31,6 @@ interface Vars {
 
 function error(message: string, code: string) {
   return { error: { code, message } };
-}
-
-/**
- * Compares two digests without leaking where they differ.
- *
- * A token lookup is by hash, so the comparison happens in the database, but
- * anywhere a secret is compared in this process it is compared this way.
- */
-export function sameSecret(a: string, b: string): boolean {
-  const left = Buffer.from(a, "utf8");
-  const right = Buffer.from(b, "utf8");
-  if (left.length !== right.length) return false;
-  return timingSafeEqual(left, right);
 }
 
 export function createControlPlane(store: Store): Hono<{ Variables: Vars }> {

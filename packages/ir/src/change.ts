@@ -84,15 +84,27 @@ export const CastCodec = Type.Object(
 
 export const Codec = Type.Union([Scale10Codec, EnumMapCodec, CastCodec]);
 
+/**
+ * Every operation a path item can declare, in OpenAPI's own order.
+ *
+ * The list here used to stop at five, and so did the contract loader's, so an
+ * API that declared HEAD or OPTIONS operations had them compared by the differ
+ * and invisible to everything that acted on the comparison.
+ */
+export const HTTP_METHODS = [
+  "get",
+  "put",
+  "post",
+  "delete",
+  "options",
+  "head",
+  "patch",
+  "trace",
+] as const;
+
 export const Endpoint = Type.Object(
   {
-    method: Type.Union([
-      Type.Literal("get"),
-      Type.Literal("post"),
-      Type.Literal("put"),
-      Type.Literal("patch"),
-      Type.Literal("delete"),
-    ]),
+    method: Type.Union(HTTP_METHODS.map((method) => Type.Literal(method))),
     path: Type.String({ pattern: "^/" }),
   },
   { additionalProperties: false },

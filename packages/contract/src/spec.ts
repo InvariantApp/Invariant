@@ -1,11 +1,11 @@
 import { readFile } from "node:fs/promises";
-import { isJsonObject, type JsonObject, type JsonValue } from "@invariant/ir";
+import { HTTP_METHODS, isJsonObject, type JsonObject, type JsonValue } from "@invariant/ir";
 import { parse as parseYaml } from "yaml";
 import { digestOf, stripNonWire } from "./canonical.ts";
 
 export type OpenApiDocument = JsonObject;
 
-export const HTTP_METHODS = ["get", "post", "put", "patch", "delete"] as const;
+export { HTTP_METHODS };
 export type HttpMethod = (typeof HTTP_METHODS)[number];
 
 export class ContractError extends Error {

@@ -239,9 +239,10 @@ async function findChangeFile(dir: string, id: string): Promise<string> {
 /**
  * Checks a published bundle against the repository it claims to come from.
  *
- * This is what a registry runs, and what anyone who received a bundle can run
- * for themselves. A signature proves who sent it; rebuilding proves it
- * describes the release it says it does. Neither one substitutes for the other.
+ * What anyone holding the repository can run for themselves. A registry
+ * cannot: it never has the specifications a rebuild needs. A signature proves
+ * who sent it; rebuilding proves it describes the release it says it does.
+ * Neither one substitutes for the other.
  */
 export async function verifyRelease(
   envelopePath: string,

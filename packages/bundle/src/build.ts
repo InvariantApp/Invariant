@@ -205,9 +205,13 @@ export function openBundle(
 /**
  * Whether rebuilding from source produced the same object.
  *
- * This is what a registry runs on publish. A bundle nobody can rebuild is a
- * bundle nobody can audit: the signature would prove who sent it and nothing at
- * all about whether it describes the release it claims to.
+ * Run wherever the source is: by the provider's own CI, or by anyone holding
+ * the repository at the release commit. A registry cannot run it, because it
+ * never holds the specifications a rebuild needs; it checks the signature and
+ * that the digest matches the payload, which is what it can check. A bundle
+ * nobody can rebuild is a bundle nobody can audit: the signature would prove
+ * who sent it and nothing at all about whether it describes the release it
+ * claims to.
  */
 export function reproduces(
   bundle: EvolutionBundle,

@@ -369,6 +369,9 @@ Nothing before it runs anywhere but your CI.
 ## Requirements
 
 - Node 22.12 or later.
-- [`oasdiff`](https://github.com/oasdiff/oasdiff) v1.32.x on `PATH`. The gate
-  will not run without it rather than checking less than it claims to.
+- [`oasdiff`](https://github.com/oasdiff/oasdiff) on `PATH`, installed with
+  `go install github.com/oasdiff/oasdiff@v1.33.0-rc.1`. The gate will not run
+  without it rather than checking less than it claims to, and it refuses older
+  releases, which can give a different answer on each run for documents with
+  reference cycles.
 - OpenAPI 3.x. JSON request and response bodies.

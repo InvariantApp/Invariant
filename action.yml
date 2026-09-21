@@ -43,7 +43,7 @@ runs:
       shell: bash
       run: |
         if ! command -v oasdiff > /dev/null; then
-          go install github.com/oasdiff/oasdiff@v1.32.1
+          go install github.com/oasdiff/oasdiff@v1.33.0-rc.1
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
         fi
 
