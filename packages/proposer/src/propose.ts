@@ -11,7 +11,7 @@
  * what the scale factor is, comes from the declared shapes.
  */
 import { findSchemaSites } from "@invariant/contract";
-import type { Change, Op, ScalarType } from "@invariant/ir";
+import type { Change, Op, ScalarType, Scope } from "@invariant/ir";
 import { type FieldShape, type SchemaDelta, schemaDeltas } from "./candidates.ts";
 import {
   operationIdChanges,
@@ -291,9 +291,10 @@ export async function propose(
   // nothing for it. Plaid documents every webhook payload that way; asking a
   // judge about them costs a question and drafts a Change for nobody.
   const deltas = schemaDeltas(oldContract, newContract).filter((delta) => {
-    const sides = sidesOf(oldContract, delta.schema);
+    const sides = sidesOfDelta(oldContract, delta);
     return sides.request || sides.response;
   });
+  const scopes = new Map(deltas.map((delta) => [delta.schema, scopeOf(delta)]));
 
   // Before anything about fields: did the whole API move? Versioning by URL
   // prefix is how most real APIs express a version, and left undetected it
@@ -455,7 +456,11 @@ export async function propose(
         irVersion: 1,
         id,
         summary: `\`${question.removed.name}\` became \`${successor.name}\` on ${question.schema}.`,
-        scopes: [{ schema: `#/components/schemas/${question.schema}` }],
+        scopes: [
+          scopes.get(question.schema) ?? {
+            schema: `#/components/schemas/${question.schema}`,
+          },
+        ],
         ops,
         provenance: {
           proposed_by: {
@@ -526,6 +531,18 @@ function sidesOf(
   };
 }
 
+/** What a Change about this delta is scoped to. */
+function scopeOf(delta: SchemaDelta): Scope {
+  return delta.scope ?? { schema: `#/components/schemas/${delta.schema}` };
+}
+
+function sidesOfDelta(
+  document: Parameters<typeof schemaDeltas>[0],
+  delta: SchemaDelta,
+): { request: boolean; response: boolean } {
+  return delta.sides ?? sidesOf(document, delta.schema);
+}
+
 const fieldSlug = (schema: string, field: string, what: string) =>
   `chg_${slug(schema)}_${slug(field)}_${what}`.slice(0, 128);
 
@@ -547,7 +564,7 @@ function additions(
   for (const delta of deltas) {
     const required = delta.added.filter((field) => field.required);
     if (required.length === 0) continue;
-    const sides = sidesOf(oldContract, delta.schema);
+    const sides = sidesOfDelta(oldContract, delta);
     for (const field of required) {
       const value =
         field.default !== undefined ? field.default : !sides.request ? null : undefined;
@@ -566,7 +583,7 @@ function additions(
           irVersion: 1,
           id: fieldSlug(delta.schema, field.name, "added"),
           summary: `\`${field.name}\` is new and required on ${delta.schema}.`,
-          scopes: [{ schema: `#/components/schemas/${delta.schema}` }],
+          scopes: [scopeOf(delta)],
           ops: [{ op: "add", path: field.pointer, value }],
           provenance: { proposed_by: { judge: "rules", confidence: 1 } },
         },
@@ -601,7 +618,7 @@ function removals(
   const unresolved: Unresolved[] = [];
   for (const delta of deltas) {
     if (delta.added.length > 0 || delta.removed.length === 0) continue;
-    const sides = sidesOf(oldContract, delta.schema);
+    const sides = sidesOfDelta(oldContract, delta);
     for (const field of delta.removed) {
       if (sides.response) {
         if (field.required) {
@@ -620,7 +637,7 @@ function removals(
           irVersion: 1,
           id: fieldSlug(delta.schema, field.name, "removed"),
           summary: `\`${field.name}\` was removed from ${delta.schema}.`,
-          scopes: [{ schema: `#/components/schemas/${delta.schema}` }],
+          scopes: [scopeOf(delta)],
           ops: [{ op: "remove", path: field.pointer, restore: null }],
           provenance: { proposed_by: { judge: "rules", confidence: 1 } },
         },
@@ -657,8 +674,7 @@ function alteredProposals(
   const unresolved: Unresolved[] = [];
 
   for (const delta of deltas) {
-    const sides =
-      delta.altered.length > 0 ? sidesOf(oldContract, delta.schema) : undefined;
+    const sides = delta.altered.length > 0 ? sidesOfDelta(oldContract, delta) : undefined;
     for (const pair of delta.altered) {
       const shape = opsFor(pair.old, pair.new);
       const reshaped = valuesDiffer(pair.old, pair.new);
@@ -690,7 +706,7 @@ function alteredProposals(
           irVersion: 1,
           id: `chg_${slug(delta.schema)}_${slug(pair.old.name)}`,
           summary: `\`${pair.old.name}\` changed shape on ${delta.schema}.`,
-          scopes: [{ schema: `#/components/schemas/${delta.schema}` }],
+          scopes: [scopeOf(delta)],
           ops,
           provenance: { proposed_by: { judge: "rules", confidence: 1 } },
         },

@@ -63,6 +63,8 @@ export interface EnvelopeRequest {
   headers: [string, string][];
   /** The body text, when the program reads the body and there is one. */
   body: string | undefined;
+  /** True when the body is form-encoded rather than JSON. */
+  form?: boolean;
 }
 
 export const PART = {

@@ -19,22 +19,28 @@
  *      satisfy the old contract. Anything else is a violation.
  *
  * Every verdict comes from the oracle in oracle.mts, which shares no code with
- * the product. Bodies are judged; parameters and headers are not yet, because
- * no Change that moves them can be served until the request envelope exists.
+ * the product. Bodies, query strings, headers and cookies are all sent and all
+ * judged, each written here by the rules OpenAPI states for its style and a
+ * form body by `qs`, never by the runtime being measured.
  *
  * Usage: node --import tsx proving/traffic/run.mts [--samples 100] [--provider p]
- *   [--api name] [--results path]
+ *   [--api name] [--pair "<api> <from> -> <to>"] [--results path]
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { loadContract, type OpenApiDocument } from "@invariant/contract";
+import {
+  loadContract,
+  type OpenApiDocument,
+  requestBodyMedia,
+} from "@invariant/contract";
 import type { PairResult } from "@invariant/eval";
 import type { JsonValue } from "@invariant/ir";
 import { createRuntime } from "@invariant/runtime";
 import { createProxy } from "@invariant/sidecar";
 import { valueArbitrary } from "@invariant/verifier";
 import fc from "fast-check";
+import qs from "qs";
 import {
   type ManifestPair,
   materializePair,
@@ -42,7 +48,7 @@ import {
   readManifest,
 } from "../corpus/manifest.mts";
 import { draftProgram, NEW, OLD } from "../draft.mts";
-import { type ContractMock, createContractMock } from "./mock.mts";
+import { type ContractMock, createContractMock, mountOf } from "./mock.mts";
 import { Oracle } from "./oracle.mts";
 
 type JsonObject = Record<string, JsonValue>;
@@ -55,7 +61,10 @@ const option = (name: string): string | undefined => {
   return at === -1 ? undefined : args[at + 1];
 };
 const SAMPLES = Number(option("samples") ?? 100);
-const partial = option("provider") !== undefined || option("api") !== undefined;
+const partial =
+  option("provider") !== undefined ||
+  option("api") !== undefined ||
+  option("pair") !== undefined;
 const RESULTS =
   option("results") ??
   join(ROOT, partial ? ".cache/traffic-results.json" : "proving/traffic/results.json");
@@ -150,17 +159,110 @@ function operationOf(
   return isObject(operation) ? operation : undefined;
 }
 
-/** The JSON request body schema, if the operation takes one. */
-function requestSchema(
+/** A declared parameter an old caller sends outside the path. */
+interface Declared {
+  name: string;
+  in: "query" | "header" | "cookie";
+  required: boolean;
+  schema: JsonValue;
+  style: string;
+  explode: boolean;
+}
+
+function declaredParameters(
   document: OpenApiDocument,
+  endpoint: Endpoint,
   operation: JsonObject,
-): JsonValue | undefined {
-  const body = follow(document, operation["requestBody"]);
-  const content = isObject(body) ? body["content"] : undefined;
-  if (!isObject(content)) return undefined;
-  const media = Object.keys(content).find((type) => /json/i.test(type));
-  const holder = media ? content[media] : undefined;
-  return isObject(holder) ? holder["schema"] : undefined;
+): Declared[] {
+  const item = (document["paths"] as JsonObject)[endpoint.path] as JsonObject;
+  const all = [
+    ...(Array.isArray(item["parameters"]) ? item["parameters"] : []),
+    ...(Array.isArray(operation["parameters"]) ? operation["parameters"] : []),
+  ].map((parameter) => follow(document, parameter));
+  const byKey = new Map<string, Declared>();
+  for (const entry of all) {
+    if (!isObject(entry) || entry["schema"] === undefined) continue;
+    const location = entry["in"];
+    if (location !== "query" && location !== "header" && location !== "cookie") continue;
+    const style = String(entry["style"] ?? (location === "header" ? "simple" : "form"));
+    byKey.set(`${location} ${String(entry["name"]).toLowerCase()}`, {
+      name: String(entry["name"]),
+      in: location,
+      required: entry["required"] === true,
+      schema: entry["schema"],
+      style,
+      explode:
+        typeof entry["explode"] === "boolean" ? entry["explode"] : style === "form",
+    });
+  }
+  return [...byKey.values()];
+}
+
+const PRINTABLE = /^[\x21-\x7e]([\x20-\x7e]*[\x21-\x7e])?$/;
+
+const textOf = (value: JsonValue): string =>
+  typeof value === "string" ? value : value === null ? "" : String(value);
+
+/**
+ * One parameter's value written the way its declaration says. Undefined when
+ * the value cannot be carried at all, such as a header holding a line break.
+ */
+function writeParameter(
+  parameter: Declared,
+  value: JsonValue,
+): { query?: string[]; header?: string; cookie?: string } | undefined {
+  const { name } = parameter;
+  if (parameter.in === "query") {
+    if (parameter.style === "deepObject" || isObject(value)) {
+      return { query: [qs.stringify({ [name]: value }, { arrayFormat: "indices" })] };
+    }
+    if (Array.isArray(value)) {
+      const items = value.map(textOf);
+      if (parameter.explode) {
+        return {
+          query: items.map(
+            (item) => `${encodeURIComponent(name)}=${encodeURIComponent(item)}`,
+          ),
+        };
+      }
+      const separator =
+        parameter.style === "spaceDelimited"
+          ? "%20"
+          : parameter.style === "pipeDelimited"
+            ? "|"
+            : ",";
+      return {
+        query: [
+          `${encodeURIComponent(name)}=${items.map(encodeURIComponent).join(separator)}`,
+        ],
+      };
+    }
+    return {
+      query: [`${encodeURIComponent(name)}=${encodeURIComponent(textOf(value))}`],
+    };
+  }
+  const written = Array.isArray(value)
+    ? value.map(textOf).join(",")
+    : isObject(value)
+      ? undefined
+      : textOf(value);
+  if (written === undefined || written === "" || !PRINTABLE.test(written))
+    return undefined;
+  if (parameter.in === "header") return { header: written };
+  return /[;,\s"\\]/.test(written) ? undefined : { cookie: `${name}=${written}` };
+}
+
+/** A form body written as Stripe and Twilio write theirs: brackets where declared deep, repeated keys otherwise. */
+function writeForm(value: JsonValue, encoding: JsonObject | undefined): string {
+  if (!isObject(value)) return "";
+  return Object.entries(value)
+    .map(([key, field]) => {
+      const declared = encoding?.[key];
+      const deep = isObject(declared) && declared["style"] === "deepObject";
+      return qs.stringify({ [key]: field }, { arrayFormat: deep ? "indices" : "repeat" });
+    })
+    .filter((pair) => pair !== "")
+    .join("&");
 }
 
 /**
@@ -202,7 +304,12 @@ function concretePath(
 
 interface Sample {
   path: string;
+  /** Without its `?`. */
+  search: string;
+  headers: [string, string][];
   body: JsonValue | undefined;
+  /** The body as a form, when the operation takes one rather than JSON. */
+  form?: string;
 }
 
 function requestFor(
@@ -210,15 +317,23 @@ function requestFor(
   sample: Sample,
   base = "http://api.test",
 ): Request {
-  return new Request(`${base}${sample.path}`, {
-    method: endpoint.method.toUpperCase(),
-    ...(sample.body === undefined
-      ? {}
-      : {
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(sample.body),
-        }),
-  });
+  const headers = new Headers(sample.headers);
+  let body: string | undefined;
+  if (sample.form !== undefined) {
+    headers.set("content-type", "application/x-www-form-urlencoded");
+    body = sample.form;
+  } else if (sample.body !== undefined) {
+    headers.set("content-type", "application/json");
+    body = JSON.stringify(sample.body);
+  }
+  return new Request(
+    `${base}${sample.path}${sample.search === "" ? "" : `?${sample.search}`}`,
+    {
+      method: endpoint.method.toUpperCase(),
+      headers,
+      ...(body === undefined ? {} : { body }),
+    },
+  );
 }
 
 async function bodyOf(response: Response): Promise<unknown> {
@@ -270,9 +385,11 @@ function adaptedSites(
   for (const [key, site] of Object.entries((contract["sites"] ?? {}) as JsonObject)) {
     if (!isObject(site)) continue;
     const request = Array.isArray(site["request"]) ? site["request"] : [];
+    const envelope = isObject(site["envelope"]) ? site["envelope"]["instrs"] : undefined;
     const responses = isObject(site["response"]) ? Object.values(site["response"]) : [];
     const changes =
       request.length > 0 ||
+      (Array.isArray(envelope) && envelope.length > 0) ||
       responses.some((block) => Array.isArray(block) && block.length > 0);
     if (!changes) continue;
     const space = key.indexOf(" ");
@@ -317,6 +434,7 @@ async function runPair(pair: ManifestPair): Promise<TrafficResult> {
     fetch: viaMock(newMock),
   });
 
+  const oldMount = mountOf(from.document);
   for (const { old, current, retired, refused } of adaptedSites(drafted.program, OLD)) {
     const operation = operationOf(from.document, old);
     const site: SiteResult = {
@@ -342,11 +460,27 @@ async function runPair(pair: ManifestPair): Promise<TrafficResult> {
         "the path names its operation in a fragment, which no HTTP request carries";
       continue;
     }
-    const schema = requestSchema(from.document, operation);
+    const media = requestBodyMedia(from.document, operation);
     const bodies =
-      schema === undefined
+      media === undefined
         ? undefined
-        : fc.sample(valueArbitrary(from.document, schema), { numRuns: SAMPLES, seed: 1 });
+        : fc.sample(valueArbitrary(from.document, media.schema), {
+            numRuns: SAMPLES,
+            seed: 1,
+          });
+    // Each parameter present or not as its declaration allows, with a value
+    // its schema allows.
+    const declared = declaredParameters(from.document, old, operation);
+    const parameterValues = declared.map((parameter) => {
+      const value = valueArbitrary(from.document, parameter.schema);
+      return fc.sample(
+        parameter.required ? value : fc.option(value, { freq: 3, nil: undefined }),
+        {
+          numRuns: SAMPLES,
+          seed: 2,
+        },
+      );
+    });
 
     const violation = (kind: ViolationKind, status: number, detail: string) => {
       site.violations += 1;
@@ -356,9 +490,42 @@ async function runPair(pair: ManifestPair): Promise<TrafficResult> {
 
     for (let index = 0; index < SAMPLES; index += 1) {
       site.samples += 1;
+      const query: string[] = [];
+      const headers: [string, string][] = [];
+      const cookies: string[] = [];
+      let unwritable: string | undefined;
+      declared.forEach((parameter, at) => {
+        const value = parameterValues[at]?.[index];
+        if (value === undefined) return;
+        const written = writeParameter(parameter, value as JsonValue);
+        if (!written) {
+          if (parameter.required)
+            unwritable ??= `${parameter.in} parameter ${parameter.name}`;
+          return;
+        }
+        if (written.query) query.push(...written.query);
+        if (written.header) headers.push([parameter.name, written.header]);
+        if (written.cookie) cookies.push(written.cookie);
+      });
+      if (cookies.length > 0) headers.push(["cookie", cookies.join("; ")]);
+      if (unwritable) {
+        // A value the contract allows and HTTP cannot carry: the rig cannot
+        // send it, which says nothing about the adapter.
+        site.rigFaults += 1;
+        site.fault ??= `the ${unwritable} has a value no request can carry`;
+        continue;
+      }
+      const generated = bodies?.[index];
       const sample: Sample = {
-        path: concretePath(from.document, old, operation, index + 1),
-        body: bodies?.[index],
+        // Where an old caller sends it: under the base path its contract
+        // was served at, which a release can change.
+        path: `${oldMount}${concretePath(from.document, old, operation, index + 1)}`,
+        search: query.join("&"),
+        headers,
+        body: generated,
+        ...(media?.media === "form" && generated !== undefined
+          ? { form: writeForm(generated as JsonValue, media.encoding) }
+          : {}),
       };
 
       // Arm a: the old world, which has to be consistent before anything
@@ -463,9 +630,14 @@ async function closingPairs(): Promise<ManifestPair[]> {
       )
       .map((entry) => `${entry.api} ${entry.fromVersion} -> ${entry.toVersion}`),
   );
+  // One pair by name, whatever the recorded run said about it: for checking
+  // a pair before the corpus has been recorded again.
+  const named = option("pair");
   return (await readManifest()).pairs.filter(
     (pair) =>
-      closes.has(`${pair.api} ${pair.from.label} -> ${pair.to.label}`) &&
+      (named === undefined
+        ? closes.has(`${pair.api} ${pair.from.label} -> ${pair.to.label}`)
+        : named === `${pair.api} ${pair.from.label} -> ${pair.to.label}`) &&
       (option("provider") === undefined || pair.provider === option("provider")) &&
       (option("api") === undefined || pair.api === option("api")),
   );

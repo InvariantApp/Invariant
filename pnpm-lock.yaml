@@ -77,6 +77,9 @@ importers:
       '@types/node':
         specifier: ^22.20.4
         version: 22.20.4
+      '@types/qs':
+        specifier: ^6.15.1
+        version: 6.15.1
       '@typesafe-ai/sdk':
         specifier: ^0.6.0
         version: 0.6.0
@@ -95,6 +98,9 @@ importers:
       publint:
         specifier: 0.3.24
         version: 0.3.24
+      qs:
+        specifier: 6.16.0
+        version: 6.16.0
       ts-morph:
         specifier: ^28.0.0
         version: 28.0.0
@@ -253,6 +259,10 @@ importers:
       '@invariant/ir':
         specifier: workspace:*
         version: link:../ir
+    devDependencies:
+      '@invariant/runtime':
+        specifier: workspace:*
+        version: link:../runtime
 
   packages/contract:
     dependencies:
@@ -966,6 +976,9 @@ packages:
 
   '@types/node@22.20.4':
     resolution: {integrity: sha512-zJRE40jpHtKqE/C4fgHrAKQLJuSpzEnP9ff9Y7YtoR3Wd2pwqzlekDeEuUQXjRd+QCYnVnNwuJYmhdk9XV8gvA==}
+
+  '@types/qs@6.15.1':
+    resolution: {integrity: sha512-GZHUBZR9hckSUhrxmp1nG6NwdpM9fCunJwyThLW1X3AyHgd9IlHb6VANpQQqDr2o/qQp6McZ3y/IA2rVzKzSbw==}
 
   '@typesafe-ai/sdk@0.6.0':
     resolution: {integrity: sha512-IddX+Q0XM+VagOUZFeP7wZjaO4SHMdvnh2zEBdrZZnXedWI3BNK1lKhMx3ayrkFWvVLbVcUHJy6AVZlY+e6Jaw==}
@@ -3454,6 +3467,8 @@ snapshots:
   '@types/node@22.20.4':
     dependencies:
       undici-types: 6.21.0
+
+  '@types/qs@6.15.1': {}
 
   '@typesafe-ai/sdk@0.6.0': {}
 

@@ -36,7 +36,18 @@ import {
   operationById,
 } from "./parameters.ts";
 import { mapEndpoint, type PredictionIssue, type RouteMapping } from "./predict.ts";
-import { applyCodecToSchema, SchemaOpError, schemaAdd, setNullable } from "./schema.ts";
+import {
+  applyCodecToSchema,
+  SchemaOpError,
+  schemaAdd,
+  schemaConvert,
+  schemaMove,
+  schemaRemove,
+  schemaRequiredAt,
+  schemaSetNullable,
+  schemaSetRequired,
+  setNullable,
+} from "./schema.ts";
 
 interface Located {
   item: JsonObject;
@@ -159,12 +170,20 @@ function bodyHolder(
     operation["requestBody"] = body;
   }
   const content = (body as JsonObject)["content"];
-  const json = isJsonObject(content) ? content["application/json"] : undefined;
-  if (!isJsonObject(json) || !isJsonObject(json["schema"])) {
+  // The JSON representation where there is one, otherwise the form: a form
+  // describes its fields exactly as JSON does.
+  const holder = isJsonObject(content)
+    ? isJsonObject(content["application/json"])
+      ? content["application/json"]
+      : content["application/x-www-form-urlencoded"]
+    : undefined;
+  if (!isJsonObject(holder) || !isJsonObject(holder["schema"])) {
     if (!create) return undefined;
-    throw new SchemaOpError("the request body is not JSON, so nothing can move into it");
+    throw new SchemaOpError(
+      "the request body is neither JSON nor a form, so nothing can move into it",
+    );
   }
-  return json["schema"] as JsonObject;
+  return holder["schema"] as JsonObject;
 }
 
 /** A body field's declaration in the new contract, where the operation now lives. */
@@ -225,6 +244,53 @@ export function applyParameterScope(
   }
 }
 
+/**
+ * An op on the operation's own request body, declared inline rather than as
+ * a named schema, applied through the same schema edits a schema scope uses.
+ */
+function applyToBody(
+  document: OpenApiDocument,
+  newContract: OpenApiDocument,
+  located: Located,
+  op: DataOp,
+): void {
+  const root = bodyHolder(document, located.operation, false);
+  if (!root) throw new SchemaOpError("the operation has no request body to change");
+  switch (op.op) {
+    case "move":
+      schemaMove(document, root, op.from, op.to);
+      return;
+    case "convert":
+      schemaConvert(document, root, op.path, op.codec);
+      return;
+    case "remove":
+      schemaRemove(document, root, op.path);
+      return;
+    case "add": {
+      const shape = bodyShapeInNew(newContract, located, parsePointer(op.path));
+      if (!shape)
+        throw new SchemaOpError(`the new contract's request body has no ${op.path}`);
+      importReferences(document, newContract, shape.shape);
+      schemaAdd(document, root, op.path, shape.shape, shape.required);
+      return;
+    }
+    case "default": {
+      const looser = op.toward === "old";
+      if (op.when !== "null") schemaSetRequired(document, root, op.path, !looser);
+      if (op.when !== "absent") schemaSetNullable(document, root, op.path, looser);
+      return;
+    }
+    case "dropNull":
+      if (op.toward === "new" && schemaRequiredAt(document, root, op.path)) {
+        throw new SchemaOpError(
+          `${op.path} is required, so a null cannot be sent as it left out`,
+        );
+      }
+      schemaSetNullable(document, root, op.path, op.toward === "old");
+      return;
+  }
+}
+
 function applyOne(
   document: OpenApiDocument,
   newContract: OpenApiDocument,
@@ -232,6 +298,10 @@ function applyOne(
   scope: ParameterScope,
   op: DataOp,
 ): void {
+  if (scope.location === "body") {
+    applyToBody(document, newContract, located, op);
+    return;
+  }
   const params = ownParameters(document, located);
   const at = (pointer: string) => {
     const address = addressOf(envelopePointer(scope.location, pointer));

@@ -14,6 +14,7 @@
 
 import { closeEnvelope, type EnvelopeRequest, openEnvelope } from "./envelope.ts";
 import { BodyTooLargeError } from "./errors.ts";
+import { closeForm, formRoots, isFormMediaType, openForm } from "./form.ts";
 import { headersForText, isJsonMediaType, readBodyText } from "./http.ts";
 import {
   type CompiledInstr,
@@ -23,7 +24,7 @@ import {
   MatchLimitError,
   TransformError,
 } from "./interpreter.ts";
-import { type NumberFidelity, parseJson, stringifyJson } from "./json.ts";
+import { type Json, type NumberFidelity, parseJson, stringifyJson } from "./json.ts";
 import {
   type DecodedContract,
   type DecodedProgram,
@@ -457,10 +458,53 @@ export class InvariantRuntime {
     return path.startsWith(`${base}/`) ? path.slice(base.length) : undefined;
   }
 
+  /**
+   * A request under a base path an older contract was served under, moved
+   * under the current one. The version was in the server URL, so the base
+   * path says which contract the caller was written against, when only one
+   * contract used it.
+   */
+  #fromOlderBase(
+    full: string,
+    hint: ContractResolution | undefined,
+  ): { path: string; hint: ContractResolution | undefined } | undefined {
+    const current = this.#program.basePath;
+    if (current !== "" && (full === current || full.startsWith(`${current}/`))) {
+      return undefined;
+    }
+    let best: { base: string; labels: string[] } | undefined;
+    for (const contract of this.#program.contracts.values()) {
+      const base = contract.basePath;
+      if (base === undefined || base === current) continue;
+      if (hint && hint.label !== contract.label) continue;
+      const under = base === "" || full === base || full.startsWith(`${base}/`);
+      if (!under) continue;
+      // The longest base that fits is the one the caller used.
+      if (!best || base.length > best.base.length)
+        best = { base, labels: [contract.label] };
+      else if (base === best.base) best.labels.push(contract.label);
+    }
+    if (!best) return undefined;
+    const rest = full.slice(best.base.length);
+    const [only] = best.labels;
+    return {
+      path: `${current}${rest === "" ? "" : rest}` || "/",
+      hint:
+        hint ??
+        (best.labels.length === 1 && only ? { label: only, source: "route" } : undefined),
+    };
+  }
+
   route(method: string, full: string, headers: Headers): RouteDecision {
-    const hint = this.hintFrom(headers, full);
+    let hint = this.hintFrom(headers, full);
+    const older = this.#fromOlderBase(full, hint);
+    const moved = older !== undefined && older.path !== full;
+    if (older) {
+      full = older.path;
+      hint = older.hint;
+    }
     const path = this.#local(full);
-    if (path === undefined) return { path: full, hint, rewritten: false };
+    if (path === undefined) return { path: full, hint, rewritten: moved };
 
     const candidates: DecodedContract[] = hint
       ? [this.#program.contracts.get(hint.label)].filter(
@@ -479,14 +523,14 @@ export class InvariantRuntime {
     }
 
     if (matches.size !== 1) {
-      return { path: full, hint, rewritten: false };
+      return { path: full, hint, rewritten: moved };
     }
 
     const [target, origin] = [...matches.entries()][0] as [string, { label: string }];
     return {
       path: `${this.#program.basePath}${target}`,
       hint: hint ?? { label: origin.label, source: "route" },
-      rewritten: target !== path,
+      rewritten: moved || target !== path,
     };
   }
 
@@ -663,6 +707,42 @@ export class InvariantRuntime {
     return { body: stringifyJson(parsed), folded: [...result.folded].sort() };
   }
 
+  /**
+   * A form-encoded request body rewritten by the site's program: the fields
+   * it names decoded, transformed and written back, and every other pair of
+   * the form passed on exactly as it came.
+   */
+  transformRequestForm(
+    site: DecodedSite,
+    text: string,
+    context: { contract: string; operation: string; consumer?: string | undefined },
+  ): string {
+    const form = site.form;
+    if (!form || site.request.length === 0) return text;
+    return this.#reporting("request", context, () => {
+      if (text.length > this.#maxBodyBytes)
+        throw new BodyTooLargeError(this.#maxBodyBytes);
+      const roots = formRoots(site.request, 0);
+      const tree = openForm(form, roots, text, site.numeric ? this.#fidelity : "double");
+      this.#counted(execute(tree, site.request, this.#limits), context);
+      return closeForm(form, roots, text, tree, site.request, 0);
+    });
+  }
+
+  #counted(
+    result: ReturnType<typeof execute>,
+    context: { contract: string; operation: string; consumer?: string | undefined },
+  ): void {
+    if (this.#onUsage && result.applied.size > 0) {
+      this.#onUsage({
+        contract: context.contract,
+        operation: context.operation,
+        consumer: context.consumer,
+        changes: result.applied,
+      });
+    }
+  }
+
   transformRequest(
     site: DecodedSite,
     text: string,
@@ -714,15 +794,21 @@ export class InvariantRuntime {
     context: { contract: string; operation: string; consumer?: string | undefined },
   ): Promise<AdaptedRequest> {
     const unchanged: AdaptedRequest = { ...parts, body: request.body };
-    const json = isJsonMediaType(request.headers.get("content-type"));
+    const contentType = request.headers.get("content-type");
+    const json = isJsonMediaType(contentType);
+    // A form is something a program describes only where the operation
+    // declares one; anywhere else it is passed on as it came.
+    const form = !json && isFormMediaType(contentType) && site.form !== undefined;
 
     if (!site.envelope) {
-      if (site.request.length === 0 || !request.body || !json) return unchanged;
+      if (site.request.length === 0 || !request.body || !(json || form)) return unchanged;
       const original = await readBodyText(request, {
         limit: this.#maxBodyBytes,
         encoded: true,
       });
-      const body = this.transformRequest(site, original.text, context);
+      const body = form
+        ? this.transformRequestForm(site, original.text, context)
+        : this.transformRequest(site, original.text, context);
       return {
         ...parts,
         headers: headersForText(parts.headers, body, original.decoded),
@@ -731,7 +817,7 @@ export class InvariantRuntime {
     }
 
     const envelope = site.envelope;
-    if (envelope.body && request.body && !json) {
+    if (envelope.body && request.body && !json && !form) {
       throw new TransformError(
         envelope.instrs.find((instr) =>
           pathsOfInstr(instr).some((path) => path[0] === "@body"),
@@ -750,6 +836,7 @@ export class InvariantRuntime {
         search: parts.search.startsWith("?") ? parts.search.slice(1) : parts.search,
         headers: [...parts.headers],
         body: original?.text,
+        ...(form ? { form: true } : {}),
       },
       context,
     );
@@ -796,18 +883,35 @@ export class InvariantRuntime {
       const values = matchTemplate(site.template, local) ?? [];
       const fidelity = site.numeric ? this.#fidelity : "double";
       const opened = { ...request, path: local };
-      const tree = openEnvelope(envelope, site.template, values, opened, fidelity);
-      const result = execute(tree, envelope.instrs, this.#limits);
-      if (this.#onUsage && result.applied.size > 0) {
-        this.#onUsage({
-          contract: context.contract,
-          operation: context.operation,
-          consumer: context.consumer,
-          changes: result.applied,
-        });
+      const form = request.form === true && envelope.body ? site.form : undefined;
+      if (!form) {
+        const tree = openEnvelope(envelope, site.template, values, opened, fidelity);
+        this.#counted(execute(tree, envelope.instrs, this.#limits), context);
+        const closed = closeEnvelope(envelope, site.template, values, opened, tree);
+        return { ...closed, path: `${this.#program.basePath}${closed.path}` };
       }
-      const closed = closeEnvelope(envelope, site.template, values, opened, tree);
-      return { ...closed, path: `${this.#program.basePath}${closed.path}` };
+      // A form body is decoded and written back by the form rules; the rest
+      // of the envelope is what it always is.
+      const parameters = { ...envelope, body: false };
+      const roots = formRoots(envelope.instrs, 1);
+      const text = request.body ?? "";
+      const tree = openEnvelope(parameters, site.template, values, opened, fidelity);
+      tree["@body"] = openForm(form, roots, text, fidelity);
+      this.#counted(execute(tree, envelope.instrs, this.#limits), context);
+      const closed = closeEnvelope(parameters, site.template, values, opened, tree);
+      const body = tree["@body"];
+      return {
+        ...closed,
+        path: `${this.#program.basePath}${closed.path}`,
+        body: closeForm(
+          form,
+          roots,
+          text,
+          (typeof body === "object" && body !== null ? body : {}) as Record<string, Json>,
+          envelope.instrs,
+          1,
+        ),
+      };
     });
   }
 

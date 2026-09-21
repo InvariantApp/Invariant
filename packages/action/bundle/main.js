@@ -3092,11 +3092,12 @@ const ParameterScope = Type.Object({
 		Type.Literal("query"),
 		Type.Literal("path"),
 		Type.Literal("header"),
-		Type.Literal("cookie")
+		Type.Literal("cookie"),
+		Type.Literal("body")
 	])
 }, {
 	additionalProperties: false,
-	description: "Where a Change's data ops apply to one operation's parameters. A pointer names a parameter of this location, `/limit`; one starting with `@` names another part of the request, `/@header/x-limit` or `/@body/limit`, which is how a parameter moves between them."
+	description: "Where a Change's data ops apply to one operation's request. A pointer names a parameter of this location, `/limit`, or with `body` a field of the operation's own request body, for a body declared inline rather than as a named schema. One starting with `@` names another part of the request, `/@header/x-limit` or `/@body/limit`, which is how a parameter moves between them."
 });
 const Scope = Type.Union([SchemaScope, ParameterScope]);
 const Assertions = Type.Object({
@@ -3394,7 +3395,35 @@ const EnvelopeProgram = Type.Object({
 	/** True when an instruction reaches into `/@body`, so the body is read. */
 	body: Type.Boolean()
 }, { additionalProperties: false });
+/**
+* How an operation's request body is written when it arrives form-encoded,
+* for the fields its program names.
+*
+* `fields` gives each top-level field's style; one not listed is a plain form
+* field, repeated for a list. `types` says what each place an instruction
+* reads holds, by pointer with `*` for list items, since a form carries every
+* value as text and a scale or a cast needs to see a number.
+*/
+const FormProgram = Type.Object({
+	fields: Type.Record(Type.String(), Type.Object({
+		style: Type.Union([Type.Literal("form"), Type.Literal("deepObject")]),
+		explode: Type.Boolean()
+	}, { additionalProperties: false })),
+	types: Type.Record(Type.String(), Type.Union([
+		Type.Literal("string"),
+		Type.Literal("integer"),
+		Type.Literal("number"),
+		Type.Literal("boolean"),
+		Type.Literal("array"),
+		Type.Literal("object")
+	]))
+}, { additionalProperties: false });
 const SiteProgram = Type.Object({
+	/**
+	* Present when the operation's request body may arrive form-encoded. The
+	* same instructions then run over the form, decoded and written back.
+	*/
+	form: Type.Optional(FormProgram),
 	/** Old shape to canonical, applied to a request body. */
 	request: Type.Optional(Type.Array(Instr)),
 	/**
@@ -3414,6 +3443,14 @@ const ContractProgram = Type.Object({
 	routes: Type.Array(RouteRule),
 	/** Keyed by the canonical `method path-template`, for example `post /v1/payments`. */
 	sites: Type.Record(Type.String(), SiteProgram),
+	/**
+	* The path this contract's API was served under, where it is not the
+	* current one's: the version was in the server URL, as Google's
+	* `/analytics/v2.4` became `/analytics/v3`. An old caller's request under
+	* it is routed to the same path under the current one. Empty for an API
+	* served at the root.
+	*/
+	basePath: Type.Optional(Type.String({ pattern: "^(/.*[^/])?$" })),
 	/** Changes on this step that no transform can express. */
 	behaviors: Type.Array(Type.String()),
 	/**
@@ -11853,15 +11890,38 @@ function deref(document, value) {
 	}
 	throw new ContractError("$ref chain is too deep");
 }
-/** The `application/json` schema of an operation's request body, if it has one. */
-function requestBodySchema(document, operation) {
+const FORM_MEDIA_TYPE = "application/x-www-form-urlencoded";
+/**
+* The schema of an operation's request body, from its JSON representation or,
+* where it has none, its form one.
+*
+* A form body describes fields exactly as a JSON body does; only the wire
+* encoding differs, and the runtime decodes it before any instruction runs.
+* Stripe and Twilio declare nothing but forms, and reading only JSON left
+* every request body they have invisible to everything downstream.
+*/
+function requestBodyMedia(document, operation) {
 	const body = deref(document, operation["requestBody"] ?? null);
 	if (!isJsonObject(body)) return void 0;
 	const content = body["content"];
 	if (!isJsonObject(content)) return void 0;
+	const form = content[FORM_MEDIA_TYPE];
 	const json = content["application/json"];
-	if (!isJsonObject(json)) return void 0;
-	return json["schema"];
+	if (isJsonObject(json) && json["schema"] !== void 0) return {
+		media: "json",
+		schema: json["schema"],
+		...isJsonObject(form) ? { alsoForm: true } : {},
+		...isJsonObject(form) && isJsonObject(form["encoding"]) ? { encoding: form["encoding"] } : {}
+	};
+	if (isJsonObject(form) && form["schema"] !== void 0) return {
+		media: "form",
+		schema: form["schema"],
+		...isJsonObject(form["encoding"]) ? { encoding: form["encoding"] } : {}
+	};
+}
+/** The schema of an operation's request body, JSON or form. */
+function requestBodySchema(document, operation) {
+	return requestBodyMedia(document, operation)?.schema;
 }
 function responseSchemas(document, operation) {
 	const responses = operation["responses"];
@@ -12086,6 +12146,108 @@ function bodySchemaFor(document, operation, direction, status) {
 	}
 	const match = responseSchemas(document, operation).find((r) => r.status === status);
 	return match === void 0 ? void 0 : deref(document, match.schema);
+}
+//#endregion
+//#region ../compiler/src/form.ts
+function fieldsOf(encoding) {
+	const fields = {};
+	if (!encoding) return fields;
+	for (const [name, entry] of Object.entries(encoding)) {
+		if (!isJsonObject(entry)) continue;
+		const style = entry["style"] === "deepObject" ? "deepObject" : "form";
+		const explode = typeof entry["explode"] === "boolean" ? entry["explode"] : style === "form";
+		if (style === "form" && explode) continue;
+		fields[name] = {
+			style,
+			explode
+		};
+	}
+	return fields;
+}
+function typeOf$1(schema) {
+	if (!isJsonObject(schema)) return void 0;
+	const declared = schema["type"];
+	const type = (Array.isArray(declared) ? declared : [declared]).filter((type) => typeof type === "string" && type !== "null")[0];
+	if (type === void 0) {
+		if (isJsonObject(schema["properties"])) return "object";
+		if (schema["items"] !== void 0) return "array";
+		return;
+	}
+	return [
+		"string",
+		"integer",
+		"number",
+		"boolean",
+		"array",
+		"object"
+	].includes(type) ? type : void 0;
+}
+/** What the schema says is at each prefix of a pointer, where it says anything. */
+function typesAlong(document, root, pointer, into) {
+	const segments = parsePointer(pointer);
+	let current = resolveSchema(document, root);
+	for (const [index, segment] of segments.entries()) {
+		if (!isJsonObject(current)) return;
+		const next = segment === "*" ? current["items"] : isJsonObject(current["properties"]) ? current["properties"][segment] : void 0;
+		if (next === void 0) return;
+		current = resolveSchema(document, next);
+		const type = typeOf$1(current);
+		if (type !== void 0) into[formatPointer(segments.slice(0, index + 1))] = type;
+	}
+}
+/**
+* The declaration for a site whose body instructions are `instrs`, with
+* pointers relative to the body. `old` is the operation's body as an old
+* caller sends it; `current`, where known, supplies how a field the program
+* writes under a new name is written.
+*/
+function formProgramFor(oldDocument, old, current, instrs) {
+	const types = {};
+	for (const instr of instrs) for (const pointer of instr.k === "move" ? [instr.from] : [instr.path]) typesAlong(oldDocument, old.schema, pointer, types);
+	return {
+		fields: {
+			...fieldsOf(current?.encoding),
+			...fieldsOf(old.encoding)
+		},
+		types
+	};
+}
+/** Whether an operation's request body can arrive as a form. */
+function takesForm(media) {
+	return media !== void 0 && (media.media === "form" || media.alsoForm === true);
+}
+/**
+* A pointer read at a later step, as the place in the original request its
+* value came from, by undoing the earlier steps' moves in reverse. A value is
+* typed once, when the form is decoded, so a field an earlier step moved has
+* to be typed where the caller wrote it.
+*/
+function traceBack(pointer, earlier) {
+	let segments = parsePointer(pointer);
+	for (const instr of [...earlier].reverse()) {
+		if (instr.k !== "move") continue;
+		const to = parsePointer(instr.to);
+		if (to.length > segments.length || !to.every((segment, index) => segment === segments[index])) continue;
+		segments = [...parsePointer(instr.from), ...segments.slice(to.length)];
+	}
+	return formatPointer(segments);
+}
+/** Two steps' declarations as one, the later step's pointers traced to the original request. */
+function mergeForms(earlier, later, earlierInstrs) {
+	if (!earlier) return later;
+	if (!later) return earlier;
+	const types = { ...earlier.types };
+	for (const [pointer, type] of Object.entries(later.types)) {
+		const original = traceBack(pointer, earlierInstrs);
+		if (!(original in types)) types[original] = type;
+	}
+	return {
+		fields: {
+			...earlier.fields,
+			...later.fields
+		},
+		types
+	};
 }
 //#endregion
 //#region ../compiler/src/import.ts
@@ -12817,12 +12979,12 @@ function bodyHolder(document, operation, create) {
 		operation["requestBody"] = body;
 	}
 	const content = body["content"];
-	const json = isJsonObject(content) ? content["application/json"] : void 0;
-	if (!isJsonObject(json) || !isJsonObject(json["schema"])) {
+	const holder = isJsonObject(content) ? isJsonObject(content["application/json"]) ? content["application/json"] : content["application/x-www-form-urlencoded"] : void 0;
+	if (!isJsonObject(holder) || !isJsonObject(holder["schema"])) {
 		if (!create) return void 0;
-		throw new SchemaOpError("the request body is not JSON, so nothing can move into it");
+		throw new SchemaOpError("the request body is neither JSON nor a form, so nothing can move into it");
 	}
-	return json["schema"];
+	return holder["schema"];
 }
 /** A body field's declaration in the new contract, where the operation now lives. */
 function bodyShapeInNew(newContract, located, segments) {
@@ -12863,7 +13025,47 @@ function applyParameterScope(document, oldContract, newContract, routes, scope, 
 		refuse(`${op.op} on ${scope.operation}'s ${scope.location} parameters: ${error instanceof Error ? error.message : String(error)}`);
 	}
 }
+/**
+* An op on the operation's own request body, declared inline rather than as
+* a named schema, applied through the same schema edits a schema scope uses.
+*/
+function applyToBody(document, newContract, located, op) {
+	const root = bodyHolder(document, located.operation, false);
+	if (!root) throw new SchemaOpError("the operation has no request body to change");
+	switch (op.op) {
+		case "move":
+			schemaMove(document, root, op.from, op.to);
+			return;
+		case "convert":
+			schemaConvert(document, root, op.path, op.codec);
+			return;
+		case "remove":
+			schemaRemove(document, root, op.path);
+			return;
+		case "add": {
+			const shape = bodyShapeInNew(newContract, located, parsePointer(op.path));
+			if (!shape) throw new SchemaOpError(`the new contract's request body has no ${op.path}`);
+			importReferences(document, newContract, shape.shape);
+			schemaAdd(document, root, op.path, shape.shape, shape.required);
+			return;
+		}
+		case "default": {
+			const looser = op.toward === "old";
+			if (op.when !== "null") schemaSetRequired(document, root, op.path, !looser);
+			if (op.when !== "absent") schemaSetNullable(document, root, op.path, looser);
+			return;
+		}
+		case "dropNull":
+			if (op.toward === "new" && schemaRequiredAt(document, root, op.path)) throw new SchemaOpError(`${op.path} is required, so a null cannot be sent as it left out`);
+			schemaSetNullable(document, root, op.path, op.toward === "old");
+			return;
+	}
+}
 function applyOne(document, newContract, located, scope, op) {
+	if (scope.location === "body") {
+		applyToBody(document, newContract, located, op);
+		return;
+	}
 	const params = ownParameters(document, located);
 	const at = (pointer) => {
 		const address = addressOf(envelopePointer(scope.location, pointer));
@@ -13482,7 +13684,7 @@ function projectStep(label, oldContract, changes, newContract) {
 		});
 	}
 	for (const change of changes) {
-		collectForward(change, oldContract, routes, sites, issues);
+		collectForward(change, oldContract, newContract, routes, sites, issues);
 		collectParameters(change, oldContract, newContract, routes, sites, issues);
 	}
 	for (const change of [...changes].reverse()) collectBackward(change, oldContract, routes, sites, issues);
@@ -13490,6 +13692,14 @@ function projectStep(label, oldContract, changes, newContract) {
 	const out = {};
 	for (const [key, entry] of [...sites.entries()].sort()) {
 		const program = {};
+		if (entry.body && takesForm(entry.body.old)) {
+			const bodyInstrs = entry.request.flatMap((item) => {
+				if (!item.param) return [item.instr];
+				const under = underBody(item.instr);
+				return under ? [under] : [];
+			});
+			if (bodyInstrs.length > 0) program.form = formProgramFor(oldContract, entry.body.old, entry.body.current, bodyInstrs);
+		}
 		if (entry.request.some((item) => item.param)) program.envelope = envelopeOf(entry);
 		else if (entry.request.length > 0) program.request = entry.request.map((item) => item.instr);
 		if (entry.response.size > 0) program.response = Object.fromEntries([...entry.response.entries()].sort().filter(([, instrs]) => instrs.length > 0));
@@ -13537,18 +13747,52 @@ function sitesOf(change, oldContract, issues) {
 	}
 	return found;
 }
-function collectForward(change, oldContract, routes, sites, issues) {
+function collectForward(change, oldContract, newContract, routes, sites, issues) {
 	const dataOps = change.ops.filter(isDataOp);
 	if (dataOps.length === 0) return;
 	for (const site of sitesOf(change, oldContract, issues)) {
 		if (site.direction !== "request") continue;
 		const target = mapEndpoint(routes, site.method, site.path);
 		const entry = accumulatorFor(sites, siteKey(target.method, target.path));
+		entry.body ??= bodiesOf(oldContract, newContract, site, target);
 		for (const op of dataOps) entry.request.push(...forwardInstrs(op, site.prefix, change.id).map((instr) => ({
 			instr,
 			param: false
 		})));
 	}
+}
+/** An operation's request body before and after, located by where its calls now land. */
+function bodiesOf(oldContract, newContract, from, target) {
+	const find = (document, where) => operationsOf(document).find((candidate) => candidate.method === where.method && candidate.path === where.path);
+	const before = find(oldContract, from);
+	const old = before ? requestBodyMedia(oldContract, before.operation) : void 0;
+	if (!old) return void 0;
+	const after = newContract ? find(newContract, target) : void 0;
+	return {
+		old,
+		current: after && newContract ? requestBodyMedia(newContract, after.operation) : void 0
+	};
+}
+/** An envelope instruction over the body alone, relative to the body, if it is one. */
+function underBody(instr) {
+	const strip = (pointer) => {
+		const segments = parsePointer(pointer);
+		return segments[0] === "@body" ? formatPointer(segments.slice(1)) : void 0;
+	};
+	if (instr.k === "move") {
+		const from = strip(instr.from);
+		const to = strip(instr.to);
+		return from !== void 0 && to !== void 0 ? {
+			...instr,
+			from,
+			to
+		} : void 0;
+	}
+	const path = strip(instr.path);
+	return path === void 0 ? void 0 : {
+		...instr,
+		path
+	};
 }
 /** The op with every pointer passed through `map`. */
 function withPointers(op, map) {
@@ -13631,13 +13875,20 @@ function collectParameters(change, oldContract, newContract, routes, sites, issu
 					refused = true;
 				}
 			}
-			staged.push(...forwardInstrs(absolute, "", change.id).map((instr) => ({
-				instr,
-				param: true
-			})));
+			staged.push(...forwardInstrs(absolute, "", change.id).map((instr) => {
+				const under = underBody(instr);
+				return under ? {
+					instr: under,
+					param: false
+				} : {
+					instr,
+					param: true
+				};
+			}));
 		}
 		if (refused) continue;
 		const entry = accumulatorFor(sites, siteKey(target.method, target.path));
+		entry.body ??= bodiesOf(oldContract, newContract, operation, target);
 		entry.request.push(...staged);
 		for (const { side, codec } of codecs) {
 			const key = `${codec.in} ${codec.name}`;
@@ -13819,6 +14070,8 @@ function remapKey(key, routeSteps) {
 */
 function mergeSite(earlier, later) {
 	const out = {};
+	const form = mergeForms(earlier.form, later.form, bodyInstrsOf(earlier));
+	if (form) out.form = form;
 	if (earlier.envelope || later.envelope) {
 		const first = asEnvelope(earlier);
 		const second = asEnvelope(later);
@@ -13852,6 +14105,14 @@ function mergeSite(earlier, later) {
 	return out;
 }
 const codecKey$1 = (codec) => `${codec.in} ${codec.name}`;
+/** A site's request instructions over the body, relative to it. */
+function bodyInstrsOf(site) {
+	if (site.envelope) return site.envelope.instrs.flatMap((instr) => {
+		const under = underBody(instr);
+		return under ? [under] : [];
+	});
+	return site.request ?? [];
+}
 function asEnvelope(site) {
 	if (site.envelope) return site.envelope;
 	const instrs = (site.request ?? []).map((instr) => prefixInstr(instr, "@body"));
@@ -13978,6 +14239,14 @@ function routeChangeFor(steps, method, path) {
 * guess that would stop every request matching.
 */
 function basePathOf(document) {
+	const served = servedUnder(document);
+	return served === "" ? void 0 : served;
+}
+/**
+* Where every server of a contract serves its API: a path, `""` for the root,
+* or nothing when the servers disagree, carry a variable, or are not declared.
+*/
+function servedUnder(document) {
 	const servers = document?.["servers"];
 	if (!Array.isArray(servers) || servers.length === 0) return void 0;
 	const paths = /* @__PURE__ */ new Set();
@@ -13993,7 +14262,7 @@ function basePathOf(document) {
 		paths.add(path.replace(/\/+$/, ""));
 	}
 	const [only] = [...paths];
-	return paths.size === 1 && only !== void 0 && only !== "" ? only : void 0;
+	return paths.size === 1 && only !== void 0 ? only : void 0;
 }
 function chainProgram(api, currentLabel, currentDigest, steps) {
 	const issues = [];
@@ -14003,7 +14272,12 @@ function chainProgram(api, currentLabel, currentDigest, steps) {
 		if (label === currentLabel) return;
 		const chained = chainContract(label, steps.slice(index));
 		issues.push(...chained.issues);
-		contracts[label] = chained.program;
+		const own = servedUnder(step.from);
+		const current = servedUnder(steps.at(-1)?.to);
+		contracts[label] = own !== void 0 && current !== void 0 && own !== current ? {
+			...chained.program,
+			basePath: own
+		} : chained.program;
 	});
 	const base = basePathOf(steps.at(-1)?.to);
 	return {
@@ -27849,8 +28123,8 @@ const PART = {
 	body: "@body"
 };
 const codecKey = (location, name) => `${location} ${location === "header" ? name.toLowerCase() : name}`;
-const JSON_NUMBER = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/;
-function decodeComponent(text) {
+const JSON_NUMBER$1 = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/;
+function decodeComponent$1(text) {
 	try {
 		return decodeURIComponent(text.replace(/\+/g, " "));
 	} catch {
@@ -27871,12 +28145,12 @@ function queryPairs(search) {
 		const equals = raw.indexOf("=");
 		return equals === -1 ? {
 			raw,
-			key: decodeComponent(raw),
+			key: decodeComponent$1(raw),
 			value: ""
 		} : {
 			raw,
-			key: decodeComponent(raw.slice(0, equals)),
-			value: decodeComponent(raw.slice(equals + 1))
+			key: decodeComponent$1(raw.slice(0, equals)),
+			value: decodeComponent$1(raw.slice(equals + 1))
 		};
 	});
 }
@@ -27895,7 +28169,7 @@ function cookiePairs(headers) {
 }
 /** A scalar written as text, typed the way its declaration says it is. */
 function scalar(text, type, fidelity) {
-	if ((type === "integer" || type === "number") && JSON_NUMBER.test(text)) return parseJson(text, fidelity);
+	if ((type === "integer" || type === "number") && JSON_NUMBER$1.test(text)) return parseJson(text, fidelity);
 	if (type === "boolean" && (text === "true" || text === "false")) return text === "true";
 	return text;
 }
@@ -27984,7 +28258,7 @@ function openEnvelope(envelope, template, pathValues, request, fidelity) {
 	if (envelope.body && request.body !== void 0 && request.body !== "") tree[PART.body] = parseJson(request.body, fidelity);
 	return tree;
 }
-function text(value, changeId, where) {
+function text$1(value, changeId, where) {
 	if (typeof value === "string") return value;
 	if (typeof value === "boolean") return String(value);
 	if (value === null) return "";
@@ -27998,15 +28272,15 @@ function text(value, changeId, where) {
 function encodeValue(value, codec, changeId) {
 	const where = `${codec.in} parameter ${codec.name}`;
 	if (Array.isArray(value)) {
-		const items = value.map((entry) => text(entry, changeId, where));
+		const items = value.map((entry) => text$1(entry, changeId, where));
 		if (codec.explode && (codec.in === "query" || codec.in === "cookie")) return items;
 		return [items.join(delimiterOf(codec))];
 	}
 	if (typeof value === "object" && value !== null && !numberLike(value)) {
-		const entries = Object.entries(value).map(([key, entry]) => [key, text(entry, changeId, where)]);
+		const entries = Object.entries(value).map(([key, entry]) => [key, text$1(entry, changeId, where)]);
 		return [codec.explode ? entries.map(([key, entry]) => `${key}=${entry}`).join(",") : entries.flat().join(",")];
 	}
-	return [text(value, changeId, where)];
+	return [text$1(value, changeId, where)];
 }
 function numberLike(value) {
 	return JSON.isRawJSON(value);
@@ -28030,7 +28304,7 @@ const FALLBACK = {
 	}
 };
 /** The change that last wrote under a pointer prefix, for naming a refusal. */
-function writerOf(instrs, part, name) {
+function writerOf$1(instrs, part, name) {
 	for (let index = instrs.length - 1; index >= 0; index -= 1) {
 		const instr = instrs[index];
 		if ((instr.k === "move" ? [instr.from, instr.to] : [instr.path]).some((path) => path[0] === part && path[1] === name)) return instr.c;
@@ -28069,7 +28343,7 @@ function closeEnvelope(envelope, template, pathValues, request, tree) {
 		const filled = names.map((name, index) => {
 			if (!pathNamed.has(name)) return pathValues[index];
 			const value = values[name];
-			const changeId = writerOf(envelope.instrs, PART.path, name);
+			const changeId = writerOf$1(envelope.instrs, PART.path, name);
 			if (value === void 0 || value === null) throw new TransformError(changeId, `path parameter ${name} was left without a value`);
 			return encodeURIComponent(encodeValue(value, codecFor("path", name), changeId)[0] ?? "");
 		});
@@ -28088,9 +28362,9 @@ function closeEnvelope(envelope, template, pathValues, request, tree) {
 		for (const [name, value] of Object.entries(partOf("query"))) {
 			if (value === void 0) continue;
 			const codec = codecFor("query", name);
-			const changeId = writerOf(envelope.instrs, PART.query, name);
+			const changeId = writerOf$1(envelope.instrs, PART.query, name);
 			if (codec.style === "deepObject" && typeof value === "object" && value !== null && !Array.isArray(value) && !numberLike(value)) {
-				for (const [key, entry] of Object.entries(value)) written.push(`${encodeURIComponent(name)}[${encodeURIComponent(key)}]=${encodeURIComponent(text(entry, changeId, `query parameter ${name}`))}`);
+				for (const [key, entry] of Object.entries(value)) written.push(`${encodeURIComponent(name)}[${encodeURIComponent(key)}]=${encodeURIComponent(text$1(entry, changeId, `query parameter ${name}`))}`);
 				continue;
 			}
 			const parts = encodeValue(value, codec, changeId);
@@ -28114,7 +28388,7 @@ function closeEnvelope(envelope, template, pathValues, request, tree) {
 		});
 		for (const [name, value] of Object.entries(partOf("header"))) {
 			if (value === void 0) continue;
-			const changeId = writerOf(envelope.instrs, PART.header, name);
+			const changeId = writerOf$1(envelope.instrs, PART.header, name);
 			const written = encodeValue(value, codecFor("header", name), changeId)[0] ?? "";
 			if (UNSAFE_HEADER.test(written)) throw new TransformError(changeId, `header ${name} would carry a line break`);
 			headers.push([name.toLowerCase(), written]);
@@ -28124,7 +28398,7 @@ function closeEnvelope(envelope, template, pathValues, request, tree) {
 			const written = [];
 			for (const [name, value] of Object.entries(partOf("cookie"))) {
 				if (value === void 0) continue;
-				const changeId = writerOf(envelope.instrs, PART.cookie, name);
+				const changeId = writerOf$1(envelope.instrs, PART.cookie, name);
 				for (const part of encodeValue(value, codecFor("cookie", name), changeId)) {
 					if (UNSAFE_COOKIE.test(part)) throw new TransformError(changeId, `cookie ${name} would carry a separator`);
 					written.push([name, part]);
@@ -28159,6 +28433,238 @@ var UnsupportedEncodingError = class extends Error {
 		this.encoding = encoding;
 	}
 };
+//#endregion
+//#region ../runtime/src/form.ts
+const PLAIN = {
+	style: "form",
+	explode: true
+};
+const JSON_NUMBER = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/;
+function decodeComponent(text) {
+	try {
+		return decodeURIComponent(text.replace(/\+/g, " "));
+	} catch {
+		return text;
+	}
+}
+function pairsOf(text) {
+	if (text === "") return [];
+	return text.split("&").flatMap((raw) => {
+		if (raw === "") return [];
+		const equals = raw.indexOf("=");
+		return [equals === -1 ? {
+			raw,
+			key: decodeComponent(raw),
+			value: ""
+		} : {
+			raw,
+			key: decodeComponent(raw.slice(0, equals)),
+			value: decodeComponent(raw.slice(equals + 1))
+		}];
+	});
+}
+/** `a[b][0]` as its root and the segments under it; `a[]` ends in an append. */
+function keyPath(key) {
+	const open = key.indexOf("[");
+	if (open === -1) return {
+		root: key,
+		segments: []
+	};
+	const root = key.slice(0, open);
+	const segments = [];
+	let rest = key.slice(open);
+	while (rest.length > 0) {
+		const match = /^\[([^[\]]*)\]/.exec(rest);
+		if (!match) return void 0;
+		segments.push(match[1]);
+		rest = rest.slice(match[0].length);
+	}
+	return {
+		root,
+		segments
+	};
+}
+/** The root a pair belongs to, so a named field can take all of its pairs. */
+function rootOf(key) {
+	const open = key.indexOf("[");
+	return open === -1 ? key : key.slice(0, open);
+}
+/** Objects whose keys run 0, 1, 2 ... are the lists they were written from. */
+function listsFromIndexes(value) {
+	if (Array.isArray(value)) return value.map(listsFromIndexes);
+	if (typeof value !== "object" || value === null) return value;
+	const node = value;
+	const keys = Object.keys(node);
+	for (const key of keys) node[key] = listsFromIndexes(node[key]);
+	if (keys.length > 0 && keys.every((key, index) => key === String(index))) return keys.map((key) => node[key]);
+	return node;
+}
+function bracketed(pairs, root) {
+	let tree;
+	for (const pair of pairs) {
+		const path = keyPath(pair.key);
+		if (!path || path.root !== root) continue;
+		if (path.segments.length === 0) return pair.value;
+		tree ??= {};
+		let node = tree;
+		for (const [index, segment] of path.segments.entries()) {
+			const last = index === path.segments.length - 1;
+			const key = segment === "" ? String(Object.keys(node).length) : segment;
+			if (isUnsafeKey(key)) break;
+			if (last) node[key] = pair.value;
+			else {
+				const next = node[key];
+				if (typeof next !== "object" || next === null) node[key] = {};
+				node = node[key];
+			}
+		}
+	}
+	return tree === void 0 ? void 0 : listsFromIndexes(tree);
+}
+function typeAt(value, type, fidelity) {
+	if (typeof value !== "string" || type === void 0) return value;
+	if ((type === "integer" || type === "number") && JSON_NUMBER.test(value)) return parseJson(value, fidelity);
+	if (type === "boolean" && (value === "true" || value === "false")) return value === "true";
+	return value;
+}
+/** Types every leaf the program reads, walking `*` over list items. */
+function applyTypes(tree, types, fidelity) {
+	for (const [pointer, type] of types) {
+		if (type === "array" || type === "object") continue;
+		const segments = pointer.split("/").slice(1).map((segment) => segment.replace(/~1/g, "/").replace(/~0/g, "~"));
+		const visit = (holder, at) => {
+			const segment = segments[at];
+			const keys = segment === "*" ? Array.isArray(holder) ? holder.map((_, index) => String(index)) : [] : [segment];
+			for (const key of keys) {
+				const container = holder;
+				if (!Object.hasOwn(container, key)) continue;
+				if (at === segments.length - 1) container[key] = typeAt(container[key], type, fidelity);
+				else {
+					const next = container[key];
+					if (typeof next === "object" && next !== null) visit(next, at + 1);
+				}
+			}
+		};
+		if (segments.length > 0) visit(tree, 0);
+	}
+}
+/**
+* The fields a program names, decoded from the form into a tree. Only
+* `roots` are read; a field of the form no instruction names never is.
+*/
+function openForm(form, roots, text, fidelity) {
+	const pairs = pairsOf(text);
+	const tree = {};
+	for (const root of roots) {
+		if (isUnsafeKey(root)) continue;
+		const field = form.fields.get(root) ?? PLAIN;
+		const declared = form.types.get(`/${root}`);
+		const mine = pairs.filter((pair) => rootOf(pair.key) === root);
+		if (mine.length === 0) continue;
+		if (field.style === "deepObject" || mine.some((pair) => pair.key !== root)) {
+			const value = bracketed(mine, root);
+			if (value !== void 0) tree[root] = value;
+			continue;
+		}
+		const values = mine.map((pair) => pair.value);
+		if (declared === "array") tree[root] = field.explode ? values : (values[0] ?? "").split(",");
+		else if (declared === "object" && !field.explode) {
+			const flat = (values[0] ?? "").split(",");
+			const object = {};
+			for (let index = 0; index + 1 < flat.length; index += 2) {
+				const key = flat[index];
+				if (!isUnsafeKey(key)) object[key] = flat[index + 1];
+			}
+			tree[root] = object;
+		} else tree[root] = values.length === 1 ? values[0] : values;
+	}
+	applyTypes(tree, form.types, fidelity);
+	return tree;
+}
+function text(value, changeId, where) {
+	if (typeof value === "string") return value;
+	if (typeof value === "boolean") return String(value);
+	if (value === null) return "";
+	try {
+		return numberTextOf(value);
+	} catch {
+		throw new TransformError(changeId, `${where} holds a value a form cannot write`);
+	}
+}
+const isNode = (value) => typeof value === "object" && value !== null && !Array.isArray(value) && !JSON.isRawJSON(value);
+function encodeKey(root, segments) {
+	return `${encodeURIComponent(root)}${segments.map((segment) => `[${encodeURIComponent(segment)}]`).join("")}`;
+}
+/** One field of the tree as the pairs a form carries it in. */
+function encodeField(root, value, field, changeId) {
+	const out = [];
+	const nested = (segments, node) => {
+		if (Array.isArray(node)) {
+			for (const [index, item] of node.entries()) nested([...segments, String(index)], item);
+			return;
+		}
+		if (isNode(node)) {
+			for (const [key, child] of Object.entries(node)) nested([...segments, key], child);
+			return;
+		}
+		out.push(`${encodeKey(root, segments)}=${encodeURIComponent(text(node, changeId, root))}`);
+	};
+	if (field.style === "deepObject" || isNode(value) || Array.isArray(value) && value.some((item) => isNode(item) || Array.isArray(item))) {
+		if (field.style !== "deepObject" && isNode(value) && !field.explode) {
+			const flat = Object.entries(value).flatMap(([key, child]) => [key, text(child, changeId, root)]);
+			out.push(`${encodeURIComponent(root)}=${flat.map(encodeURIComponent).join(",")}`);
+			return out;
+		}
+		nested([], value);
+		return out;
+	}
+	if (Array.isArray(value)) {
+		const items = value.map((item) => text(item, changeId, root));
+		if (field.explode) for (const item of items) out.push(`${encodeURIComponent(root)}=${encodeURIComponent(item)}`);
+		else out.push(`${encodeURIComponent(root)}=${items.map(encodeURIComponent).join(",")}`);
+		return out;
+	}
+	out.push(`${encodeURIComponent(root)}=${encodeURIComponent(text(value, changeId, root))}`);
+	return out;
+}
+/** The change that last wrote under a root, for naming a refusal. */
+function writerOf(instrs, root, depth) {
+	for (let index = instrs.length - 1; index >= 0; index -= 1) {
+		const instr = instrs[index];
+		if ((instr.k === "move" ? [instr.from, instr.to] : [instr.path]).some((path) => path[depth] === root)) return instr.c;
+	}
+	return instrs[0]?.c ?? "";
+}
+/**
+* Writes the named fields back. A field the program took away is gone; one it
+* moved in is written in the style its declaration gives it.
+*/
+function closeForm(form, roots, original, tree, instrs, depth) {
+	const kept = pairsOf(original).filter((pair) => !roots.has(rootOf(pair.key))).map((pair) => pair.raw);
+	const written = [];
+	for (const [root, value] of Object.entries(tree)) {
+		if (value === void 0 || !roots.has(root)) continue;
+		written.push(...encodeField(root, value, form.fields.get(root) ?? PLAIN, writerOf(instrs, root, depth)));
+	}
+	return [...kept, ...written].join("&");
+}
+/** The top-level fields a list of instructions names, under `depth` leading segments. */
+function formRoots(instrs, depth) {
+	const roots = /* @__PURE__ */ new Set();
+	for (const instr of instrs) {
+		const paths = instr.k === "move" ? [instr.from, instr.to] : [instr.path];
+		for (const path of paths) {
+			if (depth === 1 && path[0] !== "@body") continue;
+			const root = path[depth];
+			if (root !== void 0 && root !== "*") roots.add(root);
+		}
+	}
+	return roots;
+}
+function isFormMediaType(contentType) {
+	if (!contentType) return false;
+	return (contentType.split(";")[0]?.trim().toLowerCase() ?? "") === "application/x-www-form-urlencoded";
+}
 //#endregion
 //#region ../runtime/src/http.ts
 /**
@@ -28575,13 +29081,50 @@ function decodeEnvelope(raw, where) {
 		body
 	};
 }
+const FORM_TYPES = /* @__PURE__ */ new Set([
+	"string",
+	"integer",
+	"number",
+	"boolean",
+	"array",
+	"object"
+]);
+function decodeForm(raw, where) {
+	const value = object(raw, where);
+	expectKeys(value, ["fields", "types"], where);
+	const fields = /* @__PURE__ */ new Map();
+	for (const [name, entry] of Object.entries(object(value["fields"], `${where}.fields`))) {
+		if (isUnsafeKey(name)) throw new ProgramError(`${where}.fields may not name "${name}"`);
+		const field = object(entry, `${where}.fields.${name}`);
+		expectKeys(field, ["style", "explode"], `${where}.fields.${name}`);
+		const style = field["style"];
+		if (style !== "form" && style !== "deepObject") throw new ProgramError(`${where}.fields.${name}.style must be form or deepObject`);
+		if (typeof field["explode"] !== "boolean") throw new ProgramError(`${where}.fields.${name}.explode must be a boolean`);
+		fields.set(name, {
+			style,
+			explode: field["explode"]
+		});
+	}
+	const types = /* @__PURE__ */ new Map();
+	for (const [pointer, type] of Object.entries(object(value["types"], `${where}.types`))) {
+		segmentsOf(pointer, `${where}.types`);
+		if (typeof type !== "string" || !FORM_TYPES.has(type)) throw new ProgramError(`${where}.types["${pointer}"] is not a type`);
+		types.set(pointer, type);
+	}
+	return {
+		fields,
+		types
+	};
+}
 function decodeSite(raw, where, template) {
 	const value = object(raw, where);
 	expectKeys(value, [
+		"form",
 		"request",
 		"envelope",
 		"response"
 	], where);
+	const form = value["form"] === void 0 ? void 0 : decodeForm(value["form"], `${where}.form`);
 	if (value["request"] !== void 0 && value["envelope"] !== void 0) throw new ProgramError(`${where} has both request and envelope; one list keeps the order`);
 	const envelope = value["envelope"] === void 0 ? void 0 : decodeEnvelope(value["envelope"], `${where}.envelope`);
 	const request = array(value["request"] ?? [], `${where}.request`).map((instr, index) => decodeInstr(instr, `${where}.request[${index}]`));
@@ -28595,7 +29138,8 @@ function decodeSite(raw, where, template) {
 		response,
 		numeric: needsExactNumbers(request) || envelope !== void 0 && needsExactNumbers(envelope.instrs) || [...response.values()].some(needsExactNumbers),
 		template,
-		...envelope === void 0 ? {} : { envelope }
+		...envelope === void 0 ? {} : { envelope },
+		...form === void 0 ? {} : { form }
 	};
 }
 function decodeRoute(raw, where) {
@@ -28644,8 +29188,11 @@ function decodeProgram(raw) {
 			"routes",
 			"sites",
 			"behaviors",
-			"retired"
+			"retired",
+			"basePath"
 		], where);
+		const ownBase = contract["basePath"];
+		if (ownBase !== void 0 && (typeof ownBase !== "string" || !/^(\/.*[^/])?$/.test(ownBase))) throw new ProgramError(`${where}.basePath must be a path such as /v1, or empty`);
 		const sites = /* @__PURE__ */ new Map();
 		for (const [key, site] of Object.entries(object(contract["sites"], `${where}.sites`))) {
 			const separator = key.indexOf(" ");
@@ -28655,6 +29202,7 @@ function decodeProgram(raw) {
 			sites.set(`${method} ${path}`, decodeSite(site, `${where}.sites["${key}"]`, path.split("/")));
 		}
 		contracts.set(label, {
+			...ownBase === void 0 ? {} : { basePath: ownBase },
 			label: string(contract["label"], `${where}.label`),
 			routes: array(contract["routes"], `${where}.routes`).map((route, index) => decodeRoute(route, `${where}.routes[${index}]`)),
 			sites,
@@ -28999,13 +29547,51 @@ var InvariantRuntime = class {
 		if (path === base) return "/";
 		return path.startsWith(`${base}/`) ? path.slice(base.length) : void 0;
 	}
+	/**
+	* A request under a base path an older contract was served under, moved
+	* under the current one. The version was in the server URL, so the base
+	* path says which contract the caller was written against, when only one
+	* contract used it.
+	*/
+	#fromOlderBase(full, hint) {
+		const current = this.#program.basePath;
+		if (current !== "" && (full === current || full.startsWith(`${current}/`))) return;
+		let best;
+		for (const contract of this.#program.contracts.values()) {
+			const base = contract.basePath;
+			if (base === void 0 || base === current) continue;
+			if (hint && hint.label !== contract.label) continue;
+			if (!(base === "" || full === base || full.startsWith(`${base}/`))) continue;
+			if (!best || base.length > best.base.length) best = {
+				base,
+				labels: [contract.label]
+			};
+			else if (base === best.base) best.labels.push(contract.label);
+		}
+		if (!best) return void 0;
+		const rest = full.slice(best.base.length);
+		const [only] = best.labels;
+		return {
+			path: `${current}${rest === "" ? "" : rest}` || "/",
+			hint: hint ?? (best.labels.length === 1 && only ? {
+				label: only,
+				source: "route"
+			} : void 0)
+		};
+	}
 	route(method, full, headers) {
-		const hint = this.hintFrom(headers, full);
+		let hint = this.hintFrom(headers, full);
+		const older = this.#fromOlderBase(full, hint);
+		const moved = older !== void 0 && older.path !== full;
+		if (older) {
+			full = older.path;
+			hint = older.hint;
+		}
 		const path = this.#local(full);
 		if (path === void 0) return {
 			path: full,
 			hint,
-			rewritten: false
+			rewritten: moved
 		};
 		const candidates = hint ? [this.#program.contracts.get(hint.label)].filter((contract) => contract !== void 0) : [...this.#program.contracts.values()];
 		const matches = /* @__PURE__ */ new Map();
@@ -29018,7 +29604,7 @@ var InvariantRuntime = class {
 		if (matches.size !== 1) return {
 			path: full,
 			hint,
-			rewritten: false
+			rewritten: moved
 		};
 		const [target, origin] = [...matches.entries()][0];
 		return {
@@ -29027,7 +29613,7 @@ var InvariantRuntime = class {
 				label: origin.label,
 				source: "route"
 			},
-			rewritten: target !== path
+			rewritten: moved || target !== path
 		};
 	}
 	/** Stage two. Which contract this request is actually served under. */
@@ -29144,6 +29730,30 @@ var InvariantRuntime = class {
 			folded: [...result.folded].sort()
 		};
 	}
+	/**
+	* A form-encoded request body rewritten by the site's program: the fields
+	* it names decoded, transformed and written back, and every other pair of
+	* the form passed on exactly as it came.
+	*/
+	transformRequestForm(site, text, context) {
+		const form = site.form;
+		if (!form || site.request.length === 0) return text;
+		return this.#reporting("request", context, () => {
+			if (text.length > this.#maxBodyBytes) throw new BodyTooLargeError(this.#maxBodyBytes);
+			const roots = formRoots(site.request, 0);
+			const tree = openForm(form, roots, text, site.numeric ? this.#fidelity : "double");
+			this.#counted(execute(tree, site.request, this.#limits), context);
+			return closeForm(form, roots, text, tree, site.request, 0);
+		});
+	}
+	#counted(result, context) {
+		if (this.#onUsage && result.applied.size > 0) this.#onUsage({
+			contract: context.contract,
+			operation: context.operation,
+			consumer: context.consumer,
+			changes: result.applied
+		});
+	}
 	transformRequest(site, text, context) {
 		return this.#reporting("request", context, () => this.#run(site.request, site.numeric, text, {
 			contract: context.contract,
@@ -29176,14 +29786,16 @@ var InvariantRuntime = class {
 			...parts,
 			body: request.body
 		};
-		const json = isJsonMediaType(request.headers.get("content-type"));
+		const contentType = request.headers.get("content-type");
+		const json = isJsonMediaType(contentType);
+		const form = !json && isFormMediaType(contentType) && site.form !== void 0;
 		if (!site.envelope) {
-			if (site.request.length === 0 || !request.body || !json) return unchanged;
+			if (site.request.length === 0 || !request.body || !(json || form)) return unchanged;
 			const original = await readBodyText(request, {
 				limit: this.#maxBodyBytes,
 				encoded: true
 			});
-			const body = this.transformRequest(site, original.text, context);
+			const body = form ? this.transformRequestForm(site, original.text, context) : this.transformRequest(site, original.text, context);
 			return {
 				...parts,
 				headers: headersForText(parts.headers, body, original.decoded),
@@ -29191,7 +29803,7 @@ var InvariantRuntime = class {
 			};
 		}
 		const envelope = site.envelope;
-		if (envelope.body && request.body && !json) throw new TransformError(envelope.instrs.find((instr) => pathsOfInstr(instr).some((path) => path[0] === "@body"))?.c ?? "", "This operation's program writes into the request body, and the body sent is not JSON.");
+		if (envelope.body && request.body && !json && !form) throw new TransformError(envelope.instrs.find((instr) => pathsOfInstr(instr).some((path) => path[0] === "@body"))?.c ?? "", "This operation's program writes into the request body, and the body sent is not JSON.");
 		const original = envelope.body && request.body ? await readBodyText(request, {
 			limit: this.#maxBodyBytes,
 			encoded: true
@@ -29200,7 +29812,8 @@ var InvariantRuntime = class {
 			path: parts.path,
 			search: parts.search.startsWith("?") ? parts.search.slice(1) : parts.search,
 			headers: [...parts.headers],
-			body: original?.text
+			body: original?.text,
+			...form ? { form: true } : {}
 		}, context);
 		let headers = new Headers(result.headers);
 		let body = request.body;
@@ -29240,18 +29853,31 @@ var InvariantRuntime = class {
 				...request,
 				path: local
 			};
-			const tree = openEnvelope(envelope, site.template, values, opened, fidelity);
-			const result = execute(tree, envelope.instrs, this.#limits);
-			if (this.#onUsage && result.applied.size > 0) this.#onUsage({
-				contract: context.contract,
-				operation: context.operation,
-				consumer: context.consumer,
-				changes: result.applied
-			});
-			const closed = closeEnvelope(envelope, site.template, values, opened, tree);
+			const form = request.form === true && envelope.body ? site.form : void 0;
+			if (!form) {
+				const tree = openEnvelope(envelope, site.template, values, opened, fidelity);
+				this.#counted(execute(tree, envelope.instrs, this.#limits), context);
+				const closed = closeEnvelope(envelope, site.template, values, opened, tree);
+				return {
+					...closed,
+					path: `${this.#program.basePath}${closed.path}`
+				};
+			}
+			const parameters = {
+				...envelope,
+				body: false
+			};
+			const roots = formRoots(envelope.instrs, 1);
+			const text = request.body ?? "";
+			const tree = openEnvelope(parameters, site.template, values, opened, fidelity);
+			tree["@body"] = openForm(form, roots, text, fidelity);
+			this.#counted(execute(tree, envelope.instrs, this.#limits), context);
+			const closed = closeEnvelope(parameters, site.template, values, opened, tree);
+			const body = tree["@body"];
 			return {
 				...closed,
-				path: `${this.#program.basePath}${closed.path}`
+				path: `${this.#program.basePath}${closed.path}`,
+				body: closeForm(form, roots, text, typeof body === "object" && body !== null ? body : {}, envelope.instrs, 1)
 			};
 		});
 	}

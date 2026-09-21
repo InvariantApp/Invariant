@@ -9,6 +9,8 @@ import {
   findSchemaSites,
   type OpenApiDocument,
   operationsOf,
+  type RequestBodyMedia,
+  requestBodyMedia,
   type Site,
 } from "@invariant/contract";
 import {
@@ -30,6 +32,7 @@ import {
   siteKey,
 } from "@invariant/ir";
 import { errorParamTargets, paramRenames } from "./error-params.ts";
+import { formProgramFor, takesForm } from "./form.ts";
 import { findInterference } from "./independence.ts";
 import {
   addressOf,
@@ -241,6 +244,11 @@ interface SiteAccumulator {
   /** How each parameter an instruction names is written, keyed `in name`. */
   old: Map<string, ParamCodec>;
   new: Map<string, ParamCodec>;
+  /**
+   * The request body as an old caller sends it and as the provider now takes
+   * it, where either may be a form.
+   */
+  body?: { old: RequestBodyMedia; current: RequestBodyMedia | undefined } | undefined;
 }
 
 function accumulatorFor(
@@ -303,7 +311,7 @@ export function projectStep(
 
   // Requests apply Changes in declared order; responses undo them in reverse.
   for (const change of changes) {
-    collectForward(change, oldContract, routes, sites, issues);
+    collectForward(change, oldContract, newContract, routes, sites, issues);
     collectParameters(change, oldContract, newContract, routes, sites, issues);
   }
   for (const change of [...changes].reverse()) {
@@ -317,6 +325,21 @@ export function projectStep(
   const out: Record<string, SiteProgram> = {};
   for (const [key, entry] of [...sites.entries()].sort()) {
     const program: SiteProgram = {};
+    if (entry.body && takesForm(entry.body.old)) {
+      const bodyInstrs = entry.request.flatMap((item) => {
+        if (!item.param) return [item.instr];
+        const under = underBody(item.instr);
+        return under ? [under] : [];
+      });
+      if (bodyInstrs.length > 0) {
+        program.form = formProgramFor(
+          oldContract,
+          entry.body.old,
+          entry.body.current,
+          bodyInstrs,
+        );
+      }
+    }
     if (entry.request.some((item) => item.param)) {
       program.envelope = envelopeOf(entry);
     } else if (entry.request.length > 0) {
@@ -387,6 +410,7 @@ function sitesOf(
 function collectForward(
   change: Change,
   oldContract: OpenApiDocument,
+  newContract: OpenApiDocument | undefined,
   routes: readonly RouteMapping[],
   sites: Map<string, SiteAccumulator>,
   issues: ProjectionIssue[],
@@ -398,6 +422,7 @@ function collectForward(
     if (site.direction !== "request") continue;
     const target = mapEndpoint(routes, site.method, site.path);
     const entry = accumulatorFor(sites, siteKey(target.method, target.path));
+    entry.body ??= bodiesOf(oldContract, newContract, site, target);
     for (const op of dataOps) {
       entry.request.push(
         ...forwardInstrs(op, site.prefix, change.id).map((instr) => ({
@@ -407,6 +432,45 @@ function collectForward(
       );
     }
   }
+}
+
+/** An operation's request body before and after, located by where its calls now land. */
+function bodiesOf(
+  oldContract: OpenApiDocument,
+  newContract: OpenApiDocument | undefined,
+  from: { method: string; path: string },
+  target: { method: string; path: string },
+): SiteAccumulator["body"] {
+  const find = (document: OpenApiDocument, where: { method: string; path: string }) =>
+    operationsOf(document).find(
+      (candidate) => candidate.method === where.method && candidate.path === where.path,
+    );
+  const before = find(oldContract, from);
+  const old = before ? requestBodyMedia(oldContract, before.operation) : undefined;
+  if (!old) return undefined;
+  const after = newContract ? find(newContract, target) : undefined;
+  return {
+    old,
+    current:
+      after && newContract ? requestBodyMedia(newContract, after.operation) : undefined,
+  };
+}
+
+/** An envelope instruction over the body alone, relative to the body, if it is one. */
+export function underBody(instr: Instr): Instr | undefined {
+  const strip = (pointer: string): string | undefined => {
+    const segments = parsePointer(pointer);
+    return segments[0] === "@body" ? formatPointer(segments.slice(1)) : undefined;
+  };
+  if (instr.k === "move") {
+    const from = strip(instr.from);
+    const to = strip(instr.to);
+    // A value moved into the body from a parameter has no place in the form
+    // an old caller sent, so there is nothing to type it by.
+    return from !== undefined && to !== undefined ? { ...instr, from, to } : undefined;
+  }
+  const path = strip(instr.path);
+  return path === undefined ? undefined : { ...instr, path };
 }
 
 /** The op with every pointer passed through `map`. */
@@ -511,16 +575,19 @@ function collectParameters(
           refused = true;
         }
       }
+      // Instructions over the body alone are body instructions like any
+      // other, so a site that needs nothing more keeps the plain body path.
       staged.push(
-        ...forwardInstrs(absolute, "", change.id).map((instr) => ({
-          instr,
-          param: true,
-        })),
+        ...forwardInstrs(absolute, "", change.id).map((instr) => {
+          const under = underBody(instr);
+          return under ? { instr: under, param: false } : { instr, param: true };
+        }),
       );
     }
 
     if (refused) continue;
     const entry = accumulatorFor(sites, siteKey(target.method, target.path));
+    entry.body ??= bodiesOf(oldContract, newContract, operation, target);
     entry.request.push(...staged);
     for (const { side, codec } of codecs) {
       const key = `${codec.in} ${codec.name}`;

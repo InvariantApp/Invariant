@@ -305,18 +305,63 @@ export function deref(document: OpenApiDocument, value: JsonValue): JsonValue {
   throw new ContractError("$ref chain is too deep");
 }
 
-/** The `application/json` schema of an operation's request body, if it has one. */
-export function requestBodySchema(
+export const FORM_MEDIA_TYPE = "application/x-www-form-urlencoded";
+
+export interface RequestBodyMedia {
+  /** Which representation the schema came from. */
+  media: "json" | "form";
+  schema: JsonValue;
+  /** A form's OpenAPI `encoding` object, per top-level property. */
+  encoding?: JsonObject;
+  /** True when the operation also accepts the other representation. */
+  alsoForm?: boolean;
+}
+
+/**
+ * The schema of an operation's request body, from its JSON representation or,
+ * where it has none, its form one.
+ *
+ * A form body describes fields exactly as a JSON body does; only the wire
+ * encoding differs, and the runtime decodes it before any instruction runs.
+ * Stripe and Twilio declare nothing but forms, and reading only JSON left
+ * every request body they have invisible to everything downstream.
+ */
+export function requestBodyMedia(
   document: OpenApiDocument,
   operation: JsonObject,
-): JsonValue | undefined {
+): RequestBodyMedia | undefined {
   const body = deref(document, operation["requestBody"] ?? null);
   if (!isJsonObject(body)) return undefined;
   const content = body["content"];
   if (!isJsonObject(content)) return undefined;
+  const form = content[FORM_MEDIA_TYPE];
   const json = content["application/json"];
-  if (!isJsonObject(json)) return undefined;
-  return json["schema"];
+  if (isJsonObject(json) && json["schema"] !== undefined) {
+    return {
+      media: "json",
+      schema: json["schema"],
+      ...(isJsonObject(form) ? { alsoForm: true } : {}),
+      ...(isJsonObject(form) && isJsonObject(form["encoding"])
+        ? { encoding: form["encoding"] }
+        : {}),
+    };
+  }
+  if (isJsonObject(form) && form["schema"] !== undefined) {
+    return {
+      media: "form",
+      schema: form["schema"],
+      ...(isJsonObject(form["encoding"]) ? { encoding: form["encoding"] } : {}),
+    };
+  }
+  return undefined;
+}
+
+/** The schema of an operation's request body, JSON or form. */
+export function requestBodySchema(
+  document: OpenApiDocument,
+  operation: JsonObject,
+): JsonValue | undefined {
+  return requestBodyMedia(document, operation)?.schema;
 }
 
 export interface ResponseSchema {

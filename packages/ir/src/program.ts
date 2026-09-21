@@ -197,8 +197,49 @@ export const EnvelopeProgram = Type.Object(
   { additionalProperties: false },
 );
 
+/**
+ * How an operation's request body is written when it arrives form-encoded,
+ * for the fields its program names.
+ *
+ * `fields` gives each top-level field's style; one not listed is a plain form
+ * field, repeated for a list. `types` says what each place an instruction
+ * reads holds, by pointer with `*` for list items, since a form carries every
+ * value as text and a scale or a cast needs to see a number.
+ */
+export const FormProgram = Type.Object(
+  {
+    fields: Type.Record(
+      Type.String(),
+      Type.Object(
+        {
+          style: Type.Union([Type.Literal("form"), Type.Literal("deepObject")]),
+          explode: Type.Boolean(),
+        },
+        { additionalProperties: false },
+      ),
+    ),
+    types: Type.Record(
+      Type.String(),
+      Type.Union([
+        Type.Literal("string"),
+        Type.Literal("integer"),
+        Type.Literal("number"),
+        Type.Literal("boolean"),
+        Type.Literal("array"),
+        Type.Literal("object"),
+      ]),
+    ),
+  },
+  { additionalProperties: false },
+);
+
 export const SiteProgram = Type.Object(
   {
+    /**
+     * Present when the operation's request body may arrive form-encoded. The
+     * same instructions then run over the form, decoded and written back.
+     */
+    form: Type.Optional(FormProgram),
     /** Old shape to canonical, applied to a request body. */
     request: Type.Optional(Type.Array(Instr)),
     /**
@@ -222,6 +263,14 @@ export const ContractProgram = Type.Object(
     routes: Type.Array(RouteRule),
     /** Keyed by the canonical `method path-template`, for example `post /v1/payments`. */
     sites: Type.Record(Type.String(), SiteProgram),
+    /**
+     * The path this contract's API was served under, where it is not the
+     * current one's: the version was in the server URL, as Google's
+     * `/analytics/v2.4` became `/analytics/v3`. An old caller's request under
+     * it is routed to the same path under the current one. Empty for an API
+     * served at the root.
+     */
+    basePath: Type.Optional(Type.String({ pattern: "^(/.*[^/])?$" })),
     /** Changes on this step that no transform can express. */
     behaviors: Type.Array(Type.String()),
     /**
@@ -286,6 +335,7 @@ export type Instr = Static<typeof Instr>;
 export type RouteRule = Static<typeof RouteRule>;
 export type ParamCodec = Static<typeof ParamCodec>;
 export type EnvelopeProgram = Static<typeof EnvelopeProgram>;
+export type FormProgram = Static<typeof FormProgram>;
 export type SiteProgram = Static<typeof SiteProgram>;
 export type ContractProgram = Static<typeof ContractProgram>;
 export type CompiledProgram = Static<typeof CompiledProgram>;

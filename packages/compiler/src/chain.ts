@@ -29,6 +29,7 @@ import {
   parsePointer,
   siteKey,
 } from "@invariant/ir";
+import { mergeForms } from "./form.ts";
 import { mapEndpoint, type RouteMapping, routeMappings } from "./predict.ts";
 import {
   byCodec,
@@ -36,6 +37,7 @@ import {
   prefixInstr,
   projectStep,
   templateNames,
+  underBody,
 } from "./project.ts";
 
 export interface ContractStep {
@@ -86,6 +88,9 @@ function remapKey(key: string, routeSteps: readonly (readonly RouteMapping[])[])
  */
 function mergeSite(earlier: SiteProgram, later: SiteProgram): SiteProgram {
   const out: SiteProgram = {};
+
+  const form = mergeForms(earlier.form, later.form, bodyInstrsOf(earlier));
+  if (form) out.form = form;
 
   if (earlier.envelope || later.envelope) {
     // One step reaches a parameter, so the whole chain runs over the
@@ -139,6 +144,17 @@ function mergeSite(earlier: SiteProgram, later: SiteProgram): SiteProgram {
 }
 
 const codecKey = (codec: ParamCodec) => `${codec.in} ${codec.name}`;
+
+/** A site's request instructions over the body, relative to it. */
+function bodyInstrsOf(site: SiteProgram): Instr[] {
+  if (site.envelope) {
+    return site.envelope.instrs.flatMap((instr) => {
+      const under = underBody(instr);
+      return under ? [under] : [];
+    });
+  }
+  return site.request ?? [];
+}
 
 function asEnvelope(site: SiteProgram): EnvelopeProgram {
   if (site.envelope) return site.envelope;
@@ -290,6 +306,15 @@ function routeChangeFor(
  * guess that would stop every request matching.
  */
 export function basePathOf(document: OpenApiDocument | undefined): string | undefined {
+  const served = servedUnder(document);
+  return served === "" ? undefined : served;
+}
+
+/**
+ * Where every server of a contract serves its API: a path, `""` for the root,
+ * or nothing when the servers disagree, carry a variable, or are not declared.
+ */
+export function servedUnder(document: OpenApiDocument | undefined): string | undefined {
   const servers = document?.["servers"];
   if (!Array.isArray(servers) || servers.length === 0) return undefined;
   const paths = new Set<string>();
@@ -305,7 +330,7 @@ export function basePathOf(document: OpenApiDocument | undefined): string | unde
     paths.add(path.replace(/\/+$/, ""));
   }
   const [only] = [...paths];
-  return paths.size === 1 && only !== undefined && only !== "" ? only : undefined;
+  return paths.size === 1 && only !== undefined ? only : undefined;
 }
 
 export function chainProgram(
@@ -326,7 +351,14 @@ export function chainProgram(
     if (label === currentLabel) return;
     const chained = chainContract(label, steps.slice(index));
     issues.push(...chained.issues);
-    contracts[label] = chained.program;
+    // Versioned in the server URL rather than the paths: this contract's
+    // callers use a base path the current contract does not.
+    const own = servedUnder(step.from);
+    const current = servedUnder(steps.at(-1)?.to);
+    contracts[label] =
+      own !== undefined && current !== undefined && own !== current
+        ? { ...chained.program, basePath: own }
+        : chained.program;
   });
 
   const base = basePathOf(steps.at(-1)?.to);

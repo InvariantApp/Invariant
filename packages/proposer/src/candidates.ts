@@ -15,7 +15,7 @@ import {
   responseSchemas,
   schemasOf,
 } from "@invariant/contract";
-import { isJsonObject, type JsonObject, type JsonValue } from "@invariant/ir";
+import { isJsonObject, type JsonObject, type JsonValue, type Scope } from "@invariant/ir";
 
 export interface FieldShape {
   name: string;
@@ -48,6 +48,14 @@ export interface SchemaDelta {
   altered: { old: FieldShape; new: FieldShape }[];
   /** Where this schema reaches the wire, for context. */
   operations: string[];
+  /**
+   * What a Change about this delta is scoped to, when it is not the named
+   * schema: an operation's request body declared inline has no name, so the
+   * operation is the scope.
+   */
+  scope?: Scope;
+  /** Which way it travels, when that is known without scanning for sites. */
+  sides?: { request: boolean; response: boolean };
 }
 
 /** How far below the schema's own properties nested inline objects are followed. */
@@ -179,6 +187,26 @@ function operationsUsing(document: OpenApiDocument): Map<string, string[]> {
   return byRef;
 }
 
+/** The fields that went, arrived and changed shape, or nothing when none did. */
+function compare(
+  before: FieldShape[],
+  after: FieldShape[],
+): Pick<SchemaDelta, "removed" | "added" | "altered"> | undefined {
+  // Keyed by pointer, which is what identifies a field; a nested name is
+  // only for reading.
+  const afterAt = new Map(after.map((field) => [field.pointer, field]));
+  const beforeAt = new Map(before.map((field) => [field.pointer, field]));
+  const removed = before.filter((field) => !afterAt.has(field.pointer));
+  const added = after.filter((field) => !beforeAt.has(field.pointer));
+  const altered = before
+    .filter((field) => afterAt.has(field.pointer))
+    .map((field) => ({ old: field, new: afterAt.get(field.pointer) as FieldShape }))
+    .filter((pair) => shapeDiffers(pair.old, pair.new));
+  if (removed.length === 0 && added.length === 0 && altered.length === 0)
+    return undefined;
+  return { removed, added, altered };
+}
+
 function shapeDiffers(a: FieldShape, b: FieldShape): boolean {
   if (
     a.type !== b.type ||
@@ -234,29 +262,48 @@ export function schemaDeltas(
     }
     if (!counterpart) continue;
 
-    const before = fieldsOf(oldContract, oldSchemas[name] as JsonValue);
-    const after = fieldsOf(newContract, newSchemas[counterpart] as JsonValue);
-    // Keyed by pointer, which is what identifies a field; a nested name is
-    // only for reading.
-    const afterAt = new Map(after.map((field) => [field.pointer, field]));
-    const beforeAt = new Map(before.map((field) => [field.pointer, field]));
-
-    const removed = before.filter((field) => !afterAt.has(field.pointer));
-    const added = after.filter((field) => !beforeAt.has(field.pointer));
-    const altered = before
-      .filter((field) => afterAt.has(field.pointer))
-      .map((field) => ({ old: field, new: afterAt.get(field.pointer) as FieldShape }))
-      .filter((pair) => shapeDiffers(pair.old, pair.new));
-
-    if (removed.length === 0 && added.length === 0 && altered.length === 0) continue;
-
+    const compared = compare(
+      fieldsOf(oldContract, oldSchemas[name] as JsonValue),
+      fieldsOf(newContract, newSchemas[counterpart] as JsonValue),
+    );
+    if (!compared) continue;
     deltas.push({
       schema: name,
       newSchema: counterpart,
-      removed,
-      added,
-      altered,
+      ...compared,
       operations: oldUses.get(name) ?? [],
+    });
+  }
+
+  // Request bodies declared inline, as Twilio and Stripe declare theirs, have
+  // no name to be compared by, so the operation is the name, found where it
+  // stands or by the operationId a route change gave it.
+  const newOps = operationsOf(newContract);
+  const newAt = new Map(
+    newOps.map((operation) => [`${operation.method} ${operation.path}`, operation]),
+  );
+  const newById = new Map(newOps.map((operation) => [operation.operationId, operation]));
+  for (const operation of operationsOf(oldContract)) {
+    if (operation.webhook) continue;
+    const body = requestBodySchema(oldContract, operation.operation);
+    if (!isJsonObject(body) || typeof body["$ref"] === "string") continue;
+    const counterpart =
+      newAt.get(`${operation.method} ${operation.path}`) ??
+      newById.get(operationRenames.get(operation.operationId) ?? operation.operationId);
+    if (!counterpart) continue;
+    const after = requestBodySchema(newContract, counterpart.operation);
+    if (after === undefined) continue;
+    const compared = compare(fieldsOf(oldContract, body), fieldsOf(newContract, after));
+    if (!compared) continue;
+    deltas.push({
+      schema: `${operation.operationId} request body`,
+      newSchema: `${counterpart.operationId} request body`,
+      ...compared,
+      operations: [
+        `${operation.operationId} request (${operation.method.toUpperCase()} ${operation.path})`,
+      ],
+      scope: { operation: operation.operationId, location: "body" },
+      sides: { request: true, response: false },
     });
   }
 

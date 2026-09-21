@@ -11,6 +11,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ENVELOPE_VECTORS } from "./envelope-vectors.ts";
+import { FORM_VECTORS } from "./form-vectors.ts";
 import { CONFORMANCE_VECTORS } from "./vectors.ts";
 
 const PATH = join(import.meta.dirname, "../../../conformance/vectors.json");
@@ -26,6 +27,7 @@ function serialise(): string {
         "where this one rejects is not compatible.",
       vectors: CONFORMANCE_VECTORS,
       envelopes: ENVELOPE_VECTORS,
+      forms: FORM_VECTORS,
     },
     null,
     2,

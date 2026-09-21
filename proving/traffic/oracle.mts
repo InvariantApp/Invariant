@@ -11,6 +11,7 @@
 import { Ajv, type ValidateFunction } from "ajv";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import formats from "ajv-formats";
+import qs from "qs";
 
 // ajv-formats is CommonJS with a default export, which Node's ESM loader hands
 // over as the module object.
@@ -95,6 +96,15 @@ const escapePointer = (segment: string): string =>
   segment.replaceAll("~", "~0").replaceAll("/", "~1");
 
 const JSON_MEDIA = /^application\/(?:[\w.+-]*\+)?json$/i;
+const FORM_MEDIA = /^application\/x-www-form-urlencoded$/i;
+
+/** What a request carries outside its body, as the mock received it. */
+export interface RequestParts {
+  url: URL;
+  headers: Headers;
+  /** Path parameter values by name, as the route matched them. */
+  path: Record<string, string>;
+}
 
 export interface OperationRef {
   method: string;
@@ -104,6 +114,12 @@ export interface OperationRef {
 export class Oracle {
   readonly #document: JsonObject;
   readonly #ajv: Ajv | Ajv2020;
+  /**
+   * The same contract, for values that arrive as text: parameters and form
+   * fields. Coercion is what a server does with `limit=10` before it checks
+   * it, and without it every number in a query string would read as wrong.
+   */
+  readonly #coercing: Ajv | Ajv2020;
   readonly #compiled = new Map<string, ValidateFunction | undefined>();
 
   constructor(document: JsonObject) {
@@ -124,10 +140,17 @@ export class Oracle {
     // The whole document is one schema resource, so every `$ref` in it is
     // resolved by Ajv, in Ajv's own way.
     this.#ajv.addSchema(this.#document as object, "contract");
+    const coercing = { ...options, coerceTypes: "array" } as const;
+    this.#coercing = is31 ? new Ajv2020(coercing) : new Ajv(coercing);
+    addFormats(this.#coercing as Ajv);
+    this.#coercing.addSchema(this.#document as object, "contract");
   }
 
   /** Where the JSON schema for a request or response body lives, if it has one. */
-  #pointerFor(operation: OperationRef, where: { status?: string }): string | undefined {
+  #pointerFor(
+    operation: OperationRef,
+    where: { status?: string; form?: boolean },
+  ): string | undefined {
     const paths = this.#document["paths"];
     const item = isObject(paths) ? paths[operation.path] : undefined;
     const method = operation.method.toLowerCase();
@@ -140,7 +163,9 @@ export class Oracle {
       const resolved = follow(this.#document, body);
       const content = isObject(resolved) ? resolved["content"] : undefined;
       if (!isObject(content)) return undefined;
-      const media = Object.keys(content).find((type) => JSON_MEDIA.test(type));
+      const media = Object.keys(content).find((type) =>
+        (where.form ? FORM_MEDIA : JSON_MEDIA).test(type),
+      );
       if (!media || !isObject(content[media]) || content[media]["schema"] === undefined) {
         return undefined;
       }
@@ -178,26 +203,143 @@ export class Oracle {
     return `${holder}/content/${escapePointer(media)}/schema`;
   }
 
-  #validator(pointer: string): ValidateFunction | undefined {
-    if (!this.#compiled.has(pointer)) {
+  #validator(pointer: string, coerce = false): ValidateFunction | undefined {
+    const key = `${coerce ? "text" : "json"} ${pointer}`;
+    if (!this.#compiled.has(key)) {
       try {
-        this.#compiled.set(pointer, this.#ajv.compile({ $ref: `contract#${pointer}` }));
+        const ajv = coerce ? this.#coercing : this.#ajv;
+        this.#compiled.set(key, ajv.compile({ $ref: `contract#${pointer}` }));
       } catch {
         // A schema Ajv itself cannot compile: reported as unjudgeable by the
         // caller rather than counted as a pass.
-        this.#compiled.set(pointer, undefined);
+        this.#compiled.set(key, undefined);
       }
     }
-    return this.#compiled.get(pointer);
+    return this.#compiled.get(key);
   }
 
   /**
    * Violations of the request body schema, or undefined when there is no
-   * schema to judge against or the oracle cannot compile it.
+   * schema to judge against or the oracle cannot compile it. A form body is
+   * judged as the fields it decodes to, with text coerced as a server would.
    */
-  request(operation: OperationRef, body: unknown): OracleViolation[] | undefined {
-    const pointer = this.#pointerFor(operation, {});
-    return pointer === undefined ? undefined : this.#judge(pointer, body);
+  request(
+    operation: OperationRef,
+    body: unknown,
+    media: "json" | "form" = "json",
+  ): OracleViolation[] | undefined {
+    const pointer = this.#pointerFor(operation, { form: media === "form" });
+    return pointer === undefined
+      ? undefined
+      : this.#judge(pointer, body, media === "form");
+  }
+
+  /**
+   * Violations of the operation's declared parameters: a required one missing,
+   * or one whose value its schema does not allow. Decoded here, by the
+   * rules OpenAPI states for each style, and not by the code under test.
+   */
+  parameters(operation: OperationRef, parts: RequestParts): OracleViolation[] {
+    const violations: OracleViolation[] = [];
+    const paths = this.#document["paths"];
+    const item = isObject(paths) ? paths[operation.path] : undefined;
+    const method = operation.method.toLowerCase();
+    const op = isObject(item) ? item[method] : undefined;
+    if (!isObject(item) || !isObject(op)) return violations;
+    const base = `/paths/${escapePointer(operation.path)}`;
+    const entries: { pointer: string; parameter: JsonObject }[] = [];
+    const collect = (list: Json | undefined, at: string) => {
+      if (!Array.isArray(list)) return;
+      list.forEach((entry, index) => {
+        const resolved = follow(this.#document, entry);
+        if (!isObject(resolved)) return;
+        const holder =
+          isObject(entry) && typeof entry["$ref"] === "string"
+            ? entry["$ref"].slice(1)
+            : `${at}/parameters/${index}`;
+        const same = (other: { parameter: JsonObject }) =>
+          other.parameter["in"] === resolved["in"] &&
+          String(other.parameter["name"]).toLowerCase() ===
+            String(resolved["name"]).toLowerCase();
+        const existing = entries.findIndex(same);
+        if (existing !== -1) entries.splice(existing, 1);
+        entries.push({ pointer: `${holder}/schema`, parameter: resolved });
+      });
+    };
+    collect(item["parameters"], base);
+    collect(op["parameters"], `${base}/${method}`);
+
+    const cookies = new Map<string, string>();
+    for (const part of (parts.headers.get("cookie") ?? "").split(";")) {
+      const equals = part.indexOf("=");
+      if (equals > 0)
+        cookies.set(part.slice(0, equals).trim(), part.slice(equals + 1).trim());
+    }
+    const query = parts.url.searchParams;
+
+    for (const { pointer, parameter } of entries) {
+      const name = String(parameter["name"]);
+      const location = parameter["in"];
+      if (parameter["content"] !== undefined || parameter["schema"] === undefined)
+        continue;
+      const schema = follow(this.#document, parameter["schema"]);
+      const type = isObject(schema) ? schema["type"] : undefined;
+      const style = String(
+        parameter["style"] ??
+          (location === "query" || location === "cookie" ? "form" : "simple"),
+      );
+      const explode =
+        typeof parameter["explode"] === "boolean"
+          ? parameter["explode"]
+          : style === "form";
+      const delimiter =
+        style === "spaceDelimited" ? " " : style === "pipeDelimited" ? "|" : ",";
+      let value: unknown;
+      if (location === "query") {
+        if (style === "deepObject") {
+          value = (
+            qs.parse(parts.url.search.slice(1), { depth: 0 }) as Record<string, unknown>
+          )[name];
+        } else if (type === "array") {
+          const all = query.getAll(name);
+          value = all.length === 0 ? undefined : explode ? all : all[0]?.split(delimiter);
+        } else {
+          value = query.has(name) ? query.get(name) : undefined;
+        }
+      } else if (location === "header") {
+        const text = parts.headers.get(name);
+        value =
+          text === null
+            ? undefined
+            : type === "array"
+              ? text.split(",").map((entry) => entry.trim())
+              : text;
+      } else if (location === "cookie") {
+        value = cookies.get(name);
+      } else if (location === "path") {
+        const text = parts.path[name];
+        value = text === undefined ? undefined : decodeURIComponent(text);
+      } else {
+        continue;
+      }
+      if (value === undefined) {
+        if (parameter["required"] === true || location === "path") {
+          violations.push({
+            pointer: `${location}/${name}`,
+            message: "is required and was not sent",
+          });
+        }
+        continue;
+      }
+      const found = this.#judge(pointer, value, true);
+      for (const entry of found ?? []) {
+        violations.push({
+          pointer: `${location}/${name}${entry.pointer === "/" ? "" : entry.pointer}`,
+          message: entry.message,
+        });
+      }
+    }
+    return violations;
   }
 
   response(
@@ -209,8 +351,8 @@ export class Oracle {
     return pointer === undefined ? undefined : this.#judge(pointer, body);
   }
 
-  #judge(pointer: string, body: unknown): OracleViolation[] | undefined {
-    const validate = this.#validator(pointer);
+  #judge(pointer: string, body: unknown, coerce = false): OracleViolation[] | undefined {
+    const validate = this.#validator(pointer, coerce);
     if (!validate) return undefined;
     if (validate(body)) return [];
     return (validate.errors ?? []).map((error) => ({

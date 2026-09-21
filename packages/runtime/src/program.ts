@@ -15,6 +15,7 @@ import {
   type ParamStyle,
   type ParamType,
 } from "./envelope.ts";
+import type { DecodedForm, FormField, FormType } from "./form.ts";
 import type { CompiledInstr, ScalarType } from "./interpreter.ts";
 import type { Json } from "./json.ts";
 import { isUnsafeKey } from "./pointer.ts";
@@ -32,6 +33,8 @@ export interface DecodedSite {
   envelope?: DecodedEnvelope;
   /** The site's path template, split on `/`, as the contract writes it. */
   template: string[];
+  /** How the request body is written when it arrives form-encoded. */
+  form?: DecodedForm;
   response: Map<string, CompiledInstr[]>;
   /** True when any instruction re-encodes a number. */
   numeric: boolean;
@@ -47,6 +50,8 @@ export interface DecodedRoute {
 
 export interface DecodedContract {
   label: string;
+  /** Where this contract's callers send requests, when it is not the current base path. */
+  basePath?: string;
   routes: DecodedRoute[];
   sites: Map<string, DecodedSite>;
   behaviors: string[];
@@ -420,9 +425,46 @@ function decodeEnvelope(raw: unknown, where: string): DecodedEnvelope {
   return { instrs, old, new: next, body };
 }
 
+const FORM_TYPES = new Set(["string", "integer", "number", "boolean", "array", "object"]);
+
+function decodeForm(raw: unknown, where: string): DecodedForm {
+  const value = object(raw, where);
+  expectKeys(value, ["fields", "types"], where);
+  const fields = new Map<string, FormField>();
+  for (const [name, entry] of Object.entries(
+    object(value["fields"], `${where}.fields`),
+  )) {
+    if (isUnsafeKey(name))
+      throw new ProgramError(`${where}.fields may not name "${name}"`);
+    const field = object(entry, `${where}.fields.${name}`);
+    expectKeys(field, ["style", "explode"], `${where}.fields.${name}`);
+    const style = field["style"];
+    if (style !== "form" && style !== "deepObject") {
+      throw new ProgramError(`${where}.fields.${name}.style must be form or deepObject`);
+    }
+    if (typeof field["explode"] !== "boolean") {
+      throw new ProgramError(`${where}.fields.${name}.explode must be a boolean`);
+    }
+    fields.set(name, { style, explode: field["explode"] });
+  }
+  const types = new Map<string, FormType>();
+  for (const [pointer, type] of Object.entries(
+    object(value["types"], `${where}.types`),
+  )) {
+    segmentsOf(pointer, `${where}.types`);
+    if (typeof type !== "string" || !FORM_TYPES.has(type)) {
+      throw new ProgramError(`${where}.types["${pointer}"] is not a type`);
+    }
+    types.set(pointer, type as FormType);
+  }
+  return { fields, types };
+}
+
 function decodeSite(raw: unknown, where: string, template: string[]): DecodedSite {
   const value = object(raw, where);
-  expectKeys(value, ["request", "envelope", "response"], where);
+  expectKeys(value, ["form", "request", "envelope", "response"], where);
+  const form =
+    value["form"] === undefined ? undefined : decodeForm(value["form"], `${where}.form`);
   if (value["request"] !== undefined && value["envelope"] !== undefined) {
     throw new ProgramError(
       `${where} has both request and envelope; one list keeps the order`,
@@ -464,6 +506,7 @@ function decodeSite(raw: unknown, where: string, template: string[]): DecodedSit
     numeric,
     template,
     ...(envelope === undefined ? {} : { envelope }),
+    ...(form === undefined ? {} : { form }),
   };
 }
 
@@ -519,7 +562,18 @@ export function decodeProgram(raw: unknown): DecodedProgram {
   )) {
     const where = `program.contracts.${label}`;
     const contract = object(entry, where);
-    expectKeys(contract, ["label", "routes", "sites", "behaviors", "retired"], where);
+    expectKeys(
+      contract,
+      ["label", "routes", "sites", "behaviors", "retired", "basePath"],
+      where,
+    );
+    const ownBase = contract["basePath"];
+    if (
+      ownBase !== undefined &&
+      (typeof ownBase !== "string" || !/^(\/.*[^/])?$/.test(ownBase))
+    ) {
+      throw new ProgramError(`${where}.basePath must be a path such as /v1, or empty`);
+    }
 
     const sites = new Map<string, DecodedSite>();
     for (const [key, site] of Object.entries(
@@ -543,6 +597,7 @@ export function decodeProgram(raw: unknown): DecodedProgram {
     }
 
     contracts.set(label, {
+      ...(ownBase === undefined ? {} : { basePath: ownBase as string }),
       label: string(contract["label"], `${where}.label`),
       routes: (array(contract["routes"], `${where}.routes`) as unknown[]).map(
         (route, index) => decodeRoute(route, `${where}.routes[${index}]`),

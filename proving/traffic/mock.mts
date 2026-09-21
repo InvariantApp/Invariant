@@ -17,6 +17,7 @@ import type { OpenApiDocument } from "@invariant/contract";
 import type { JsonValue } from "@invariant/ir";
 import { valueArbitrary } from "@invariant/verifier";
 import fc from "fast-check";
+import qs from "qs";
 import { Oracle, type OracleViolation } from "./oracle.mts";
 
 type JsonObject = Record<string, JsonValue>;
@@ -29,6 +30,8 @@ interface Route {
   method: string;
   path: string;
   pattern: RegExp;
+  /** The template's parameter names, in the order the pattern captures them. */
+  names: string[];
   operation: JsonObject;
 }
 
@@ -52,23 +55,46 @@ export interface ContractMock {
   oracle: Oracle;
 }
 
+/**
+ * The path every server of a contract serves under, as a server would be
+ * mounted: `""` at the root, and also when the servers disagree or carry a
+ * variable, since then no single mount is right.
+ */
+export function mountOf(document: OpenApiDocument): string {
+  const servers = document["servers"];
+  if (!Array.isArray(servers) || servers.length === 0) return "";
+  const paths = new Set<string>();
+  for (const server of servers) {
+    const url = isObject(server) ? server["url"] : undefined;
+    if (typeof url !== "string" || url.includes("{")) return "";
+    try {
+      paths.add(new URL(url, "http://mount.invalid").pathname.replace(/\/+$/, ""));
+    } catch {
+      return "";
+    }
+  }
+  return paths.size === 1 ? ([...paths][0] as string) : "";
+}
+
 function routesOf(document: OpenApiDocument): Route[] {
   const routes: Route[] = [];
   const paths = document["paths"];
   if (!isObject(paths)) return routes;
+  const mount = mountOf(document).replace(/[.*+?^$()|[\]\\]/g, "\\$&");
   for (const [path, item] of Object.entries(paths)) {
     if (!isObject(item)) continue;
     const pattern = new RegExp(
-      `^${path
+      `^${mount}${path
         .split(/(\{[^}]+\})/)
         .map((part) =>
-          part.startsWith("{") ? "[^/]+" : part.replace(/[.*+?^$()|[\]\\]/g, "\\$&"),
+          part.startsWith("{") ? "([^/]+)" : part.replace(/[.*+?^$()|[\]\\]/g, "\\$&"),
         )
         .join("")}$`,
     );
+    const names = [...path.matchAll(/\{([^}]+)\}/g)].map((match) => match[1] as string);
     for (const method of METHODS) {
       const operation = item[method];
-      if (isObject(operation)) routes.push({ method, path, pattern, operation });
+      if (isObject(operation)) routes.push({ method, path, pattern, names, operation });
     }
   }
   // Literal paths before templated ones, so /things/count is not taken for
@@ -154,6 +180,27 @@ export function createContractMock(
         requestViolations = [{ pointer: "/", message: "the body is not JSON" }];
       }
       requestViolations ??= oracle.request(route, body);
+    } else if (/^application\/x-www-form-urlencoded/i.test(type)) {
+      // Decoded the way Stripe's own libraries write it, by a library that
+      // is not the code under test.
+      const body = qs.parse(await request.text(), {
+        depth: 20,
+        arrayLimit: 10_000,
+        parameterLimit: 100_000,
+      });
+      requestViolations = oracle.request(route, body, "form");
+    }
+    const matched = route.pattern.exec(url.pathname);
+    const pathValues = Object.fromEntries(
+      route.names.map((name, index) => [name, matched?.[index + 1] ?? ""]),
+    );
+    const parameterViolations = oracle.parameters(route, {
+      url,
+      headers: request.headers,
+      path: pathValues,
+    });
+    if (parameterViolations.length > 0) {
+      requestViolations = [...(requestViolations ?? []), ...parameterViolations];
     }
     if (requestViolations && requestViolations.length > 0) {
       log.push({

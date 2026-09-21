@@ -40,5 +40,8 @@
     "@invariant/diff": "workspace:*",
     "@invariant/ir": "workspace:*",
     "@invariant/decimal": "workspace:*"
+  },
+  "devDependencies": {
+    "@invariant/runtime": "workspace:*"
   }
 }

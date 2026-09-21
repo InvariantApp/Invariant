@@ -50,7 +50,10 @@ export interface EnvelopeAddress {
  * The envelope pointer for a pointer written in a parameter scope. Header
  * names are case-insensitive, so they are always written lowercase.
  */
-export function envelopePointer(location: ParameterLocation, pointer: string): string {
+export function envelopePointer(
+  location: ParameterLocation | "body",
+  pointer: string,
+): string {
   const segments = parsePointer(pointer);
   const first = segments[0];
   const absolute = first?.startsWith("@") === true;
