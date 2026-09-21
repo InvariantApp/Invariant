@@ -49,7 +49,9 @@ describe("a contract nobody has heard of", () => {
     const body = (await response.json()) as { error: { code: string; message: string } };
     expect(body.error.code).toBe("invariant_contract_unsupported");
     // Naming the value is the whole help: a typo is obvious once it is quoted.
-    expect(body.error.message).toContain("2026-01-O1");
+    expect(body.error.message).toBe(
+      'No contract is called "2026-01-O1". This API serves 2026-01-01 and 2026-09-20.',
+    );
   });
 
   it("still lets a caller who names no contract through, as the default", async () => {

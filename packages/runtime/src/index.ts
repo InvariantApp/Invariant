@@ -118,10 +118,30 @@ export interface RuntimeOptions {
 export class UnsupportedContractError extends Error {
   readonly contract: string;
 
-  constructor(contract: string, reason: string) {
-    super(`Contract ${contract} cannot be served right now: ${reason}`);
+  constructor(contract: string, reason: string, message?: string) {
+    super(message ?? `Contract ${contract} cannot be served right now: ${reason}`);
     this.name = "UnsupportedContractError";
     this.contract = contract;
+  }
+
+  /**
+   * A caller named a contract that does not exist.
+   *
+   * Worded apart from the kill-switch case on purpose. "Cannot be served right
+   * now" is true of a contract an operator switched off and false of a typo,
+   * and a caller reading it would wait for something that is never coming back
+   * instead of checking the one character they got wrong.
+   */
+  static unknown(contract: string, known: readonly string[]): UnsupportedContractError {
+    const list =
+      known.length === 1
+        ? (known[0] as string)
+        : `${known.slice(0, -1).join(", ")} and ${known.at(-1) as string}`;
+    return new UnsupportedContractError(
+      contract,
+      "unknown",
+      `No contract is called "${contract}". This API serves ${list}.`,
+    );
   }
 }
 
@@ -281,9 +301,13 @@ export class InvariantRuntime {
     return this.#program.current;
   }
 
-  #knownLabels(): string {
+  #knownList(): string[] {
     const labels = [this.#program.currentLabel, ...this.#program.contracts.keys()];
-    return [...new Set(labels)].sort().join(", ");
+    return [...new Set(labels)].sort();
+  }
+
+  #knownLabels(): string {
+    return this.#knownList().join(", ");
   }
 
   knows(label: string): boolean {
@@ -359,10 +383,7 @@ export class InvariantRuntime {
           // breakage this product exists to prevent, arriving through its own
           // front door, and the design said to refuse it all along.
           if (!this.knows(value)) {
-            throw new UnsupportedContractError(
-              value,
-              `no contract by that name; this API knows ${this.#knownLabels()}`,
-            );
+            throw UnsupportedContractError.unknown(value, this.#knownList());
           }
           return { label: value, source: "header" };
         }
