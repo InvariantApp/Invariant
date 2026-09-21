@@ -73,8 +73,12 @@ export type ViolationKind =
   | "refused"
   /** The answer did not satisfy the old contract. */
   | "response"
-  /** A retired operation reached the API instead of being answered 410. */
-  | "not-retired";
+  /**
+   * A retirement answered wrongly: a refused one reached the API or was not
+   * answered 410, or one passed on had the API's own answer changed, other
+   * than a 405 or 410 becoming the guidance.
+   */
+  | "retirement";
 
 export interface SiteResult {
   /** The operation as the old caller knows it. */
@@ -87,6 +91,8 @@ export interface SiteResult {
    * apart from the sites that are actually served.
    */
   retired: boolean;
+  /** For a retired site: answered 410 without reaching the API. */
+  refused?: boolean;
   samples: number;
   /** Arm a: samples the rig could not judge, because it was itself at fault. */
   rigFaults: number;
@@ -233,7 +239,7 @@ const keyOf = (endpoint: Endpoint): string => `${endpoint.method} ${endpoint.pat
 function adaptedSites(
   program: unknown,
   label: string,
-): { old: Endpoint; current: Endpoint; retired: boolean }[] {
+): { old: Endpoint; current: Endpoint; retired: boolean; refused?: boolean }[] {
   const contract = (program as { contracts: Record<string, JsonObject> }).contracts[
     label
   ];
@@ -243,16 +249,22 @@ function adaptedSites(
     to: Endpoint;
   }[];
   const byCurrent = new Map(routes.map((route) => [keyOf(route.to), route.from]));
-  const sites = new Map<string, { old: Endpoint; current: Endpoint; retired: boolean }>();
+  const sites = new Map<
+    string,
+    { old: Endpoint; current: Endpoint; retired: boolean; refused?: boolean }
+  >();
   for (const route of routes) {
     sites.set(keyOf(route.to), { old: route.from, current: route.to, retired: false });
   }
-  for (const retired of (contract["retired"] ?? []) as unknown as Endpoint[]) {
+  for (const retired of (contract["retired"] ?? []) as unknown as (Endpoint & {
+    refuse?: boolean;
+  })[]) {
     const endpoint = { method: retired.method, path: retired.path };
     sites.set(`retired ${keyOf(endpoint)}`, {
       old: endpoint,
       current: endpoint,
       retired: true,
+      refused: retired.refuse === true,
     });
   }
   for (const [key, site] of Object.entries((contract["sites"] ?? {}) as JsonObject)) {
@@ -305,12 +317,13 @@ async function runPair(pair: ManifestPair): Promise<TrafficResult> {
     fetch: viaMock(newMock),
   });
 
-  for (const { old, current, retired } of adaptedSites(drafted.program, OLD)) {
+  for (const { old, current, retired, refused } of adaptedSites(drafted.program, OLD)) {
     const operation = operationOf(from.document, old);
     const site: SiteResult = {
       old: keyOf(old),
       current: keyOf(current),
       retired,
+      ...(retired ? { refused: refused === true } : {}),
       samples: 0,
       rigFaults: 0,
       brokenWithout: 0,
@@ -383,8 +396,17 @@ async function runPair(pair: ManifestPair): Promise<TrafficResult> {
       const judged = newMock.log[0];
       const body = await bodyOf(adapted);
       if (retired) {
-        if (judged || adapted.status !== 410) {
-          violation("not-retired", adapted.status, JSON.stringify(body ?? null));
+        // Refused: answered 410 without reaching the API. Passed on: the
+        // API's own answer, unless it said the operation is gone, in which
+        // case the guidance.
+        const expected = refused
+          ? { reached: false, status: 410 }
+          : {
+              reached: true,
+              status: judged && [405, 410].includes(judged.status) ? 410 : judged?.status,
+            };
+        if (Boolean(judged) !== expected.reached || adapted.status !== expected.status) {
+          violation("retirement", adapted.status, JSON.stringify(body ?? null));
         }
         continue;
       }
@@ -483,7 +505,7 @@ export function render(results: readonly TrafficResult[]): string {
     "",
     "### Sites retired with guidance",
     "",
-    `- ${retired.length} sites, a declared loss: each must answer 410 without reaching the API`,
+    `- ${retired.length} sites, a declared loss: ${retired.filter((site) => site.refused).length} refused, which must answer 410 without reaching the API, and ${retired.filter((site) => !site.refused).length} passed on, which must reach it and change nothing but a 405 or 410 into the guidance`,
     `- ${retired.filter((site) => site.violations > 0).length} did not`,
     "",
   ];

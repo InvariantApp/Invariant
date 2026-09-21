@@ -130,17 +130,17 @@ export function createContractMock(
       (entry) => entry.method === method && entry.pattern.test(url.pathname),
     );
     if (!route) {
+      // As a web framework answers: 405 when the path is served under another
+      // method, 404 when it is not served at all.
+      const status = routes.some((entry) => entry.pattern.test(url.pathname)) ? 405 : 404;
       log.push({
         method,
         path: url.pathname,
         request: undefined,
-        status: 404,
+        status,
         responseValid: undefined,
       });
-      return Response.json(
-        { error: "no such operation in this contract" },
-        { status: 404 },
-      );
+      return Response.json({ error: "no such operation in this contract" }, { status });
     }
 
     let requestViolations: OracleViolation[] | undefined;

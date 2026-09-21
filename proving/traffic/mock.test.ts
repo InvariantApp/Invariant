@@ -133,6 +133,10 @@ describe("the contract mock", () => {
         .status,
     ).toBe(204);
     expect((await mock.fetch(new Request("http://mock/refunds"))).status).toBe(404);
+    // A path served under another method is a 405, as a framework says it.
+    expect(
+      (await mock.fetch(new Request("http://mock/orders", { method: "PUT" }))).status,
+    ).toBe(405);
   });
 
   it("counts a response its own contract cannot be satisfied by, rather than passing it", async () => {
