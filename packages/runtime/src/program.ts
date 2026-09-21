@@ -141,7 +141,7 @@ function decodeInstr(raw: unknown, where: string): CompiledInstr {
       };
     }
     case "enum": {
-      expectKeys(value, ["k", "path", "map", "lenient", "c"], where);
+      expectKeys(value, ["k", "path", "map", "lenient", "folded", "c"], where);
       const lenient = value["lenient"];
       if (lenient !== undefined && typeof lenient !== "boolean") {
         throw new ProgramError(`${where}.lenient must be a boolean`);
@@ -151,11 +151,29 @@ function decodeInstr(raw: unknown, where: string): CompiledInstr {
       for (const [from, to] of Object.entries(map)) {
         decoded[from] = string(to, `${where}.map.${from}`);
       }
+      const rawFolded = value["folded"];
+      let folded: string[] | undefined;
+      if (rawFolded !== undefined) {
+        folded = array(rawFolded, `${where}.folded`).map((entry, index) =>
+          string(entry, `${where}.folded[${index}]`),
+        );
+        // A fold names a value the map translates. One that is not in the map
+        // would claim a substitution that can never happen, so the program is
+        // refused rather than trusted to be harmless.
+        for (const key of folded) {
+          if (!Object.hasOwn(decoded, key)) {
+            throw new ProgramError(
+              `${where}.folded names "${key}", which the map does not`,
+            );
+          }
+        }
+      }
       return {
         k: "enum",
         path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
         map: decoded,
         ...(lenient === true ? { lenient: true } : {}),
+        ...(folded !== undefined && folded.length > 0 ? { folded } : {}),
         c: changeId,
       };
     }

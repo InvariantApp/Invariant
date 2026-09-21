@@ -1763,6 +1763,109 @@ response field, which is the category this system deliberately cannot adapt,
 because there is nothing to map a new value back to. That is a more useful thing
 to know about the product than any number reported here before it.
 
+### The commonest real break was never impossible
+
+A response enum gaining a value was reported here as inexpressible for most of
+this project, on the reasoning that a new value has nothing to map back to. That
+is true of the documents and false of the provider, who knows exactly which
+existing value an old caller should be shown instead. It is the largest single
+category across 686 real version pairs and two thirds of everything Stripe does
+to its callers, so calling it impossible was the most expensive mistake in the
+evaluation.
+
+`enumMap` now takes a `fold`: `[new, old]` pairs applied to responses only. The
+asymmetry is the whole point. A caller written against the old contract cannot
+send a value that contract never named, so there is nothing to fold on the way
+in; it can certainly receive one on the way out. A fold is always
+`declared-lossy`, derived by the compiler rather than claimed by the author,
+because the caller is shown `pending` when the truth is `pending_review` and has
+no way to tell. The predicted schema grows the folded values, so the closure
+check sees the addition explained rather than reporting it.
+
+**The number that matters is decisions, not deltas.** 67,917 breaking deltas of
+this kind across the corpus come from 202 fields, about 336 to one, because a
+schema field that a hundred operations reference produces a hundred deltas and
+needs deciding once. Stripe is the extreme: 61,517 such deltas across 15 fields.
+Fifteen sentences from Stripe would adapt all of them.
+
+### When the provider breaks it and the caller pays
+
+This is the asymmetry the whole product exists to correct: a provider changes
+their API and every integrator absorbs the cost. What this system does about it
+depends on what kind of break it is, and it is worth being exact about each.
+
+**It can be adapted, and the adaptation is derivable.** Renames, relocations,
+unit changes, a moved prefix. The proposer drafts the Change, the gate verifies
+it, and the old caller never notices. The provider pays nothing but review.
+
+**It can be adapted, but only the provider knows how.** A grown enum is the
+common case. The proposer cannot guess which existing value a new one should
+fold onto, and does not try. It reports a *decision*, kept deliberately apart
+from an *impasse*: an impasse says no op exists and the provider must change
+approach, while a decision says the op exists, writes the Change out with one
+`CHOOSE_ONE` placeholder per new value, and lists the values available. The
+release stays blocked until somebody fills it in. That puts the cost on the
+party who made the change, at the moment they made it, which is the only place
+it is cheap.
+
+**It cannot be adapted at all.** Behaviour, side effects, a field that now means
+something different. No transform can hide these, and pretending otherwise would
+be worse than the break. They are declared as `behavior` Changes with a mandatory
+retirement date, callers receive a migration pull request, and the runtime
+answers an unsupported contract with an explicit error rather than with data in
+a shape nobody asked for.
+
+**The provider's own document is defective.** A reference to a schema that is
+not defined, or two paths that are one endpoint. These are refused before the
+differ is called, with the missing reference or the colliding paths named. A
+provider cannot ship a contract nobody can compare, which is exactly where that
+should be caught: before any caller depends on it.
+
+**What this cannot do**, stated so nobody assumes otherwise. The gate runs in the
+provider's own CI, so a provider who bypasses it ships anyway, and the runtime
+only protects callers of a provider who adopted it. Changes shipped before a
+provider onboarded are out of scope. And a fold is a mitigation rather than a
+cure: the caller receives a plausible value instead of an unknown one, which is
+better than a crash and still not the truth.
+
+That last point needed building rather than recording, because a fold that the
+caller cannot detect is the provider's convenience paid for with the caller's
+understanding. So a response in which a fold fired carries an `invariant-folded`
+header naming the folded fields. The compiled program carries which map keys are
+folds rather than renames, the decoder refuses a program that claims to fold a
+value its map does not translate, and the header appears only when one actually
+fired. That makes its absence mean something: no header, and every value in the
+body is one the API really produced.
+
+### Reliability, and two holes the calibration had
+
+The gate now confirms every comparison, repeating it and refusing unless both
+runs agree. That makes it independent of which build of the differ is installed:
+an answer that will not reproduce is refused rather than acted on. The differ is
+pinned to the published `v1.33.0-rc.1` rather than to a commit off their main
+branch, for provenance, but the pin is now an optimisation rather than something
+trusted.
+
+The differential check's calibration had two holes, both found by a test that
+failed under load. It skipped steps missing from the second calibration run,
+which left those steps with no volatile paths, so every clock-derived value in
+them then reported as a difference between the builds. That is now a
+`CalibrationError`, because a partial calibration is worse than none: the caller
+cannot tell which steps were never calibrated. And the fixture seeded its clock
+from the second its server started, so three launches could land in two seconds
+and every comparison using it depended on timing. Comparisons now use a fixed
+clock, which makes `created` a value the two builds must match exactly rather
+than one ignored as volatile. The one test that exists to prove clock-derived
+values are detected keeps the real clock, and stays deterministic because the
+calibration waits for the clock to cross a second between its runs. Verified at
+full load on all eight cores, which is the condition it originally failed under.
+
+The latency benchmark asserted a wall-clock p99, which is a property of the
+machine rather than of the code, and it failed twice while other work was
+running. The median keeps a tight budget; the tail is sized to catch a change in
+kind, such as buffering a body that used to stream, rather than to catch the
+scheduler. Retrying it until it passed would have been worse than the flake.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no

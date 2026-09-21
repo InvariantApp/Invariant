@@ -251,6 +251,7 @@ function applyScale10(schema: JsonObject, exponent: number): JsonObject {
 function applyEnumMap(
   schema: JsonObject,
   pairs: readonly (readonly [string, string])[],
+  fold: readonly (readonly [string, string])[] = [],
 ): JsonObject {
   const out = clone(schema);
   const forward = new Map(pairs.map(([from, to]) => [from, to]));
@@ -270,6 +271,16 @@ function applyEnumMap(
     }
     return mapped;
   });
+  // A folded value exists in the new contract and not the old one, so the
+  // predicted document has to grow it or the closure check reports the
+  // addition as an unexplained delta, which is the very thing being explained.
+  const already = new Set(out["enum"] as string[]);
+  for (const [value] of fold) {
+    if (!already.has(value)) {
+      (out["enum"] as string[]).push(value);
+      already.add(value);
+    }
+  }
   return out;
 }
 
@@ -307,7 +318,7 @@ export function applyCodecToSchema(schema: JsonValue, codec: Codec): JsonValue {
     case "scale10":
       return applyScale10(schema, codec.exponent);
     case "enumMap":
-      return applyEnumMap(schema, codec.pairs);
+      return applyEnumMap(schema, codec.pairs, codec.fold);
     case "cast":
       return applyCast(schema, codec);
   }

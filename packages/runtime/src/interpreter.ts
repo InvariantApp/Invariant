@@ -32,6 +32,13 @@ export type CompiledInstr =
       path: Segments;
       map: Record<string, string>;
       lenient?: boolean;
+      /**
+       * Keys of `map` that are folds rather than renames: values the new
+       * contract can produce that the old one cannot name, substituted with one
+       * it can. Carried separately because a fold is a small lie the caller has
+       * no way to detect, and the runtime owes them a way to find out.
+       */
+      folded?: string[];
       c: string;
     }
   | { k: "cast"; path: Segments; to: ScalarType; c: string }
@@ -58,6 +65,11 @@ export const DEFAULT_LIMITS: ExecuteLimits = { maxMatches: 10_000 };
 export interface ExecuteResult {
   /** How many times each Change was actually applied. */
   applied: Map<string, number>;
+  /**
+   * Where a value was folded: shown to the caller as one their contract names,
+   * when the API actually produced one it does not. Paths, joined with `/`.
+   */
+  folded: Set<string>;
 }
 
 function countApplied(result: ExecuteResult, changeId: string, times: number): void {
@@ -133,7 +145,9 @@ function applyEnum(
   root: Json,
   instr: Extract<CompiledInstr, { k: "enum" }>,
   limits: ExecuteLimits,
+  folded: Set<string>,
 ): number {
+  const folds = instr.folded === undefined ? undefined : new Set(instr.folded);
   const slots = resolveSlots(root, instr.path, limits.maxMatches);
   let mapped = 0;
 
@@ -158,6 +172,7 @@ function applyEnum(
         `No mapping for "${value}" at ${instr.path.join("/")} in this contract`,
       );
     }
+    if (folds?.has(value)) folded.add(instr.path.join("/"));
     writeSlot(slot, replacement);
     mapped += 1;
   }
@@ -281,7 +296,7 @@ export function execute(
   program: readonly CompiledInstr[],
   limits: ExecuteLimits = DEFAULT_LIMITS,
 ): ExecuteResult {
-  const result: ExecuteResult = { applied: new Map() };
+  const result: ExecuteResult = { applied: new Map(), folded: new Set() };
 
   for (const instr of program) {
     switch (instr.k) {
@@ -292,7 +307,7 @@ export function execute(
         countApplied(result, instr.c, applyScale(root, instr, limits));
         break;
       case "enum":
-        countApplied(result, instr.c, applyEnum(root, instr, limits));
+        countApplied(result, instr.c, applyEnum(root, instr, limits, result.folded));
         break;
       case "cast":
         countApplied(result, instr.c, applyCast(root, instr, limits));

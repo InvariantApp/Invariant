@@ -65,7 +65,34 @@ async function programFor(
  * A provider's own CI runs the same comparison against real processes started
  * from `invariant.yaml`; nothing about the logic changes.
  */
-function launcherFor(program: unknown, headStore?: () => AcmeStore): Launcher {
+/**
+ * A clock the fixture cannot disagree with itself about.
+ *
+ * `AcmeStore` seeds its clock from `Date.now()` at construction, so three
+ * launches of it can land in two different seconds. The calibration handles
+ * that by design, but it made this file fail under load with three reported
+ * differences that were all one clock tick, and a test that fails when the
+ * machine is busy is not measuring the adapter.
+ *
+ * Fixing the clock makes `created` a value the two builds must agree on exactly,
+ * which is a stronger check than treating it as volatile and ignoring it.
+ * Generated identifiers still exercise the calibration.
+ */
+const FIXED_CLOCK = 1_760_000_000;
+
+function launcherFor(
+  program: unknown,
+  headStore?: () => AcmeStore,
+  /**
+   * `fixed` everywhere a comparison has to come out equal, and `real` only in
+   * the test that exists to prove clock-derived values are detected. That test
+   * stays deterministic without a fixed clock, because the calibration waits for
+   * the wall clock to cross a second between its two runs, so a value seeded
+   * from the clock always differs between them. The flakes this file had were
+   * in comparisons of the old build against the new one, never in that.
+   */
+  clock: "fixed" | "real" = "fixed",
+): Launcher {
   return async (build) => {
     if (!(ACME_BUILDS as readonly string[]).includes(build)) {
       throw new Error(`unknown build ${build}`);
@@ -74,7 +101,10 @@ function launcherFor(program: unknown, headStore?: () => AcmeStore): Launcher {
     const app = createAcmeApp({
       build: build as (typeof ACME_BUILDS)[number],
       ...(head ? { program } : {}),
-      ...(head && headStore ? { store: headStore() } : {}),
+      store:
+        head && headStore
+          ? headStore()
+          : new AcmeStore(clock === "fixed" ? { startClock: FIXED_CLOCK } : {}),
     });
     return {
       fetch: async (request) => app.fetch(request),
@@ -123,7 +153,9 @@ describe("the differential check", () => {
 
   it("measures which paths the old build does not keep stable", async () => {
     const report = await checkDifferential(scenarios, {
-      launch: launcherFor(await programFor()),
+      // The real clock, on purpose: this is the test that proves a timestamp is
+      // found by running the old build against itself.
+      launch: launcherFor(await programFor(), undefined, "real"),
       contractHeader: "acme-version",
       currentLabel: "2026-09-20",
     });
@@ -192,7 +224,10 @@ describe("the differential check", () => {
    */
   it("catches a handler whose behaviour changed underneath an unchanged shape", async () => {
     const report = await checkDifferential(scenarios, {
-      launch: launcherFor(await programFor(), () => new DelayedSettlementStore()),
+      launch: launcherFor(
+        await programFor(),
+        () => new DelayedSettlementStore({ startClock: FIXED_CLOCK }),
+      ),
       contractHeader: "acme-version",
       currentLabel: "2026-09-20",
     });

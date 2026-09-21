@@ -225,15 +225,39 @@ async function nextTick(): Promise<void> {
  * way to get a green run would be to maintain a list of fields to ignore, which
  * drifts and eventually hides something real.
  */
-function volatilePaths(
+export class CalibrationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CalibrationError";
+  }
+}
+
+export function volatilePaths(
   a: readonly StepObservation[],
   b: readonly StepObservation[],
 ): Set<string> {
+  // Two runs of the same build that answered a different number of steps have
+  // not calibrated anything. Skipping the missing ones used to look harmless and
+  // is the opposite: a step with no calibration has no volatile paths, so every
+  // value it derives from the clock is then reported as a difference between the
+  // old build and the new one. That is how this check failed once under load,
+  // on a fixture whose timestamps come from the second the server started.
+  if (a.length !== b.length) {
+    throw new CalibrationError(
+      `The old build answered ${a.length} steps and then ${b.length} for the ` +
+        "same scenario, so nothing can be said about which of its values are " +
+        "stable. Calibration has to be repeatable before a comparison against " +
+        "it means anything.",
+    );
+  }
+
   const volatile = new Set<string>();
 
   a.forEach((left, index) => {
     const right = b[index];
-    if (!right) return;
+    if (!right) {
+      throw new CalibrationError(`The old build skipped ${left.id} on the second run.`);
+    }
     const leftPaths = flatten(left.body);
     const rightPaths = flatten(right.body);
 

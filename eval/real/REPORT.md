@@ -13,7 +13,7 @@ or a corpus written for it.
 - 672 ran every stage (98.0%)
 - 13 stopped after `load`
 - 1 stopped after `budget`
-- median 179 ms per pair
+- median 232 ms per pair
 
 ### What stopped them
 
@@ -117,6 +117,22 @@ says which bound it hit.
 |---|---|---|
 | stripe.com:spec3 | 2026-07-01 d5d11f6 to 2026-07-29 af5309c | The worker was killed, which on this path means it ran out of memory. |
 
+## Changes waiting on one decision
+
+202 response fields across 85 pairs gained a value
+their old contract never named. That is the largest category of real
+breaking change there is, and it was described here as inexpressible until
+it turned out not to be: `enumMap` takes a `fold` saying which existing
+value an old caller should be shown instead, and the runtime applies it on
+the way out.
+
+What is genuinely not derivable is *which* existing value, because that is
+a judgement about meaning rather than a fact about either document. So the
+proposer writes the Change out with one placeholder per new value and lists
+the values available to fold onto. The release stays blocked until somebody
+fills it in, which is the right place for the cost to sit: the provider
+makes the change and the caller pays for it.
+
 ## What we could not explain
 
 2165 Changes were drafted, by deterministic rules alone, with no model asked anything.
@@ -127,7 +143,7 @@ reachable with ops that exist and are simply not wired up.
 
 | Unexplained | Times | Pairs | What it would take |
 |---|---|---|---|
-| `response-property-enum-value-added` | 67917 | 66 | a new value a client switching exhaustively would not know. `enumMap` cannot help, since there is nothing to map it back to; this is a `behavior` change or an accepted break. |
+| `response-property-enum-value-added` | 67917 | 66 | a new value a client switching exhaustively would not know. Expressible: `enumMap` takes a `fold`, which says which existing value an old caller should be shown instead. Which value that is cannot be read off the documents, so it needs one sentence from the provider, and it is declared lossy because the caller cannot tell the new case apart. **Reachable, needs a decision.** |
 | `response-property-enum-value-removed` | 18736 | 15 | a value a client may still be storing. `enumMap` can express it once someone says what it became, which is exactly the question the model is asked. |
 | `response-required-property-added` | 6394 | 27 | a new required field in a response. `add` expresses it, given a value for callers who predate it, which is not in the document. |
 | `response-property-any-of-added` | 4106 | 3 | not yet diagnosed |

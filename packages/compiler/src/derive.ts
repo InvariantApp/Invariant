@@ -60,6 +60,19 @@ export function derive(change: Change): Derived {
         break;
       case "convert":
         if (op.codec.kind === "enumMap") {
+          if (op.codec.fold !== undefined && op.codec.fold.length > 0) {
+            // The caller is shown a value that is not the one the API meant,
+            // and nothing in the response says so. That is the trade this op
+            // exists to make, and it has to be visible in the gate.
+            runtime = worse(runtime, "declared-lossy");
+            source = "assisted";
+            reasons.push(
+              `the value map at ${op.path} folds ${op.codec.fold.length} new ` +
+                `value${op.codec.fold.length === 1 ? "" : "s"} onto values the old ` +
+                "contract names, so a caller cannot tell the new case apart",
+            );
+            lossy.backward.push(op.path);
+          }
           const targets = new Set(op.codec.pairs.map(([, to]) => to));
           if (targets.size !== op.codec.pairs.length) {
             runtime = worse(runtime, "declared-lossy");

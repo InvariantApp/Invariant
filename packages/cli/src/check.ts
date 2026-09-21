@@ -164,7 +164,14 @@ export async function check(
 
   for (const step of steps) {
     const prediction = predictDocument(step.from, step.to, step.changes);
-    const entries = await diffDocuments(prediction.document, step.to);
+    // Always confirmed here, whatever it costs. This comparison decides whether
+    // a release may ship, and oasdiff 1.32.1 was found returning a different
+    // answer each run on documents with reference cycles. Repeating it makes
+    // the gate independent of which build of the differ is installed: an answer
+    // that will not reproduce is refused rather than acted on.
+    const entries = await diffDocuments(prediction.document, step.to, {
+      confirm: true,
+    });
     const breakingAll = breakingEntries(entries);
 
     const claimed = claimsIn(step.changes);

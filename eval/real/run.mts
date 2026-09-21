@@ -34,7 +34,7 @@ const DIAGNOSIS: Record<string, string> = {
   "request-parameter-property-enum-value-removed":
     "as above, one level in. **Reachable, not wired up.**",
   "response-property-enum-value-added":
-    "a new value a client switching exhaustively would not know. `enumMap` cannot help, since there is nothing to map it back to; this is a `behavior` change or an accepted break.",
+    "a new value a client switching exhaustively would not know. Expressible: `enumMap` takes a `fold`, which says which existing value an old caller should be shown instead. Which value that is cannot be read off the documents, so it needs one sentence from the provider, and it is declared lossy because the caller cannot tell the new case apart. **Reachable, needs a decision.**",
   "response-property-enum-value-removed":
     "a value a client may still be storing. `enumMap` can express it once someone says what it became, which is exactly the question the model is asked.",
   "request-property-removed":
@@ -524,6 +524,39 @@ function render(
       );
     }
     lines.push("");
+  }
+
+  const decisions = all.reduce((sum, r) => sum + (r.decisions ?? 0), 0);
+  const withDecisions = all.filter((r) => (r.decisions ?? 0) > 0).length;
+  const grownDeltas = all.reduce(
+    (sum, r) => sum + (r.unexplainedKinds?.["response-property-enum-value-added"] ?? 0),
+    0,
+  );
+  if (decisions > 0) {
+    lines.push("## Changes waiting on one decision", "");
+    lines.push(
+      `${decisions} response fields across ${withDecisions} pairs gained a value`,
+      "their old contract never named. That is the largest category of real",
+      "breaking change there is, and it was described here as inexpressible until",
+      "it turned out not to be: `enumMap` takes a `fold` saying which existing",
+      "value an old caller should be shown instead, and the runtime applies it on",
+      "the way out.",
+      "",
+      "What is genuinely not derivable is *which* existing value, because that is",
+      "a judgement about meaning rather than a fact about either document. So the",
+      "proposer writes the Change out with one placeholder per new value and lists",
+      "the values available to fold onto. The release stays blocked until somebody",
+      "fills it in, which is the right place for the cost to sit: the provider",
+      "makes the change and the caller pays for it.",
+      "",
+      `The ratio is the useful number: ${grownDeltas} breaking deltas of this kind`,
+      `come from ${decisions} fields, about ${Math.round(grownDeltas / Math.max(1, decisions))}`,
+      "to one. A schema field that a hundred operations reference produces a",
+      "hundred deltas and still only needs deciding once, so a count of deltas",
+      "badly overstates how much work this is. Stripe is the extreme: 61,517",
+      "breaking deltas of this kind across 15 fields.",
+      "",
+    );
   }
 
   lines.push("## What we could not explain", "");

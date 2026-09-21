@@ -11,6 +11,7 @@ import {
   BodyTooLargeError,
   CONTRACT_HINT_HEADER,
   CONTRACT_RESPONSE_HEADER,
+  FOLDED_HEADER,
   InvariantRuntime,
   TransformError,
   UnsupportedContractError,
@@ -212,14 +213,20 @@ export function adapt(options: HonoBindingOptions): MiddlewareHandler {
 
     try {
       const original = await c.res.clone().text();
-      const transformed = runtime.transformResponse(site, c.res.status, original, {
-        contract,
-        operation,
-        consumer,
-      });
-      const headers = withContentLength(c.res.headers, transformed);
+      const transformed = runtime.transformResponseDetailed(
+        site,
+        c.res.status,
+        original,
+        { contract, operation, consumer },
+      );
+      const headers = withContentLength(c.res.headers, transformed.body);
       headers.set(CONTRACT_RESPONSE_HEADER, contract);
-      c.res = new Response(transformed, { status: c.res.status, headers });
+      if (transformed.folded.length > 0) {
+        // Only when a fold fired. The caller was shown a value their contract
+        // names in place of one it does not, and this is how they can know.
+        headers.set(FOLDED_HEADER, transformed.folded.join(", "));
+      }
+      c.res = new Response(transformed.body, { status: c.res.status, headers });
     } catch (error) {
       return failResponse(c, errors, error);
     }

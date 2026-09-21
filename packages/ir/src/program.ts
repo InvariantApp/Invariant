@@ -45,6 +45,16 @@ export const EnumInstr = Type.Object(
      * failing the whole response over it would not be.
      */
     lenient: Type.Optional(Type.Boolean()),
+    /**
+     * Keys of `map` that are folds: values the new contract can produce and the
+     * old one cannot name, substituted with one it can.
+     *
+     * A fold is the one transform that shows a caller something that is not
+     * true, and they have no way to notice. Listing which keys are folds lets
+     * the runtime mark a response in which one fired, so a caller who cares can
+     * find out that the value they read is a stand-in.
+     */
+    folded: Type.Optional(Type.Array(Type.String(), { minItems: 1 })),
     c: ChangeId,
   },
   { additionalProperties: false },

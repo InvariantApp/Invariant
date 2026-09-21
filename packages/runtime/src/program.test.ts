@@ -133,3 +133,59 @@ describe("template matching", () => {
     expect(contract && findSite(contract, "POST", "/v1/things/abc")).toBeUndefined();
   });
 });
+
+/**
+ * A fold names a value the map translates. The decoder is strict about that
+ * because a fold is the one instruction that shows a caller something untrue,
+ * so a program claiming one it cannot perform should not load at all.
+ */
+describe("folds", () => {
+  const enumInstr = (extra: Record<string, unknown>) =>
+    program({
+      "get /x": {
+        request: [],
+        response: {
+          "2xx": [
+            {
+              k: "enum",
+              path: "/status",
+              map: { pending: "pending", review: "pending" },
+              c: "chg",
+              ...extra,
+            },
+          ],
+        },
+      },
+    });
+
+  it("accepts a fold of a value the map translates", () => {
+    const decoded = decodeProgram(enumInstr({ folded: ["review"] }));
+    const instr = decoded.contracts
+      .get("2026-01-15")
+      ?.sites.get("get /x")
+      ?.response.get("2xx")?.[0];
+    expect(instr).toMatchObject({ k: "enum", folded: ["review"] });
+  });
+
+  it("refuses a fold of a value the map does not translate", () => {
+    expect(() => decodeProgram(enumInstr({ folded: ["unmapped"] }))).toThrow(
+      ProgramError,
+    );
+    expect(() => decodeProgram(enumInstr({ folded: ["unmapped"] }))).toThrow(
+      /names "unmapped", which the map does not/,
+    );
+  });
+
+  it("refuses a fold list that is not strings", () => {
+    expect(() => decodeProgram(enumInstr({ folded: [1] }))).toThrow(ProgramError);
+  });
+
+  it("leaves an instruction without folds exactly as it was", () => {
+    const decoded = decodeProgram(enumInstr({}));
+    const instr = decoded.contracts
+      .get("2026-01-15")
+      ?.sites.get("get /x")
+      ?.response.get("2xx")?.[0];
+    expect(instr).not.toHaveProperty("folded");
+  });
+});

@@ -33,6 +33,22 @@ import {
 export type { DecodedProgram, DecodedSite };
 export { decodeProgram, ProgramError, TransformError };
 
+/** A transformed body, and the paths at which a value was folded to produce it. */
+export interface Transformed {
+  body: string;
+  /** Slash-joined paths. Empty when nothing was substituted. */
+  folded: string[];
+}
+
+/**
+ * The response header naming folded fields.
+ *
+ * Present only when a fold fired, so its absence is a guarantee rather than an
+ * omission: a caller who sees no header was shown values their contract names
+ * because those were the values the API produced.
+ */
+export const FOLDED_HEADER = "invariant-folded";
+
 /** Header stage one uses to tell stage two what it concluded. */
 export const CONTRACT_HINT_HEADER = "x-invariant-contract-hint";
 export const CONTRACT_RESPONSE_HEADER = "invariant-contract";
@@ -473,8 +489,8 @@ export class InvariantRuntime {
     numeric: boolean,
     text: string,
     context: { contract: string; operation: string; consumer: string | undefined },
-  ): string {
-    if (instrs.length === 0) return text;
+  ): Transformed {
+    if (instrs.length === 0) return { body: text, folded: [] };
     if (text.length > this.#maxBodyBytes) throw new BodyTooLargeError(this.#maxBodyBytes);
 
     const parsed = parseJson(text, numeric ? this.#fidelity : "double");
@@ -489,7 +505,7 @@ export class InvariantRuntime {
       });
     }
 
-    return stringifyJson(parsed);
+    return { body: stringifyJson(parsed), folded: [...result.folded].sort() };
   }
 
   transformRequest(
@@ -503,7 +519,7 @@ export class InvariantRuntime {
         operation: context.operation,
         consumer: context.consumer,
       }),
-    );
+    ).body;
   }
 
   transformResponse(
@@ -512,10 +528,28 @@ export class InvariantRuntime {
     text: string,
     context: { contract: string; operation: string; consumer?: string | undefined },
   ): string {
+    return this.transformResponseDetailed(site, status, text, context).body;
+  }
+
+  /**
+   * The transformed body, and where a value was folded to get it.
+   *
+   * A fold is the one transform that shows a caller something untrue: the API
+   * produced a value their contract never named, and they are shown one it
+   * does. They have no way to notice. Returning where it happened lets whoever
+   * writes the response say so, which is the difference between a mitigation a
+   * caller can reason about and one that quietly misleads them.
+   */
+  transformResponseDetailed(
+    site: DecodedSite,
+    status: number,
+    text: string,
+    context: { contract: string; operation: string; consumer?: string | undefined },
+  ): Transformed {
     const instrs = statusKeysFor(status)
       .map((key) => site.response.get(key))
       .find((found) => found !== undefined);
-    if (!instrs) return text;
+    if (!instrs) return { body: text, folded: [] };
 
     return this.#reporting("response", context, () =>
       this.#run(instrs, site.numeric, text, {
@@ -536,11 +570,11 @@ export class InvariantRuntime {
    * somebody is getting an error for work that succeeded, which is the number
    * that actually matters.
    */
-  #reporting(
+  #reporting<T>(
     direction: "request" | "response",
     context: { contract: string; operation: string; consumer?: string | undefined },
-    run: () => string,
-  ): string {
+    run: () => T,
+  ): T {
     if (!this.#onOutcome) return run();
 
     const base = {

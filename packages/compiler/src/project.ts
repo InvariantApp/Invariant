@@ -126,7 +126,17 @@ function backwardInstrs(op: DataOp, prefix: string, changeId: string): Instr[] {
             {
               k: "enum",
               path: prefixed(prefix, op.path),
-              map: Object.fromEntries(op.codec.pairs.map(([from, to]) => [to, from])),
+              // The renames inverted, plus every value the new contract can
+              // produce that the old one cannot name. Only this direction has
+              // a fold: an old caller cannot send a value its own contract
+              // never described, so there is nothing to fold on the way in.
+              map: {
+                ...Object.fromEntries(op.codec.pairs.map(([from, to]) => [to, from])),
+                ...Object.fromEntries(op.codec.fold ?? []),
+              },
+              ...(op.codec.fold && op.codec.fold.length > 0
+                ? { folded: op.codec.fold.map(([value]) => value) }
+                : {}),
               c: changeId,
             },
           ];

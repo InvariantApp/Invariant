@@ -94,6 +94,13 @@ export interface PairResult {
   /** Breaking deltas the drafted Changes did not account for. */
   breakingAfter: number;
   drafts: number;
+  /**
+   * Changes the IR can express once the provider says what a caller should see.
+   *
+   * Counted separately from drafts because nobody can draft these: the op
+   * exists, the scaffold is written, and one value needs choosing.
+   */
+  decisions?: number;
   /** Fields the proposer would not draft for. */
   unresolved: number;
   /** Changes it recognised as inexpressible, such as a split or a merge. */
@@ -295,6 +302,7 @@ export async function analysePair(
     breakingKinds: alignedKinds,
     unexplainedKinds: alignedKinds,
     drafts: changes.length,
+    decisions: drafted.value.decisions.length,
     unresolved: drafted.value.unresolved.length,
     impasses: drafted.value.impasses.length,
   };

@@ -41,8 +41,31 @@ export const Scale10Codec = Type.Object(
 export const EnumMapCodec = Type.Object(
   {
     kind: Type.Literal("enumMap"),
-    /** [old, new] pairs. Must be bijective in IR version 1. */
+    /** [old, new] pairs, one per value the old contract names. Bijective. */
     pairs: Type.Array(Type.Tuple([Type.String(), Type.String()]), { minItems: 1 }),
+    /**
+     * [new, old] pairs for values the new contract can produce and the old one
+     * cannot name. Applied to responses only.
+     *
+     * This is the commonest breaking change there is. Across 686 real version
+     * pairs, a response enum gaining a value is the single largest category,
+     * and it is two thirds of everything Stripe does to its callers. It was
+     * called inexpressible here for a while, on the reasoning that a new value
+     * has nothing to map back to. That is true of the documents and false of
+     * the provider, who knows perfectly well which existing value an old caller
+     * should be shown instead.
+     *
+     * Backward only, because the direction is not symmetric: a caller written
+     * against the old contract cannot send a value that contract never named,
+     * so there is nothing to fold on the way in.
+     *
+     * Always lossy. The old caller is told `processing` when the truth is
+     * `pending_review`, and cannot tell the two apart. The compiler derives
+     * `declared-lossy` from its presence and the gate asks for that in writing.
+     */
+    fold: Type.Optional(
+      Type.Array(Type.Tuple([Type.String(), Type.String()]), { minItems: 1 }),
+    ),
   },
   { additionalProperties: false },
 );

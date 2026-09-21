@@ -22,6 +22,7 @@ import type { Judge, JudgeId } from "./judge.ts";
 import { questionsFor } from "./judge.ts";
 import { detectPrefixMove, prefixChange } from "./prefix.ts";
 import { stemOf, UNIT_SUFFIXES } from "./rules.ts";
+import { type FoldDecision, foldDecisions } from "./vocabulary.ts";
 
 /** Below this, a draft is marked for explicit attention rather than assumed good. */
 export const DEFAULT_ATTENTION_THRESHOLD = 0.6;
@@ -186,6 +187,16 @@ export interface ProposeOutcome {
   unresolved: Unresolved[];
   /** Unresolved fields that together form a change no op can express. */
   impasses: Impasse[];
+  /**
+   * Changes the IR can express once somebody decides what a caller should see.
+   *
+   * Kept apart from `impasses` because the two ask for opposite things. An
+   * impasse says no op exists and the provider has to change their approach. A
+   * decision says the op exists, the scaffold is written, and one value needs
+   * choosing. Reporting the second as the first is how the commonest breaking
+   * change in the wild came to be described here as impossible.
+   */
+  decisions: FoldDecision[];
 }
 
 const LIST = (names: readonly string[]): string =>
@@ -333,7 +344,12 @@ export async function propose(
     questionsFor(delta, options.context),
   );
   if (questions.length === 0) {
-    return { proposals: altered.proposals, unresolved, impasses: impassesIn(unresolved) };
+    return {
+      proposals: altered.proposals,
+      unresolved,
+      impasses: impassesIn(unresolved),
+      decisions: foldDecisions(deltas),
+    };
   }
 
   const results = await options.judge.align(questions);
@@ -434,7 +450,12 @@ export async function propose(
     (entry) => !accountedFor.has(`${entry.schema}.${entry.field}`),
   );
 
-  return { proposals, unresolved: open, impasses: impassesIn(open) };
+  return {
+    proposals,
+    unresolved: open,
+    impasses: impassesIn(open),
+    decisions: foldDecisions(deltas),
+  };
 }
 
 /** The schema a proposal is scoped to, for matching against an unresolved field. */
