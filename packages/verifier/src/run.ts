@@ -33,7 +33,11 @@ export interface Lens {
  * refused. That means the verifier can never test a program the runtime would
  * have rejected at load time.
  */
-export function lensFor(forward: readonly Instr[], backward: readonly Instr[]): Lens {
+export function lensFor(
+  forward: readonly Instr[],
+  backward: readonly Instr[],
+  blocks: Readonly<Record<string, Instr[]>> = {},
+): Lens {
   const runtime: InvariantRuntime = createRuntime({
     program: {
       irVersion: 1,
@@ -52,6 +56,7 @@ export function lensFor(forward: readonly Instr[], backward: readonly Instr[]): 
                 : {}),
             },
           },
+          ...(Object.keys(blocks).length > 0 ? { blocks: { ...blocks } } : {}),
           behaviors: [],
         },
       },

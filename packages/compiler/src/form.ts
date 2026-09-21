@@ -90,10 +90,11 @@ export function formProgramFor(
   old: RequestBodyMedia,
   current: RequestBodyMedia | undefined,
   instrs: readonly Instr[],
+  blocks: Readonly<Record<string, Instr[]>> = {},
 ): FormProgram {
   const types: Record<string, FormType> = {};
   for (const instr of instrs) {
-    for (const pointer of readsOf(instr)) {
+    for (const pointer of readsOf(instr, blocks)) {
       typesAlong(oldDocument, old.schema, pointer, types);
     }
   }
@@ -105,23 +106,35 @@ export function formProgramFor(
 
 /**
  * Every place an instruction reads, from the root it runs at, looking inside
- * blocks: what a `within` block reads is read under each of its matches.
+ * blocks: what a `within` block reads is read under each of its matches, and
+ * a called block is read where it is called. A block that recurs is followed
+ * once per path, which names each field at the depth it is first reached;
+ * a form deep enough to recur further is typed down to there.
  */
-function readsOf(instr: Instr): string[] {
+function readsOf(
+  instr: Instr,
+  blocks: Readonly<Record<string, Instr[]>>,
+  entered: ReadonlySet<string> = new Set(),
+): string[] {
   const under = (base: string, inner: string) =>
     formatPointer([...parsePointer(base), ...parsePointer(inner)]);
+  const inner = (block: readonly Instr[]) =>
+    block.flatMap((each) => readsOf(each, blocks, entered));
   switch (instr.k) {
     case "move":
       return [instr.from];
     case "within":
-      return [
-        instr.path,
-        ...instr.block.flatMap(readsOf).map((inner) => under(instr.path, inner)),
-      ];
+      return [instr.path, ...inner(instr.block).map((read) => under(instr.path, read))];
     case "switch":
-      return [instr.path, ...Object.values(instr.cases).flat().flatMap(readsOf)];
+      return [instr.path, ...Object.values(instr.cases).flatMap(inner)];
     case "has":
-      return [instr.path, ...instr.block.flatMap(readsOf)];
+    case "is":
+      return [instr.path, ...inner(instr.block)];
+    case "call": {
+      if (entered.has(instr.block)) return [];
+      const deeper = new Set(entered).add(instr.block);
+      return (blocks[instr.block] ?? []).flatMap((each) => readsOf(each, blocks, deeper));
+    }
     default:
       return [instr.path];
   }

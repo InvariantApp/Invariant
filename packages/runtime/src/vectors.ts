@@ -16,6 +16,8 @@ export interface Vector {
   /** Why this case is in the list at all. */
   why: string;
   instrs: Instr[];
+  /** The contract's named blocks, which `call` runs, when the case needs any. */
+  blocks?: Record<string, Instr[]>;
   input: unknown;
   /**
    * The cap on places one instruction may touch, when the case is about it.
@@ -350,6 +352,30 @@ export const CONFORMANCE_VECTORS: Vector[] = [
     expect: { output: { card: { number: "4111" } } },
   },
   {
+    name: "has with absent runs its block only where a field is missing",
+    why:
+      "Stripe's live and deleted objects share their type and differ only in " +
+      "that the deleted one carries `deleted`; the live one is known by its absence.",
+    instrs: [
+      {
+        k: "within",
+        path: "/data/*",
+        block: [
+          {
+            k: "has",
+            path: "/deleted",
+            absent: true,
+            block: [{ k: "move", from: "/amount", to: "/amount_off", c: C }],
+            c: C,
+          },
+        ],
+        c: C,
+      },
+    ],
+    input: { data: [{ amount: 5 }, { amount: 5, deleted: true }] },
+    expect: { output: { data: [{ amount_off: 5 }, { amount: 5, deleted: true }] } },
+  },
+  {
     name: "a key read through a wildcard is refused",
     why: "A key is one value at one place; a wildcard would make it several.",
     instrs: [{ k: "switch", path: "/data/*/type", cases: {}, c: C }],
@@ -375,6 +401,108 @@ export const CONFORMANCE_VECTORS: Vector[] = [
       "data from a build, and a build can be wrong; this must not be reachable.",
     instrs: [{ k: "set", path: "/__proto__/polluted", value: 1, ifAbsent: false, c: C }],
     input: {},
+    expect: { refuses: "decode" },
+  },
+  {
+    name: "call runs a named block where it stands",
+    why: "A block shared by every place a schema sits runs as if written at the call.",
+    blocks: { Payment: [{ k: "del", path: "/secret", c: C }] },
+    instrs: [{ k: "call", block: "Payment", c: C }],
+    input: { id: "pay_1", secret: "x" },
+    expect: { output: { id: "pay_1" } },
+  },
+  {
+    name: "a block calls itself to follow a tree to its leaves",
+    why:
+      "A schema that contains itself has no last place to list. The block " +
+      "descends and calls itself, so every level is translated, however deep.",
+    blocks: {
+      Node: [
+        { k: "move", from: "/name", to: "/title", c: C },
+        {
+          k: "within",
+          path: "/children/*",
+          block: [{ k: "call", block: "Node", c: C }],
+          c: C,
+        },
+      ],
+    },
+    instrs: [{ k: "call", block: "Node", c: C }],
+    input: {
+      name: "root",
+      children: [{ name: "a", children: [{ name: "a1", children: [] }] }, { name: "b" }],
+    },
+    expect: {
+      output: {
+        title: "root",
+        children: [
+          { title: "a", children: [{ title: "a1", children: [] }] },
+          { title: "b" },
+        ],
+      },
+    },
+  },
+  {
+    name: "is runs its block only where a value is of one kind",
+    why:
+      "Stripe's expandable fields hold an id or the whole object. Only the " +
+      "object has fields to translate; the id passes untouched.",
+    instrs: [
+      {
+        k: "within",
+        path: "/data/*",
+        block: [
+          {
+            k: "is",
+            path: "/customer",
+            type: "object",
+            block: [
+              { k: "move", from: "/customer/name", to: "/customer/full_name", c: C },
+            ],
+            c: C,
+          },
+        ],
+        c: C,
+      },
+    ],
+    input: { data: [{ customer: "cus_1" }, { customer: { name: "Ada" } }, {}] },
+    expect: {
+      output: { data: [{ customer: "cus_1" }, { customer: { full_name: "Ada" } }, {}] },
+    },
+  },
+  {
+    name: "is tells a number however it was written",
+    why: "A number is a number whether or not it is kept as its exact digits.",
+    instrs: [
+      {
+        k: "is",
+        path: "/amount",
+        type: "number",
+        block: [{ k: "set", path: "/numeric", value: true, ifAbsent: false, c: C }],
+        c: C,
+      },
+    ],
+    input: { amount: 10.5 },
+    expect: { output: { amount: 10.5, numeric: true } },
+  },
+  {
+    name: "a call to a block the contract does not have is refused",
+    why: "A program naming instructions it does not carry cannot be run as written.",
+    instrs: [{ k: "call", block: "Missing", c: C }],
+    input: {},
+    expect: { refuses: "decode" },
+  },
+  {
+    name: "blocks that call one another without descending are refused",
+    why:
+      "A call runs where it stands, so a cycle that never moves into the " +
+      "value would never end. Only recursion that follows the value is allowed.",
+    blocks: {
+      A: [{ k: "has", path: "/x", block: [{ k: "call", block: "B", c: C }], c: C }],
+      B: [{ k: "call", block: "A", c: C }],
+    },
+    instrs: [{ k: "call", block: "A", c: C }],
+    input: { x: 1 },
     expect: { refuses: "decode" },
   },
 ];

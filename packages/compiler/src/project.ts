@@ -12,14 +12,14 @@ import {
   operationsOf,
   type RequestBodyMedia,
   requestBodyMedia,
+  requestBodySchema,
+  responseSchemas,
   type Site,
 } from "@invariant/contract";
 import {
   type Change,
   type ContractProgram,
   type DataOp,
-  type DefaultOp,
-  type DropNullOp,
   type EnvelopeProgram,
   formatPointer,
   type Instr,
@@ -36,6 +36,7 @@ import { derive } from "./derive.ts";
 import { errorParamTargets, paramRenames } from "./error-params.ts";
 import { formProgramFor, takesForm } from "./form.ts";
 import { findInterference } from "./independence.ts";
+import { backwardInstrs, forwardInstrs, guarded, prefixed } from "./lens.ts";
 import {
   addressOf,
   codecOf,
@@ -46,6 +47,7 @@ import {
   parametersOf,
 } from "./parameters.ts";
 import { mapEndpoint, type RouteMapping, routeMappings } from "./predict.ts";
+import { type SharedBlocks, sharedBlocks } from "./shared.ts";
 
 export interface ProjectionIssue {
   changeId: string;
@@ -55,164 +57,6 @@ export interface ProjectionIssue {
 export interface Projection {
   program: ContractProgram;
   issues: ProjectionIssue[];
-}
-
-function prefixed(prefix: string, path: string): string {
-  return formatPointer([...parsePointer(prefix), ...parsePointer(path)]);
-}
-
-/**
- * A `default` op's one write, in whichever direction it faces. A value the
- * stricter side would accept is never touched: `ifAbsent` alone leaves a null
- * in place, and `ifNull` alone never creates a field that was missing.
- */
-function fill(op: DefaultOp, prefix: string, changeId: string): Instr {
-  return {
-    k: "set",
-    path: prefixed(prefix, op.path),
-    value: op.value,
-    ifAbsent: op.when !== "null",
-    ...(op.when === "absent" ? {} : { ifNull: true as const }),
-    c: changeId,
-  };
-}
-
-function dropNull(op: DropNullOp, prefix: string, changeId: string): Instr {
-  return { k: "del", path: prefixed(prefix, op.path), ifNull: true, c: changeId };
-}
-
-/** Old-shape-to-canonical primitives for one data op, at one pointer prefix. */
-function forwardInstrs(op: DataOp, prefix: string, changeId: string): Instr[] {
-  switch (op.op) {
-    case "move":
-      return [
-        {
-          k: "move",
-          from: prefixed(prefix, op.from),
-          to: prefixed(prefix, op.to),
-          c: changeId,
-        },
-      ];
-    case "convert":
-      switch (op.codec.kind) {
-        case "scale10":
-          return [
-            {
-              k: "scale",
-              path: prefixed(prefix, op.path),
-              exp: op.codec.exponent,
-              c: changeId,
-            },
-          ];
-        case "enumMap":
-          return [
-            {
-              k: "enum",
-              path: prefixed(prefix, op.path),
-              map: Object.fromEntries(op.codec.pairs),
-              c: changeId,
-            },
-          ];
-        case "cast":
-          return [
-            { k: "cast", path: prefixed(prefix, op.path), to: op.codec.to, c: changeId },
-          ];
-      }
-      break;
-    case "add":
-      // The caller was written before this field existed, so supply the default
-      // without ever overwriting a value they did send.
-      return [
-        {
-          k: "set",
-          path: prefixed(prefix, op.path),
-          value: op.value,
-          ifAbsent: true,
-          c: changeId,
-        },
-      ];
-    case "remove":
-      return [{ k: "del", path: prefixed(prefix, op.path), c: changeId }];
-    case "default":
-      return op.toward === "new" ? [fill(op, prefix, changeId)] : [];
-    case "dropNull":
-      return op.toward === "new" ? [dropNull(op, prefix, changeId)] : [];
-  }
-  return [];
-}
-
-/** Canonical-back-to-old-shape primitives: each op's inverse. */
-function backwardInstrs(op: DataOp, prefix: string, changeId: string): Instr[] {
-  switch (op.op) {
-    case "move":
-      return [
-        {
-          k: "move",
-          from: prefixed(prefix, op.to),
-          to: prefixed(prefix, op.from),
-          c: changeId,
-        },
-      ];
-    case "convert":
-      switch (op.codec.kind) {
-        case "scale10":
-          return [
-            {
-              k: "scale",
-              path: prefixed(prefix, op.path),
-              exp: -op.codec.exponent,
-              c: changeId,
-            },
-          ];
-        case "enumMap":
-          return [
-            {
-              k: "enum",
-              path: prefixed(prefix, op.path),
-              // The renames inverted, plus every value the new contract can
-              // produce that the old one cannot name. Only this direction has
-              // a fold: an old caller cannot send a value its own contract
-              // never described, so there is nothing to fold on the way in.
-              map: {
-                ...Object.fromEntries(op.codec.pairs.map(([from, to]) => [to, from])),
-                ...Object.fromEntries(op.codec.fold ?? []),
-              },
-              ...(op.codec.fold && op.codec.fold.length > 0
-                ? { folded: op.codec.fold.map(([value]) => value) }
-                : {}),
-              c: changeId,
-            },
-          ];
-        case "cast":
-          return [
-            {
-              k: "cast",
-              path: prefixed(prefix, op.path),
-              to: op.codec.from,
-              c: changeId,
-            },
-          ];
-      }
-      break;
-    case "add":
-      // The old contract never had this field, so it must not appear.
-      return [{ k: "del", path: prefixed(prefix, op.path), c: changeId }];
-    case "remove":
-      return [
-        {
-          k: "set",
-          path: prefixed(prefix, op.path),
-          value: op.restore,
-          ifAbsent: false,
-          c: changeId,
-        },
-      ];
-    case "default":
-      return op.toward === "old" ? [fill(op, prefix, changeId)] : [];
-    case "dropNull":
-      return op.toward === "old" ? [dropNull(op, prefix, changeId)] : [];
-  }
-  return [];
 }
 
 /**
@@ -251,7 +95,10 @@ export function schemaLens(
   changes: Change[];
   /** Where each direction may lose information by declaration, from the root, `*` for list items. */
   lossy: { forward: string[]; backward: string[] };
+  /** The shared blocks the instructions call, for schemas whose places cannot be listed. */
+  blocks: Record<string, Instr[]>;
 } {
+  const shared = sharedBlocks("lens", oldContract, changes);
   const forward: Instr[] = [];
   const backward: Instr[][] = [];
   const involved: Change[] = [];
@@ -264,8 +111,23 @@ export function schemaLens(
     let back: Instr[] = [];
     for (const scope of change.scopes ?? []) {
       if (!isSchemaScope(scope)) continue;
-      for (const place of findSchemaWithin(oldContract, scope.schema, schemaRef)
-        .placements) {
+      const places = findSchemaWithin(oldContract, scope.schema, schemaRef).placements;
+      if (shared.targets.has(scope.schema)) {
+        // Run through the blocks below. Its declared loss is excused where the
+        // schema sits down to the depth its places can be listed, which is as
+        // deep as generated values of a recursive schema usually go.
+        if (places.length > 0 && !involved.includes(change)) involved.push(change);
+        for (const place of places) {
+          lossy.forward.push(
+            ...declared.forward.map((path) => prefixed(place.prefix, path)),
+          );
+          lossy.backward.push(
+            ...declared.backward.map((path) => prefixed(place.prefix, path)),
+          );
+        }
+        continue;
+      }
+      for (const place of places) {
         lossy.forward.push(
           ...declared.forward.map((path) => prefixed(place.prefix, path)),
         );
@@ -287,11 +149,20 @@ export function schemaLens(
       }
     }
     if (mine.length === 0 && back.length === 0) continue;
-    involved.push(change);
+    if (!involved.includes(change)) involved.push(change);
     forward.push(...mine);
     backward.push(back);
   }
-  return { forward, backward: backward.reverse().flat(), changes: involved, lossy };
+  // As at a site: the shared blocks after the listed instructions on the way
+  // in, and before them on the way out.
+  const root = { $ref: schemaRef };
+  return {
+    forward: [...forward, ...shared.entry(root, "forward")],
+    backward: [...shared.entry(root, "backward"), ...backward.reverse().flat()],
+    changes: involved,
+    lossy,
+    blocks: shared.blocks,
+  };
 }
 
 interface SiteAccumulator {
@@ -370,14 +241,27 @@ export function projectStep(
     }
   }
 
+  const shared = sharedBlocks(label, oldContract, changes);
+  issues.push(...shared.issues);
+
   // Requests apply Changes in declared order; responses undo them in reverse.
   for (const change of changes) {
-    collectForward(change, oldContract, newContract, routes, sites, issues);
+    collectForward(
+      change,
+      oldContract,
+      newContract,
+      routes,
+      sites,
+      issues,
+      shared.targets,
+    );
     collectParameters(change, oldContract, newContract, routes, sites, issues);
   }
   for (const change of [...changes].reverse()) {
-    collectBackward(change, oldContract, routes, sites, issues);
+    collectBackward(change, oldContract, routes, sites, issues, shared.targets);
   }
+
+  collectShared(shared, oldContract, newContract, routes, sites);
 
   if (newContract) {
     collectErrorParams(oldContract, newContract, changes, routes, sites);
@@ -398,6 +282,7 @@ export function projectStep(
           entry.body.old,
           entry.body.current,
           bodyInstrs,
+          shared.blocks,
         );
       }
     }
@@ -415,9 +300,49 @@ export function projectStep(
   }
 
   return {
-    program: { label, routes: routeRules, sites: out, behaviors, retired },
+    program: {
+      label,
+      routes: routeRules,
+      sites: out,
+      ...(Object.keys(shared.blocks).length > 0 ? { blocks: shared.blocks } : {}),
+      behaviors,
+      retired,
+    },
     issues,
   };
+}
+
+/**
+ * Starts every body that can hold a schema served by shared blocks on its way
+ * through them. After the listed instructions on the way in, and before them
+ * on the way out, so each direction undoes the other.
+ */
+function collectShared(
+  shared: SharedBlocks,
+  oldContract: OpenApiDocument,
+  newContract: OpenApiDocument | undefined,
+  routes: readonly RouteMapping[],
+  sites: Map<string, SiteAccumulator>,
+): void {
+  if (shared.targets.size === 0) return;
+  for (const { method, path, operation, webhook } of operationsOf(oldContract)) {
+    if (webhook === true) continue;
+    const target = mapEndpoint(routes, method, path);
+    const key = siteKey(target.method, target.path);
+    const request = requestBodySchema(oldContract, operation);
+    const forward = request === undefined ? [] : shared.entry(request, "forward");
+    if (forward.length > 0) {
+      const entry = accumulatorFor(sites, key);
+      entry.body ??= bodiesOf(oldContract, newContract, { method, path }, target);
+      entry.request.push(...forward.map((instr) => ({ instr, param: false })));
+    }
+    for (const { status, schema } of responseSchemas(oldContract, operation)) {
+      const backward = shared.entry(schema, "backward");
+      if (backward.length === 0) continue;
+      const entry = accumulatorFor(sites, key);
+      entry.response.set(status, [...backward, ...(entry.response.get(status) ?? [])]);
+    }
+  }
 }
 
 /**
@@ -454,11 +379,14 @@ function sitesOf(
   change: Change,
   oldContract: OpenApiDocument,
   issues: ProjectionIssue[],
+  shared: ReadonlySet<string>,
 ): Site[] {
   const found: Site[] = [];
   for (const scope of change.scopes ?? []) {
     // A parameter scope reaches one operation's request, collected on its own.
     if (!isSchemaScope(scope)) continue;
+    // Served by the blocks that follow the value, placed once for all of it.
+    if (shared.has(scope.schema)) continue;
     const scan = findSchemaSites(oldContract, scope.schema);
     for (const message of scan.unsupported) {
       issues.push({ changeId: change.id, message });
@@ -475,11 +403,12 @@ function collectForward(
   routes: readonly RouteMapping[],
   sites: Map<string, SiteAccumulator>,
   issues: ProjectionIssue[],
+  shared: ReadonlySet<string>,
 ): void {
   const dataOps = change.ops.filter(isDataOp);
   if (dataOps.length === 0) return;
 
-  for (const site of sitesOf(change, oldContract, issues)) {
+  for (const site of sitesOf(change, oldContract, issues, shared)) {
     if (site.direction !== "request") continue;
     const target = mapEndpoint(routes, site.method, site.path);
     const entry = accumulatorFor(sites, siteKey(target.method, target.path));
@@ -490,68 +419,6 @@ function collectForward(
       ).map((instr) => ({ instr, param: false })),
     );
   }
-}
-
-/**
- * A site's instructions, placed so they run only for values of the branch the
- * site is in: `within` each union on the way, and a `switch` on the key or a
- * `has` on the field that tells the branch apart. `build` makes the
- * instructions for a prefix relative to the innermost union.
- *
- * On the way back the key already holds the new contract's value, so any
- * value this Change's own enum map renames is matched by what it became.
- */
-function guarded(
-  site: Pick<Site, "prefix" | "guards">,
-  change: Change,
-  direction: "forward" | "backward",
-  build: (prefix: string) => Instr[],
-): Instr[] {
-  const guards = site.guards ?? [];
-  if (guards.length === 0) return build(site.prefix);
-  const relative = (from: string, to: string) => {
-    const outer = parsePointer(from);
-    return formatPointer(parsePointer(to).slice(outer.length));
-  };
-  const innermost = guards[guards.length - 1] as NonNullable<Site["guards"]>[number];
-  let block = build(relative(innermost.at, site.prefix));
-  if (block.length === 0) return [];
-  for (let index = guards.length - 1; index >= 0; index -= 1) {
-    const guard = guards[index] as NonNullable<Site["guards"]>[number];
-    const outer = index === 0 ? "" : (guards[index - 1] as typeof guard).at;
-    let inner: Instr;
-    if ("has" in guard) {
-      inner = { k: "has", path: formatPointer([guard.has]), block, c: change.id };
-    } else {
-      const renames =
-        direction === "backward" && guard.at === site.prefix
-          ? renamesOf(change, guard.key)
-          : new Map<string, string>();
-      const values = [
-        ...new Set(guard.values.map((value) => renames.get(value) ?? value)),
-      ];
-      inner = {
-        k: "switch",
-        path: guard.key,
-        cases: Object.fromEntries(values.map((value) => [value, block])),
-        c: change.id,
-      };
-    }
-    block = [
-      { k: "within", path: relative(outer, guard.at), block: [inner], c: change.id },
-    ];
-  }
-  return block;
-}
-
-/** What a Change's enum map at `path` renames each old value to. */
-function renamesOf(change: Change, path: string): Map<string, string> {
-  const renames = new Map<string, string>();
-  for (const op of change.ops) {
-    if (op.op !== "convert" || op.codec.kind !== "enumMap" || op.path !== path) continue;
-    for (const [from, to] of op.codec.pairs) renames.set(from, to);
-  }
-  return renames;
 }
 
 /** An operation's request body before and after, located by where its calls now land. */
@@ -589,6 +456,8 @@ export function underBody(instr: Instr): Instr | undefined {
     // an old caller sent, so there is nothing to type it by.
     return from !== undefined && to !== undefined ? { ...instr, from, to } : undefined;
   }
+  // A call stands where it is put, which in an envelope is under a `within`.
+  if (instr.k === "call") return undefined;
   const path = strip(instr.path);
   return path === undefined ? undefined : { ...instr, path };
 }
@@ -600,7 +469,9 @@ function withPointers(op: DataOp, map: (pointer: string) => string): DataOp {
     : { ...op, path: map(op.path) };
 }
 
+/** Where an instruction stands; a call stands wherever it is placed, which a `within` names. */
 function pointersOf(instr: Instr): string[] {
+  if (instr.k === "call") return [];
   return instr.k === "move" ? [instr.from, instr.to] : [instr.path];
 }
 
@@ -825,9 +696,20 @@ export function byCodec(a: ParamCodec, b: ParamCodec): number {
 /** The instruction with every pointer placed under one part of the envelope. */
 export function prefixInstr(instr: Instr, part: string): Instr {
   const under = (pointer: string) => formatPointer([part, ...parsePointer(pointer)]);
-  return instr.k === "move"
-    ? { ...instr, from: under(instr.from), to: under(instr.to) }
-    : { ...instr, path: under(instr.path) };
+  switch (instr.k) {
+    case "move":
+      return { ...instr, from: under(instr.from), to: under(instr.to) };
+    case "within":
+      return { ...instr, path: under(instr.path) };
+    case "switch":
+    case "has":
+    case "is":
+    case "call":
+      // Its block runs where it stands, so it has to stand in the part.
+      return { k: "within", path: formatPointer([part]), block: [instr], c: instr.c };
+    default:
+      return { ...instr, path: under(instr.path) };
+  }
 }
 
 function collectBackward(
@@ -836,11 +718,12 @@ function collectBackward(
   routes: readonly RouteMapping[],
   sites: Map<string, SiteAccumulator>,
   issues: ProjectionIssue[],
+  shared: ReadonlySet<string>,
 ): void {
   const dataOps = change.ops.filter(isDataOp);
   if (dataOps.length === 0) return;
 
-  for (const site of sitesOf(change, oldContract, issues)) {
+  for (const site of sitesOf(change, oldContract, issues, shared)) {
     if (site.direction !== "response" || site.status === undefined) continue;
     const target = mapEndpoint(routes, site.method, site.path);
     const entry = accumulatorFor(sites, siteKey(target.method, target.path));

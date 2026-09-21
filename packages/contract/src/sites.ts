@@ -48,13 +48,41 @@ export interface Site {
  * such as `type` being `scheme`, or by a field only that branch requires.
  */
 export type Guard =
-  | { at: Pointer; key: Pointer; values: string[] }
-  | { at: Pointer; has: string };
+  | {
+      at: Pointer;
+      key: Pointer;
+      values: string[];
+      /** A field only this branch requires, among those sharing the key's values. */
+      has?: string;
+      /** A field every other branch sharing the key's values requires, and this one never has. */
+      lacks?: string;
+    }
+  | { at: Pointer; has: string }
+  | { at: Pointer; lacks: string }
+  | { at: Pointer; type: JsonKind };
+
+/** The kinds of value JSON has. */
+export type JsonKind = "object" | "array" | "string" | "number" | "boolean" | "null";
+
+const JSON_KINDS: readonly JsonKind[] = [
+  "object",
+  "array",
+  "string",
+  "number",
+  "boolean",
+  "null",
+];
 
 export interface SiteScanResult {
   sites: Site[];
   /** Places the walk refused to enter, so the compiler can refuse the Change. */
   unsupported: string[];
+  /**
+   * The schema sits in more places than can be listed one by one. What the
+   * scan found is incomplete, and the Change has to be served by blocks that
+   * follow the value instead.
+   */
+  exhausted?: true;
 }
 
 interface Found {
@@ -209,11 +237,36 @@ function closedValues(
 }
 
 /**
+ * The one JSON kind every value of a schema has, where it says so. A schema
+ * that may also be null, or that is written as several types, has none.
+ */
+export function jsonKindOf(
+  document: OpenApiDocument,
+  schema: JsonValue,
+): JsonKind | undefined {
+  const resolved = resolveSchema(document, schema);
+  if (!isJsonObject(resolved)) return undefined;
+  if (resolved["nullable"] === true) return undefined;
+  const type = resolved["type"];
+  if (typeof type === "string") {
+    if (type === "integer") return "number";
+    return (JSON_KINDS as readonly string[]).includes(type)
+      ? (type as JsonKind)
+      : undefined;
+  }
+  if (type !== undefined) return undefined;
+  if (isJsonObject(resolved["properties"])) return "object";
+  if (resolved["items"] !== undefined) return "array";
+  return undefined;
+}
+
+/**
  * How the branch at `index` of a union is told apart from the rest, or
- * nothing when it cannot be. In order: the union's own `discriminator`, then
- * a property every branch gives a closed set of values that do not overlap,
- * as Adyen's payment methods each fix `type`, then a field only this branch
- * requires.
+ * nothing when it cannot be. In order: the kind of JSON value it is, where no
+ * other branch is of that kind, as Stripe's expandable fields are an id or the
+ * object; the union's own `discriminator`; a property every branch gives a
+ * closed set of values that do not overlap, as Adyen's payment methods each
+ * fix `type`; and a field only this branch requires.
  */
 function guardFor(
   document: OpenApiDocument,
@@ -223,6 +276,18 @@ function guardFor(
   at: Pointer,
 ): Guard | undefined {
   const branch = branches[index] as JsonValue;
+  const kind = jsonKindOf(document, branch);
+  if (
+    kind !== undefined &&
+    branches.every((other, at2) => {
+      if (at2 === index) return true;
+      const theirs = jsonKindOf(document, other);
+      return theirs !== undefined && theirs !== kind;
+    })
+  ) {
+    return { at, type: kind };
+  }
+
   const discriminator = union["discriminator"];
   if (isJsonObject(discriminator) && typeof discriminator["propertyName"] === "string") {
     const name = discriminator["propertyName"];
@@ -262,6 +327,10 @@ function guardFor(
     if (!mine) continue;
     const disjoint = branches.every((other, at2) => {
       if (at2 === index) return true;
+      // An id beside the objects holds no key at all, and the guard's
+      // `within` passes over anything that is not an object.
+      const kind = jsonKindOf(document, other);
+      if (kind !== undefined && kind !== "object") return true;
       const theirs = closedValues(document, other, property);
       return theirs !== undefined && !theirs.some((value) => mine.includes(value));
     });
@@ -274,17 +343,71 @@ function guardFor(
           (name): name is string => typeof name === "string",
         )
       : [];
+  /** Whether a value of another branch could carry the field. */
+  const mayHave = (other: JsonValue, name: string): boolean => {
+    // A string, a number or a list never has a field, so a branch that is
+    // one cannot be mistaken for this one by it.
+    const kind = jsonKindOf(document, other);
+    if (kind !== undefined && kind !== "object") return false;
+    const theirs = resolveSchema(document, other);
+    return (
+      !isJsonObject(theirs) ||
+      !isJsonObject(theirs["properties"]) ||
+      (theirs["properties"] as JsonObject)[name] !== undefined
+    );
+  };
+  const others = branches.filter((_, at2) => at2 !== index);
   for (const name of required) {
-    const elsewhere = branches.some((other, at2) => {
-      if (at2 === index) return false;
-      const theirs = resolveSchema(document, other);
-      return (
-        !isJsonObject(theirs) ||
-        !isJsonObject(theirs["properties"]) ||
-        (theirs["properties"] as JsonObject)[name] !== undefined
-      );
+    if (!others.some((other) => mayHave(other, name))) return { at, has: name };
+  }
+  /**
+   * A field every one of `rivals` requires and this branch never declares, so
+   * its absence marks this branch among them, as a live Stripe object is known
+   * from its deleted twin by having no `deleted`.
+   */
+  const absentHere = (rivals: readonly JsonValue[]): string | undefined => {
+    const objects = rivals.filter((other) => {
+      const kind = jsonKindOf(document, other);
+      return kind === undefined || kind === "object";
     });
-    if (!elsewhere) return { at, has: name };
+    if (objects.length === 0) return undefined;
+    const requiredBy = (other: JsonValue): string[] => {
+      const theirs = resolveSchema(document, other);
+      return isJsonObject(theirs) && Array.isArray(theirs["required"])
+        ? (theirs["required"] as JsonValue[]).filter(
+            (name): name is string => typeof name === "string",
+          )
+        : [];
+    };
+    const [first, ...rest] = objects.map(requiredBy);
+    return (first ?? [])
+      .filter((name) => rest.every((list) => list.includes(name)))
+      .find((name) => !own.includes(name));
+  };
+  const missing = absentHere(others);
+  if (missing !== undefined) return { at, lacks: missing };
+
+  // Two tests where no one test will do: a key narrows the union to the
+  // branches that share its values, and what this one has or lacks picks it
+  // from those, as Stripe's `bank_account` beside `deleted_bank_account`,
+  // whose `object` is `bank_account` too.
+  for (const property of candidates) {
+    const mine = closedValues(document, branch, property);
+    if (!mine) continue;
+    const key = `/${escapeSegment(property)}`;
+    const sharing = others.filter((other) => {
+      const kind = jsonKindOf(document, other);
+      if (kind !== undefined && kind !== "object") return false;
+      const theirs = closedValues(document, other, property);
+      return theirs === undefined || theirs.some((value) => mine.includes(value));
+    });
+    for (const name of required) {
+      if (!sharing.some((other) => mayHave(other, name))) {
+        return { at, key, values: mine, has: name };
+      }
+    }
+    const lacking = absentHere(sharing);
+    if (lacking !== undefined) return { at, key, values: mine, lacks: lacking };
   }
   return undefined;
 }
@@ -455,7 +578,7 @@ export function findSchemaSites(
   const dropped = budget.dropped + Math.max(0, unsupported.length - MAX_NOTES);
   const listed = unsupported.slice(0, MAX_NOTES);
   if (dropped > 0) listed.push(`and ${dropped} more places like these`);
-  return { sites, unsupported: listed };
+  return { sites, unsupported: listed, ...(budget.exhausted ? { exhausted: true } : {}) };
 }
 
 /**
@@ -517,6 +640,106 @@ export function findSchemaWithin(
     })),
     unsupported: scan.unsupported,
   };
+}
+
+/** A referenced schema directly inside another, where it sits and how its union branch is told apart. */
+export interface RefPlacement {
+  prefix: Pointer;
+  guards: Guard[];
+  ref: string;
+}
+
+/**
+ * Where each reference in `keep` sits directly inside `root`, without
+ * following any reference. This is one step of the shared blocks: the block
+ * for a schema calls the blocks of the schemas it holds, at these places,
+ * and the walk is as small as the schema is, whatever the document.
+ */
+export function refsWithin(
+  document: OpenApiDocument,
+  root: JsonValue,
+  keep: ReadonlySet<string>,
+): { placements: RefPlacement[]; unsupported: string[] } {
+  const unsupported: string[] = [];
+  const visit = (schema: JsonValue, segments: string[]): RefPlacement[] => {
+    if (!isJsonObject(schema)) return [];
+    const ref = schema["$ref"];
+    if (typeof ref === "string") {
+      return keep.has(ref) ? [{ prefix: formatPointer(segments), guards: [], ref }] : [];
+    }
+    const found: RefPlacement[] = [];
+    for (const key of ["oneOf", "anyOf", "not"]) {
+      const value = schema[key];
+      if (value === undefined) continue;
+      const branches = (Array.isArray(value) ? value : [value]) as JsonValue[];
+      branches.forEach((branch, index) => {
+        const inner = visit(branch, segments);
+        if (inner.length === 0) return;
+        const at = formatPointer(segments);
+        const guard =
+          key === "not" ? undefined : guardFor(document, schema, branches, index, at);
+        if (!guard) {
+          if (unsupported.length < MAX_NOTES) {
+            unsupported.push(
+              `${at || "/"} reaches the schema through ${key}, and nothing tells its branches apart`,
+            );
+          }
+          return;
+        }
+        for (const each of inner)
+          found.push({ ...each, guards: [guard, ...each.guards] });
+      });
+    }
+    const allOf = schema["allOf"];
+    if (Array.isArray(allOf))
+      for (const part of allOf) found.push(...visit(part, segments));
+    const properties = schema["properties"];
+    if (isJsonObject(properties)) {
+      for (const name of Object.keys(properties).sort()) {
+        found.push(...visit(properties[name] as JsonValue, [...segments, name]));
+      }
+    }
+    const items = schema["items"];
+    if (items !== undefined) found.push(...visit(items, [...segments, "*"]));
+    return found;
+  };
+  return { placements: visit(root, []), unsupported };
+}
+
+/** The references from which any of `targets` can be reached, the targets included. */
+export function leadingToAny(
+  document: OpenApiDocument,
+  targets: Iterable<string>,
+): Set<string> {
+  const all = new Set<string>();
+  for (const target of targets)
+    for (const ref of leadingTo(document, target)) all.add(ref);
+  return all;
+}
+
+/**
+ * Whether the places `schemaRef` sits cannot be listed one by one: some
+ * schema on the way to it contains itself, so the places are unbounded, or
+ * they are too many to walk. Such a schema is served by blocks that follow
+ * the value; listing its places would silently leave the deeper ones out.
+ */
+export function needsSharedBlocks(document: OpenApiDocument, schemaRef: string): boolean {
+  const leads = leadingTo(document, schemaRef);
+  const state = new Map<string, "open" | "done">();
+  const cyclic = (ref: string): boolean => {
+    if (state.get(ref) === "done") return false;
+    if (state.get(ref) === "open") return true;
+    state.set(ref, "open");
+    const children = new Set<string>();
+    refsIn(resolveRef(document, ref), children);
+    for (const child of children) {
+      if (leads.has(child) && cyclic(child)) return true;
+    }
+    state.set(ref, "done");
+    return false;
+  };
+  for (const ref of leads) if (cyclic(ref)) return true;
+  return findSchemaSites(document, schemaRef).exhausted === true;
 }
 
 /** The schema an operation actually exposes for a direction, with refs followed. */

@@ -16,7 +16,12 @@ import {
   type ParamType,
 } from "./envelope.ts";
 import type { DecodedForm, FormField, FormType } from "./form.ts";
-import { type CompiledInstr, type ScalarType, touchedPaths } from "./interpreter.ts";
+import {
+  type CompiledInstr,
+  type JsonKind,
+  type ScalarType,
+  touchedPaths,
+} from "./interpreter.ts";
 import type { Json } from "./json.ts";
 import { isUnsafeKey } from "./pointer.ts";
 
@@ -155,16 +160,40 @@ function countWildcards(segments: readonly string[]): number {
  */
 const MAX_BLOCK_DEPTH = 8;
 
-function decodeBlock(raw: unknown, where: string, depth: number): CompiledInstr[] {
+/** A contract's named blocks, each filled in once all of them are decoded. */
+type Blocks = ReadonlyMap<string, { instrs: CompiledInstr[] }>;
+
+const NO_BLOCKS: Blocks = new Map();
+
+const JSON_KINDS = new Set<JsonKind>([
+  "object",
+  "array",
+  "string",
+  "number",
+  "boolean",
+  "null",
+]);
+
+function decodeBlock(
+  raw: unknown,
+  where: string,
+  depth: number,
+  blocks: Blocks,
+): CompiledInstr[] {
   if (depth > MAX_BLOCK_DEPTH) {
     throw new ProgramError(`${where} nests blocks more than ${MAX_BLOCK_DEPTH} deep`);
   }
   return (array(raw, where) as unknown[]).map((instr, index) =>
-    decodeInstr(instr, `${where}[${index}]`, depth),
+    decodeInstr(instr, `${where}[${index}]`, depth, blocks),
   );
 }
 
-function decodeInstr(raw: unknown, where: string, depth = 0): CompiledInstr {
+function decodeInstr(
+  raw: unknown,
+  where: string,
+  depth = 0,
+  blocks: Blocks = NO_BLOCKS,
+): CompiledInstr {
   const value = object(raw, where);
   const kind = string(value["k"], `${where}.k`);
   const changeId = string(value["c"], `${where}.c`);
@@ -175,24 +204,47 @@ function decodeInstr(raw: unknown, where: string, depth = 0): CompiledInstr {
       return {
         k: "within",
         path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
-        block: decodeBlock(value["block"], `${where}.block`, depth + 1),
+        block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks),
         c: changeId,
       };
     }
+    case "call": {
+      expectKeys(value, ["k", "block", "c"], where);
+      const name = string(value["block"], `${where}.block`);
+      const target = blocks.get(name);
+      if (!target) throw new ProgramError(`${where} calls "${name}", which is no block`);
+      return { k: "call", name, target, c: changeId };
+    }
     case "switch":
-    case "has": {
+    case "has":
+    case "is": {
       const path = segmentsOf(string(value["path"], `${where}.path`), `${where}.path`);
       // A key is one value, read at one place.
       if (path.includes("*")) {
         throw new ProgramError(`${where}.path reads a key through a wildcard`);
       }
       if (kind === "has") {
-        expectKeys(value, ["k", "path", "block", "c"], where);
+        expectKeys(value, ["k", "path", "block", "absent", "c"], where);
         if (path.length === 0) throw new ProgramError(`${where}.path names nothing`);
         return {
           k: "has",
           path,
-          block: decodeBlock(value["block"], `${where}.block`, depth + 1),
+          block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks),
+          ...(onlyTrue(value["absent"], `${where}.absent`) ? { absent: true } : {}),
+          c: changeId,
+        };
+      }
+      if (kind === "is") {
+        expectKeys(value, ["k", "path", "type", "block", "c"], where);
+        const type = value["type"];
+        if (typeof type !== "string" || !JSON_KINDS.has(type as JsonKind)) {
+          throw new ProgramError(`${where}.type is not a JSON type`);
+        }
+        return {
+          k: "is",
+          path,
+          type: type as JsonKind,
+          block: decodeBlock(value["block"], `${where}.block`, depth + 1, blocks),
           c: changeId,
         };
       }
@@ -201,7 +253,7 @@ function decodeInstr(raw: unknown, where: string, depth = 0): CompiledInstr {
       for (const [key, block] of Object.entries(
         object(value["cases"], `${where}.cases`),
       )) {
-        cases.set(key, decodeBlock(block, `${where}.cases.${key}`, depth + 1));
+        cases.set(key, decodeBlock(block, `${where}.cases.${key}`, depth + 1, blocks));
       }
       return { k: "switch", path, cases, c: changeId };
     }
@@ -310,13 +362,91 @@ function decodeInstr(raw: unknown, where: string, depth = 0): CompiledInstr {
   }
 }
 
-function needsExactNumbers(instrs: readonly CompiledInstr[]): boolean {
+function needsExactNumbers(
+  instrs: readonly CompiledInstr[],
+  entered: Set<string> = new Set(),
+): boolean {
   return instrs.some((instr) => {
     if (instr.k === "scale" || instr.k === "cast") return true;
-    if (instr.k === "within" || instr.k === "has") return needsExactNumbers(instr.block);
-    if (instr.k === "switch") return [...instr.cases.values()].some(needsExactNumbers);
+    if (instr.k === "within" || instr.k === "has" || instr.k === "is") {
+      return needsExactNumbers(instr.block, entered);
+    }
+    if (instr.k === "switch") {
+      return [...instr.cases.values()].some((block) => needsExactNumbers(block, entered));
+    }
+    if (instr.k === "call") {
+      if (entered.has(instr.name)) return false;
+      entered.add(instr.name);
+      return needsExactNumbers(instr.target.instrs, entered);
+    }
     return false;
   });
+}
+
+/**
+ * Refuses blocks that could call one another forever on one value.
+ *
+ * A call runs where it stands; only a `within` with a path moves to a value
+ * inside. So a cycle of calls none of which sits under such a `within` would
+ * run on the same value without end, and a program containing one is refused
+ * rather than trusted. Every cycle that remains descends on each turn, and so
+ * ends where the value does.
+ */
+function refuseStandingCycles(blocks: Blocks, where: string): void {
+  /** The blocks a list calls without first descending into the value. */
+  const standing = (instrs: readonly CompiledInstr[], into: Set<string>): void => {
+    for (const instr of instrs) {
+      if (instr.k === "call") into.add(instr.name);
+      else if (instr.k === "within" && instr.path.length === 0)
+        standing(instr.block, into);
+      else if (instr.k === "has" || instr.k === "is") standing(instr.block, into);
+      else if (instr.k === "switch") {
+        for (const block of instr.cases.values()) standing(block, into);
+      }
+    }
+  };
+  const edges = new Map<string, Set<string>>();
+  for (const [name, holder] of blocks) {
+    const into = new Set<string>();
+    standing(holder.instrs, into);
+    edges.set(name, into);
+  }
+  const state = new Map<string, "open" | "done">();
+  const visit = (name: string, trail: string[]): void => {
+    if (state.get(name) === "done") return;
+    if (state.get(name) === "open") {
+      throw new ProgramError(
+        `${where} call one another without descending: ${[...trail, name].join(" -> ")}`,
+      );
+    }
+    state.set(name, "open");
+    for (const next of edges.get(name) ?? []) visit(next, [...trail, name]);
+    state.set(name, "done");
+  };
+  for (const name of blocks.keys()) visit(name, []);
+}
+
+/** A contract's blocks: every name first, so a block can call any of them, itself included. */
+function decodeBlocks(raw: unknown, where: string): Blocks {
+  if (raw === undefined) return NO_BLOCKS;
+  const entries = Object.entries(object(raw, where));
+  const blocks = new Map<string, { instrs: CompiledInstr[] }>();
+  for (const [name] of entries) {
+    if (name.length === 0 || name.length > 256) {
+      throw new ProgramError(`${where} has a block name that is empty or too long`);
+    }
+    blocks.set(name, { instrs: [] });
+  }
+  for (const [name, list] of entries) {
+    (blocks.get(name) as { instrs: CompiledInstr[] }).instrs = decodeBlock(
+      list,
+      `${where}["${name}"]`,
+      0,
+      blocks,
+    );
+  }
+  refuseStandingCycles(blocks, where);
+  return blocks;
 }
 
 const LOCATIONS: Record<string, ParamLocation> = {
@@ -428,11 +558,11 @@ function decodeCodec(raw: unknown, where: string): ParamCodec {
   };
 }
 
-function decodeEnvelope(raw: unknown, where: string): DecodedEnvelope {
+function decodeEnvelope(raw: unknown, where: string, blocks: Blocks): DecodedEnvelope {
   const value = object(raw, where);
   expectKeys(value, ["instrs", "params", "body"], where);
   const instrs = (array(value["instrs"], `${where}.instrs`) as unknown[]).map(
-    (instr, index) => decodeInstr(instr, `${where}.instrs[${index}]`),
+    (instr, index) => decodeInstr(instr, `${where}.instrs[${index}]`, 0, blocks),
   );
   const params = object(value["params"], `${where}.params`);
   expectKeys(params, ["old", "new"], `${where}.params`);
@@ -531,7 +661,12 @@ function decodeForm(raw: unknown, where: string): DecodedForm {
   return { fields, types };
 }
 
-function decodeSite(raw: unknown, where: string, template: string[]): DecodedSite {
+function decodeSite(
+  raw: unknown,
+  where: string,
+  template: string[],
+  blocks: Blocks,
+): DecodedSite {
   const value = object(raw, where);
   expectKeys(value, ["form", "request", "envelope", "response"], where);
   const form =
@@ -544,10 +679,10 @@ function decodeSite(raw: unknown, where: string, template: string[]): DecodedSit
   const envelope =
     value["envelope"] === undefined
       ? undefined
-      : decodeEnvelope(value["envelope"], `${where}.envelope`);
+      : decodeEnvelope(value["envelope"], `${where}.envelope`, blocks);
 
   const request = (array(value["request"] ?? [], `${where}.request`) as unknown[]).map(
-    (instr, index) => decodeInstr(instr, `${where}.request[${index}]`),
+    (instr, index) => decodeInstr(instr, `${where}.request[${index}]`, 0, blocks),
   );
 
   const response = new Map<string, CompiledInstr[]>();
@@ -555,13 +690,19 @@ function decodeSite(raw: unknown, where: string, template: string[]): DecodedSit
     for (const [status, list] of Object.entries(
       object(value["response"], `${where}.response`),
     )) {
-      if (!/^([1-5]\d\d|[1-5]xx)$/.test(status)) {
+      // As OpenAPI writes them: an exact status, a class such as 2XX, or
+      // `default` for every status nothing more specific names.
+      if (!/^([1-5]\d\d|[1-5][xX][xX]|default)$/.test(status)) {
         throw new ProgramError(`${where}.response has an invalid status key "${status}"`);
       }
+      const key = status.toLowerCase();
+      if (response.has(key)) {
+        throw new ProgramError(`${where}.response names ${key} twice`);
+      }
       response.set(
-        status,
+        key,
         (array(list, `${where}.response.${status}`) as unknown[]).map((instr, index) =>
-          decodeInstr(instr, `${where}.response.${status}[${index}]`),
+          decodeInstr(instr, `${where}.response.${status}[${index}]`, 0, blocks),
         ),
       );
     }
@@ -570,7 +711,7 @@ function decodeSite(raw: unknown, where: string, template: string[]): DecodedSit
   const numeric =
     needsExactNumbers(request) ||
     (envelope !== undefined && needsExactNumbers(envelope.instrs)) ||
-    [...response.values()].some(needsExactNumbers);
+    [...response.values()].some((list) => needsExactNumbers(list));
   return {
     request,
     response,
@@ -638,9 +779,10 @@ export function decodeProgram(raw: unknown): DecodedProgram {
     const contract = object(entry, where);
     expectKeys(
       contract,
-      ["label", "routes", "sites", "behaviors", "retired", "basePath"],
+      ["label", "routes", "sites", "blocks", "behaviors", "retired", "basePath"],
       where,
     );
+    const blocks = decodeBlocks(contract["blocks"], `${where}.blocks`);
     const ownBase = contract["basePath"];
     if (
       ownBase !== undefined &&
@@ -666,7 +808,7 @@ export function decodeProgram(raw: unknown): DecodedProgram {
       const path = key.slice(separator + 1);
       sites.set(
         `${method} ${path}`,
-        decodeSite(site, `${where}.sites["${key}"]`, path.split("/")),
+        decodeSite(site, `${where}.sites["${key}"]`, path.split("/"), blocks),
       );
     }
 

@@ -50,7 +50,9 @@ function inList(path: readonly string[]): string[] {
 const LIST_PROGRAM: CompiledInstr[] = PROGRAM.map((instr) =>
   instr.k === "move"
     ? { ...instr, from: inList(instr.from), to: inList(instr.to) }
-    : { ...instr, path: inList(instr.path) },
+    : "path" in instr
+      ? { ...instr, path: inList(instr.path) }
+      : instr,
 );
 
 const SINGLE = JSON.stringify(payment(1));

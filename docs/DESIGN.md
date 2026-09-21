@@ -2009,6 +2009,46 @@ also found that fifty thousand brackets, in a form key or a JSON body in
 either direction, exhausted the stack and answered 500. Bodies nested past
 any real API's depth are now refused as too large before anything walks them.
 
+### Schemas that contain themselves, and Stripe's expandable fields
+
+Every Stripe pair after the first ran out of its budget in the corpus, having
+finished in a minute or two the night before. Timing each stage showed the
+proposer, not the differ, and one call inside it: listing every place a
+schema sits took minutes. Union guards had let the walk into `anyOf`
+branches, and Stripe writes nearly every expandable field as the union of an
+id and the object, so the walk followed every simple path through a
+reference graph where nearly every object reaches nearly every other.
+
+Looking at why found something worse than slowness. The walk stopped at the
+first place it found the schema, so a schema that contains itself, such as a
+comment whose replies are comments, was placed at the top only. A Change to
+it translated the top comment and sent every reply to an old caller in the
+new shape, and nothing said so.
+
+Both are one problem: some schemas have places without end. A Change to such
+a schema is now compiled into one named block per schema on the way to it,
+per direction. A block calls the blocks of the schemas it holds, where it
+holds them, and runs its own Changes; a body starts at its root's blocks.
+The runtime goes as deep as the value does, and the program is as large as
+the schemas, not the paths. A Change to Stripe's `balance_transaction`
+compiles to 352 blocks, a 0.28 MB program, in 0.6 s, and loads in 36 ms.
+Every other Change is placed exactly as before.
+
+The IR gained `call`, `is`, which runs a block for values of one JSON kind,
+and an `absent` form of `has`. The decoder refuses any cycle of calls that
+does not descend into the value, so every recursion ends where the value
+does. Unions gained guards on the kind of value (an id or the object), a key
+and a field together, and a field a branch never has, which is how a live
+Stripe object is told from its deleted twin. A response keyed `default` or
+`2XX`, as OpenAPI writes them, was refused by the runtime, which made any
+program touching Stripe's errors unloadable; both are now matched in
+OpenAPI's order.
+
+Writing the end-to-end test for value decisions found the lens laws checking
+a schema without the Changes to the schemas nested inside it, so a correct
+release that added a required field to a referenced schema was blocked. The
+laws now run what the compiler places on a site.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no

@@ -54,26 +54,76 @@ export type CompiledInstr =
   | { k: "del"; path: Segments; ifNull?: boolean; c: string }
   | { k: "within"; path: Segments; block: CompiledInstr[]; c: string }
   | { k: "switch"; path: Segments; cases: Map<string, CompiledInstr[]>; c: string }
-  | { k: "has"; path: Segments; block: CompiledInstr[]; c: string };
+  | { k: "has"; path: Segments; block: CompiledInstr[]; absent?: boolean; c: string }
+  | { k: "is"; path: Segments; type: JsonKind; block: CompiledInstr[]; c: string }
+  | {
+      k: "call";
+      name: string;
+      /**
+       * The named block, shared by every call to it. Filled in once every
+       * block of the contract is decoded, so a block can call itself.
+       */
+      target: { instrs: CompiledInstr[] };
+      c: string;
+    };
+
+export type JsonKind = "object" | "array" | "string" | "number" | "boolean" | "null";
+
+/**
+ * How deeply calls may nest while running one body. A call only goes deeper
+ * inside a `within` that descends into the value, and bodies are refused past
+ * 256 levels, so this is never reached by a program the decoder accepts; it
+ * is the guard behind that proof.
+ */
+const MAX_CALL_DEPTH = 512;
+
+/** The JSON kind of a parsed value. */
+function kindOf(value: unknown): JsonKind | undefined {
+  if (value === null) return "null";
+  if (isNumberLike(value)) return "number";
+  if (Array.isArray(value)) return "array";
+  switch (typeof value) {
+    case "string":
+      return "string";
+    case "boolean":
+      return "boolean";
+    case "object":
+      return "object";
+    default:
+      return undefined;
+  }
+}
 
 /**
  * Every place an instruction reads or writes, from the root it runs at,
  * including what its blocks touch: a block under `within` is read from each
  * match, which a wildcard stands for here.
+ *
+ * A named block is followed once per path through the calls: where it recurs,
+ * it touches deeper copies of places already listed, so the list stays finite
+ * and still names every place at each depth it was first reached.
  */
-export function touchedPaths(instr: CompiledInstr): Segments[] {
+export function touchedPaths(
+  instr: CompiledInstr,
+  entered: ReadonlySet<string> = new Set(),
+): Segments[] {
+  const inner = (block: readonly CompiledInstr[]) =>
+    block.flatMap((each) => touchedPaths(each, entered));
   switch (instr.k) {
     case "move":
       return [instr.from, instr.to];
     case "within":
-      return [
-        instr.path,
-        ...instr.block.flatMap(touchedPaths).map((inner) => [...instr.path, ...inner]),
-      ];
+      return [instr.path, ...inner(instr.block).map((path) => [...instr.path, ...path])];
     case "switch":
-      return [instr.path, ...[...instr.cases.values()].flat().flatMap(touchedPaths)];
+      return [instr.path, ...[...instr.cases.values()].flatMap(inner)];
     case "has":
-      return [instr.path, ...instr.block.flatMap(touchedPaths)];
+    case "is":
+      return [instr.path, ...inner(instr.block)];
+    case "call": {
+      if (entered.has(instr.name)) return [];
+      const deeper = new Set(entered).add(instr.name);
+      return instr.target.instrs.flatMap((each) => touchedPaths(each, deeper));
+    }
     default:
       return [instr.path];
   }
@@ -386,7 +436,7 @@ export function execute(
 
   for (const instr of program) {
     try {
-      step(root, instr, limits, result);
+      step(root, instr, limits, result, 0);
     } catch (error) {
       if (error instanceof FanOutExceeded)
         throw new MatchLimitError(instr.c, error.limit);
@@ -405,7 +455,11 @@ function step(
   instr: CompiledInstr,
   limits: ExecuteLimits,
   result: ExecuteResult,
+  calls: number,
 ): void {
+  const run = (at: Json, block: readonly CompiledInstr[], depth = calls) => {
+    for (const inner of block) step(at, inner, limits, result, depth);
+  };
   switch (instr.k) {
     case "move":
       countApplied(result, instr.c, applyMove(root, instr, limits));
@@ -433,7 +487,7 @@ function step(
           : resolveSlots(root, instr.path, limits.maxMatches).map(readSlot);
       for (const node of nodes) {
         if (typeof node !== "object" || node === null || JSON.isRawJSON(node)) continue;
-        for (const inner of instr.block) step(node as Json, inner, limits, result);
+        run(node as Json, instr.block);
       }
       break;
     }
@@ -450,12 +504,26 @@ function step(
               ? numberTextOf(value)
               : undefined;
       const block = key === undefined ? undefined : instr.cases.get(key);
-      for (const inner of block ?? []) step(root, inner, limits, result);
+      run(root, block ?? []);
       break;
     }
     case "has": {
-      if (resolveSlots(root, instr.path, limits.maxMatches).length === 0) break;
-      for (const inner of instr.block) step(root, inner, limits, result);
+      const present = resolveSlots(root, instr.path, limits.maxMatches).length > 0;
+      if (present === (instr.absent === true)) break;
+      run(root, instr.block);
+      break;
+    }
+    case "is": {
+      const value =
+        instr.path.length === 0 ? root : readOne(root, instr.path, limits.maxMatches);
+      if (value !== undefined && kindOf(value) === instr.type) run(root, instr.block);
+      break;
+    }
+    case "call": {
+      if (calls >= MAX_CALL_DEPTH) {
+        throw new TransformError(instr.c, `${instr.name} called itself too deeply`);
+      }
+      run(root, instr.target.instrs, calls + 1);
       break;
     }
   }

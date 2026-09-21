@@ -140,6 +140,7 @@ interface Case {
   forward: Instr[];
   backward: Instr[];
   lossy: { forward: string[]; backward: string[] };
+  blocks: Record<string, Instr[]>;
 }
 
 /**
@@ -211,7 +212,7 @@ export function checkLaws(
     try {
       // The composition the compiler projects onto a site, so the lens under
       // test is the one that will run.
-      const lens = lensFor(entry.forward, entry.backward);
+      const lens = lensFor(entry.forward, entry.backward, entry.blocks);
 
       // Old shape to canonical and back. The values come from the contract the
       // caller was written against, which is exactly the traffic the adapter

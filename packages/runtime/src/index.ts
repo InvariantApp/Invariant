@@ -281,8 +281,9 @@ export interface RouteDecision {
   rewritten: boolean;
 }
 
+/** The keys a response status is looked up by, most specific first, as OpenAPI orders them. */
 function statusKeysFor(status: number): string[] {
-  return [String(status), `${Math.floor(status / 100)}xx`];
+  return [String(status), `${Math.floor(status / 100)}xx`, "default"];
 }
 
 export class InvariantRuntime {

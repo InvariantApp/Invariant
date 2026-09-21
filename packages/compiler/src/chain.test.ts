@@ -132,7 +132,9 @@ describe("chained program", () => {
     const instrs = list?.response?.["200"] ?? [];
     expect(
       instrs.every((instr) =>
-        ("path" in instr ? instr.path : instr.from).startsWith("/data/*"),
+        ("path" in instr ? instr.path : "from" in instr ? instr.from : "").startsWith(
+          "/data/*",
+        ),
       ),
     ).toBe(true);
     expect(instrs).toContainEqual({

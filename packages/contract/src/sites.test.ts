@@ -165,6 +165,148 @@ describe("unions on the way to a schema", () => {
     expect(scan.sites[0]?.guards).toEqual([{ at: "", has: "last4" }]);
   });
 
+  it("places a guard on the kind of value where the other branches are of other kinds", () => {
+    // Stripe writes nearly every expandable field this way: an id, or the object.
+    const scan = findSchemaSites(
+      document({
+        type: "object",
+        properties: {
+          card: { anyOf: [{ type: "string", maxLength: 5000 }, ref("Card")] },
+        },
+      }) as never,
+      "#/components/schemas/Card",
+    );
+    expect(scan.unsupported).toEqual([]);
+    expect(scan.sites[0]).toMatchObject({
+      prefix: "/card",
+      guards: [{ at: "/card", type: "object" }],
+    });
+  });
+
+  it("tells two objects beside an id apart by a field only one requires, as Stripe's deleted objects", () => {
+    const scan = findSchemaSites(
+      {
+        ...document({
+          type: "object",
+          properties: {
+            customer: { anyOf: [{ type: "string" }, ref("Card"), ref("Bank")] },
+          },
+        }),
+        components: {
+          schemas: {
+            Card: {
+              type: "object",
+              required: ["last4"],
+              properties: { last4: { type: "string" } },
+            },
+            Bank: {
+              type: "object",
+              required: ["deleted"],
+              properties: { deleted: { type: "boolean", enum: [true] } },
+            },
+          },
+        },
+      } as never,
+      "#/components/schemas/Card",
+    );
+    expect(scan.unsupported).toEqual([]);
+    expect(scan.sites[0]?.guards).toEqual([{ at: "/customer", has: "last4" }]);
+  });
+
+  it("tells objects beside an id apart by a key each fixes, as Stripe's payment sources", () => {
+    const typed = (value: string) => ({
+      type: "object",
+      properties: { object: { type: "string", enum: [value] } },
+    });
+    const scan = findSchemaSites(
+      {
+        ...document({
+          type: "object",
+          properties: {
+            source: { anyOf: [{ type: "string" }, ref("Card"), ref("Bank")] },
+          },
+        }),
+        components: { schemas: { Card: typed("card"), Bank: typed("bank_account") } },
+      } as never,
+      "#/components/schemas/Card",
+    );
+    expect(scan.unsupported).toEqual([]);
+    expect(scan.sites[0]?.guards).toEqual([
+      { at: "/source", key: "/object", values: ["card"] },
+    ]);
+  });
+
+  it("knows a live object from its deleted twin by the field it never has", () => {
+    // Stripe's `discount` and `deleted_discount` share their `object` and
+    // their fields, except that the deleted one requires `deleted`.
+    const object = (extra: Record<string, unknown>, required: string[]) => ({
+      type: "object",
+      required: ["id", "object", ...required],
+      properties: {
+        id: { type: "string" },
+        object: { type: "string", enum: ["discount"] },
+        ...extra,
+      },
+    });
+    const scan = findSchemaSites(
+      {
+        ...document({
+          type: "object",
+          properties: {
+            discount: { anyOf: [{ type: "string" }, ref("Card"), ref("Bank")] },
+          },
+        }),
+        components: {
+          schemas: {
+            Card: object({}, []),
+            Bank: object({ deleted: { type: "boolean", enum: [true] } }, ["deleted"]),
+          },
+        },
+      } as never,
+      "#/components/schemas/Card",
+    );
+    expect(scan.unsupported).toEqual([]);
+    expect(scan.sites[0]?.guards).toEqual([{ at: "/discount", lacks: "deleted" }]);
+  });
+
+  it("uses a key and a field together where neither alone tells the branch apart", () => {
+    // bank_account beside card and deleted_bank_account: the key rules out
+    // the card, and a field only the live account requires rules out its twin.
+    const schema = (
+      object: string,
+      required: string[],
+      extra: Record<string, unknown>,
+    ) => ({
+      type: "object",
+      required: ["object", ...required],
+      properties: { object: { type: "string", enum: [object] }, ...extra },
+    });
+    const scan = findSchemaSites(
+      {
+        ...document({
+          type: "object",
+          properties: {
+            destination: {
+              anyOf: [{ type: "string" }, ref("Card"), ref("Bank"), ref("Thing")],
+            },
+          },
+        }),
+        components: {
+          schemas: {
+            Card: schema("bank_account", ["routing"], { routing: { type: "string" } }),
+            Bank: schema("bank_account", ["deleted"], { deleted: { type: "boolean" } }),
+            Thing: schema("card", ["routing"], { routing: { type: "string" } }),
+          },
+        },
+      } as never,
+      "#/components/schemas/Card",
+    );
+    expect(scan.unsupported).toEqual([]);
+    expect(scan.sites[0]?.guards).toEqual([
+      { at: "/destination", key: "/object", values: ["bank_account"], has: "routing" },
+    ]);
+  });
+
   it("says nothing about a oneOf the schema is not part of", () => {
     const scan = findSchemaSites(
       document({

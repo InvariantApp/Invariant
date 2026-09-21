@@ -26,6 +26,7 @@ function run(vector: Vector): { output?: unknown; refusedBy?: string } {
             label: "old",
             routes: [],
             sites: { "post /v": { request: vector.instrs } },
+            ...(vector.blocks === undefined ? {} : { blocks: vector.blocks }),
             behaviors: [],
           },
         },

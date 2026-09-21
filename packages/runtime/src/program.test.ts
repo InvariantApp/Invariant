@@ -3,6 +3,8 @@
  * live traffic. Everything it will not accept is as important as what it will.
  */
 import { describe, expect, it } from "vitest";
+import { createRuntime } from "./index.ts";
+import { execute, touchedPaths } from "./interpreter.ts";
 import {
   decodeProgram,
   fillTemplate,
@@ -80,6 +82,24 @@ describe("decoding", () => {
         }),
       ),
     ).toThrow(/between -9 and 9/);
+  });
+
+  it("accepts the status keys OpenAPI writes, default and an upper-case class included", () => {
+    const decoded = decodeProgram(
+      program({
+        "get /x": { response: { default: [MOVE], "2XX": [MOVE], "404": [MOVE] } },
+      }),
+    );
+    const site = decoded.contracts.get("2026-01-15")?.sites.get("get /x");
+    expect([...(site?.response.keys() ?? [])].sort()).toEqual(["2xx", "404", "default"]);
+  });
+
+  it("refuses a class named twice in two cases", () => {
+    expect(() =>
+      decodeProgram(
+        program({ "get /x": { response: { "2xx": [MOVE], "2XX": [MOVE] } } }),
+      ),
+    ).toThrow(/names 2xx twice/);
   });
 
   it("refuses a response keyed by something that is not a status", () => {
@@ -237,5 +257,124 @@ describe("folds", () => {
       ?.sites.get("get /x")
       ?.response.get("2xx")?.[0];
     expect(instr).not.toHaveProperty("folded");
+  });
+});
+
+/**
+ * Named blocks let a program follow a value that contains itself. The decoder
+ * is what guarantees that following it ends.
+ */
+describe("blocks", () => {
+  const withBlocks = (blocks: Record<string, unknown>, request: unknown[]) => ({
+    ...(program({ "post /x": { request } }) as Record<string, unknown>),
+    contracts: {
+      "2026-01-15": {
+        label: "2026-01-15",
+        routes: [],
+        sites: { "post /x": { request } },
+        blocks,
+        behaviors: [],
+        retired: [],
+      },
+    },
+  });
+  const NODE = {
+    Node: [
+      { k: "del", path: "/secret", c: "chg" },
+      {
+        k: "within",
+        path: "/children/*",
+        block: [{ k: "call", block: "Node", c: "chg" }],
+        c: "chg",
+      },
+    ],
+  };
+
+  it("follows a tree as deep as a body may be", () => {
+    const decoded = decodeProgram(
+      withBlocks(NODE, [{ k: "call", block: "Node", c: "chg" }]),
+    );
+    const site = decoded.contracts.get("2026-01-15")?.sites.get("post /x");
+    let tree: Record<string, unknown> = { secret: 1, children: [] };
+    for (let depth = 0; depth < 120; depth += 1) {
+      tree = { secret: depth, children: [tree] };
+    }
+    const out = structuredClone(tree);
+    execute(out as never, site?.request ?? []);
+    expect(JSON.stringify(out)).not.toContain("secret");
+  });
+
+  it("lists what a recursive block touches without following it forever", () => {
+    const decoded = decodeProgram(
+      withBlocks(NODE, [{ k: "call", block: "Node", c: "chg" }]),
+    );
+    const [call] =
+      decoded.contracts.get("2026-01-15")?.sites.get("post /x")?.request ?? [];
+    expect(call && touchedPaths(call)).toEqual([["secret"], ["children", "*"]]);
+  });
+
+  it("refuses a block that calls itself where it stands", () => {
+    expect(() =>
+      decodeProgram(
+        withBlocks({ Loop: [{ k: "call", block: "Loop", c: "chg" }] }, [
+          { k: "call", block: "Loop", c: "chg" },
+        ]),
+      ),
+    ).toThrow(/without descending: Loop -> Loop/);
+  });
+
+  it("allows a block to call itself inside a within that descends", () => {
+    expect(() =>
+      decodeProgram(withBlocks(NODE, [{ k: "call", block: "Node", c: "chg" }])),
+    ).not.toThrow();
+  });
+
+  it("refuses a within with no path as a way around that", () => {
+    expect(() =>
+      decodeProgram(
+        withBlocks(
+          {
+            Loop: [
+              {
+                k: "within",
+                path: "",
+                block: [{ k: "call", block: "Loop", c: "chg" }],
+                c: "chg",
+              },
+            ],
+          },
+          [],
+        ),
+      ),
+    ).toThrow(ProgramError);
+  });
+});
+
+describe("response status keys", () => {
+  it("run the most specific instructions for a status, then its class, then default", () => {
+    const tag = (value: string) => [
+      { k: "set", path: "/matched", value, ifAbsent: false, c: "chg" },
+    ];
+    const runtime = createRuntime({
+      program: program({
+        "get /x": {
+          response: { "404": tag("404"), "4xx": tag("4xx"), default: tag("default") },
+        },
+      }) as never,
+      identity: [{ kind: "default", label: "2026-01-15" }],
+    });
+    const site = runtime.siteFor("2026-01-15", "get", "/x");
+    if (!site) throw new Error("no site");
+    const context = { contract: "2026-01-15", operation: "x" };
+    const matched = (status: number) =>
+      (
+        JSON.parse(runtime.transformResponse(site, status, "{}", context)) as {
+          matched: string;
+        }
+      ).matched;
+    expect(matched(404)).toBe("404");
+    expect(matched(409)).toBe("4xx");
+    expect(matched(500)).toBe("default");
+    expect(matched(200)).toBe("default");
   });
 });

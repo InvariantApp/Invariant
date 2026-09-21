@@ -191,7 +191,9 @@ function renamePathParameters(
       instrs: envelope.instrs.map((instr) =>
         instr.k === "move"
           ? { ...instr, from: pointer(instr.from), to: pointer(instr.to) }
-          : { ...instr, path: pointer(instr.path) },
+          : instr.k === "call"
+            ? instr
+            : { ...instr, path: pointer(instr.path) },
       ),
       params: {
         old: envelope.params.old.map(codec),
@@ -213,6 +215,8 @@ export function chainContract(
   const routes: RouteRule[] = [];
   const behaviors: string[] = [];
   const retired: ContractProgram["retired"] = [];
+  // Each step names its blocks after its own label, so steps never collide.
+  const blocks: Record<string, Instr[]> = {};
 
   // Route rules for the whole chain, expressed from the historical contract's
   // endpoint straight to the current one.
@@ -222,6 +226,7 @@ export function chainContract(
     const projected = projectStep(step.label, step.from, step.changes, step.to);
     issues.push(...projected.issues);
     behaviors.push(...projected.program.behaviors);
+    Object.assign(blocks, projected.program.blocks ?? {});
     // A retired endpoint is named as it stood in the contract that retired it,
     // which is also the path a request reaches after the earlier steps' route
     // rewrites. Later steps never touch it, because it no longer exists there.
@@ -266,6 +271,9 @@ export function chainContract(
         ),
       ),
       sites: Object.fromEntries([...sites.entries()].sort()),
+      ...(Object.keys(blocks).length > 0
+        ? { blocks: Object.fromEntries(Object.entries(blocks).sort()) }
+        : {}),
       behaviors: [...new Set(behaviors)].sort(),
       retired: [
         ...new Map(retired.map((e) => [`${e.method} ${e.path}`, e])).values(),

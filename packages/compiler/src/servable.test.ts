@@ -111,6 +111,25 @@ const OLD = {
         responses: { "204": { description: "done" } },
       },
     },
+    // A schema that contains itself, served by blocks that follow the value.
+    "/v1/threads": {
+      post: {
+        operationId: "createThread",
+        requestBody: {
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/Thread" } },
+          },
+        },
+        responses: {
+          "200": {
+            description: "a thread",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/Thread" } },
+            },
+          },
+        },
+      },
+    },
   },
   components: {
     schemas: {
@@ -153,6 +172,15 @@ const OLD = {
         },
       },
       Unused: { type: "object", properties: { x: { type: "string" } } },
+      Thread: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          count: { type: "integer" },
+          status: { type: "string", enum: ["pending", "paid", "void"] },
+          replies: { type: "array", items: { $ref: "#/components/schemas/Thread" } },
+        },
+      },
     },
   },
 } as unknown as OpenApiDocument;
@@ -590,6 +618,32 @@ function unserved(change: Change, program: unknown): string[] {
   return missing;
 }
 
+/** One of every data op on the schema that contains itself, which random pointers rarely hit. */
+const THREAD_OPS: Change["ops"] = [
+  { op: "move", from: "/title", to: "/name" },
+  {
+    op: "convert",
+    path: "/status",
+    codec: {
+      kind: "enumMap",
+      pairs: [
+        ["pending", "paid"],
+        ["paid", "pending"],
+        ["void", "void"],
+      ],
+    },
+  },
+  {
+    op: "convert",
+    path: "/count",
+    codec: { kind: "cast", from: "integer", to: "string" },
+  },
+  { op: "add", path: "/label", value: "x" },
+  { op: "remove", path: "/title", restore: "x" },
+  { op: "default", path: "/title", value: "x", when: "absent", toward: "new" },
+  { op: "dropNull", path: "/title", toward: "old" },
+];
+
 describe("L1: a Change the runtime cannot serve never passes the gate", () => {
   it("compiles to work for every op, or reports why it cannot", () => {
     // What passed the gate, by op kind: a property that only ever saw blocked
@@ -626,6 +680,9 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
         if ((change.scopes ?? []).some((scope) => !("schema" in scope))) {
           passed.set("parameters", (passed.get("parameters") ?? 0) + 1);
         }
+        if (chained.program.contracts["old"]?.blocks) {
+          passed.set("shared blocks", (passed.get("shared blocks") ?? 0) + 1);
+        }
         expect(unserved(change, chained.program), JSON.stringify(change)).toEqual([]);
       }),
       // A fixed seed on every commit, so the coverage asserted below cannot
@@ -645,6 +702,16 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
               ops: [{ op: "add", path: "/shipping/zip", value: "x" }],
             } as Change,
           ],
+          // A schema that contains itself: every data op, through the blocks.
+          ...THREAD_OPS.map((op): [Change] => [
+            {
+              irVersion: 1,
+              id: "chg_generated",
+              summary: "paid",
+              scopes: [{ schema: "#/components/schemas/Thread" }],
+              ops: [op],
+            } as Change,
+          ]),
         ],
       },
     );
@@ -662,6 +729,7 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
       "retire",
       "behavior",
       "parameters",
+      "shared blocks",
     ]) {
       expect(passed.get(kind) ?? 0, kind).toBeGreaterThan(0);
     }

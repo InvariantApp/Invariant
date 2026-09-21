@@ -4,9 +4,10 @@
  *
  * The runtime has no notion of direction. Backward transforms are produced by
  * inverting ops at compile time, so a program is always just an ordered list of
- * forward primitives. There are six of them, none can loop, call out, or
- * allocate unboundedly, and each carries the id of the Change it came from so a
- * single change can be counted and switched off on its own.
+ * forward primitives. There are six of them, none can call out or allocate
+ * unboundedly, the only repetition follows the value being transformed, and
+ * each carries the id of the Change it came from so a single change can be
+ * counted and switched off on its own.
  */
 import { type Static, Type } from "@sinclair/typebox";
 import { IR_VERSION } from "./change.ts";
@@ -104,16 +105,38 @@ export const DelInstr = Type.Object(
   { additionalProperties: false },
 );
 
+/** The kinds of value JSON has, for telling apart branches that differ only in kind. */
+export const JsonType = Type.Union([
+  Type.Literal("object"),
+  Type.Literal("array"),
+  Type.Literal("string"),
+  Type.Literal("number"),
+  Type.Literal("boolean"),
+  Type.Literal("null"),
+]);
+
+/** A block shared by every place a schema sits, named in `ContractProgram.blocks`. */
+const BlockName = Type.String({ minLength: 1, maxLength: 256 });
+
 /**
- * The six primitives, and three that only choose where and whether they run.
+ * The six primitives, and five that only choose where and whether they run.
  *
  * `within` runs a block at every place a pointer matches, with pointers in the
  * block read from there, so a Change to one element of a list is written once
  * for all of them. `switch` runs the block for the value a key holds, and
- * nothing for any other; `has` runs its block only where a field is present.
- * Together they place a Change to one variant of a union: at the union's
- * position, for the values that are that variant. The key is read once, as
- * the block is entered, so nothing inside the block can change which one ran.
+ * nothing for any other; `has` runs its block only where a field is present,
+ * and `is` only where a value is of one JSON kind, as Stripe's expandable
+ * fields are either an id or the object. Together they place a Change to one
+ * variant of a union: at the union's position, for the values that are that
+ * variant. The key is read once, as the block is entered, so nothing inside
+ * the block can change which one ran.
+ *
+ * `call` runs a named block of the contract where it stands. A schema that
+ * contains itself, or that sits in more places than can be listed, is served
+ * by one block per schema that calls the blocks of the schemas inside it, so
+ * the program follows the value rather than every path the schemas allow. A
+ * block may call itself only from inside a `within` that descends, so every
+ * recursion ends where the value does.
  */
 export const Instr = Type.Recursive(
   (Self) =>
@@ -143,7 +166,28 @@ export const Instr = Type.Recursive(
         { additionalProperties: false },
       ),
       Type.Object(
-        { k: Type.Literal("has"), path: Pointer, block: Type.Array(Self), c: ChangeId },
+        {
+          k: Type.Literal("has"),
+          path: Pointer,
+          block: Type.Array(Self),
+          /** Run where the field is missing instead: a branch told apart by what it never has. */
+          absent: Type.Optional(Type.Literal(true)),
+          c: ChangeId,
+        },
+        { additionalProperties: false },
+      ),
+      Type.Object(
+        {
+          k: Type.Literal("is"),
+          path: Pointer,
+          type: JsonType,
+          block: Type.Array(Self),
+          c: ChangeId,
+        },
+        { additionalProperties: false },
+      ),
+      Type.Object(
+        { k: Type.Literal("call"), block: BlockName, c: ChangeId },
         { additionalProperties: false },
       ),
     ]),
@@ -301,6 +345,12 @@ export const ContractProgram = Type.Object(
     /** Keyed by the canonical `method path-template`, for example `post /v1/payments`. */
     sites: Type.Record(Type.String(), SiteProgram),
     /**
+     * Instructions shared by every site, run by `call`: one per schema whose
+     * values have to be followed rather than listed, because it contains
+     * itself or sits in too many places.
+     */
+    blocks: Type.Optional(Type.Record(BlockName, Type.Array(Instr))),
+    /**
      * The path this contract's API was served under, where it is not the
      * current one's: the version was in the server URL, as Google's
      * `/analytics/v2.4` became `/analytics/v3`. An old caller's request under
@@ -369,6 +419,7 @@ export type CastInstr = Static<typeof CastInstr>;
 export type SetInstr = Static<typeof SetInstr>;
 export type DelInstr = Static<typeof DelInstr>;
 export type Instr = Static<typeof Instr>;
+export type JsonType = Static<typeof JsonType>;
 export type RouteRule = Static<typeof RouteRule>;
 export type ParamCodec = Static<typeof ParamCodec>;
 export type EnvelopeProgram = Static<typeof EnvelopeProgram>;
