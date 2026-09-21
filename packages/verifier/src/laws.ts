@@ -37,6 +37,7 @@ import { type Change, isSchemaScope, type JsonValue, parsePointer } from "@invar
 import fc from "fast-check";
 import { schemaArbitrary } from "./arbitrary.ts";
 import { type Evidence, inputsDigest } from "./evidence.ts";
+import { checkParameterLaws } from "./parameter-laws.ts";
 import { lensFor } from "./run.ts";
 import { type Violation, validateAgainst } from "./validate.ts";
 
@@ -319,6 +320,15 @@ export function checkLaws(
         : {}),
     });
   }
+
+  // Parameters travel only from caller to provider, so theirs is the forward
+  // half alone, checked on whole requests.
+  const parameters = checkParameterLaws(oldContract, predicted, changes, {
+    runs,
+    ...(options.seed === undefined ? {} : { seed: options.seed }),
+  });
+  evidence.push(...parameters.evidence);
+  failures.push(...parameters.failures);
 
   return { evidence, failures };
 }

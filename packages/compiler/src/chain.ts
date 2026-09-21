@@ -16,13 +16,27 @@ import type {
   Change,
   CompiledProgram,
   ContractProgram,
+  EnvelopeProgram,
   Instr,
+  ParamCodec,
   RouteRule,
   SiteProgram,
 } from "@invariant/ir";
-import { IR_VERSION, isJsonObject, siteKey } from "@invariant/ir";
+import {
+  formatPointer,
+  IR_VERSION,
+  isJsonObject,
+  parsePointer,
+  siteKey,
+} from "@invariant/ir";
 import { mapEndpoint, type RouteMapping, routeMappings } from "./predict.ts";
-import { type ProjectionIssue, projectStep } from "./project.ts";
+import {
+  byCodec,
+  type ProjectionIssue,
+  prefixInstr,
+  projectStep,
+  templateNames,
+} from "./project.ts";
 
 export interface ContractStep {
   /** Label of the contract this step produces. */
@@ -73,8 +87,38 @@ function remapKey(key: string, routeSteps: readonly (readonly RouteMapping[])[])
 function mergeSite(earlier: SiteProgram, later: SiteProgram): SiteProgram {
   const out: SiteProgram = {};
 
-  const request = [...(earlier.request ?? []), ...(later.request ?? [])];
-  if (request.length > 0) out.request = request;
+  if (earlier.envelope || later.envelope) {
+    // One step reaches a parameter, so the whole chain runs over the
+    // envelope, in order, with each body-only step's instructions under
+    // `/@body`.
+    const first = asEnvelope(earlier);
+    const second = asEnvelope(later);
+    const oldCodecs = new Map<string, ParamCodec>();
+    const newCodecs = new Map<string, ParamCodec>();
+    for (const codec of first.params.old) oldCodecs.set(codecKey(codec), codec);
+    for (const codec of first.params.new) newCodecs.set(codecKey(codec), codec);
+    // A name no earlier step touched is written by the historical caller just
+    // as the later step's old contract declares it, since nothing changed it
+    // in between. A name an earlier step introduced is only ever written by
+    // the program, and the last word on how the provider expects any name is
+    // the latest step's.
+    for (const codec of second.params.old) {
+      const key = codecKey(codec);
+      if (!oldCodecs.has(key) && !newCodecs.has(key)) oldCodecs.set(key, codec);
+    }
+    for (const codec of second.params.new) newCodecs.set(codecKey(codec), codec);
+    out.envelope = {
+      instrs: [...first.instrs, ...second.instrs],
+      params: {
+        old: [...oldCodecs.values()].sort(byCodec),
+        new: [...newCodecs.values()].sort(byCodec),
+      },
+      body: first.body || second.body,
+    };
+  } else {
+    const request = [...(earlier.request ?? []), ...(later.request ?? [])];
+    if (request.length > 0) out.request = request;
+  }
 
   if (earlier.response || later.response) {
     const response: Record<string, Instr[]> = {};
@@ -92,6 +136,53 @@ function mergeSite(earlier: SiteProgram, later: SiteProgram): SiteProgram {
   }
 
   return out;
+}
+
+const codecKey = (codec: ParamCodec) => `${codec.in} ${codec.name}`;
+
+function asEnvelope(site: SiteProgram): EnvelopeProgram {
+  if (site.envelope) return site.envelope;
+  const instrs = (site.request ?? []).map((instr) => prefixInstr(instr, "@body"));
+  return { instrs, params: { old: [], new: [] }, body: instrs.length > 0 };
+}
+
+/**
+ * A site program as it reads once later route changes have renamed the path
+ * it lives at. Path parameters are named by the template, so a parameter a
+ * later step renamed has to be addressed by its new name, found by position.
+ */
+function renamePathParameters(
+  program: SiteProgram,
+  fromPath: string,
+  toPath: string,
+): SiteProgram {
+  const envelope = program.envelope;
+  if (!envelope || fromPath === toPath) return program;
+  const from = templateNames(fromPath);
+  const to = templateNames(toPath);
+  const rename = (name: string) => to[from.indexOf(name)] ?? name;
+  const pointer = (value: string) => {
+    const segments = parsePointer(value);
+    if (segments[0] !== "@path" || segments[1] === undefined) return value;
+    return formatPointer(["@path", rename(segments[1]), ...segments.slice(2)]);
+  };
+  const codec = (entry: ParamCodec): ParamCodec =>
+    entry.in === "path" ? { ...entry, name: rename(entry.name) } : entry;
+  return {
+    ...program,
+    envelope: {
+      ...envelope,
+      instrs: envelope.instrs.map((instr) =>
+        instr.k === "move"
+          ? { ...instr, from: pointer(instr.from), to: pointer(instr.to) }
+          : { ...instr, path: pointer(instr.path) },
+      ),
+      params: {
+        old: envelope.params.old.map(codec),
+        new: envelope.params.new.map(codec),
+      },
+    },
+  };
 }
 
 /**
@@ -122,8 +213,13 @@ export function chainContract(
 
     const after = laterRoutes.slice(index + 1);
 
-    for (const [key, program] of Object.entries(projected.program.sites)) {
+    for (const [key, raw] of Object.entries(projected.program.sites)) {
       const finalKey = remapKey(key, after);
+      const program = renamePathParameters(
+        raw,
+        key.slice(key.indexOf(" ") + 1),
+        finalKey.slice(finalKey.indexOf(" ") + 1),
+      );
       const existing = sites.get(finalKey);
       sites.set(finalKey, existing ? mergeSite(existing, program) : program);
     }

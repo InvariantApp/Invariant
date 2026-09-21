@@ -3091,9 +3091,13 @@ const ParameterScope = Type.Object({
 	location: Type.Union([
 		Type.Literal("query"),
 		Type.Literal("path"),
-		Type.Literal("header")
+		Type.Literal("header"),
+		Type.Literal("cookie")
 	])
-}, { additionalProperties: false });
+}, {
+	additionalProperties: false,
+	description: "Where a Change's data ops apply to one operation's parameters. A pointer names a parameter of this location, `/limit`; one starting with `@` names another part of the request, `/@header/x-limit` or `/@body/limit`, which is how a parameter moves between them."
+});
 const Scope = Type.Union([SchemaScope, ParameterScope]);
 const Assertions = Type.Object({
 	same_concept: Type.Optional(Type.Boolean()),
@@ -3149,6 +3153,56 @@ function isDataOp(op) {
 }
 function isSchemaScope(scope) {
 	return "schema" in scope;
+}
+//#endregion
+//#region ../ir/src/envelope.ts
+/** The first segment of an envelope pointer, for each part of a request. */
+const ENVELOPE_PARTS = {
+	path: "@path",
+	query: "@query",
+	header: "@header",
+	cookie: "@cookie",
+	body: "@body"
+};
+/**
+* Headers no Change may read or write.
+*
+* Credentials, because a program that can move a credential can move it
+* somewhere it is logged. Hop-by-hop and framing headers, because they
+* describe the connection and the bytes rather than the request, and the
+* binding rewrites them itself. The cookie header, because cookies are
+* addressed one by one under `@cookie`. Anything that signs or digests the
+* message, because a request rewritten under a signature is a request whose
+* signature no longer verifies, and quietly failing verification is the worst
+* way to find that out.
+*/
+const DENIED_HEADERS = /* @__PURE__ */ new Set([
+	"authorization",
+	"proxy-authorization",
+	"cookie",
+	"set-cookie",
+	"host",
+	"connection",
+	"keep-alive",
+	"proxy-connection",
+	"te",
+	"trailer",
+	"transfer-encoding",
+	"upgrade",
+	"expect",
+	"content-length",
+	"content-type",
+	"content-encoding",
+	"x-api-key",
+	"api-key",
+	"x-auth-token"
+]);
+/** Header names that sign, digest or authenticate a message, by their wording. */
+const DENIED_WORDS = /signature|hmac|digest|credential|secret/;
+/** Whether a header, compared case-insensitively, may never be addressed. */
+function isDeniedHeader(name) {
+	const lower = name.toLowerCase();
+	return DENIED_HEADERS.has(lower) || DENIED_WORDS.test(lower);
 }
 //#endregion
 //#region ../ir/src/json.ts
@@ -12034,6 +12088,153 @@ function bodySchemaFor(document, operation, direction, status) {
 	return match === void 0 ? void 0 : deref(document, match.schema);
 }
 //#endregion
+//#region ../compiler/src/parameters.ts
+/**
+* Parameters, as the compiler reads and addresses them.
+*
+* An op in a parameter scope names a parameter relative to its location, so
+* `/limit` in a query scope is `/@query/limit` in the request envelope. A
+* pointer whose first segment starts with `@` names another part of the
+* request outright, which is how a parameter moves from the query string into
+* a header or the body.
+*
+* Each parameter an instruction touches travels with how it is written on the
+* wire, read from its declaration: the old contract's for decoding what an old
+* caller sends, the current one's for encoding what the provider receives.
+*/
+const SCALARS$1 = /* @__PURE__ */ new Set([
+	"string",
+	"integer",
+	"number",
+	"boolean"
+]);
+const PART_LOCATIONS = {
+	"@path": "path",
+	"@query": "query",
+	"@header": "header",
+	"@cookie": "cookie",
+	"@body": "body"
+};
+/**
+* The envelope pointer for a pointer written in a parameter scope. Header
+* names are case-insensitive, so they are always written lowercase.
+*/
+function envelopePointer(location, pointer) {
+	const segments = parsePointer(pointer);
+	const first = segments[0];
+	const absolute = first?.startsWith("@") === true;
+	const part = absolute ? PART_LOCATIONS[first] : location;
+	if (part === void 0) throw new Error(`${pointer} names no part of a request`);
+	const rest = absolute ? segments.slice(1) : segments;
+	if (part === "header" && rest[0] !== void 0) rest[0] = rest[0].toLowerCase();
+	return formatPointer([ENVELOPE_PARTS[part], ...rest]);
+}
+function addressOf(pointer) {
+	const segments = parsePointer(pointer);
+	const part = PART_LOCATIONS[segments[0] ?? ""];
+	if (part === void 0) throw new Error(`${pointer} names no part of a request`);
+	return {
+		part,
+		name: part === "body" ? void 0 : segments[1],
+		pointer
+	};
+}
+/** An operation's parameters in effect: the path item's, unless the operation redeclares one. */
+function parametersOf(document, method, path) {
+	const paths = document["paths"];
+	const item = isJsonObject(paths) ? paths[path] : void 0;
+	if (!isJsonObject(item)) return [];
+	const operation = item[method];
+	const resolve = (list) => (Array.isArray(list) ? list : []).flatMap((entry) => {
+		const resolved = isJsonObject(entry) && typeof entry["$ref"] === "string" ? resolveRef(document, entry["$ref"]) : entry;
+		return isJsonObject(resolved) ? [resolved] : [];
+	});
+	const own = resolve(isJsonObject(operation) ? operation["parameters"] : void 0);
+	return [...resolve(item["parameters"]).filter((parameter) => !own.some((mine) => mine["in"] === parameter["in"] && sameName(mine, parameter))), ...own];
+}
+function sameName(a, b) {
+	const left = String(a["name"]);
+	const right = String(b["name"]);
+	return a["in"] === "header" ? left.toLowerCase() === right.toLowerCase() : left === right;
+}
+function findParameter(parameters, location, name) {
+	return parameters.find((parameter) => parameter["in"] === location && (location === "header" ? String(parameter["name"]).toLowerCase() === name.toLowerCase() : parameter["name"] === name));
+}
+/** Header names the document's own security schemes carry credentials in. */
+function credentialHeaders(document) {
+	const components = document["components"];
+	const schemes = isJsonObject(components) ? components["securitySchemes"] : void 0;
+	const names = /* @__PURE__ */ new Set();
+	if (!isJsonObject(schemes)) return names;
+	for (const scheme of Object.values(schemes)) if (isJsonObject(scheme) && scheme["type"] === "apiKey" && scheme["in"] === "header" && typeof scheme["name"] === "string") names.add(scheme["name"].toLowerCase());
+	return names;
+}
+/** Why no program may touch this header, if one is the case. */
+function headerRefusal(document, name) {
+	if (isDeniedHeader(name)) return `the ${name} header carries credentials, framing or a signature, and no Change may touch it`;
+	if (credentialHeaders(document).has(name.toLowerCase())) return `the ${name} header is where this API's security scheme reads a credential, and no Change may touch it`;
+}
+const DEFAULT_STYLE = {
+	path: "simple",
+	query: "form",
+	header: "simple",
+	cookie: "form"
+};
+const SERVED_STYLES = {
+	path: ["simple"],
+	query: [
+		"form",
+		"spaceDelimited",
+		"pipeDelimited",
+		"deepObject"
+	],
+	header: ["simple"],
+	cookie: ["form"]
+};
+/**
+* How a declared parameter is written, or why it cannot be served.
+*/
+function codecOf(document, parameter) {
+	const location = parameter["in"];
+	const name = String(parameter["name"]);
+	const label = `the ${location} parameter ${name}`;
+	if (parameter["content"] !== void 0) return { refused: `${label} is written as serialized content, which is not served` };
+	const style = parameter["style"] ?? DEFAULT_STYLE[location];
+	if (!SERVED_STYLES[location]?.includes(style)) return { refused: `${label} is written in the ${style} style, which is not served` };
+	const explode = typeof parameter["explode"] === "boolean" ? parameter["explode"] : style === "form";
+	const schema = resolveSchema(document, parameter["schema"] ?? {});
+	const declared = isJsonObject(schema) ? schema["type"] : void 0;
+	const type = (Array.isArray(declared) ? declared : [declared]).filter((type) => typeof type === "string" && type !== "null")[0] ?? "string";
+	if (![
+		"string",
+		"integer",
+		"number",
+		"boolean",
+		"array",
+		"object"
+	].includes(type)) return { refused: `${label} has a type that is not served` };
+	if (type === "object" && explode && style === "form") return { refused: `${label} is an exploded form object, whose properties cannot be told apart from other parameters` };
+	if (style === "deepObject" && type !== "object") return { refused: `${label} is a deepObject that is not an object` };
+	let items;
+	if (type === "array" && isJsonObject(schema)) {
+		const item = resolveSchema(document, schema["items"] ?? {});
+		const itemType = isJsonObject(item) ? item["type"] : void 0;
+		if (typeof itemType === "string" && SCALARS$1.has(itemType)) items = itemType;
+	}
+	return {
+		in: location,
+		name: location === "header" ? name.toLowerCase() : name,
+		style,
+		explode,
+		type,
+		...items === void 0 ? {} : { items }
+	};
+}
+/** The operation an operationId names in a document. */
+function operationById(document, operationId) {
+	return operationsOf(document).find((candidate) => candidate.operationId === operationId);
+}
+//#endregion
 //#region ../decimal/src/index.ts
 /**
 * Exact decimal arithmetic on the text of a number.
@@ -12436,7 +12637,10 @@ const isNullSchema = (branch) => isJsonObject(branch) && branch["type"] === "nul
 * specification, and closure would report a change nobody made.
 */
 function schemaSetNullable(document, root, path, nullable) {
-	const schema = ownSlot(document, root, parsePointer(path));
+	setNullable(document, ownSlot(document, root, parsePointer(path)), nullable, path);
+}
+/** The same, on a schema object this change already owns, such as a parameter's. */
+function setNullable(document, schema, nullable, label) {
 	const version = document["openapi"];
 	if (typeof version === "string" && version.startsWith("3.0")) {
 		if (nullable) schema["nullable"] = true;
@@ -12457,7 +12661,246 @@ function schemaSetNullable(document, root, path, nullable) {
 		schema[key] = nullable ? [...rest, { type: "null" }] : rest;
 		return;
 	}
-	throw new SchemaOpError(`"${path}" declares no type, so there is no way to write whether it may be null`);
+	throw new SchemaOpError(`"${label}" declares no type, so there is no way to write whether it may be null`);
+}
+//#endregion
+//#region ../compiler/src/predict-parameters.ts
+/**
+* Replaying parameter-scoped Changes over the predicted document.
+*
+* Each op edits the one operation its scope names, found where earlier route
+* changes moved it, and only that operation: a parameter declared once for a
+* whole path, or shared through a reference, is copied into the operation
+* before it is touched, so no other operation changes with it.
+*
+* Anything that appears, a new parameter or a field a parameter moved into,
+* takes its declaration from the new contract. The op says only that it
+* moved or arrived; how it is declared is the provider's own statement, and
+* inventing one here would make closure prove whatever was invented.
+*/
+/** The predicted operation an old operation's calls now reach. */
+function locate(document, oldContract, routes, operationId) {
+	const old = operationById(oldContract, operationId);
+	if (!old) return void 0;
+	const target = mapEndpoint(routes, old.method, old.path);
+	const paths = document["paths"];
+	const item = isJsonObject(paths) ? paths[target.path] : void 0;
+	const operation = isJsonObject(item) ? item[target.method] : void 0;
+	if (!isJsonObject(item) || !isJsonObject(operation)) return void 0;
+	return {
+		item,
+		operation,
+		method: target.method,
+		path: target.path
+	};
+}
+/**
+* The operation's parameters as a list it owns outright.
+*
+* Parameters declared for the whole path are copied into every operation of
+* that path first, which describes exactly the same API, so that changing
+* one operation's copy cannot change another's.
+*/
+function ownParameters(document, located) {
+	const shared = located.item["parameters"];
+	if (Array.isArray(shared) && shared.length > 0) {
+		for (const method of HTTP_METHODS) {
+			const value = located.item[method];
+			if (!isJsonObject(value)) continue;
+			const own = Array.isArray(value["parameters"]) ? value["parameters"] : [];
+			const inherited = shared.filter((entry) => {
+				const resolved = resolveEntry(document, entry);
+				return !own.some((mine) => {
+					const other = resolveEntry(document, mine);
+					return resolved !== void 0 && other !== void 0 && other["in"] === resolved["in"] && other["name"] === resolved["name"];
+				});
+			});
+			value["parameters"] = [...structuredClone(inherited), ...own];
+		}
+		delete located.item["parameters"];
+	}
+	const owned = (Array.isArray(located.operation["parameters"]) ? located.operation["parameters"] : []).flatMap((entry) => {
+		const resolved = resolveEntry(document, entry);
+		return resolved ? [structuredClone(resolved)] : [];
+	});
+	located.operation["parameters"] = owned;
+	return owned;
+}
+function resolveEntry(document, entry) {
+	if (!isJsonObject(entry)) return void 0;
+	const ref = entry["$ref"];
+	if (typeof ref !== "string") return entry;
+	const target = resolveRef(document, ref);
+	return isJsonObject(target) ? target : void 0;
+}
+/** The new contract's declaration of a parameter, where the old one's calls now land. */
+function declaredInNew(newContract, located, location, name) {
+	const paths = newContract["paths"];
+	const item = isJsonObject(paths) ? paths[located.path] : void 0;
+	if (!isJsonObject(item)) return void 0;
+	const operation = item[located.method];
+	return findParameter([item["parameters"], isJsonObject(operation) ? operation["parameters"] : []].flatMap((list) => (Array.isArray(list) ? list : []).flatMap((entry) => {
+		const resolved = resolveEntry(newContract, entry);
+		return resolved ? [resolved] : [];
+	})), location, name);
+}
+/** The JSON request body schema's holder on an operation this change owns, made if asked. */
+function bodyHolder(document, operation, create) {
+	let body = operation["requestBody"];
+	if (isJsonObject(body) && typeof body["$ref"] === "string") {
+		const resolved = resolveRef(document, body["$ref"]);
+		body = isJsonObject(resolved) ? structuredClone(resolved) : void 0;
+		if (body !== void 0) operation["requestBody"] = body;
+	}
+	if (!isJsonObject(body)) {
+		if (!create) return void 0;
+		body = { content: { "application/json": { schema: {
+			type: "object",
+			properties: {}
+		} } } };
+		operation["requestBody"] = body;
+	}
+	const content = body["content"];
+	const json = isJsonObject(content) ? content["application/json"] : void 0;
+	if (!isJsonObject(json) || !isJsonObject(json["schema"])) {
+		if (!create) return void 0;
+		throw new SchemaOpError("the request body is not JSON, so nothing can move into it");
+	}
+	return json["schema"];
+}
+/** A body field's declaration in the new contract, where the operation now lives. */
+function bodyShapeInNew(newContract, located, segments) {
+	const operation = operationsOf(newContract).find((candidate) => candidate.method === located.method && candidate.path === located.path);
+	if (!operation) return void 0;
+	const body = bodySchemaFor(newContract, operation.operation, "request");
+	if (body === void 0) return void 0;
+	let current = resolveSchema(newContract, body);
+	let parent;
+	for (const segment of segments) {
+		parent = current;
+		if (!isJsonObject(current) || !isJsonObject(current["properties"])) return void 0;
+		const next = current["properties"][segment];
+		if (next === void 0) return void 0;
+		current = resolveSchema(newContract, next);
+	}
+	if (current === void 0) return void 0;
+	const name = segments[segments.length - 1];
+	const required = isJsonObject(parent) && Array.isArray(parent["required"]) && parent["required"].includes(name);
+	return {
+		shape: current,
+		required
+	};
+}
+function applyParameterScope(document, oldContract, newContract, routes, scope, ops, issues, changeId) {
+	const refuse = (message) => issues.push({
+		changeId,
+		message
+	});
+	const located = locate(document, oldContract, routes, scope.operation);
+	if (!located) {
+		refuse(`no operation called ${scope.operation} to scope a parameter change to`);
+		return;
+	}
+	for (const op of ops) try {
+		applyOne(document, newContract, located, scope, op);
+	} catch (error) {
+		refuse(`${op.op} on ${scope.operation}'s ${scope.location} parameters: ${error instanceof Error ? error.message : String(error)}`);
+	}
+}
+function applyOne(document, newContract, located, scope, op) {
+	const params = ownParameters(document, located);
+	const at = (pointer) => {
+		const address = addressOf(envelopePointer(scope.location, pointer));
+		const segments = parsePointer(address.pointer).slice(1);
+		if (address.part !== "body" && segments.length !== 1) throw new SchemaOpError(`${pointer} must name one parameter, not a part of one`);
+		return {
+			address,
+			segments
+		};
+	};
+	const indexOf = (location, name) => params.findIndex((parameter) => parameter["in"] === location && (location === "header" ? String(parameter["name"]).toLowerCase() === name : parameter["name"] === name));
+	const existing = (location, name) => {
+		const index = indexOf(location, name);
+		if (index === -1) throw new SchemaOpError(`there is no ${location} parameter called ${name}`);
+		return params[index];
+	};
+	const schemaOf = (parameter) => {
+		const schema = parameter["schema"];
+		if (!isJsonObject(schema)) throw new SchemaOpError("the parameter has no schema");
+		const resolved = resolveSchema(document, schema);
+		const owned = structuredClone(isJsonObject(resolved) ? resolved : schema);
+		parameter["schema"] = owned;
+		return owned;
+	};
+	if (op.op === "move") {
+		const from = at(op.from);
+		const to = at(op.to);
+		if (from.address.part === "path" || to.address.part === "path") throw new SchemaOpError("a path parameter is renamed by a route change, not a move");
+		if (from.address.part === "body") throw new SchemaOpError("a body field moves with a schema scope, not a parameter scope");
+		const name = from.address.name;
+		const index = indexOf(from.address.part, name);
+		if (index === -1) throw new SchemaOpError(`there is no ${from.address.part} parameter called ${name}`);
+		const parameter = params[index];
+		if (to.address.part === "body") {
+			const shape = bodyShapeInNew(newContract, located, to.segments);
+			if (!shape) throw new SchemaOpError(`the new contract's request body has no ${op.to.slice(1)}`);
+			params.splice(index, 1);
+			schemaAdd(document, bodyHolder(document, located.operation, true), `/${to.segments.join("/")}`, shape.shape, shape.required);
+			return;
+		}
+		const target = to.address.part;
+		const renamed = to.address.name;
+		parameter["name"] = renamed;
+		if (parameter["in"] !== target) {
+			parameter["in"] = target;
+			const declared = declaredInNew(newContract, located, target, renamed);
+			for (const key of [
+				"style",
+				"explode",
+				"allowReserved"
+			]) if (declared?.[key] !== void 0) parameter[key] = declared[key];
+			else delete parameter[key];
+		}
+		return;
+	}
+	const { address } = at(op.path);
+	if (address.part === "body") throw new SchemaOpError(`a body field is changed with a schema scope, not a parameter scope`);
+	const name = address.name;
+	if (address.part === "path" && op.op !== "convert") throw new SchemaOpError("a path parameter can only be converted");
+	switch (op.op) {
+		case "convert": {
+			const parameter = existing(address.part, name);
+			parameter["schema"] = applyCodecToSchema(schemaOf(parameter), op.codec);
+			return;
+		}
+		case "add": {
+			if (indexOf(address.part, name) !== -1) throw new SchemaOpError(`the ${address.part} parameter ${name} already exists`);
+			const declared = declaredInNew(newContract, located, address.part, name);
+			if (!declared) throw new SchemaOpError(`the new contract declares no ${address.part} parameter ${name}`);
+			params.push(structuredClone(declared));
+			return;
+		}
+		case "remove": {
+			const index = indexOf(address.part, name);
+			if (index === -1) throw new SchemaOpError(`there is no ${address.part} parameter called ${name}`);
+			params.splice(index, 1);
+			return;
+		}
+		case "default": {
+			if (op.toward === "old") throw new SchemaOpError("a parameter is only ever sent, never received, so there is nothing to fill in toward old callers");
+			const parameter = existing(address.part, name);
+			if (op.when !== "null") parameter["required"] = true;
+			if (op.when !== "absent") setNullable(document, schemaOf(parameter), false, name);
+			return;
+		}
+		case "dropNull": {
+			if (op.toward === "old") throw new SchemaOpError("a parameter is only ever sent, never received, so there is no null to keep from old callers");
+			const parameter = existing(address.part, name);
+			if (parameter["required"] === true) throw new SchemaOpError(`${name} is required, so a null cannot be sent as it left out`);
+			setNullable(document, schemaOf(parameter), false, name);
+			return;
+		}
+	}
 }
 //#endregion
 //#region ../compiler/src/predict.ts
@@ -12507,125 +12950,6 @@ function applyRoute(document, op, issues, changeId) {
 	const target = paths[op.to.path];
 	if (isJsonObject(target)) target[op.to.method] = moved;
 	else paths[op.to.path] = { [op.to.method]: moved };
-}
-/**
-* Applies data ops to an operation's query, path or header parameters.
-*
-* Added last of the three scopes, and only after real documents showed why it
-* mattered: 483 breaking deltas across sixty real version pairs were about
-* parameters, and the compiler answered "only schema scopes are supported" to
-* every one. `ParameterScope` had been in the IR the whole time with nothing
-* behind it.
-*
-* A parameter is named by the first segment of the op's pointer, because a
-* parameter has a name and no nesting above it. Ops reach the parameter's
-* schema, which is where an enum or a type lives.
-*/
-function applyParameterScope(document, scope, ops, issues, changeId) {
-	const operation = operationsOf(document).find((candidate) => candidate.operationId === scope.operation);
-	if (!operation) {
-		issues.push({
-			changeId,
-			message: `no operation called ${scope.operation} to scope a parameter change to`
-		});
-		return;
-	}
-	const paths = document["paths"];
-	const item = isJsonObject(paths) ? paths[operation.path] : void 0;
-	const declared = [...isJsonObject(item) && Array.isArray(item["parameters"]) ? item["parameters"] : [], ...Array.isArray(operation.operation["parameters"]) ? operation.operation["parameters"] : []];
-	for (const op of ops) {
-		const pointer = op.op === "move" ? op.from : op.path;
-		const name = pointer.split("/").filter((part) => part !== "")[0];
-		if (name === void 0) {
-			issues.push({
-				changeId,
-				message: `${pointer} does not name a parameter`
-			});
-			continue;
-		}
-		const index = declared.findIndex((entry) => {
-			const resolved = resolvedParameter(document, entry);
-			return resolved?.["name"] === name && resolved["in"] === scope.location;
-		});
-		if (index === -1) {
-			issues.push({
-				changeId,
-				message: `${scope.operation} has no ${scope.location} parameter called ${name}`
-			});
-			continue;
-		}
-		const entry = declared[index];
-		let parameter;
-		if (isJsonObject(entry) && typeof entry["$ref"] === "string") {
-			parameter = structuredClone(resolvedParameter(document, entry));
-			declared[index] = parameter;
-			replaceParameter(operation.operation, item, entry, parameter);
-		} else parameter = entry;
-		const schema = parameter["schema"];
-		if (!isJsonObject(schema)) {
-			issues.push({
-				changeId,
-				message: `the ${name} parameter has no schema to change`
-			});
-			continue;
-		}
-		applyToParameterSchema(schema, op, parameter, issues, changeId, name);
-	}
-}
-/** A parameter entry, following a `$ref` when there is one. */
-function resolvedParameter(document, entry) {
-	if (!isJsonObject(entry)) return void 0;
-	const ref = entry["$ref"];
-	if (typeof ref !== "string") return entry;
-	const target = resolveRef(document, ref);
-	return isJsonObject(target) ? target : void 0;
-}
-/** Swaps a shared reference for the operation's own copy, wherever it was listed. */
-function replaceParameter(operation, pathItem, from, to) {
-	for (const holder of [operation, pathItem]) {
-		if (!isJsonObject(holder)) continue;
-		const list = holder["parameters"];
-		if (!Array.isArray(list)) continue;
-		const at = list.indexOf(from);
-		if (at !== -1) list[at] = to;
-	}
-}
-/** The per-op half of the above, kept separate so each op reads on its own. */
-function applyToParameterSchema(schema, op, parameter, issues, changeId, name) {
-	switch (op.op) {
-		case "convert":
-			if (op.codec.kind === "enumMap") {
-				schema["enum"] = [...new Set(op.codec.pairs.map(([, to]) => to))];
-				return;
-			}
-			if (op.codec.kind === "cast") {
-				schema["type"] = op.codec.to;
-				return;
-			}
-			return;
-		case "move": {
-			const to = op.to.split("/").filter((part) => part !== "")[0];
-			if (to === void 0) {
-				issues.push({
-					changeId,
-					message: `${op.to} does not name a parameter`
-				});
-				return;
-			}
-			parameter["name"] = to;
-			return;
-		}
-		case "remove":
-			parameter["x-invariant-removed"] = true;
-			return;
-		case "add":
-			parameter["required"] = true;
-			return;
-		default: issues.push({
-			changeId,
-			message: `no rule for applying this op to the ${name} parameter`
-		});
-	}
 }
 /**
 * Deletes a retired operation from the predicted document.
@@ -12713,7 +13037,7 @@ function predictDocument(oldContract, newContract, changes) {
 		}
 		for (const scope of scopes) {
 			if (!isSchemaScope(scope)) {
-				applyParameterScope(document, scope, dataOps, issues, change.id);
+				applyParameterScope(document, oldContract, newContract, routes, scope, dataOps, issues, change.id);
 				continue;
 			}
 			const name = scope.schema.slice(21);
@@ -13047,7 +13371,9 @@ function accumulatorFor(sites, key) {
 	if (!entry) {
 		entry = {
 			request: [],
-			response: /* @__PURE__ */ new Map()
+			response: /* @__PURE__ */ new Map(),
+			old: /* @__PURE__ */ new Map(),
+			new: /* @__PURE__ */ new Map()
 		};
 		sites.set(key, entry);
 	}
@@ -13079,15 +13405,19 @@ function projectStep(label, oldContract, changes, newContract) {
 			...op.refuse === true || reachesAnother(op.endpoint, newContract) ? { refuse: true } : {}
 		});
 	}
-	for (const change of changes) collectForward(change, oldContract, routes, sites, issues);
+	for (const change of changes) {
+		collectForward(change, oldContract, routes, sites, issues);
+		collectParameters(change, oldContract, newContract, routes, sites, issues);
+	}
 	for (const change of [...changes].reverse()) collectBackward(change, oldContract, routes, sites, issues);
 	if (newContract) collectErrorParams(oldContract, newContract, changes, routes, sites);
 	const out = {};
 	for (const [key, entry] of [...sites.entries()].sort()) {
 		const program = {};
-		if (entry.request.length > 0) program.request = entry.request;
+		if (entry.request.some((item) => item.param)) program.envelope = envelopeOf(entry);
+		else if (entry.request.length > 0) program.request = entry.request.map((item) => item.instr);
 		if (entry.response.size > 0) program.response = Object.fromEntries([...entry.response.entries()].sort().filter(([, instrs]) => instrs.length > 0));
-		if (program.request || program.response) out[key] = program;
+		if (program.request || program.envelope || program.response) out[key] = program;
 	}
 	return {
 		program: {
@@ -13121,13 +13451,7 @@ function reachesAnother(endpoint, newContract) {
 function sitesOf(change, oldContract, issues) {
 	const found = [];
 	for (const scope of change.scopes ?? []) {
-		if (!isSchemaScope(scope)) {
-			issues.push({
-				changeId: change.id,
-				message: "only schema scopes are supported"
-			});
-			continue;
-		}
+		if (!isSchemaScope(scope)) continue;
 		const scan = findSchemaSites(oldContract, scope.schema);
 		for (const message of scan.unsupported) issues.push({
 			changeId: change.id,
@@ -13144,8 +13468,192 @@ function collectForward(change, oldContract, routes, sites, issues) {
 		if (site.direction !== "request") continue;
 		const target = mapEndpoint(routes, site.method, site.path);
 		const entry = accumulatorFor(sites, siteKey(target.method, target.path));
-		for (const op of dataOps) entry.request.push(...forwardInstrs(op, site.prefix, change.id));
+		for (const op of dataOps) entry.request.push(...forwardInstrs(op, site.prefix, change.id).map((instr) => ({
+			instr,
+			param: false
+		})));
 	}
+}
+/** The op with every pointer passed through `map`. */
+function withPointers(op, map) {
+	return op.op === "move" ? {
+		...op,
+		from: map(op.from),
+		to: map(op.to)
+	} : {
+		...op,
+		path: map(op.path)
+	};
+}
+function pointersOf(instr) {
+	return instr.k === "move" ? [instr.from, instr.to] : [instr.path];
+}
+/** The template's parameter names, in order. */
+function templateNames$1(path) {
+	return [...path.matchAll(/\{([^{}]+)\}/g)].map((match) => match[1]);
+}
+/**
+* A parameter scope's ops, over the request envelope of the one operation it
+* names, with each parameter they touch declared as each contract writes it.
+*/
+function collectParameters(change, oldContract, newContract, routes, sites, issues) {
+	const dataOps = change.ops.filter(isDataOp);
+	if (dataOps.length === 0) return;
+	const refuse = (message) => issues.push({
+		changeId: change.id,
+		message
+	});
+	for (const scope of change.scopes ?? []) {
+		if (isSchemaScope(scope)) continue;
+		const operation = operationById(oldContract, scope.operation);
+		if (!operation) {
+			refuse(`no operation called ${scope.operation} to scope a parameter change to`);
+			continue;
+		}
+		const target = mapEndpoint(routes, operation.method, operation.path);
+		const oldParams = parametersOf(oldContract, operation.method, operation.path);
+		const newParams = newContract ? parametersOf(newContract, target.method, target.path) : [];
+		const oldNames = templateNames$1(operation.path);
+		const newNames = templateNames$1(target.path);
+		const staged = [];
+		const codecs = [];
+		let refused = false;
+		for (const op of dataOps) {
+			if ((op.op === "default" || op.op === "dropNull") && op.toward === "old") continue;
+			if ((op.op === "move" ? [op.from, op.to] : [op.path]).some((pointer) => {
+				try {
+					return addressOf(envelopePointer(scope.location, pointer)).part === "path";
+				} catch {
+					return false;
+				}
+			}) && op.op !== "convert") {
+				refuse(`a path parameter can only be converted: ${scope.operation}'s path has the parameters its template has, and renaming one is a route change`);
+				refused = true;
+				continue;
+			}
+			let absolute;
+			try {
+				absolute = withPointers(op, (pointer) => renamePathParameter(envelopePointer(scope.location, pointer), oldNames, newNames));
+			} catch (error) {
+				refuse(error instanceof Error ? error.message : String(error));
+				refused = true;
+				continue;
+			}
+			const pointers = absolute.op === "move" ? [absolute.from, absolute.to] : [absolute.path];
+			for (const pointer of pointers) {
+				const problem = declare(scope, absolute, pointer, {
+					oldContract,
+					newContract,
+					oldParams,
+					newParams,
+					oldNames,
+					newNames,
+					codecs
+				});
+				if (problem) {
+					refuse(problem);
+					refused = true;
+				}
+			}
+			staged.push(...forwardInstrs(absolute, "", change.id).map((instr) => ({
+				instr,
+				param: true
+			})));
+		}
+		if (refused) continue;
+		const entry = accumulatorFor(sites, siteKey(target.method, target.path));
+		entry.request.push(...staged);
+		for (const { side, codec } of codecs) {
+			const key = `${codec.in} ${codec.name}`;
+			const map = side === "old" ? entry.old : entry.new;
+			if (!map.has(key)) map.set(key, codec);
+		}
+	}
+}
+/**
+* A path parameter as the site's template names it. The old operation's
+* template and the one its calls now reach can name the same position
+* differently when a route change renamed it.
+*/
+function renamePathParameter(pointer, oldNames, newNames) {
+	const segments = parsePointer(pointer);
+	if (segments[0] !== "@path" || segments[1] === void 0) return pointer;
+	const index = oldNames.indexOf(segments[1]);
+	if (index === -1) throw new Error(`the path has no parameter called ${segments[1]}`);
+	const renamed = newNames[index];
+	if (renamed === void 0) throw new Error(`the path parameter ${segments[1]} has no place in the path it now reaches`);
+	return formatPointer([
+		"@path",
+		renamed,
+		...segments.slice(2)
+	]);
+}
+/**
+* Checks one pointer of a parameter op and records how the parameter it names
+* is written. Returns why it cannot be served, if it cannot.
+*/
+function declare(scope, op, pointer, context) {
+	const { oldContract, newContract, oldParams, newParams, codecs } = context;
+	const address = addressOf(pointer);
+	if (address.part === "body") return void 0;
+	const name = address.name;
+	if (name === void 0 || name === "*") return `${pointer} names every ${address.part} parameter at once, not one of them`;
+	if (address.part === "path" && op.op !== "convert") return `a path parameter can only be converted: ${scope.operation}'s path has the parameters its template has, and renaming one is a route change`;
+	if (address.part === "header") {
+		const refusal = headerRefusal(oldContract, name) ?? (newContract ? headerRefusal(newContract, name) : void 0);
+		if (refusal) return refusal;
+	}
+	const oldName = address.part === "path" ? context.oldNames[context.newNames.indexOf(name)] ?? name : name;
+	const oldDeclared = findParameter(oldParams, address.part, oldName);
+	const newDeclared = findParameter(newParams, address.part, name);
+	if (!oldDeclared && !newDeclared) return `the ${address.part} parameter ${name} is declared by neither contract of ${scope.operation}`;
+	for (const [side, declared, document] of [[
+		"old",
+		oldDeclared,
+		oldContract
+	], [
+		"new",
+		newDeclared,
+		newContract
+	]]) {
+		if (!declared || !document) continue;
+		const codec = codecOf(document, declared);
+		if ("refused" in codec) return codec.refused;
+		codecs.push({
+			side,
+			codec: {
+				...codec,
+				name
+			}
+		});
+	}
+}
+/** A site's request instructions as one program over the whole request. */
+function envelopeOf(entry) {
+	const instrs = entry.request.map((item) => item.param ? item.instr : prefixInstr(item.instr, "@body"));
+	return {
+		instrs,
+		params: {
+			old: [...entry.old.values()].sort(byCodec),
+			new: [...entry.new.values()].sort(byCodec)
+		},
+		body: instrs.some((instr) => pointersOf(instr).some((pointer) => parsePointer(pointer)[0] === "@body"))
+	};
+}
+function byCodec(a, b) {
+	return `${a.in} ${a.name}`.localeCompare(`${b.in} ${b.name}`);
+}
+/** The instruction with every pointer placed under one part of the envelope. */
+function prefixInstr(instr, part) {
+	const under = (pointer) => formatPointer([part, ...parsePointer(pointer)]);
+	return instr.k === "move" ? {
+		...instr,
+		from: under(instr.from),
+		to: under(instr.to)
+	} : {
+		...instr,
+		path: under(instr.path)
+	};
 }
 function collectBackward(change, oldContract, routes, sites, issues) {
 	const dataOps = change.ops.filter(isDataOp);
@@ -13235,8 +13743,30 @@ function remapKey(key, routeSteps) {
 */
 function mergeSite(earlier, later) {
 	const out = {};
-	const request = [...earlier.request ?? [], ...later.request ?? []];
-	if (request.length > 0) out.request = request;
+	if (earlier.envelope || later.envelope) {
+		const first = asEnvelope(earlier);
+		const second = asEnvelope(later);
+		const oldCodecs = /* @__PURE__ */ new Map();
+		const newCodecs = /* @__PURE__ */ new Map();
+		for (const codec of first.params.old) oldCodecs.set(codecKey$1(codec), codec);
+		for (const codec of first.params.new) newCodecs.set(codecKey$1(codec), codec);
+		for (const codec of second.params.old) {
+			const key = codecKey$1(codec);
+			if (!oldCodecs.has(key) && !newCodecs.has(key)) oldCodecs.set(key, codec);
+		}
+		for (const codec of second.params.new) newCodecs.set(codecKey$1(codec), codec);
+		out.envelope = {
+			instrs: [...first.instrs, ...second.instrs],
+			params: {
+				old: [...oldCodecs.values()].sort(byCodec),
+				new: [...newCodecs.values()].sort(byCodec)
+			},
+			body: first.body || second.body
+		};
+	} else {
+		const request = [...earlier.request ?? [], ...later.request ?? []];
+		if (request.length > 0) out.request = request;
+	}
 	if (earlier.response || later.response) {
 		const response = {};
 		const statuses = /* @__PURE__ */ new Set([...Object.keys(earlier.response ?? {}), ...Object.keys(later.response ?? {})]);
@@ -13244,6 +13774,62 @@ function mergeSite(earlier, later) {
 		out.response = response;
 	}
 	return out;
+}
+const codecKey$1 = (codec) => `${codec.in} ${codec.name}`;
+function asEnvelope(site) {
+	if (site.envelope) return site.envelope;
+	const instrs = (site.request ?? []).map((instr) => prefixInstr(instr, "@body"));
+	return {
+		instrs,
+		params: {
+			old: [],
+			new: []
+		},
+		body: instrs.length > 0
+	};
+}
+/**
+* A site program as it reads once later route changes have renamed the path
+* it lives at. Path parameters are named by the template, so a parameter a
+* later step renamed has to be addressed by its new name, found by position.
+*/
+function renamePathParameters(program, fromPath, toPath) {
+	const envelope = program.envelope;
+	if (!envelope || fromPath === toPath) return program;
+	const from = templateNames$1(fromPath);
+	const to = templateNames$1(toPath);
+	const rename = (name) => to[from.indexOf(name)] ?? name;
+	const pointer = (value) => {
+		const segments = parsePointer(value);
+		if (segments[0] !== "@path" || segments[1] === void 0) return value;
+		return formatPointer([
+			"@path",
+			rename(segments[1]),
+			...segments.slice(2)
+		]);
+	};
+	const codec = (entry) => entry.in === "path" ? {
+		...entry,
+		name: rename(entry.name)
+	} : entry;
+	return {
+		...program,
+		envelope: {
+			...envelope,
+			instrs: envelope.instrs.map((instr) => instr.k === "move" ? {
+				...instr,
+				from: pointer(instr.from),
+				to: pointer(instr.to)
+			} : {
+				...instr,
+				path: pointer(instr.path)
+			}),
+			params: {
+				old: envelope.params.old.map(codec),
+				new: envelope.params.new.map(codec)
+			}
+		}
+	};
 }
 /**
 * Builds the program for one historical contract, straight through to current.
@@ -13261,8 +13847,9 @@ function chainContract(label, steps) {
 		behaviors.push(...projected.program.behaviors);
 		retired.push(...projected.program.retired);
 		const after = laterRoutes.slice(index + 1);
-		for (const [key, program] of Object.entries(projected.program.sites)) {
+		for (const [key, raw] of Object.entries(projected.program.sites)) {
 			const finalKey = remapKey(key, after);
+			const program = renamePathParameters(raw, key.slice(key.indexOf(" ") + 1), finalKey.slice(finalKey.indexOf(" ") + 1));
 			const existing = sites.get(finalKey);
 			sites.set(finalKey, existing ? mergeSite(existing, program) : program);
 		}
@@ -13708,26 +14295,38 @@ const RULES = [
 	rule(/^request-parameter-(removed|removed-before-sunset)$/, {
 		class: "adaptable",
 		op: "remove",
-		served: "planned",
-		sentence: "A parameter was removed. Old callers who still send it can have it dropped, or moved if another parameter replaced it; parameters are served once the request envelope lands."
+		served: "yes",
+		sentence: "A parameter was removed. A `remove` drops it from old callers' requests, or a `move` translates it if another parameter, a header or a body field replaced it."
 	}),
-	rule(/^(new-required-request-(default-)?parameter|new-required-request-parameter|new-request-path-parameter|new-required-request-header-property|new-required-request-default-parameter-to-existing-path|request-(parameter|header-property)-became-required)/, {
+	rule(/^new-request-path-parameter$/, {
+		class: "needs-decision",
+		op: "route",
+		served: "planned",
+		sentence: "The path gained a parameter, so it is a different path. Routing old callers to it needs a value for the new segment, which a route cannot supply yet."
+	}),
+	rule(/^request-(parameter|header-property)-became-required$/, {
+		class: "needs-decision",
+		op: "default",
+		served: "yes",
+		sentence: "A parameter old callers could leave out is now required. A `default` supplies it where they leave it out, with the specification's default or a value you decide."
+	}),
+	rule(/^(new-required-request-(default-)?parameter|new-required-request-parameter|new-required-request-header-property|new-required-request-default-parameter-to-existing-path)/, {
 		class: "needs-decision",
 		op: "add",
-		served: "planned",
-		sentence: "A parameter old callers never sent is now required. It can be supplied for them with a value you decide; parameters are served once the request envelope lands."
+		served: "yes",
+		sentence: "A parameter old callers never sent is now required. An `add` supplies it for them, with the specification's default or a value you decide."
 	}),
 	rule(/^request-(parameter|header-property)(-property)?-(became-enum|enum-value-removed|x-extensible-enum-value-removed)$/, {
 		class: "needs-decision",
 		op: "convert",
-		served: "planned",
-		sentence: "A parameter no longer accepts some values old callers send. An enum map can translate them into values it does accept, which you decide; parameters are served once the request envelope lands."
+		served: "yes",
+		sentence: "A parameter no longer accepts some values old callers send. An enum map translates them into values it does accept, which you decide."
 	}),
 	rule(/^request-(parameter|header-property)(-property)?-/, {
 		class: "needs-decision",
 		op: "convert",
-		served: "planned",
-		sentence: "A parameter's type or nullability changed. A conversion can translate old callers' values, which you confirm; parameters are served once the request envelope lands."
+		served: "yes",
+		sentence: "A parameter's type or nullability changed. A `cast` or `scale10` conversion translates old callers' values, which you confirm, and a `dropNull` sends a null they still send as the parameter left out."
 	}),
 	rule(/^response-header-.*(max|min|pattern|exclusive|items|length|properties|contains|multiple-of)/, {
 		class: "needs-decision",
@@ -26700,6 +27299,10 @@ function arbitraryFor(document, raw, depth) {
 		arbitrary: fast_check_default.constant(null)
 	}) : base;
 }
+/** A generator for values of any schema in a contract, named or written inline. */
+function valueArbitrary(document, schema) {
+	return arbitraryFor(document, schema, 0);
+}
 /** A generator for values of one named schema in a contract. */
 function schemaArbitrary(document, ref) {
 	const resolved = deref(document, { $ref: ref });
@@ -28064,6 +28667,66 @@ function findSite(contract, method, path) {
 	}
 }
 //#endregion
+//#region ../runtime/src/parameters.ts
+/**
+* Parameters written and read the way the runtime writes and reads them.
+*
+* For whatever has to produce or check the traffic an old caller sends, such
+* as the verifier's laws, through the same encoder and decoder the envelope
+* uses rather than a second copy that could disagree with it.
+*/
+const emptyValues = () => ({
+	path: {},
+	query: {},
+	header: {},
+	cookie: {}
+});
+function envelopeFor(codecs) {
+	const map = new Map(codecs.map((codec) => [codecKey(codec.in, codec.name), codec]));
+	return {
+		instrs: [],
+		old: map,
+		new: map,
+		body: false
+	};
+}
+/**
+* A request carrying these parameter values, written the way the codecs say.
+* Every parameter of the template needs a value. Used to generate traffic an
+* old caller could send, through the same encoder the runtime writes with.
+*/
+function writeParameters(codecs, template, values) {
+	const segments = template.split("/");
+	const tree = {};
+	for (const location of [
+		"path",
+		"query",
+		"header",
+		"cookie"
+	]) tree[PART[location]] = { ...values[location] ?? {} };
+	const request = {
+		path: template,
+		search: "",
+		headers: [],
+		body: void 0
+	};
+	return closeEnvelope(envelopeFor(codecs), segments, templateNames(segments), request, tree);
+}
+/** The values of these parameters as a request carries them, typed by the codecs. */
+function readParameters(codecs, template, request) {
+	const segments = template.split("/");
+	const matched = matchTemplate(segments, request.path) ?? [];
+	const tree = openEnvelope(envelopeFor(codecs), segments, matched, request, "double");
+	const out = emptyValues();
+	for (const location of [
+		"path",
+		"query",
+		"header",
+		"cookie"
+	]) out[location] = tree[PART[location]] ?? {};
+	return out;
+}
+//#endregion
 //#region ../runtime/src/index.ts
 /**
 * The provider-side compatibility runtime.
@@ -29163,7 +29826,7 @@ async function withTarget(launch, build, use) {
 const METHOD = "post";
 const PATH = "/verify";
 const STATUS = 200;
-const LABEL = "old";
+const LABEL$1 = "old";
 /**
 * A pair of directions as plain functions over parsed JSON.
 *
@@ -29179,8 +29842,8 @@ function lensFor(forward, backward) {
 			api: "verify",
 			current: "sha256:0",
 			currentLabel: "current",
-			contracts: { [LABEL]: {
-				label: LABEL,
+			contracts: { [LABEL$1]: {
+				label: LABEL$1,
 				routes: [],
 				sites: { [`${METHOD} ${PATH}`]: {
 					...forward.length > 0 ? { request: [...forward] } : {},
@@ -29191,13 +29854,13 @@ function lensFor(forward, backward) {
 		},
 		identity: [{
 			kind: "default",
-			label: LABEL
+			label: LABEL$1
 		}]
 	});
-	const site = runtime.siteFor(LABEL, METHOD, PATH);
+	const site = runtime.siteFor(LABEL$1, METHOD, PATH);
 	if (!site) throw new Error("the verifier built a program with no site in it");
 	const context = {
-		contract: LABEL,
+		contract: LABEL$1,
 		operation: "verify"
 	};
 	return {
@@ -29334,6 +29997,177 @@ function endpointAfter(programs, method, path) {
 	};
 	for (const program of programs) cursor = moveEndpoint(program, cursor.method, cursor.path);
 	return siteKey(cursor.method, cursor.path);
+}
+//#endregion
+//#region ../verifier/src/parameter-laws.ts
+/**
+* The laws for a parameter-scoped Change.
+*
+* A parameter only travels one way, from caller to provider, so there is no
+* round trip to check. What has to hold is the forward half: for every value
+* an old caller's contract lets them send, the rewrite completes, and every
+* parameter it writes is one the new contract declares and would accept.
+*
+* The values are written the way the old contract says each parameter is
+* written and read back the way the new contract does, through the runtime's
+* own encoder and decoder, so what is checked is the request the provider's
+* handler would actually receive.
+*/
+const LABEL = "old";
+const LAW = "parameters land in the new contract";
+/** Parameter-scoped Changes, grouped by the operation they name, in declared order. */
+function byOperation(changes) {
+	const groups = /* @__PURE__ */ new Map();
+	for (const change of changes) {
+		if (!change.ops.some(isDataOp)) continue;
+		for (const scope of change.scopes ?? []) {
+			if ("schema" in scope) continue;
+			const list = groups.get(scope.operation) ?? [];
+			if (!list.includes(change)) list.push(change);
+			groups.set(scope.operation, list);
+		}
+	}
+	return groups;
+}
+function checkParameterLaws(oldContract, predicted, changes, options) {
+	const evidence = [];
+	const failures = [];
+	const routes = routeMappings(changes);
+	for (const [operationId, group] of byOperation(changes)) {
+		const subject = `${operationId} parameters`;
+		const label = group.map((change) => change.id).join(", ");
+		const digest = inputsDigest(group, subject, options.runs);
+		const found = [];
+		const fail = (detail, counterexample) => found.push({
+			changeId: label,
+			scope: subject,
+			law: LAW,
+			counterexample,
+			detail
+		});
+		const operation = operationById(oldContract, operationId);
+		if (!operation) continue;
+		const target = mapEndpoint(routes, operation.method, operation.path);
+		const projected = projectStep(LABEL, oldContract, [...group, ...routeChanges(changes)], predicted);
+		const key = siteKey(target.method, target.path);
+		const site = projected.program.sites[key];
+		const envelope = site?.envelope;
+		if (projected.issues.length > 0 || !envelope) continue;
+		const runtime = createRuntime({
+			program: {
+				irVersion: 1,
+				api: "verify",
+				current: "sha256:0",
+				currentLabel: "current",
+				contracts: { [LABEL]: {
+					label: LABEL,
+					routes: [],
+					sites: { [key]: site },
+					behaviors: [],
+					retired: []
+				} }
+			},
+			identity: [{
+				kind: "default",
+				label: LABEL
+			}]
+		});
+		const decoded = runtime.siteFor(LABEL, target.method, target.path);
+		if (!decoded) continue;
+		const oldParams = parametersOf(oldContract, operation.method, operation.path);
+		const newParams = parametersOf(predicted, target.method, target.path);
+		const oldCodecs = envelope.params.old;
+		const readCodecs = [];
+		const expected = [];
+		for (const named of [...envelope.params.old, ...envelope.params.new]) {
+			const declared = findParameter(newParams, named.in, named.name);
+			if (!declared) continue;
+			const codec = codecOf(predicted, declared);
+			if ("refused" in codec) continue;
+			if (readCodecs.some((entry) => entry.in === codec.in && entry.name === codec.name)) continue;
+			const withName = {
+				...codec,
+				name: named.name
+			};
+			readCodecs.push(withName);
+			expected.push({
+				codec: withName,
+				schema: declared["schema"] ?? {},
+				required: declared["required"] === true
+			});
+		}
+		const arbitraries = {};
+		for (const codec of oldCodecs) {
+			const declared = findParameter(oldParams, codec.in, codec.name);
+			if (!declared) continue;
+			const value = valueArbitrary(oldContract, declared["schema"] ?? {});
+			arbitraries[`${codec.in} ${codec.name}`] = declared["required"] === true || codec.in === "path" ? value : fast_check_default.option(value, { nil: void 0 });
+		}
+		const why = (sent) => {
+			const values = {
+				path: {},
+				query: {},
+				header: {},
+				cookie: {}
+			};
+			for (const [name, value] of Object.entries(sent)) {
+				if (value === void 0) continue;
+				const [location, ...rest] = name.split(" ");
+				values[location][rest.join(" ")] = value;
+			}
+			const request = writeParameters(oldCodecs, target.path, values);
+			let out;
+			try {
+				out = runtime.transformEnvelope(decoded, request, {
+					contract: LABEL,
+					operation: "verify"
+				});
+			} catch (error) {
+				return `the transform refused a value the contract allows: ${error instanceof Error ? error.message : String(error)}`;
+			}
+			const landed = readParameters(readCodecs, target.path, out);
+			for (const entry of expected) {
+				const value = landed[entry.codec.in][entry.codec.name];
+				if (value === void 0) {
+					if (entry.required) return `the ${entry.codec.in} parameter ${entry.codec.name} is required by the new contract and was not sent`;
+					continue;
+				}
+				const violations = validateSchema(predicted, entry.schema, value);
+				if (violations.length > 0) return `the ${entry.codec.in} parameter ${entry.codec.name} was sent as ${JSON.stringify(value)}, which the new contract does not allow (${violations[0]?.message ?? ""})`;
+			}
+		};
+		const result = fast_check_default.check(fast_check_default.property(fast_check_default.record(arbitraries), (sent) => why(sent) === void 0), {
+			numRuns: options.runs,
+			...options.seed === void 0 ? {} : { seed: options.seed }
+		});
+		if (result.failed) {
+			const shrunk = result.counterexample?.[0] ?? {};
+			fail(why(shrunk) ?? "the property did not hold", clean(shrunk));
+		}
+		failures.push(...found);
+		evidence.push({
+			kind: "E4-laws",
+			subject,
+			result: found.length > 0 ? "fail" : "pass",
+			inputsDigest: digest,
+			tool: "fast-check",
+			summary: found.length > 0 ? `${label} sent a parameter the new contract does not accept` : `${label} rewrote ${options.runs} generated requests of ${operationId} into ones the new contract accepts`,
+			...found.length > 0 ? { detail: found.map((failure) => failure.detail) } : {}
+		});
+	}
+	return {
+		evidence,
+		failures
+	};
+}
+/** The Changes that move operations, which a parameter's site depends on. */
+function routeChanges(changes) {
+	return changes.filter((change) => change.ops.some((op) => op.op === "route") && !change.ops.some(isDataOp));
+}
+function clean(sent) {
+	const out = {};
+	for (const [key, value] of Object.entries(sent)) if (value !== void 0 && isJsonObject(out)) out[key] = value;
+	return out;
 }
 /** Removes the pointers a declared loss is allowed to change, on both sides. */
 function withoutLossy(value, pointers) {
@@ -29502,6 +30336,12 @@ function checkLaws(oldContract, predicted, changes, options = {}) {
 			...found.length > 0 ? { detail: found.map((failure) => `${failure.law}: ${failure.detail}`) } : {}
 		});
 	}
+	const parameters = checkParameterLaws(oldContract, predicted, changes, {
+		runs,
+		...options.seed === void 0 ? {} : { seed: options.seed }
+	});
+	evidence.push(...parameters.evidence);
+	failures.push(...parameters.failures);
 	return {
 		evidence,
 		failures

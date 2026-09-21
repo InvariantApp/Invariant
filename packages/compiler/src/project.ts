@@ -17,10 +17,13 @@ import {
   type DataOp,
   type DefaultOp,
   type DropNullOp,
+  type EnvelopeProgram,
   formatPointer,
   type Instr,
   isDataOp,
   isSchemaScope,
+  type ParamCodec,
+  type ParameterScope,
   parsePointer,
   type RouteRule,
   type SiteProgram,
@@ -28,6 +31,15 @@ import {
 } from "@invariant/ir";
 import { errorParamTargets, paramRenames } from "./error-params.ts";
 import { findInterference } from "./independence.ts";
+import {
+  addressOf,
+  codecOf,
+  envelopePointer,
+  findParameter,
+  headerRefusal,
+  operationById,
+  parametersOf,
+} from "./parameters.ts";
 import { mapEndpoint, type RouteMapping, routeMappings } from "./predict.ts";
 
 export interface ProjectionIssue {
@@ -219,8 +231,16 @@ export function instrsFor(
 }
 
 interface SiteAccumulator {
-  request: Instr[];
+  /**
+   * In declared order. `param` marks an instruction over the request envelope;
+   * the rest are over the body alone, and gain `/@body` if the site needs an
+   * envelope at all.
+   */
+  request: { instr: Instr; param: boolean }[];
   response: Map<string, Instr[]>;
+  /** How each parameter an instruction names is written, keyed `in name`. */
+  old: Map<string, ParamCodec>;
+  new: Map<string, ParamCodec>;
 }
 
 function accumulatorFor(
@@ -229,7 +249,7 @@ function accumulatorFor(
 ): SiteAccumulator {
   let entry = sites.get(key);
   if (!entry) {
-    entry = { request: [], response: new Map() };
+    entry = { request: [], response: new Map(), old: new Map(), new: new Map() };
     sites.set(key, entry);
   }
   return entry;
@@ -284,6 +304,7 @@ export function projectStep(
   // Requests apply Changes in declared order; responses undo them in reverse.
   for (const change of changes) {
     collectForward(change, oldContract, routes, sites, issues);
+    collectParameters(change, oldContract, newContract, routes, sites, issues);
   }
   for (const change of [...changes].reverse()) {
     collectBackward(change, oldContract, routes, sites, issues);
@@ -296,13 +317,17 @@ export function projectStep(
   const out: Record<string, SiteProgram> = {};
   for (const [key, entry] of [...sites.entries()].sort()) {
     const program: SiteProgram = {};
-    if (entry.request.length > 0) program.request = entry.request;
+    if (entry.request.some((item) => item.param)) {
+      program.envelope = envelopeOf(entry);
+    } else if (entry.request.length > 0) {
+      program.request = entry.request.map((item) => item.instr);
+    }
     if (entry.response.size > 0) {
       program.response = Object.fromEntries(
         [...entry.response.entries()].sort().filter(([, instrs]) => instrs.length > 0),
       );
     }
-    if (program.request || program.response) out[key] = program;
+    if (program.request || program.envelope || program.response) out[key] = program;
   }
 
   return {
@@ -348,10 +373,8 @@ function sitesOf(
 ): Site[] {
   const found: Site[] = [];
   for (const scope of change.scopes ?? []) {
-    if (!isSchemaScope(scope)) {
-      issues.push({ changeId: change.id, message: "only schema scopes are supported" });
-      continue;
-    }
+    // A parameter scope reaches one operation's request, collected on its own.
+    if (!isSchemaScope(scope)) continue;
     const scan = findSchemaSites(oldContract, scope.schema);
     for (const message of scan.unsupported) {
       issues.push({ changeId: change.id, message });
@@ -376,9 +399,248 @@ function collectForward(
     const target = mapEndpoint(routes, site.method, site.path);
     const entry = accumulatorFor(sites, siteKey(target.method, target.path));
     for (const op of dataOps) {
-      entry.request.push(...forwardInstrs(op, site.prefix, change.id));
+      entry.request.push(
+        ...forwardInstrs(op, site.prefix, change.id).map((instr) => ({
+          instr,
+          param: false,
+        })),
+      );
     }
   }
+}
+
+/** The op with every pointer passed through `map`. */
+function withPointers(op: DataOp, map: (pointer: string) => string): DataOp {
+  return op.op === "move"
+    ? { ...op, from: map(op.from), to: map(op.to) }
+    : { ...op, path: map(op.path) };
+}
+
+function pointersOf(instr: Instr): string[] {
+  return instr.k === "move" ? [instr.from, instr.to] : [instr.path];
+}
+
+/** The template's parameter names, in order. */
+export function templateNames(path: string): string[] {
+  return [...path.matchAll(/\{([^{}]+)\}/g)].map((match) => match[1] as string);
+}
+
+/**
+ * A parameter scope's ops, over the request envelope of the one operation it
+ * names, with each parameter they touch declared as each contract writes it.
+ */
+function collectParameters(
+  change: Change,
+  oldContract: OpenApiDocument,
+  newContract: OpenApiDocument | undefined,
+  routes: readonly RouteMapping[],
+  sites: Map<string, SiteAccumulator>,
+  issues: ProjectionIssue[],
+): void {
+  const dataOps = change.ops.filter(isDataOp);
+  if (dataOps.length === 0) return;
+  const refuse = (message: string) => issues.push({ changeId: change.id, message });
+
+  for (const scope of change.scopes ?? []) {
+    if (isSchemaScope(scope)) continue;
+    const operation = operationById(oldContract, scope.operation);
+    if (!operation) {
+      refuse(`no operation called ${scope.operation} to scope a parameter change to`);
+      continue;
+    }
+    const target = mapEndpoint(routes, operation.method, operation.path);
+    const oldParams = parametersOf(oldContract, operation.method, operation.path);
+    const newParams = newContract
+      ? parametersOf(newContract, target.method, target.path)
+      : [];
+    const oldNames = templateNames(operation.path);
+    const newNames = templateNames(target.path);
+    const staged: { instr: Instr; param: boolean }[] = [];
+    const codecs: { side: "old" | "new"; codec: ParamCodec }[] = [];
+    let refused = false;
+
+    for (const op of dataOps) {
+      // A parameter exists only on the way in, so an op facing old callers'
+      // responses has nothing to do here.
+      if ((op.op === "default" || op.op === "dropNull") && op.toward === "old") continue;
+      const touchesPath = (op.op === "move" ? [op.from, op.to] : [op.path]).some(
+        (pointer) => {
+          try {
+            return addressOf(envelopePointer(scope.location, pointer)).part === "path";
+          } catch {
+            return false;
+          }
+        },
+      );
+      if (touchesPath && op.op !== "convert") {
+        refuse(
+          `a path parameter can only be converted: ${scope.operation}'s path has the ` +
+            "parameters its template has, and renaming one is a route change",
+        );
+        refused = true;
+        continue;
+      }
+      let absolute: DataOp;
+      try {
+        absolute = withPointers(op, (pointer) =>
+          renamePathParameter(
+            envelopePointer(scope.location, pointer),
+            oldNames,
+            newNames,
+          ),
+        );
+      } catch (error) {
+        refuse(error instanceof Error ? error.message : String(error));
+        refused = true;
+        continue;
+      }
+      const pointers =
+        absolute.op === "move" ? [absolute.from, absolute.to] : [absolute.path];
+      for (const pointer of pointers) {
+        const problem = declare(scope, absolute, pointer, {
+          oldContract,
+          newContract,
+          oldParams,
+          newParams,
+          oldNames,
+          newNames,
+          codecs,
+        });
+        if (problem) {
+          refuse(problem);
+          refused = true;
+        }
+      }
+      staged.push(
+        ...forwardInstrs(absolute, "", change.id).map((instr) => ({
+          instr,
+          param: true,
+        })),
+      );
+    }
+
+    if (refused) continue;
+    const entry = accumulatorFor(sites, siteKey(target.method, target.path));
+    entry.request.push(...staged);
+    for (const { side, codec } of codecs) {
+      const key = `${codec.in} ${codec.name}`;
+      const map = side === "old" ? entry.old : entry.new;
+      if (!map.has(key)) map.set(key, codec);
+    }
+  }
+}
+
+/**
+ * A path parameter as the site's template names it. The old operation's
+ * template and the one its calls now reach can name the same position
+ * differently when a route change renamed it.
+ */
+function renamePathParameter(
+  pointer: string,
+  oldNames: readonly string[],
+  newNames: readonly string[],
+): string {
+  const segments = parsePointer(pointer);
+  if (segments[0] !== "@path" || segments[1] === undefined) return pointer;
+  const index = oldNames.indexOf(segments[1]);
+  if (index === -1) throw new Error(`the path has no parameter called ${segments[1]}`);
+  const renamed = newNames[index];
+  if (renamed === undefined) {
+    throw new Error(
+      `the path parameter ${segments[1]} has no place in the path it now reaches`,
+    );
+  }
+  return formatPointer(["@path", renamed, ...segments.slice(2)]);
+}
+
+/**
+ * Checks one pointer of a parameter op and records how the parameter it names
+ * is written. Returns why it cannot be served, if it cannot.
+ */
+function declare(
+  scope: ParameterScope,
+  op: DataOp,
+  pointer: string,
+  context: {
+    oldContract: OpenApiDocument;
+    newContract: OpenApiDocument | undefined;
+    oldParams: ReturnType<typeof parametersOf>;
+    newParams: ReturnType<typeof parametersOf>;
+    oldNames: readonly string[];
+    newNames: readonly string[];
+    codecs: { side: "old" | "new"; codec: ParamCodec }[];
+  },
+): string | undefined {
+  const { oldContract, newContract, oldParams, newParams, codecs } = context;
+  const address = addressOf(pointer);
+  if (address.part === "body") return undefined;
+  const name = address.name;
+  if (name === undefined || name === "*") {
+    return `${pointer} names every ${address.part} parameter at once, not one of them`;
+  }
+  if (address.part === "path" && op.op !== "convert") {
+    return (
+      `a path parameter can only be converted: ${scope.operation}'s path has the ` +
+      "parameters its template has, and renaming one is a route change"
+    );
+  }
+  if (address.part === "header") {
+    const refusal =
+      headerRefusal(oldContract, name) ??
+      (newContract ? headerRefusal(newContract, name) : undefined);
+    if (refusal) return refusal;
+  }
+  // A path parameter is named here as the site's template names it, which
+  // is the old operation's name for the same position.
+  const oldName =
+    address.part === "path"
+      ? (context.oldNames[context.newNames.indexOf(name)] ?? name)
+      : name;
+  const oldDeclared = findParameter(oldParams, address.part, oldName);
+  const newDeclared = findParameter(newParams, address.part, name);
+  if (!oldDeclared && !newDeclared) {
+    return `the ${address.part} parameter ${name} is declared by neither contract of ${scope.operation}`;
+  }
+  for (const [side, declared, document] of [
+    ["old", oldDeclared, oldContract],
+    ["new", newDeclared, newContract],
+  ] as const) {
+    if (!declared || !document) continue;
+    const codec = codecOf(document, declared);
+    if ("refused" in codec) return codec.refused;
+    // Written under the name the site's template uses.
+    codecs.push({ side, codec: { ...codec, name } });
+  }
+  return undefined;
+}
+
+/** A site's request instructions as one program over the whole request. */
+function envelopeOf(entry: SiteAccumulator): EnvelopeProgram {
+  const instrs = entry.request.map((item) =>
+    item.param ? item.instr : prefixInstr(item.instr, "@body"),
+  );
+  return {
+    instrs,
+    params: {
+      old: [...entry.old.values()].sort(byCodec),
+      new: [...entry.new.values()].sort(byCodec),
+    },
+    body: instrs.some((instr) =>
+      pointersOf(instr).some((pointer) => parsePointer(pointer)[0] === "@body"),
+    ),
+  };
+}
+
+export function byCodec(a: ParamCodec, b: ParamCodec): number {
+  return `${a.in} ${a.name}`.localeCompare(`${b.in} ${b.name}`);
+}
+
+/** The instruction with every pointer placed under one part of the envelope. */
+export function prefixInstr(instr: Instr, part: string): Instr {
+  const under = (pointer: string) => formatPointer([part, ...parsePointer(pointer)]);
+  return instr.k === "move"
+    ? { ...instr, from: under(instr.from), to: under(instr.to) }
+    : { ...instr, path: under(instr.path) };
 }
 
 function collectBackward(

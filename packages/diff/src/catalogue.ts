@@ -137,7 +137,7 @@ const RULES: Rule[] = [
       "An operation no longer takes a body. Dropping the body old callers still send is not served yet; until then keep ignoring it.",
   }),
 
-  // Parameters, which the runtime serves once the request envelope exists.
+  // Parameters, served over the request envelope.
   rule(
     /^request-(parameter|header-property)-.*(max|min|pattern|exclusive|items|length|properties|contains|multiple-of).*$/,
     {
@@ -149,18 +149,32 @@ const RULES: Rule[] = [
   rule(/^request-parameter-(removed|removed-before-sunset)$/, {
     class: "adaptable",
     op: "remove",
+    served: "yes",
+    sentence:
+      "A parameter was removed. A `remove` drops it from old callers' requests, or a `move` translates it if another parameter, a header or a body field replaced it.",
+  }),
+  rule(/^new-request-path-parameter$/, {
+    class: "needs-decision",
+    op: "route",
     served: "planned",
     sentence:
-      "A parameter was removed. Old callers who still send it can have it dropped, or moved if another parameter replaced it; parameters are served once the request envelope lands.",
+      "The path gained a parameter, so it is a different path. Routing old callers to it needs a value for the new segment, which a route cannot supply yet.",
+  }),
+  rule(/^request-(parameter|header-property)-became-required$/, {
+    class: "needs-decision",
+    op: "default",
+    served: "yes",
+    sentence:
+      "A parameter old callers could leave out is now required. A `default` supplies it where they leave it out, with the specification's default or a value you decide.",
   }),
   rule(
-    /^(new-required-request-(default-)?parameter|new-required-request-parameter|new-request-path-parameter|new-required-request-header-property|new-required-request-default-parameter-to-existing-path|request-(parameter|header-property)-became-required)/,
+    /^(new-required-request-(default-)?parameter|new-required-request-parameter|new-required-request-header-property|new-required-request-default-parameter-to-existing-path)/,
     {
       class: "needs-decision",
       op: "add",
-      served: "planned",
+      served: "yes",
       sentence:
-        "A parameter old callers never sent is now required. It can be supplied for them with a value you decide; parameters are served once the request envelope lands.",
+        "A parameter old callers never sent is now required. An `add` supplies it for them, with the specification's default or a value you decide.",
     },
   ),
   rule(
@@ -168,17 +182,17 @@ const RULES: Rule[] = [
     {
       class: "needs-decision",
       op: "convert",
-      served: "planned",
+      served: "yes",
       sentence:
-        "A parameter no longer accepts some values old callers send. An enum map can translate them into values it does accept, which you decide; parameters are served once the request envelope lands.",
+        "A parameter no longer accepts some values old callers send. An enum map translates them into values it does accept, which you decide.",
     },
   ),
   rule(/^request-(parameter|header-property)(-property)?-/, {
     class: "needs-decision",
     op: "convert",
-    served: "planned",
+    served: "yes",
     sentence:
-      "A parameter's type or nullability changed. A conversion can translate old callers' values, which you confirm; parameters are served once the request envelope lands.",
+      "A parameter's type or nullability changed. A `cast` or `scale10` conversion translates old callers' values, which you confirm, and a `dropNull` sends a null they still send as the parameter left out.",
   }),
 
   // Response headers, served with the envelope too.

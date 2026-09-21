@@ -65,6 +65,19 @@ const OLD = {
             schema: { type: "string", enum: ["asc", "desc"] },
           },
           { name: "Idempotency-Key", in: "header", schema: { type: "string" } },
+          { name: "X-Page-Size", in: "header", schema: { type: "integer" } },
+          {
+            name: "X-Sort",
+            in: "header",
+            schema: { type: "string", enum: ["asc", "desc"] },
+          },
+          { name: "Authorization", in: "header", schema: { type: "string" } },
+          { name: "page", in: "cookie", schema: { type: "integer" } },
+          {
+            name: "order",
+            in: "cookie",
+            schema: { type: "string", enum: ["asc", "desc"] },
+          },
         ],
         responses: {
           "200": {
@@ -147,8 +160,8 @@ const OLD = {
 type Schema = Record<string, unknown>;
 
 /**
- * The new contract: the old one with a field only it has, since `add` takes
- * the added field's schema from the contract it is adding for.
+ * The new contract: the old one with a field and parameters only it has,
+ * since `add` and a rename take what arrives from the contract it arrives in.
  */
 const NEW = structuredClone(OLD) as OpenApiDocument;
 for (const name of ["Order", "OrderCreate"]) {
@@ -157,6 +170,18 @@ for (const name of ["Order", "OrderCreate"]) {
   ] as Schema;
   (schema["properties"] as Record<string, unknown>)["added_field"] = { type: "string" };
 }
+(
+  ((NEW["paths"] as Record<string, Schema>)["/v1/orders"] as Record<string, Schema>)[
+    "get"
+  ] as { parameters: unknown[] }
+).parameters.push(
+  { name: "page_size", in: "query", schema: { type: "integer" } },
+  { name: "cursor", in: "query", schema: { type: "string" } },
+  { name: "X-Limit", in: "header", schema: { type: "integer" } },
+  { name: "X-Cursor", in: "header", schema: { type: "string" } },
+  { name: "page_number", in: "cookie", schema: { type: "integer" } },
+  { name: "session_hint", in: "cookie", schema: { type: "string" } },
+);
 
 const schemas = (OLD["components"] as { schemas: Record<string, Schema> }).schemas;
 const SCHEMA_REFS = [
@@ -308,6 +333,17 @@ function fieldsOf(schema: Schema, prefix = "", required = true): Field[] {
   );
 }
 
+/** For each location: a number, an enum, a name only the new contract has, and one it adds. */
+const NAMES: Record<
+  string,
+  { num: string; enum: string; renamed: string; added: string }
+> = {
+  query: { num: "limit", enum: "sort", renamed: "page_size", added: "cursor" },
+  header: { num: "X-Page-Size", enum: "X-Sort", renamed: "X-Limit", added: "X-Cursor" },
+  cookie: { num: "page", enum: "order", renamed: "page_number", added: "session_hint" },
+  path: { num: "id", enum: "id", renamed: "order_id", added: "extra" },
+};
+
 /**
  * The same Change with its data ops pointed at fields of its own scope that
  * suit them: a scale at a number, an enum map over the field's real values, a
@@ -316,9 +352,67 @@ function fieldsOf(schema: Schema, prefix = "", required = true): Field[] {
  */
 function fit(change: Change | undefined): fc.Arbitrary<Change | undefined> {
   if (!change?.ops.some(isDataOp)) return fc.constant(change);
-  // One schema the contract uses, in place of whatever scopes were drawn: a
-  // stray parameter scope would block the Change before it could be served.
-  return fc.constantFrom("Order", "OrderCreate").chain((name) => fitTo(change, name));
+  // One schema the contract uses, or one operation's parameters, in place of
+  // whatever scopes were drawn: a stray scope would block the Change before
+  // it could be served.
+  return fc.oneof(
+    fc.constantFrom("Order", "OrderCreate").chain((name) => fitTo(change, name)),
+    fc
+      .constantFrom("query", "header", "cookie")
+      .map((location) => fitToParameters(change, location)),
+  );
+}
+
+/** The Change's data ops aimed at real parameters of one location. */
+function fitToParameters(change: Change, location: string): Change | undefined {
+  const n = NAMES[location] as (typeof NAMES)[string];
+  const ops = change.ops.map((op) => {
+    switch (op.op) {
+      case "move":
+        return { op: "move", from: `/${n.num}`, to: `/${n.renamed}` };
+      case "convert":
+        if (op.codec.kind === "enumMap") {
+          return {
+            ...op,
+            path: `/${n.enum}`,
+            codec: {
+              kind: "enumMap",
+              pairs: [
+                ["asc", "ascending"],
+                ["desc", "descending"],
+              ],
+            },
+          };
+        }
+        if (op.codec.kind === "cast") {
+          return {
+            ...op,
+            path: `/${n.num}`,
+            codec: { kind: "cast", from: "integer", to: "string" },
+          };
+        }
+        return { ...op, path: `/${n.num}` };
+      case "add":
+        return { ...op, path: `/${n.added}` };
+      case "remove":
+        return { ...op, path: `/${n.enum}` };
+      case "default":
+        return { ...op, path: `/${n.num}`, toward: "new" };
+      case "dropNull":
+        return { ...op, path: `/${n.enum}`, toward: "new" };
+      default:
+        return op;
+    }
+  });
+  try {
+    return parseChange({
+      ...change,
+      scopes: [{ operation: "listOrders", location }],
+      ops,
+    });
+  } catch {
+    return undefined;
+  }
 }
 
 function fitTo(change: Change, name: string): fc.Arbitrary<Change | undefined> {
@@ -445,7 +539,21 @@ function unserved(change: Change, program: unknown): string[] {
       ? direction === (op.toward === "new" ? "request" : "response")
       : true;
   const dataOps = change.ops.filter(isDataOp);
-  if (dataOps.length > 0) {
+  const parameterScoped = (change.scopes ?? []).some((scope) => !("schema" in scope));
+  if (dataOps.length > 0 && parameterScoped) {
+    // A parameter only exists on the way in, so every op that faces new has
+    // to have left an instruction in the operation's envelope.
+    const facing = dataOps.filter(
+      (op) => !((op.op === "default" || op.op === "dropNull") && op.toward === "old"),
+    );
+    const envelopes = Object.values(
+      (contract["sites"] ?? {}) as Record<string, { envelope?: unknown }>,
+    ).map((site) => JSON.stringify(site.envelope ?? null));
+    const inEnvelope = envelopes.join().split(`"c":"${change.id}"`).length - 1;
+    if (facing.length > 0 && inEnvelope < facing.length) {
+      missing.push(`${facing.length} parameter ops, ${inEnvelope} envelope instructions`);
+    }
+  } else if (dataOps.length > 0) {
     const sites = (change.scopes ?? [])
       .flatMap((scope) =>
         "schema" in scope ? findSchemaSites(OLD, scope.schema).sites : [],
@@ -511,6 +619,9 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
           const kind = op.op === "convert" ? `convert ${op.codec.kind}` : op.op;
           passed.set(kind, (passed.get(kind) ?? 0) + 1);
         }
+        if ((change.scopes ?? []).some((scope) => !("schema" in scope))) {
+          passed.set("parameters", (passed.get("parameters") ?? 0) + 1);
+        }
         expect(unserved(change, chained.program), JSON.stringify(change)).toEqual([]);
       }),
       // A fixed seed on every commit, so the coverage asserted below cannot
@@ -533,6 +644,7 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
       "route",
       "retire",
       "behavior",
+      "parameters",
     ]) {
       expect(passed.get(kind) ?? 0, kind).toBeGreaterThan(0);
     }
@@ -590,39 +702,54 @@ describe("L1: the op x location x direction matrix", () => {
     op === "default" || op === "dropNull"
       ? { ...(bodyOps[op] as object), toward: direction === "request" ? "new" : "old" }
       : bodyOps[op];
-  const parameterOps: Record<string, unknown> = {
-    move: { op: "move", from: "/limit", to: "/page_size" },
-    "convert scale10": {
-      op: "convert",
-      path: "/limit",
-      codec: { kind: "scale10", exponent: 1, onInexact: "reject" },
-    },
-    "convert enumMap": {
-      op: "convert",
-      path: "/sort",
-      codec: {
-        kind: "enumMap",
-        pairs: [
-          ["asc", "ascending"],
-          ["desc", "descending"],
-        ],
-      },
-    },
-    "convert cast": {
-      op: "convert",
-      path: "/limit",
-      codec: { kind: "cast", from: "integer", to: "string" },
-    },
-    add: { op: "add", path: "/cursor", value: "start" },
-    remove: { op: "remove", path: "/sort", restore: "asc" },
-    default: {
-      op: "default",
-      path: "/cursor",
-      value: "start",
-      when: "absent",
-      toward: "new",
-    },
-    dropNull: { op: "dropNull", path: "/sort", toward: "new" },
+  const parameterOp = (op: string, location: string): unknown => {
+    const n = NAMES[location] as (typeof NAMES)[string];
+    switch (op) {
+      case "move":
+        return { op: "move", from: `/${n.num}`, to: `/${n.renamed}` };
+      case "convert scale10":
+        return {
+          op: "convert",
+          path: `/${n.num}`,
+          codec: { kind: "scale10", exponent: 1, onInexact: "reject" },
+        };
+      case "convert enumMap":
+        return {
+          op: "convert",
+          path: `/${n.enum}`,
+          codec: {
+            kind: "enumMap",
+            pairs: [
+              ["asc", "ascending"],
+              ["desc", "descending"],
+            ],
+          },
+        };
+      case "convert cast":
+        return {
+          op: "convert",
+          path: `/${n.num}`,
+          codec: {
+            kind: "cast",
+            from: location === "path" ? "string" : "integer",
+            to: location === "path" ? "integer" : "string",
+          },
+        };
+      case "add":
+        return { op: "add", path: `/${n.added}`, value: "start" };
+      case "remove":
+        return { op: "remove", path: `/${n.enum}`, restore: "asc" };
+      case "default":
+        return {
+          op: "default",
+          path: `/${n.num}`,
+          value: 10,
+          when: "absent",
+          toward: "new",
+        };
+      default:
+        return { op: "dropNull", path: `/${n.enum}`, toward: "new" };
+    }
   };
 
   const outcome = (change: Change) => {
@@ -719,9 +846,18 @@ describe("L1: the op x location x direction matrix", () => {
         expect(reached).toBe(true);
       });
     }
-    for (const location of ["query", "header", "path"]) {
-      it(`${op} in a ${location} parameter, request: ${matrix.cells[`${location} request`]?.status}`, () => {
-        expect(matrix.cells[`${location} request`]?.status).toBe("blocked");
+    for (const location of ["query", "header", "cookie", "path"]) {
+      const cell = matrix.cells[`${location} request`] as {
+        status: string;
+        only?: string[];
+      };
+      const served = cell.status === "served" && (!cell.only || cell.only.includes(op));
+      // A path parameter the fixture declares is a string, so only a cast
+      // lands on it; scale and enum are the same instruction and covered there.
+      if (location === "path" && (op === "convert scale10" || op === "convert enumMap")) {
+        continue;
+      }
+      it(`${op} in a ${location} parameter, request: ${served ? "served" : "blocked"}`, () => {
         const change = parseChange({
           irVersion: 1,
           id: "chg_cell",
@@ -732,15 +868,41 @@ describe("L1: the op x location x direction matrix", () => {
               location,
             },
           ],
-          ops: [parameterOps[op]],
+          ops: [parameterOp(op, location)],
         });
-        expect(outcome(change).blocked).toBe(true);
+        const result = outcome(change);
+        if (!served) {
+          expect(result.blocked).toBe(true);
+          return;
+        }
+        expect(result.issues).toEqual([]);
+        const sites = Object.values(
+          (result.contract["sites"] ?? {}) as Record<string, Schema>,
+        );
+        expect(
+          sites.some((site) =>
+            JSON.stringify(site["envelope"])?.includes('"c":"chg_cell"'),
+          ),
+        ).toBe(true);
       });
     }
   }
 
+  it("refuses a header that carries a credential", () => {
+    const change = parseChange({
+      irVersion: 1,
+      id: "chg_cell",
+      summary: "a cell",
+      scopes: [{ operation: "listOrders", location: "header" }],
+      ops: [{ op: "move", from: "/Authorization", to: "/X-Limit" }],
+    });
+    const result = outcome(change);
+    expect(result.blocked).toBe(true);
+    expect(result.issues.join()).toContain("authorization header");
+  });
+
   it("cannot express a parameter in a response", () => {
-    for (const location of ["query", "path", "header"]) {
+    for (const location of ["query", "path", "header", "cookie"]) {
       expect(matrix.cells[`${location} response`]?.status).toBe("not expressible");
     }
     // If the IR grows a way to scope a response header, this fails, and the

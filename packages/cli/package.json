@@ -50,5 +50,8 @@
     "@invariant/proposer": "workspace:*",
     "@invariant/verifier": "workspace:*",
     "yaml": "^2.8.2"
+  },
+  "devDependencies": {
+    "@invariant/runtime": "workspace:*"
   }
 }

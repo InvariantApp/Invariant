@@ -1,6 +1,6 @@
 {
   "about": "Every data op, at every place in a message it can name, in each direction: whether the compiler serves it, or blocks the release and why. A test builds a Change for every cell and checks the compiler does what the cell says, and fails if any cell is missing. Endpoint ops (route, retire, behavior) act on a whole operation and are listed once each.",
-  "locations": ["body", "query", "path", "header"],
+  "locations": ["body", "query", "path", "header", "cookie"],
   "directions": ["request", "response"],
   "ops": [
     "move",
@@ -21,29 +21,38 @@
       "status": "served",
       "why": "A schema scope reaches every response body that uses the schema, undone in reverse."
     },
-    "query request": {
-      "status": "blocked",
-      "why": "The gate blocks: only schema scopes are served until the request envelope (M3.4)."
+    "cookie request": {
+      "status": "served",
+      "why": "Cookies are addressed one by one; the rest of the Cookie header is kept as it came."
     },
-    "path request": {
-      "status": "blocked",
-      "why": "The gate blocks: only schema scopes are served until the request envelope (M3.4)."
+    "cookie response": {
+      "status": "not expressible",
+      "why": "A response sets cookies with Set-Cookie, which no Change may touch."
     },
     "header request": {
-      "status": "blocked",
-      "why": "The gate blocks: only schema scopes are served until the request envelope (M3.4)."
+      "status": "served",
+      "why": "As for the query, with names compared case-insensitively. Credential, framing and signature headers, and any header the document's security schemes read, are refused: no Change may touch them."
     },
-    "query response": {
+    "header response": {
       "status": "not expressible",
-      "why": "A response has no query."
+      "why": "The IR has no scope for response headers yet."
+    },
+    "path request": {
+      "status": "served",
+      "only": ["convert scale10", "convert enumMap", "convert cast"],
+      "why": "A path parameter can be converted in place and is written back into the template. The template's parameters are fixed, so renaming, adding or removing one is a route change, and the gate blocks it as a parameter op."
     },
     "path response": {
       "status": "not expressible",
       "why": "A response has no path."
     },
-    "header response": {
+    "query request": {
+      "status": "served",
+      "why": "A parameter scope reaches the operation's request envelope; each named query parameter is decoded and re-encoded in the style its declaration states, and every other one passes through byte for byte."
+    },
+    "query response": {
       "status": "not expressible",
-      "why": "The IR has no scope for response headers yet; the request envelope adds one (M3.4)."
+      "why": "A response has no query."
     }
   },
   "endpoint": {

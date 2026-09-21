@@ -458,7 +458,16 @@ export function schemaSetNullable(
   path: string,
   nullable: boolean,
 ): void {
-  const schema = ownSlot(document, root, parsePointer(path));
+  setNullable(document, ownSlot(document, root, parsePointer(path)), nullable, path);
+}
+
+/** The same, on a schema object this change already owns, such as a parameter's. */
+export function setNullable(
+  document: OpenApiDocument,
+  schema: JsonObject,
+  nullable: boolean,
+  label: string,
+): void {
   const version = document["openapi"];
   if (typeof version === "string" && version.startsWith("3.0")) {
     if (nullable) schema["nullable"] = true;
@@ -484,7 +493,7 @@ export function schemaSetNullable(
     return;
   }
   throw new SchemaOpError(
-    `"${path}" declares no type, so there is no way to write whether it may be null`,
+    `"${label}" declares no type, so there is no way to write whether it may be null`,
   );
 }
 

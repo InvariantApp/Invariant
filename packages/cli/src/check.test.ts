@@ -9,6 +9,7 @@ import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { oasdiffAvailable } from "@invariant/diff";
+import { createRuntime } from "@invariant/runtime";
 import { afterEach, describe, expect, it } from "vitest";
 import { check, renderReport } from "./check.ts";
 import { loadConfig } from "./config.ts";
@@ -93,15 +94,15 @@ ops:
   });
 
   /**
-   * A Change the gate can prove and the runtime cannot run.
+   * A query parameter renamed between releases, end to end.
    *
-   * Renaming a query parameter closes: applying the declared move to the old
-   * document predicts the new one exactly. But the compiled program only
-   * rewrites bodies, so an old caller's `?limit=` would reach the handler
-   * untouched and be ignored. A gate that passes this is certifying a release
-   * it cannot serve, which is worse than refusing it.
+   * This used to be the case that proved the gate blocks what the runtime
+   * cannot serve: the rename closed, and the program only rewrote bodies, so
+   * an old caller's `?limit=` would have reached the handler untouched. The
+   * request envelope serves it, so now the gate passes it and the program it
+   * compiles rewrites the query string an old caller actually sends.
    */
-  it("blocks a Change that closes but that the runtime cannot serve", async () => {
+  it("serves a query parameter renamed between releases", async () => {
     const root = await copyProvider();
     const head = join(root, "openapi/head.json");
     const document = JSON.parse(await readFile(head, "utf8"));
@@ -129,13 +130,29 @@ assertions:
 
     const report = await check(await loadConfig(join(root, "invariant.yaml")));
 
-    // Closure is satisfied: the rename explains the diff.
     expect(report.steps.flatMap((step) => step.unexplained)).toEqual([]);
+    expect(report.result).not.toBe("block");
+    expect(report.program).toBeDefined();
 
-    // And the gate still refuses, naming the Change it cannot serve.
-    expect(report.result).toBe("block");
-    expect(report.program).toBeUndefined();
-    expect(renderReport(report)).toContain("chg_page_size");
+    // Every contract before this release reaches the handler as page_size.
+    const runtime = createRuntime({
+      program: report.program,
+      identity: [{ kind: "default", label: "2026-01-15" }],
+    });
+    const site = runtime.siteFor("2026-01-15", "GET", "/v1/payments");
+    expect(site?.envelope).toBeDefined();
+    if (!site) return;
+    const adapted = await runtime.adaptRequest(
+      site,
+      new Request("https://api.example.com/v1/payments?limit=5&starting_after=pay_1"),
+      {
+        path: "/v1/payments",
+        search: "?limit=5&starting_after=pay_1",
+        headers: new Headers(),
+      },
+      { contract: "2026-01-15", operation: "payments.list" },
+    );
+    expect(adapted.search).toBe("?starting_after=pay_1&page_size=5");
   });
 
   it("warns when a Change does not say whether side effects changed", async () => {

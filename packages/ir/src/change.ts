@@ -287,9 +287,14 @@ export const ParameterScope = Type.Object(
       Type.Literal("query"),
       Type.Literal("path"),
       Type.Literal("header"),
+      Type.Literal("cookie"),
     ]),
   },
-  { additionalProperties: false },
+  {
+    additionalProperties: false,
+    description:
+      "Where a Change's data ops apply to one operation's parameters. A pointer names a parameter of this location, `/limit`; one starting with `@` names another part of the request, `/@header/x-limit` or `/@body/limit`, which is how a parameter moves between them.",
+  },
 );
 
 export const Scope = Type.Union([SchemaScope, ParameterScope]);

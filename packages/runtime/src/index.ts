@@ -35,7 +35,7 @@ import {
   ProgramError,
 } from "./program.ts";
 
-export type { EnvelopeRequest } from "./envelope.ts";
+export type { EnvelopeRequest, ParamCodec } from "./envelope.ts";
 export {
   BodyTooLargeError,
   DEFAULT_ERROR_SHAPER,
@@ -54,6 +54,7 @@ export {
   type ReadOptions,
   readBodyText,
 } from "./http.ts";
+export { type ParameterValues, readParameters, writeParameters } from "./parameters.ts";
 export type { DecodedProgram, DecodedSite };
 // matchTemplate is the rule the runtime routes by, for anything that has to agree with it.
 export { decodeProgram, MatchLimitError, matchTemplate, ProgramError, TransformError };
