@@ -227,11 +227,14 @@ export function scoreboard(inputs: {
       "npx init to a blocking check on a scratch pull request, p95 under 10 minutes on Linux, macOS and Windows.",
       "The install test passes on all three from a local registry on every commit; the timed walk from real npm needs the first publish.",
     ),
-    unmeasured(
-      "L10",
-      "In-process adapters for every major Node framework pass one suite.",
-      "Hono only (M4.3).",
-    ),
+    {
+      id: "L10",
+      claim: "In-process adapters for every major Node framework pass one suite.",
+      status: "not met",
+      value:
+        "Hono, node:http, Express 4 and 5, Koa and Fastify 5 pass one suite on Node 24; NestJS, Next.js, Fastify 4 and Node 22 are not yet in it",
+      evidence: "packages/runtime-node/src/conformance.test.ts, packages/runtime-hono",
+    },
     unmeasured("L10b", "A Go net/http adapter passes the same suite.", "M4.9."),
     unmeasured("L11", "A 24-hour proxy soak under chaos with zero violations.", "M10.4."),
     unmeasured("L12", "The Go engine passes every conformance vector.", "M4.9."),

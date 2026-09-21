@@ -116,11 +116,16 @@ export function wrapFetch(
       if (error instanceof UnsupportedContractError) {
         // Refused before routing, because a caller who named a contract that
         // does not exist must not be routed as though they had named none.
+        const errorId = errorIdOf(error);
         const shaped = (options.errors ?? DEFAULT_ERROR_SHAPER).badRequest(
           error.message,
           ERROR_CODES.contractUnsupported,
+          errorId,
         );
-        return Response.json(shaped.body, { status: shaped.status });
+        return Response.json(shaped.body, {
+          status: shaped.status,
+          headers: errorId === undefined ? {} : { [ERROR_ID_HEADER]: errorId },
+        });
       }
       throw error;
     }

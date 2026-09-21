@@ -128,6 +128,21 @@ describe("a refusal a caller can quote", () => {
     });
   });
 
+  it("and for a contract that does not exist, refused before routing", async () => {
+    const { fetch, outcomes } = service();
+    const refused = await fetch(
+      new Request("https://api.example.com/v1/things", {
+        method: "POST",
+        headers: { [HEADER]: "1999-01-01", "content-type": "application/json" },
+        body: "{}",
+      }),
+    );
+    expect(refused.status).toBe(400);
+    const id = refused.headers.get("invariant-error-id");
+    expect(id).toMatch(/^err_/);
+    expect(outcomes.at(-1)).toMatchObject({ contract: "1999-01-01", errorId: id });
+  });
+
   it("is a different id for each refusal", async () => {
     const { fetch } = service();
     const ids = await Promise.all(

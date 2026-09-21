@@ -79,11 +79,14 @@ export {
   UnsupportedEncodingError,
 } from "./errors.ts";
 export {
+  appendVary,
   type BodyText,
   headersForText,
   isJsonMediaType,
+  markEtag,
   type ReadOptions,
   readBodyText,
+  unmarkConditionals,
 } from "./http.ts";
 export { type ParameterValues, readParameters, writeParameters } from "./parameters.ts";
 /** This runtime's version, which a program's `minRuntime` is compared against. */
