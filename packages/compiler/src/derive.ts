@@ -205,8 +205,10 @@ export function derive(change: Change): Derived {
         // contract said could not happen.
         runtime = worse(runtime, "declared-lossy");
         reasons.push(
-          `${op.path || "the body"} is bounded differently now (${Object.keys(op.set).join(", ")}), ` +
-            "so an old caller may be sent values its contract ruled out, passed through as they are",
+          "enum" in op.set
+            ? `${op.path || "the body"} no longer holds some values its contract allowed, so an old caller waiting for one of them will never see it`
+            : `${op.path || "the body"} is bounded differently now (${Object.keys(op.set).join(", ")}), ` +
+                "so an old caller may be sent values its contract ruled out, passed through as they are",
         );
         break;
       }

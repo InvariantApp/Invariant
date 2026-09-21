@@ -868,3 +868,54 @@ describe("a vocabulary that grew on a response", () => {
     expect(outcome.proposals).toEqual([]);
   });
 });
+
+describe("a vocabulary that only lost values", () => {
+  const withState = (values: string[], request = false) => ({
+    ...base,
+    Thing: object({ id: { type: "string" }, state: { type: "string", enum: values } }, [
+      "id",
+    ]),
+    ...(request
+      ? {
+          ThingCreate: object({
+            name: { type: "string" },
+            state: { type: "string", enum: values },
+          }),
+        }
+      : {}),
+  });
+
+  it("is a declared loss where only old callers are sent it, with no pairing guessed", async () => {
+    const outcome = await propose(
+      contract(withState(["enabled", "disabled", "deleted"])),
+      contract(withState(["enabled", "disabled"])),
+      { judge: new RulesJudge() },
+    );
+    const draft = outcome.proposals.find((proposal) =>
+      proposal.change.ops.some((op) => op.op === "relax"),
+    );
+    expect(draft?.change.ops).toEqual([
+      { op: "relax", path: "/state", set: { enum: ["enabled", "disabled"] } },
+    ]);
+    expect(draft?.notes.join()).toMatch(/never `deleted` any more.*declared loss/);
+    expect(draft?.notes.join()).not.toMatch(/Pair them up/);
+  });
+
+  it("is a question where old callers send it, since they send the value that went", async () => {
+    const outcome = await propose(
+      contract(withState(["enabled", "deleted"], true)),
+      contract(withState(["enabled"], true)),
+      { judge: new RulesJudge() },
+    );
+    expect(
+      outcome.proposals.some(
+        (proposal) =>
+          proposal.change.id.includes("thing_create") &&
+          proposal.change.ops.some((op) => op.op === "relax"),
+      ),
+    ).toBe(false);
+    expect(outcome.unresolved.map((entry) => entry.reason).join()).toMatch(
+      /`deleted` is no longer accepted/,
+    );
+  });
+});

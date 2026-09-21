@@ -175,9 +175,14 @@ export function opsFor(
       if (dropped.length === gained.length && dropped.length === 1) {
         pairs.push([dropped[0] as string, gained[0] as string]);
         notes.push(`\`${dropped[0]}\` became \`${gained[0]}\``);
+      } else if (dropped.length > 0 && gained.length === 0) {
+        notes.push(
+          `${dropped.map((value) => `\`${value}\``).join(", ")} ${dropped.length === 1 ? "is" : "are"} no longer accepted, and nothing arrived in ${dropped.length === 1 ? "its" : "their"} place. ` +
+            "Which accepted value an old caller's should become is a decision the shapes do not settle.",
+        );
       } else if (dropped.length > 0) {
         notes.push(
-          `the allowed values changed (${dropped.join(", ")} went, ${gained.join(", ") || "nothing"} arrived). ` +
+          `the allowed values changed (${dropped.join(", ")} went, ${gained.join(", ")} arrived). ` +
             "Pair them up by hand: which old value maps to which new one is not derivable from the shapes.",
         );
       }
@@ -791,11 +796,20 @@ function alteredProposals(
   for (const delta of deltas) {
     const sides = delta.altered.length > 0 ? sidesOfDelta(oldContract, delta) : undefined;
     for (const pair of delta.altered) {
-      const shape = opsFor(pair.old, pair.new);
+      const narrowed = narrowOps(pair.old, pair.new, sides ?? NEITHER);
+      // A vocabulary that only shrank needs no pairing, and saying it does
+      // would send a reviewer looking for a rename that never happened.
+      const shape =
+        narrowed.ops.length > 0 ? { ops: [], notes: [] } : opsFor(pair.old, pair.new);
       const reshaped = valuesDiffer(pair.old, pair.new);
       // A vocabulary that grew is asked about as a fold decision, and the
       // rest of what changed about the field is still drafted below.
-      if (reshaped && shape.ops.length === 0 && !foldCovers(pair, sides ?? NEITHER)) {
+      if (
+        reshaped &&
+        shape.ops.length === 0 &&
+        narrowed.ops.length === 0 &&
+        !foldCovers(pair, sides ?? NEITHER)
+      ) {
         unresolved.push({
           schema: delta.schema,
           field: pair.old.name,
@@ -840,7 +854,13 @@ function alteredProposals(
           side: "removed",
         });
       }
-      const ops = [...shape.ops, ...presence.ops, ...widened.ops, ...relaxed.ops];
+      const ops = [
+        ...shape.ops,
+        ...narrowed.ops,
+        ...presence.ops,
+        ...widened.ops,
+        ...relaxed.ops,
+      ];
       // Whether a field may be left out or null changed only in the direction
       // no old caller is hurt by, which the gate does not report either.
       if (ops.length === 0) continue;
@@ -873,6 +893,7 @@ function alteredProposals(
             ? "the field kept its name, so only its values moved"
             : "the field kept its name and its values",
           ...shape.notes,
+          ...narrowed.notes,
           ...presence.notes,
           ...widened.notes,
           ...relaxed.notes,
@@ -942,6 +963,40 @@ export function relaxOps(
       `\`${old.name}\` may now hold values its old bounds ruled out (${widened.join(", ")}); they pass through as the API produced them, a declared loss to acknowledge`,
     ],
     ...(unresolved ? { unresolved } : {}),
+  };
+}
+
+/**
+ * A vocabulary that lost values and gained none, on a field only old callers
+ * are sent: a state the API no longer reaches, as Apicurio's `DELETED`, or
+ * Stripe retiring a status. Nothing is shown to an old caller that its
+ * contract does not name, so no pairing is needed and none is guessed at;
+ * what it may wait for and never see is drafted as a declared loss.
+ *
+ * On a field old callers send, the values they send are refused now, and
+ * which accepted value each should become is a decision, left to the paths
+ * that ask it.
+ */
+export function narrowOps(
+  old: FieldShape,
+  next: FieldShape,
+  sides: { request: boolean; response: boolean },
+): { ops: Op[]; notes: string[] } {
+  const before = old.enumValues;
+  const after = next.enumValues;
+  if (!sides.response || sides.request || !before?.length || !after?.length) {
+    return { ops: [], notes: [] };
+  }
+  if (old.type !== next.type || after.some((value) => !before.includes(value))) {
+    return { ops: [], notes: [] };
+  }
+  const gone = before.filter((value) => !after.includes(value));
+  if (gone.length === 0) return { ops: [], notes: [] };
+  return {
+    ops: [{ op: "relax", path: next.pointer, set: { enum: after } }],
+    notes: [
+      `\`${old.name}\` is never ${gone.map((value) => `\`${value}\``).join(" or ")} any more; old callers are sent only values they know, but one waiting for ${gone.length === 1 ? "that one" : "those"} will never see it, a declared loss to acknowledge`,
+    ],
   };
 }
 

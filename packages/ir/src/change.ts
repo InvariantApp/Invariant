@@ -364,6 +364,18 @@ export const RelaxOp = Type.Object(
           Type.Union([Type.Number({ exclusiveMinimum: 0 }), Type.Null()]),
         ),
         uniqueItems: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+        /**
+         * The values a response may now hold, which may only be fewer: a
+         * state the API no longer reaches, such as Apicurio's DELETED. Old
+         * callers are never sent a value they do not know, and what they may
+         * wait for and never see is a loss to acknowledge. A vocabulary that
+         * grew is a fold decision instead, and is refused here.
+         */
+        enum: Type.Optional(
+          Type.Array(Type.Union([Type.String(), Type.Number(), Type.Boolean()]), {
+            minItems: 1,
+          }),
+        ),
       },
       { additionalProperties: false, minProperties: 1 },
     ),

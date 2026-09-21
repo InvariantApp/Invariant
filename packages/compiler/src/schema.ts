@@ -18,6 +18,7 @@ import {
   type ScalarType,
   type StringCase,
   type TimeFormat,
+  vocabularyGrows,
 } from "@invariant/ir";
 import { CodecRefusal, convertCase, convertTime } from "@invariant/runtime";
 
@@ -677,6 +678,13 @@ export function schemaRelax(
     }
   }
   for (const [keyword, value] of Object.entries(set)) {
+    // A value old callers never heard of has to be shown to them as one they
+    // know, which is a fold; passing it through would hide it in a relax.
+    if (keyword === "enum" && vocabularyGrows(node[keyword], value)) {
+      throw new SchemaOpError(
+        `${path || "the body"} can now hold values old callers never heard of, which a fold decides; relax only takes values away`,
+      );
+    }
     if (sentByOldCallers && narrows(keyword, node[keyword], value)) {
       throw new SchemaOpError(
         `${path || "the body"} now allows less (${keyword}) and old callers send it, so they would be refused for what their contract allowed`,

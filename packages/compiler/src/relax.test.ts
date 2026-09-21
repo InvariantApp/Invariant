@@ -121,3 +121,72 @@ describe("which way a bound moves", () => {
     expect(narrows("uniqueItems", true, false)).toBe(false);
   });
 });
+
+describe("a response vocabulary that lost values", () => {
+  const states = (values: string[]): OpenApiDocument =>
+    ({
+      openapi: "3.1.0",
+      info: { title: "artifacts", version: "1" },
+      paths: {
+        "/artifacts/{id}": {
+          get: {
+            operationId: "getArtifact",
+            responses: {
+              "200": {
+                description: "one",
+                content: {
+                  "application/json": {
+                    schema: { $ref: "#/components/schemas/Artifact" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          Artifact: {
+            type: "object",
+            properties: { state: { type: "string", enum: values } },
+          },
+        },
+      },
+    }) as unknown as OpenApiDocument;
+  const narrowed = (values: string[]) =>
+    parseChange({
+      irVersion: 1,
+      id: "chg_state_values",
+      summary: "An artifact is never deleted any more.",
+      scopes: [{ schema: "#/components/schemas/Artifact" }],
+      ops: [{ op: "relax", path: "/state", set: { enum: values } }],
+    });
+
+  it("is predicted as the new contract has it, and is a declared loss with nothing to run", () => {
+    const change = narrowed(["ENABLED", "DISABLED"]);
+    const prediction = predictDocument(
+      states(["ENABLED", "DISABLED", "DELETED"]),
+      states(["ENABLED", "DISABLED"]),
+      [change],
+    );
+    expect(prediction.issues).toEqual([]);
+    expect(derive(change).runtime).toBe("declared-lossy");
+    expect(derive(change).reasons.join()).toMatch(/will never see it/);
+  });
+
+  it("refuses one that grew, which is a fold for a person to decide", () => {
+    const prediction = predictDocument(
+      states(["ENABLED", "DISABLED"]),
+      states(["ENABLED", "DISABLED", "ARCHIVED"]),
+      [narrowed(["ENABLED", "DISABLED", "ARCHIVED"])],
+    );
+    expect(prediction.issues.map((issue) => issue.message).join()).toMatch(
+      /never heard of, which a fold decides/,
+    );
+  });
+
+  it("narrows by the values that went, whatever order the rest are in", () => {
+    expect(narrows("enum", ["a", "b", "c"], ["c", "a"])).toBe(true);
+    expect(narrows("enum", ["a", "b"], ["b", "a"])).toBe(false);
+  });
+});

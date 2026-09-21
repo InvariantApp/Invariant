@@ -47,9 +47,9 @@ path.
 
 ## 2. The op catalog
 
-Six ops. The catalog is closed, and that is the point: a closed catalog is what
-makes "this change cannot be expressed" a machine-detectable state rather than
-a judgement call.
+Eleven ops. The catalog is closed, and that is the point: a closed catalog is
+what makes "this change cannot be expressed" a machine-detectable state rather
+than a judgement call.
 
 | Op | Forward, on a request | Backward, on a response |
 |---|---|---|
@@ -57,8 +57,23 @@ a judgement call.
 | `convert {path, codec}` | apply the codec forward | apply it backward |
 | `add {path, value}` | insert `value` when the field is absent | delete the field |
 | `remove {path, restore}` | delete the field | set it to `restore` |
+| `default {path, value, when, toward}` | toward the new contract, fill a missing or null value | toward the old contract, fill a missing or null value |
+| `dropNull {path, toward}` | toward the new contract, delete a null | toward the old contract, delete a null |
+| `widen {path, variant, show}` | nothing | show a union's new kind of object as its id, left out, or null |
+| `relax {path, set}` | nothing | nothing; the new bounds are a declared loss |
 | `route {from, to}` | rewrite method and path | nothing; responses are keyed by the resolved operation |
+| `retire {endpoint}` | refuse with the provider's guidance | nothing |
 | `behavior {flag, covers?}` | nothing | nothing |
+
+`relax` states how a value's bounds moved: a maximum raised, a pattern or
+format dropped, and, on a response, values an enum no longer holds. Nothing is
+transformed. A response that may now carry a value outside the old bounds is a
+declared loss the provider acknowledges, and so is one that will never again
+carry a value an old caller may wait for. A bound that narrows on something old
+callers send is refused, since they would be turned away for what their
+contract allowed, and so is an enum that grows: a value old callers never
+heard of has to be shown to them as one they know, which is a `convert` with a
+fold, decided by a person.
 
 `move` covers rename, nest and unnest, because all three are the same
 operation on a pointer. A move whose source is absent does nothing; it must not

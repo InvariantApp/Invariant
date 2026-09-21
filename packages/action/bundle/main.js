@@ -50,6 +50,12 @@ const WIDER_FORMATS = {
 */
 function narrows(keyword, before, after) {
 	if (after === null) return false;
+	if (keyword === "enum") {
+		if (!Array.isArray(after)) return true;
+		if (!Array.isArray(before)) return true;
+		const kept = new Set(after.map((value) => JSON.stringify(value)));
+		return before.some((value) => !kept.has(JSON.stringify(value)));
+	}
 	if (before === void 0 || before === null) return keyword !== "uniqueItems" || after === true;
 	if (UPPER.has(keyword)) return Number(after) < Number(before);
 	if (LOWER.has(keyword)) return Number(after) > Number(before);
@@ -57,6 +63,17 @@ function narrows(keyword, before, after) {
 	if (keyword === "uniqueItems") return after === true && before !== true;
 	if (keyword === "format" && typeof before === "string" && typeof after === "string") return after !== before && !(WIDER_FORMATS[before] ?? []).includes(after);
 	return after !== before;
+}
+/**
+* Whether a vocabulary gained a value. A response that can hold a value its
+* old callers never heard of is a fold decision, which shows them one they
+* know, and never something `relax` may wave through.
+*/
+function vocabularyGrows(before, after) {
+	if (!Array.isArray(after)) return Array.isArray(before);
+	if (!Array.isArray(before)) return false;
+	const held = new Set(before.map((value) => JSON.stringify(value)));
+	return after.some((value) => !held.has(JSON.stringify(value)));
 }
 //#endregion
 //#region ../ir/src/brand.ts
@@ -3215,7 +3232,19 @@ const RelaxOp = Type.Object({
 		*/
 		format: Type.Optional(Type.Union([Type.String(), Type.Null()])),
 		multipleOf: Type.Optional(Type.Union([Type.Number({ exclusiveMinimum: 0 }), Type.Null()])),
-		uniqueItems: Type.Optional(Type.Union([Type.Boolean(), Type.Null()]))
+		uniqueItems: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+		/**
+		* The values a response may now hold, which may only be fewer: a
+		* state the API no longer reaches, such as Apicurio's DELETED. Old
+		* callers are never sent a value they do not know, and what they may
+		* wait for and never see is a loss to acknowledge. A vocabulary that
+		* grew is a fold decision instead, and is refused here.
+		*/
+		enum: Type.Optional(Type.Array(Type.Union([
+			Type.String(),
+			Type.Number(),
+			Type.Boolean()
+		]), { minItems: 1 }))
 	}, {
 		additionalProperties: false,
 		minProperties: 1
@@ -18398,6 +18427,7 @@ function schemaRelax(document, root, path, set, sentByOldCallers) {
 		}
 	}
 	for (const [keyword, value] of Object.entries(set)) {
+		if (keyword === "enum" && vocabularyGrows(node[keyword], value)) throw new SchemaOpError(`${path || "the body"} can now hold values old callers never heard of, which a fold decides; relax only takes values away`);
 		if (sentByOldCallers && narrows(keyword, node[keyword], value)) throw new SchemaOpError(`${path || "the body"} now allows less (${keyword}) and old callers send it, so they would be refused for what their contract allowed`);
 		if (value === null) delete node[keyword];
 		else node[keyword] = value;
@@ -19233,7 +19263,7 @@ function derive(change) {
 		}
 		case "relax":
 			runtime = worse(runtime, "declared-lossy");
-			reasons.push(`${op.path || "the body"} is bounded differently now (${Object.keys(op.set).join(", ")}), so an old caller may be sent values its contract ruled out, passed through as they are`);
+			reasons.push("enum" in op.set ? `${op.path || "the body"} no longer holds some values its contract allowed, so an old caller waiting for one of them will never see it` : `${op.path || "the body"} is bounded differently now (${Object.keys(op.set).join(", ")}), so an old caller may be sent values its contract ruled out, passed through as they are`);
 			break;
 		case "retire":
 			runtime = "none";

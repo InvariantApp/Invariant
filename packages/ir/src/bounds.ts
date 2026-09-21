@@ -39,6 +39,13 @@ export function narrows(
   after: JsonValue,
 ): boolean {
   if (after === null) return false;
+  if (keyword === "enum") {
+    // A vocabulary narrows when a value it allowed is gone from it.
+    if (!Array.isArray(after)) return true;
+    if (!Array.isArray(before)) return true;
+    const kept = new Set(after.map((value) => JSON.stringify(value)));
+    return before.some((value) => !kept.has(JSON.stringify(value)));
+  }
   if (before === undefined || before === null)
     return keyword !== "uniqueItems" || after === true;
   if (UPPER.has(keyword)) return Number(after) < Number(before);
@@ -49,4 +56,19 @@ export function narrows(
     return after !== before && !(WIDER_FORMATS[before] ?? []).includes(after);
   }
   return after !== before;
+}
+
+/**
+ * Whether a vocabulary gained a value. A response that can hold a value its
+ * old callers never heard of is a fold decision, which shows them one they
+ * know, and never something `relax` may wave through.
+ */
+export function vocabularyGrows(
+  before: JsonValue | undefined,
+  after: JsonValue,
+): boolean {
+  if (!Array.isArray(after)) return Array.isArray(before);
+  if (!Array.isArray(before)) return false;
+  const held = new Set(before.map((value) => JSON.stringify(value)));
+  return after.some((value) => !held.has(JSON.stringify(value)));
 }

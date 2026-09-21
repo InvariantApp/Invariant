@@ -13,7 +13,7 @@ or a corpus written for it.
 - 1463 ran every stage (94.2%)
 - 73 stopped after `load`
 - 17 stopped after `budget`
-- median 451 ms per pair
+- median 436 ms per pair
 
 ### What stopped them
 
@@ -94,26 +94,26 @@ place, which is what this system is actually for.
 
 | Provider | Pairs | Completed | Over budget | Aligned breaking | Unexplained | Drafted |
 |---|---|---|---|---|---|---|
-| adyen.com | 304 | 299 | 0 | 2279 | 1978 | 129 |
-| twilio.com | 270 | 270 | 0 | 1145 | 748 | 90 |
+| adyen.com | 304 | 299 | 0 | 2279 | 1977 | 130 |
+| twilio.com | 270 | 270 | 0 | 1145 | 745 | 91 |
 | xero.com | 90 | 81 | 0 | 9 | 9 | 0 |
 | kubernetes.io | 81 | 78 | 0 | 1593 | 285 | 16 |
 | datadoghq.com | 78 | 76 | 2 | 335 | 285 | 19 |
-| paypal.com | 68 | 67 | 0 | 9382 | 6624 | 740 |
+| paypal.com | 68 | 67 | 0 | 9382 | 5009 | 749 |
 | intercom.com | 42 | 35 | 0 | 56 | 33 | 14 |
 | asana.com | 39 | 39 | 0 | 616 | 613 | 3 |
 | grafana.com | 39 | 39 | 0 | 28 | 11 | 23 |
-| langfuse.com | 39 | 39 | 0 | 339 | 333 | 21 |
+| langfuse.com | 39 | 39 | 0 | 339 | 109 | 22 |
 | mistral.ai | 39 | 9 | 0 | 10 | 0 | 10 |
 | pagerduty.com | 39 | 39 | 0 | 163 | 134 | 35 |
 | qdrant.tech | 39 | 39 | 0 | 464 | 458 | 11 |
 | resend.com | 39 | 39 | 0 | 137 | 74 | 59 |
 | sentry.io | 39 | 39 | 0 | 44 | 41 | 3 |
 | spotify.com | 39 | 39 | 0 | 68 | 42 | 10 |
-| supabase.com | 39 | 39 | 0 | 1252 | 861 | 225 |
+| supabase.com | 39 | 39 | 0 | 1252 | 859 | 227 |
 | discord.com | 36 | 36 | 0 | 1922 | 1613 | 23 |
 | figma.com | 34 | 33 | 0 | 7882 | 5942 | 34 |
-| okta.com | 25 | 22 | 0 | 353 | 311 | 43 |
+| okta.com | 25 | 22 | 0 | 353 | 306 | 45 |
 | docker.com | 19 | 19 | 0 | 14 | 14 | 2 |
 | gitea.com | 17 | 17 | 0 | 1 | 0 | 1 |
 | googleapis.com | 17 | 16 | 0 | 403 | 32 | 374 |
@@ -124,10 +124,10 @@ place, which is what this system is actually for.
 | box.com | 7 | 7 | 0 | 7 | 7 | 0 |
 | openai.com | 7 | 7 | 0 | 8 | 8 | 0 |
 | plaid.com | 7 | 7 | 0 | 5610 | 5581 | 16 |
-| stripe.com | 7 | 3 | 4 | 40854 | 38781 | 35 |
+| stripe.com | 7 | 3 | 4 | 40854 | 20427 | 37 |
 | meilisearch.com | 4 | 4 | 0 | 5245 | 5161 | 136 |
 | cloudflare.com | 3 | 1 | 2 | 225 | 240 | 22 |
-| apicurio.local | 1 | 1 | 0 | 46 | 12 | 41 |
+| apicurio.local | 1 | 1 | 0 | 46 | 11 | 45 |
 | chaingateway.io | 1 | 1 | 0 | 21 | 0 | 21 |
 
 ## Pairs that cost more than they were given
@@ -190,7 +190,7 @@ breaking deltas of this kind across 15 fields.
 
 ## What we could not explain
 
-3560 Changes were drafted, by deterministic rules alone, with no model asked anything.
+3582 Changes were drafted, by deterministic rules alone, with no model asked anything.
 
 The table below is the to-do list, and it is ordered by how often real
 companies actually do each thing. Three categories in it are already
@@ -199,7 +199,7 @@ reachable with ops that exist and are simply not wired up.
 | Unexplained | Times | Pairs | What it would take |
 |---|---|---|---|
 | `response-property-enum-value-added` | 35827 | 131 | a new value a client switching exhaustively would not know. Expressible: `enumMap` takes a `fold`, which says which existing value an old caller should be shown instead. Which value that is cannot be read off the documents, so it needs one sentence from the provider, and it is declared lossy because the caller cannot tell the new case apart. **Reachable, needs a decision.** |
-| `response-property-enum-value-removed` | 23706 | 38 | a value a client may still be storing. `enumMap` can express it once someone says what it became, which is exactly the question the model is asked. |
+| `response-property-enum-value-removed` | 3501 | 26 | a value a client may still be storing. `enumMap` can express it once someone says what it became, which is exactly the question the model is asked. |
 | `response-property-one-of-added` | 2517 | 35 | A response field can now hold a kind of object old callers do not know. A `widen` shows it to them as its id where the field already allowed an id, or leaves it out or sends null where it could be; that is a declared loss you acknowledge. |
 | `response-required-property-removed` | 2382 | 29 | a required response field gone. `remove` with a restore value expresses it; again the value is not in the document. |
 | `response-property-became-optional` | 1228 | 29 | a field a caller relied on may now be absent. Expressible only by supplying a value, which is a judgement. |
@@ -224,11 +224,11 @@ Counted once per place, which is how the launch gate is judged:
 | Unexplained | Places | Pairs | Class |
 |---|---|---|---|
 | `response-property-enum-value-added` | 5816 | 131 | needs-decision |
-| `response-property-enum-value-removed` | 4514 | 38 | needs-decision |
 | `response-required-property-removed` | 567 | 29 | needs-decision |
 | `api-security-removed` | 381 | 6 | behavior-only |
 | `response-property-became-optional` | 366 | 29 | needs-decision |
 | `request-property-removed` | 286 | 36 | adaptable |
+| `response-property-enum-value-removed` | 246 | 26 | needs-decision |
 | `request-property-pattern-added` | 172 | 10 | behavior-only |
 | `response-property-type-changed` | 170 | 34 | needs-decision |
 | `request-property-enum-value-removed` | 158 | 60 | needs-decision |
@@ -248,18 +248,18 @@ Counted once per place, which is how the launch gate is judged:
 
 | API | Versions | Raw | Aligned | Unexplained | Drafted |
 |---|---|---|---|---|---|
-| stripe.com:spec3 | 2026-07-01 7061322 to 2026-07-01 d5d11f6 | 20451 | 20451 | 20418 | 33 |
 | stripe.com:spec3 | 2026-06-23 f4ac6d9 to 2026-07-01 7061322 | 20403 | 20403 | 18363 | 2 |
 | plaid.com:2020-09-14 | 2026-06-25 050cfa0 to 2026-07-22 8a493a5 | 4312 | 4312 | 4301 | 4 |
 | figma.com:openapi | 2024-09-11 f0788ef to 2024-10-02 28286dd | 2640 | 2640 | 2640 | 0 |
 | meilisearch.com:open-api | 2025-04-16 d2fbc80 to 2025-06-16 a2bd213 | 2441 | 2441 | 2441 | 0 |
 | meilisearch.com:open-api | 2025-01-13 a7ce1c2 to 2025-02-19 89725c2 | 2420 | 2438 | 2429 | 5 |
+| stripe.com:spec3 | 2026-07-01 7061322 to 2026-07-01 d5d11f6 | 20451 | 20451 | 2064 | 35 |
 | figma.com:openapi | 2024-05-29 18b0297 to 2024-06-06 e38f552 | 1760 | 1760 | 1760 | 0 |
 | discord.com:openapi | 2026-05-23 09c232e to 2026-06-05 cdbd53a | 1553 | 1553 | 1491 | 11 |
 | figma.com:openapi | 2023-12-14 cfd62bc to 2024-02-02 0d77b9d | 1286 | 1286 | 1273 | 9 |
-| paypal.com:billing_subscriptions_v1 | 2023-12-20 fce6edc to 2024-02-02 fb6f126 | 1252 | 1252 | 1236 | 16 |
-| paypal.com:checkout_orders_v2 | 2024-02-02 fb6f126 to 2025-07-16 a54ed77 | 1739 | 1739 | 1218 | 26 |
+| paypal.com:checkout_orders_v2 | 2024-02-02 fb6f126 to 2025-07-16 a54ed77 | 1739 | 1739 | 1208 | 27 |
 | paypal.com:checkout_orders_v2 | 2025-07-16 a54ed77 to 2026-04-07 9f0f528 | 2953 | 2953 | 1102 | 146 |
 | amazonaws.com:clouddirectory | 2016-05-10 to 2017-01-11 | 600 | 600 | 581 | 5 |
 | adyen.com:AccountService-v6 | 2022-10-06 49d15b1 to 2023-03-22 68a6f20 | 579 | 579 | 579 | 0 |
-| paypal.com:checkout_orders_v2 | 2023-12-20 2e9b528 to 2024-02-02 fb6f126 | 587 | 587 | 579 | 8 |
+| paypal.com:billing_subscriptions_v1 | 2023-12-20 fce6edc to 2024-02-02 fb6f126 | 1252 | 1252 | 546 | 17 |
+| paypal.com:payments_payment_v2 | 2025-07-16 a54ed77 to 2026-04-07 81921a5 | 628 | 628 | 498 | 49 |
