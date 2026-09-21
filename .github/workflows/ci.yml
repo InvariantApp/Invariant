@@ -60,6 +60,13 @@ jobs:
           pnpm --filter @invariant/action bundle
           git diff --exit-code -- packages/action/bundle
 
+      # The proxy image, built and run the way a provider should run it, in
+      # front of the fixture provider's current build.
+      - name: Build and prove the proxy image
+        run: |
+          pnpm bundle:sidecar
+          node --import tsx scripts/image.mts
+
       # The real action.yml, on a real runner, against the fixture provider.
       - name: Run the action on this repository
         uses: ./

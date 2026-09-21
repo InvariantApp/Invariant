@@ -14,3 +14,7 @@ packages/*/LICENSE
 packages/*/NOTICE
 # Upstream oasdiff binaries, fetched and verified by scripts/fetch-oasdiff.mts.
 packages/oasdiff-*/bin/
+# Built into the image by scripts/image.mts; never committed.
+packages/sidecar/image/bundle/
+packages/sidecar/image/LICENSE
+packages/sidecar/image/NOTICE

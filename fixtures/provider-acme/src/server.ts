@@ -18,13 +18,21 @@ const port = Number(process.env["PORT"] ?? 8787);
  * build that serves the canonical API needs to translate anything, which is
  * also why reverting a deploy reverts the adapter with it.
  */
+//
+// ACME_ADAPTER=none serves head with no adapter at all, which is how a
+// provider behind the standalone proxy runs: the proxy translates, and doing
+// it here as well would translate every request twice.
+const adapter = process.env["ACME_ADAPTER"] !== "none";
 const { fetch: handler, build } = createAcmeApp({
   build: raw,
-  ...(raw === "head" ? { program: ACME_PROGRAM } : {}),
+  ...(raw === "head" && adapter ? { program: ACME_PROGRAM } : {}),
 });
 
 // `fetch` rather than `app.fetch`: path rewriting has to happen outside the
 // router, so an old URL reaches the canonical handler at all.
-serve({ fetch: handler, port, hostname: "127.0.0.1" }, (info) => {
-  console.log(`acme ${build} listening on http://127.0.0.1:${info.port}`);
+// Loopback unless told otherwise. A container fronting this build reaches it
+// through the host's gateway, which loopback does not answer on.
+const hostname = process.env["HOST"] ?? "127.0.0.1";
+serve({ fetch: handler, port, hostname }, (info) => {
+  console.log(`acme ${build} listening on http://${hostname}:${info.port}`);
 });

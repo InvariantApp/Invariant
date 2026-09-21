@@ -11,6 +11,7 @@
     "build": "pnpm -r --workspace-concurrency=1 --filter './packages/*' run build",
     "check:packages": "node --import tsx scripts/check-packages.mts",
     "bundle:action": "pnpm --filter @invariant/action bundle",
+    "bundle:sidecar": "cd packages/sidecar && tsdown --config tsdown.image.config.ts && cp ../../LICENSE ../../NOTICE image/",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "biome check .",
