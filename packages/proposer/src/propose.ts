@@ -137,7 +137,10 @@ export function opsFor(
             "Pair them up by hand: which old value maps to which new one is not derivable from the shapes.",
         );
       }
-      if (pairs.length === before.length) {
+      // A mapping that only restates values as themselves explains nothing: a
+      // field that gained values and lost none is a fold decision, not this.
+      const renames = pairs.some(([from, to]) => from !== to);
+      if (renames && pairs.length === before.length) {
         ops.push({
           op: "convert",
           path: successor.pointer,

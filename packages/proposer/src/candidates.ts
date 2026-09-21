@@ -8,10 +8,10 @@
  * check and a human reviewer then reject.
  */
 import {
-  deref,
   type OpenApiDocument,
   operationsOf,
   requestBodySchema,
+  resolveSchema,
   responseSchemas,
   schemasOf,
 } from "@invariant/contract";
@@ -43,7 +43,10 @@ export interface SchemaDelta {
 }
 
 function fieldsOf(document: OpenApiDocument, schema: JsonValue): FieldShape[] {
-  const resolved = deref(document, schema);
+  // The same view the differ compares and the compiler writes: references
+  // followed and `allOf` merged, so a field reported as changed is a field
+  // this can see and the compiler can then reach.
+  const resolved = resolveSchema(document, schema);
   if (!isJsonObject(resolved)) return [];
   const properties = resolved["properties"];
   if (!isJsonObject(properties)) return [];
@@ -57,7 +60,7 @@ function fieldsOf(document: OpenApiDocument, schema: JsonValue): FieldShape[] {
     : new Set<string>();
 
   return Object.entries(properties).map(([name, raw]) => {
-    const child = deref(document, raw);
+    const child = resolveSchema(document, raw);
     const value: JsonObject = isJsonObject(child) ? child : {};
     const declared = value["type"];
     const types = Array.isArray(declared)
@@ -65,9 +68,15 @@ function fieldsOf(document: OpenApiDocument, schema: JsonValue): FieldShape[] {
       : typeof declared === "string"
         ? [declared]
         : [];
-    const enumValues = Array.isArray(value["enum"])
-      ? (value["enum"] as JsonValue[]).filter((v): v is string => typeof v === "string")
-      : undefined;
+    // Only a vocabulary of strings can be mapped by an `enumMap`. Filtering
+    // the rest out used to turn `[true, false]` into an empty vocabulary, which
+    // then drafted a mapping with no pairs that no compiler could apply.
+    const declaredEnum = value["enum"];
+    const enumValues =
+      Array.isArray(declaredEnum) &&
+      (declaredEnum as JsonValue[]).every((v) => typeof v === "string")
+        ? (declaredEnum as string[])
+        : undefined;
 
     return {
       name,

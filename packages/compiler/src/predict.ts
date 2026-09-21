@@ -3,11 +3,11 @@
  */
 import {
   bodySchemaFor,
-  deref,
   findSchemaSites,
   type OpenApiDocument,
   operationsOf,
   resolveRef,
+  resolveSchema,
   type Site,
 } from "@invariant/contract";
 import {
@@ -308,17 +308,16 @@ function applyRetire(
 }
 
 /**
- * Reads through a schema, following `$ref`s as it goes. Navigating the new
- * contract crosses reference boundaries (a list's items are usually a `$ref`),
- * so a read has to resolve them; writes never do, because they would mutate a
- * schema shared with somewhere the change does not apply.
+ * Reads through a schema as it applies on the wire, following `$ref`s and
+ * merging `allOf` as it goes, through the same resolution the rest of the
+ * compiler writes with.
  */
 function navigate(
   document: OpenApiDocument,
   schema: JsonValue,
   segments: readonly string[],
 ): JsonValue | undefined {
-  let current: JsonValue | undefined = deref(document, schema);
+  let current: JsonValue | undefined = resolveSchema(document, schema);
   for (const segment of segments) {
     if (!isJsonObject(current)) return undefined;
     const next =
@@ -328,7 +327,7 @@ function navigate(
           ? (current["properties"] as JsonObject)[segment]
           : undefined;
     if (next === undefined) return undefined;
-    current = deref(document, next);
+    current = resolveSchema(document, next);
   }
   return current;
 }
@@ -431,13 +430,13 @@ export function predictDocument(
         try {
           switch (op.op) {
             case "move":
-              schemaMove(schema, op.from, op.to);
+              schemaMove(document, schema, op.from, op.to);
               break;
             case "convert":
-              schemaConvert(schema, op.path, op.codec);
+              schemaConvert(document, schema, op.path, op.codec);
               break;
             case "remove":
-              schemaRemove(schema, op.path);
+              schemaRemove(document, schema, op.path);
               break;
             case "add": {
               const site = oldSites[0];
@@ -451,7 +450,7 @@ export function predictDocument(
                 });
                 break;
               }
-              schemaAdd(schema, op.path, resolved.shape, resolved.required);
+              schemaAdd(document, schema, op.path, resolved.shape, resolved.required);
               break;
             }
           }

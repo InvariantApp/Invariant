@@ -6,6 +6,7 @@
  * specification has to reproduce the new one. Anything left over is a change
  * nobody explained.
  */
+import { type OpenApiDocument, resolveSchema } from "@invariant/contract";
 import { compareDecimal, numberToDecimalText, shiftDecimal } from "@invariant/decimal";
 import {
   type Codec,
@@ -68,29 +69,55 @@ function setRequired(parent: JsonObject, name: string, required: boolean): void 
 }
 
 /**
+ * Makes a node in the path this change's own, and returns it.
+ *
+ * A node that is a `$ref`, or an `allOf` of several, is replaced by a merged
+ * copy through the same resolution every other layer uses. Writing into the
+ * copy changes only the schema this change is scoped to; writing through the
+ * reference would change every other schema that shares it, including ones the
+ * change says nothing about.
+ */
+function own(document: OpenApiDocument, holder: JsonObject, key: string): JsonObject {
+  const value = holder[key];
+  if (!isJsonObject(value)) throw new SchemaOpError(`"${key}" is not a schema`);
+  if (value["$ref"] === undefined && !Array.isArray(value["allOf"])) return value;
+  const resolved = resolveSchema(document, value);
+  if (!isJsonObject(resolved)) throw new SchemaOpError(`"${key}" is not a schema`);
+  const copy = structuredClone(resolved);
+  holder[key] = copy;
+  return copy;
+}
+
+/** The scope schema itself, merged in place when it is a reference or an `allOf`. */
+function ownRoot(document: OpenApiDocument, root: JsonObject): JsonObject {
+  if (root["$ref"] === undefined && !Array.isArray(root["allOf"])) return root;
+  const resolved = resolveSchema(document, root);
+  if (!isJsonObject(resolved)) throw new SchemaOpError("The scope is not a schema");
+  const copy = structuredClone(resolved);
+  for (const key of Object.keys(root)) delete root[key];
+  Object.assign(root, copy);
+  return root;
+}
+
+/**
  * Walks to a parent container, creating intermediate object schemas as needed.
- * A `$ref` in the path is inlined on write so a shared schema is never mutated
- * by a change that targets one use of it.
+ * Every node on the way is made this change's own first, so a shared schema is
+ * never mutated by a change that targets one use of it.
  */
 function parentFor(
+  document: OpenApiDocument,
   root: JsonObject,
   segments: readonly string[],
   create: boolean,
 ): { parent: JsonObject; last: string } {
   if (segments.length === 0) throw new SchemaOpError("Cannot target the schema root");
 
-  let current = root;
+  let current = ownRoot(document, root);
   for (const segment of segments.slice(0, -1)) {
-    if (current["$ref"] !== undefined) {
-      throw new SchemaOpError(
-        `Cannot write through a $ref at "${segment}"; scope the change to that schema instead`,
-      );
-    }
     if (segment === "*") {
-      const items = current["items"];
-      if (!isJsonObject(items))
+      if (!isJsonObject(current["items"]))
         throw new SchemaOpError("Cannot walk into a non-object items");
-      current = items;
+      current = own(document, current, "items");
       continue;
     }
     let properties = current["properties"];
@@ -100,25 +127,22 @@ function parentFor(
       current["properties"] = properties;
       current["type"] = "object";
     }
-    let next = (properties as JsonObject)[segment];
-    if (next === undefined) {
+    if ((properties as JsonObject)[segment] === undefined) {
       if (!create) throw new SchemaOpError(`No property "${segment}"`);
-      next = { type: "object", properties: {} };
-      (properties as JsonObject)[segment] = next;
+      (properties as JsonObject)[segment] = { type: "object", properties: {} };
     }
-    if (!isJsonObject(next))
-      throw new SchemaOpError(`Property "${segment}" is not a schema`);
-    current = next;
+    current = own(document, properties as JsonObject, segment);
   }
 
   return { parent: current, last: segments[segments.length - 1] as string };
 }
 
 function readSlot(
+  document: OpenApiDocument,
   root: JsonObject,
   segments: readonly string[],
 ): { parent: JsonObject; last: string; schema: JsonValue; required: boolean } {
-  const { parent, last } = parentFor(root, segments, false);
+  const { parent, last } = parentFor(document, root, segments, false);
   const schema =
     last === "*"
       ? parent["items"]
@@ -129,8 +153,12 @@ function readSlot(
   return { parent, last, schema, required: last !== "*" && isRequired(parent, last) };
 }
 
-function deleteSlot(root: JsonObject, segments: readonly string[]): void {
-  const { parent, last } = parentFor(root, segments, false);
+function deleteSlot(
+  document: OpenApiDocument,
+  root: JsonObject,
+  segments: readonly string[],
+): void {
+  const { parent, last } = parentFor(document, root, segments, false);
   if (last === "*") {
     delete parent["items"];
     return;
@@ -141,12 +169,13 @@ function deleteSlot(root: JsonObject, segments: readonly string[]): void {
 }
 
 function writeSlot(
+  document: OpenApiDocument,
   root: JsonObject,
   segments: readonly string[],
   schema: JsonValue,
   required: boolean,
 ): void {
-  const { parent, last } = parentFor(root, segments, true);
+  const { parent, last } = parentFor(document, root, segments, true);
   if (last === "*") {
     parent["items"] = schema;
     return;
@@ -164,7 +193,7 @@ function writeSlot(
   // now holds was required.
   for (let depth = segments.length - 1; depth >= 1; depth -= 1) {
     const ancestorPath = segments.slice(0, depth);
-    const grand = parentFor(root, ancestorPath, false);
+    const grand = parentFor(document, root, ancestorPath, false);
     const name = ancestorPath[ancestorPath.length - 1] as string;
     if (name === "*") continue;
     if (required && !isRequired(grand.parent, name))
@@ -172,18 +201,27 @@ function writeSlot(
   }
 }
 
-export function schemaMove(root: JsonObject, from: string, to: string): void {
+export function schemaMove(
+  document: OpenApiDocument,
+  root: JsonObject,
+  from: string,
+  to: string,
+): void {
   const fromSegments = parsePointer(from);
   const toSegments = parsePointer(to);
-  const slot = readSlot(root, fromSegments);
+  const slot = readSlot(document, root, fromSegments);
   const moved = clone(slot.schema);
-  deleteSlot(root, fromSegments);
-  writeSlot(root, toSegments, moved, slot.required);
-  pruneEmptyObjects(root, fromSegments);
+  deleteSlot(document, root, fromSegments);
+  writeSlot(document, root, toSegments, moved, slot.required);
+  pruneEmptyObjects(document, root, fromSegments);
 }
 
 /** Drops intermediate objects a move emptied out. */
-function pruneEmptyObjects(root: JsonObject, segments: readonly string[]): void {
+function pruneEmptyObjects(
+  document: OpenApiDocument,
+  root: JsonObject,
+  segments: readonly string[],
+): void {
   for (let depth = segments.length - 1; depth >= 1; depth -= 1) {
     const path = segments.slice(0, depth);
     let node: JsonValue | undefined;
@@ -196,7 +234,7 @@ function pruneEmptyObjects(root: JsonObject, segments: readonly string[]): void 
     const properties = node["properties"];
     const empty = isJsonObject(properties) && Object.keys(properties).length === 0;
     if (!empty) return;
-    deleteSlot(root, path);
+    deleteSlot(document, root, path);
   }
 }
 
@@ -324,10 +362,20 @@ export function applyCodecToSchema(schema: JsonValue, codec: Codec): JsonValue {
   }
 }
 
-export function schemaConvert(root: JsonObject, path: string, codec: Codec): void {
+/**
+ * The codec applies to what the field is, not to how it is written down, so it
+ * is applied to the resolved schema and the result kept as this field's own.
+ */
+export function schemaConvert(
+  document: OpenApiDocument,
+  root: JsonObject,
+  path: string,
+  codec: Codec,
+): void {
   const segments = parsePointer(path);
-  const slot = readSlot(root, segments);
-  writeSlot(root, segments, applyCodecToSchema(slot.schema, codec), slot.required);
+  const slot = readSlot(document, root, segments);
+  const converted = applyCodecToSchema(resolveSchema(document, slot.schema), codec);
+  writeSlot(document, root, segments, converted, slot.required);
 }
 
 /**
@@ -336,19 +384,24 @@ export function schemaConvert(root: JsonObject, path: string, codec: Codec): voi
  * invented here.
  */
 export function schemaAdd(
+  document: OpenApiDocument,
   root: JsonObject,
   path: string,
   shape: JsonValue,
   required: boolean,
 ): void {
-  writeSlot(root, parsePointer(path), clone(shape), required);
+  writeSlot(document, root, parsePointer(path), clone(shape), required);
 }
 
-export function schemaRemove(root: JsonObject, path: string): void {
+export function schemaRemove(
+  document: OpenApiDocument,
+  root: JsonObject,
+  path: string,
+): void {
   const segments = parsePointer(path);
-  readSlot(root, segments);
-  deleteSlot(root, segments);
-  pruneEmptyObjects(root, segments);
+  readSlot(document, root, segments);
+  deleteSlot(document, root, segments);
+  pruneEmptyObjects(document, root, segments);
 }
 
 export function schemaSlotRequired(root: JsonValue, path: string): boolean {
