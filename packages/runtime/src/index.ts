@@ -157,6 +157,40 @@ export interface RuntimeOptions {
   onOutcome?: (event: OutcomeEvent) => void;
 }
 
+/**
+ * Every Change a list of instructions can run, through the blocks it nests
+ * and the blocks it calls. An older contract reaches the later steps' work by
+ * calling it, so a switch that looked only at the instructions written in the
+ * site would miss every Change but the oldest step's.
+ */
+function changesIn(
+  instrs: readonly CompiledInstr[],
+  into: Set<string>,
+  entered: Set<object> = new Set(),
+): Set<string> {
+  for (const instr of instrs) {
+    into.add(instr.c);
+    switch (instr.k) {
+      case "within":
+      case "has":
+      case "is":
+        changesIn(instr.block, into, entered);
+        break;
+      case "switch":
+        for (const block of instr.cases.values()) changesIn(block, into, entered);
+        break;
+      case "call":
+        if (entered.has(instr.target)) break;
+        entered.add(instr.target);
+        changesIn(instr.target.instrs, into, entered);
+        break;
+      default:
+        break;
+    }
+  }
+  return into;
+}
+
 export class UnsupportedContractError extends Error {
   readonly contract: string;
 
@@ -689,11 +723,9 @@ export class InvariantRuntime {
     const disabled = flags.disabledChanges;
     if (disabled && disabled.length > 0) {
       const referenced = new Set<string>();
-      for (const instr of site.request) referenced.add(instr.c);
-      for (const instr of site.envelope?.instrs ?? []) referenced.add(instr.c);
-      for (const list of site.response.values()) {
-        for (const instr of list) referenced.add(instr.c);
-      }
+      changesIn(site.request, referenced);
+      changesIn(site.envelope?.instrs ?? [], referenced);
+      for (const list of site.response.values()) changesIn(list, referenced);
       for (const change of disabled) {
         if (referenced.has(change)) {
           // Skipping a switched-off instruction would hand back a body in the
@@ -1015,8 +1047,9 @@ export class InvariantRuntime {
     const method = (options.method ?? "post").toLowerCase();
     const found = program.outbound.get(`${method} ${event}`);
     if (!found) return { body: text, folded: [] };
+    const referenced = changesIn(found.instrs, new Set());
     for (const change of flags.disabledChanges ?? []) {
-      if (found.instrs.some((instr) => instr.c === change)) {
+      if (referenced.has(change)) {
         throw new UnsupportedContractError(contract, `change ${change} is switched off`);
       }
     }

@@ -18,6 +18,11 @@ export interface Vector {
   instrs: Instr[];
   /** The contract's named blocks, which `call` runs, when the case needs any. */
   blocks?: Record<string, Instr[]>;
+  /**
+   * The program's own blocks, shared by every contract, as a chain of
+   * contracts links each one's work to the next contract's.
+   */
+  programBlocks?: Record<string, Instr[]>;
   input: unknown;
   /**
    * The cap on places one instruction may touch, when the case is about it.
@@ -749,6 +754,40 @@ export const CONFORMANCE_VECTORS: Vector[] = [
     },
     instrs: [{ k: "call", block: "A", c: C }],
     input: { x: 1 },
+    expect: { refuses: "decode" },
+  },
+  {
+    name: "a contract calls the program's blocks, which call one another",
+    why:
+      "A chain of contracts is linked, not written out: each contract's work " +
+      "ends in a call to the next contract's, held at the top of the program. " +
+      "An engine that only looked up a contract's own blocks could not run it.",
+    programBlocks: {
+      "v2>0": [
+        { k: "move", from: "/amount", to: "/amount_cents", c: C },
+        { k: "call", block: "v3>0", c: C },
+      ],
+      "v3>0": [
+        { k: "move", from: "/amount_cents", to: "/amount_minor", c: C },
+        { k: "set", path: "/currency", value: "usd", ifAbsent: true, c: C },
+      ],
+    },
+    instrs: [
+      { k: "move", from: "/total", to: "/amount", c: C },
+      { k: "call", block: "v2>0", c: C },
+    ],
+    input: { total: 100 },
+    expect: { output: { amount_minor: 100, currency: "usd" } },
+  },
+  {
+    name: "a contract may not declare a block the program already does",
+    why:
+      "One name meaning two things depending on who calls it is a program " +
+      "that runs differently on engines that resolve it differently.",
+    programBlocks: { Shared: [{ k: "del", path: "/a", c: C }] },
+    blocks: { Shared: [{ k: "del", path: "/b", c: C }] },
+    instrs: [{ k: "call", block: "Shared", c: C }],
+    input: { a: 1, b: 2 },
     expect: { refuses: "decode" },
   },
 ];

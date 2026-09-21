@@ -817,9 +817,14 @@ const GENERATED = fc.oneof(
 
 /** Whether the program carries work for every op of the Change. */
 function unserved(change: Change, program: unknown): string[] {
-  const contract =
-    (program as { contracts: Record<string, Schema> }).contracts["old"] ?? {};
-  const text = JSON.stringify(contract);
+  const { contracts, blocks } = program as {
+    contracts: Record<string, Schema>;
+    blocks?: Schema;
+  };
+  const contract = contracts["old"] ?? {};
+  // A schema's blocks are shared by every contract, so they are held once, at
+  // the top of the program.
+  const text = JSON.stringify({ contract, blocks });
   const mentions = (text.match(new RegExp(`"c":"${change.id}"`, "g")) ?? []).length;
   const missing: string[] = [];
   // An op with nothing to do in the direction a site faces is a correct
@@ -989,7 +994,7 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
         if ((change.scopes ?? []).some((scope) => "response" in scope)) {
           passed.set("response bodies", (passed.get("response bodies") ?? 0) + 1);
         }
-        if (chained.program.contracts["old"]?.blocks) {
+        if (chained.program.blocks) {
           passed.set("shared blocks", (passed.get("shared blocks") ?? 0) + 1);
         }
         expect(unserved(change, chained.program), JSON.stringify(change)).toEqual([]);

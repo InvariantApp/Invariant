@@ -10,7 +10,7 @@
 import type { OpenApiDocument } from "@invariant/contract";
 import { type Change, parseChange } from "@invariant/ir";
 import { describe, expect, it } from "vitest";
-import { chainProgram } from "./chain.ts";
+import { chainProgram, expandChains } from "./chain.ts";
 
 function contract(
   path: string,
@@ -99,7 +99,8 @@ describe("a chain of releases with parameters", () => {
     // The schema scope names nothing in these inline documents, which is
     // reported; the parameters are what this case is about.
     expect(issues.map((issue) => issue.changeId)).not.toContain("chg_page_size");
-    const envelope = program.contracts["v1"]?.sites["post /search"]?.envelope;
+    const envelope =
+      expandChains(program).contracts["v1"]?.sites["post /search"]?.envelope;
     expect(envelope?.instrs.map((instr) => instr.c)).toEqual([
       "chg_page_size",
       "chg_size",

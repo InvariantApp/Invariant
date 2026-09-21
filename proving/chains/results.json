@@ -1,0 +1,18 @@
+{
+  "shape": {
+    "steps": 50,
+    "operations": 600,
+    "schemas": 400
+  },
+  "compileMs": 5102,
+  "programBytes": 3174214,
+  "loadMs": 137,
+  "transformP50Ms": 0.177,
+  "transformP99Ms": 0.511,
+  "budget": {
+    "programBytes": 6000000,
+    "compileMs": 30000,
+    "loadMs": 1500,
+    "transformP99Ms": 10
+  }
+}

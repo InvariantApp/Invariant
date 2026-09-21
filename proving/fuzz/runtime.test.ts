@@ -40,6 +40,8 @@ if (SEED === undefined && RUNS > 1000) {
 interface Vector {
   name: string;
   instrs: unknown[];
+  blocks?: Record<string, unknown[]>;
+  programBlocks?: Record<string, unknown[]>;
   expect: { output?: unknown; refuses?: string };
   maxMatches?: number;
 }
@@ -50,12 +52,16 @@ const VECTORS = (
   ) as { vectors: Vector[] }
 ).vectors;
 
-function programWith(instrs: unknown[]): unknown {
+function programWith(
+  instrs: unknown[],
+  blocks: Pick<Vector, "blocks" | "programBlocks"> = {},
+): unknown {
   return {
     irVersion: 1,
     api: "fuzz",
     currentLabel: "new",
     current: "sha256:fuzz",
+    ...(blocks.programBlocks === undefined ? {} : { blocks: blocks.programBlocks }),
     contracts: {
       old: {
         label: "old",
@@ -70,6 +76,7 @@ function programWith(instrs: unknown[]): unknown {
           "post /v2/{id}:new": { request: instrs, response: { "2xx": instrs } },
           "post /fuzz": { request: instrs, response: { "2xx": instrs } },
         },
+        ...(blocks.blocks === undefined ? {} : { blocks: blocks.blocks }),
         behaviors: [],
         retired: [{ method: "delete", path: "/v1/{id}", c: "chg_retired" }],
       },
@@ -84,7 +91,7 @@ const RUNTIMES = VECTORS.flatMap((vector) => {
       {
         name: vector.name,
         runtime: createRuntime({
-          program: programWith(vector.instrs),
+          program: programWith(vector.instrs, vector),
           identity: [{ kind: "default", label: "old" }],
           maxBodyBytes: 64 * 1024,
           limits: { maxMatches: vector.maxMatches ?? 10_000 },

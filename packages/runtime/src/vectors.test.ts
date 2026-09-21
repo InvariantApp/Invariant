@@ -21,6 +21,7 @@ function run(vector: Vector): { output?: unknown; refusedBy?: string } {
         api: "conformance",
         current: "sha256:0",
         currentLabel: "current",
+        ...(vector.programBlocks === undefined ? {} : { blocks: vector.programBlocks }),
         contracts: {
           old: {
             label: "old",

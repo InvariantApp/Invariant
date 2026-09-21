@@ -543,14 +543,21 @@ function refuseStandingCycles(blocks: Blocks, where: string): void {
   for (const name of blocks.keys()) visit(name, []);
 }
 
-/** A contract's blocks: every name first, so a block can call any of them, itself included. */
-function decodeBlocks(raw: unknown, where: string): Blocks {
-  if (raw === undefined) return NO_BLOCKS;
+/**
+ * Named blocks, able to call one another and any in `shared`, the program's
+ * own. Every name is declared first, so a block can call any of them, itself
+ * included. A name may not be declared twice, here and there alike.
+ */
+function decodeBlocks(raw: unknown, where: string, shared: Blocks = NO_BLOCKS): Blocks {
+  if (raw === undefined) return shared;
   const entries = Object.entries(object(raw, where));
-  const blocks = new Map<string, { instrs: CompiledInstr[] }>();
+  const blocks = new Map<string, { instrs: CompiledInstr[] }>(shared);
   for (const [name] of entries) {
     if (name.length === 0 || name.length > 256) {
       throw new ProgramError(`${where} has a block name that is empty or too long`);
+    }
+    if (shared.has(name)) {
+      throw new ProgramError(`${where} declares ${name}, which the program already does`);
     }
     blocks.set(name, { instrs: [] });
   }
@@ -874,7 +881,7 @@ export function decodeProgram(raw: unknown): DecodedProgram {
   const value = object(raw, "program");
   expectKeys(
     value,
-    ["irVersion", "api", "current", "currentLabel", "contracts", "basePath"],
+    ["irVersion", "api", "current", "currentLabel", "contracts", "blocks", "basePath"],
     "program",
   );
   const basePath = value["basePath"];
@@ -891,6 +898,7 @@ export function decodeProgram(raw: unknown): DecodedProgram {
     throw new ProgramError(`Unsupported IR version ${String(value["irVersion"])}`);
   }
 
+  const shared = decodeBlocks(value["blocks"], "program.blocks");
   const contracts = new Map<string, DecodedContract>();
   for (const [label, entry] of Object.entries(
     object(value["contracts"], "program.contracts"),
@@ -911,7 +919,7 @@ export function decodeProgram(raw: unknown): DecodedProgram {
       ],
       where,
     );
-    const blocks = decodeBlocks(contract["blocks"], `${where}.blocks`);
+    const blocks = decodeBlocks(contract["blocks"], `${where}.blocks`, shared);
     const ownBase = contract["basePath"];
     if (
       ownBase !== undefined &&

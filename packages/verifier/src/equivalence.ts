@@ -1,18 +1,21 @@
 /**
  * Chain equivalence: one pass has to mean the same thing as several.
  *
- * A consumer four contracts behind is served by a program that was
- * concatenated once at build time, rather than by four transforms run in
- * sequence per request. That is the whole reason the chaining is cheap, and it
- * is only safe if the two are the same function.
+ * A consumer four contracts behind is served by a program compiled once at
+ * build time, rather than by four transforms looked up and run in sequence per
+ * request. That is the whole reason the chaining is cheap, and it is only safe
+ * if the two are the same function.
  *
- * Concatenation is correct by an argument about order, which is a good argument
- * and not a proof. This runs both and compares, on values generated from the
- * historical contract the consumer actually speaks, so the argument has
- * something behind it. It is also the gate the design promised for any future
- * optimising flattener: whatever that produces has to pass this unchanged.
+ * The program that ships links each contract's work to the next contract's
+ * through shared blocks, so it stays linear in its history. Linking and
+ * concatenating are correct by an argument about order, which is a good
+ * argument and not a proof. This runs the program that ships against each step
+ * run alone, on values generated from the historical contract the consumer
+ * actually speaks, so the argument has something behind it. It is also the gate
+ * the design promised for any future optimising flattener: whatever that
+ * produces has to pass this unchanged.
  */
-import { type ContractStep, chainContract, projectStep } from "@invariant/compiler";
+import { type ContractStep, chainProgram, projectStep } from "@invariant/compiler";
 import { type OpenApiDocument, operationsOf } from "@invariant/contract";
 import {
   type ContractProgram,
@@ -62,9 +65,12 @@ function requestSchemaRef(
   return typeof ref === "string" ? ref : undefined;
 }
 
-/** Runs one site's instructions as a single pass. */
-function onePass(instrs: readonly Instr[]): (value: JsonValue) => unknown {
-  const lens = lensFor(instrs, []);
+/** Runs one site's instructions as a single pass, with the blocks they call. */
+function onePass(
+  instrs: readonly Instr[],
+  blocks: Readonly<Record<string, Instr[]>>,
+): (value: JsonValue) => unknown {
+  const lens = lensFor(instrs, [], blocks);
   return (value) => lens.forward(value);
 }
 
@@ -84,6 +90,11 @@ export function checkChainEquivalence(
   const runs = options.runs ?? 200;
   const failures: EquivalenceFailure[] = [];
   const evidence: Evidence[] = [];
+  const current = steps.at(-1)?.label ?? "";
+  const linked = chainProgram("verify", current, "sha256:0", steps).program;
+  const everyStep = steps.map(
+    (step) => projectStep(step.label, step.from, step.changes, step.to).program,
+  );
 
   steps.forEach((_step, index) => {
     const tail = steps.slice(index);
@@ -91,10 +102,12 @@ export function checkChainEquivalence(
     if (!first) return;
 
     const label = first.parent;
-    const chained: ContractProgram = chainContract(label, tail).program;
-    const perStep = tail.map(
-      (step) => projectStep(step.label, step.from, step.changes, step.to).program,
-    );
+    // A step from the current contract to itself serves nobody, so the program
+    // has no contract for it and there is nothing to compare.
+    const chained: ContractProgram | undefined = linked.contracts[label];
+    if (!chained) return;
+    const chainedBlocks = { ...linked.blocks, ...chained.blocks };
+    const perStep = everyStep.slice(index);
 
     const found: EquivalenceFailure[] = [];
 
@@ -134,8 +147,8 @@ export function checkChainEquivalence(
         continue;
       }
 
-      const single = onePass(chainedRequest);
-      const staged = stages.map((stage) => onePass(stage));
+      const single = onePass(chainedRequest, chainedBlocks);
+      const staged = stages.map((stage, at) => onePass(stage, perStep[at]?.blocks ?? {}));
 
       const result = fc.check(
         fc.property(schemaArbitrary(first.from, ref), (value) => {

@@ -5,14 +5,16 @@
  * one pass, requests replayed forward and responses undone in reverse.
  */
 import { loadContract, loadPendingChanges, loadReleaseStep } from "@invariant/contract";
-import { parseCompiledProgram } from "@invariant/ir";
+import { type CompiledProgram, parseCompiledProgram } from "@invariant/ir";
 import { beforeAll, describe, expect, it } from "vitest";
-import { type ContractStep, chainProgram } from "./chain.ts";
+import { type ContractStep, chainProgram, expandChains } from "./chain.ts";
 
 const FIXTURE = new URL("../../../fixtures/provider-acme/", import.meta.url).pathname;
 
 let steps: ContractStep[];
 let program: ReturnType<typeof chainProgram>;
+/** Each contract's work written out in full, as it runs. */
+let written: CompiledProgram;
 
 beforeAll(async () => {
   const [v1, v2, head] = await Promise.all([
@@ -40,6 +42,7 @@ beforeAll(async () => {
     },
   ];
   program = chainProgram("acme-payments", "2026-09-20", head.digest, steps);
+  written = expandChains(program.program);
 });
 
 describe("chained program", () => {
@@ -75,7 +78,7 @@ describe("chained program", () => {
   });
 
   it("collapses two contract steps into one forward pass on the request", () => {
-    const create = program.program.contracts["2026-01-15"]?.sites["post /v1/payments"];
+    const create = written.contracts["2026-01-15"]?.sites["post /v1/payments"];
     expect(create?.request).toEqual([
       // Step one: the flat token moves under payment_method.
       {
@@ -99,7 +102,7 @@ describe("chained program", () => {
   });
 
   it("undoes both steps in reverse on the response", () => {
-    const create = program.program.contracts["2026-01-15"]?.sites["post /v1/payments"];
+    const create = written.contracts["2026-01-15"]?.sites["post /v1/payments"];
     expect(create?.response?.["201"]).toEqual([
       // Latest step first, its Changes in reverse, each Change's ops reversed.
       {
@@ -128,7 +131,7 @@ describe("chained program", () => {
   });
 
   it("reaches inside a list envelope using the wildcard segment", () => {
-    const list = program.program.contracts["2026-01-15"]?.sites["get /v1/payments"];
+    const list = written.contracts["2026-01-15"]?.sites["get /v1/payments"];
     const instrs = list?.response?.["200"] ?? [];
     expect(
       instrs.every((instr) =>
@@ -146,7 +149,7 @@ describe("chained program", () => {
   });
 
   it("gives the newer contract only the work it actually needs", () => {
-    const recent = program.program.contracts["2026-03-01"];
+    const recent = written.contracts["2026-03-01"];
     expect(recent?.routes).toEqual([]);
     const create = recent?.sites["post /v1/payments"];
     expect(create?.request).toEqual([
@@ -163,7 +166,7 @@ describe("chained program", () => {
   });
 
   it("maps refunds, which changed in both steps, on both directions", () => {
-    const refunds = program.program.contracts["2026-01-15"]?.sites["post /v1/refunds"];
+    const refunds = written.contracts["2026-01-15"]?.sites["post /v1/refunds"];
     expect(refunds?.request).toEqual([
       { k: "move", from: "/charge", to: "/payment", c: "chg_refund_targets_payment" },
       { k: "move", from: "/amount", to: "/amount_cents", c: "chg_money_in_minor_units" },
@@ -174,6 +177,21 @@ describe("chained program", () => {
       { k: "move", from: "/amount_cents", to: "/amount", c: "chg_money_in_minor_units" },
       { k: "move", from: "/payment", to: "/charge", c: "chg_refund_targets_payment" },
     ]);
+  });
+
+  it("holds each step's work once, the older contract calling the newer one's", () => {
+    // Written out per contract, a program grows with the square of its
+    // history, since every contract repeats every later step (launch gate L18).
+    const site = (label: string) =>
+      program.program.contracts[label]?.sites["post /v1/payments"]?.request ?? [];
+    const [recent] = site("2026-03-01");
+    const oldest = site("2026-01-15").at(-1);
+    expect(recent?.k).toBe("call");
+    expect(oldest).toEqual(recent);
+    const name = recent?.k === "call" ? recent.block : "";
+    expect(program.program.blocks?.[name]).toEqual(
+      written.contracts["2026-03-01"]?.sites["post /v1/payments"]?.request,
+    );
   });
 
   it("leaves untouched operations out of the program entirely", () => {

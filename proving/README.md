@@ -17,6 +17,7 @@ product; the first two are what make it mean something.
 | D. Real servers | `servers/` | Real open-source servers, across their own breaking releases, behind the proxy, with the previous release's own tests passing. | Providers whose releases are not published as images. |
 | E. Migration replay | `replay/` | The migration engine's edits against the edits humans actually made when they upgraded an SDK. | Code nobody published. |
 | F. Hostile input | `fuzz/` | The runtime, the proxy and the parsers survive input designed to break them. | Anything not fuzzed. |
+| Long chains | `chains/` | A 50-step chain over a Stripe-sized, generated API stays within stated budgets for program size, compile time, load time and p99 transform (L18), and means what its steps run in turn mean. | The cost of a real provider's history, whose steps reach fewer sites than these. |
 
 ## Rig A: the corpus
 

@@ -460,6 +460,12 @@ export const CompiledProgram = Type.Object(
     /** Every historical contract still served, each compiled straight to current. */
     contracts: Type.Record(Type.String(), ContractProgram),
     /**
+     * Blocks any contract may `call`: each step's shared blocks, and each
+     * contract's work kept once for the older contracts that run it after
+     * their own. Named after the step or contract that owns them.
+     */
+    blocks: Type.Optional(Type.Record(BlockName, Type.Array(Instr))),
+    /**
      * The path the API is served under, from the contract's `servers`, such
      * as `/v1` for `https://api.example.com/v1`. The contract's paths are
      * relative to it, so it is taken off a request's path before matching,

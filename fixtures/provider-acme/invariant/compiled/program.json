@@ -41,36 +41,16 @@
           "c": "chg_charges_became_payments"
         }
       ],
+      "behaviors": [],
+      "retired": [],
       "sites": {
         "get /v1/payments": {
           "response": {
             "200": [
               {
-                "k": "enum",
-                "path": "/data/*/status",
-                "map": {
-                  "paid": "succeeded",
-                  "failed": "failed",
-                  "processing": "pending"
-                },
+                "k": "call",
+                "block": "2026-03-01>0",
                 "c": "chg_payment_status_vocabulary"
-              },
-              {
-                "k": "scale",
-                "path": "/data/*/amount_cents",
-                "exp": -2,
-                "c": "chg_money_in_minor_units"
-              },
-              {
-                "k": "move",
-                "from": "/data/*/amount_cents",
-                "to": "/data/*/amount",
-                "c": "chg_money_in_minor_units"
-              },
-              {
-                "k": "del",
-                "path": "/data/*/capture_method",
-                "c": "chg_capture_method"
               },
               {
                 "k": "move",
@@ -93,31 +73,9 @@
           "response": {
             "200": [
               {
-                "k": "enum",
-                "path": "/status",
-                "map": {
-                  "paid": "succeeded",
-                  "failed": "failed",
-                  "processing": "pending"
-                },
+                "k": "call",
+                "block": "2026-03-01>1",
                 "c": "chg_payment_status_vocabulary"
-              },
-              {
-                "k": "scale",
-                "path": "/amount_cents",
-                "exp": -2,
-                "c": "chg_money_in_minor_units"
-              },
-              {
-                "k": "move",
-                "from": "/amount_cents",
-                "to": "/amount",
-                "c": "chg_money_in_minor_units"
-              },
-              {
-                "k": "del",
-                "path": "/capture_method",
-                "c": "chg_capture_method"
               },
               {
                 "k": "move",
@@ -145,53 +103,17 @@
               "c": "chg_source_became_payment_method"
             },
             {
-              "k": "set",
-              "path": "/capture_method",
-              "value": "automatic",
-              "ifAbsent": true,
+              "k": "call",
+              "block": "2026-03-01>2",
               "c": "chg_capture_method"
-            },
-            {
-              "k": "move",
-              "from": "/amount",
-              "to": "/amount_cents",
-              "c": "chg_money_in_minor_units"
-            },
-            {
-              "k": "scale",
-              "path": "/amount_cents",
-              "exp": 2,
-              "c": "chg_money_in_minor_units"
             }
           ],
           "response": {
             "201": [
               {
-                "k": "enum",
-                "path": "/status",
-                "map": {
-                  "paid": "succeeded",
-                  "failed": "failed",
-                  "processing": "pending"
-                },
+                "k": "call",
+                "block": "2026-03-01>1",
                 "c": "chg_payment_status_vocabulary"
-              },
-              {
-                "k": "scale",
-                "path": "/amount_cents",
-                "exp": -2,
-                "c": "chg_money_in_minor_units"
-              },
-              {
-                "k": "move",
-                "from": "/amount_cents",
-                "to": "/amount",
-                "c": "chg_money_in_minor_units"
-              },
-              {
-                "k": "del",
-                "path": "/capture_method",
-                "c": "chg_capture_method"
               },
               {
                 "k": "move",
@@ -259,30 +181,16 @@
               "c": "chg_refund_targets_payment"
             },
             {
-              "k": "move",
-              "from": "/amount",
-              "to": "/amount_cents",
-              "c": "chg_money_in_minor_units"
-            },
-            {
-              "k": "scale",
-              "path": "/amount_cents",
-              "exp": 2,
+              "k": "call",
+              "block": "2026-03-01>3",
               "c": "chg_money_in_minor_units"
             }
           ],
           "response": {
             "201": [
               {
-                "k": "scale",
-                "path": "/amount_cents",
-                "exp": -2,
-                "c": "chg_money_in_minor_units"
-              },
-              {
-                "k": "move",
-                "from": "/amount_cents",
-                "to": "/amount",
+                "k": "call",
+                "block": "2026-03-01>4",
                 "c": "chg_money_in_minor_units"
               },
               {
@@ -354,43 +262,21 @@
             ]
           }
         }
-      },
-      "behaviors": [],
-      "retired": []
+      }
     },
     "2026-03-01": {
       "label": "2026-03-01",
       "routes": [],
+      "behaviors": [],
+      "retired": [],
       "sites": {
         "get /v1/payments": {
           "response": {
             "200": [
               {
-                "k": "enum",
-                "path": "/data/*/status",
-                "map": {
-                  "paid": "succeeded",
-                  "failed": "failed",
-                  "processing": "pending"
-                },
+                "k": "call",
+                "block": "2026-03-01>0",
                 "c": "chg_payment_status_vocabulary"
-              },
-              {
-                "k": "scale",
-                "path": "/data/*/amount_cents",
-                "exp": -2,
-                "c": "chg_money_in_minor_units"
-              },
-              {
-                "k": "move",
-                "from": "/data/*/amount_cents",
-                "to": "/data/*/amount",
-                "c": "chg_money_in_minor_units"
-              },
-              {
-                "k": "del",
-                "path": "/data/*/capture_method",
-                "c": "chg_capture_method"
               }
             ]
           }
@@ -399,31 +285,9 @@
           "response": {
             "200": [
               {
-                "k": "enum",
-                "path": "/status",
-                "map": {
-                  "paid": "succeeded",
-                  "failed": "failed",
-                  "processing": "pending"
-                },
+                "k": "call",
+                "block": "2026-03-01>1",
                 "c": "chg_payment_status_vocabulary"
-              },
-              {
-                "k": "scale",
-                "path": "/amount_cents",
-                "exp": -2,
-                "c": "chg_money_in_minor_units"
-              },
-              {
-                "k": "move",
-                "from": "/amount_cents",
-                "to": "/amount",
-                "c": "chg_money_in_minor_units"
-              },
-              {
-                "k": "del",
-                "path": "/capture_method",
-                "c": "chg_capture_method"
               }
             ]
           }
@@ -431,53 +295,17 @@
         "post /v1/payments": {
           "request": [
             {
-              "k": "set",
-              "path": "/capture_method",
-              "value": "automatic",
-              "ifAbsent": true,
+              "k": "call",
+              "block": "2026-03-01>2",
               "c": "chg_capture_method"
-            },
-            {
-              "k": "move",
-              "from": "/amount",
-              "to": "/amount_cents",
-              "c": "chg_money_in_minor_units"
-            },
-            {
-              "k": "scale",
-              "path": "/amount_cents",
-              "exp": 2,
-              "c": "chg_money_in_minor_units"
             }
           ],
           "response": {
             "201": [
               {
-                "k": "enum",
-                "path": "/status",
-                "map": {
-                  "paid": "succeeded",
-                  "failed": "failed",
-                  "processing": "pending"
-                },
+                "k": "call",
+                "block": "2026-03-01>1",
                 "c": "chg_payment_status_vocabulary"
-              },
-              {
-                "k": "scale",
-                "path": "/amount_cents",
-                "exp": -2,
-                "c": "chg_money_in_minor_units"
-              },
-              {
-                "k": "move",
-                "from": "/amount_cents",
-                "to": "/amount",
-                "c": "chg_money_in_minor_units"
-              },
-              {
-                "k": "del",
-                "path": "/capture_method",
-                "c": "chg_capture_method"
               }
             ],
             "400": [
@@ -507,30 +335,16 @@
         "post /v1/refunds": {
           "request": [
             {
-              "k": "move",
-              "from": "/amount",
-              "to": "/amount_cents",
-              "c": "chg_money_in_minor_units"
-            },
-            {
-              "k": "scale",
-              "path": "/amount_cents",
-              "exp": 2,
+              "k": "call",
+              "block": "2026-03-01>3",
               "c": "chg_money_in_minor_units"
             }
           ],
           "response": {
             "201": [
               {
-                "k": "scale",
-                "path": "/amount_cents",
-                "exp": -2,
-                "c": "chg_money_in_minor_units"
-              },
-              {
-                "k": "move",
-                "from": "/amount_cents",
-                "to": "/amount",
+                "k": "call",
+                "block": "2026-03-01>4",
                 "c": "chg_money_in_minor_units"
               }
             ],
@@ -569,9 +383,116 @@
             ]
           }
         }
-      },
-      "behaviors": [],
-      "retired": []
+      }
     }
+  },
+  "blocks": {
+    "2026-03-01>0": [
+      {
+        "k": "enum",
+        "path": "/data/*/status",
+        "map": {
+          "paid": "succeeded",
+          "failed": "failed",
+          "processing": "pending"
+        },
+        "c": "chg_payment_status_vocabulary"
+      },
+      {
+        "k": "scale",
+        "path": "/data/*/amount_cents",
+        "exp": -2,
+        "c": "chg_money_in_minor_units"
+      },
+      {
+        "k": "move",
+        "from": "/data/*/amount_cents",
+        "to": "/data/*/amount",
+        "c": "chg_money_in_minor_units"
+      },
+      {
+        "k": "del",
+        "path": "/data/*/capture_method",
+        "c": "chg_capture_method"
+      }
+    ],
+    "2026-03-01>1": [
+      {
+        "k": "enum",
+        "path": "/status",
+        "map": {
+          "paid": "succeeded",
+          "failed": "failed",
+          "processing": "pending"
+        },
+        "c": "chg_payment_status_vocabulary"
+      },
+      {
+        "k": "scale",
+        "path": "/amount_cents",
+        "exp": -2,
+        "c": "chg_money_in_minor_units"
+      },
+      {
+        "k": "move",
+        "from": "/amount_cents",
+        "to": "/amount",
+        "c": "chg_money_in_minor_units"
+      },
+      {
+        "k": "del",
+        "path": "/capture_method",
+        "c": "chg_capture_method"
+      }
+    ],
+    "2026-03-01>2": [
+      {
+        "k": "set",
+        "path": "/capture_method",
+        "value": "automatic",
+        "ifAbsent": true,
+        "c": "chg_capture_method"
+      },
+      {
+        "k": "move",
+        "from": "/amount",
+        "to": "/amount_cents",
+        "c": "chg_money_in_minor_units"
+      },
+      {
+        "k": "scale",
+        "path": "/amount_cents",
+        "exp": 2,
+        "c": "chg_money_in_minor_units"
+      }
+    ],
+    "2026-03-01>3": [
+      {
+        "k": "move",
+        "from": "/amount",
+        "to": "/amount_cents",
+        "c": "chg_money_in_minor_units"
+      },
+      {
+        "k": "scale",
+        "path": "/amount_cents",
+        "exp": 2,
+        "c": "chg_money_in_minor_units"
+      }
+    ],
+    "2026-03-01>4": [
+      {
+        "k": "scale",
+        "path": "/amount_cents",
+        "exp": -2,
+        "c": "chg_money_in_minor_units"
+      },
+      {
+        "k": "move",
+        "from": "/amount_cents",
+        "to": "/amount",
+        "c": "chg_money_in_minor_units"
+      }
+    ]
   }
 }

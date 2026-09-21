@@ -2185,6 +2185,28 @@ switched-off contract refuses rather than send a shape nobody was promised.
 The L1 matrix gained an outbound direction, served for bodies and not
 expressible for parameters, and every op is executed in it.
 
+### A chain the size of its history, not its square
+
+Each historical contract used to carry every later step written out again, so
+a program grew with the square of its history: 7.5 MB and 2.7 seconds to
+compile at twenty steps over 200 operations, and well over 100 MB projected
+for fifty steps at Stripe's size (launch gate L18). Each step is now projected
+once, and contract N's work at a site is its own step followed by a `call` to
+contract N+1's, held in blocks at the top of the program. Blocks are named for
+what they hold, so the 600 sites a shared schema reaches share one block per
+contract rather than holding 600 copies, and since the calls into the next
+contract are shared the same way, so does the rest of the chain. Fifty steps
+over 600 operations and 400 schemas now compile in about five seconds to a
+3.2 MB program that loads in about 140 ms and transforms a response in half a
+millisecond at p99. `proving/chains/chains.test.ts` holds it to stated
+budgets on every commit, and checks the linked program against each step run
+in turn and against the program written out in full, on every contract of a
+twelve-step chain. The chain equivalence check now tests the program that
+ships rather than a separately materialised one, which is what it was always
+meant to test. What remains is sites times steps: each contract still lists
+every site it serves. Loading contracts lazily would take that off the load
+path if a provider ever needs it.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no

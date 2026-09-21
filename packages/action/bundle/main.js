@@ -3825,6 +3825,12 @@ Type.Object({
 	/** Every historical contract still served, each compiled straight to current. */
 	contracts: Type.Record(Type.String(), ContractProgram),
 	/**
+	* Blocks any contract may `call`: each step's shared blocks, and each
+	* contract's work kept once for the older contracts that run it after
+	* their own. Named after the step or contract that owns them.
+	*/
+	blocks: Type.Optional(Type.Record(BlockName, Type.Array(Instr))),
+	/**
 	* The path the API is served under, from the contract's `servers`, such
 	* as `/v1` for `https://api.example.com/v1`. The contract's paths are
 	* relative to it, so it is taken off a request's path before matching,
@@ -12687,7 +12693,7 @@ function normalizeDocument(input) {
 	if (!isJsonObject(document["paths"]) && !isJsonObject(document["webhooks"])) throw new ContractError("Document has no paths or webhooks object");
 	return document;
 }
-function contractOf(label, document) {
+function contractOf$1(label, document) {
 	const normalized = normalizeDocument(document);
 	return {
 		label,
@@ -12712,7 +12718,7 @@ async function loadContract(path, label) {
 		if (error instanceof BundleError) throw new ContractError(error.message);
 		throw error;
 	}
-	return contractOf(label, document);
+	return contractOf$1(label, document);
 }
 /** Every operation in the document, in a stable order. */
 function operationsOf(document) {
@@ -16269,13 +16275,18 @@ function refuseStandingCycles(blocks, where) {
 	};
 	for (const name of blocks.keys()) visit(name, []);
 }
-/** A contract's blocks: every name first, so a block can call any of them, itself included. */
-function decodeBlocks(raw, where) {
-	if (raw === void 0) return NO_BLOCKS;
+/**
+* Named blocks, able to call one another and any in `shared`, the program's
+* own. Every name is declared first, so a block can call any of them, itself
+* included. A name may not be declared twice, here and there alike.
+*/
+function decodeBlocks(raw, where, shared = NO_BLOCKS) {
+	if (raw === void 0) return shared;
 	const entries = Object.entries(object$1(raw, where));
-	const blocks = /* @__PURE__ */ new Map();
+	const blocks = new Map(shared);
 	for (const [name] of entries) {
 		if (name.length === 0 || name.length > 256) throw new ProgramError(`${where} has a block name that is empty or too long`);
+		if (shared.has(name)) throw new ProgramError(`${where} declares ${name}, which the program already does`);
 		blocks.set(name, { instrs: [] });
 	}
 	for (const [name, list] of entries) blocks.get(name).instrs = decodeBlock(list, `${where}["${name}"]`, 0, blocks, true);
@@ -16519,11 +16530,13 @@ function decodeProgram(raw) {
 		"current",
 		"currentLabel",
 		"contracts",
+		"blocks",
 		"basePath"
 	], "program");
 	const basePath = value["basePath"];
 	if (basePath !== void 0 && (typeof basePath !== "string" || !basePath.startsWith("/") || basePath.endsWith("/"))) throw new ProgramError("program.basePath must be a path such as /v1, without a trailing /");
 	if (value["irVersion"] !== 1) throw new ProgramError(`Unsupported IR version ${String(value["irVersion"])}`);
+	const shared = decodeBlocks(value["blocks"], "program.blocks");
 	const contracts = /* @__PURE__ */ new Map();
 	for (const [label, entry] of Object.entries(object$1(value["contracts"], "program.contracts"))) {
 		const where = `program.contracts.${label}`;
@@ -16538,7 +16551,7 @@ function decodeProgram(raw) {
 			"retired",
 			"basePath"
 		], where);
-		const blocks = decodeBlocks(contract["blocks"], `${where}.blocks`);
+		const blocks = decodeBlocks(contract["blocks"], `${where}.blocks`, shared);
 		const ownBase = contract["basePath"];
 		if (ownBase !== void 0 && (typeof ownBase !== "string" || !/^(\/.*[^/])?$/.test(ownBase))) throw new ProgramError(`${where}.basePath must be a path such as /v1, or empty`);
 		const sites = /* @__PURE__ */ new Map();
@@ -16732,6 +16745,32 @@ function pathsOfInstr(instr) {
 /** Header stage one uses to tell stage two what it concluded. */
 const CONTRACT_HINT_HEADER = "x-invariant-contract-hint";
 const INTERNAL_PREFIX = "x-invariant-";
+/**
+* Every Change a list of instructions can run, through the blocks it nests
+* and the blocks it calls. An older contract reaches the later steps' work by
+* calling it, so a switch that looked only at the instructions written in the
+* site would miss every Change but the oldest step's.
+*/
+function changesIn(instrs, into, entered = /* @__PURE__ */ new Set()) {
+	for (const instr of instrs) {
+		into.add(instr.c);
+		switch (instr.k) {
+			case "within":
+			case "has":
+			case "is":
+				changesIn(instr.block, into, entered);
+				break;
+			case "switch":
+				for (const block of instr.cases.values()) changesIn(block, into, entered);
+				break;
+			case "call":
+				if (entered.has(instr.target)) break;
+				entered.add(instr.target);
+				changesIn(instr.target.instrs, into, entered);
+		}
+	}
+	return into;
+}
 var UnsupportedContractError = class UnsupportedContractError extends Error {
 	contract;
 	constructor(contract, reason, message) {
@@ -17079,9 +17118,9 @@ var InvariantRuntime = class {
 		const disabled = flags.disabledChanges;
 		if (disabled && disabled.length > 0) {
 			const referenced = /* @__PURE__ */ new Set();
-			for (const instr of site.request) referenced.add(instr.c);
-			for (const instr of site.envelope?.instrs ?? []) referenced.add(instr.c);
-			for (const list of site.response.values()) for (const instr of list) referenced.add(instr.c);
+			changesIn(site.request, referenced);
+			changesIn(site.envelope?.instrs ?? [], referenced);
+			for (const list of site.response.values()) changesIn(list, referenced);
 			for (const change of disabled) if (referenced.has(change)) throw new UnsupportedContractError(label, `change ${change} is switched off`);
 		}
 		return site;
@@ -17311,7 +17350,8 @@ var InvariantRuntime = class {
 			body: text,
 			folded: []
 		};
-		for (const change of flags.disabledChanges ?? []) if (found.instrs.some((instr) => instr.c === change)) throw new UnsupportedContractError(contract, `change ${change} is switched off`);
+		const referenced = changesIn(found.instrs, /* @__PURE__ */ new Set());
+		for (const change of flags.disabledChanges ?? []) if (referenced.has(change)) throw new UnsupportedContractError(contract, `change ${change} is switched off`);
 		const context = {
 			contract,
 			operation: event,
@@ -19632,34 +19672,40 @@ function renamePathParameters(program, fromPath, toPath) {
 	};
 }
 /**
-* Builds the program for one historical contract, straight through to current.
+* Every step projected once. Each step's program is the same whichever older
+* contract it serves: its sites are filed under the endpoints requests reach
+* after every later route change, which is where they are served from, and
+* nothing about it depends on how far back the caller started.
 */
-function chainContract(label, steps) {
-	const issues = [];
-	const sites = /* @__PURE__ */ new Map();
-	const routes = [];
-	const behaviors = [];
-	const retired = [];
-	const blocks = {};
-	const outbound = {};
+function projectAll(steps) {
 	const laterRoutes = steps.map((step) => routeMappings(step.changes));
-	steps.forEach((step, index) => {
+	return steps.map((step, index) => {
 		const projected = projectStep(step.label, step.from, step.changes, step.to);
-		issues.push(...projected.issues);
-		behaviors.push(...projected.program.behaviors);
-		Object.assign(blocks, projected.program.blocks ?? {});
-		for (const [event, instrs] of Object.entries(projected.program.outbound ?? {})) outbound[event] = [...instrs, ...outbound[event] ?? []];
-		retired.push(...projected.program.retired);
 		const after = laterRoutes.slice(index + 1);
+		const sites = /* @__PURE__ */ new Map();
 		for (const [key, raw] of Object.entries(projected.program.sites)) {
 			const finalKey = remapKey(key, after);
 			const program = renamePathParameters(raw, key.slice(key.indexOf(" ") + 1), finalKey.slice(finalKey.indexOf(" ") + 1));
 			const existing = sites.get(finalKey);
 			sites.set(finalKey, existing ? mergeSite(existing, program) : program);
 		}
+		return {
+			issues: projected.issues,
+			sites,
+			outbound: projected.program.outbound ?? {},
+			blocks: projected.program.blocks ?? {},
+			behaviors: projected.program.behaviors,
+			retired: projected.program.retired
+		};
 	});
-	const historical = steps[0]?.from;
+}
+/** What every contract from `index` onward shares besides its sites. */
+function contractFrame(label, steps, projected, index) {
+	const laterRoutes = steps.slice(index).map((step) => routeMappings(step.changes));
+	const routes = [];
+	const historical = steps[index]?.from;
 	if (historical) for (const operation of operationsOf(historical)) {
+		if (operation.webhook) continue;
 		const target = mapThrough(laterRoutes, operation.method, operation.path);
 		if (target.method === operation.method && target.path === operation.path) continue;
 		routes.push({
@@ -19668,20 +19714,97 @@ function chainContract(label, steps) {
 				path: operation.path
 			},
 			to: target,
-			c: routeChangeFor(steps, operation.method, operation.path) ?? ""
+			c: routeChangeFor(steps.slice(index), operation.method, operation.path) ?? ""
 		});
 	}
+	const later = projected.slice(index);
+	const retired = later.flatMap((step) => step.retired);
 	return {
-		program: {
-			label,
-			routes: routes.sort((a, b) => siteKey(a.from.method, a.from.path).localeCompare(siteKey(b.from.method, b.from.path))),
-			sites: Object.fromEntries([...sites.entries()].sort()),
-			...Object.keys(outbound).length > 0 ? { outbound: Object.fromEntries(Object.entries(outbound).sort()) } : {},
-			...Object.keys(blocks).length > 0 ? { blocks: Object.fromEntries(Object.entries(blocks).sort()) } : {},
-			behaviors: [...new Set(behaviors)].sort(),
-			retired: [...new Map(retired.map((e) => [`${e.method} ${e.path}`, e])).values()].sort((a, b) => `${a.method} ${a.path}`.localeCompare(`${b.method} ${b.path}`))
-		},
-		issues
+		label,
+		routes: routes.sort((a, b) => siteKey(a.from.method, a.from.path).localeCompare(siteKey(b.from.method, b.from.path))),
+		behaviors: [...new Set(later.flatMap((step) => step.behaviors))].sort(),
+		retired: [...new Map(retired.map((e) => [`${e.method} ${e.path}`, e])).values()].sort((a, b) => `${a.method} ${a.path}`.localeCompare(`${b.method} ${b.path}`))
+	};
+}
+/**
+* What marks a block as a link in a chain: one contract's work, kept for the
+* contracts older than it, as opposed to a schema's blocks.
+*/
+const LINK = ">";
+/**
+* `link`'s work, each list of it replaced by one `call` to a block holding
+* it. The older contract runs its own step and then this, so it stores one
+* instruction where it used to store every later step again, and a chain of
+* any length costs what its steps cost. A list of one is kept as it is: a
+* block and a call to it would be larger than the instruction.
+*
+* Blocks are named for what they hold, so sites doing the same work share one.
+* A schema every operation returns, as Stripe's shared objects are, makes that
+* most of them, and since the calls into the next contract are shared the same
+* way, the sharing carries down the whole chain.
+*/
+function called(link, blocks) {
+	const named = /* @__PURE__ */ new Map();
+	const store = (list) => {
+		if (list === void 0 || list.length <= 1) return list;
+		const text = JSON.stringify(list);
+		let name = named.get(text);
+		if (name === void 0) {
+			name = `${link.label}${LINK}${named.size}`;
+			named.set(text, name);
+			blocks[name] = [...list];
+		}
+		return [{
+			k: "call",
+			block: name,
+			c: list[0].c
+		}];
+	};
+	const sites = /* @__PURE__ */ new Map();
+	for (const key of [...link.sites.keys()].sort()) {
+		const site = link.sites.get(key);
+		const out = { ...site };
+		const request = store(site.request);
+		if (request) out.request = request;
+		if (site.envelope) out.envelope = {
+			...site.envelope,
+			instrs: store(site.envelope.instrs) ?? []
+		};
+		if (site.response) out.response = Object.fromEntries(Object.entries(site.response).sort(([a], [b]) => a.localeCompare(b)).map(([status, list]) => [status, store(list) ?? []]));
+		sites.set(key, out);
+	}
+	const outbound = Object.fromEntries(Object.entries(link.outbound).sort(([a], [b]) => a.localeCompare(b)).map(([event, list]) => [event, store(list) ?? []]));
+	return {
+		label: link.label,
+		sites,
+		outbound
+	};
+}
+/** One step's work followed by everything after it: a request forward, a payload back. */
+function joined(own, later, label) {
+	const sites = /* @__PURE__ */ new Map();
+	const keys = /* @__PURE__ */ new Set([...own.sites.keys(), ...later?.sites.keys() ?? []]);
+	for (const key of [...keys].sort()) {
+		const earlier = own.sites.get(key);
+		const after = later?.sites.get(key);
+		sites.set(key, earlier && after ? mergeSite(earlier, after) : earlier ?? after);
+	}
+	const outbound = {};
+	const events = /* @__PURE__ */ new Set([...Object.keys(own.outbound), ...Object.keys(later?.outbound ?? {})]);
+	for (const event of [...events].sort()) outbound[event] = [...later?.outbound[event] ?? [], ...own.outbound[event] ?? []];
+	return {
+		label,
+		sites,
+		outbound
+	};
+}
+function contractOf(frame, link) {
+	const sites = Object.fromEntries([...link.sites.entries()].filter(([, site]) => site.request || site.envelope || site.response));
+	const outbound = Object.entries(link.outbound).filter(([, list]) => list.length > 0);
+	return {
+		...frame,
+		sites,
+		...outbound.length > 0 ? { outbound: Object.fromEntries(outbound) } : {}
 	};
 }
 /** Which Change first moved this endpoint, for counting and kill-switching. */
@@ -19695,12 +19818,6 @@ function routeChangeFor(steps, method, path) {
 		current = mapEndpoint(routeMappings(step.changes), current.method, current.path);
 	}
 }
-/**
-* Compiles every historical contract still served into one program.
-*
-* `steps` runs oldest first. The program for contract N is built from step N
-* onward, so each active contract gets a direct path to current.
-*/
 /**
 * The path every server of a contract serves the API under, when they agree
 * on one. `https://api.example.com/v1` and `/v1` both give `/v1`. Servers that
@@ -19733,22 +19850,38 @@ function servedUnder(document) {
 	const [only] = [...paths];
 	return paths.size === 1 && only !== void 0 ? only : void 0;
 }
+/**
+* Compiles every historical contract still served into one program.
+*
+* `steps` runs oldest first. The program for contract N is step N's work and
+* then contract N+1's, reached through a block, so a caller on any contract
+* gets one pass straight to current and the program grows with the number of
+* steps rather than with its square. Each step is projected once.
+*/
 function chainProgram(api, currentLabel, currentDigest, steps) {
-	const issues = [];
+	const projected = projectAll(steps);
+	const issues = projected.flatMap((step) => step.issues);
 	const contracts = {};
-	steps.forEach((step, index) => {
+	const blocks = {};
+	for (const step of projected) Object.assign(blocks, step.blocks);
+	let tail;
+	for (let index = steps.length - 1; index >= 0; index -= 1) {
+		const step = steps[index];
 		const label = step.parent;
-		if (label === currentLabel) return;
-		const chained = chainContract(label, steps.slice(index));
-		issues.push(...chained.issues);
-		const own = servedUnder(step.from);
+		const own = joined(projected[index], tail, label);
+		const link = index > 0 ? called(own, blocks) : own;
+		tail = link;
+		if (label === currentLabel) continue;
+		const program = contractOf(contractFrame(label, steps, projected, index), link);
+		const served = servedUnder(step.from);
 		const current = servedUnder(steps.at(-1)?.to);
-		contracts[label] = own !== void 0 && current !== void 0 && own !== current ? {
-			...chained.program,
-			basePath: own
-		} : chained.program;
-	});
+		contracts[label] = served !== void 0 && current !== void 0 && served !== current ? {
+			...program,
+			basePath: served
+		} : program;
+	}
 	const base = basePathOf(steps.at(-1)?.to);
+	const used = Object.fromEntries(Object.entries(blocks).sort());
 	return {
 		program: {
 			irVersion: 1,
@@ -19756,7 +19889,8 @@ function chainProgram(api, currentLabel, currentDigest, steps) {
 			...base === void 0 ? {} : { basePath: base },
 			current: currentDigest,
 			currentLabel,
-			contracts
+			contracts: Object.fromEntries(Object.entries(contracts).sort()),
+			...Object.keys(used).length > 0 ? { blocks: used } : {}
 		},
 		issues
 	};
@@ -33957,16 +34091,19 @@ function lensFor(forward, backward, blocks = {}) {
 /**
 * Chain equivalence: one pass has to mean the same thing as several.
 *
-* A consumer four contracts behind is served by a program that was
-* concatenated once at build time, rather than by four transforms run in
-* sequence per request. That is the whole reason the chaining is cheap, and it
-* is only safe if the two are the same function.
+* A consumer four contracts behind is served by a program compiled once at
+* build time, rather than by four transforms looked up and run in sequence per
+* request. That is the whole reason the chaining is cheap, and it is only safe
+* if the two are the same function.
 *
-* Concatenation is correct by an argument about order, which is a good argument
-* and not a proof. This runs both and compares, on values generated from the
-* historical contract the consumer actually speaks, so the argument has
-* something behind it. It is also the gate the design promised for any future
-* optimising flattener: whatever that produces has to pass this unchanged.
+* The program that ships links each contract's work to the next contract's
+* through shared blocks, so it stays linear in its history. Linking and
+* concatenating are correct by an argument about order, which is a good
+* argument and not a proof. This runs the program that ships against each step
+* run alone, on values generated from the historical contract the consumer
+* actually speaks, so the argument has something behind it. It is also the gate
+* the design promised for any future optimising flattener: whatever that
+* produces has to pass this unchanged.
 */
 function requestSchemaRef(document, method, path) {
 	const paths = document["paths"];
@@ -33986,9 +34123,9 @@ function requestSchemaRef(document, method, path) {
 	const ref = schema["$ref"];
 	return typeof ref === "string" ? ref : void 0;
 }
-/** Runs one site's instructions as a single pass. */
-function onePass(instrs) {
-	const lens = lensFor(instrs, []);
+/** Runs one site's instructions as a single pass, with the blocks they call. */
+function onePass(instrs, blocks) {
+	const lens = lensFor(instrs, [], blocks);
 	return (value) => lens.forward(value);
 }
 /**
@@ -34004,13 +34141,20 @@ function checkChainEquivalence(steps, options = {}) {
 	const runs = options.runs ?? 200;
 	const failures = [];
 	const evidence = [];
+	const linked = chainProgram("verify", steps.at(-1)?.label ?? "", "sha256:0", steps).program;
+	const everyStep = steps.map((step) => projectStep(step.label, step.from, step.changes, step.to).program);
 	steps.forEach((_step, index) => {
 		const tail = steps.slice(index);
 		const first = tail[0];
 		if (!first) return;
 		const label = first.parent;
-		const chained = chainContract(label, tail).program;
-		const perStep = tail.map((step) => projectStep(step.label, step.from, step.changes, step.to).program);
+		const chained = linked.contracts[label];
+		if (!chained) return;
+		const chainedBlocks = {
+			...linked.blocks,
+			...chained.blocks
+		};
+		const perStep = everyStep.slice(index);
 		const found = [];
 		for (const operation of operationsOf(first.from)) {
 			const ref = requestSchemaRef(first.from, operation.method, operation.path);
@@ -34027,8 +34171,8 @@ function checkChainEquivalence(steps, options = {}) {
 				stages.push(program.sites[siteKey(cursor.method, cursor.path)]?.request ?? []);
 			}
 			if (chainedRequest.length === 0 && stages.every((stage) => stage.length === 0)) continue;
-			const single = onePass(chainedRequest);
-			const staged = stages.map((stage) => onePass(stage));
+			const single = onePass(chainedRequest, chainedBlocks);
+			const staged = stages.map((stage, at) => onePass(stage, perStep[at]?.blocks ?? {}));
 			const result = fast_check_default.check(fast_check_default.property(schemaArbitrary(first.from, ref), (value) => {
 				const a = single(value);
 				let b = value;

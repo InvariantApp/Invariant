@@ -186,7 +186,7 @@ list of primitives per site, already inverted where inversion was needed.
 | `switch` | `path`, `cases` | run the block for the value a key holds, read once on entry |
 | `has` | `path`, `block`, `absent?` | run the block where a field is present, or missing |
 | `is` | `path`, `type`, `block` | run the block where the value is of one JSON kind |
-| `call` | `block` | run a named block of the contract, for a schema that contains itself |
+| `call` | `block` | run a named block, the contract's own or the program's, where it stands |
 
 Every instruction carries `c`, the id of the Change it came from, so one change
 can be counted and switched off on its own.
@@ -213,11 +213,21 @@ silently does half the work.
 
 ### Chaining
 
-A consumer several contracts behind is served by one concatenated program, not
-by several run in sequence. Requests concatenate chronologically; responses
-concatenate in reverse. A step files its work under the endpoint the request
-has **arrived at**, because path rewriting happens before routing and body
-rewriting after it.
+A consumer several contracts behind is served by one program, not by several
+run in sequence. Requests run chronologically; responses run in reverse. A
+step files its work under the endpoint the request has **arrived at**, because
+path rewriting happens before routing and body rewriting after it.
+
+Contract N's work at a site is its own step and then contract N+1's work at
+the same site. Written out, every contract would repeat every later step and
+a program would grow with the square of its history, so a compiler links them
+instead: contract N+1's lists go into blocks at the top of the program, under
+`blocks`, and contract N ends its request list with a `call` to one (begins
+its response list, for a response). Blocks are named for what they hold, so
+sites that do the same work share one. A contract's `blocks` and the
+program's share one namespace; a name declared in both is refused at load.
+An engine runs a linked program exactly as it would the program written out
+in full, and the chain equivalence check holds the compiler to that.
 
 ---
 

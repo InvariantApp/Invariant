@@ -14,6 +14,7 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { catalogueEntry, isUnclassified } from "@invariant/diff";
 import type { PairResult as CorpusResult } from "@invariant/eval";
+import type { BUDGET, ChainCost } from "./chains/cost.ts";
 import { ROOT } from "./corpus/manifest.mts";
 import type { ReplayIndex } from "./replay/mine.mts";
 import type { PairResult as ServerResult } from "./servers/run.mts";
@@ -44,6 +45,7 @@ export function scoreboard(inputs: {
   servers: ServerResult[] | undefined;
   replay: ReplayIndex | undefined;
   fuzz: string | undefined;
+  chains?: (ChainCost & { budget: typeof BUDGET }) | undefined;
 }): Line[] {
   const lines: Line[] = [];
   const unmeasured = (id: string, claim: string, why: string): Line => ({
@@ -255,14 +257,41 @@ export function scoreboard(inputs: {
       "Older runtimes either run newer programs or refuse with a typed error.",
       "M3.17.",
     ),
-    unmeasured(
-      "L18",
-      "A 50-step chain over a Stripe-sized spec within stated budgets.",
-      "M3.16.",
-    ),
+    chainLine(inputs.chains),
     unmeasured("L19", "Proxy p99 overhead asserted in CI.", "M4.10."),
   );
   return lines;
+}
+
+function chainLine(chains: (ChainCost & { budget: typeof BUDGET }) | undefined): Line {
+  const claim = "A 50-step chain over a Stripe-sized spec within stated budgets.";
+  if (!chains) {
+    return {
+      id: "L18",
+      claim,
+      status: "not measured",
+      value: "",
+      evidence: "proving/chains/",
+    };
+  }
+  const { budget } = chains;
+  const within =
+    chains.programBytes < budget.programBytes &&
+    chains.compileMs < budget.compileMs &&
+    chains.loadMs < budget.loadMs &&
+    chains.transformP99Ms < budget.transformP99Ms;
+  const mb = (bytes: number) => `${(bytes / 1_000_000).toFixed(1)} MB`;
+  return {
+    id: "L18",
+    claim,
+    status: within ? "met" : "not met",
+    value:
+      `${chains.shape.steps} steps, ${chains.shape.operations} operations: ` +
+      `program ${mb(chains.programBytes)} (budget ${mb(budget.programBytes)}), ` +
+      `compile ${chains.compileMs} ms, load ${chains.loadMs} ms (budget ${budget.loadMs}), ` +
+      `p99 transform ${chains.transformP99Ms} ms (budget ${budget.transformP99Ms})`,
+    evidence: "proving/chains/results.json, asserted by proving/chains/chains.test.ts",
+  };
 }
 
 export function render(lines: readonly Line[]): string {
@@ -297,6 +326,7 @@ if (process.argv[1]?.endsWith("scoreboard.mts")) {
     servers,
     replay: read<ReplayIndex>("proving/replay/index.json"),
     fuzz: process.env["FUZZ_RESULT"],
+    chains: read<ChainCost & { budget: typeof BUDGET }>("proving/chains/results.json"),
   });
   const page = render(lines);
   await writeFile(join(ROOT, "proving/SCOREBOARD.md"), page, "utf8");

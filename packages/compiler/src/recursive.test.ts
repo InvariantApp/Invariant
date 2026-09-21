@@ -14,7 +14,7 @@ import type { OpenApiDocument } from "@invariant/contract";
 import { parseChange } from "@invariant/ir";
 import { createRuntime } from "@invariant/runtime";
 import { describe, expect, it } from "vitest";
-import { chainProgram } from "./chain.ts";
+import { chainProgram, expandChains } from "./chain.ts";
 import { predictDocument } from "./predict.ts";
 
 function thread(body: string): OpenApiDocument {
@@ -106,7 +106,9 @@ describe("a Change to a schema that contains itself", () => {
 
   it("is compiled into blocks the size of the schemas, not of the paths", () => {
     const { program } = runtimeFor();
-    const blocks = program.contracts["v1"]?.blocks ?? {};
+    // Blocks are shared by every contract; the ones named for a contract's
+    // work in a chain are not a schema's.
+    const blocks = expandChains(program).blocks ?? {};
     expect(Object.keys(blocks).sort()).toEqual([
       "v2:Comment:in",
       "v2:Comment:out",

@@ -1944,6 +1944,98 @@
       "expect": {
         "refuses": "decode"
       }
+    },
+    {
+      "name": "a contract calls the program's blocks, which call one another",
+      "why": "A chain of contracts is linked, not written out: each contract's work ends in a call to the next contract's, held at the top of the program. An engine that only looked up a contract's own blocks could not run it.",
+      "programBlocks": {
+        "v2>0": [
+          {
+            "k": "move",
+            "from": "/amount",
+            "to": "/amount_cents",
+            "c": "chg_vector"
+          },
+          {
+            "k": "call",
+            "block": "v3>0",
+            "c": "chg_vector"
+          }
+        ],
+        "v3>0": [
+          {
+            "k": "move",
+            "from": "/amount_cents",
+            "to": "/amount_minor",
+            "c": "chg_vector"
+          },
+          {
+            "k": "set",
+            "path": "/currency",
+            "value": "usd",
+            "ifAbsent": true,
+            "c": "chg_vector"
+          }
+        ]
+      },
+      "instrs": [
+        {
+          "k": "move",
+          "from": "/total",
+          "to": "/amount",
+          "c": "chg_vector"
+        },
+        {
+          "k": "call",
+          "block": "v2>0",
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "total": 100
+      },
+      "expect": {
+        "output": {
+          "amount_minor": 100,
+          "currency": "usd"
+        }
+      }
+    },
+    {
+      "name": "a contract may not declare a block the program already does",
+      "why": "One name meaning two things depending on who calls it is a program that runs differently on engines that resolve it differently.",
+      "programBlocks": {
+        "Shared": [
+          {
+            "k": "del",
+            "path": "/a",
+            "c": "chg_vector"
+          }
+        ]
+      },
+      "blocks": {
+        "Shared": [
+          {
+            "k": "del",
+            "path": "/b",
+            "c": "chg_vector"
+          }
+        ]
+      },
+      "instrs": [
+        {
+          "k": "call",
+          "block": "Shared",
+          "c": "chg_vector"
+        }
+      ],
+      "input": {
+        "a": 1,
+        "b": 2
+      },
+      "expect": {
+        "refuses": "decode"
+      }
     }
   ],
   "envelopes": [
