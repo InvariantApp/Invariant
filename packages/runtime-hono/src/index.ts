@@ -11,8 +11,13 @@ import {
   BodyTooLargeError,
   CONTRACT_HINT_HEADER,
   CONTRACT_RESPONSE_HEADER,
+  DEFAULT_ERROR_SHAPER,
+  ERROR_CODES,
+  type ErrorShaper,
   FOLDED_HEADER,
+  goneWith,
   InvariantRuntime,
+  RetiredEndpointError,
   TransformError,
   UnsupportedContractError,
 } from "@invariant/runtime";
@@ -63,22 +68,7 @@ export type FetchHandler = (
   ...rest: never[]
 ) => Response | Promise<Response>;
 
-/** How a failed transform is reported, in the provider's own error shape. */
-export interface ErrorShaper {
-  badRequest: (message: string, code: string) => { body: unknown; status: number };
-  serverError: (message: string, code: string) => { body: unknown; status: number };
-}
-
-const DEFAULT_SHAPER: ErrorShaper = {
-  badRequest: (message, code) => ({
-    body: { error: { type: "invalid_request_error", message, code } },
-    status: 400,
-  }),
-  serverError: (message, code) => ({
-    body: { error: { type: "api_error", message, code } },
-    status: 502,
-  }),
-};
+export type { ErrorShaper };
 
 export interface HonoBindingOptions {
   runtime: InvariantRuntime;
@@ -118,7 +108,21 @@ export function wrapFetch(
       return handler(cleaned, ...rest);
     }
 
-    const decision = runtime.route(request.method, url.pathname, headers);
+    let decision: ReturnType<InvariantRuntime["route"]>;
+    try {
+      decision = runtime.route(request.method, url.pathname, headers);
+    } catch (error) {
+      if (error instanceof UnsupportedContractError) {
+        // Refused before routing, because a caller who named a contract that
+        // does not exist must not be routed as though they had named none.
+        const shaped = (options.errors ?? DEFAULT_ERROR_SHAPER).badRequest(
+          error.message,
+          ERROR_CODES.contractUnsupported,
+        );
+        return Response.json(shaped.body, { status: shaped.status });
+      }
+      throw error;
+    }
     if (decision.hint) headers.set(CONTRACT_HINT_HEADER, decision.hint.label);
 
     if (!decision.rewritten && !decision.hint && !hadInternal) {
@@ -147,7 +151,13 @@ function requestInit(request: Request): RequestInit & { duplex?: "half" } {
  * falls straight through without the body being read at all.
  */
 export function adapt(options: HonoBindingOptions): MiddlewareHandler {
-  const { runtime, pinnedContract, consumerId, errors = DEFAULT_SHAPER, skip } = options;
+  const {
+    runtime,
+    pinnedContract,
+    consumerId,
+    errors = DEFAULT_ERROR_SHAPER,
+    skip,
+  } = options;
 
   return async (c: Context, next: Next) => {
     if (skip?.(c.req.path)) return next();
@@ -164,6 +174,13 @@ export function adapt(options: HonoBindingOptions): MiddlewareHandler {
     } catch (error) {
       if (error instanceof UnsupportedContractError) {
         const shaped = errors.badRequest(error.message, "invariant_contract_unsupported");
+        return c.json(shaped.body as never, shaped.status as never);
+      }
+      if (error instanceof RetiredEndpointError) {
+        // The whole point of retiring an endpoint is that the caller is told
+        // what to use instead. This used to fall through as an unexplained 500,
+        // so the provider's guidance never reached anyone.
+        const shaped = goneWith(errors)(error.message, ERROR_CODES.endpointRetired);
         return c.json(shaped.body as never, shaped.status as never);
       }
       throw error;

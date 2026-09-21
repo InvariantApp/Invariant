@@ -314,6 +314,12 @@ importers:
         specifier: ^4
         version: 4.13.8
 
+  packages/sidecar:
+    dependencies:
+      '@invariant/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+
   packages/verifier:
     dependencies:
       '@invariant/compiler':

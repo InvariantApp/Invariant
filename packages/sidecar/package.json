@@ -1,0 +1,16 @@
+{
+  "name": "@invariant/sidecar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A standalone reverse proxy running the Invariant runtime in front of an API written in any language",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "invariant-sidecar": "./src/cli.ts"
+  },
+  "dependencies": {
+    "@invariant/runtime": "workspace:*"
+  }
+}

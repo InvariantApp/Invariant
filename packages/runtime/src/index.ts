@@ -30,6 +30,13 @@ import {
   ProgramError,
 } from "./program.ts";
 
+export {
+  DEFAULT_ERROR_SHAPER,
+  ERROR_CODES,
+  type ErrorShaper,
+  goneWith,
+  type ShapedError,
+} from "./errors.ts";
 export type { DecodedProgram, DecodedSite };
 export { decodeProgram, ProgramError, TransformError };
 
@@ -239,6 +246,25 @@ export class InvariantRuntime {
       ),
     ].sort();
     this.#identity = options.identity;
+    // A provider's own configuration naming a contract the program does not
+    // have is a mistake to catch at startup, not on the first request that
+    // happens to reach that branch.
+    for (const strategy of this.#identity) {
+      const named =
+        strategy.kind === "default"
+          ? [strategy.label]
+          : strategy.kind === "urlPrefix"
+            ? Object.values(strategy.map)
+            : [];
+      for (const label of named) {
+        if (!this.knows(label)) {
+          throw new Error(
+            `The ${strategy.kind} identity strategy names contract "${label}", ` +
+              `which this program does not have. Known: ${this.#knownLabels()}.`,
+          );
+        }
+      }
+    }
     this.#maxBodyBytes = options.maxBodyBytes ?? 1024 * 1024;
     this.#limits = options.limits ?? DEFAULT_LIMITS;
     this.#fidelity = options.numbers ?? "double";
@@ -253,6 +279,11 @@ export class InvariantRuntime {
 
   get currentDigest(): string {
     return this.#program.current;
+  }
+
+  #knownLabels(): string {
+    const labels = [this.#program.currentLabel, ...this.#program.contracts.keys()];
+    return [...new Set(labels)].sort().join(", ");
   }
 
   knows(label: string): boolean {
@@ -320,7 +351,21 @@ export class InvariantRuntime {
     for (const strategy of this.#identity) {
       if (strategy.kind === "header") {
         const value = headers.get(strategy.name);
-        if (value && this.knows(value)) return { label: value, source: "header" };
+        if (value) {
+          // A named contract that does not exist is refused, never ignored.
+          // Ignoring it served the caller as current: a typo in a version
+          // header, or a label for a contract since retired, got the newest
+          // shape of every response with nothing to say why. That is the
+          // breakage this product exists to prevent, arriving through its own
+          // front door, and the design said to refuse it all along.
+          if (!this.knows(value)) {
+            throw new UnsupportedContractError(
+              value,
+              `no contract by that name; this API knows ${this.#knownLabels()}`,
+            );
+          }
+          return { label: value, source: "header" };
+        }
       }
       if (strategy.kind === "urlPrefix") {
         for (const [prefix, label] of Object.entries(strategy.map)) {
