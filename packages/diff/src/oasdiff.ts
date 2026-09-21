@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
+import { chmodSync, existsSync, statSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -53,7 +53,18 @@ function bundledBinary(): string | undefined {
       `${binary.package}/package.json`,
     );
     const path = join(dirname(manifest), "bin", binary.executable);
-    return existsSync(path) ? path : undefined;
+    if (!existsSync(path)) return undefined;
+    // Declared as a bin so the package manager marks it executable, but a
+    // copy made some other way can arrive without the bit. Put it back once
+    // rather than report a binary that is present as missing.
+    if (process.platform !== "win32" && (statSync(path).mode & 0o111) === 0) {
+      try {
+        chmodSync(path, 0o755);
+      } catch {
+        // A read-only install. The version check says so precisely.
+      }
+    }
+    return path;
   } catch {
     // Not installed, which is normal on an unsupported platform or when
     // optional dependencies were skipped.
@@ -77,10 +88,19 @@ export async function oasdiffAvailable(): Promise<boolean> {
  * name the exact release to install.
  */
 export async function assertUsableOasdiff(): Promise<void> {
+  const binary = oasdiffBinary();
   let output: string;
   try {
-    output = (await run(oasdiffBinary(), ["--version"])).stdout;
-  } catch {
+    output = (await run(binary, ["--version"])).stdout;
+  } catch (error) {
+    if ((error as { code?: string }).code === "EACCES") {
+      // Present but not executable, which a missing-binary message would send
+      // someone looking for in entirely the wrong place.
+      throw new OasdiffError(
+        `${binary} exists but cannot be executed. Make it executable, or set ` +
+          "OASDIFF_BIN to one that can be.",
+      );
+    }
     throw new OasdiffError(
       `oasdiff is required and was not found. Install it with "${OASDIFF_INSTALL}", ` +
         "or set OASDIFF_BIN to its path.",

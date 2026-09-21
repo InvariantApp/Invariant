@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { existsSync } from "node:fs";
+import { chmodSync, existsSync, statSync } from "node:fs";
 import { appendFile, chmod, copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import { createHash } from "node:crypto";
@@ -12873,7 +12873,11 @@ function bundledBinary() {
 	try {
 		const manifest = createRequire(import.meta.url).resolve(`${binary.package}/package.json`);
 		const path = join(dirname(manifest), "bin", binary.executable);
-		return existsSync(path) ? path : void 0;
+		if (!existsSync(path)) return void 0;
+		if (process.platform !== "win32" && (statSync(path).mode & 73) === 0) try {
+			chmodSync(path, 493);
+		} catch {}
+		return path;
 	} catch {
 		return;
 	}
@@ -12885,10 +12889,12 @@ function bundledBinary() {
 * name the exact release to install.
 */
 async function assertUsableOasdiff() {
+	const binary = oasdiffBinary();
 	let output;
 	try {
-		output = (await run$1(oasdiffBinary(), ["--version"])).stdout;
-	} catch {
+		output = (await run$1(binary, ["--version"])).stdout;
+	} catch (error) {
+		if (error.code === "EACCES") throw new OasdiffError(`${binary} exists but cannot be executed. Make it executable, or set OASDIFF_BIN to one that can be.`);
 		throw new OasdiffError(`oasdiff is required and was not found. Install it with "${OASDIFF_INSTALL}", or set OASDIFF_BIN to its path.`);
 	}
 	const problem = unusableVersion(output);

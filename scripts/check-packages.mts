@@ -19,13 +19,14 @@ import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { builtinModules } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { binaryFor, PLATFORM_BINARIES } from "@invariant/diff";
 import { publint } from "publint";
 import { formatMessage } from "publint/utils";
 
 const run = promisify(execFile);
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 /** Imports each package may make at run time beyond its declared dependencies. */
 const RUNTIME_ONLY = new Map([

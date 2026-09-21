@@ -85,3 +85,34 @@ jobs:
         # until the whole job times out and say nothing about why.
         timeout-minutes: 6
         run: pnpm exec invariant check --full
+
+  # What a stranger gets, on each operating system a provider's CI runs:
+  # every package published to a private registry, installed into an empty
+  # project with Go off the PATH, then `init` and a check that has to block a
+  # breaking change.
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Fetch the pinned oasdiff release for this runner
+        run: node --import tsx scripts/fetch-oasdiff.mts --host
+
+      - run: pnpm build
+
+      - name: Install from a registry and use it from nothing
+        run: node --import tsx scripts/install-test.mts

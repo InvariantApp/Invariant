@@ -10,6 +10,7 @@
  */
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   assertPinnedVersion,
   binaryFor,
@@ -20,7 +21,7 @@ import {
   upstreamChecksums,
 } from "@invariant/diff";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const host = binaryFor();
 const wanted = process.argv.includes("--host")
   ? PLATFORM_BINARIES.filter((binary) => binary === host)

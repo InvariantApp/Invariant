@@ -15,6 +15,9 @@
     "x64",
     "arm64"
   ],
+  "bin": {
+    "invariant-oasdiff": "bin/oasdiff"
+  },
   "files": [
     "bin",
     "LICENSE",

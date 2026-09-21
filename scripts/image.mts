@@ -16,10 +16,11 @@ import { chmod, copyFile, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const run = promisify(execFile);
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const tagAt = process.argv.indexOf("--tag");
 const TAG = tagAt === -1 ? "invariant-sidecar:test" : (process.argv[tagAt + 1] as string);
 const UPSTREAM_PORT = 18787;

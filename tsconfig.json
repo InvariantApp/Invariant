@@ -14,7 +14,7 @@
     "e2e/**/*.ts",
     "*.config.ts",
     "tsdown.shared.ts",
-    "packages/*/tsdown.config.ts",
+    "packages/*/tsdown*.ts",
     "scripts/**/*.mts"
   ],
   "exclude": ["**/node_modules", "**/dist"]
