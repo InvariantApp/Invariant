@@ -29,6 +29,7 @@ import {
   listReleasedLabels,
   loadContract,
   loadPendingChanges,
+  standaloneText,
 } from "@invariant/contract";
 import type { Change } from "@invariant/ir";
 import { type Evidence, inputsDigest } from "@invariant/verifier";
@@ -175,7 +176,7 @@ export async function release(
   await mkdir(bundleDir, { recursive: true });
   await mkdir(join(config.root, "invariant", "contracts"), { recursive: true });
 
-  await writeFile(specPath, await readFile(config.currentSpec, "utf8"), "utf8");
+  await writeFile(specPath, await standaloneText(config.currentSpec), "utf8");
   await writeFile(
     join(bundleDir, `${label}.dsse.json`),
     `${JSON.stringify(envelope, null, 2)}\n`,

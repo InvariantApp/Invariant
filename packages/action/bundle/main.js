@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { chmodSync, existsSync, statSync } from "node:fs";
 import { appendFile, chmod, copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { exec, execFile, spawn } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -4683,51 +4683,6 @@ function check$2(schema, what, value) {
 function parseChange(value) {
 	check$2(Change, "Change", value);
 	return value;
-}
-//#endregion
-//#region ../contract/src/canonical.ts
-/**
-* RFC 8785 JSON Canonicalization Scheme.
-*
-* Object keys sort by UTF-16 code unit, which is exactly what the default
-* string sort does, and numbers serialize the ECMAScript way, which is what
-* `JSON.stringify` already emits for every finite double. Canonicalization is
-* for artifacts only: it must never touch an API payload, because the number
-* rules here would undo any precision a payload had preserved.
-*/
-function canonicalize(value) {
-	if (value === null || typeof value === "boolean") return JSON.stringify(value);
-	if (typeof value === "number") {
-		if (!Number.isFinite(value)) throw new TypeError(`Cannot canonicalize a non-finite number: ${value}`);
-		return JSON.stringify(value);
-	}
-	if (typeof value === "string") return JSON.stringify(value);
-	if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`;
-	return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalize(value[key])}`).join(",")}}`;
-}
-function digestOf(value) {
-	return `sha256:${createHash("sha256").update(canonicalize(value), "utf8").digest("hex")}`;
-}
-/**
-* Fields that describe an API but do not constrain the wire. They are excluded
-* from the digest so that editing a description does not mint a new contract.
-*/
-const NON_WIRE_KEYS = /* @__PURE__ */ new Set([
-	"description",
-	"summary",
-	"example",
-	"examples",
-	"title"
-]);
-function stripNonWire(value) {
-	if (Array.isArray(value)) return value.map(stripNonWire);
-	if (!isJsonObject(value)) return value;
-	const out = {};
-	for (const [key, child] of Object.entries(value)) {
-		if (NON_WIRE_KEYS.has(key)) continue;
-		out[key] = stripNonWire(child);
-	}
-	return out;
 }
 //#endregion
 //#region ../../node_modules/.pnpm/yaml@2.9.1/node_modules/yaml/dist/nodes/identity.js
@@ -11337,13 +11292,27 @@ var require_public_api = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.stringify = stringify;
 }));
 //#endregion
-//#region ../contract/src/changeset.ts
+//#region ../contract/src/bundle.ts
 /**
-* Reading a provider repository's Invariant directory.
+* A specification split across files, read as the one document it describes.
 *
-* Changes live in the provider's own repo and are merged through ordinary code
-* review, so git is the record of what was confirmed and by whom. Nothing here
-* reaches out to a network.
+* Many providers keep their OpenAPI document in pieces, a file per schema or
+* per path, joined by relative `$ref`s such as `./schemas/Pet.yaml`. Every
+* part of this system reads one self-contained document, and a Change names a
+* schema by where it sits in that document, so the pieces are gathered here,
+* once, when the file is loaded.
+*
+* A referenced schema is placed among the document's named schemas, under the
+* name its reference gives it (`#/Pet` or `Pet.yaml` names it `Pet`), so a
+* Change can be scoped to it like any other. Anything else, a path item or a
+* parameter kept in its own file, is written in where it is referenced, which
+* is what the reference means.
+*
+* Only files are read, never URLs, and never outside the repository the
+* document sits in: a specification is input, and resolving a reference must
+* not become a way to read or fetch anything else. Documents that arrive over
+* the network never come through here; they are refused any external
+* reference at all.
 */
 var import_dist = (/* @__PURE__ */ __commonJSMin(((exports) => {
 	var composer = require_composer();
@@ -11391,6 +11360,246 @@ var import_dist = (/* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.visit = visit.visit;
 	exports.visitAsync = visit.visitAsync;
 })))();
+var BundleError = class extends Error {
+	constructor(message) {
+		super(message);
+		this.name = "BundleError";
+	}
+};
+/** How many files one document may pull in. A real split specification has hundreds, not thousands. */
+const MAX_FILES = 2e3;
+/** Keys under which the value is a schema, or a map or list of them. */
+const SCHEMA_VALUE = /* @__PURE__ */ new Set([
+	"schema",
+	"items",
+	"additionalProperties",
+	"not"
+]);
+const SCHEMA_LIST = /* @__PURE__ */ new Set([
+	"allOf",
+	"anyOf",
+	"oneOf",
+	"prefixItems"
+]);
+const SCHEMA_MAP = /* @__PURE__ */ new Set([
+	"properties",
+	"patternProperties",
+	"definitions",
+	"$defs"
+]);
+function parseText(path, text) {
+	return extname(path).toLowerCase() === ".json" ? JSON.parse(text) : (0, import_dist.parse)(text);
+}
+function pointerKey(segment) {
+	return decodeURIComponent(segment).replaceAll("~1", "/").replaceAll("~0", "~");
+}
+function at(value, pointer, where) {
+	let node = value;
+	for (const segment of pointer.split("/").slice(1)) {
+		const key = pointerKey(segment);
+		node = Array.isArray(node) ? node[Number(key)] : isJsonObject(node) ? node[key] : void 0;
+		if (node === void 0) throw new BundleError(`${where} points at nothing`);
+	}
+	return node;
+}
+/** The repository the document lives in, which references may not leave. */
+function repositoryOf(path) {
+	let dir = dirname(resolve(path));
+	for (;;) {
+		if (existsSync(resolve(dir, ".git"))) return dir;
+		const parent = dirname(dir);
+		if (parent === dir) return dirname(resolve(path));
+		dir = parent;
+	}
+}
+/** Whether a document refers to anything outside itself. */
+function refersOutside(value) {
+	if (Array.isArray(value)) return value.some(refersOutside);
+	if (!isJsonObject(value)) return false;
+	const ref = value["$ref"];
+	if (typeof ref === "string" && !ref.startsWith("#")) return true;
+	return Object.values(value).some(refersOutside);
+}
+/**
+* The document at `path` with every reference to another file resolved into
+* it. A document that refers to no other file is returned as it was parsed.
+*/
+async function bundleDocument(path, options = {}) {
+	const entry = resolve(path);
+	const root = resolve(options.root ?? repositoryOf(entry));
+	const files = /* @__PURE__ */ new Map();
+	const load = async (file, from) => {
+		const cached = files.get(file);
+		if (cached !== void 0) return cached;
+		const inside = relative(root, file);
+		if (inside.startsWith("..") || isAbsolute(inside)) throw new BundleError(`${from} refers to ${file}, outside the repository at ${root}. A specification may only refer to files beside it.`);
+		if (files.size >= MAX_FILES) throw new BundleError(`${entry} refers to more than ${MAX_FILES} files`);
+		let text;
+		try {
+			text = await readFile(file, "utf8");
+		} catch {
+			throw new BundleError(`${from} refers to ${file}, which cannot be read`);
+		}
+		const value = parseText(file, text);
+		files.set(file, value);
+		return value;
+	};
+	const document = await load(entry, entry);
+	if (!isJsonObject(document)) throw new BundleError(`${entry} does not contain an OpenAPI document`);
+	if (!refersOutside(document)) return document;
+	const swagger = document["swagger"] === "2.0";
+	const named = {};
+	/** Where each target was placed, by `file#pointer`. */
+	const placed = /* @__PURE__ */ new Map();
+	const taken = new Set(Object.keys((swagger ? document["definitions"] : isJsonObject(document["components"]) ? document["components"]["schemas"] : void 0) ?? {}));
+	const home = swagger ? "#/definitions/" : "#/components/schemas/";
+	const targetOf = (ref, file) => {
+		if (/^[a-z][a-z0-9+.-]*:/i.test(ref)) throw new BundleError(`${file} refers to ${ref}. References are resolved from files, never fetched.`);
+		const [path = "", fragment = ""] = ref.split("#", 2);
+		return {
+			file: path === "" ? file : resolve(dirname(file), path),
+			pointer: fragment
+		};
+	};
+	/** A name for a schema kept in another file, from the reference itself. */
+	const nameFor = (target) => {
+		const last = target.pointer.split("/").filter((part) => part !== "").at(-1);
+		const base = (last ? pointerKey(last) : basename(target.file, extname(target.file))).replace(/[^A-Za-z0-9_.-]+/g, "_");
+		let name = base;
+		for (let n = 2; taken.has(name); n += 1) name = `${base}_${n}`;
+		taken.add(name);
+		return name;
+	};
+	const visit = async (value, file, schema, stack, path) => {
+		if (Array.isArray(value)) {
+			const out = [];
+			for (const item of value) out.push(await visit(item, file, schema, stack, []));
+			return out;
+		}
+		if (!isJsonObject(value)) return value;
+		const { $ref: ref, ...rest } = value;
+		let siblings = {};
+		if (typeof ref === "string" && Object.keys(rest).length > 0) siblings = await visit(rest, file, schema, stack, []);
+		if (typeof ref === "string") {
+			const target = targetOf(ref, file);
+			if (target.file === entry) return {
+				...siblings,
+				$ref: `#${target.pointer}`
+			};
+			const key = `${target.file}#${target.pointer}`;
+			const content = async () => at(await load(target.file, file), target.pointer, `${file}: ${ref}`);
+			if (schema) {
+				let name = placed.get(key);
+				if (name === void 0) {
+					const local = nameFor(target);
+					name = `${home}${local}`;
+					placed.set(key, name);
+					named[local] = await visit(await content(), target.file, true, [...stack, key], []);
+				}
+				return {
+					...siblings,
+					$ref: name
+				};
+			}
+			if (stack.includes(key)) throw new BundleError(`${ref} in ${file} refers back to itself outside a schema, which cannot be written in place`);
+			const inlined = await visit(await content(), target.file, false, [...stack, key], path);
+			return isJsonObject(inlined) ? {
+				...inlined,
+				...siblings
+			} : inlined;
+		}
+		const holdsNamed = path.length === 1 && path[0] === "components" && swagger === false || path.length === 0 && swagger && file === entry;
+		const out = {};
+		for (const [key, child] of Object.entries(value)) {
+			const here = [...path, key];
+			if (key === "example" || key === "examples") out[key] = child;
+			else if (SCHEMA_VALUE.has(key) || schema && SCHEMA_LIST.has(key)) out[key] = await visit(child, file, true, stack, []);
+			else if (isJsonObject(child) && (schema && SCHEMA_MAP.has(key) || holdsNamed && key === (swagger ? "definitions" : "schemas"))) {
+				const map = {};
+				for (const [name, member] of Object.entries(child)) map[name] = await visit(member, file, true, stack, []);
+				out[key] = map;
+			} else {
+				const data = [
+					"enum",
+					"const",
+					"default"
+				].includes(key);
+				out[key] = await visit(child, file, schema && !data, stack, file === entry ? here : []);
+			}
+		}
+		return out;
+	};
+	const bundled = await visit(document, entry, false, [], []);
+	if (Object.keys(named).length > 0) {
+		if (swagger) bundled["definitions"] = {
+			...isJsonObject(bundled["definitions"]) ? bundled["definitions"] : {},
+			...named
+		};
+		else {
+			const components = isJsonObject(bundled["components"]) ? bundled["components"] : {};
+			components["schemas"] = {
+				...isJsonObject(components["schemas"]) ? components["schemas"] : {},
+				...named
+			};
+			bundled["components"] = components;
+		}
+	}
+	return bundled;
+}
+//#endregion
+//#region ../contract/src/canonical.ts
+/**
+* RFC 8785 JSON Canonicalization Scheme.
+*
+* Object keys sort by UTF-16 code unit, which is exactly what the default
+* string sort does, and numbers serialize the ECMAScript way, which is what
+* `JSON.stringify` already emits for every finite double. Canonicalization is
+* for artifacts only: it must never touch an API payload, because the number
+* rules here would undo any precision a payload had preserved.
+*/
+function canonicalize(value) {
+	if (value === null || typeof value === "boolean") return JSON.stringify(value);
+	if (typeof value === "number") {
+		if (!Number.isFinite(value)) throw new TypeError(`Cannot canonicalize a non-finite number: ${value}`);
+		return JSON.stringify(value);
+	}
+	if (typeof value === "string") return JSON.stringify(value);
+	if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`;
+	return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalize(value[key])}`).join(",")}}`;
+}
+function digestOf(value) {
+	return `sha256:${createHash("sha256").update(canonicalize(value), "utf8").digest("hex")}`;
+}
+/**
+* Fields that describe an API but do not constrain the wire. They are excluded
+* from the digest so that editing a description does not mint a new contract.
+*/
+const NON_WIRE_KEYS = /* @__PURE__ */ new Set([
+	"description",
+	"summary",
+	"example",
+	"examples",
+	"title"
+]);
+function stripNonWire(value) {
+	if (Array.isArray(value)) return value.map(stripNonWire);
+	if (!isJsonObject(value)) return value;
+	const out = {};
+	for (const [key, child] of Object.entries(value)) {
+		if (NON_WIRE_KEYS.has(key)) continue;
+		out[key] = stripNonWire(child);
+	}
+	return out;
+}
+//#endregion
+//#region ../contract/src/changeset.ts
+/**
+* Reading a provider repository's Invariant directory.
+*
+* Changes live in the provider's own repo and are merged through ordinary code
+* review, so git is the record of what was confirmed and by whom. Nothing here
+* reaches out to a network.
+*/
 var ChangesetError = class extends Error {
 	constructor(message) {
 		super(message);
@@ -12329,15 +12538,20 @@ function contractOf(label, document) {
 		} } : {}
 	};
 }
-/** A document as its file has it, before any conversion. */
-async function readDocument(path) {
-	const text = await readFile(path, "utf8");
-	const parsed = path.endsWith(".json") ? JSON.parse(text) : (0, import_dist.parse)(text);
-	if (!isJsonObject(parsed)) throw new ContractError(`${path} does not contain an OpenAPI document`);
-	return parsed;
-}
+/**
+* A contract from a file, with any other files it refers to gathered into it.
+* Only here: a document that arrives any other way may refer to nothing
+* outside itself.
+*/
 async function loadContract(path, label) {
-	return contractOf(label, await readDocument(path));
+	let document;
+	try {
+		document = await bundleDocument(path);
+	} catch (error) {
+		if (error instanceof BundleError) throw new ContractError(error.message);
+		throw error;
+	}
+	return contractOf(label, document);
 }
 /** Every operation in the document, in a stable order. */
 function operationsOf(document) {

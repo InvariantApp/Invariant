@@ -2108,6 +2108,16 @@ The loader now refuses it first and names the place. What the author meant is
 not guessed: "each item is a message or null" and "the second item is null"
 are different APIs.
 
+A specification kept across files, joined by relative `$ref`s, is now read as
+the one document it describes. A referenced schema is placed among the named
+schemas under the name its reference gives it, so a Change can be scoped to
+it; a path item or parameter kept in a file of its own is written in where it
+is referenced. Only files inside the repository are read and nothing is ever
+fetched, and only when a contract is loaded from a file: a document sent to
+the service still may not refer outside itself. `init` and `release` keep the
+assembled document as the snapshot, because a snapshot that still pointed at
+the files would change when they did.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no

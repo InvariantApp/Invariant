@@ -53,9 +53,10 @@ interface Source {
 
 /**
  * Chosen for being the APIs people actually integrate against, and for
- * publishing a document that stands on its own. Repositories that split the
- * specification across relative `$ref`s are left out, not because they do not
- * matter but because fetching one file would give a document with holes in it,
+ * publishing a document that stands on its own. The product reads a
+ * specification split across relative `$ref`s (`packages/contract/src/bundle.ts`),
+ * but the manifest pins one file per state, so repositories that split theirs
+ * are left out here: fetching one file would give a document with holes in it,
  * and the failure would be a fact about the fetcher.
  */
 const SOURCES: Source[] = [

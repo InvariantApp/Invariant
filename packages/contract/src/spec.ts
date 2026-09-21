@@ -7,6 +7,7 @@ import {
 } from "@invariant/ir";
 import { upgradeFromTwoToThree } from "@scalar/openapi-upgrader/2.0-to-3.0";
 import { parse as parseYaml } from "yaml";
+import { BundleError, bundleDocument } from "./bundle.ts";
 import { digestOf, stripNonWire } from "./canonical.ts";
 import { correctUpgrade } from "./swagger.ts";
 
@@ -323,8 +324,20 @@ export async function readDocument(path: string): Promise<OpenApiDocument> {
   return parsed;
 }
 
+/**
+ * A contract from a file, with any other files it refers to gathered into it.
+ * Only here: a document that arrives any other way may refer to nothing
+ * outside itself.
+ */
 export async function loadContract(path: string, label: string): Promise<Contract> {
-  return contractOf(label, await readDocument(path));
+  let document: OpenApiDocument;
+  try {
+    document = await bundleDocument(path);
+  } catch (error) {
+    if (error instanceof BundleError) throw new ContractError(error.message);
+    throw error;
+  }
+  return contractOf(label, document);
 }
 
 export function schemasOf(document: OpenApiDocument): JsonObject {

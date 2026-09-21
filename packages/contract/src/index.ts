@@ -1,3 +1,4 @@
+export * from "./bundle.ts";
 export * from "./canonical.ts";
 export * from "./changeset.ts";
 export * from "./resolve.ts";

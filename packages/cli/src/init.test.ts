@@ -147,6 +147,58 @@ describe.skipIf(!hasOasdiff)("invariant init", () => {
     expect(check.stdout).toContain("name");
   });
 
+  it("takes a specification split across files, and catches a break in one of them", async () => {
+    const pet = [
+      "type: object",
+      "required: [id, name]",
+      "properties:",
+      "  id: { type: string }",
+      "  name: { type: string }",
+      "",
+    ].join("\n");
+    const root = await repository({
+      "api/openapi.yaml": [
+        "openapi: 3.0.3",
+        "info: { title: Pets, version: '1' }",
+        "paths:",
+        "  /pets/{id}:",
+        "    get:",
+        "      operationId: getPet",
+        "      parameters:",
+        "        - { name: id, in: path, required: true, schema: { type: string } }",
+        "      responses:",
+        "        '200':",
+        "          description: a pet",
+        "          content:",
+        "            application/json:",
+        "              schema: { $ref: ./schemas/Pet.yaml }",
+        "",
+      ].join("\n"),
+      "api/schemas/Pet.yaml": pet,
+    });
+    const result = await invariant(root, ["init", "--label", "2026-09-01", "--no-ci"]);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("First check: PASS");
+    // The baseline stands on its own, so it still describes today's API after
+    // the files it was assembled from change.
+    const baseline = await readFile(
+      join(root, "invariant/contracts/2026-09-01.openapi.yaml"),
+      "utf8",
+    );
+    expect(baseline).toContain("#/components/schemas/Pet");
+    expect(baseline).not.toContain("Pet.yaml");
+
+    await writeFile(
+      join(root, "api/schemas/Pet.yaml"),
+      pet.replace("[id, name]", "[id]").replace("  name: { type: string }\n", ""),
+      "utf8",
+    );
+    const check = await invariant(root, ["check"]);
+    expect(check.code).toBe(1);
+    expect(check.stdout).toContain("Release status: BLOCK");
+    expect(check.stdout).toContain("name");
+  });
+
   it("runs a generator through the shell, redirects and all", async () => {
     const root = await repository({ "spec-source.json": await acme() });
     const result = await invariant(root, [
