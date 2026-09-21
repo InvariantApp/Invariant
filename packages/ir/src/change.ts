@@ -205,6 +205,73 @@ export const WidenOp = Type.Object(
   },
 );
 
+/** The keywords that bound a value, which `relax` may change. */
+export const CONSTRAINT_KEYWORDS = [
+  "maximum",
+  "minimum",
+  "exclusiveMaximum",
+  "exclusiveMinimum",
+  "maxLength",
+  "minLength",
+  "maxItems",
+  "minItems",
+  "maxProperties",
+  "minProperties",
+  "pattern",
+  "multipleOf",
+  "uniqueItems",
+] as const;
+
+const Bound = Type.Union([Type.Number(), Type.Null()]);
+const Count = Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]);
+
+/**
+ * A bound on a value that moved, with nothing to translate.
+ *
+ * A response field whose maximum rose, or whose length limit went, can now
+ * carry values an old caller's contract ruled out. Nothing should rewrite
+ * them: clamping a number or cutting a string would hand the caller a value
+ * the API never produced. So the op says what changed, the value passes
+ * through as it is, and the provider acknowledges the loss: a caller that
+ * validates strictly may reject what it is sent.
+ *
+ * It cannot say that a request's bound narrowed. An old caller would then be
+ * refused for what its contract allowed, and pretending otherwise would let
+ * the gate pass a release that breaks them; the compiler refuses it.
+ */
+export const RelaxOp = Type.Object(
+  {
+    op: Type.Literal("relax"),
+    path: Pointer,
+    /** Each keyword's new value, or null where the new contract has none. */
+    set: Type.Object(
+      {
+        maximum: Type.Optional(Bound),
+        minimum: Type.Optional(Bound),
+        exclusiveMaximum: Type.Optional(Bound),
+        exclusiveMinimum: Type.Optional(Bound),
+        maxLength: Type.Optional(Count),
+        minLength: Type.Optional(Count),
+        maxItems: Type.Optional(Count),
+        minItems: Type.Optional(Count),
+        maxProperties: Type.Optional(Count),
+        minProperties: Type.Optional(Count),
+        pattern: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+        multipleOf: Type.Optional(
+          Type.Union([Type.Number({ exclusiveMinimum: 0 }), Type.Null()]),
+        ),
+        uniqueItems: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+      },
+      { additionalProperties: false, minProperties: 1 },
+    ),
+  },
+  {
+    additionalProperties: false,
+    description:
+      "A bound on a value changed. Values pass through untouched; where a response may now carry values outside the old bound, that is a declared loss.",
+  },
+);
+
 export const RouteOp = Type.Object(
   {
     op: Type.Literal("route"),
@@ -294,6 +361,7 @@ export const Op = Type.Union([
   DefaultOp,
   DropNullOp,
   WidenOp,
+  RelaxOp,
   RouteOp,
   RetireOp,
   BehaviorOp,
@@ -400,6 +468,7 @@ export type RemoveOp = Static<typeof RemoveOp>;
 export type DefaultOp = Static<typeof DefaultOp>;
 export type DropNullOp = Static<typeof DropNullOp>;
 export type WidenOp = Static<typeof WidenOp>;
+export type RelaxOp = Static<typeof RelaxOp>;
 export type RouteOp = Static<typeof RouteOp>;
 export type RetireOp = Static<typeof RetireOp>;
 export type BehaviorOp = Static<typeof BehaviorOp>;
@@ -419,7 +488,8 @@ export type DataOp =
   | RemoveOp
   | DefaultOp
   | DropNullOp
-  | WidenOp;
+  | WidenOp
+  | RelaxOp;
 
 const DATA_OPS = new Set([
   "move",
@@ -429,6 +499,7 @@ const DATA_OPS = new Set([
   "default",
   "dropNull",
   "widen",
+  "relax",
 ]);
 
 export function isDataOp(op: Op): op is DataOp {

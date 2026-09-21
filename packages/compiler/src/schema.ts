@@ -13,6 +13,7 @@ import {
   isJsonObject,
   type JsonObject,
   type JsonValue,
+  narrows,
   parsePointer,
   type ScalarType,
 } from "@invariant/ir";
@@ -427,6 +428,46 @@ export function schemaWiden(
     );
   }
   union[key] = [...branches, { $ref: variant }];
+}
+
+/**
+ * `relax`: the bounds at `path`, or on the scope itself where the path is
+ * empty, as the new contract has them. Refused where old callers send the
+ * schema and a bound narrows, because they would be refused for what their
+ * contract allowed.
+ */
+export function schemaRelax(
+  document: OpenApiDocument,
+  root: JsonObject,
+  path: string,
+  set: Readonly<Record<string, JsonValue>>,
+  sentByOldCallers: boolean,
+): void {
+  const segments = parsePointer(path);
+  let node: JsonObject;
+  if (segments.length === 0) {
+    node = ownRoot(document, root);
+  } else {
+    const { parent, last } = parentFor(document, root, segments, false);
+    if (last === "*") {
+      node = own(document, parent, "items");
+    } else {
+      const properties = parent["properties"];
+      if (!isJsonObject(properties) || properties[last] === undefined) {
+        throw new SchemaOpError(`Nothing to read at "${segments.join("/")}"`);
+      }
+      node = own(document, properties, last);
+    }
+  }
+  for (const [keyword, value] of Object.entries(set)) {
+    if (sentByOldCallers && narrows(keyword, node[keyword], value)) {
+      throw new SchemaOpError(
+        `${path || "the body"} now allows less (${keyword}) and old callers send it, so they would be refused for what their contract allowed`,
+      );
+    }
+    if (value === null) delete node[keyword];
+    else node[keyword] = value;
+  }
 }
 
 /**

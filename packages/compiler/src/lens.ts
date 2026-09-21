@@ -101,6 +101,9 @@ export function forwardInstrs(op: DataOp, prefix: string, changeId: string): Ins
     case "widen":
       // An old caller never sends a variant its contract does not describe.
       return [];
+    case "relax":
+      // A bound says which values are allowed; no value is changed by it.
+      return [];
   }
   return [];
 }
@@ -238,6 +241,8 @@ export function backwardInstrs(
       return op.toward === "old" ? [fill(op, prefix, changeId)] : [];
     case "dropNull":
       return op.toward === "old" ? [dropNull(op, prefix, changeId)] : [];
+    case "relax":
+      return [];
     case "widen": {
       const guard = variants(op);
       if (!guard) return [];

@@ -378,6 +378,16 @@ const RULES: Rule[] = [
         "A response field can now take shapes old callers do not know. Folding a new shape into one they do needs the union instructions, which are not served yet.",
     },
   ),
+  rule(
+    /^response-(body|property)-(.*-)?(max|min|pattern|exclusive|items|length|properties|multiple-of|unique-items)(-.*)?$/,
+    {
+      class: "needs-decision",
+      op: "relax",
+      served: "yes",
+      sentence:
+        "A response field may now hold values outside the bounds old callers were promised. Nothing should rewrite them, so a `relax` records the new bound and passes values through as the API produced them; that is a declared loss you acknowledge, since a caller that validates strictly may reject them.",
+    },
+  ),
   rule(/^response-(body|property)-/, {
     class: "needs-decision",
     served: "planned",

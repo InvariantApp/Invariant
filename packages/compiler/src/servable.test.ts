@@ -603,7 +603,7 @@ function unserved(change: Change, program: unknown): string[] {
       ? direction === (op.toward === "new" ? "request" : "response")
       : op.op === "widen"
         ? direction === "response"
-        : true;
+        : op.op !== "relax";
   const dataOps = change.ops.filter(isDataOp);
   const parameterScoped = (change.scopes ?? []).some((scope) => !("schema" in scope));
   if (dataOps.length > 0 && parameterScoped) {
@@ -846,6 +846,7 @@ describe("L1: the op x location x direction matrix", () => {
       variant: "#/components/schemas/Guest",
       show: "id",
     },
+    relax: { op: "relax", path: "/count", set: { maximum: null } },
   };
   /** The op as it would be written for a body used in this direction. */
   const bodyOp = (op: string, direction: string) =>
@@ -904,6 +905,8 @@ describe("L1: the op x location x direction matrix", () => {
           variant: "#/components/schemas/Guest",
           show: "id",
         };
+      case "relax":
+        return { op: "relax", path: `/${n.num}`, set: { maximum: null } };
       default:
         return { op: "dropNull", path: `/${n.enum}`, toward: "new" };
     }
@@ -978,6 +981,7 @@ describe("L1: the op x location x direction matrix", () => {
     "default",
     "dropNull",
     "widen",
+    "relax",
   ]) {
     for (const direction of ["request", "response"]) {
       it(`${op} in a body, ${direction}: ${"served"}`, () => {
@@ -1047,7 +1051,7 @@ describe("L1: the op x location x direction matrix", () => {
           sites.some((site) =>
             JSON.stringify(site["envelope"])?.includes('"c":"chg_cell"'),
           ),
-        ).toBe(true);
+        ).toBe(matrix.inert[`${op} request`] === undefined);
       });
     }
   }

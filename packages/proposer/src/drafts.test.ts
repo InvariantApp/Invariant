@@ -543,3 +543,39 @@ describe("a response union that can hold a new kind of object", () => {
     ).toBe(false);
   });
 });
+
+describe("a bound on a value that moved", () => {
+  const withBody = (response: Schema, request: Schema) => ({
+    ...base,
+    Thing: object({ id: { type: "string" }, body: response }, ["id"]),
+    ThingCreate: object({ name: { type: "string" }, body: request }),
+  });
+
+  it("is drafted as a relax where a response may now carry more", async () => {
+    const outcome = await propose(
+      contract(withBody({ type: "string", maxLength: 160 }, { type: "string" })),
+      contract(withBody({ type: "string", maxLength: 1600 }, { type: "string" })),
+      { judge: new RulesJudge() },
+    );
+    const draft = outcome.proposals.find((proposal) =>
+      proposal.change.ops.some((op) => op.op === "relax"),
+    );
+    expect(draft?.change.ops).toEqual([
+      { op: "relax", path: "/body", set: { maxLength: 1600 } },
+    ]);
+  });
+
+  it("is reported, never drafted, where old callers would be refused", async () => {
+    const outcome = await propose(
+      contract(withBody({ type: "string" }, { type: "string", maxLength: 1600 })),
+      contract(withBody({ type: "string" }, { type: "string", maxLength: 160 })),
+      { judge: new RulesJudge() },
+    );
+    expect(
+      outcome.proposals.some((proposal) =>
+        proposal.change.ops.some((op) => op.op === "relax"),
+      ),
+    ).toBe(false);
+    expect(outcome.unresolved.map((entry) => entry.reason).join()).toMatch(/refused/);
+  });
+});

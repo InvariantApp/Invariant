@@ -345,11 +345,11 @@ export function projectStep(
     } else if (entry.request.length > 0) {
       program.request = entry.request.map((item) => item.instr);
     }
-    if (entry.response.size > 0) {
-      program.response = Object.fromEntries(
-        [...entry.response.entries()].sort().filter(([, instrs]) => instrs.length > 0),
-      );
-    }
+    const responses = [...entry.response.entries()]
+      .sort()
+      .filter(([, instrs]) => instrs.length > 0);
+    // A status whose Changes compile to nothing, as a bound does, is not work.
+    if (responses.length > 0) program.response = Object.fromEntries(responses);
     if (program.request || program.envelope || program.response) out[key] = program;
   }
 
@@ -581,9 +581,9 @@ function collectParameters(
           }
         },
       );
-      if (touchesPath && op.op !== "convert") {
+      if (touchesPath && op.op !== "convert" && op.op !== "relax") {
         refuse(
-          `a path parameter can only be converted: ${scope.operation}'s path has the ` +
+          `a path parameter can only be converted or given new bounds: ${scope.operation}'s path has the ` +
             "parameters its template has, and renaming one is a route change",
         );
         refused = true;
@@ -690,9 +690,9 @@ function declare(
   if (name === undefined || name === "*") {
     return `${pointer} names every ${address.part} parameter at once, not one of them`;
   }
-  if (address.part === "path" && op.op !== "convert") {
+  if (address.part === "path" && op.op !== "convert" && op.op !== "relax") {
     return (
-      `a path parameter can only be converted: ${scope.operation}'s path has the ` +
+      `a path parameter can only be converted or given new bounds: ${scope.operation}'s path has the ` +
       "parameters its template has, and renaming one is a route change"
     );
   }

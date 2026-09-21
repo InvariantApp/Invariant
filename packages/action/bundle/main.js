@@ -21,6 +21,37 @@ var __exportAll$1 = (all, no_symbols) => {
 };
 var __require = /* #__PURE__ */ (() => createRequire(import.meta.url))();
 //#endregion
+//#region ../ir/src/bounds.ts
+const UPPER = /* @__PURE__ */ new Set([
+	"maximum",
+	"exclusiveMaximum",
+	"maxLength",
+	"maxItems",
+	"maxProperties"
+]);
+const LOWER = /* @__PURE__ */ new Set([
+	"minimum",
+	"exclusiveMinimum",
+	"minLength",
+	"minItems",
+	"minProperties"
+]);
+/**
+* Whether moving a bound from `before` to `after` rules out a value that was
+* allowed. A bound that appears narrows; one that goes widens. A pattern that
+* changes at all is taken to narrow, since nothing here can compare two
+* patterns, and a new `multipleOf` narrows unless it divides the old one.
+*/
+function narrows(keyword, before, after) {
+	if (after === null) return false;
+	if (before === void 0 || before === null) return keyword !== "uniqueItems" || after === true;
+	if (UPPER.has(keyword)) return Number(after) < Number(before);
+	if (LOWER.has(keyword)) return Number(after) > Number(before);
+	if (keyword === "multipleOf") return Number(before) % Number(after) !== 0;
+	if (keyword === "uniqueItems") return after === true && before !== true;
+	return after !== before;
+}
+//#endregion
 //#region ../../node_modules/.pnpm/@sinclair+typebox@0.34.52/node_modules/@sinclair/typebox/build/esm/type/guard/value.mjs
 /** Returns true if this value is an async iterator */
 function IsAsyncIterator$3(value) {
@@ -3028,6 +3059,48 @@ const WidenOp = Type.Object({
 	additionalProperties: false,
 	description: "A response union gained `variant`. Old callers are shown a value of it as its `id`, left out, or as null, as `show` says; a declared loss."
 });
+const Bound = Type.Union([Type.Number(), Type.Null()]);
+const Count = Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]);
+/**
+* A bound on a value that moved, with nothing to translate.
+*
+* A response field whose maximum rose, or whose length limit went, can now
+* carry values an old caller's contract ruled out. Nothing should rewrite
+* them: clamping a number or cutting a string would hand the caller a value
+* the API never produced. So the op says what changed, the value passes
+* through as it is, and the provider acknowledges the loss: a caller that
+* validates strictly may reject what it is sent.
+*
+* It cannot say that a request's bound narrowed. An old caller would then be
+* refused for what its contract allowed, and pretending otherwise would let
+* the gate pass a release that breaks them; the compiler refuses it.
+*/
+const RelaxOp = Type.Object({
+	op: Type.Literal("relax"),
+	path: Pointer$1,
+	/** Each keyword's new value, or null where the new contract has none. */
+	set: Type.Object({
+		maximum: Type.Optional(Bound),
+		minimum: Type.Optional(Bound),
+		exclusiveMaximum: Type.Optional(Bound),
+		exclusiveMinimum: Type.Optional(Bound),
+		maxLength: Type.Optional(Count),
+		minLength: Type.Optional(Count),
+		maxItems: Type.Optional(Count),
+		minItems: Type.Optional(Count),
+		maxProperties: Type.Optional(Count),
+		minProperties: Type.Optional(Count),
+		pattern: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+		multipleOf: Type.Optional(Type.Union([Type.Number({ exclusiveMinimum: 0 }), Type.Null()])),
+		uniqueItems: Type.Optional(Type.Union([Type.Boolean(), Type.Null()]))
+	}, {
+		additionalProperties: false,
+		minProperties: 1
+	})
+}, {
+	additionalProperties: false,
+	description: "A bound on a value changed. Values pass through untouched; where a response may now carry values outside the old bound, that is a declared loss."
+});
 const RouteOp = Type.Object({
 	op: Type.Literal("route"),
 	from: Endpoint,
@@ -3104,6 +3177,7 @@ const Op = Type.Union([
 	DefaultOp,
 	DropNullOp,
 	WidenOp,
+	RelaxOp,
 	RouteOp,
 	RetireOp,
 	BehaviorOp
@@ -3176,7 +3250,8 @@ const DATA_OPS = /* @__PURE__ */ new Set([
 	"remove",
 	"default",
 	"dropNull",
-	"widen"
+	"widen",
+	"relax"
 ]);
 function isDataOp(op) {
 	return DATA_OPS.has(op.op);
@@ -12547,6 +12622,40 @@ function findSchemaSites(document, schemaRef) {
 	};
 }
 /**
+* Which ways a schema travels: whether any request body or any response can
+* carry it. Answered from the reference graph alone, in time linear in the
+* document, where listing every place it sits can be exponential. A webhook
+* that sends it counts as both, as `findSchemaSites` refuses it.
+*/
+function schemaDirections(document, schemaRef) {
+	const leads = leadingTo(document, schemaRef);
+	const reaches = (root) => {
+		if (root === void 0) return false;
+		const refs = /* @__PURE__ */ new Set();
+		refsIn$1(root, refs);
+		return [...refs].some((ref) => leads.has(ref));
+	};
+	let request = false;
+	let response = false;
+	for (const { operation, webhook } of operationsOf(document)) {
+		const body = requestBodySchema(document, operation);
+		if (webhook === true) {
+			if (reaches(body)) return {
+				request: true,
+				response: true
+			};
+			continue;
+		}
+		request ||= reaches(body);
+		response ||= responseSchemas(document, operation).some(({ schema }) => reaches(schema));
+		if (request && response) break;
+	}
+	return {
+		request,
+		response
+	};
+}
+/**
 * Every place `schemaRef` sits inside the schema `rootRef`, the root itself
 * included when the two are the same. What a value of the root goes through
 * at a site is every Change placed here, so a check of the root's values has
@@ -13382,6 +13491,31 @@ function schemaWiden(document, root, path, variant, show) {
 	union[key] = [...branches, { $ref: variant }];
 }
 /**
+* `relax`: the bounds at `path`, or on the scope itself where the path is
+* empty, as the new contract has them. Refused where old callers send the
+* schema and a bound narrows, because they would be refused for what their
+* contract allowed.
+*/
+function schemaRelax(document, root, path, set, sentByOldCallers) {
+	const segments = parsePointer(path);
+	let node;
+	if (segments.length === 0) node = ownRoot(document, root);
+	else {
+		const { parent, last } = parentFor(document, root, segments, false);
+		if (last === "*") node = own(document, parent, "items");
+		else {
+			const properties = parent["properties"];
+			if (!isJsonObject(properties) || properties[last] === void 0) throw new SchemaOpError(`Nothing to read at "${segments.join("/")}"`);
+			node = own(document, properties, last);
+		}
+	}
+	for (const [keyword, value] of Object.entries(set)) {
+		if (sentByOldCallers && narrows(keyword, node[keyword], value)) throw new SchemaOpError(`${path || "the body"} now allows less (${keyword}) and old callers send it, so they would be refused for what their contract allowed`);
+		if (value === null) delete node[keyword];
+		else node[keyword] = value;
+	}
+}
+/**
 * `add` takes the field's shape from the new contract and supplies only the
 * default, which the specification cannot express. Nothing about the shape is
 * invented here.
@@ -13629,6 +13763,9 @@ function applyToBody(document, newContract, located, op) {
 			if (op.toward === "new" && schemaRequiredAt(document, root, op.path)) throw new SchemaOpError(`${op.path} is required, so a null cannot be sent as it left out`);
 			schemaSetNullable(document, root, op.path, op.toward === "old");
 			return;
+		case "relax":
+			schemaRelax(document, root, op.path, op.set, true);
+			return;
 		case "widen":
 			if (resolveRef(newContract, op.variant) === void 0) throw new SchemaOpError(`${op.variant} is not in the new contract`);
 			importReferences(document, newContract, { $ref: op.variant });
@@ -13701,7 +13838,7 @@ function applyOne(document, newContract, located, scope, op) {
 	const { address } = at(op.path);
 	if (address.part === "body") throw new SchemaOpError(`a body field is changed with a schema scope, not a parameter scope`);
 	const name = address.name;
-	if (address.part === "path" && op.op !== "convert") throw new SchemaOpError("a path parameter can only be converted");
+	if (address.part === "path" && op.op !== "convert" && op.op !== "relax") throw new SchemaOpError("a path parameter can only be converted or given new bounds");
 	switch (op.op) {
 		case "convert": {
 			const parameter = existing(address.part, name);
@@ -13730,6 +13867,15 @@ function applyOne(document, newContract, located, scope, op) {
 			return;
 		}
 		case "widen": throw new SchemaOpError("a parameter is only ever sent, and a caller never sends a kind of value its contract does not describe");
+		case "relax": {
+			const schema = schemaOf(existing(address.part, name));
+			for (const [keyword, value] of Object.entries(op.set)) {
+				if (narrows(keyword, schema[keyword], value)) throw new SchemaOpError(`${name} now allows less (${keyword}), so old callers would be refused for what their contract allowed`);
+				if (value === null) delete schema[keyword];
+				else schema[keyword] = value;
+			}
+			return;
+		}
 		case "dropNull": {
 			if (op.toward === "old") throw new SchemaOpError("a parameter is only ever sent, never received, so there is no null to keep from old callers");
 			const parameter = existing(address.part, name);
@@ -13953,6 +14099,9 @@ function predictDocument(oldContract, newContract, changes) {
 						if (op.when !== "absent") schemaSetNullable(document, schema, op.path, looser);
 						break;
 					}
+					case "relax":
+						schemaRelax(document, schema, op.path, op.set, schemaDirections(oldContract, scope.schema).request);
+						break;
 					case "widen":
 						if (resolveRef(newContract, op.variant) === void 0) throw new Error(`${op.variant} is not in the new contract`);
 						importReferences(document, newContract, { $ref: op.variant });
@@ -14048,6 +14197,10 @@ function derive(change) {
 			lossy.backward.push(op.path);
 			break;
 		}
+		case "relax":
+			runtime = worse(runtime, "declared-lossy");
+			reasons.push(`${op.path || "the body"} is bounded differently now (${Object.keys(op.set).join(", ")}), so an old caller may be sent values its contract ruled out, passed through as they are`);
+			break;
 		case "retire":
 			runtime = "none";
 			source = "manual";
@@ -14261,6 +14414,7 @@ function forwardInstrs(op, prefix, changeId) {
 		case "default": return op.toward === "new" ? [fill(op, prefix, changeId)] : [];
 		case "dropNull": return op.toward === "new" ? [dropNull(op, prefix, changeId)] : [];
 		case "widen": return [];
+		case "relax": return [];
 	}
 	return [];
 }
@@ -14380,6 +14534,7 @@ function backwardInstrs(op, prefix, changeId, variants = NO_VARIANTS) {
 		}];
 		case "default": return op.toward === "old" ? [fill(op, prefix, changeId)] : [];
 		case "dropNull": return op.toward === "old" ? [dropNull(op, prefix, changeId)] : [];
+		case "relax": return [];
 		case "widen": {
 			const guard = variants(op);
 			if (!guard) return [];
@@ -14757,7 +14912,8 @@ function projectStep(label, oldContract, changes, newContract) {
 		}
 		if (entry.request.some((item) => item.param)) program.envelope = envelopeOf(entry);
 		else if (entry.request.length > 0) program.request = entry.request.map((item) => item.instr);
-		if (entry.response.size > 0) program.response = Object.fromEntries([...entry.response.entries()].sort().filter(([, instrs]) => instrs.length > 0));
+		const responses = [...entry.response.entries()].sort().filter(([, instrs]) => instrs.length > 0);
+		if (responses.length > 0) program.response = Object.fromEntries(responses);
 		if (program.request || program.envelope || program.response) out[key] = program;
 	}
 	return {
@@ -14938,8 +15094,8 @@ function collectParameters(change, oldContract, newContract, routes, sites, issu
 				} catch {
 					return false;
 				}
-			}) && op.op !== "convert") {
-				refuse(`a path parameter can only be converted: ${scope.operation}'s path has the parameters its template has, and renaming one is a route change`);
+			}) && op.op !== "convert" && op.op !== "relax") {
+				refuse(`a path parameter can only be converted or given new bounds: ${scope.operation}'s path has the parameters its template has, and renaming one is a route change`);
 				refused = true;
 				continue;
 			}
@@ -15017,7 +15173,7 @@ function declare(scope, op, pointer, context) {
 	if (address.part === "body") return void 0;
 	const name = address.name;
 	if (name === void 0 || name === "*") return `${pointer} names every ${address.part} parameter at once, not one of them`;
-	if (address.part === "path" && op.op !== "convert") return `a path parameter can only be converted: ${scope.operation}'s path has the parameters its template has, and renaming one is a route change`;
+	if (address.part === "path" && op.op !== "convert" && op.op !== "relax") return `a path parameter can only be converted or given new bounds: ${scope.operation}'s path has the parameters its template has, and renaming one is a route change`;
 	if (address.part === "header") {
 		const refusal = headerRefusal(oldContract, name) ?? (newContract ? headerRefusal(newContract, name) : void 0);
 		if (refusal) return refusal;
@@ -15843,6 +15999,12 @@ const RULES = [
 		op: "convert",
 		served: "planned",
 		sentence: "A response field can now take shapes old callers do not know. Folding a new shape into one they do needs the union instructions, which are not served yet."
+	}),
+	rule(/^response-(body|property)-(.*-)?(max|min|pattern|exclusive|items|length|properties|multiple-of|unique-items)(-.*)?$/, {
+		class: "needs-decision",
+		op: "relax",
+		served: "yes",
+		sentence: "A response field may now hold values outside the bounds old callers were promised. Nothing should rewrite them, so a `relax` records the new bound and passes values through as the API produced them; that is a declared loss you acknowledge, since a caller that validates strictly may reject them."
 	}),
 	rule(/^response-(body|property)-/, {
 		class: "needs-decision",

@@ -153,6 +153,17 @@ export function derive(change: Change): Derived {
         lossy.backward.push(op.path);
         break;
       }
+      case "relax": {
+        // Nothing is translated, and nothing needs to be: the value is what
+        // the API produced. What an old caller may now see is a value its
+        // contract said could not happen.
+        runtime = worse(runtime, "declared-lossy");
+        reasons.push(
+          `${op.path || "the body"} is bounded differently now (${Object.keys(op.set).join(", ")}), ` +
+            "so an old caller may be sent values its contract ruled out, passed through as they are",
+        );
+        break;
+      }
       case "retire":
         runtime = "none";
         source = "manual";

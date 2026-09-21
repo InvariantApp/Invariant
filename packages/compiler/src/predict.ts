@@ -9,6 +9,7 @@ import {
   resolveRef,
   resolveSchema,
   type Site,
+  schemaDirections,
 } from "@invariant/contract";
 import {
   CHOOSE_ONE,
@@ -30,6 +31,7 @@ import {
   schemaAdd,
   schemaConvert,
   schemaMove,
+  schemaRelax,
   schemaRemove,
   schemaRequiredAt,
   schemaSetNullable,
@@ -379,6 +381,15 @@ export function predictDocument(
                 schemaSetNullable(document, schema, op.path, looser);
               break;
             }
+            case "relax":
+              schemaRelax(
+                document,
+                schema,
+                op.path,
+                op.set as Record<string, JsonValue>,
+                schemaDirections(oldContract, scope.schema).request,
+              );
+              break;
             case "widen": {
               // The variant is the new contract's, and comes over with it.
               if (resolveRef(newContract, op.variant) === undefined) {

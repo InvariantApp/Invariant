@@ -11,7 +11,14 @@
  * what the scale factor is, comes from the declared shapes.
  */
 import { schemaDirections } from "@invariant/contract";
-import type { Change, Op, ScalarType, Scope } from "@invariant/ir";
+import {
+  type Change,
+  type JsonValue,
+  narrows,
+  type Op,
+  type ScalarType,
+  type Scope,
+} from "@invariant/ir";
 import { type FieldShape, type SchemaDelta, schemaDeltas } from "./candidates.ts";
 import type { Decision, ValueDecision } from "./decisions.ts";
 import {
@@ -786,7 +793,16 @@ function alteredProposals(
           side: "removed",
         });
       }
-      const ops = [...shape.ops, ...presence.ops, ...widened.ops];
+      const relaxed = relaxOps(pair.old, pair.new, sides ?? NEITHER);
+      if (relaxed.unresolved) {
+        unresolved.push({
+          schema: delta.schema,
+          field: pair.old.name,
+          reason: relaxed.unresolved,
+          side: "removed",
+        });
+      }
+      const ops = [...shape.ops, ...presence.ops, ...widened.ops, ...relaxed.ops];
       // Whether a field may be left out or null changed only in the direction
       // no old caller is hurt by, which the gate does not report either.
       if (ops.length === 0) continue;
@@ -821,6 +837,7 @@ function alteredProposals(
           ...shape.notes,
           ...presence.notes,
           ...widened.notes,
+          ...relaxed.notes,
           ...(guessed
             ? [
                 "a value that went is paired with the one that arrived only because each was the only one; confirm it is the same thing renamed, and not one retired and an unrelated one added",
@@ -835,6 +852,47 @@ function alteredProposals(
 }
 
 const NEITHER = { request: false, response: false };
+
+/**
+ * Bounds on a value that moved, drafted as a `relax` where a response may now
+ * carry values old callers were told could not happen. A bound that narrowed
+ * on something old callers send is not drafted: nothing can serve it, and it
+ * is reported so the provider knows it will turn callers away.
+ */
+export function relaxOps(
+  old: FieldShape,
+  next: FieldShape,
+  sides: { request: boolean; response: boolean },
+): { ops: Op[]; notes: string[]; unresolved?: string } {
+  const before = old.bounds ?? {};
+  const after = next.bounds ?? {};
+  const set: Record<string, JsonValue> = {};
+  for (const keyword of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    const value = after[keyword] ?? null;
+    if (JSON.stringify(before[keyword] ?? null) !== JSON.stringify(value))
+      set[keyword] = value;
+  }
+  const changed = Object.keys(set);
+  if (changed.length === 0) return { ops: [], notes: [] };
+  const narrowed = changed.filter((keyword) =>
+    narrows(keyword, before[keyword], set[keyword] as JsonValue),
+  );
+  if (sides.request && narrowed.length > 0) {
+    return {
+      ops: [],
+      notes: [],
+      unresolved: `\`${old.name}\` now allows less (${narrowed.join(", ")}) in requests, so old callers will be refused for values their contract allowed; no Change can hide that`,
+    };
+  }
+  const widened = changed.filter((keyword) => !narrowed.includes(keyword));
+  if (!sides.response || widened.length === 0) return { ops: [], notes: [] };
+  return {
+    ops: [{ op: "relax", path: next.pointer, set: set as never }],
+    notes: [
+      `\`${old.name}\` may now hold values its old bounds ruled out (${widened.join(", ")}); they pass through as the API produced them, a declared loss to acknowledge`,
+    ],
+  };
+}
 
 /**
  * A union in a response that can now hold a kind of object old callers do not

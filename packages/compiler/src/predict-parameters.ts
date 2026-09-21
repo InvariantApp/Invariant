@@ -24,6 +24,7 @@ import {
   isJsonObject,
   type JsonObject,
   type JsonValue,
+  narrows,
   type ParameterLocation,
   type ParameterScope,
   parsePointer,
@@ -42,6 +43,7 @@ import {
   schemaAdd,
   schemaConvert,
   schemaMove,
+  schemaRelax,
   schemaRemove,
   schemaRequiredAt,
   schemaSetNullable,
@@ -289,6 +291,10 @@ function applyToBody(
       }
       schemaSetNullable(document, root, op.path, op.toward === "old");
       return;
+    case "relax":
+      // An operation's own body is only ever sent by old callers.
+      schemaRelax(document, root, op.path, op.set as Record<string, JsonValue>, true);
+      return;
     case "widen":
       // A request body that accepts one more kind of value breaks nobody,
       // but saying so is still a true account of what changed.
@@ -403,8 +409,8 @@ function applyOne(
     );
   }
   const name = address.name as string;
-  if (address.part === "path" && op.op !== "convert") {
-    throw new SchemaOpError("a path parameter can only be converted");
+  if (address.part === "path" && op.op !== "convert" && op.op !== "relax") {
+    throw new SchemaOpError("a path parameter can only be converted or given new bounds");
   }
 
   switch (op.op) {
@@ -451,6 +457,21 @@ function applyOne(
       throw new SchemaOpError(
         "a parameter is only ever sent, and a caller never sends a kind of value its contract does not describe",
       );
+    case "relax": {
+      // A parameter is only ever sent, so a bound may widen and never narrow.
+      const parameter = existing(address.part, name);
+      const schema = schemaOf(parameter);
+      for (const [keyword, value] of Object.entries(op.set) as [string, JsonValue][]) {
+        if (narrows(keyword, schema[keyword], value)) {
+          throw new SchemaOpError(
+            `${name} now allows less (${keyword}), so old callers would be refused for what their contract allowed`,
+          );
+        }
+        if (value === null) delete schema[keyword];
+        else schema[keyword] = value;
+      }
+      return;
+    }
     case "dropNull": {
       if (op.toward === "old") {
         throw new SchemaOpError(

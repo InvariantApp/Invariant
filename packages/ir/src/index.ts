@@ -1,3 +1,4 @@
+export * from "./bounds.ts";
 export * from "./brand.ts";
 export * from "./change.ts";
 export * from "./envelope.ts";

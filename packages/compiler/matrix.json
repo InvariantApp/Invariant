@@ -11,7 +11,8 @@
     "remove",
     "default",
     "dropNull",
-    "widen"
+    "widen",
+    "relax"
   ],
   "cells": {
     "body request": {
@@ -42,7 +43,7 @@
     },
     "path request": {
       "status": "served",
-      "only": ["convert scale10", "convert enumMap", "convert cast"],
+      "only": ["convert scale10", "convert enumMap", "convert cast", "relax"],
       "why": "A path parameter can be converted in place and is written back into the template. The template's parameters are fixed, so renaming, adding or removing one is a route change, and the gate blocks it as a parameter op."
     },
     "path response": {
@@ -74,6 +75,8 @@
     }
   },
   "inert": {
-    "widen request": "An old caller never sends a kind of value its contract does not describe, so nothing is translated on the way in; the op still says what the new contract accepts."
+    "widen request": "An old caller never sends a kind of value its contract does not describe, so nothing is translated on the way in; the op still says what the new contract accepts.",
+    "relax request": "A bound says which values are allowed; nothing is rewritten. A request bound that narrowed is refused at prediction, since old callers would be turned away.",
+    "relax response": "The value passes through as the API produced it; the loss is that an old caller may see a value its contract ruled out, which the provider acknowledges."
   }
 }

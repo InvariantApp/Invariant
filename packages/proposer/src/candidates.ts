@@ -15,7 +15,13 @@ import {
   responseSchemas,
   schemasOf,
 } from "@invariant/contract";
-import { isJsonObject, type JsonObject, type JsonValue, type Scope } from "@invariant/ir";
+import {
+  CONSTRAINT_KEYWORDS,
+  isJsonObject,
+  type JsonObject,
+  type JsonValue,
+  type Scope,
+} from "@invariant/ir";
 
 export interface FieldShape {
   name: string;
@@ -39,6 +45,18 @@ export interface FieldShape {
   variants?: string[];
   /** For a union, whether one of its branches is a plain string, as an id is. */
   idBranch?: boolean;
+  /** The bounds the schema puts on the value, by keyword. */
+  bounds?: Record<string, JsonValue>;
+}
+
+/** The keywords of a schema that bound its value, where it has any. */
+function boundsOf(value: JsonObject): Pick<FieldShape, "bounds"> {
+  const bounds: Record<string, JsonValue> = {};
+  for (const keyword of CONSTRAINT_KEYWORDS) {
+    const bound = value[keyword];
+    if (bound !== undefined) bounds[keyword] = bound;
+  }
+  return Object.keys(bounds).length > 0 ? { bounds } : {};
 }
 
 /** The named schemas a union can hold, and whether it can also be a string. */
@@ -160,6 +178,7 @@ function fieldsOf(
       ...(value["default"] === undefined ? {} : { default: value["default"] }),
       ...(value["readOnly"] === true ? { readOnly: true } : {}),
       ...unionOf(value),
+      ...boundsOf(value),
     };
 
     // Inline objects, and inline objects inside lists, are part of this
@@ -256,7 +275,8 @@ function shapeDiffers(a: FieldShape, b: FieldShape): boolean {
   const left = a.enumValues?.join("|");
   const right = b.enumValues?.join("|");
   if (left !== right) return true;
-  return a.variants?.join("|") !== b.variants?.join("|");
+  if (a.variants?.join("|") !== b.variants?.join("|")) return true;
+  return JSON.stringify(a.bounds ?? {}) !== JSON.stringify(b.bounds ?? {});
 }
 
 /**
