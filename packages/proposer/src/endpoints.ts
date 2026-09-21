@@ -59,6 +59,59 @@ export function retiredEndpoints(
     }));
 }
 
+/**
+ * Operations that stayed where they were and changed their declared
+ * `operationId`.
+ *
+ * Nothing on the wire moves, so the runtime does nothing with these. What
+ * moves is every generated client's method name, and a `route` carrying the
+ * rename is what lets a consumer's migration rename their calls. An id that
+ * was removed rather than renamed has nothing to rename to, and is left alone.
+ */
+export function operationIdChanges(
+  before: OpenApiDocument,
+  after: OpenApiDocument,
+): Change[] {
+  const declared = (operation: { operation: JsonObject }) =>
+    typeof operation.operation["operationId"] === "string"
+      ? (operation.operation["operationId"] as string)
+      : undefined;
+  const next = new Map(
+    operationsOf(after).map((operation) => [
+      `${operation.method} ${operation.path}`,
+      declared(operation),
+    ]),
+  );
+  return operationsOf(before).flatMap((operation) => {
+    const from = declared(operation);
+    const to = next.get(`${operation.method} ${operation.path}`);
+    if (operation.webhook || from === undefined || to === undefined || from === to)
+      return [];
+    const endpoint = { method: operation.method, path: operation.path };
+    return [
+      {
+        irVersion: 1 as const,
+        id: `chg_operation_${`${from}_to_${to}`
+          .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_+|_+$/g, "")
+          .slice(0, 110)}`,
+        summary: `The operation ${from} is now called ${to}.`,
+        ops: [
+          {
+            op: "route" as const,
+            from: endpoint,
+            to: endpoint,
+            operationId: { from, to },
+          },
+        ],
+        provenance: { proposed_by: { judge: "rules" as const, confidence: 1 } },
+      },
+    ];
+  });
+}
+
 /** One Change per retired endpoint, because each is a separate decision. */
 export function retireChange(endpoint: RetiredEndpoint): Change {
   const slug = `${endpoint.method}_${endpoint.path}`

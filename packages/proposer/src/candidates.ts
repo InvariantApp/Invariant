@@ -27,6 +27,10 @@ export interface FieldShape {
   description: string | undefined;
   required: boolean;
   nullable: boolean;
+  /** The schema's own `default`, when it declares one. */
+  default?: JsonValue;
+  /** Declared `readOnly`: it appears in responses and never in requests. */
+  readOnly?: boolean;
 }
 
 export interface SchemaDelta {
@@ -88,6 +92,8 @@ function fieldsOf(document: OpenApiDocument, schema: JsonValue): FieldShape[] {
         typeof value["description"] === "string" ? value["description"] : undefined,
       required: required.has(name),
       nullable: types.includes("null"),
+      ...(value["default"] === undefined ? {} : { default: value["default"] }),
+      ...(value["readOnly"] === true ? { readOnly: true } : {}),
     };
   });
 }

@@ -31,12 +31,29 @@ export const PREFIX_CONFIDENCE = 0.6;
 /** At least this many endpoints, or it is a coincidence rather than a pattern. */
 const MINIMUM_MOVED = 3;
 
+interface Moved {
+  method: HttpMethod;
+  from: string;
+  to: string;
+  operationId?: { from: string; to: string };
+}
+
+const declaredId = (operation: {
+  operation: Record<string, unknown>;
+}): string | undefined =>
+  typeof operation.operation["operationId"] === "string"
+    ? (operation.operation["operationId"] as string)
+    : undefined;
+
 export interface PrefixMove {
   /** The leading segment as it was, without slashes. */
   from: string;
   to: string;
-  /** Endpoints this substitution accounts for. */
-  moved: { method: HttpMethod; from: string; to: string }[];
+  /**
+   * Endpoints this substitution accounts for, with their declared
+   * operationIds, which versioned APIs often rename along with the path.
+   */
+  moved: Moved[];
   /** Endpoints that disappeared and this does not explain. */
   unexplained: number;
   /** Share of the disappearance this accounts for. */
@@ -79,17 +96,16 @@ export function detectPrefixMove(
   // Where each method's new paths live, so the search below is a lookup rather
   // than a scan over every operation for every operation.
   const byMethod = new Map<HttpMethod, Set<string>>();
+  const idAt = new Map<string, string | undefined>();
   for (const operation of newOps) {
     const found = byMethod.get(operation.method) ?? new Set<string>();
     found.add(operation.path);
     byMethod.set(operation.method, found);
+    idAt.set(`${operation.method} ${operation.path}`, declaredId(operation));
   }
 
   // One tally per candidate substitution, counting the endpoints it lands on.
-  const candidates = new Map<
-    string,
-    { method: HttpMethod; from: string; to: string }[]
-  >();
+  const candidates = new Map<string, Moved[]>();
   for (const operation of gone) {
     const segment = firstSegment(operation.path);
     if (segment === undefined) continue;
@@ -101,7 +117,16 @@ export function detectPrefixMove(
 
       const key = `${segment}\u0000${replacement}`;
       const found = candidates.get(key) ?? [];
-      found.push({ method: operation.method, from: operation.path, to: path });
+      const before = declaredId(operation);
+      const after = idAt.get(`${operation.method} ${path}`);
+      found.push({
+        method: operation.method,
+        from: operation.path,
+        to: path,
+        ...(before !== undefined && after !== undefined && before !== after
+          ? { operationId: { from: before, to: after } }
+          : {}),
+      });
       candidates.set(key, found);
     }
   }
@@ -144,6 +169,7 @@ export function prefixChange(move: PrefixMove): Change {
     op: "route",
     from: { method: endpoint.method, path: endpoint.from },
     to: { method: endpoint.method, path: endpoint.to },
+    ...(endpoint.operationId ? { operationId: endpoint.operationId } : {}),
   }));
 
   return {

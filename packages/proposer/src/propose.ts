@@ -10,9 +10,11 @@
  * which; whether that is a rename, a unit change or an enum remapping, and
  * what the scale factor is, comes from the declared shapes.
  */
+import { findSchemaSites } from "@invariant/contract";
 import type { Change, Op, ScalarType } from "@invariant/ir";
 import { type FieldShape, type SchemaDelta, schemaDeltas } from "./candidates.ts";
 import {
+  operationIdChanges,
   parameterChanges,
   parameterDeltas,
   retireChange,
@@ -339,9 +341,34 @@ export async function propose(
     notes: ["the two documents state this mapping between them"],
   }));
 
+  const renamedOperations: Proposal[] = operationIdChanges(oldContract, newContract).map(
+    (change) => ({
+      change,
+      judge: "rules" as const,
+      confidence: 1,
+      attention: "normal" as const,
+      notes: [
+        "the operation stayed where it was and was renamed; nothing on the wire moves, but generated clients rename the method",
+      ],
+    }),
+  );
+
   const altered = alteredProposals(deltas);
-  altered.proposals.unshift(...moved, ...retired, ...parameters);
-  const unresolved: Unresolved[] = [...altered.unresolved, ...additions(deltas)];
+  const added = additions(deltas, oldContract);
+  const gone = removals(deltas, oldContract);
+  altered.proposals.unshift(
+    ...moved,
+    ...retired,
+    ...parameters,
+    ...renamedOperations,
+    ...added.proposals,
+    ...gone.proposals,
+  );
+  const unresolved: Unresolved[] = [
+    ...altered.unresolved,
+    ...added.unresolved,
+    ...gone.unresolved,
+  ];
 
   const questions = deltas.flatMap((delta: SchemaDelta) =>
     questionsFor(delta, options.context),
@@ -468,19 +495,130 @@ function scopeName(proposal: Proposal): string {
   return scope.schema.slice(scope.schema.lastIndexOf("/") + 1);
 }
 
-/** Fields that are new in the target contract, which need a default nobody can derive. */
-function additions(deltas: readonly SchemaDelta[]): Unresolved[] {
-  return deltas.flatMap((delta) =>
-    delta.added
-      .filter((field) => field.required)
-      .map((field) => ({
-        schema: delta.schema,
-        field: field.name,
-        reason:
-          "newly required, and the value a caller who predates it should get is not in the specification",
-        side: "added" as const,
-      })),
-  );
+/**
+ * Which sides of a message a schema appears on in a contract. A scan that
+ * could not say for certain counts as both, so nothing is drafted on a guess.
+ */
+function sidesOf(
+  document: Parameters<typeof schemaDeltas>[0],
+  schema: string,
+): { request: boolean; response: boolean } {
+  const scan = findSchemaSites(document, `#/components/schemas/${schema}`);
+  if (scan.unsupported.length > 0) return { request: true, response: true };
+  return {
+    request: scan.sites.some((site) => site.direction === "request"),
+    response: scan.sites.some((site) => site.direction === "response"),
+  };
+}
+
+const fieldSlug = (schema: string, field: string, what: string) =>
+  `chg_${slug(schema)}_${slug(field)}_${what}`.slice(0, 128);
+
+/**
+ * Fields that are new and required in the target contract.
+ *
+ * Drafted where no value has to be invented: the specification gives the
+ * field's default, or the schema appears only in responses, where an `add`
+ * takes the field out of old callers' responses and its value is never used.
+ * Anywhere else, what a caller who predates the field should send is a
+ * decision, and it is reported as one.
+ */
+function additions(
+  deltas: readonly SchemaDelta[],
+  oldContract: Parameters<typeof schemaDeltas>[0],
+): Pick<ProposeOutcome, "proposals" | "unresolved"> {
+  const proposals: Proposal[] = [];
+  const unresolved: Unresolved[] = [];
+  for (const delta of deltas) {
+    const required = delta.added.filter((field) => field.required);
+    if (required.length === 0) continue;
+    const sides = sidesOf(oldContract, delta.schema);
+    for (const field of required) {
+      const value =
+        field.default !== undefined ? field.default : !sides.request ? null : undefined;
+      if (value === undefined) {
+        unresolved.push({
+          schema: delta.schema,
+          field: field.name,
+          reason:
+            "newly required, and the value a caller who predates it should get is not in the specification",
+          side: "added",
+        });
+        continue;
+      }
+      proposals.push({
+        change: {
+          irVersion: 1,
+          id: fieldSlug(delta.schema, field.name, "added"),
+          summary: `\`${field.name}\` is new and required on ${delta.schema}.`,
+          scopes: [{ schema: `#/components/schemas/${delta.schema}` }],
+          ops: [{ op: "add", path: field.pointer, value }],
+          provenance: { proposed_by: { judge: "rules", confidence: 1 } },
+        },
+        judge: "rules",
+        confidence: 1,
+        attention: "normal",
+        notes: [
+          field.default !== undefined
+            ? `the specification gives \`${field.name}\` a default, which old callers' requests are given`
+            : `${delta.schema} appears only in responses, so the field is taken out of old callers' responses and no value is ever sent`,
+        ],
+      });
+    }
+  }
+  return { proposals, unresolved };
+}
+
+/**
+ * Fields removed from a schema to which nothing was added, so nothing can
+ * have replaced them.
+ *
+ * Drafted as a `remove` where the schema appears only in requests: old
+ * callers' requests drop what the server no longer reads, and there is no
+ * response to restore a value into. A field removed from a response, that old
+ * callers were always given, needs a value only the provider can choose.
+ */
+function removals(
+  deltas: readonly SchemaDelta[],
+  oldContract: Parameters<typeof schemaDeltas>[0],
+): Pick<ProposeOutcome, "proposals" | "unresolved"> {
+  const proposals: Proposal[] = [];
+  const unresolved: Unresolved[] = [];
+  for (const delta of deltas) {
+    if (delta.added.length > 0 || delta.removed.length === 0) continue;
+    const sides = sidesOf(oldContract, delta.schema);
+    for (const field of delta.removed) {
+      if (sides.response) {
+        if (field.required) {
+          unresolved.push({
+            schema: delta.schema,
+            field: field.name,
+            reason:
+              "removed from responses that always carried it, and what old callers should be given instead is a decision",
+            side: "removed",
+          });
+        }
+        continue;
+      }
+      proposals.push({
+        change: {
+          irVersion: 1,
+          id: fieldSlug(delta.schema, field.name, "removed"),
+          summary: `\`${field.name}\` was removed from ${delta.schema}.`,
+          scopes: [{ schema: `#/components/schemas/${delta.schema}` }],
+          ops: [{ op: "remove", path: field.pointer, restore: null }],
+          provenance: { proposed_by: { judge: "rules", confidence: 1 } },
+        },
+        judge: "rules",
+        confidence: 1,
+        attention: "normal",
+        notes: [
+          `nothing was added to ${delta.schema} to replace it, and it appears only in requests, so old callers' requests drop it`,
+        ],
+      });
+    }
+  }
+  return { proposals, unresolved };
 }
 
 /**
