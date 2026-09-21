@@ -16,6 +16,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ACME_PROGRAM } from "@fixtures/provider-acme";
+import { loadConfig } from "@invariant/cli";
 import { type ContractStep, chainProgram } from "@invariant/compiler";
 import {
   digestOf,
@@ -86,7 +87,15 @@ async function compileProgram(): Promise<unknown> {
     },
   ];
 
-  return chainProgram("acme-payments", head.label, head.digest, steps).program;
+  // How a request names its contract, from invariant.yaml, as compile reads it.
+  const { identity } = await loadConfig(join(PROVIDER, "invariant.yaml"));
+  return chainProgram(
+    "acme-payments",
+    head.label,
+    head.digest,
+    steps,
+    identity ? { identity } : {},
+  ).program;
 }
 
 describe("rolling back", () => {

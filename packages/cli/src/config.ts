@@ -11,7 +11,7 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { promisify } from "node:util";
-import { isJsonObject, type JsonValue } from "@invariant/ir";
+import { type IdentityStrategy, isJsonObject, type JsonValue } from "@invariant/ir";
 import { parse as parseYaml } from "yaml";
 
 const execShell = promisify(exec);
@@ -68,6 +68,11 @@ export interface InvariantConfig {
   invariantDir: string;
   /** The header a caller uses to declare its contract, if the provider has one. */
   contractHeader: string | undefined;
+  /**
+   * How a request names its contract, compiled into the program so every
+   * binding and the proxy read this one declaration.
+   */
+  identity: IdentityStrategy[] | undefined;
   build: BuildConfig | undefined;
   gate: { declaredLossy: GateLevel; unmigratableWithActiveConsumers: GateLevel };
 }
@@ -107,6 +112,54 @@ function buildFrom(raw: JsonValue | undefined): BuildConfig | undefined {
 }
 
 /** The first header strategy, which is what the differential check sets. */
+/**
+ * The identity strategies, as the program carries them: checked here, where a
+ * mistake names a line in `invariant.yaml`, rather than at a runtime's start.
+ * A strategy's `description` is for whoever reads the file and is left out.
+ */
+function identityFrom(
+  raw: JsonValue | undefined,
+  path: string,
+): IdentityStrategy[] | undefined {
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw) || raw.length === 0) {
+    throw new ConfigError(`${path}: identity must list at least one strategy`);
+  }
+  return raw.map((entry, index): IdentityStrategy => {
+    const where = `${path}: identity[${index}]`;
+    if (!isJsonObject(entry)) throw new ConfigError(`${where} must be an object`);
+    const text = (key: string) => {
+      const value = entry[key];
+      if (typeof value !== "string" || value === "") {
+        throw new ConfigError(`${where}.${key} must be a non-empty string`);
+      }
+      return value;
+    };
+    switch (entry["kind"]) {
+      case "header":
+        return { kind: "header", name: text("name").toLowerCase() };
+      case "urlPrefix": {
+        const map = entry["map"];
+        if (
+          !isJsonObject(map) ||
+          Object.values(map).some((label) => typeof label !== "string")
+        ) {
+          throw new ConfigError(`${where}.map must map path prefixes to contract labels`);
+        }
+        return { kind: "urlPrefix", map: map as Record<string, string> };
+      }
+      case "principal":
+        return { kind: "principal" };
+      case "default":
+        return { kind: "default", label: text("label") };
+      default:
+        throw new ConfigError(
+          `${where}.kind must be header, urlPrefix, principal or default, got ${String(entry["kind"])}`,
+        );
+    }
+  });
+}
+
 function headerStrategy(raw: JsonValue | undefined): string | undefined {
   if (!Array.isArray(raw)) return undefined;
   for (const entry of raw) {
@@ -222,6 +275,7 @@ export async function loadConfig(path: string): Promise<InvariantConfig> {
     releasedSpecs: released,
     invariantDir: resolve(root, "invariant"),
     contractHeader: headerStrategy(parsed["identity"]),
+    identity: identityFrom(parsed["identity"], path),
     build: buildFrom(parsed["build"]),
     gate: {
       declaredLossy: level(gate["declaredLossy"], "declaredLossy"),

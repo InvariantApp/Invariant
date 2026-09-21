@@ -450,6 +450,32 @@ export const ContractProgram = Type.Object(
   { additionalProperties: false },
 );
 
+/**
+ * How a request says which contract it expects, tried in order, first match
+ * wins. Declared once, in `invariant.yaml`, and compiled into the program, so
+ * every binding and the proxy read the same list rather than each keeping a
+ * copy that can disagree with the others.
+ */
+export const IdentityStrategy = Type.Union([
+  Type.Object(
+    { kind: Type.Literal("header"), name: Type.String({ minLength: 1 }) },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    {
+      kind: Type.Literal("urlPrefix"),
+      map: Type.Record(Type.String({ minLength: 1 }), Type.String({ minLength: 1 })),
+    },
+    { additionalProperties: false },
+  ),
+  Type.Object({ kind: Type.Literal("principal") }, { additionalProperties: false }),
+  Type.Object(
+    { kind: Type.Literal("default"), label: Type.String({ minLength: 1 }) },
+    { additionalProperties: false },
+  ),
+]);
+export type IdentityStrategy = Static<typeof IdentityStrategy>;
+
 export const CompiledProgram = Type.Object(
   {
     irVersion: Type.Literal(PROGRAM_VERSION),
@@ -480,6 +506,8 @@ export const CompiledProgram = Type.Object(
      * and put back on any path the program rewrites.
      */
     basePath: Type.Optional(Type.String({ pattern: "^/.+" })),
+    /** How a request names its contract, from `invariant.yaml`. */
+    identity: Type.Optional(Type.Array(IdentityStrategy, { minItems: 1 })),
   },
   { additionalProperties: false },
 );

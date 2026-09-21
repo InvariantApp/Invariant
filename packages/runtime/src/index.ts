@@ -48,6 +48,7 @@ import {
   decodeProgram,
   fillTemplate,
   findSite,
+  type IdentityStrategy,
   matchTemplate,
   PROGRAM_VERSION,
   ProgramError,
@@ -134,11 +135,7 @@ export const CONTRACT_HINT_HEADER = "x-invariant-contract-hint";
 export const CONTRACT_RESPONSE_HEADER = "invariant-contract";
 const INTERNAL_PREFIX = "x-invariant-";
 
-export type IdentityStrategy =
-  | { kind: "header"; name: string }
-  | { kind: "urlPrefix"; map: Record<string, string> }
-  | { kind: "principal" }
-  | { kind: "default"; label: string };
+export type { IdentityStrategy } from "./program.ts";
 
 export type ContractSource = "header" | "urlPrefix" | "principal" | "default" | "route";
 
@@ -165,7 +162,11 @@ export interface RuntimeFlags {
 export interface RuntimeOptions {
   /** The compiled program, as shipped in the provider's build. */
   program: unknown;
-  identity: readonly IdentityStrategy[];
+  /**
+   * How a request names its contract. Absent means the program's own, which
+   * `invariant compile` takes from `invariant.yaml`.
+   */
+  identity?: readonly IdentityStrategy[];
   /** Largest body the runtime will buffer on a site that needs transforming. */
   maxBodyBytes?: number;
   limits?: ExecuteLimits;
@@ -382,7 +383,16 @@ export class InvariantRuntime {
         [...this.#program.contracts.values()].flatMap((contract) => contract.behaviors),
       ),
     ].sort();
-    this.#identity = options.identity;
+    // Declared once, in `invariant.yaml`, and compiled into the program; a
+    // binding's own list, where given, is for tests and migrations off it.
+    const identity = options.identity ?? this.#program.identity;
+    if (!identity) {
+      throw new Error(
+        "Nothing says how a request names its contract: declare `identity` in " +
+          "invariant.yaml and compile again, or pass one to createRuntime.",
+      );
+    }
+    this.#identity = identity;
     // A provider's own configuration naming a contract the program does not
     // have is a mistake to catch at startup, not on the first request that
     // happens to reach that branch.

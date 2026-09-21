@@ -31,7 +31,7 @@ async function main(): Promise<void> {
     build: (text) => {
       const runtime = createRuntime({
         program: JSON.parse(text),
-        identity: config.identity,
+        ...(config.identity ? { identity: config.identity } : {}),
         maxBodyBytes: config.maxBodyBytes,
         ...(services.flags ? { flags: services.flags } : {}),
         ...(services.onUsage ? { onUsage: services.onUsage } : {}),

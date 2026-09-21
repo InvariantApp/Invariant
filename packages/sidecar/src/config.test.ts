@@ -21,7 +21,7 @@ describe("reading the configuration", () => {
     expect(config.listen).toEqual({ port: 8080, host: "127.0.0.1" });
     expect(config.maxBodyBytes).toBe(1024 * 1024);
     // Header names are compared case-insensitively on the wire.
-    expect(config.identity[0]).toEqual({ kind: "header", name: "api-version" });
+    expect(config.identity?.[0]).toEqual({ kind: "header", name: "api-version" });
   });
 
   it("refuses a setting it does not know, rather than ignoring a typo", () => {

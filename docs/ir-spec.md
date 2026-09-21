@@ -152,6 +152,8 @@ list of primitives per site, already inverted where inversion was needed.
   "api": "acme-payments",
   "current": "sha256:...",
   "currentLabel": "2026-09-20",
+  "identity": [{ "kind": "header", "name": "acme-version" },
+               { "kind": "default", "label": "2026-01-15" }],
   "contracts": {
     "2026-01-15": {
       "label": "2026-01-15",
@@ -187,6 +189,16 @@ An engine reads both before anything else in the program, and refuses a
 program it is too old for with a typed error naming the runtime it needs. It
 never runs part of a program: an instruction skipped because it was not
 understood is a response in a shape nobody promised.
+
+### Identity
+
+`identity` is how a request names the contract it expects, tried in order,
+first match wins: a `header` by name, compared lower-cased; a `urlPrefix`
+mapping path prefixes to labels; `principal`, the contract an account was
+pinned to, known only after the provider authenticates the caller; and a
+`default` label. It is declared once, in `invariant.yaml`, and compiled in, so
+every binding and the proxy read the same list. An engine may take a list
+given to it explicitly instead, and must refuse to start with neither.
 
 ### Instructions
 

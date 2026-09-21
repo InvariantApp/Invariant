@@ -34,7 +34,8 @@ export type ProgramFeature =
   | "program-blocks"
   | "base-path"
   | "retired"
-  | "behaviors";
+  | "behaviors"
+  | "identity";
 
 /**
  * The first runtime release that runs each feature.
@@ -69,6 +70,7 @@ export const FEATURE_SINCE: Readonly<Record<ProgramFeature, string>> = {
   "base-path": "0.1.0",
   retired: "0.1.0",
   behaviors: "0.1.0",
+  identity: "0.1.0",
 };
 
 function instrFeatures(list: readonly Instr[], into: Set<ProgramFeature>): void {
@@ -86,6 +88,7 @@ function instrFeatures(list: readonly Instr[], into: Set<ProgramFeature>): void 
 export function featuresOf(program: Omit<CompiledProgram, "minRuntime" | "compiledBy">) {
   const used = new Set<ProgramFeature>();
   if (program.basePath !== undefined) used.add("base-path");
+  if (program.identity !== undefined) used.add("identity");
   if (program.blocks) {
     used.add("program-blocks");
     for (const list of Object.values(program.blocks)) instrFeatures(list, used);

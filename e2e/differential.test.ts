@@ -9,6 +9,7 @@
  */
 import { join } from "node:path";
 import { ACME_BUILDS, AcmeStore, createAcmeApp } from "@fixtures/provider-acme";
+import { loadConfig } from "@invariant/cli";
 import { type ContractStep, chainProgram, predictDocument } from "@invariant/compiler";
 import { loadContract, loadPendingChanges, loadReleaseStep } from "@invariant/contract";
 import { breakingEntries, diffDocuments } from "@invariant/diff";
@@ -54,7 +55,15 @@ async function programFor(
     },
   ];
 
-  return chainProgram("acme-payments", head.label, head.digest, steps).program;
+  // How a request names its contract, from invariant.yaml, as compile reads it.
+  const { identity } = await loadConfig(join(FIXTURE, "invariant.yaml"));
+  return chainProgram(
+    "acme-payments",
+    head.label,
+    head.digest,
+    steps,
+    identity ? { identity } : {},
+  ).program;
 }
 
 /**

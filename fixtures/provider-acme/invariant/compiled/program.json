@@ -496,5 +496,18 @@
         "c": "chg_money_in_minor_units"
       }
     ]
-  }
+  },
+  "identity": [
+    {
+      "kind": "header",
+      "name": "acme-version"
+    },
+    {
+      "kind": "principal"
+    },
+    {
+      "kind": "default",
+      "label": "2026-01-15"
+    }
+  ]
 }

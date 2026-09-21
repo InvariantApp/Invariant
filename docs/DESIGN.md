@@ -2292,6 +2292,26 @@ bytes, cannot match: dropped from `If-None-Match`, which then asks for the
 whole answer, and replaced in `If-Match` by a tag no handler issued, so a
 write is refused rather than made against a copy the caller never saw.
 
+### One declaration of identity
+
+How a request names its contract was declared three times: in
+`invariant.yaml`, which the gate and the verifier read, in the proxy's
+configuration, and in every binding's options, where the fixture provider
+repeated the list by hand. A copy that disagreed with the others would serve
+callers the wrong contract with no error anywhere. `invariant compile` now
+writes the strategies from `invariant.yaml` into the program (M4.8), the
+runtime uses them when no list is passed explicitly and refuses to start with
+neither, and the proxy's `identity` setting is optional. The fixture provider
+no longer states its own. Header names are lower-cased where they are
+declared, and a strategy's `description` stays in the file.
+
+The proxy is also connected to the kill switch, counters and heartbeat through
+its configuration, replaces its program on `SIGHUP` or a change to the file
+while requests under way finish on the old one, bounds how long a caller may
+take to send a request, and logs each refusal with the id the caller was sent,
+including a caller naming a contract that does not exist, which was refused
+before any operation was chosen and so reported nowhere.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no

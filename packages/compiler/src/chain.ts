@@ -17,6 +17,7 @@ import type {
   CompiledProgram,
   ContractProgram,
   EnvelopeProgram,
+  IdentityStrategy,
   Instr,
   ParamCodec,
   RouteRule,
@@ -529,6 +530,7 @@ export function chainProgram(
   currentLabel: string,
   currentDigest: string,
   steps: readonly ContractStep[],
+  options: { identity?: readonly IdentityStrategy[] } = {},
 ): ChainResult {
   const projected = projectAll(steps);
   const issues = projected.flatMap((step) => step.issues);
@@ -574,6 +576,7 @@ export function chainProgram(
     currentLabel,
     contracts: Object.fromEntries(Object.entries(contracts).sort()),
     ...(Object.keys(used).length > 0 ? { blocks: used } : {}),
+    ...(options.identity ? { identity: [...options.identity] } : {}),
   };
   return {
     program: {

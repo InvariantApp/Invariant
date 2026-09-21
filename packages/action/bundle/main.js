@@ -3490,7 +3490,8 @@ const FEATURE_SINCE = {
 	"program-blocks": "0.1.0",
 	"base-path": "0.1.0",
 	retired: "0.1.0",
-	behaviors: "0.1.0"
+	behaviors: "0.1.0",
+	identity: "0.1.0"
 };
 function instrFeatures(list, into) {
 	for (const instr of list) {
@@ -3503,6 +3504,7 @@ function instrFeatures(list, into) {
 function featuresOf(program) {
 	const used = /* @__PURE__ */ new Set();
 	if (program.basePath !== void 0) used.add("base-path");
+	if (program.identity !== void 0) used.add("identity");
 	if (program.blocks) {
 		used.add("program-blocks");
 		for (const list of Object.values(program.blocks)) instrFeatures(list, used);
@@ -3950,6 +3952,27 @@ const ContractProgram = Type.Object({
 		refuse: Type.Optional(Type.Literal(true))
 	}, { additionalProperties: false }))
 }, { additionalProperties: false });
+/**
+* How a request says which contract it expects, tried in order, first match
+* wins. Declared once, in `invariant.yaml`, and compiled into the program, so
+* every binding and the proxy read the same list rather than each keeping a
+* copy that can disagree with the others.
+*/
+const IdentityStrategy = Type.Union([
+	Type.Object({
+		kind: Type.Literal("header"),
+		name: Type.String({ minLength: 1 })
+	}, { additionalProperties: false }),
+	Type.Object({
+		kind: Type.Literal("urlPrefix"),
+		map: Type.Record(Type.String({ minLength: 1 }), Type.String({ minLength: 1 }))
+	}, { additionalProperties: false }),
+	Type.Object({ kind: Type.Literal("principal") }, { additionalProperties: false }),
+	Type.Object({
+		kind: Type.Literal("default"),
+		label: Type.String({ minLength: 1 })
+	}, { additionalProperties: false })
+]);
 Type.Object({
 	irVersion: Type.Literal(2),
 	/** What compiled the program, as `<package>@<version>`, for anyone reading it later. */
@@ -3978,7 +4001,9 @@ Type.Object({
 	* relative to it, so it is taken off a request's path before matching,
 	* and put back on any path the program rewrites.
 	*/
-	basePath: Type.Optional(Type.String({ pattern: "^/.+" }))
+	basePath: Type.Optional(Type.String({ pattern: "^/.+" })),
+	/** How a request names its contract, from `invariant.yaml`. */
+	identity: Type.Optional(Type.Array(IdentityStrategy, { minItems: 1 }))
 }, { additionalProperties: false });
 function siteKey(method, path) {
 	return `${method.toLowerCase()} ${path}`;
@@ -16182,6 +16207,41 @@ const HTTP_METHODS = /* @__PURE__ */ new Set([
 	"patch",
 	"trace"
 ]);
+/** The identity strategies a program declares, checked as strictly as the rest of it. */
+function decodeIdentity(raw) {
+	if (raw === void 0) return void 0;
+	if (!Array.isArray(raw) || raw.length === 0) throw new ProgramError("program.identity must list at least one strategy");
+	return raw.map((entry, index) => {
+		const where = `program.identity[${index}]`;
+		const value = object$1(entry, where);
+		switch (value["kind"]) {
+			case "header":
+				expectKeys(value, ["kind", "name"], where);
+				return {
+					kind: "header",
+					name: string$1(value["name"], `${where}.name`).toLowerCase()
+				};
+			case "urlPrefix": {
+				expectKeys(value, ["kind", "map"], where);
+				const map = object$1(value["map"], `${where}.map`);
+				return {
+					kind: "urlPrefix",
+					map: Object.fromEntries(Object.entries(map).map(([prefix, label]) => [prefix, string$1(label, `${where}.map["${prefix}"]`)]))
+				};
+			}
+			case "principal":
+				expectKeys(value, ["kind"], where);
+				return { kind: "principal" };
+			case "default":
+				expectKeys(value, ["kind", "label"], where);
+				return {
+					kind: "default",
+					label: string$1(value["label"], `${where}.label`)
+				};
+			default: throw new ProgramError(`${where}.kind is not a strategy this runtime knows`);
+		}
+	});
+}
 const SCALARS = /* @__PURE__ */ new Set([
 	"string",
 	"integer",
@@ -16893,7 +16953,8 @@ function decodeProgram(raw) {
 		"currentLabel",
 		"contracts",
 		"blocks",
-		"basePath"
+		"basePath",
+		"identity"
 	], "program");
 	if (value["compiledBy"] !== void 0 && typeof value["compiledBy"] !== "string") throw new ProgramError("program.compiledBy must be a string");
 	const basePath = value["basePath"];
@@ -16958,12 +17019,14 @@ function decodeProgram(raw) {
 			})
 		});
 	}
+	const identity = decodeIdentity(value["identity"]);
 	return {
 		api: string$1(value["api"], "program.api"),
 		current: string$1(value["current"], "program.current"),
 		currentLabel: string$1(value["currentLabel"], "program.currentLabel"),
 		contracts,
-		basePath: basePath ?? ""
+		basePath: basePath ?? "",
+		...identity ? { identity } : {}
 	};
 }
 const PARAMETER = /\{[^{}]+\}/g;
@@ -17208,7 +17271,9 @@ var InvariantRuntime = class {
 	constructor(options) {
 		this.#program = decodeProgram(options.program);
 		this.#behaviors = [...new Set([...this.#program.contracts.values()].flatMap((contract) => contract.behaviors))].sort();
-		this.#identity = options.identity;
+		const identity = options.identity ?? this.#program.identity;
+		if (!identity) throw new Error("Nothing says how a request names its contract: declare `identity` in invariant.yaml and compile again, or pass one to createRuntime.");
+		this.#identity = identity;
 		for (const strategy of this.#identity) {
 			const named = strategy.kind === "default" ? [strategy.label] : strategy.kind === "urlPrefix" ? Object.values(strategy.map) : [];
 			for (const label of named) if (!this.knows(label)) throw new Error(`The ${strategy.kind} identity strategy names contract "${label}", which this program does not have. Known: ${this.#knownLabels()}.`);
@@ -20335,7 +20400,7 @@ function servedUnder(document) {
 * gets one pass straight to current and the program grows with the number of
 * steps rather than with its square. Each step is projected once.
 */
-function chainProgram(api, currentLabel, currentDigest, steps) {
+function chainProgram(api, currentLabel, currentDigest, steps, options = {}) {
 	const projected = projectAll(steps);
 	const issues = projected.flatMap((step) => step.issues);
 	const contracts = {};
@@ -20365,7 +20430,8 @@ function chainProgram(api, currentLabel, currentDigest, steps) {
 		current: currentDigest,
 		currentLabel,
 		contracts: Object.fromEntries(Object.entries(contracts).sort()),
-		...Object.keys(used).length > 0 ? { blocks: used } : {}
+		...Object.keys(used).length > 0 ? { blocks: used } : {},
+		...options.identity ? { identity: [...options.identity] } : {}
 	};
 	return {
 		program: {
@@ -35783,7 +35849,7 @@ async function check(config, options = {}) {
 			warnings.push(`Production is failing transforms for contract ${entry.subject}: ${entry.summary}. The operation had already run each time, so those callers were charged for work whose result they never got.`);
 		}
 	}
-	const chained = chainProgram(config.api, current.label, current.digest, steps);
+	const chained = chainProgram(config.api, current.label, current.digest, steps, config.identity ? { identity: config.identity } : {});
 	const unservable = [...new Set(chained.issues.map((issue) => `${issue.changeId}: ${issue.message}`))];
 	const blocked = reports.some((report) => report.unexplained.length > 0 || report.issues.length > 0 || report.stale.length > 0) || verified.problems.length > 0 || unservable.length > 0 || policy.blocks.length > 0;
 	return {
@@ -35955,6 +36021,44 @@ function buildFrom(raw) {
 	};
 }
 /** The first header strategy, which is what the differential check sets. */
+/**
+* The identity strategies, as the program carries them: checked here, where a
+* mistake names a line in `invariant.yaml`, rather than at a runtime's start.
+* A strategy's `description` is for whoever reads the file and is left out.
+*/
+function identityFrom(raw, path) {
+	if (raw === void 0) return void 0;
+	if (!Array.isArray(raw) || raw.length === 0) throw new ConfigError(`${path}: identity must list at least one strategy`);
+	return raw.map((entry, index) => {
+		const where = `${path}: identity[${index}]`;
+		if (!isJsonObject(entry)) throw new ConfigError(`${where} must be an object`);
+		const text = (key) => {
+			const value = entry[key];
+			if (typeof value !== "string" || value === "") throw new ConfigError(`${where}.${key} must be a non-empty string`);
+			return value;
+		};
+		switch (entry["kind"]) {
+			case "header": return {
+				kind: "header",
+				name: text("name").toLowerCase()
+			};
+			case "urlPrefix": {
+				const map = entry["map"];
+				if (!isJsonObject(map) || Object.values(map).some((label) => typeof label !== "string")) throw new ConfigError(`${where}.map must map path prefixes to contract labels`);
+				return {
+					kind: "urlPrefix",
+					map
+				};
+			}
+			case "principal": return { kind: "principal" };
+			case "default": return {
+				kind: "default",
+				label: text("label")
+			};
+			default: throw new ConfigError(`${where}.kind must be header, urlPrefix, principal or default, got ${String(entry["kind"])}`);
+		}
+	});
+}
 function headerStrategy(raw) {
 	if (!Array.isArray(raw)) return void 0;
 	for (const entry of raw) if (isJsonObject(entry) && entry["kind"] === "header" && typeof entry["name"] === "string") return entry["name"];
@@ -36025,6 +36129,7 @@ async function loadConfig(path) {
 		releasedSpecs: released,
 		invariantDir: resolve(root, "invariant"),
 		contractHeader: headerStrategy(parsed["identity"]),
+		identity: identityFrom(parsed["identity"], path),
 		build: buildFrom(parsed["build"]),
 		gate: {
 			declaredLossy: level(gate["declaredLossy"], "declaredLossy"),

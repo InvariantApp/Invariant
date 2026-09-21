@@ -59,14 +59,9 @@ export function createAcmeApp(options: CreateAcmeAppOptions = {}): AcmeApp {
 
   const runtime = options.program
     ? createRuntime({
+        // How a request names its contract comes with the program, from
+        // invariant.yaml: the header first, then the account's pin.
         program: options.program,
-        // How a request says which contract it expects: the explicit header
-        // first, then the contract pinned to the account at first use.
-        identity: [
-          { kind: "header", name: "acme-version" },
-          { kind: "principal" },
-          { kind: "default", label: "2026-01-15" },
-        ],
         ...(options.onUsage ? { onUsage: options.onUsage } : {}),
         ...(options.onOutcome ? { onOutcome: options.onOutcome } : {}),
         ...(options.flags ? { flags: options.flags } : {}),

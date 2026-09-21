@@ -15,7 +15,12 @@ export interface SidecarConfig {
   program: string;
   upstream: string;
   listen: { port: number; host: string };
-  identity: IdentityStrategy[];
+  /**
+   * How a request names its contract. Absent means the program's own, which
+   * `invariant compile` takes from `invariant.yaml`; set here only to serve a
+   * program compiled without one.
+   */
+  identity?: IdentityStrategy[];
   maxBodyBytes: number;
   upstreamTimeoutMs: number;
   /** Longest a caller's whole request may take to arrive. */
@@ -142,7 +147,9 @@ export function parseConfig(raw: unknown, relativeTo: string): SidecarConfig {
     program: resolve(relativeTo, program),
     upstream,
     listen: { port, host },
-    identity: identityFrom(value["identity"]),
+    ...(value["identity"] === undefined
+      ? {}
+      : { identity: identityFrom(value["identity"]) }),
     maxBodyBytes: positiveInt(value, "maxBodyBytes", 1024 * 1024),
     upstreamTimeoutMs: positiveInt(value, "upstreamTimeoutMs", 30_000),
     requestTimeoutMs,

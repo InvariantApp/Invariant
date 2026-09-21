@@ -96,6 +96,13 @@ export interface DecodedContract {
   }[];
 }
 
+/** How a request says which contract it expects, tried in order. */
+export type IdentityStrategy =
+  | { kind: "header"; name: string }
+  | { kind: "urlPrefix"; map: Record<string, string> }
+  | { kind: "principal" }
+  | { kind: "default"; label: string };
+
 export interface DecodedProgram {
   api: string;
   current: string;
@@ -103,6 +110,50 @@ export interface DecodedProgram {
   contracts: Map<string, DecodedContract>;
   /** The path the API is served under, or empty when it is served at the root. */
   basePath: string;
+  /** How requests name their contract, as `invariant.yaml` declares it. */
+  identity?: IdentityStrategy[];
+}
+
+/** The identity strategies a program declares, checked as strictly as the rest of it. */
+function decodeIdentity(raw: unknown): IdentityStrategy[] | undefined {
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw) || raw.length === 0) {
+    throw new ProgramError("program.identity must list at least one strategy");
+  }
+  return raw.map((entry, index): IdentityStrategy => {
+    const where = `program.identity[${index}]`;
+    const value = object(entry, where);
+    switch (value["kind"]) {
+      case "header":
+        expectKeys(value, ["kind", "name"], where);
+        // Header names are case-insensitive, and compared lower-cased.
+        return {
+          kind: "header",
+          name: string(value["name"], `${where}.name`).toLowerCase(),
+        };
+      case "urlPrefix": {
+        expectKeys(value, ["kind", "map"], where);
+        const map = object(value["map"], `${where}.map`);
+        return {
+          kind: "urlPrefix",
+          map: Object.fromEntries(
+            Object.entries(map).map(([prefix, label]) => [
+              prefix,
+              string(label, `${where}.map["${prefix}"]`),
+            ]),
+          ),
+        };
+      }
+      case "principal":
+        expectKeys(value, ["kind"], where);
+        return { kind: "principal" };
+      case "default":
+        expectKeys(value, ["kind", "label"], where);
+        return { kind: "default", label: string(value["label"], `${where}.label`) };
+      default:
+        throw new ProgramError(`${where}.kind is not a strategy this runtime knows`);
+    }
+  });
 }
 
 const SCALARS = new Set<ScalarType>(["string", "integer", "number", "boolean"]);
@@ -968,6 +1019,7 @@ export function decodeProgram(raw: unknown): DecodedProgram {
       "contracts",
       "blocks",
       "basePath",
+      "identity",
     ],
     "program",
   );
@@ -1089,12 +1141,14 @@ export function decodeProgram(raw: unknown): DecodedProgram {
     });
   }
 
+  const identity = decodeIdentity(value["identity"]);
   return {
     api: string(value["api"], "program.api"),
     current: string(value["current"], "program.current"),
     currentLabel: string(value["currentLabel"], "program.currentLabel"),
     contracts,
     basePath: (basePath as string | undefined) ?? "",
+    ...(identity ? { identity } : {}),
   };
 }
 

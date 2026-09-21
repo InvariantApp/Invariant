@@ -89,7 +89,7 @@ function running(config: SidecarConfig, plane: ReturnType<typeof controlPlane>) 
   });
   const runtime = createRuntime({
     program: PROGRAM,
-    identity: config.identity,
+    ...(config.identity ? { identity: config.identity } : {}),
     ...(services.flags ? { flags: services.flags } : {}),
     ...(services.onUsage ? { onUsage: services.onUsage } : {}),
     onOutcome: services.onOutcome,
