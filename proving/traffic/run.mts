@@ -35,7 +35,7 @@ import {
   requestBodyMedia,
 } from "@invariant/contract";
 import type { PairResult } from "@invariant/eval";
-import type { JsonValue } from "@invariant/ir";
+import type { Change, JsonValue } from "@invariant/ir";
 import { createRuntime } from "@invariant/runtime";
 import { createProxy } from "@invariant/sidecar";
 import { valueArbitrary } from "@invariant/verifier";
@@ -157,6 +157,74 @@ function operationOf(
   const item = isObject(paths) ? paths[endpoint.path] : undefined;
   const operation = isObject(item) ? item[endpoint.method] : undefined;
   return isObject(operation) ? operation : undefined;
+}
+
+/**
+ * The old contract with every union narrowed to the branches the drafted
+ * Changes are about, for generating traffic that reaches them.
+ *
+ * Adyen offers fifty payment methods in one `oneOf`; drawn uniformly, the one
+ * a release changed almost never appears, and a site that was never exercised
+ * proves nothing. Only generation uses this copy. The mocks still judge
+ * against the real contracts.
+ */
+function focusOn(document: OpenApiDocument, changes: readonly Change[]): OpenApiDocument {
+  const targets = new Set(
+    changes.flatMap((change) =>
+      (change.scopes ?? []).flatMap((scope) => ("schema" in scope ? [scope.schema] : [])),
+    ),
+  );
+  if (targets.size === 0) return document;
+  const focus = (value: JsonValue): JsonValue => {
+    if (Array.isArray(value)) return value.map(focus);
+    if (!isObject(value)) return value;
+    const out: JsonObject = {};
+    for (const [key, child] of Object.entries(value)) out[key] = focus(child);
+    for (const key of ["oneOf", "anyOf"]) {
+      const branches = out[key];
+      if (!Array.isArray(branches)) continue;
+      const aimed = branches.filter(
+        (branch) =>
+          isObject(branch) &&
+          typeof branch["$ref"] === "string" &&
+          targets.has(branch["$ref"]),
+      );
+      if (aimed.length > 0 && aimed.length < branches.length) out[key] = aimed;
+    }
+    return out;
+  };
+  const focused = focus(document as JsonValue) as OpenApiDocument;
+  // A vocabulary a Change maps is narrowed to the values it actually renames:
+  // a hundred values mapped to themselves and one renamed breaks an old caller
+  // only when that one is sent.
+  const schemas = isObject(focused["components"])
+    ? (focused["components"] as JsonObject)["schemas"]
+    : undefined;
+  for (const change of changes) {
+    for (const scope of change.scopes ?? []) {
+      if (!("schema" in scope) || !isObject(schemas)) continue;
+      const name = scope.schema.slice("#/components/schemas/".length);
+      for (const op of change.ops) {
+        if (op.op !== "convert" || op.codec.kind !== "enumMap") continue;
+        const renamed = op.codec.pairs
+          .filter(([from, to]) => from !== to)
+          .map(([from]) => from);
+        if (renamed.length === 0) continue;
+        let node: JsonValue | undefined = schemas[name];
+        for (const segment of op.path.split("/").slice(1)) {
+          if (!isObject(node)) break;
+          node =
+            segment === "*"
+              ? node["items"]
+              : isObject(node["properties"])
+                ? node["properties"][segment]
+                : undefined;
+        }
+        if (isObject(node) && Array.isArray(node["enum"])) node["enum"] = renamed;
+      }
+    }
+  }
+  return focused;
 }
 
 /** A declared parameter an old caller sends outside the path. */
@@ -435,6 +503,7 @@ async function runPair(pair: ManifestPair): Promise<TrafficResult> {
   });
 
   const oldMount = mountOf(from.document);
+  const focused = focusOn(from.document, drafted.changes);
   for (const { old, current, retired, refused } of adaptedSites(drafted.program, OLD)) {
     const operation = operationOf(from.document, old);
     const site: SiteResult = {
@@ -461,13 +530,21 @@ async function runPair(pair: ManifestPair): Promise<TrafficResult> {
       continue;
     }
     const media = requestBodyMedia(from.document, operation);
+    // Half the bodies are drawn with unions narrowed to what changed, so a
+    // variant the release touched is actually sent.
     const bodies =
       media === undefined
         ? undefined
-        : fc.sample(valueArbitrary(from.document, media.schema), {
-            numRuns: SAMPLES,
-            seed: 1,
-          });
+        : [
+            ...fc.sample(valueArbitrary(focused, media.schema), {
+              numRuns: Math.ceil(SAMPLES / 2),
+              seed: 1,
+            }),
+            ...fc.sample(valueArbitrary(from.document, media.schema), {
+              numRuns: SAMPLES - Math.ceil(SAMPLES / 2),
+              seed: 3,
+            }),
+          ];
     // Each parameter present or not as its declaration allows, with a value
     // its schema allows.
     const declared = declaredParameters(from.document, old, operation);
