@@ -10,13 +10,9 @@
  * to ship a change nobody accounted for.
  */
 
-import {
-  type ContractStep,
-  chainProgram,
-  derive,
-  missingAcknowledgement,
-  predictDocument,
-} from "@invariant/compiler";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { type ContractStep, chainProgram, predictDocument } from "@invariant/compiler";
 import {
   type Contract,
   listReleasedLabels,
@@ -34,6 +30,8 @@ import type { Change, CompiledProgram } from "@invariant/ir";
 import { type Evidence, inputsDigest } from "@invariant/verifier";
 import type { InvariantConfig } from "./config.ts";
 import { outcomeEvidence, readOutcomes } from "./outcomes.ts";
+import { applyGatePolicy } from "./policy.ts";
+import { readLedger, type UsageRecord } from "./usage.ts";
 import { type VerifyOptions, verify } from "./verify.ts";
 
 export type GateResult = "pass" | "warn" | "block";
@@ -83,7 +81,33 @@ export interface CheckReport {
   problems: string[];
   /** Differences the provider named and justified. */
   acknowledged: string[];
+  /**
+   * Declared Changes the compiled program cannot carry out.
+   *
+   * Closure proves the Changes describe the release. This says whether the
+   * runtime can then do what they describe, which is a separate question and
+   * the one an old caller actually depends on.
+   */
+  unservable: string[];
+  /** What the gate settings in invariant.yaml refuse. */
+  policy: string[];
   result: GateResult;
+}
+
+/**
+ * The usage ledger, if there is one.
+ *
+ * Named explicitly, or the file the runtime's counters write by convention.
+ * Absent is returned as undefined rather than as no usage, because the two
+ * mean different things to anyone deciding whether an old contract is empty.
+ */
+async function usageFor(
+  config: InvariantConfig,
+  path: string | undefined,
+): Promise<UsageRecord[] | undefined> {
+  const ledger = resolve(config.root, path ?? "invariant/usage.jsonl");
+  if (path === undefined && !existsSync(ledger)) return undefined;
+  return readLedger(ledger);
 }
 
 async function contractsFor(config: InvariantConfig): Promise<{
@@ -239,24 +263,19 @@ export async function check(
             "Add side_effects_unchanged to its assertions.",
         );
       }
-
-      // A change that cannot be served exactly has to say so in its own file.
-      // Deriving the class and then letting it pass unmentioned would put the
-      // judgement in the tool rather than with the person accountable for it.
-      const derived = derive(change);
-      if (missingAcknowledgement(change, derived)) {
-        warnings.push(
-          `${change.id} is ${derived.runtime} and does not acknowledge it. ` +
-            `Add loss_acknowledged: true, having read why: ${derived.reasons[0] ?? ""}`,
-        );
-      }
-      if (derived.runtime === "none") {
-        warnings.push(
-          `${change.id} cannot be served to an old caller at all. ${derived.reasons[0] ?? ""}`,
-        );
-      }
     }
   }
+
+  const usage = await usageFor(config, options.usage);
+  const policy = applyGatePolicy(
+    config,
+    steps.map((step, index) => ({
+      changes: step.changes,
+      pending: index === steps.length - 1,
+    })),
+    usage,
+  );
+  warnings.push(...policy.warnings);
 
   // E1. Every Change in this release parsed as this version of the IR, which
   // happened during loading: an unknown op kind or an unknown field is a hard
@@ -301,10 +320,12 @@ export async function check(
     }
   }
 
+  // Each step is projected once for every historical contract it lies on the
+  // way from, so the same issue arrives several times.
   const chained = chainProgram(config.api, current.label, current.digest, steps);
-  for (const issue of chained.issues) {
-    warnings.push(`${issue.changeId}: ${issue.message}`);
-  }
+  const unservable = [
+    ...new Set(chained.issues.map((issue) => `${issue.changeId}: ${issue.message}`)),
+  ];
 
   const blocked =
     reports.some(
@@ -312,7 +333,10 @@ export async function check(
         report.unexplained.length > 0 ||
         report.issues.length > 0 ||
         report.stale.length > 0,
-    ) || verified.problems.length > 0;
+    ) ||
+    verified.problems.length > 0 ||
+    unservable.length > 0 ||
+    policy.blocks.length > 0;
 
   return {
     api: config.api,
@@ -323,6 +347,8 @@ export async function check(
     evidence,
     problems: verified.problems,
     acknowledged: verified.acknowledged,
+    unservable,
+    policy: policy.blocks,
     result: blocked ? "block" : warnings.length > 0 ? "warn" : "pass",
   };
 }
@@ -398,6 +424,16 @@ export function renderReport(report: CheckReport): string {
     for (const entry of report.acknowledged) lines.push(`  - ${entry}`);
   }
 
+  if (report.policy.length > 0) {
+    lines.push("", "Refused by the gate settings in invariant.yaml:");
+    for (const entry of report.policy) lines.push(`  - ${entry}`);
+  }
+
+  if (report.unservable.length > 0) {
+    lines.push("", "Changes the runtime cannot serve:");
+    for (const entry of report.unservable) lines.push(`  - ${entry}`);
+  }
+
   if (report.problems.length > 0) {
     lines.push("", "Verification found:");
     for (const problem of report.problems) lines.push(`  - ${problem}`);
@@ -435,6 +471,22 @@ function reasonFor(report: CheckReport): string[] {
       "Every breaking delta needs a Change that accounts for it, and every",
       "Change has to hold when it is actually run, or the old contract cannot",
       "be served.",
+    ];
+  }
+
+  if (report.policy.length > 0 && report.unservable.length === 0) {
+    return [
+      "Reason: this release does something invariant.yaml says to refuse.",
+      "Each line above names the setting. Change the release, or change the",
+      "setting if the policy itself is what is wrong.",
+    ];
+  }
+
+  if (report.unservable.length > 0) {
+    return [
+      "Reason: a declared Change describes this release correctly, but the",
+      "compiled adapter cannot carry it out. Shipping it would tell old callers",
+      "they are served when their requests reach your code untranslated.",
     ];
   }
 

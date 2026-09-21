@@ -75,8 +75,51 @@ describe("documents that describe webhooks", () => {
 
     expect(scan.sites).toEqual([]);
     expect(scan.unsupported.join(" ")).toMatch(
-      /webhook, which this runtime cannot adapt/,
+      /webhook that sends this schema, which this runtime cannot adapt/,
     );
+  });
+
+  it("says nothing about a webhook that never sends the schema", () => {
+    // Refusing every Change in any document that also has webhooks would block
+    // releases for a reason that has nothing to do with them.
+    const scan = findSchemaSites(
+      doc({
+        paths: {
+          "/things": {
+            get: {
+              responses: {
+                "200": {
+                  description: "ok",
+                  content: {
+                    "application/json": {
+                      schema: { $ref: "#/components/schemas/Thing" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        webhooks: {
+          PING: {
+            post: {
+              operationId: "ping",
+              requestBody: {
+                content: {
+                  "application/json": { schema: { $ref: "#/components/schemas/Event" } },
+                },
+              },
+              ...okResponse,
+            },
+          },
+        },
+        components: { schemas: { Event: { type: "object" }, Thing: { type: "object" } } },
+      }),
+      "#/components/schemas/Thing",
+    );
+
+    expect(scan.sites).toHaveLength(1);
+    expect(scan.unsupported).toEqual([]);
   });
 });
 

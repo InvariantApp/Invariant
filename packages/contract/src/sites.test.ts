@@ -46,3 +46,62 @@ describe("schema site resolution", () => {
     expect(new Set(sites.map((s) => s.status))).toEqual(new Set(["400", "401", "404"]));
   });
 });
+
+describe("unions on the way to a schema", () => {
+  const document = (body: object) => ({
+    openapi: "3.1.0",
+    info: { title: "t", version: "1" },
+    paths: {
+      "/things": {
+        get: {
+          operationId: "things.get",
+          responses: {
+            "200": {
+              description: "ok",
+              content: { "application/json": { schema: body } },
+            },
+          },
+        },
+      },
+    },
+    components: {
+      schemas: {
+        Card: { type: "object", properties: { last4: { type: "string" } } },
+        Bank: { type: "object", properties: { iban: { type: "string" } } },
+        Thing: { type: "object", properties: { id: { type: "string" } } },
+      },
+    },
+  });
+  const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
+
+  it("refuses a schema that is reached only through a oneOf", () => {
+    // Which branch a value took is not something the runtime can tell, so a
+    // transform placed there could apply to the wrong kind of value.
+    const scan = findSchemaSites(
+      document({
+        type: "object",
+        properties: { method: { oneOf: [ref("Card"), ref("Bank")] } },
+      }) as never,
+      "#/components/schemas/Card",
+    );
+    expect(scan.sites).toEqual([]);
+    expect(scan.unsupported).toEqual([
+      "things.get response 200: /method reaches the schema through oneOf",
+    ]);
+  });
+
+  it("says nothing about a oneOf the schema is not part of", () => {
+    const scan = findSchemaSites(
+      document({
+        type: "object",
+        properties: {
+          thing: ref("Thing"),
+          method: { oneOf: [ref("Card"), ref("Bank")] },
+        },
+      }) as never,
+      "#/components/schemas/Thing",
+    );
+    expect(scan.sites.map((site) => site.prefix)).toEqual(["/thing"]);
+    expect(scan.unsupported).toEqual([]);
+  });
+});

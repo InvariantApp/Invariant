@@ -40,6 +40,11 @@ export interface VerifyOptions {
    * looked and found nothing wrong.
    */
   outcomes?: string;
+  /**
+   * The usage ledger the gate weighs unservable Changes against. Defaults to
+   * `invariant/usage.jsonl` when that file exists.
+   */
+  usage?: string;
 }
 
 export interface VerifyReport {

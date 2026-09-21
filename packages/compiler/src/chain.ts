@@ -115,6 +115,10 @@ export function chainContract(
     const projected = projectStep(step.label, step.from, step.changes, step.to);
     issues.push(...projected.issues);
     behaviors.push(...projected.program.behaviors);
+    // A retired endpoint is named as it stood in the contract that retired it,
+    // which is also the path a request reaches after the earlier steps' route
+    // rewrites. Later steps never touch it, because it no longer exists there.
+    retired.push(...projected.program.retired);
 
     const after = laterRoutes.slice(index + 1);
 

@@ -5,7 +5,7 @@
  * made to fail is not a gate, so the Changes are removed one at a time and the
  * check has to notice each time.
  */
-import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { oasdiffAvailable } from "@invariant/diff";
@@ -90,6 +90,52 @@ ops:
     const report = await check(await loadConfig(join(root, "invariant.yaml")));
     expect(report.result).toBe("block");
     expect(report.steps.at(-1)?.issues.join("\n")).toContain("Nothing to read at");
+  });
+
+  /**
+   * A Change the gate can prove and the runtime cannot run.
+   *
+   * Renaming a query parameter closes: applying the declared move to the old
+   * document predicts the new one exactly. But the compiled program only
+   * rewrites bodies, so an old caller's `?limit=` would reach the handler
+   * untouched and be ignored. A gate that passes this is certifying a release
+   * it cannot serve, which is worse than refusing it.
+   */
+  it("blocks a Change that closes but that the runtime cannot serve", async () => {
+    const root = await copyProvider();
+    const head = join(root, "openapi/head.json");
+    const document = JSON.parse(await readFile(head, "utf8"));
+    const list = document.paths["/v1/payments"].get;
+    list.parameters[0].name = "page_size";
+    await writeFile(head, JSON.stringify(document, null, 2), "utf8");
+    await writeFile(
+      join(root, "invariant/changes/chg_page_size.yaml"),
+      `irVersion: 1
+id: chg_page_size
+summary: The list page size parameter is called page_size.
+scopes:
+  - operation: payments.list
+    location: query
+ops:
+  - op: move
+    from: /limit
+    to: /page_size
+assertions:
+  same_concept: true
+  side_effects_unchanged: true
+`,
+      "utf8",
+    );
+
+    const report = await check(await loadConfig(join(root, "invariant.yaml")));
+
+    // Closure is satisfied: the rename explains the diff.
+    expect(report.steps.flatMap((step) => step.unexplained)).toEqual([]);
+
+    // And the gate still refuses, naming the Change it cannot serve.
+    expect(report.result).toBe("block");
+    expect(report.program).toBeUndefined();
+    expect(renderReport(report)).toContain("chg_page_size");
   });
 
   it("warns when a Change does not say whether side effects changed", async () => {

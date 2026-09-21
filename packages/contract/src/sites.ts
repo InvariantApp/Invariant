@@ -62,10 +62,22 @@ function walk(ctx: WalkContext, schema: JsonValue, segments: string[]): void {
     return;
   }
 
+  // A union is only a problem when the target is actually inside it: the
+  // runtime has no way to tell which branch a value took, so a transform
+  // there cannot be placed. A union elsewhere in the same body is none of
+  // this Change's business, and reporting it would refuse unrelated releases.
   for (const key of ["oneOf", "anyOf", "not"]) {
-    if (schema[key] !== undefined) {
-      ctx.unsupported.push(`${formatPointer(segments) || "/"} uses ${key}`);
+    const value = schema[key];
+    if (value === undefined) continue;
+    const branches = Array.isArray(value) ? value : [value];
+    const inner: WalkContext = { ...ctx, found: [], unsupported: [] };
+    for (const branch of branches) walk(inner, branch as JsonValue, segments);
+    if (inner.found.length > 0) {
+      ctx.unsupported.push(
+        `${formatPointer(segments) || "/"} reaches the schema through ${key}`,
+      );
     }
+    ctx.unsupported.push(...inner.unsupported);
   }
 
   const allOf = schema["allOf"];
@@ -115,14 +127,20 @@ export function findSchemaSites(
   )) {
     if (webhook === true) {
       // A webhook is sent by the provider, so there is no inbound request to
-      // rewrite and no response of the provider's own to rewrite back. The
-      // change is still real and still reported; what cannot exist is an
-      // adapter site for it, and saying so here is what keeps a drafted
-      // transform from being compiled into a program that could never run.
-      unsupported.push(
-        `${operationId} is a webhook, which this runtime cannot adapt. ` +
-          "Describe it as a `behavior` change, or send the new shape.",
-      );
+      // rewrite and no response of the provider's own to rewrite back. When
+      // the changed schema is part of what the webhook sends, what cannot
+      // exist is an adapter site for it, and saying so here is what keeps a
+      // drafted transform from being compiled into a program that could never
+      // run. A webhook that never carries the schema is not affected at all.
+      const payload = requestBodySchema(document, operation);
+      if (payload === undefined) continue;
+      const scan = scanRoot(document, schemaRef, payload);
+      if (scan.prefixes.length > 0 || scan.unsupported.length > 0) {
+        unsupported.push(
+          `${operationId} is a webhook that sends this schema, which this runtime ` +
+            "cannot adapt. Describe it as a `behavior` change, or send the new shape.",
+        );
+      }
       continue;
     }
     const request = requestBodySchema(document, operation);

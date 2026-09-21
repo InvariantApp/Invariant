@@ -45,6 +45,8 @@ function report(overrides: Partial<CheckReport> = {}): CheckReport {
     evidence: [],
     problems: [],
     acknowledged: [],
+    unservable: [],
+    policy: [],
     result: "block",
     ...overrides,
   };

@@ -88,6 +88,24 @@ export function renderComment(report: CheckReport): string {
     lines.push("");
   }
 
+  if (report.policy.length > 0) {
+    lines.push("### Refused by this repository's gate settings", "");
+    for (const entry of report.policy) lines.push(`- ${entry}`);
+    lines.push("");
+  }
+
+  if (report.unservable.length > 0) {
+    lines.push(
+      "### Changes the adapter cannot carry out",
+      "",
+      "Each of these explains part of the release, and the runtime has no way to",
+      "apply it. Old callers would reach your code untranslated.",
+      "",
+    );
+    for (const entry of report.unservable) lines.push(`- ${entry}`);
+    lines.push("");
+  }
+
   if (report.problems.length > 0) {
     lines.push(
       `### ${report.problems.length} ${report.problems.length === 1 ? "problem" : "problems"} found by running it`,
