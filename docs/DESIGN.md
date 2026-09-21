@@ -1948,6 +1948,38 @@ invented: a null becomes a field left out, and a value comes only from the
 specification's own `default`. Without one it is a decision, and it is reported
 as one.
 
+### The whole request, as one tree
+
+Until now a program rewrote request bodies and nothing else, so every change
+to a parameter was blocked at the gate: the commonest parameter break, a query
+parameter renamed, could be proved by closure and not served. A program can
+now run over the whole request, addressed as `/@path`, `/@query`, `/@header`,
+`/@cookie` and `/@body`, with the same six instructions in one ordered list.
+A rename is a `move` inside the query string, a search moving from the query
+string into the body is a `move` between parts, and a step that renames a
+body field and a step that renames a parameter run in the order they
+happened.
+
+Each parameter a program names travels with how the old contract writes it
+and how the current one expects it, so `10` reaches an instruction as a number
+and leaves in the new contract's style. Nothing else is touched: an unnamed
+query parameter keeps its exact bytes and its place, because a program that
+re-encodes what it was never asked about breaks signatures and cache keys no
+one knew depended on them. Credential, framing and signature headers, and any
+header a security scheme reads, are refused at compile time and again when a
+program loads. A value that would put a line break into a header is refused,
+and property names decoded from a caller's `deepObject` can never reach a
+prototype.
+
+Three things turned up on the way. Site lookup lowercased the whole key, so
+any operation whose path had a capital letter, Google's `:batchGet` among
+them, was never adapted at all. The differ compared where a parameter was
+declared rather than what an operation receives, so predicting a change to
+one operation's copy of a shared parameter failed closure; it now runs with
+`--flatten-params`. And the proposer read a new URL prefix appearing, as AWS
+App Mesh's did, as every endpoint being retired: the traffic rig caught the
+404s that would have followed.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no
