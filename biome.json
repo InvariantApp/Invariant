@@ -28,7 +28,8 @@
       },
       "style": {
         "useConst": "error",
-        "noNonNullAssertion": "error"
+        "noNonNullAssertion": "error",
+        "noParameterProperties": "error"
       },
       "complexity": {
         "useLiteralKeys": "off"

@@ -36,17 +36,20 @@ class StubJudge implements Judge {
   readonly id = "rules" as const;
   calls = 0;
 
-  constructor(
-    readonly fingerprint: string,
-    private readonly successor: string,
-  ) {}
+  readonly fingerprint: string;
+  readonly #successor: string;
+
+  constructor(fingerprint: string, successor: string) {
+    this.fingerprint = fingerprint;
+    this.#successor = successor;
+  }
 
   align(questions: readonly AlignmentQuestion[]): Promise<JudgeResult[]> {
     this.calls += questions.length;
     return Promise.resolve(
       questions.map(() => ({
         answer: {
-          successor: this.successor,
+          successor: this.#successor,
           confidence: 1,
           scores: {},
           stated: false,

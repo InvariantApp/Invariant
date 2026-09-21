@@ -118,10 +118,15 @@ export interface DiffOptions {
 
 /** Raised when the differ gives two different answers for the same input. */
 export class UnstableDiffError extends Error {
-  constructor(
-    readonly first: number,
-    readonly second: number,
-  ) {
+  /**
+   * Declared rather than written as constructor parameter properties, which
+   * the runtime's type stripping does not accept. The tests transpile and
+   * passed; the command line strips types and did not.
+   */
+  readonly first: number;
+  readonly second: number;
+
+  constructor(first: number, second: number) {
     super(
       `The differ returned ${first} entries and then ${second} for the same two ` +
         "documents, so its answer here is not reproducible and no count from it " +
@@ -129,6 +134,8 @@ export class UnstableDiffError extends Error {
         "documents: three runs of one Stripe comparison returned 18,990, 38,442 " +
         "and 23,838 entries, and no run's findings were a subset of another's.",
     );
+    this.first = first;
+    this.second = second;
     this.name = "UnstableDiffError";
   }
 }
