@@ -11,9 +11,10 @@ import { dirname, resolve } from "node:path";
 import { check, renderReport } from "./check.ts";
 import { renderComment } from "./comment.ts";
 import { loadConfig } from "./config.ts";
+import { doctor, renderDoctor } from "./doctor.ts";
 import { type InitOptions, init, renderInit } from "./init.ts";
 import { renderProposals, runPropose } from "./propose.ts";
-import { release, renderRelease, verifyRelease } from "./release.ts";
+import { rebuildAt, release, renderRelease, verifyRelease } from "./release.ts";
 import { assessRetirement, renderRetirement, retireContracts } from "./retire.ts";
 import { readLedger } from "./usage.ts";
 
@@ -26,8 +27,13 @@ const USAGE = `invariant <command>
   propose   Draft Change files for whatever this release has not explained.
   compile   Write the compiled program into the build.
   release   Mint the contract, move the Changes, and sign the evolution bundle.
-  verify    Open a published bundle and check who signed it.
+  verify    Open a published bundle and check who signed it. With --rebuild,
+            also rebuild it from the commit it names and compare.
   retire    Say which old contracts nobody is using any more.
+  doctor    Check the toolchain, the configuration, every contract, and that
+            the compiled program is what the Changes compile to now.
+  contract export --label <c> [--out <path>]
+            Write one contract's specification, for configuring a gateway.
 
 Options
   --spec <path>     init: the OpenAPI document, when there is more than one
@@ -42,6 +48,7 @@ Options
   --out <path>      Where compile writes (default: invariant/compiled/program.json)
   --full            check: also start the real builds and compare them
   --outcomes <path> check: what the deployed runtime reported, for E9
+  --usage <path>    check, retire: the usage ledger the runtime's counters wrote
   --format markdown check: write the report as a pull request comment
   --write           propose: write the drafts into invariant/changes
   --offline         propose: deterministic rules only, no model calls
@@ -51,7 +58,6 @@ Options
   --commit <sha>    release: the commit this release came from
   --pr <number>     release: the pull request it was merged in
   --key <path>      verify: a trusted ed25519 public key, in PEM form
-  --usage <path>    retire: the usage ledger the runtime's counters wrote
   --days <n>        retire: how long a contract must be quiet (default 30)
   --write           retire: remove the retired contracts from invariant.yaml
 
@@ -103,9 +109,11 @@ async function main(argv: string[]): Promise<number> {
 
   if (command === "check") {
     const outcomes = flag(argv, "outcomes");
+    const usage = flag(argv, "usage");
     const report = await check(config, {
       full: argv.includes("--full"),
       ...(outcomes === undefined ? {} : { outcomes }),
+      ...(usage === undefined ? {} : { usage }),
     });
     const markdown = flag(argv, "format") === "markdown";
     process.stdout.write(markdown ? renderComment(report) : `${renderReport(report)}\n`);
@@ -162,7 +170,13 @@ async function main(argv: string[]): Promise<number> {
       return 1;
     }
 
-    const opened = await verifyRelease(resolve(envelope), keys);
+    const opened = await verifyRelease(
+      resolve(envelope),
+      keys,
+      argv.includes("--rebuild")
+        ? (bundle) => rebuildAt(config.root, config.path, bundle)
+        : undefined,
+    );
     process.stdout.write(
       [
         `${opened.bundle.api} ${opened.bundle.from.label} -> ${opened.bundle.to.label}`,
@@ -171,6 +185,7 @@ async function main(argv: string[]): Promise<number> {
         `  changes    ${opened.bundle.changes.map((change) => change.id).join(", ")}`,
         `  evidence   ${opened.bundle.evidence.length} records`,
         `  source     ${opened.bundle.source.repo}@${opened.bundle.source.commit}`,
+        `  rebuilt    ${opened.reproduced ? "identical, from the commit it names" : "not checked; pass --rebuild"}`,
         "",
       ].join("\n"),
     );
@@ -196,6 +211,40 @@ async function main(argv: string[]): Promise<number> {
       process.stdout.write(
         `\nStopped serving ${removed.join(", ")}. Run "invariant compile" and commit both.\n`,
       );
+    }
+    return 0;
+  }
+
+  if (command === "doctor") {
+    const findings = await doctor(config);
+    process.stdout.write(`${renderDoctor(findings)}\n`);
+    return findings.some((finding) => finding.severity === "error") ? 1 : 0;
+  }
+
+  if (command === "contract" && argv[1] === "export") {
+    const label = flag(argv, "label");
+    if (!label) {
+      process.stderr.write("contract export needs --label <contract>\n");
+      return 1;
+    }
+    const path =
+      label === (config.currentLabel ?? "current")
+        ? config.currentSpec
+        : config.releasedSpecs.get(label);
+    if (!path) {
+      const known = [...config.releasedSpecs.keys(), config.currentLabel ?? "current"];
+      process.stderr.write(
+        `There is no contract called ${label}. This repository has ${known.join(", ")}.\n`,
+      );
+      return 1;
+    }
+    const text = await readFile(path, "utf8");
+    const out = flag(argv, "out");
+    if (out) {
+      await writeFile(resolve(out), text, "utf8");
+      process.stdout.write(`wrote ${label} to ${resolve(out)}\n`);
+    } else {
+      process.stdout.write(text);
     }
     return 0;
   }

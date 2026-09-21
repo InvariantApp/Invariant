@@ -12,8 +12,11 @@
  * twice. A release is the moment a contract becomes something other people
  * depend on, so it has to be the same every time it is described.
  */
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
+import { promisify } from "node:util";
 import {
   type BundleSource,
   buildBundle,
@@ -31,7 +34,9 @@ import type { Change } from "@invariant/ir";
 import { type Evidence, inputsDigest } from "@invariant/verifier";
 import { isMap, parseDocument, type Scalar, stringify as stringifyYaml } from "yaml";
 import { type CheckReport, check } from "./check.ts";
-import type { InvariantConfig } from "./config.ts";
+import { type InvariantConfig, loadConfig } from "./config.ts";
+
+const runGit = promisify(execFile);
 
 export class ReleaseError extends Error {
   constructor(message: string) {
@@ -294,7 +299,7 @@ async function findChangeFile(dir: string, id: string): Promise<string> {
 export async function verifyRelease(
   envelopePath: string,
   trustedPublicKeysPem: readonly string[],
-  rebuild?: () => Promise<EvolutionBundle>,
+  rebuild?: (bundle: EvolutionBundle) => Promise<EvolutionBundle>,
 ): Promise<{
   bundle: EvolutionBundle;
   digest: string;
@@ -308,13 +313,67 @@ export async function verifyRelease(
 
   if (!rebuild) return { ...opened, reproduced: false };
 
-  const result = reproduces(opened.bundle, await rebuild());
+  const result = reproduces(opened.bundle, await rebuild(opened.bundle));
   if (!result.same) {
     throw new ReleaseError(
       `this bundle does not match a rebuild from source. Differs in: ${result.differences.join(", ")}`,
     );
   }
   return { ...opened, reproduced: true };
+}
+
+/**
+ * Rebuilds a published bundle from the repository at the commit it names.
+ *
+ * The release ran on that commit with the Changes still pending, so checking
+ * it out in a separate worktree and releasing again without writing anything
+ * has to produce the same object. The worktree is always removed, and the
+ * checkout the provider is working in is never touched.
+ */
+export async function rebuildAt(
+  repository: string,
+  configPath: string,
+  bundle: EvolutionBundle,
+): Promise<EvolutionBundle> {
+  const worktree = await mkdtemp(join(tmpdir(), "invariant-rebuild-"));
+  try {
+    await git(repository, [
+      "worktree",
+      "add",
+      "--detach",
+      worktree,
+      bundle.source.commit,
+    ]);
+    const config = await loadConfig(join(worktree, relative(repository, configPath)));
+    // The layers that need running builds are reproduced only if the release
+    // ran them: a rebuild that did less than the release would not match, and
+    // one that did more would be proving something else.
+    const full = bundle.evidence.some(
+      (entry) =>
+        (entry.kind === "E6-differential" || entry.kind === "E7-conformance") &&
+        entry.result !== "skipped",
+    );
+    const rebuilt = await release(config, {
+      dryRun: true,
+      source: bundle.source,
+      ...(full ? { full: true } : {}),
+    });
+    return rebuilt.bundle;
+  } finally {
+    await git(repository, ["worktree", "remove", "--force", worktree]).catch(
+      () => undefined,
+    );
+    await rm(worktree, { recursive: true, force: true });
+  }
+}
+
+async function git(cwd: string, args: string[]): Promise<void> {
+  try {
+    await runGit("git", args, { cwd });
+  } catch (error) {
+    const stderr = (error as { stderr?: string }).stderr?.trim();
+    throw new ReleaseError(`git ${args.join(" ")} failed${stderr ? `: ${stderr}` : ""}`);
+  }
 }
 
 export function renderRelease(result: ReleaseResult, dryRun: boolean): string {
