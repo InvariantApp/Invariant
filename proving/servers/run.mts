@@ -429,7 +429,26 @@ export function render(results: readonly PairResult[]): string {
   return `${lines.join("\n")}\n`;
 }
 
-if (process.argv[1]?.endsWith("run.mts")) {
+const reportInputs = args.includes("--report")
+  ? args.slice(args.indexOf("--report") + 1).filter((arg) => !arg.startsWith("--"))
+  : undefined;
+
+if (process.argv[1]?.endsWith("run.mts") && reportInputs) {
+  // The projects ran as separate jobs; this is the one report they add up to.
+  const merged: PairResult[] = [];
+  for (const input of reportInputs) {
+    merged.push(...(JSON.parse(await readFile(input, "utf8")) as PairResult[]));
+  }
+  await writeFile(
+    join(ROOT, "proving/servers/results.json"),
+    `${JSON.stringify(merged, null, 2)}\n`,
+    "utf8",
+  );
+  await writeFile(join(ROOT, "proving/servers/REPORT.md"), render(merged), "utf8");
+  log(
+    `${merged.length} release pairs from ${reportInputs.length} projects, report written`,
+  );
+} else if (process.argv[1]?.endsWith("run.mts")) {
   const manifest = JSON.parse(
     await readFile(join(ROOT, "proving/servers/projects.json"), "utf8"),
   ) as { projects: Project[] };

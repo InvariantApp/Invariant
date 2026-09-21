@@ -133,6 +133,8 @@ jobs:
         with:
           name: servers-${{ matrix.project }}
           path: .cache/servers/results-${{ matrix.project }}.json
+          # Under .cache, which upload-artifact skips unless told otherwise.
+          include-hidden-files: true
 
   fuzz:
     name: fuzz (rig F)
@@ -195,7 +197,10 @@ jobs:
           git push
 
   report:
-    needs: corpus
+    needs: [corpus, traffic, servers, fuzz]
+    # Every rig's result is gathered even when one of them failed, so the
+    # scoreboard says which; nothing is recorded unless all of them passed.
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -217,24 +222,50 @@ jobs:
           pattern: corpus-*
           merge-multiple: true
 
-      - name: Merge the shards into one report
+      - uses: actions/download-artifact@v4
+        with:
+          name: traffic-report
+          path: proving/traffic
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: servers-*
+          path: servers-results
+          merge-multiple: true
+
+      - name: Merge the corpus shards into one report
+        id: corpus
         run: node --import tsx proving/corpus/run.mts --report corpus-*.json
+
+      - name: Merge the real-server projects into one report
+        if: always()
+        run: node --import tsx proving/servers/run.mts --report servers-results/*.json
+
+      - name: The scoreboard
+        if: always()
+        env:
+          FUZZ_RESULT: ${{ needs.fuzz.result }}
+        run: node --import tsx proving/scoreboard.mts
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: corpus-report
+          name: proving-report
           path: |
+            proving/SCOREBOARD.md
             proving/corpus/REPORT.md
             proving/corpus/results.json
+            proving/servers/REPORT.md
+            proving/servers/results.json
 
       # Recorded in the repository, so a number quoted anywhere can be traced
       # to the run that produced it. Nothing is committed when nothing changed.
-      - name: Commit the report
-        if: github.event_name == 'schedule'
+      - name: Record the reports
+        if: github.event_name == 'schedule' && success()
         run: |
           git config user.name "invariant-proving"
           git config user.email "proving@users.noreply.github.com"
-          git add proving/corpus/REPORT.md proving/corpus/results.json
-          git diff --cached --quiet || git commit -m "Record the nightly corpus run"
+          git add proving/SCOREBOARD.md proving/corpus proving/traffic proving/servers
+          git diff --cached --quiet || git commit -m "Record the nightly proving run"
+          git pull --rebase
           git push
