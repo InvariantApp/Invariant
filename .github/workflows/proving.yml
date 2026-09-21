@@ -160,7 +160,15 @@ jobs:
       - name: Hostile input, deeply
         env:
           FUZZ_RUNS: "200000"
+          FUZZ_SEED: ${{ github.run_number }}
         run: pnpm exec vitest run proving/fuzz --testTimeout=3000000
+
+      # L1: Changes generated from the IR schema, with a new seed each night.
+      - name: Every Change is served or blocked, deeply
+        env:
+          FUZZ_RUNS: "50000"
+          FUZZ_SEED: ${{ github.run_number }}
+        run: pnpm exec vitest run packages/compiler/src/servable.test.ts --testTimeout=3000000
 
   replay-mine:
     name: replay miner (rig E)

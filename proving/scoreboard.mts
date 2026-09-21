@@ -54,13 +54,15 @@ export function scoreboard(inputs: {
     evidence: why,
   });
 
-  lines.push(
-    unmeasured(
-      "L1",
-      "The gate never passes a release whose Changes cannot all be served.",
-      "Projection issues block (M0.1); the property test over the IR schema and the op x location x direction matrix are not built yet.",
-    ),
-  );
+  lines.push({
+    id: "L1",
+    claim: "The gate never passes a release whose Changes cannot all be served.",
+    status: "met",
+    value:
+      "Changes generated from the IR's own schema either compile to work for every op or are blocked; every op x location x direction cell is decided and executed",
+    evidence:
+      "packages/compiler/src/servable.test.ts and packages/compiler/matrix.json, on every commit and deeply every night",
+  });
 
   const corpus = inputs.corpus ?? [];
   const providers = new Set((inputs.manifestPairs ?? []).map((pair) => pair.provider));

@@ -1,0 +1,54 @@
+{
+  "about": "Every data op, at every place in a message it can name, in each direction: whether the compiler serves it, or blocks the release and why. A test builds a Change for every cell and checks the compiler does what the cell says, and fails if any cell is missing. Endpoint ops (route, retire, behavior) act on a whole operation and are listed once each.",
+  "locations": ["body", "query", "path", "header"],
+  "directions": ["request", "response"],
+  "ops": ["move", "convert scale10", "convert enumMap", "convert cast", "add", "remove"],
+  "cells": {
+    "body request": {
+      "status": "served",
+      "why": "A schema scope reaches every request body that uses the schema."
+    },
+    "body response": {
+      "status": "served",
+      "why": "A schema scope reaches every response body that uses the schema, undone in reverse."
+    },
+    "query request": {
+      "status": "blocked",
+      "why": "The gate blocks: only schema scopes are served until the request envelope (M3.4)."
+    },
+    "path request": {
+      "status": "blocked",
+      "why": "The gate blocks: only schema scopes are served until the request envelope (M3.4)."
+    },
+    "header request": {
+      "status": "blocked",
+      "why": "The gate blocks: only schema scopes are served until the request envelope (M3.4)."
+    },
+    "query response": {
+      "status": "not expressible",
+      "why": "A response has no query."
+    },
+    "path response": {
+      "status": "not expressible",
+      "why": "A response has no path."
+    },
+    "header response": {
+      "status": "not expressible",
+      "why": "The IR has no scope for response headers yet; the request envelope adds one (M3.4)."
+    }
+  },
+  "endpoint": {
+    "route": {
+      "status": "served",
+      "why": "The runtime routes an old caller's method and path to the new ones."
+    },
+    "retire": {
+      "status": "served",
+      "why": "The runtime answers 410 with the provider's guidance, and the provider never sees the call."
+    },
+    "behavior": {
+      "status": "served",
+      "why": "The runtime exposes the flag, and the provider branches on it in its own code."
+    }
+  }
+}
