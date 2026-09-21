@@ -89,5 +89,9 @@ describe("the catalogue's own rules", () => {
     expect(catalogueEntry("new-required-request-property-with-default").class).toBe(
       "adaptable",
     );
+    // A value that stops arriving, not a value outside the old contract.
+    expect(
+      catalogueEntry("response-property-enum-value-removed", "info").sentence,
+    ).toContain("waiting for");
   });
 });

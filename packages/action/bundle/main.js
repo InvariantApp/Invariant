@@ -12990,6 +12990,12 @@ const RULES = [
 		served: "yes",
 		sentence: "A response field can now hold a value old callers do not know. An enum map with a `fold` shows them one they do, which you choose; that is a declared loss, and the pull request asks you to acknowledge it."
 	}),
+	rule(/^response-(body|property)-enum-value-removed$/, {
+		class: "needs-decision",
+		op: "convert",
+		served: "yes",
+		sentence: "A response field no longer sends a value old callers may be waiting for. If it was renamed, an enum map translates the new value back, which you confirm; if the state is gone, nothing can bring it back, so declare a `behavior` flag and tell the callers who wait for it."
+	}),
 	rule(/^response-(body|property)-type-changed$/, {
 		class: "needs-decision",
 		op: "convert",
