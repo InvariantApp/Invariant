@@ -64,6 +64,19 @@ async function sh(
   }
 }
 
+/** What npm actually installed, for a failure message someone can act on. */
+async function installed(cwd: string, env: NodeJS.ProcessEnv): Promise<string> {
+  const listing = await sh("npm", ["ls", "--all", "--depth", "1"], {
+    cwd,
+    env,
+    allowFailure: true,
+  });
+  const bins = await readdir(join(cwd, "node_modules", ".bin")).catch(() => [
+    "(no .bin directory)",
+  ]);
+  return `npm ls:\n${listing.stdout}\nnode_modules/.bin: ${bins.join(", ")}`;
+}
+
 const work = await mkdtemp(join(tmpdir(), "invariant-install-"));
 let registry: ChildProcess | undefined;
 
@@ -176,18 +189,17 @@ try {
   });
   step("installed @invariant/cli from the registry");
 
+  // Exactly as the quickstart says. The scoped name matters: the unscoped
+  // `invariant` on npm is an unrelated assertion library, which is where a
+  // bare `npx invariant` goes whenever the local bin is not found.
   const first = await sh(
     "npx",
-    ["invariant", "init", "--no-ci", "--label", "2026-09-01"],
-    {
-      cwd: project,
-      env,
-      allowFailure: true,
-    },
+    ["@invariant/cli", "init", "--no-ci", "--label", "2026-09-01"],
+    { cwd: project, env, allowFailure: true },
   );
   if (first.code !== 0 || !first.stdout.includes("First check: PASS")) {
     throw new Error(
-      `init did not end in a passing check:\n${first.stdout}${first.stderr}`,
+      `init did not end in a passing check:\n${first.stdout}${first.stderr}\n${await installed(project, env)}`,
     );
   }
   step("invariant init: first check passed");
@@ -200,7 +212,12 @@ try {
     );
   await writeFile(join(project, "api/openapi.json"), JSON.stringify(document), "utf8");
 
-  const second = await sh("npx", ["invariant", "check"], {
+  // Through a package script, which is how a provider's CI usually runs it,
+  // so the bin the package declares is what has to resolve.
+  const manifest = JSON.parse(await readFile(join(project, "package.json"), "utf8"));
+  manifest.scripts = { "api:check": "invariant check" };
+  await writeFile(join(project, "package.json"), JSON.stringify(manifest), "utf8");
+  const second = await sh("npm", ["run", "--silent", "api:check"], {
     cwd: project,
     env,
     allowFailure: true,
@@ -211,7 +228,7 @@ try {
     !second.stdout.includes("currency")
   ) {
     throw new Error(
-      `a breaking change was not blocked:\n${second.stdout}${second.stderr}`,
+      `a breaking change was not blocked:\n${second.stdout}${second.stderr}\n${await installed(project, env)}`,
     );
   }
   step("invariant check: blocked the breaking change, naming it");
