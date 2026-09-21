@@ -71,3 +71,13 @@ if (grep !== undefined) {
 console.log("unresolved:");
 for (const entry of drafted.unresolved.slice(0, limit))
   console.log(`  ${entry.schema}.${entry.field}: ${entry.reason}`);
+// A decision is not a failure: it is a question only the provider can answer,
+// and what is left above closes once it is answered.
+console.log(`decisions (${drafted.decisions.length}):`);
+for (const decision of drafted.decisions.slice(0, limit)) {
+  const what =
+    decision.kind === "vocabulary"
+      ? `gained ${decision.gained.join(", ")}${decision.lost.length > 0 ? `, lost ${decision.lost.join(", ")}` : ""}`
+      : decision.summary;
+  console.log(`  ${decision.kind} ${decision.schema}.${decision.field}: ${what}`);
+}

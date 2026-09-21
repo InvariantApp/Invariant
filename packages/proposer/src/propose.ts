@@ -784,7 +784,9 @@ function alteredProposals(
     for (const pair of delta.altered) {
       const shape = opsFor(pair.old, pair.new);
       const reshaped = valuesDiffer(pair.old, pair.new);
-      if (reshaped && shape.ops.length === 0) {
+      // A vocabulary that grew is asked about as a fold decision, and the
+      // rest of what changed about the field is still drafted below.
+      if (reshaped && shape.ops.length === 0 && !foldCovers(pair, sides ?? NEITHER)) {
         unresolved.push({
           schema: delta.schema,
           field: pair.old.name,
@@ -990,7 +992,30 @@ export function widenOps(
  * formats as reshapings no op could express.
  */
 function valuesDiffer(a: FieldShape, b: FieldShape): boolean {
-  return a.type !== b.type || a.enumValues?.join("|") !== b.enumValues?.join("|");
+  // A vocabulary is a set: the same values listed in another order are the
+  // same vocabulary.
+  const vocabulary = (field: FieldShape) => field.enumValues?.toSorted().join("|");
+  return a.type !== b.type || vocabulary(a) !== vocabulary(b);
+}
+
+/**
+ * Whether a vocabulary that grew on a field old callers are sent is asked
+ * about as a fold decision, so reporting it as inexpressible as well would
+ * count one change twice, once as a question and once as a failure.
+ */
+function foldCovers(
+  pair: { old: FieldShape; new: FieldShape },
+  sides: { request: boolean; response: boolean },
+): boolean {
+  const from = pair.old.enumValues;
+  const to = pair.new.enumValues;
+  if (!sides.response || pair.old.type !== pair.new.type || !from?.length || !to) {
+    return false;
+  }
+  const gained = to.filter((value) => !from.includes(value));
+  const lost = from.filter((value) => !to.includes(value));
+  // One out and one in is drafted as a rename instead.
+  return gained.length > 0 && !(gained.length === 1 && lost.length === 1);
 }
 
 /**

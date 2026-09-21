@@ -742,3 +742,42 @@ describe("how sure a judge has to be", () => {
     );
   });
 });
+
+describe("a vocabulary that grew on a response", () => {
+  // Figma's `ConnectorLineType` gained `CURVED`: a string enum of its own,
+  // referenced from the field. It was asked about as a fold and reported as
+  // inexpressible besides, which counted one change twice.
+  const lineType = (values: string[]) => ({
+    Thing: object(
+      { id: { type: "string" }, line: { $ref: "#/components/schemas/Line" } },
+      ["id", "line"],
+    ),
+    Line: { type: "string", enum: values },
+  });
+  const grown = async (before: string[], after: string[]) =>
+    propose(
+      contract({ ...base, ...lineType(before) }),
+      contract({ ...base, ...lineType(after) }),
+      {
+        judge: new RulesJudge(),
+      },
+    );
+
+  it("is one decision, not also a failure", async () => {
+    const outcome = await grown(
+      ["STRAIGHT", "ELBOWED"],
+      ["STRAIGHT", "ELBOWED", "CURVED"],
+    );
+    expect(outcome.unresolved).toEqual([]);
+    expect(outcome.decisions).toEqual([
+      expect.objectContaining({ kind: "vocabulary", field: "line", gained: ["CURVED"] }),
+    ]);
+  });
+
+  it("is nothing at all when only the order of its values changed", async () => {
+    const outcome = await grown(["STRAIGHT", "ELBOWED"], ["ELBOWED", "STRAIGHT"]);
+    expect(outcome.unresolved).toEqual([]);
+    expect(outcome.decisions).toEqual([]);
+    expect(outcome.proposals).toEqual([]);
+  });
+});
