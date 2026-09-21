@@ -13,6 +13,7 @@
 import { findSchemaSites } from "@invariant/contract";
 import type { Change, Op, ScalarType, Scope } from "@invariant/ir";
 import { type FieldShape, type SchemaDelta, schemaDeltas } from "./candidates.ts";
+import type { Decision, ValueDecision } from "./decisions.ts";
 import {
   methodMoveChanges,
   methodMoves,
@@ -26,7 +27,7 @@ import type { Judge, JudgeId } from "./judge.ts";
 import { questionsFor } from "./judge.ts";
 import { describePrefixMove, detectPrefixMove, prefixChange } from "./prefix.ts";
 import { stemOf, UNIT_SUFFIXES } from "./rules.ts";
-import { type FoldDecision, foldDecisions } from "./vocabulary.ts";
+import { foldDecisions } from "./vocabulary.ts";
 
 /**
  * How much a rename inferred from one value going and one arriving is worth.
@@ -205,12 +206,17 @@ export interface ProposeOutcome {
    *
    * Kept apart from `impasses` because the two ask for opposite things. An
    * impasse says no op exists and the provider has to change their approach. A
-   * decision says the op exists, the scaffold is written, and one value needs
+   * decision says the op exists, the Change is drafted, and one value needs
    * choosing. Reporting the second as the first is how the commonest breaking
    * change in the wild came to be described here as impossible.
    */
-  decisions: FoldDecision[];
+  decisions: Decision[];
 }
+
+/** What one family of drafting produced. */
+type Drafted = Pick<ProposeOutcome, "proposals" | "unresolved"> & {
+  decisions: ValueDecision[];
+};
 
 const LIST = (names: readonly string[]): string =>
   names.map((name) => `\`${name}\``).join(" and ");
@@ -391,6 +397,7 @@ export async function propose(
   const altered = alteredProposals(deltas, oldContract);
   const added = additions(deltas, oldContract);
   const gone = removals(deltas, oldContract);
+  const valueDecisions = [...altered.decisions, ...added.decisions, ...gone.decisions];
   altered.proposals.unshift(
     ...moved,
     ...methodChanges,
@@ -415,9 +422,12 @@ export async function propose(
       proposals: altered.proposals,
       unresolved,
       impasses: impassesIn(unresolved),
-      decisions: foldDecisions(
-        deltas.filter((delta) => sidesOfDelta(oldContract, delta).response),
-      ),
+      decisions: [
+        ...valueDecisions,
+        ...foldDecisions(
+          deltas.filter((delta) => sidesOfDelta(oldContract, delta).response),
+        ),
+      ],
     };
   }
 
@@ -527,9 +537,12 @@ export async function propose(
     proposals,
     unresolved: open,
     impasses: impassesIn(open),
-    decisions: foldDecisions(
-      deltas.filter((delta) => sidesOfDelta(oldContract, delta).response),
-    ),
+    decisions: [
+      ...valueDecisions,
+      ...foldDecisions(
+        deltas.filter((delta) => sidesOfDelta(oldContract, delta).response),
+      ),
+    ],
   };
 }
 
@@ -592,9 +605,10 @@ const fieldSlug = (schema: string, field: string, what: string) =>
 function additions(
   deltas: readonly SchemaDelta[],
   oldContract: Parameters<typeof schemaDeltas>[0],
-): Pick<ProposeOutcome, "proposals" | "unresolved"> {
+): Drafted {
   const proposals: Proposal[] = [];
   const unresolved: Unresolved[] = [];
+  const decisions: ValueDecision[] = [];
   for (const delta of deltas) {
     const required = delta.added.filter((field) => field.required);
     if (required.length === 0) continue;
@@ -603,13 +617,31 @@ function additions(
       const value =
         field.default !== undefined ? field.default : !sides.request ? null : undefined;
       if (value === undefined) {
-        unresolved.push({
-          schema: delta.schema,
-          field: field.name,
-          reason:
-            "newly required, and the value a caller who predates it should get is not in the specification",
-          side: "added",
-        });
+        const why =
+          "newly required, and the value a caller who predates it should get is not in the specification";
+        if (delta.removed.length > 0) {
+          // Beside fields that went, it may be one of them renamed, which is
+          // the judge's question and not a value to choose.
+          unresolved.push({
+            schema: delta.schema,
+            field: field.name,
+            reason: why,
+            side: "added",
+          });
+        } else {
+          decisions.push({
+            kind: "value",
+            id: fieldSlug(delta.schema, field.name, "added"),
+            schema: delta.schema,
+            ...(delta.scope ? { scope: delta.scope } : {}),
+            field: field.name,
+            pointer: field.pointer,
+            op: { op: "add" },
+            shape: field,
+            summary: `\`${field.name}\` is new and required on ${delta.schema}.`,
+            why: `\`${field.name}\` is new and required in requests, and the value sent for a caller who predates it is not in the specification.`,
+          });
+        }
         continue;
       }
       proposals.push({
@@ -632,7 +664,7 @@ function additions(
       });
     }
   }
-  return { proposals, unresolved };
+  return { proposals, unresolved, decisions };
 }
 
 /**
@@ -647,21 +679,27 @@ function additions(
 function removals(
   deltas: readonly SchemaDelta[],
   oldContract: Parameters<typeof schemaDeltas>[0],
-): Pick<ProposeOutcome, "proposals" | "unresolved"> {
+): Drafted {
   const proposals: Proposal[] = [];
   const unresolved: Unresolved[] = [];
+  const decisions: ValueDecision[] = [];
   for (const delta of deltas) {
     if (delta.added.length > 0 || delta.removed.length === 0) continue;
     const sides = sidesOfDelta(oldContract, delta);
     for (const field of delta.removed) {
       if (sides.response) {
         if (field.required) {
-          unresolved.push({
+          decisions.push({
+            kind: "value",
+            id: fieldSlug(delta.schema, field.name, "removed"),
             schema: delta.schema,
+            ...(delta.scope ? { scope: delta.scope } : {}),
             field: field.name,
-            reason:
-              "removed from responses that always carried it, and what old callers should be given instead is a decision",
-            side: "removed",
+            pointer: field.pointer,
+            op: { op: "remove" },
+            shape: field,
+            summary: `\`${field.name}\` was removed from ${delta.schema}.`,
+            why: `Old callers were always given \`${field.name}\`, and nothing in the new contract replaces it. What they should be given in its place is not in the specification.`,
           });
         }
         continue;
@@ -684,7 +722,7 @@ function removals(
       });
     }
   }
-  return { proposals, unresolved };
+  return { proposals, unresolved, decisions };
 }
 
 /**
@@ -703,9 +741,10 @@ function removals(
 function alteredProposals(
   deltas: readonly SchemaDelta[],
   oldContract: Parameters<typeof schemaDeltas>[0],
-): Pick<ProposeOutcome, "proposals" | "unresolved"> {
+): Drafted {
   const proposals: Proposal[] = [];
   const unresolved: Unresolved[] = [];
+  const decisions: ValueDecision[] = [];
 
   for (const delta of deltas) {
     const sides = delta.altered.length > 0 ? sidesOfDelta(oldContract, delta) : undefined;
@@ -722,12 +761,21 @@ function alteredProposals(
         continue;
       }
       const presence = presenceOps(pair.old, pair.new, sides ?? NEITHER);
-      if (presence.unresolved) {
-        unresolved.push({
+      for (const question of presence.questions) {
+        decisions.push({
+          kind: "value",
+          id: fieldSlug(delta.schema, pair.old.name, `default_${question.op.toward}`),
           schema: delta.schema,
+          ...(delta.scope ? { scope: delta.scope } : {}),
           field: pair.old.name,
-          reason: presence.unresolved,
-          side: "removed",
+          pointer: pair.new.pointer,
+          op: question.op,
+          shape: question.shape,
+          summary:
+            question.op.toward === "old"
+              ? `\`${pair.old.name}\` on ${delta.schema} may now be missing or null for callers who were always given it.`
+              : `\`${pair.old.name}\` on ${delta.schema} needs a value from callers who could leave it out.`,
+          why: question.why,
         });
       }
       const ops = [...shape.ops, ...presence.ops];
@@ -774,7 +822,7 @@ function alteredProposals(
     }
   }
 
-  return { proposals, unresolved };
+  return { proposals, unresolved, decisions };
 }
 
 const NEITHER = { request: false, response: false };
@@ -802,10 +850,10 @@ export function presenceOps(
   old: FieldShape,
   next: FieldShape,
   sides: { request: boolean; response: boolean },
-): { ops: Op[]; notes: string[]; unresolved?: string } {
+): { ops: Op[]; notes: string[]; questions: PresenceQuestion[] } {
   const ops: Op[] = [];
   const notes: string[] = [];
-  const decisions: string[] = [];
+  const questions: PresenceQuestion[] = [];
   const declared = next.default !== undefined ? next.default : old.default;
   const when = (absent: boolean, nulled: boolean) =>
     absent && nulled ? "absent-or-null" : absent ? "absent" : "null";
@@ -816,9 +864,11 @@ export function presenceOps(
     const nulled = !old.nullable && next.nullable;
     if (absent || (nulled && old.required)) {
       if (declared === undefined) {
-        decisions.push(
-          `old callers were always given \`${old.name}\`, and what they should see where it is now ${absent && nulled ? "missing or null" : absent ? "missing" : "null"} is a decision`,
-        );
+        questions.push({
+          op: { op: "default", when: when(absent, nulled), toward: "old" },
+          shape: old,
+          why: `Old callers were always given \`${old.name}\`, and it may now be ${absent && nulled ? "missing or null" : absent ? "missing" : "null"}. What they should be shown in its place is not in the specification.`,
+        });
       } else {
         ops.push({
           op: "default",
@@ -852,9 +902,11 @@ export function presenceOps(
     const nulled = old.nullable && !next.nullable;
     if (absent || (nulled && next.required)) {
       if (next.default === undefined) {
-        decisions.push(
-          `\`${old.name}\` is now required in requests, and the value a caller who predates that should send is not in the specification`,
-        );
+        questions.push({
+          op: { op: "default", when: when(absent, nulled), toward: "new" },
+          shape: next,
+          why: `\`${old.name}\` is now required in requests${nulled ? " and may not be null" : ""}, and the value sent for a caller who predates that is not in the specification.`,
+        });
       } else {
         ops.push({
           op: "default",
@@ -869,9 +921,11 @@ export function presenceOps(
       }
     } else if (nulled) {
       if (old.required) {
-        decisions.push(
-          `\`${old.name}\` can no longer be null, and old callers were required to send it, so sending it left out is not a value they ever chose`,
-        );
+        questions.push({
+          op: { op: "default", when: "null", toward: "new" },
+          shape: next,
+          why: `\`${old.name}\` can no longer be null, and old callers had to send it, so leaving it out is not something they ever chose. The value sent in place of their null is not in the specification.`,
+        });
       } else {
         ops.push({ op: "dropNull", path: next.pointer, toward: "new" });
         notes.push(
@@ -881,9 +935,14 @@ export function presenceOps(
     }
   }
 
-  return decisions.length > 0
-    ? { ops, notes, unresolved: decisions.join("; ") }
-    : { ops, notes };
+  return { ops, notes, questions };
+}
+
+/** A presence change that needs a value nobody has given. */
+export interface PresenceQuestion {
+  op: Extract<ValueDecision["op"], { op: "default" }>;
+  shape: FieldShape;
+  why: string;
 }
 
 export { UNIT_SUFFIXES };

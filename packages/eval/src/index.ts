@@ -3,3 +3,4 @@ export * from "./metrics.ts";
 export * from "./real.ts";
 export * from "./report.ts";
 export * from "./runner.ts";
+export * from "./synthetic.ts";

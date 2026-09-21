@@ -328,6 +328,33 @@ export function findSchemaSites(
   return { sites, unsupported };
 }
 
+/** Where one schema sits inside another, and what tells apart the unions on the way. */
+export interface Placement {
+  prefix: Pointer;
+  guards?: Guard[];
+}
+
+/**
+ * Every place `schemaRef` sits inside the schema `rootRef`, the root itself
+ * included when the two are the same. What a value of the root goes through
+ * at a site is every Change placed here, so a check of the root's values has
+ * to run them all.
+ */
+export function findSchemaWithin(
+  document: OpenApiDocument,
+  schemaRef: string,
+  rootRef: string,
+): { placements: Placement[]; unsupported: string[] } {
+  const scan = scanRoot(document, schemaRef, { $ref: rootRef });
+  return {
+    placements: scan.prefixes.map(({ prefix, guards }) => ({
+      prefix,
+      ...(guards.length > 0 ? { guards } : {}),
+    })),
+    unsupported: scan.unsupported,
+  };
+}
+
 /** The schema an operation actually exposes for a direction, with refs followed. */
 export function bodySchemaFor(
   document: OpenApiDocument,

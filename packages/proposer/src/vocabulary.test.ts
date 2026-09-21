@@ -10,7 +10,8 @@
  */
 import { describe, expect, it } from "vitest";
 import type { FieldShape, SchemaDelta } from "./candidates.ts";
-import { foldDecisions } from "./vocabulary.ts";
+import { decisionChange } from "./decisions.ts";
+import { CHOOSE_ONE, foldDecisions } from "./vocabulary.ts";
 
 function field(name: string, values?: string[]): FieldShape {
   return {
@@ -54,16 +55,23 @@ describe("a response vocabulary that grew", () => {
     expect(decision?.why).toMatch(/pending_review/);
   });
 
-  it("writes the change out with the likeliest answer filled in, for a person to check", () => {
+  it("drafts the change with the answer left open and the likeliest one beside it", () => {
     const [decision] = foldDecisions([grown]);
-    expect(decision?.scaffold).toContain("kind: enumMap");
-    // Existing values map to themselves, so the schema still type-checks.
-    expect(decision?.scaffold).toContain("- [pending, pending]");
-    expect(decision?.scaffold).toContain("- [done, done]");
+    if (!decision) throw new Error("no decision");
+    const op = decisionChange(decision).ops[0];
+    expect(op).toMatchObject({ op: "convert", path: "/status" });
+    // Existing values map to themselves, so the schema still type-checks, and
+    // the new one waits for a person rather than taking the suggestion.
+    expect(op?.op === "convert" && op.codec).toEqual({
+      kind: "enumMap",
+      pairs: [
+        ["pending", "pending"],
+        ["done", "done"],
+      ],
+      fold: [["pending_review", CHOOSE_ONE]],
+    });
     // The new value shares a name part with `pending`, so that is suggested.
-    expect(decision?.suggested.fold).toEqual([["pending_review", "pending"]]);
-    expect(decision?.scaffold).toContain("- [pending_review, pending]");
-    expect(decision?.scaffold).toContain("Check every");
+    expect(decision.suggested.fold).toEqual([["pending_review", "pending"]]);
   });
 
   it("prefers a catch-all when the names share nothing more specific, as Plaid's errors", () => {
@@ -120,8 +128,10 @@ describe("a response vocabulary that grew", () => {
     ]);
     expect(decision?.gained).toEqual(["b", "c"]);
     // Nothing about `b` or `c` resembles `a`, so nothing is suggested.
-    expect(decision?.scaffold).toContain("- [b, CHOOSE_ONE]");
-    expect(decision?.scaffold).toContain("- [c, CHOOSE_ONE]");
+    expect(decision?.suggested.fold).toEqual([
+      ["b", CHOOSE_ONE],
+      ["c", CHOOSE_ONE],
+    ]);
   });
 });
 

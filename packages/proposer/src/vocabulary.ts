@@ -19,10 +19,11 @@
  * makes the change and the caller pays for it, so the provider is the one who
  * should have to say what the caller sees.
  */
-import type { Change } from "@invariant/ir";
+import { CHOOSE_ONE, type Change } from "@invariant/ir";
 import type { SchemaDelta } from "./candidates.ts";
 
 export interface FoldDecision {
+  kind: "vocabulary";
   schema: string;
   /** What a Change making this decision is scoped to, when it is not the named schema. */
   scope?: SchemaDelta["scope"];
@@ -43,8 +44,6 @@ export interface FoldDecision {
   suggested: { fold: [string, string][]; pairs: [string, string][] };
   /** Why this is a decision rather than something derivable. */
   why: string;
-  /** Lines to paste into a Change file, pre-filled with the suggestions. */
-  scaffold: string;
 }
 
 /** The parts of a value's name: `CRA_MONITORING_ERROR` is cra, monitoring, error. */
@@ -71,7 +70,7 @@ const CATCH_ALLS = new Set([
 ]);
 
 /** Placed where nothing suggests an answer, so the draft cannot pass without one. */
-export const CHOOSE_ONE = "CHOOSE_ONE";
+export { CHOOSE_ONE };
 
 /**
  * The choice whose name most resembles `value`, or nothing when nothing does.
@@ -97,10 +96,6 @@ export function likeliest(value: string, choices: readonly string[]): string | u
     if (!best || score > best.score) best = { choice, score };
   }
   return best?.choice ?? choices.find((choice) => CATCH_ALLS.has(choice.toLowerCase()));
-}
-
-function yamlPairs(pairs: readonly (readonly [string, string])[]): string {
-  return pairs.map(([a, b]) => `      - [${a}, ${b}]`).join("\n");
 }
 
 /**
@@ -143,6 +138,7 @@ export function foldDecisions(deltas: readonly SchemaDelta[]): FoldDecision[] {
       ]);
 
       out.push({
+        kind: "vocabulary",
         schema: delta.schema,
         ...(delta.scope ? { scope: delta.scope } : {}),
         field: before.name,
@@ -161,18 +157,6 @@ export function foldDecisions(deltas: readonly SchemaDelta[]): FoldDecision[] {
           ". A caller that switches on this field has no branch for a new value. " +
           "Which of its own values it should be shown instead is a decision about " +
           "meaning, so it is not derivable from the two documents.",
-        scaffold: [
-          "  - op: convert",
-          `    path: ${before.pointer}`,
-          "    codec:",
-          "      kind: enumMap",
-          "      pairs:",
-          yamlPairs([...kept.map((value) => [value, value] as const), ...pairs]),
-          `      # Each answer below was suggested by what the names share, and ${CHOOSE_ONE}`,
-          `      # marks where nothing did. Check every one; the old values are: ${from.join(", ")}`,
-          "      fold:",
-          yamlPairs(fold),
-        ].join("\n"),
       });
     }
   }
@@ -181,15 +165,13 @@ export function foldDecisions(deltas: readonly SchemaDelta[]): FoldDecision[] {
 }
 
 /**
- * A decision as a Change file, every answer left as a placeholder.
+ * A vocabulary decision as a Change file, every answer left as a placeholder.
  *
- * The suggestions go beside it, never into it: a placeholder is not a value
- * the old contract names, so verification fails and the gate refuses the
- * release until a person has put an answer in, whatever the provider has set
- * the gate to do about declared loss. A suggestion can never pass as a
- * decision on its own.
+ * The suggestions go beside it, never into it: the gate refuses any Change
+ * still carrying the placeholder, whatever the provider has set it to do
+ * about declared loss, so a suggestion can never pass as a decision on its own.
  */
-export function decisionChange(decision: FoldDecision): Change {
+export function vocabularyChange(decision: FoldDecision): Change {
   const slug = (text: string) =>
     text
       .replace(/([a-z0-9])([A-Z])/g, "$1_$2")

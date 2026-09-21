@@ -26,6 +26,7 @@ import {
 } from "@invariant/diff";
 import type { Change } from "@invariant/ir";
 import { type Judge, propose } from "@invariant/proposer";
+import { syntheticAnswer } from "./synthetic.ts";
 
 /** How far a pair got before something went wrong. */
 /**
@@ -112,6 +113,17 @@ export interface PairResult {
   /** Every breaking check id seen, with how many of each. */
   breakingKinds: Record<string, number>;
   elapsedMs: number;
+  /**
+   * Breaking deltas left once every open decision is answered synthetically,
+   * which is what closure could reach if a provider answered them. Absent
+   * when the pair got no further than its own drafts, or the answers could
+   * not be compared; equal to `breakingAfter` when nothing was left open.
+   */
+  breakingAfterDecided?: number;
+  /** oasdiff check ids left once decisions are answered, with how many of each. */
+  unexplainedDecidedKinds?: Record<string, number>;
+  /** Why the decided comparison did not happen, when it did not. */
+  decidedError?: string;
   /** How long each stage took, in milliseconds, in the order they ran. */
   stageMs?: Record<string, number>;
 }
@@ -362,12 +374,48 @@ export async function analysePair(
     });
   }
 
-  return finish({
+  const closed: PairResult = {
     ...afterCompile,
     reached: "done",
     breakingAfter: residual.value.length,
     unexplainedKinds: tally(residual.value),
+  };
+  if (drafted.value.decisions.length === 0) {
+    return finish({
+      ...closed,
+      breakingAfterDecided: closed.breakingAfter,
+      unexplainedDecidedKinds: closed.unexplainedKinds,
+    });
+  }
+
+  // The same closure, with every open decision answered. Answers that do not
+  // apply are an error in how they were made up, never counted as closing.
+  const decided = await stage(async () => {
+    const answered = predictDocument(
+      loaded.value.from.document,
+      loaded.value.to.document,
+      [...changes, ...drafted.value.decisions.map(syntheticAnswer)],
+    );
+    if (answered.issues.length > 0) {
+      const [first] = answered.issues;
+      throw new Error(
+        `${answered.issues.length} synthetic answers did not apply, first ${first?.changeId}: ${first?.message}`,
+      );
+    }
+    return breakingEntries(
+      await diffDocuments(answered.document, loaded.value.to.document, pinned),
+    );
   });
+  timed("decide");
+  return finish(
+    decided.ok
+      ? {
+          ...closed,
+          breakingAfterDecided: decided.value.length,
+          unexplainedDecidedKinds: tally(decided.value),
+        }
+      : { ...closed, decidedError: decided.error },
+  );
 }
 
 export interface RealSummary {

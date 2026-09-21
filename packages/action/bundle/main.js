@@ -3526,6 +3526,30 @@ function siteKey(method, path) {
 	return `${method.toLowerCase()} ${path}`;
 }
 //#endregion
+//#region ../ir/src/undecided.ts
+/**
+* The placeholder a drafted decision carries where an answer belongs.
+*
+* A draft that needs a provider to choose a value is written with this in the
+* value's place, never with a guess, so the decision cannot be merged by
+* accident. Being a string, it would satisfy a string-typed field, so the
+* gate looks for it explicitly rather than relying on validation to fail: a
+* Change still carrying it is refused, whatever its op and whatever the field
+* it names.
+*/
+const CHOOSE_ONE = "CHOOSE_ONE";
+/** Whether a value holds the placeholder anywhere in it. */
+function holdsPlaceholder(value) {
+	if (value === "CHOOSE_ONE") return true;
+	if (Array.isArray(value)) return value.some(holdsPlaceholder);
+	if (typeof value === "object" && value !== null) return Object.values(value).some(holdsPlaceholder);
+	return false;
+}
+/** The ops of a Change that still wait for someone to answer them, by index. */
+function undecidedOps(change) {
+	return change.ops.flatMap((op, index) => holdsPlaceholder(op) ? [index] : []);
+}
+//#endregion
 //#region ../../node_modules/.pnpm/@sinclair+typebox@0.34.52/node_modules/@sinclair/typebox/build/esm/errors/function.mjs
 /** Creates an error message using en-US as the default locale */
 function DefaultErrorFunction(error) {
@@ -12254,6 +12278,22 @@ function findSchemaSites(document, schemaRef) {
 		unsupported
 	};
 }
+/**
+* Every place `schemaRef` sits inside the schema `rootRef`, the root itself
+* included when the two are the same. What a value of the root goes through
+* at a site is every Change placed here, so a check of the root's values has
+* to run them all.
+*/
+function findSchemaWithin(document, schemaRef, rootRef) {
+	const scan = scanRoot(document, schemaRef, { $ref: rootRef });
+	return {
+		placements: scan.prefixes.map(({ prefix, guards }) => ({
+			prefix,
+			...guards.length > 0 ? { guards } : {}
+		})),
+		unsupported: scan.unsupported
+	};
+}
 /** The schema an operation actually exposes for a direction, with refs followed. */
 function bodySchemaFor(document, operation, direction, status) {
 	if (direction === "request") {
@@ -13437,6 +13477,13 @@ function predictDocument(oldContract, newContract, changes) {
 	const document = structuredClone(oldContract);
 	const issues = [];
 	const routes = routeMappings(changes);
+	for (const change of changes) for (const index of undecidedOps(change)) {
+		const op = change.ops[index];
+		issues.push({
+			changeId: change.id,
+			message: `op ${index + 1} (${op.op}${"path" in op ? ` at ${op.path}` : ""}) is a decision nobody has made yet: replace every ${CHOOSE_ONE} with an answer`
+		});
+	}
 	for (const change of changes) for (const op of change.ops) {
 		if (op.op === "route") applyRoute(document, op, issues, change.id);
 		if (op.op === "retire") applyRetire(document, op, issues, change.id);
@@ -13516,6 +13563,92 @@ function predictDocument(oldContract, newContract, changes) {
 		document,
 		issues
 	};
+}
+//#endregion
+//#region ../compiler/src/derive.ts
+const CLASS_ORDER = {
+	exact: 0,
+	"declared-lossy": 1,
+	none: 2
+};
+function worse(a, b) {
+	return CLASS_ORDER[a] >= CLASS_ORDER[b] ? a : b;
+}
+/**
+* A Change carrying a `behavior` op is not a shape problem at all, and saying
+* so is the honest answer: the provider branches on contract age in their own
+* code, and no transform can stand in for that.
+*/
+function derive(change) {
+	let runtime = "exact";
+	let source = "deterministic";
+	const reasons = [];
+	const lossy = {
+		forward: [],
+		backward: []
+	};
+	for (const op of change.ops) switch (op.op) {
+		case "move":
+		case "route": break;
+		case "convert":
+			if (op.codec.kind === "enumMap") {
+				if (op.codec.fold !== void 0 && op.codec.fold.length > 0) {
+					runtime = worse(runtime, "declared-lossy");
+					source = "assisted";
+					reasons.push(`the value map at ${op.path} folds ${op.codec.fold.length} new value${op.codec.fold.length === 1 ? "" : "s"} onto values the old contract names, so a caller cannot tell the new case apart`);
+					lossy.backward.push(op.path);
+				}
+				if (new Set(op.codec.pairs.map(([, to]) => to)).size !== op.codec.pairs.length) {
+					runtime = worse(runtime, "declared-lossy");
+					source = "assisted";
+					reasons.push(`the value map at ${op.path} sends two old values to one new one, so the old value cannot be recovered from a response`);
+					lossy.backward.push(op.path);
+				}
+			}
+			break;
+		case "add":
+			runtime = worse(runtime, "declared-lossy");
+			reasons.push(`${op.path} is new and required, so every old caller is served with the declared default. That default has to match what the API did before the field existed; nothing in the specification proves it.`);
+			lossy.backward.push(op.path);
+			break;
+		case "remove":
+			runtime = worse(runtime, "declared-lossy");
+			source = "assisted";
+			reasons.push(`${op.path} is gone, so a response can only carry the declared constant in its place, not whatever the value used to be`);
+			lossy.forward.push(op.path);
+			break;
+		case "default": {
+			runtime = worse(runtime, "declared-lossy");
+			const missing = op.when === "absent" ? "missing" : op.when === "null" ? "null" : "missing or null";
+			reasons.push(op.toward === "old" ? `${op.path} can now be ${missing}, so an old caller is shown the declared default in its place and cannot tell the two apart` : `${op.path} can no longer be ${missing}, so the declared default is sent for an old caller who left it that way`);
+			(op.toward === "old" ? lossy.backward : lossy.forward).push(op.path);
+			break;
+		}
+		case "dropNull":
+			runtime = worse(runtime, "declared-lossy");
+			reasons.push(op.toward === "old" ? `${op.path} can now be null, so an old caller is sent the field left out instead` : `${op.path} can no longer be null, so a null from an old caller is sent as the field left out`);
+			(op.toward === "old" ? lossy.backward : lossy.forward).push(op.path);
+			break;
+		case "retire":
+			runtime = "none";
+			source = "manual";
+			reasons.push(`${op.endpoint.method.toUpperCase()} ${op.endpoint.path} no longer exists, so there is no handler for a rewritten request to reach. The runtime refuses it by name rather than returning a bare 404, and nothing else can be done for a caller still using it.`);
+			break;
+		case "behavior":
+			runtime = "none";
+			source = "manual";
+			reasons.push(`${op.flag} changes behaviour rather than shape, so no transform can serve the old contract. Provider code has to branch on it.`);
+	}
+	return {
+		runtime,
+		source,
+		reasons,
+		lossy
+	};
+}
+/** True when the Change needs an acknowledgement it does not carry. */
+function missingAcknowledgement(change, derived) {
+	return derived.runtime === "declared-lossy" && change.assertions?.loss_acknowledged !== true;
 }
 /** Pointers, within a response body, of fields that name a request parameter. */
 function findErrorParamPointers(document, schema, depth = 0) {
@@ -13771,17 +13904,46 @@ function backwardInstrs(op, prefix, changeId) {
 	return [];
 }
 /**
-* One Change's primitives, in both directions, at a given pointer prefix.
+* What a value of `schemaRef` goes through wherever it is a body, with every
+* Change in the release placed where its schema sits inside it: the lens the
+* compiler projects onto such a site, for checking on values.
 *
-* The verifier uses this to run a Change on its own: the whole point of the
-* lens laws is to test a single declaration against its own schema, before it
-* is concatenated with anything else.
+* Requests apply the Changes in declared order and responses undo them in
+* reverse, as a site does.
 */
-function instrsFor(change, prefix = "") {
-	const dataOps = change.ops.filter(isDataOp);
+function schemaLens(oldContract, changes, schemaRef) {
+	const forward = [];
+	const backward = [];
+	const involved = [];
+	const lossy = {
+		forward: [],
+		backward: []
+	};
+	for (const change of changes) {
+		const dataOps = change.ops.filter(isDataOp);
+		if (dataOps.length === 0) continue;
+		const declared = derive(change).lossy;
+		const mine = [];
+		let back = [];
+		for (const scope of change.scopes ?? []) {
+			if (!isSchemaScope(scope)) continue;
+			for (const place of findSchemaWithin(oldContract, scope.schema, schemaRef).placements) {
+				lossy.forward.push(...declared.forward.map((path) => prefixed(place.prefix, path)));
+				lossy.backward.push(...declared.backward.map((path) => prefixed(place.prefix, path)));
+				mine.push(...guarded(place, change, "forward", (prefix) => dataOps.flatMap((op) => forwardInstrs(op, prefix, change.id))));
+				back = [...guarded(place, change, "backward", (prefix) => [...dataOps].reverse().flatMap((op) => backwardInstrs(op, prefix, change.id))), ...back];
+			}
+		}
+		if (mine.length === 0 && back.length === 0) continue;
+		involved.push(change);
+		forward.push(...mine);
+		backward.push(back);
+	}
 	return {
-		forward: dataOps.flatMap((op) => forwardInstrs(op, prefix, change.id)),
-		backward: [...dataOps].reverse().flatMap((op) => backwardInstrs(op, prefix, change.id))
+		forward,
+		backward: backward.reverse().flat(),
+		changes: involved,
+		lossy
 	};
 }
 function accumulatorFor(sites, key) {
@@ -14488,92 +14650,6 @@ function chainProgram(api, currentLabel, currentDigest, steps) {
 		},
 		issues
 	};
-}
-//#endregion
-//#region ../compiler/src/derive.ts
-const CLASS_ORDER = {
-	exact: 0,
-	"declared-lossy": 1,
-	none: 2
-};
-function worse(a, b) {
-	return CLASS_ORDER[a] >= CLASS_ORDER[b] ? a : b;
-}
-/**
-* A Change carrying a `behavior` op is not a shape problem at all, and saying
-* so is the honest answer: the provider branches on contract age in their own
-* code, and no transform can stand in for that.
-*/
-function derive(change) {
-	let runtime = "exact";
-	let source = "deterministic";
-	const reasons = [];
-	const lossy = {
-		forward: [],
-		backward: []
-	};
-	for (const op of change.ops) switch (op.op) {
-		case "move":
-		case "route": break;
-		case "convert":
-			if (op.codec.kind === "enumMap") {
-				if (op.codec.fold !== void 0 && op.codec.fold.length > 0) {
-					runtime = worse(runtime, "declared-lossy");
-					source = "assisted";
-					reasons.push(`the value map at ${op.path} folds ${op.codec.fold.length} new value${op.codec.fold.length === 1 ? "" : "s"} onto values the old contract names, so a caller cannot tell the new case apart`);
-					lossy.backward.push(op.path);
-				}
-				if (new Set(op.codec.pairs.map(([, to]) => to)).size !== op.codec.pairs.length) {
-					runtime = worse(runtime, "declared-lossy");
-					source = "assisted";
-					reasons.push(`the value map at ${op.path} sends two old values to one new one, so the old value cannot be recovered from a response`);
-					lossy.backward.push(op.path);
-				}
-			}
-			break;
-		case "add":
-			runtime = worse(runtime, "declared-lossy");
-			reasons.push(`${op.path} is new and required, so every old caller is served with the declared default. That default has to match what the API did before the field existed; nothing in the specification proves it.`);
-			lossy.backward.push(op.path);
-			break;
-		case "remove":
-			runtime = worse(runtime, "declared-lossy");
-			source = "assisted";
-			reasons.push(`${op.path} is gone, so a response can only carry the declared constant in its place, not whatever the value used to be`);
-			lossy.forward.push(op.path);
-			break;
-		case "default": {
-			runtime = worse(runtime, "declared-lossy");
-			const missing = op.when === "absent" ? "missing" : op.when === "null" ? "null" : "missing or null";
-			reasons.push(op.toward === "old" ? `${op.path} can now be ${missing}, so an old caller is shown the declared default in its place and cannot tell the two apart` : `${op.path} can no longer be ${missing}, so the declared default is sent for an old caller who left it that way`);
-			(op.toward === "old" ? lossy.backward : lossy.forward).push(op.path);
-			break;
-		}
-		case "dropNull":
-			runtime = worse(runtime, "declared-lossy");
-			reasons.push(op.toward === "old" ? `${op.path} can now be null, so an old caller is sent the field left out instead` : `${op.path} can no longer be null, so a null from an old caller is sent as the field left out`);
-			(op.toward === "old" ? lossy.backward : lossy.forward).push(op.path);
-			break;
-		case "retire":
-			runtime = "none";
-			source = "manual";
-			reasons.push(`${op.endpoint.method.toUpperCase()} ${op.endpoint.path} no longer exists, so there is no handler for a rewritten request to reach. The runtime refuses it by name rather than returning a bare 404, and nothing else can be done for a caller still using it.`);
-			break;
-		case "behavior":
-			runtime = "none";
-			source = "manual";
-			reasons.push(`${op.flag} changes behaviour rather than shape, so no transform can serve the old contract. Provider code has to branch on it.`);
-	}
-	return {
-		runtime,
-		source,
-		reasons,
-		lossy
-	};
-}
-/** True when the Change needs an acknowledgement it does not carry. */
-function missingAcknowledgement(change, derived) {
-	return derived.runtime === "declared-lossy" && change.assertions?.loss_acknowledged !== true;
 }
 //#endregion
 //#region ../diff/src/version.ts
@@ -31263,16 +31339,17 @@ function clean(sent) {
 function withoutLossy(value, pointers) {
 	if (pointers.length === 0) return value;
 	const copy = structuredClone(value);
-	for (const pointer of pointers) {
-		const segments = parsePointer(pointer);
-		let cursor = copy;
-		for (const segment of segments.slice(0, -1)) {
-			if (cursor === null || typeof cursor !== "object") break;
-			cursor = cursor[segment];
-		}
-		const last = segments[segments.length - 1];
-		if (last !== void 0 && cursor !== null && typeof cursor === "object") delete cursor[last];
-	}
+	const remove = (cursor, segments) => {
+		if (cursor === null || typeof cursor !== "object") return;
+		const [segment, ...rest] = segments;
+		if (segment === void 0) return;
+		const holder = cursor;
+		const keys = segment === "*" && Array.isArray(cursor) ? Object.keys(cursor) : [segment];
+		for (const key of keys) if (rest.length === 0) {
+			if (!Array.isArray(cursor)) delete holder[key];
+		} else remove(holder[key], rest);
+	};
+	for (const pointer of pointers) remove(copy, parsePointer(pointer));
 	return copy;
 }
 /**
@@ -31312,32 +31389,20 @@ function describe(violations) {
 * missing. It is the composition that has to land inside the target contract,
 * and the composition per schema is exactly what the compiler projects onto a
 * site and what the runtime therefore executes.
+*
+* That composition includes the Changes to every schema nested inside it. A
+* required field added to a schema another one refers to is served inside the
+* other one's values too, and checking the outer schema without it once
+* reported a correct release as producing values the new contract refuses.
 */
-function casesFor(changes) {
-	const byScope = /* @__PURE__ */ new Map();
-	for (const change of changes) {
-		const derived = derive(change);
-		if (derived.runtime === "none") continue;
-		for (const scope of change.scopes ?? []) {
-			if (!isSchemaScope(scope)) continue;
-			let entry = byScope.get(scope.schema);
-			if (!entry) {
-				entry = {
-					scope: scope.schema,
-					changes: [],
-					lossy: {
-						forward: [],
-						backward: []
-					}
-				};
-				byScope.set(scope.schema, entry);
-			}
-			entry.changes.push(change);
-			entry.lossy.forward.push(...derived.lossy.forward);
-			entry.lossy.backward.push(...derived.lossy.backward);
-		}
-	}
-	return [...byScope.values()];
+function casesFor(oldContract, changes) {
+	const served = changes.filter((change) => derive(change).runtime !== "none");
+	const scopes = /* @__PURE__ */ new Set();
+	for (const change of served) for (const scope of change.scopes ?? []) if (isSchemaScope(scope)) scopes.add(scope.schema);
+	return [...scopes].map((scope) => ({
+		scope,
+		...schemaLens(oldContract, served, scope)
+	}));
 }
 /**
 * Checks each schema's Changes against generated values of that schema.
@@ -31363,13 +31428,13 @@ function checkLaws(oldContract, predicted, changes, options = {}) {
 	const runs = options.runs ?? 500;
 	const failures = [];
 	const evidence = [];
-	for (const entry of casesFor(changes)) {
+	for (const entry of casesFor(oldContract, changes)) {
 		const ids = entry.changes.map((change) => change.id);
 		const digest = inputsDigest(entry.changes, entry.scope, runs);
 		const found = [];
 		const label = ids.join(", ");
 		try {
-			const lens = lensFor(entry.changes.flatMap((change) => instrsFor(change).forward), [...entry.changes].reverse().flatMap((change) => instrsFor(change).backward));
+			const lens = lensFor(entry.forward, entry.backward);
 			const outbound = run(oldContract, entry.scope, runs, options.seed, (value) => {
 				const canonical = lens.forward(value);
 				const violations = validateAgainst(predicted, entry.scope, canonical);

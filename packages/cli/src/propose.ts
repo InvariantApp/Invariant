@@ -13,7 +13,9 @@ import { loadContract, loadPendingChanges } from "@invariant/contract";
 import type { Change } from "@invariant/ir";
 import {
   CHOOSE_ONE,
+  type Decision,
   decisionChange,
+  describeShape,
   type FoldDecision,
   HybridJudge,
   type Impasse,
@@ -22,14 +24,19 @@ import {
   propose,
   RulesJudge,
   type Unresolved,
+  type ValueDecision,
 } from "@invariant/proposer";
 import { stringify as stringifyYaml } from "yaml";
 import type { InvariantConfig } from "./config.ts";
 
 export interface ProposeResult {
   proposals: Proposal[];
-  /** Vocabularies that grew, each a decision drafted with suggestions filled in. */
-  decisions: FoldDecision[];
+  /**
+   * What only the provider can answer, each drafted as a Change with the
+   * answer left as a placeholder: vocabularies that changed, with suggestions
+   * beside them, and values the specification does not give.
+   */
+  decisions: Decision[];
   /** Changes the proposer would not draft, with the reason it would not. */
   unresolved: Unresolved[];
   /** Changes no Change could express, named as one problem each. */
@@ -57,11 +64,35 @@ function render(proposal: Proposal): string {
   return `${header.join("\n")}\n${stringifyYaml(proposal.change as unknown as Record<string, unknown>)}`;
 }
 
+/** The explanation a decision file opens with, wrapped as comment lines. */
+function wrapped(text: string): string[] {
+  return (text.match(/.{1,74}(\s|$)/g) ?? []).map((line) => `# ${line.trimEnd()}`);
+}
+
 /**
- * A decision drafted with every answer left as `CHOOSE_ONE` and the
- * suggestions beside it, headed so no one mistakes it for one already made.
+ * A decision drafted with every answer left as `CHOOSE_ONE`, headed so no one
+ * mistakes it for one already made.
  */
-function renderDecision(decision: FoldDecision, change: Change): string {
+function renderDecision(decision: Decision, change: Change): string {
+  return decision.kind === "vocabulary"
+    ? renderVocabularyDecision(decision, change)
+    : renderValueDecision(decision, change);
+}
+
+function renderValueDecision(decision: ValueDecision, change: Change): string {
+  const header = [
+    "# DECISION NEEDED. Nothing below has been decided.",
+    "#",
+    ...wrapped(decision.why),
+    "#",
+    `# Replace ${CHOOSE_ONE} below with ${describeShape(decision.shape)}.`,
+    "# The release gate refuses this Change while the placeholder is left.",
+  ];
+  return `${header.join("\n")}\n${stringifyYaml(change as unknown as Record<string, unknown>)}`;
+}
+
+/** A vocabulary decision, with the suggestions beside the placeholders. */
+function renderVocabularyDecision(decision: FoldDecision, change: Change): string {
   const suggestion = (value: string, target: string) =>
     target === CHOOSE_ONE
       ? `#   ${value}: nothing in the names suggests an answer`
@@ -69,7 +100,7 @@ function renderDecision(decision: FoldDecision, change: Change): string {
   const header = [
     "# DECISION NEEDED. Nothing below has been decided.",
     "#",
-    ...(decision.why.match(/.{1,74}(\s|$)/g) ?? []).map((line) => `# ${line.trimEnd()}`),
+    ...wrapped(decision.why),
     "#",
     `# Replace every ${CHOOSE_ONE} below with one of: ${decision.choices.join(", ")}`,
     ...(decision.suggested.fold.length > 0
@@ -224,11 +255,19 @@ function renderUnresolved(result: ProposeResult): string[] {
 function renderDecisions(result: ProposeResult): string[] {
   if (result.decisions.length === 0) return [];
   const lines = [
-    `${result.decisions.length} ${result.decisions.length === 1 ? "decision needs" : "decisions need"} you, drafted with suggestions:`,
+    `${result.decisions.length} ${result.decisions.length === 1 ? "decision needs" : "decisions need"} you, drafted with the answer left open:`,
     "",
   ];
   for (const decision of result.decisions) {
     lines.push(`  ${decision.schema}.${decision.field}`);
+    if (decision.kind === "value") {
+      lines.push(
+        `    ${decision.why}`,
+        `    Answer with ${describeShape(decision.shape)}.`,
+        "",
+      );
+      continue;
+    }
     for (const [value, target] of decision.suggested.fold) {
       lines.push(
         target === CHOOSE_ONE
@@ -245,9 +284,11 @@ function renderDecisions(result: ProposeResult): string[] {
     }
     lines.push("");
   }
+  if (result.decisions.some((decision) => decision.kind === "vocabulary")) {
+    lines.push("  Each suggestion comes from what the names share, not what they mean.");
+  }
   lines.push(
-    "  Each suggestion comes from what the names share, not what they mean. The",
-    `  gate refuses these until every ${CHOOSE_ONE} is replaced with an answer.`,
+    `  The gate refuses these until every ${CHOOSE_ONE} is replaced with an answer.`,
     "",
   );
   return lines;

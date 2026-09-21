@@ -11,6 +11,7 @@ import {
   type Site,
 } from "@invariant/contract";
 import {
+  CHOOSE_ONE,
   type Change,
   isDataOp,
   isJsonObject,
@@ -21,6 +22,7 @@ import {
   type RetireOp,
   type RouteOp,
   type Scope,
+  undecidedOps,
 } from "@invariant/ir";
 import { importReferences } from "./import.ts";
 import { applyParameterScope } from "./predict-parameters.ts";
@@ -276,6 +278,18 @@ export function predictDocument(
   const document = structuredClone(oldContract);
   const issues: PredictionIssue[] = [];
   const routes = routeMappings(changes);
+
+  for (const change of changes) {
+    // Checked before anything is applied, so an open decision is reported as
+    // one rather than as whatever its placeholder happens to break.
+    for (const index of undecidedOps(change)) {
+      const op = change.ops[index] as Change["ops"][number];
+      issues.push({
+        changeId: change.id,
+        message: `op ${index + 1} (${op.op}${"path" in op ? ` at ${op.path}` : ""}) is a decision nobody has made yet: replace every ${CHOOSE_ONE} with an answer`,
+      });
+    }
+  }
 
   for (const change of changes) {
     for (const op of change.ops) {

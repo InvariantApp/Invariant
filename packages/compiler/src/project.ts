@@ -7,6 +7,7 @@
  */
 import {
   findSchemaSites,
+  findSchemaWithin,
   type OpenApiDocument,
   operationsOf,
   type RequestBodyMedia,
@@ -31,6 +32,7 @@ import {
   type SiteProgram,
   siteKey,
 } from "@invariant/ir";
+import { derive } from "./derive.ts";
 import { errorParamTargets, paramRenames } from "./error-params.ts";
 import { formProgramFor, takesForm } from "./form.ts";
 import { findInterference } from "./independence.ts";
@@ -214,11 +216,9 @@ function backwardInstrs(op: DataOp, prefix: string, changeId: string): Instr[] {
 }
 
 /**
- * One Change's primitives, in both directions, at a given pointer prefix.
- *
- * The verifier uses this to run a Change on its own: the whole point of the
- * lens laws is to test a single declaration against its own schema, before it
- * is concatenated with anything else.
+ * One Change's primitives, in both directions, at a given pointer prefix, for
+ * looking at what a single declaration compiles to. What the laws check is
+ * the composition `schemaLens` builds.
  */
 export function instrsFor(
   change: Change,
@@ -231,6 +231,67 @@ export function instrsFor(
       .reverse()
       .flatMap((op) => backwardInstrs(op, prefix, change.id)),
   };
+}
+
+/**
+ * What a value of `schemaRef` goes through wherever it is a body, with every
+ * Change in the release placed where its schema sits inside it: the lens the
+ * compiler projects onto such a site, for checking on values.
+ *
+ * Requests apply the Changes in declared order and responses undo them in
+ * reverse, as a site does.
+ */
+export function schemaLens(
+  oldContract: OpenApiDocument,
+  changes: readonly Change[],
+  schemaRef: string,
+): {
+  forward: Instr[];
+  backward: Instr[];
+  changes: Change[];
+  /** Where each direction may lose information by declaration, from the root, `*` for list items. */
+  lossy: { forward: string[]; backward: string[] };
+} {
+  const forward: Instr[] = [];
+  const backward: Instr[][] = [];
+  const involved: Change[] = [];
+  const lossy = { forward: [] as string[], backward: [] as string[] };
+  for (const change of changes) {
+    const dataOps = change.ops.filter(isDataOp);
+    if (dataOps.length === 0) continue;
+    const declared = derive(change).lossy;
+    const mine: Instr[] = [];
+    let back: Instr[] = [];
+    for (const scope of change.scopes ?? []) {
+      if (!isSchemaScope(scope)) continue;
+      for (const place of findSchemaWithin(oldContract, scope.schema, schemaRef)
+        .placements) {
+        lossy.forward.push(
+          ...declared.forward.map((path) => prefixed(place.prefix, path)),
+        );
+        lossy.backward.push(
+          ...declared.backward.map((path) => prefixed(place.prefix, path)),
+        );
+        mine.push(
+          ...guarded(place, change, "forward", (prefix) =>
+            dataOps.flatMap((op) => forwardInstrs(op, prefix, change.id)),
+          ),
+        );
+        // Undone in the reverse of the order it was applied in.
+        back = [
+          ...guarded(place, change, "backward", (prefix) =>
+            [...dataOps].reverse().flatMap((op) => backwardInstrs(op, prefix, change.id)),
+          ),
+          ...back,
+        ];
+      }
+    }
+    if (mine.length === 0 && back.length === 0) continue;
+    involved.push(change);
+    forward.push(...mine);
+    backward.push(back);
+  }
+  return { forward, backward: backward.reverse().flat(), changes: involved, lossy };
 }
 
 interface SiteAccumulator {
@@ -441,7 +502,7 @@ function collectForward(
  * value this Change's own enum map renames is matched by what it became.
  */
 function guarded(
-  site: Site,
+  site: Pick<Site, "prefix" | "guards">,
   change: Change,
   direction: "forward" | "backward",
   build: (prefix: string) => Instr[],

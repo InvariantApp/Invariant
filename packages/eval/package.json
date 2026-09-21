@@ -8,10 +8,11 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@invariant/compiler": "workspace:*",
+    "@invariant/contract": "workspace:*",
+    "@invariant/diff": "workspace:*",
+    "@invariant/ir": "workspace:*",
     "@invariant/proposer": "workspace:*",
     "yaml": "^2.8.2"
-  },
-  "devDependencies": {
-    "@invariant/proposer": "workspace:*"
   }
 }

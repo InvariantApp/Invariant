@@ -35,6 +35,7 @@ const ROOT = fileURLToPath(new URL("../../", import.meta.url));
  *   --shard <i>/<n>               run one CI shard of the providers
  *   --results <path>              where this run's results go
  *   --provider <name>             only this provider's pairs
+ *   --api <name>                  only this API's pairs, as the manifest names it
  *   --report <results.json>...    render the report from shard results, and run nothing
  */
 const args = process.argv.slice(2);
@@ -53,14 +54,15 @@ const reportInputs = args.includes("--report")
   ? args.slice(args.indexOf("--report") + 1).filter((arg) => !arg.startsWith("--"))
   : undefined;
 
-const partial = shard !== undefined || option("provider") !== undefined;
+const partial =
+  shard !== undefined || option("provider") !== undefined || option("api") !== undefined;
 const resultsFor = (mode: string) =>
   option("results") ??
   join(
     ROOT,
     // A partial run's results never overwrite the committed ones.
     partial
-      ? `.cache/corpus/results-${mode}-${shardArg?.replace("/", "-of-") ?? option("provider")}.json`
+      ? `.cache/corpus/results-${mode}-${(shardArg?.replace("/", "-of-") ?? option("provider") ?? option("api") ?? "").replace(/[^\w.-]+/g, "_")}.json`
       : mode === "rules"
         ? "proving/corpus/results.json"
         : `proving/corpus/results-${mode}.json`,
@@ -130,7 +132,15 @@ type WorkerResult = PairResult & {
 };
 
 /** The stages a worker reports, in the order it runs them. */
-const STAGE_ORDER = ["load", "diff", "propose", "align", "compile", "closure"] as const;
+const STAGE_ORDER = [
+  "load",
+  "diff",
+  "propose",
+  "align",
+  "compile",
+  "closure",
+  "decide",
+] as const;
 
 /** The stage timings a worker streamed before it was stopped. */
 function stagesIn(out: string): Record<string, number> {
@@ -224,7 +234,7 @@ function analyseIsolated(pair: LocalPair): Promise<WorkerResult> {
       killTree();
       const stageMs = stagesIn(out);
       const spent = Object.values(stageMs).reduce((sum, ms) => sum + ms, 0);
-      const running = STAGE_ORDER.find((stage) => !(stage in stageMs)) ?? "closure";
+      const running = STAGE_ORDER.find((stage) => !(stage in stageMs)) ?? "decide";
       done({
         ...stopped(
           `Stopped after ${PAIR_TIMEOUT_MS} ms, in \`${running}\` ` +
@@ -272,8 +282,11 @@ function analyseIsolated(pair: LocalPair): Promise<WorkerResult> {
 // One provider at a time, for looking at a failure locally without running
 // the several hundred pairs around it.
 const onlyProvider = option("provider");
+const onlyApi = option("api");
 const pairs = shardOf((await readManifest()).pairs, shard).filter(
-  (pair) => onlyProvider === undefined || pair.provider === onlyProvider,
+  (pair) =>
+    (onlyProvider === undefined || pair.provider === onlyProvider) &&
+    (onlyApi === undefined || pair.api === onlyApi),
 );
 
 if (reportInputs) {

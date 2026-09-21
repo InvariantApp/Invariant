@@ -31,9 +31,15 @@
  * differential check is the layer that catches it, and the test suite here says
  * so rather than implying otherwise.
  */
-import { type Derived, derive, instrsFor } from "@invariant/compiler";
+import { derive, schemaLens } from "@invariant/compiler";
 import type { OpenApiDocument } from "@invariant/contract";
-import { type Change, isSchemaScope, type JsonValue, parsePointer } from "@invariant/ir";
+import {
+  type Change,
+  type Instr,
+  isSchemaScope,
+  type JsonValue,
+  parsePointer,
+} from "@invariant/ir";
 import fc from "fast-check";
 import { schemaArbitrary } from "./arbitrary.ts";
 import { type Evidence, inputsDigest } from "./evidence.ts";
@@ -68,18 +74,23 @@ export interface LawReport {
 function withoutLossy(value: unknown, pointers: readonly string[]): unknown {
   if (pointers.length === 0) return value;
   const copy = structuredClone(value);
-  for (const pointer of pointers) {
-    const segments = parsePointer(pointer);
-    let cursor: unknown = copy;
-    for (const segment of segments.slice(0, -1)) {
-      if (cursor === null || typeof cursor !== "object") break;
-      cursor = (cursor as Record<string, unknown>)[segment];
+  // `*` is every item of a list, where a Change on a nested schema declared it.
+  const remove = (cursor: unknown, segments: readonly string[]): void => {
+    if (cursor === null || typeof cursor !== "object") return;
+    const [segment, ...rest] = segments;
+    if (segment === undefined) return;
+    const holder = cursor as Record<string, unknown>;
+    const keys =
+      segment === "*" && Array.isArray(cursor) ? Object.keys(cursor) : [segment];
+    for (const key of keys) {
+      if (rest.length === 0) {
+        if (!Array.isArray(cursor)) delete holder[key];
+      } else {
+        remove(holder[key], rest);
+      }
     }
-    const last = segments[segments.length - 1];
-    if (last !== undefined && cursor !== null && typeof cursor === "object") {
-      delete (cursor as Record<string, unknown>)[last];
-    }
-  }
+  };
+  for (const pointer of pointers) remove(copy, parsePointer(pointer));
   return copy;
 }
 
@@ -121,8 +132,13 @@ function describe(violations: readonly Violation[]): string {
 
 interface Case {
   scope: string;
-  /** Every Change that touches this schema, in the order they were declared. */
+  /**
+   * Every Change that touches a value of this schema, in the order they were
+   * declared: its own, and those of every schema nested inside it.
+   */
   changes: Change[];
+  forward: Instr[];
+  backward: Instr[];
   lossy: { forward: string[]; backward: string[] };
 }
 
@@ -136,32 +152,24 @@ interface Case {
  * missing. It is the composition that has to land inside the target contract,
  * and the composition per schema is exactly what the compiler projects onto a
  * site and what the runtime therefore executes.
+ *
+ * That composition includes the Changes to every schema nested inside it. A
+ * required field added to a schema another one refers to is served inside the
+ * other one's values too, and checking the outer schema without it once
+ * reported a correct release as producing values the new contract refuses.
  */
-function casesFor(changes: readonly Change[]): Case[] {
-  const byScope = new Map<string, Case>();
-
-  for (const change of changes) {
-    const derived: Derived = derive(change);
-    if (derived.runtime === "none") continue;
-
+function casesFor(oldContract: OpenApiDocument, changes: readonly Change[]): Case[] {
+  const served = changes.filter((change) => derive(change).runtime !== "none");
+  const scopes = new Set<string>();
+  for (const change of served) {
     for (const scope of change.scopes ?? []) {
-      if (!isSchemaScope(scope)) continue;
-      let entry = byScope.get(scope.schema);
-      if (!entry) {
-        entry = {
-          scope: scope.schema,
-          changes: [],
-          lossy: { forward: [], backward: [] },
-        };
-        byScope.set(scope.schema, entry);
-      }
-      entry.changes.push(change);
-      entry.lossy.forward.push(...derived.lossy.forward);
-      entry.lossy.backward.push(...derived.lossy.backward);
+      if (isSchemaScope(scope)) scopes.add(scope.schema);
     }
   }
-
-  return [...byScope.values()];
+  return [...scopes].map((scope) => ({
+    scope,
+    ...schemaLens(oldContract, served, scope),
+  }));
 }
 
 /**
@@ -194,21 +202,16 @@ export function checkLaws(
   const failures: LawFailure[] = [];
   const evidence: Evidence[] = [];
 
-  for (const entry of casesFor(changes)) {
+  for (const entry of casesFor(oldContract, changes)) {
     const ids = entry.changes.map((change) => change.id);
     const digest = inputsDigest(entry.changes, entry.scope, runs);
     const found: LawFailure[] = [];
     const label = ids.join(", ");
 
     try {
-      // Requests apply the Changes in declared order; responses undo them in
-      // the reverse order. This is the same composition the compiler projects
-      // onto a site, so the lens under test is the one that will run.
-      const forward = entry.changes.flatMap((change) => instrsFor(change).forward);
-      const backward = [...entry.changes]
-        .reverse()
-        .flatMap((change) => instrsFor(change).backward);
-      const lens = lensFor(forward, backward);
+      // The composition the compiler projects onto a site, so the lens under
+      // test is the one that will run.
+      const lens = lensFor(entry.forward, entry.backward);
 
       // Old shape to canonical and back. The values come from the contract the
       // caller was written against, which is exactly the traffic the adapter

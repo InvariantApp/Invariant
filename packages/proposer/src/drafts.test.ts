@@ -9,8 +9,10 @@
  */
 import type { OpenApiDocument } from "@invariant/contract";
 import { describe, expect, it } from "vitest";
+import { decisionChange } from "./decisions.ts";
 import { propose } from "./propose.ts";
 import { RulesJudge } from "./rules.ts";
+import { CHOOSE_ONE } from "./vocabulary.ts";
 
 type Schema = Record<string, unknown>;
 
@@ -111,7 +113,12 @@ describe("a new required field", () => {
     expect(
       outcome.proposals.some((proposal) => proposal.change.id.includes("tier")),
     ).toBe(false);
-    expect(outcome.unresolved.map((entry) => entry.field)).toContain("tier");
+    // Asked as a decision with the Change drafted around the answer.
+    const decision = outcome.decisions.find((entry) => entry.field === "tier");
+    expect(decision).toMatchObject({ kind: "value", op: { op: "add" } });
+    expect(decision && decisionChange(decision).ops).toEqual([
+      { op: "add", path: "/tier", value: CHOOSE_ONE },
+    ]);
   });
 });
 
@@ -131,7 +138,10 @@ describe("a removed field with nothing added in its place", () => {
     expect(
       outcome.proposals.some((proposal) => proposal.change.id.includes("thing_id")),
     ).toBe(false);
-    expect(outcome.unresolved.map((entry) => entry.field)).toContain("id");
+    const decision = outcome.decisions.find((entry) => entry.field === "id");
+    expect(decision && decisionChange(decision).ops).toEqual([
+      { op: "remove", path: "/id", restore: CHOOSE_ONE },
+    ]);
   });
 });
 
@@ -323,8 +333,6 @@ describe("a schema no operation uses", () => {
 describe("a field that may now be left out or null, or no longer may", () => {
   const ops = async (after: Record<string, Schema>) =>
     (await drafts(after)).proposals.flatMap((proposal) => proposal.change.ops);
-  const unresolvedFields = async (after: Record<string, Schema>) =>
-    (await drafts(after)).unresolved.map((entry) => `${entry.schema}.${entry.field}`);
 
   it("sends old callers a now-nullable optional response field left out", async () => {
     const before = {
@@ -358,9 +366,11 @@ describe("a field that may now be left out or null, or no longer may", () => {
   });
 
   it("leaves it to a person where a response field became optional with no default", async () => {
-    expect(
-      await unresolvedFields({ Thing: object({ id: { type: "string" } }, []) }),
-    ).toContain("Thing.id");
+    const outcome = await drafts({ Thing: object({ id: { type: "string" } }, []) });
+    const decision = outcome.decisions.find((entry) => entry.field === "id");
+    expect(decision && decisionChange(decision).ops).toEqual([
+      { op: "default", path: "/id", value: CHOOSE_ONE, when: "absent", toward: "old" },
+    ]);
   });
 
   it("gives old callers' requests the default where a field became required", async () => {
