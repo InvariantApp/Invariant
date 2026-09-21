@@ -14,6 +14,7 @@
  * its exact bytes and its place.
  */
 
+import { BodyTooDeepError } from "./errors.ts";
 import type { CompiledInstr } from "./interpreter.ts";
 import { TransformError } from "./interpreter.ts";
 import { type Json, type NumberFidelity, numberTextOf, parseJson } from "./json.ts";
@@ -70,6 +71,9 @@ function pairsOf(text: string): Pair[] {
   });
 }
 
+/** How deeply a form key may nest, far beyond Stripe's deepest. */
+const MAX_FORM_DEPTH = 32;
+
 /** `a[b][0]` as its root and the segments under it; `a[]` ends in an append. */
 function keyPath(key: string): { root: string; segments: string[] } | undefined {
   const open = key.indexOf("[");
@@ -81,6 +85,7 @@ function keyPath(key: string): { root: string; segments: string[] } | undefined 
     const match = /^\[([^[\]]*)\]/.exec(rest);
     if (!match) return undefined;
     segments.push(match[1] as string);
+    if (segments.length > MAX_FORM_DEPTH) throw new BodyTooDeepError(MAX_FORM_DEPTH);
     rest = rest.slice(match[0].length);
   }
   return { root, segments };

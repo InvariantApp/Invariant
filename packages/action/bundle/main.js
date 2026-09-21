@@ -11957,7 +11957,7 @@ function responseSchemas(document, operation) {
 * through the same view, so they cannot disagree about what a field is.
 */
 /** Deepest `allOf` nesting followed before giving up, which only a cycle reaches. */
-const MAX_DEPTH$1 = 32;
+const MAX_DEPTH$2 = 32;
 /**
 * The schema as it applies to a value: every `$ref` in the chain followed and
 * every `allOf` merged into one object.
@@ -11971,7 +11971,7 @@ function resolveSchema(document, schema) {
 	return resolveAt(document, schema, 0);
 }
 function resolveAt(document, schema, depth) {
-	if (depth > MAX_DEPTH$1) throw new ContractError("allOf nests too deeply to resolve");
+	if (depth > MAX_DEPTH$2) throw new ContractError("allOf nests too deeply to resolve");
 	const target = deref(document, schema);
 	if (!isJsonObject(target)) return target;
 	const branches = target["allOf"];
@@ -27402,7 +27402,7 @@ var ArbitraryError = class extends Error {
 	}
 };
 /** How deep to follow nested objects before giving up on a recursive schema. */
-const MAX_DEPTH = 6;
+const MAX_DEPTH$1 = 6;
 /**
 * Beyond MAX_DEPTH only what the schema requires is generated. Real contracts
 * nest deeper than six levels, Adyen's terminal API well past it, and an
@@ -27596,7 +27596,7 @@ function arbitraryFor(document, raw, depth) {
 				const items = schema["items"];
 				const minItems = typeof schema["minItems"] === "number" ? schema["minItems"] : 0;
 				if (items === void 0 || depth >= HARD_DEPTH) return fast_check_default.constant([]);
-				if (depth >= MAX_DEPTH) {
+				if (depth >= MAX_DEPTH$1) {
 					if (minItems === 0) return fast_check_default.constant([]);
 					return fast_check_default.array(arbitraryFor(document, items, depth + 1), {
 						minLength: minItems,
@@ -27613,7 +27613,7 @@ function arbitraryFor(document, raw, depth) {
 				const properties = schema["properties"];
 				const additional = schema["additionalProperties"];
 				if (!isJsonObject(properties)) {
-					if (isJsonObject(additional) && depth < MAX_DEPTH) return fast_check_default.dictionary(fast_check_default.string({
+					if (isJsonObject(additional) && depth < MAX_DEPTH$1) return fast_check_default.dictionary(fast_check_default.string({
 						minLength: 1,
 						maxLength: 8,
 						unit: "grapheme-ascii"
@@ -27621,7 +27621,7 @@ function arbitraryFor(document, raw, depth) {
 					return fast_check_default.constant({});
 				}
 				if (depth >= HARD_DEPTH) return fast_check_default.constant({});
-				const minimal = depth >= MAX_DEPTH;
+				const minimal = depth >= MAX_DEPTH$1;
 				const required = new Set(Array.isArray(schema["required"]) ? schema["required"].filter((entry) => typeof entry === "string") : []);
 				const entries = Object.entries(properties).filter(([name]) => !minimal || required.has(name)).map(([name, child]) => {
 					const value = arbitraryFor(document, child, depth + 1);
@@ -27660,6 +27660,38 @@ function schemaArbitrary(document, ref) {
 	if (!isJsonObject(resolved)) throw new ArbitraryError(`${ref} is not a schema in this contract`);
 	return arbitraryFor(document, resolved, 0);
 }
+var BodyTooLargeError = class extends Error {
+	constructor(limit) {
+		super(`Request body exceeds the ${limit} byte limit for a transformed operation`);
+		this.name = "BodyTooLargeError";
+	}
+};
+/**
+* A body nested deeper than this runtime will walk.
+*
+* Refused before anything parses it: every step that reads a body, parsing it,
+* transforming it and writing it back, follows its nesting, and a request made
+* of fifty thousand brackets would otherwise exhaust the stack and answer 500.
+* Treated as too large, which is what it is.
+*/
+var BodyTooDeepError = class extends BodyTooLargeError {
+	depth;
+	constructor(depth) {
+		super(0);
+		this.message = `The body is nested more than ${depth} levels deep, which is deeper than a transformed operation accepts.`;
+		this.name = "BodyTooDeepError";
+		this.depth = depth;
+	}
+};
+/** A `Content-Encoding` this runtime has no way to decode. */
+var UnsupportedEncodingError = class extends Error {
+	encoding;
+	constructor(encoding) {
+		super(`The body is encoded as "${encoding}", which cannot be decoded here, so it cannot be translated.`);
+		this.name = "UnsupportedEncodingError";
+		this.encoding = encoding;
+	}
+};
 //#endregion
 //#region ../runtime/src/json.ts
 /**
@@ -27692,7 +27724,28 @@ function schemaArbitrary(document, ref) {
 * nothing.
 */
 const BEYOND_DOUBLE = /[\d.][eE][+-]?\d{3}|\d{100}/;
+/** Whether a JSON text nests deeper than the limit, found in one pass without parsing. */
+function tooDeep(text, limit) {
+	if (text.length <= limit) return false;
+	let depth = 0;
+	let inString = false;
+	for (let index = 0; index < text.length; index += 1) {
+		const code = text.charCodeAt(index);
+		if (inString) {
+			if (code === 92) index += 1;
+			else if (code === 34) inString = false;
+			continue;
+		}
+		if (code === 34) inString = true;
+		else if (code === 91 || code === 123) {
+			depth += 1;
+			if (depth > limit) return true;
+		} else if (code === 93 || code === 125) depth -= 1;
+	}
+	return false;
+}
 function parseJson(text, fidelity) {
+	if (tooDeep(text, 256)) throw new BodyTooDeepError(256);
 	if (fidelity === "double" && !BEYOND_DOUBLE.test(text)) return JSON.parse(text);
 	return JSON.parse(text, function preserveNumbers(_key, value, context) {
 		if (typeof value !== "number") return value;
@@ -28418,23 +28471,23 @@ function closeEnvelope(envelope, template, pathValues, request, tree) {
 		body
 	};
 }
-var BodyTooLargeError = class extends Error {
-	constructor(limit) {
-		super(`Request body exceeds the ${limit} byte limit for a transformed operation`);
-		this.name = "BodyTooLargeError";
-	}
-};
-/** A `Content-Encoding` this runtime has no way to decode. */
-var UnsupportedEncodingError = class extends Error {
-	encoding;
-	constructor(encoding) {
-		super(`The body is encoded as "${encoding}", which cannot be decoded here, so it cannot be translated.`);
-		this.name = "UnsupportedEncodingError";
-		this.encoding = encoding;
-	}
-};
 //#endregion
 //#region ../runtime/src/form.ts
+/**
+* Form-encoded bodies, as a tree and back.
+*
+* Stripe, Twilio, Slack and every OAuth token endpoint take
+* `application/x-www-form-urlencoded` requests. A program describes fields,
+* not encodings, so the same instructions run whether a body arrived as JSON
+* or as a form: the form is decoded into a tree, the instructions run, and the
+* tree is written back.
+*
+* Only the top-level fields a program names are decoded and rewritten, in the
+* style each is declared with: bracketed keys for a `deepObject`, as Stripe
+* writes `metadata[order_id]=6735` and `items[0][price]=p_1`, and plain keys
+* otherwise, repeated for a list as Twilio writes them. Every other pair keeps
+* its exact bytes and its place.
+*/
 const PLAIN = {
 	style: "form",
 	explode: true
@@ -28463,6 +28516,8 @@ function pairsOf(text) {
 		}];
 	});
 }
+/** How deeply a form key may nest, far beyond Stripe's deepest. */
+const MAX_FORM_DEPTH = 32;
 /** `a[b][0]` as its root and the segments under it; `a[]` ends in an append. */
 function keyPath(key) {
 	const open = key.indexOf("[");
@@ -28477,6 +28532,7 @@ function keyPath(key) {
 		const match = /^\[([^[\]]*)\]/.exec(rest);
 		if (!match) return void 0;
 		segments.push(match[1]);
+		if (segments.length > MAX_FORM_DEPTH) throw new BodyTooDeepError(MAX_FORM_DEPTH);
 		rest = rest.slice(match[0].length);
 	}
 	return {

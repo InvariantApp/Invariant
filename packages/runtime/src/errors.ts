@@ -62,6 +62,25 @@ export class BodyTooLargeError extends Error {
   }
 }
 
+/**
+ * A body nested deeper than this runtime will walk.
+ *
+ * Refused before anything parses it: every step that reads a body, parsing it,
+ * transforming it and writing it back, follows its nesting, and a request made
+ * of fifty thousand brackets would otherwise exhaust the stack and answer 500.
+ * Treated as too large, which is what it is.
+ */
+export class BodyTooDeepError extends BodyTooLargeError {
+  readonly depth: number;
+
+  constructor(depth: number) {
+    super(0);
+    this.message = `The body is nested more than ${depth} levels deep, which is deeper than a transformed operation accepts.`;
+    this.name = "BodyTooDeepError";
+    this.depth = depth;
+  }
+}
+
 /** A `Content-Encoding` this runtime has no way to decode. */
 export class UnsupportedEncodingError extends Error {
   readonly encoding: string;

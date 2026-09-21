@@ -383,6 +383,97 @@ describe("rewriting a whole request", () => {
   });
 });
 
+const FORMS = (
+  JSON.parse(
+    readFileSync(new URL("../../conformance/vectors.json", import.meta.url), "utf8"),
+  ) as { forms: { form: unknown; instrs: unknown[] }[] }
+).forms.flatMap((vector) => {
+  try {
+    const runtime = createRuntime({
+      program: {
+        irVersion: 1,
+        api: "fuzz",
+        currentLabel: "new",
+        current: "sha256:fuzz",
+        contracts: {
+          old: {
+            label: "old",
+            routes: [],
+            sites: { "post /form": { form: vector.form, request: vector.instrs } },
+            behaviors: [],
+            retired: [],
+          },
+        },
+      },
+      identity: [{ kind: "default", label: "old" }],
+      maxBodyBytes: 64 * 1024,
+    });
+    return [runtime];
+  } catch {
+    return [];
+  }
+});
+
+const formFragment = fc.oneof(
+  fc.constantFrom(
+    "metadata",
+    "items",
+    "amount",
+    "Status",
+    "StatusCallbackEvent",
+    "description",
+    "[",
+    "]",
+    "[]",
+    "[0]",
+    "[__proto__]",
+    "=",
+    "&",
+    "+",
+    "%",
+    "%5B",
+    "%5D",
+    "%0D%0A",
+    "1e400",
+    "-0",
+    "abc",
+    "__proto__",
+    "constructor",
+    "[a]".repeat(40),
+  ),
+  fc.string({ maxLength: 4 }),
+);
+
+describe("rewriting a form body", () => {
+  it("returns a form or refuses with a typed error, the same way twice", () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom(...FORMS),
+        fc.array(formFragment, { maxLength: 16 }).map((parts) => parts.join("")),
+        (runtime, body) => {
+          const site = runtime.siteFor("old", "POST", "/form");
+          expect(site).toBeDefined();
+          if (!site) return;
+          const attempt = () => {
+            try {
+              return runtime.transformRequestForm(site, body, {
+                contract: "old",
+                operation: "post /form",
+              });
+            } catch (error) {
+              if (!typed(error)) throw error;
+              return `refused: ${(error as Error).name}`;
+            }
+          };
+          expect(attempt()).toBe(attempt());
+          prototypeUntouched();
+        },
+      ),
+      settings,
+    );
+  });
+});
+
 describe("matching a path template", () => {
   const literal = fc.stringMatching(/^[a-z0-9._:-]{1,6}$/);
   const segment = fc.oneof(

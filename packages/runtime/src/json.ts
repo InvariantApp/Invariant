@@ -17,6 +17,7 @@
  * precision can turn it on.
  */
 import { numberToDecimalText } from "@invariant/decimal";
+import { BodyTooDeepError } from "./errors.ts";
 
 export type Json = unknown;
 
@@ -41,7 +42,36 @@ export type NumberFidelity = "double" | "preserve";
  */
 const BEYOND_DOUBLE = /[\d.][eE][+-]?\d{3}|\d{100}/;
 
+/**
+ * How deeply a body may nest. Far beyond anything a real API sends: GitHub's
+ * deepest responses nest a dozen levels.
+ */
+export const MAX_DEPTH = 256;
+
+/** Whether a JSON text nests deeper than the limit, found in one pass without parsing. */
+function tooDeep(text: string, limit: number): boolean {
+  // Each level needs at least one character, so a short text cannot be.
+  if (text.length <= limit) return false;
+  let depth = 0;
+  let inString = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.charCodeAt(index);
+    if (inString) {
+      if (code === 0x5c) index += 1;
+      else if (code === 0x22) inString = false;
+      continue;
+    }
+    if (code === 0x22) inString = true;
+    else if (code === 0x5b || code === 0x7b) {
+      depth += 1;
+      if (depth > limit) return true;
+    } else if (code === 0x5d || code === 0x7d) depth -= 1;
+  }
+  return false;
+}
+
 export function parseJson(text: string, fidelity: NumberFidelity): Json {
+  if (tooDeep(text, MAX_DEPTH)) throw new BodyTooDeepError(MAX_DEPTH);
   if (fidelity === "double" && !BEYOND_DOUBLE.test(text)) return JSON.parse(text);
 
   return JSON.parse(text, function preserveNumbers(_key, value, context) {

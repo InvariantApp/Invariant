@@ -38,6 +38,7 @@ import {
 
 export type { EnvelopeRequest, ParamCodec } from "./envelope.ts";
 export {
+  BodyTooDeepError,
   BodyTooLargeError,
   DEFAULT_ERROR_SHAPER,
   ERROR_CODES,
