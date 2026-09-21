@@ -3289,7 +3289,14 @@ Type.Object({
 	/** Label of the canonical current contract. */
 	currentLabel: Type.String(),
 	/** Every historical contract still served, each compiled straight to current. */
-	contracts: Type.Record(Type.String(), ContractProgram)
+	contracts: Type.Record(Type.String(), ContractProgram),
+	/**
+	* The path the API is served under, from the contract's `servers`, such
+	* as `/v1` for `https://api.example.com/v1`. The contract's paths are
+	* relative to it, so it is taken off a request's path before matching,
+	* and put back on any path the program rewrites.
+	*/
+	basePath: Type.Optional(Type.String({ pattern: "^/.+" }))
 }, { additionalProperties: false });
 function siteKey(method, path) {
 	return `${method.toLowerCase()} ${path}`;
@@ -10948,6 +10955,553 @@ async function listReleasedLabels(invariantDir) {
 	}
 }
 //#endregion
+//#region ../../node_modules/.pnpm/@scalar+helpers@0.12.0/node_modules/@scalar/helpers/dist/object/is-object.js
+/**
+* A cheaper version of isObject if you do not care about arrays, errors, and dates.
+*
+* This helper is useful when you only need to guard against `null` and primitives.
+*
+* | Value | Result |
+* | :--- | :--- |
+* | `isObjectLike({})` | `true` |
+* | `isObjectLike([])` | `true` (Array) |
+* | `isObjectLike(new Date())` | `true` |
+* | `isObjectLike(null)` | `false` |
+* | `isObjectLike(123)` | `false` |
+* | `isObjectLike('string')` | `false` |
+*/
+const isObjectLike = (value) => typeof value === "object" && value !== null;
+//#endregion
+//#region ../../node_modules/.pnpm/@scalar+openapi-upgrader@0.2.16/node_modules/@scalar/openapi-upgrader/dist/helpers/traverse.js
+/**
+* Recursively traverses the content and applies the transform function to each node.
+*/
+function traverse(content, transform, path = []) {
+	const result = {};
+	for (const [key, value] of Object.entries(content)) {
+		const currentPath = [...path, key];
+		if (Array.isArray(value)) {
+			result[key] = value.map((item, index) => {
+				if (typeof item === "object" && !Array.isArray(item) && item !== null) return traverse(item, transform, [...currentPath, index.toString()]);
+				return item;
+			});
+			continue;
+		}
+		if (isObjectLike(value)) {
+			result[key] = traverse(value, transform, currentPath);
+			continue;
+		}
+		result[key] = value;
+	}
+	return transform(result, path);
+}
+//#endregion
+//#region ../../node_modules/.pnpm/@scalar+openapi-upgrader@0.2.16/node_modules/@scalar/openapi-upgrader/dist/2.0-to-3.0/upgrade-from-two-to-three.js
+const DEFAULT_MEDIA_TYPE = "application/json";
+/** Extracts and removes x-example and x-examples extensions from an object */
+function extractXExampleExtensions(obj) {
+	const xExample = obj["x-example"];
+	const xExamples = obj["x-examples"];
+	delete obj["x-example"];
+	delete obj["x-examples"];
+	return {
+		xExample,
+		xExamples
+	};
+}
+/** Checks if a value is a non-null, non-array object with at least one entry */
+function isNonEmptyObject(value) {
+	return typeof value === "object" && value !== null && !Array.isArray(value) && Object.keys(value).length > 0;
+}
+/**
+* Checks if a value looks like a collection of named examples (all values are objects).
+* This helps distinguish between:
+* - A single example: { message: 'OK', type: 'success' } - values are primitives
+* - Named examples: { 'my-example': { message: 'OK' } } - values are objects
+*/
+function isNamedExamplesCollection(value) {
+	return isNonEmptyObject(value) && Object.values(value).every((v) => typeof v === "object" && v !== null && !Array.isArray(v));
+}
+/** Checks if a schema is empty (no meaningful properties defined) */
+function isEmptySchema(schema) {
+	if (!isObjectLike(schema)) return true;
+	const s = schema;
+	if (s.allOf || s.oneOf || s.anyOf || s.items || s.$ref || "additionalProperties" in s || [
+		"enum",
+		"const",
+		"not",
+		"format",
+		"multipleOf",
+		"maximum",
+		"exclusiveMaximum",
+		"minimum",
+		"exclusiveMinimum",
+		"maxLength",
+		"minLength",
+		"pattern",
+		"maxItems",
+		"minItems",
+		"uniqueItems",
+		"maxProperties",
+		"minProperties",
+		"required"
+	].some((key) => key in s)) return false;
+	if (typeof s.properties === "object" && s.properties !== null && Object.keys(s.properties).length > 0) return false;
+	return true;
+}
+/**
+* Removes content entries that only have an empty schema (no example/examples)
+* when other entries with actual examples exist. This prevents the UI from
+* selecting a meaningless produces-based entry over one with a real example.
+*/
+function removeEmptySchemaOnlyContentEntries(content) {
+	const keys = Object.keys(content);
+	if (!keys.some((key) => {
+		const entry = content[key];
+		return isObjectLike(entry) && (entry.example !== void 0 || entry.examples !== void 0);
+	})) return;
+	for (const key of keys) {
+		const entry = content[key];
+		if (!isObjectLike(entry)) continue;
+		const hasExample = entry.example !== void 0 || entry.examples !== void 0;
+		if (entry.schema !== void 0 && !hasExample && Object.keys(entry).length === 1 && isEmptySchema(entry.schema)) delete content[key];
+	}
+}
+/** The allowed properties for an OpenAPI 3.x ExampleObject */
+const EXAMPLE_OBJECT_PROPERTIES = /* @__PURE__ */ new Set([
+	"summary",
+	"description",
+	"value",
+	"externalValue"
+]);
+/**
+* Checks if a value is a valid OpenAPI 3.x ExampleObject.
+*
+* An ExampleObject must have a `value` (or `externalValue`) property and can only contain
+* properties from the allowed set: `summary`, `description`, `value`, `externalValue`.
+*
+* This prevents false positives when user's example data happens to have a `value` property
+* (e.g., `{ value: "some data", count: 5 }` should NOT be treated as an ExampleObject).
+*/
+function isExampleObject(value) {
+	if (typeof value !== "object" || value === null) return false;
+	const obj = value;
+	const hasValueOrExternalValue = "value" in obj || "externalValue" in obj;
+	const onlyHasAllowedProperties = Object.keys(obj).every((key) => EXAMPLE_OBJECT_PROPERTIES.has(key));
+	return hasValueOrExternalValue && onlyHasAllowedProperties;
+}
+/** Wraps a value as an ExampleObject, preserving existing structure if valid */
+function wrapAsExampleObject(value) {
+	if (isExampleObject(value)) return value;
+	return { value };
+}
+/**
+* True if the key looks like a MIME media type (e.g. application/json, text/plain).
+* Used to distinguish media-type example keys from named example keys when migrating
+* Swagger 2.0 examples to OpenAPI 3.0 content. Requires exactly one slash and
+* token-style type/subtype (no spaces or semicolons) to avoid false positives
+* for named keys that contain a slash (e.g. "Error 404/Not Found").
+*/
+const MEDIA_TYPE_KEY_PATTERN = /^[a-zA-Z0-9*+.-]+\/[a-zA-Z0-9*+.+-]+$/;
+function isMediaTypeKey(key) {
+	return MEDIA_TYPE_KEY_PATTERN.test(key);
+}
+/** Transforms x-example entries to OpenAPI 3.x examples format */
+function transformXExampleToExamples(xExample) {
+	return Object.entries(xExample).reduce((acc, [key, value]) => {
+		acc[key] = { value };
+		return acc;
+	}, {});
+}
+/** Update the flow names to OpenAPI 3.1.0 format */
+const upgradeFlow = (flow) => {
+	switch (flow) {
+		case "application": return "clientCredentials";
+		case "accessCode": return "authorizationCode";
+		case "implicit": return "implicit";
+		case "password": return "password";
+		default: return flow;
+	}
+};
+/**
+* Upgrade Swagger 2.0 to OpenAPI 3.0
+*
+* https://swagger.io/blog/news/whats-new-in-openapi-3-0/
+*/
+function upgradeFromTwoToThree(originalSpecification) {
+	let document = originalSpecification;
+	if (document !== null && typeof document === "object" && typeof document.swagger === "string" && document.swagger?.startsWith("2.0")) {
+		document.openapi = "3.0.4";
+		delete document.swagger;
+	} else return document;
+	if (document.host) {
+		const schemes = Array.isArray(document.schemes) && document.schemes?.length ? document.schemes : ["http"];
+		document.servers = schemes.map((scheme) => ({ url: `${scheme}://${document.host}${document.basePath ?? ""}` }));
+		delete document.basePath;
+		delete document.schemes;
+		delete document.host;
+	} else if (document.basePath) {
+		document.servers = [{ url: document.basePath }];
+		delete document.basePath;
+	}
+	if (document.definitions) {
+		document.components = Object.assign({}, document.components, { schemas: document.definitions });
+		delete document.definitions;
+		document = traverse(document, (schema) => {
+			if (typeof schema.$ref === "string" && schema.$ref.startsWith("#/definitions/")) schema.$ref = schema.$ref.replace(/^#\/definitions\//, "#/components/schemas/");
+			return schema;
+		});
+	}
+	document = traverse(document, (schema) => {
+		if (schema.type === "file") {
+			schema.type = "string";
+			schema.format = "binary";
+		}
+		return schema;
+	});
+	if (Object.hasOwn(document, "parameters")) {
+		document = traverse(document, (schema) => {
+			if (typeof schema.$ref === "string" && schema.$ref.startsWith("#/parameters/")) {
+				const schemaName = schema.$ref.split("/")[2];
+				if (!schemaName) return schema;
+				const param = isObjectLike(document.parameters) && schemaName in document.parameters ? document.parameters[schemaName] : void 0;
+				if (param && typeof param === "object" && "in" in param && (param.in === "body" || param.in === "formData")) schema.$ref = schema.$ref.replace(/^#\/parameters\//, "#/components/requestBodies/");
+				else schema.$ref = schema.$ref.replace(/^#\/parameters\//, "#/components/parameters/");
+			}
+			return schema;
+		});
+		document.components ??= {};
+		const params = {};
+		const bodyParams = {};
+		const parameters = isObjectLike(document.parameters) ? document.parameters : {};
+		for (const [name, param] of Object.entries(parameters)) if (param && typeof param === "object") {
+			if ("$ref" in param) params[name] = transformParameterObject(param);
+			else if ("in" in param) {
+				if (param.in === "body") bodyParams[name] = migrateBodyParameter(param, document.consumes ?? [DEFAULT_MEDIA_TYPE]);
+				else if (param.in === "formData") bodyParams[name] = migrateFormDataParameter([param], document.consumes);
+				else params[name] = transformParameterObject(param);
+			}
+		}
+		if (Object.keys(params).length > 0) document.components.parameters = params;
+		if (Object.keys(bodyParams).length > 0) document.components.requestBodies = bodyParams;
+		delete document.parameters;
+	}
+	if (Object.hasOwn(document, "responses") && typeof document.responses === "object" && document.responses !== null) {
+		document = traverse(document, (schema) => {
+			if (typeof schema.$ref === "string" && schema.$ref.startsWith("#/responses/")) schema.$ref = schema.$ref.replace(/^#\/responses\//, "#/components/responses/");
+			return schema;
+		});
+		document.components ??= {};
+		const migratedResponses = {};
+		const responses = document.responses;
+		for (const [name, response] of Object.entries(responses)) if (isObjectLike(response)) {
+			if ("$ref" in response) migratedResponses[name] = response;
+			else {
+				const responseObj = response;
+				const produces = document.produces ?? [DEFAULT_MEDIA_TYPE];
+				if (responseObj.schema) {
+					if (typeof responseObj.content !== "object") responseObj.content = {};
+					for (const type of produces) responseObj.content[type] = { schema: responseObj.schema };
+					delete responseObj.schema;
+				}
+				if (responseObj.examples && typeof responseObj.examples === "object") {
+					if (typeof responseObj.content !== "object") responseObj.content = {};
+					const defaultMediaType = produces[0] ?? DEFAULT_MEDIA_TYPE;
+					for (const [key, exampleValue] of Object.entries(responseObj.examples)) if (isMediaTypeKey(key)) {
+						if (typeof responseObj.content[key] !== "object") responseObj.content[key] = {};
+						responseObj.content[key].example = exampleValue;
+					} else {
+						if (typeof responseObj.content[defaultMediaType] !== "object") responseObj.content[defaultMediaType] = {};
+						const mediaEntry = responseObj.content[defaultMediaType];
+						if (typeof mediaEntry.examples !== "object") mediaEntry.examples = {};
+						mediaEntry.examples[key] = wrapAsExampleObject(exampleValue);
+					}
+					delete responseObj.examples;
+				}
+				if (responseObj.content && typeof responseObj.content === "object") removeEmptySchemaOnlyContentEntries(responseObj.content);
+				if (isObjectLike(responseObj.headers)) responseObj.headers = Object.entries(responseObj.headers).reduce((acc, [headerName, header]) => {
+					if (header && typeof header === "object") return {
+						[headerName]: transformResponseHeader(header),
+						...acc
+					};
+					return acc;
+				}, {});
+				migratedResponses[name] = responseObj;
+			}
+		}
+		if (Object.keys(migratedResponses).length > 0) document.components.responses = migratedResponses;
+		delete document.responses;
+	}
+	if (typeof document.paths === "object") {
+		for (const path in document.paths) if (Object.hasOwn(document.paths, path)) {
+			const pathItem = isObjectLike(document.paths) && path in document.paths ? document.paths[path] : void 0;
+			if (!pathItem || typeof pathItem !== "object") continue;
+			let requestBodyObject;
+			for (const methodOrParameters in pathItem) if (methodOrParameters === "parameters" && Object.hasOwn(pathItem, methodOrParameters)) {
+				const pathItemParameters = migrateParameters(pathItem.parameters, document.consumes ?? [DEFAULT_MEDIA_TYPE]);
+				pathItem.parameters = pathItemParameters.parameters;
+				requestBodyObject = pathItemParameters.requestBody;
+			} else if (Object.hasOwn(pathItem, methodOrParameters)) {
+				const operationItem = pathItem[methodOrParameters];
+				if (requestBodyObject) operationItem.requestBody = requestBodyObject;
+				if (operationItem.parameters) {
+					const migrationResult = migrateParameters(operationItem.parameters, operationItem.consumes ?? document.consumes ?? [DEFAULT_MEDIA_TYPE]);
+					operationItem.parameters = migrationResult.parameters;
+					if (migrationResult.requestBody) operationItem.requestBody = migrationResult.requestBody;
+				}
+				delete operationItem.consumes;
+				if (operationItem.responses) {
+					for (const response in operationItem.responses) if (Object.hasOwn(operationItem.responses, response)) {
+						const responseItem = operationItem.responses[response];
+						if (responseItem.headers && typeof responseItem.headers === "object") responseItem.headers = Object.entries(responseItem.headers).reduce((acc, [name, header]) => {
+							if (header && typeof header === "object") return {
+								[name]: transformResponseHeader(header),
+								...acc
+							};
+							return acc;
+						}, {});
+						if (responseItem.schema) {
+							const produces = document.produces ?? operationItem.produces ?? [DEFAULT_MEDIA_TYPE];
+							if (typeof responseItem.content !== "object") responseItem.content = {};
+							for (const type of produces) responseItem.content[type] = { schema: responseItem.schema };
+							delete responseItem.schema;
+						}
+						if (responseItem.examples && typeof responseItem.examples === "object") {
+							if (typeof responseItem.content !== "object") responseItem.content = {};
+							const defaultMediaType = (document.produces ?? operationItem.produces ?? [DEFAULT_MEDIA_TYPE])[0] ?? DEFAULT_MEDIA_TYPE;
+							for (const [key, exampleValue] of Object.entries(responseItem.examples)) if (isMediaTypeKey(key)) {
+								if (typeof responseItem.content[key] !== "object") responseItem.content[key] = {};
+								responseItem.content[key].example = exampleValue;
+							} else {
+								if (typeof responseItem.content[defaultMediaType] !== "object") responseItem.content[defaultMediaType] = {};
+								const mediaEntry = responseItem.content[defaultMediaType];
+								if (typeof mediaEntry.examples !== "object") mediaEntry.examples = {};
+								mediaEntry.examples[key] = wrapAsExampleObject(exampleValue);
+							}
+							delete responseItem.examples;
+						}
+						if (responseItem.content && typeof responseItem.content === "object") removeEmptySchemaOnlyContentEntries(responseItem.content);
+					}
+				}
+				delete operationItem.produces;
+				if (operationItem.parameters?.length === 0) delete operationItem.parameters;
+			}
+		}
+	}
+	if (document.securityDefinitions) {
+		if (typeof document.components !== "object" || document.components === null) document.components = {};
+		if (document.components && typeof document.components === "object") Object.assign(document.components, { securitySchemes: {} });
+		for (const [key, securityScheme] of Object.entries(document.securityDefinitions)) if (typeof securityScheme === "object") {
+			if ("type" in securityScheme && securityScheme.type === "oauth2") {
+				const { flow, authorizationUrl, tokenUrl, scopes } = securityScheme;
+				if (document.components && typeof document.components === "object" && "securitySchemes" in document.components && document.components.securitySchemes) Object.assign(document.components.securitySchemes, { [key]: {
+					type: "oauth2",
+					flows: { [upgradeFlow(flow || "implicit")]: Object.assign({}, authorizationUrl && { authorizationUrl }, tokenUrl && { tokenUrl }, scopes && { scopes }) }
+				} });
+			} else if ("type" in securityScheme && securityScheme.type === "basic") {
+				if (document.components && typeof document.components === "object" && "securitySchemes" in document.components && document.components.securitySchemes) Object.assign(document.components.securitySchemes, { [key]: {
+					type: "http",
+					scheme: "basic"
+				} });
+			} else if (document.components && typeof document.components === "object" && "securitySchemes" in document.components && document.components.securitySchemes) Object.assign(document.components.securitySchemes, { [key]: securityScheme });
+		}
+		delete document.securityDefinitions;
+	}
+	delete document.consumes;
+	delete document.produces;
+	return document;
+}
+function transformItemsObject(obj) {
+	return [
+		"type",
+		"format",
+		"default",
+		"items",
+		"maximum",
+		"exclusiveMaximum",
+		"minimum",
+		"exclusiveMinimum",
+		"maxLength",
+		"minLength",
+		"pattern",
+		"maxItems",
+		"minItems",
+		"uniqueItems",
+		"enum",
+		"multipleOf"
+	].reduce((acc, property) => {
+		if (Object.hasOwn(obj, property)) {
+			acc[property] = obj[property];
+			delete obj[property];
+		}
+		return acc;
+	}, {});
+}
+function getParameterLocation(location) {
+	if (location === "formData") throw new Error("Encountered a formData parameter which should have been filtered out by the caller");
+	if (location === "body") throw new Error("Encountered a body parameter which should have been filtered out by the caller");
+	return location;
+}
+function transformParameterObject(parameter) {
+	if (Object.hasOwn(parameter, "$ref") && typeof parameter.$ref === "string") return { $ref: parameter.$ref };
+	const serializationStyle = getParameterSerializationStyle(parameter);
+	const schema = transformItemsObject(parameter);
+	const { xExample, xExamples } = extractXExampleExtensions(parameter);
+	if (isNonEmptyObject(xExample)) parameter.examples = transformXExampleToExamples(xExample);
+	else if (isNonEmptyObject(xExamples)) parameter.examples = Object.entries(xExamples).reduce((acc, [key, exampleValue]) => {
+		acc[key] = wrapAsExampleObject(exampleValue);
+		return acc;
+	}, {});
+	delete parameter.collectionFormat;
+	delete parameter.default;
+	if (!parameter.in) throw new Error("Parameter object must have an \"in\" property");
+	return {
+		schema,
+		...serializationStyle,
+		...parameter,
+		in: getParameterLocation(parameter.in)
+	};
+}
+/**
+* Transform OpenAPI 2.0 response header to OpenAPI 3.0 format.
+* Response headers do not have "in", "name", "style", or "explode" properties.
+*/
+function transformResponseHeader(header) {
+	if (Object.hasOwn(header, "$ref") && typeof header.$ref === "string") return { $ref: header.$ref };
+	const schema = transformItemsObject(header);
+	return {
+		...header,
+		schema
+	};
+}
+const querySerialization = {
+	ssv: {
+		style: "spaceDelimited",
+		explode: false
+	},
+	pipes: {
+		style: "pipeDelimited",
+		explode: false
+	},
+	multi: {
+		style: "form",
+		explode: true
+	},
+	csv: {
+		style: "form",
+		explode: false
+	},
+	tsv: {}
+};
+const pathAndHeaderSerialization = {
+	ssv: {},
+	pipes: {},
+	multi: {},
+	csv: {
+		style: "simple",
+		explode: false
+	},
+	tsv: {}
+};
+const serializationStyles = {
+	header: pathAndHeaderSerialization,
+	query: querySerialization,
+	path: pathAndHeaderSerialization
+};
+function getParameterSerializationStyle(parameter) {
+	if (parameter.type !== "array" || !(parameter.in === "query" || parameter.in === "path" || parameter.in === "header")) return {};
+	const collectionFormat = parameter.collectionFormat ?? "csv";
+	if (parameter.in in serializationStyles && collectionFormat in serializationStyles[parameter.in]) return serializationStyles[parameter.in][collectionFormat];
+	return {};
+}
+/**
+* Translate the Swagger 2.0 `collectionFormat` of a formData array parameter into an OpenAPI 3.0
+* encoding entry. Form bodies serialize arrays with the same styles as query parameters, so the
+* query serialization mapping is reused. Returns undefined when there is nothing to preserve, for
+* example a non-array parameter, one without a `collectionFormat`, or `tsv` which has no OpenAPI
+* 3.0 equivalent.
+*/
+function getFormDataEncoding(parameter) {
+	if (parameter.type !== "array" || typeof parameter.collectionFormat !== "string") return;
+	const encoding = querySerialization[parameter.collectionFormat];
+	if (!encoding || Object.keys(encoding).length === 0) return;
+	return encoding;
+}
+function migrateBodyParameter(bodyParameter, consumes) {
+	const { xExample, xExamples } = extractXExampleExtensions(bodyParameter);
+	delete bodyParameter.name;
+	delete bodyParameter.in;
+	const { schema, ...requestBody } = bodyParameter;
+	const requestBodyObject = {
+		content: {},
+		...requestBody
+	};
+	if (requestBodyObject.content) for (const type of consumes) {
+		requestBodyObject.content[type] = { schema };
+		if (isNonEmptyObject(xExamples) && type in xExamples) {
+			const examples = xExamples[type];
+			if (isNonEmptyObject(examples) && Object.values(examples).every((example) => isExampleObject(example))) requestBodyObject.content[type].examples = examples;
+			else if (isNamedExamplesCollection(examples)) requestBodyObject.content[type].examples = Object.entries(examples).reduce((acc, [key, exampleValue]) => {
+				acc[key] = wrapAsExampleObject(exampleValue);
+				return acc;
+			}, {});
+			else requestBodyObject.content[type].examples = { default: wrapAsExampleObject(examples) };
+		} else if (isNonEmptyObject(xExamples) && !Object.keys(xExamples).some(isMediaTypeKey)) requestBodyObject.content[type].examples = Object.entries(xExamples).reduce((acc, [key, exampleValue]) => {
+			acc[key] = wrapAsExampleObject(exampleValue);
+			return acc;
+		}, {});
+		if (!requestBodyObject.content[type].examples && isNonEmptyObject(xExample) && type in xExample) requestBodyObject.content[type].example = xExample[type];
+	}
+	return requestBodyObject;
+}
+function migrateFormDataParameter(parameters, consumes = ["multipart/form-data"]) {
+	const requestBodyObject = { content: {} };
+	const filtered = consumes.filter((type) => type === "multipart/form-data" || type === "application/x-www-form-urlencoded");
+	const contentTypes = filtered.length > 0 ? filtered : ["multipart/form-data"];
+	if (requestBodyObject.content) for (const contentType of contentTypes) {
+		requestBodyObject.content[contentType] = { schema: {
+			type: "object",
+			properties: {},
+			required: []
+		} };
+		const formContent = requestBodyObject.content?.[contentType];
+		if (formContent?.schema && typeof formContent.schema === "object" && "properties" in formContent.schema) {
+			for (const param of parameters) if (param.name && formContent.schema.properties) {
+				formContent.schema.properties[param.name] = {
+					...transformItemsObject(structuredClone(param)),
+					...param.description !== void 0 ? { description: param.description } : {}
+				};
+				const encoding = getFormDataEncoding(param);
+				if (encoding) {
+					formContent.encoding ??= {};
+					formContent.encoding[param.name] = encoding;
+				}
+				if (param.required && Array.isArray(formContent.schema.required)) formContent.schema.required.push(param.name);
+			}
+		}
+	}
+	return requestBodyObject;
+}
+function migrateParameters(parameters, consumes) {
+	const result = { parameters: parameters.filter((parameter) => !(parameter.in === "body" || parameter.in === "formData")).map((parameter) => transformParameterObject(parameter)) };
+	const bodyParameter = structuredClone(parameters.find((parameter) => parameter.in === "body") ?? {});
+	if (bodyParameter && Object.keys(bodyParameter).length) result.requestBody = migrateBodyParameter(bodyParameter, consumes);
+	const formDataParameters = parameters.filter((parameter) => parameter.in === "formData");
+	if (formDataParameters.length > 0) {
+		const requestBodyObject = migrateFormDataParameter(formDataParameters, consumes);
+		if (typeof result.requestBody !== "object") result.requestBody = requestBodyObject;
+		else result.requestBody = {
+			...result.requestBody,
+			content: {
+				...result.requestBody.content,
+				...requestBodyObject.content
+			}
+		};
+		if (typeof result.requestBody !== "object") result.requestBody = { content: {} };
+	}
+	return result;
+}
+//#endregion
 //#region ../contract/src/spec.ts
 var ContractError = class extends Error {
 	constructor(message) {
@@ -10955,6 +11509,8 @@ var ContractError = class extends Error {
 		this.name = "ContractError";
 	}
 };
+/** What converts a Swagger 2.0 document, pinned and named in every contract it produced. */
+const SWAGGER_CONVERTER = "@scalar/openapi-upgrader@0.2.16 2.0-to-3.0";
 /**
 * Places whose contents describe an API without constraining the wire, so a
 * reference that dangles inside one is not a reason to refuse the document.
@@ -11039,7 +11595,24 @@ function ambiguousPaths(document) {
 	}
 	return [...byShape.values()].filter((group) => group.length > 1);
 }
-function normalizeDocument(document) {
+/**
+* A Swagger 2.0 document as the OpenAPI 3.0 it describes.
+*
+* Kubernetes, Slack, Square, Docker Engine, Gitea and GitLab still publish
+* 2.0, and refusing it left them out of everything. Converted to 3.0 rather
+* than 3.1, as the smallest step from what was published. The input is never
+* mutated.
+*/
+function upgradeSwagger(document) {
+	const converted = upgradeFromTwoToThree(structuredClone(document));
+	if (!isJsonObject(converted)) throw new ContractError("The Swagger 2.0 document could not be converted");
+	return converted;
+}
+function isSwagger2(document) {
+	return document["swagger"] === "2.0";
+}
+function normalizeDocument(input) {
+	const document = isSwagger2(input) ? upgradeSwagger(input) : input;
 	assertRefsResolve(document);
 	const version = document["openapi"];
 	if (typeof version !== "string" || !version.startsWith("3.")) throw new ContractError(`Only OpenAPI 3.x is supported, got ${String(version)}`);
@@ -11051,7 +11624,11 @@ function contractOf(label, document) {
 	return {
 		label,
 		digest: digestOf(stripNonWire(normalized)),
-		document: normalized
+		document: normalized,
+		...isSwagger2(document) ? { convertedFrom: {
+			format: "swagger-2.0",
+			by: SWAGGER_CONVERTER
+		} } : {}
 	};
 }
 async function loadContract(path, label) {
@@ -12538,6 +13115,30 @@ function routeChangeFor(steps, method, path) {
 * `steps` runs oldest first. The program for contract N is built from step N
 * onward, so each active contract gets a direct path to current.
 */
+/**
+* The path every server of a contract serves the API under, when they agree
+* on one. `https://api.example.com/v1` and `/v1` both give `/v1`. Servers that
+* disagree, or a URL with a variable in its path, give nothing, rather than a
+* guess that would stop every request matching.
+*/
+function basePathOf(document) {
+	const servers = document?.["servers"];
+	if (!Array.isArray(servers) || servers.length === 0) return void 0;
+	const paths = /* @__PURE__ */ new Set();
+	for (const server of servers) {
+		const url = isJsonObject(server) ? server["url"] : void 0;
+		if (typeof url !== "string" || url.includes("{")) return void 0;
+		let path;
+		try {
+			path = new URL(url, "http://base.invalid").pathname;
+		} catch {
+			return;
+		}
+		paths.add(path.replace(/\/+$/, ""));
+	}
+	const [only] = [...paths];
+	return paths.size === 1 && only !== void 0 && only !== "" ? only : void 0;
+}
 function chainProgram(api, currentLabel, currentDigest, steps) {
 	const issues = [];
 	const contracts = {};
@@ -12548,10 +13149,12 @@ function chainProgram(api, currentLabel, currentDigest, steps) {
 		issues.push(...chained.issues);
 		contracts[label] = chained.program;
 	});
+	const base = basePathOf(steps.at(-1)?.to);
 	return {
 		program: {
 			irVersion: 1,
 			api,
+			...base === void 0 ? {} : { basePath: base },
 			current: currentDigest,
 			currentLabel,
 			contracts
@@ -26506,8 +27109,11 @@ function decodeProgram(raw) {
 		"api",
 		"current",
 		"currentLabel",
-		"contracts"
+		"contracts",
+		"basePath"
 	], "program");
+	const basePath = value["basePath"];
+	if (basePath !== void 0 && (typeof basePath !== "string" || !basePath.startsWith("/") || basePath.endsWith("/"))) throw new ProgramError("program.basePath must be a path such as /v1, without a trailing /");
 	if (value["irVersion"] !== 1) throw new ProgramError(`Unsupported IR version ${String(value["irVersion"])}`);
 	const contracts = /* @__PURE__ */ new Map();
 	for (const [label, entry] of Object.entries(object(value["contracts"], "program.contracts"))) {
@@ -26547,7 +27153,8 @@ function decodeProgram(raw) {
 		api: string(value["api"], "program.api"),
 		current: string(value["current"], "program.current"),
 		currentLabel: string(value["currentLabel"], "program.currentLabel"),
-		contracts
+		contracts,
+		basePath: basePath ?? ""
 	};
 }
 const PARAMETER = /\{[^{}]+\}/g;
@@ -26792,8 +27399,25 @@ var InvariantRuntime = class {
 	* only if every contract that knows it agrees on where it went; disagreement
 	* is left alone rather than guessed at.
 	*/
-	route(method, path, headers) {
-		const hint = this.hintFrom(headers, path);
+	/**
+	* A request's path as the contract writes it: the base path the API is
+	* served under taken off. Undefined for a path outside it, which is not a
+	* call to this API and is never touched.
+	*/
+	#local(path) {
+		const base = this.#program.basePath;
+		if (base === "") return path;
+		if (path === base) return "/";
+		return path.startsWith(`${base}/`) ? path.slice(base.length) : void 0;
+	}
+	route(method, full, headers) {
+		const hint = this.hintFrom(headers, full);
+		const path = this.#local(full);
+		if (path === void 0) return {
+			path: full,
+			hint,
+			rewritten: false
+		};
 		const candidates = hint ? [this.#program.contracts.get(hint.label)].filter((contract) => contract !== void 0) : [...this.#program.contracts.values()];
 		const matches = /* @__PURE__ */ new Map();
 		for (const contract of candidates) for (const rule of contract.routes) {
@@ -26803,13 +27427,13 @@ var InvariantRuntime = class {
 			matches.set(fillTemplate(rule.to, params), { label: contract.label });
 		}
 		if (matches.size !== 1) return {
-			path,
+			path: full,
 			hint,
 			rewritten: false
 		};
 		const [target, origin] = [...matches.entries()][0];
 		return {
-			path: target,
+			path: `${this.#program.basePath}${target}`,
 			hint: hint ?? {
 				label: origin.label,
 				source: "route"
@@ -26881,20 +27505,23 @@ var InvariantRuntime = class {
 	* that dropped an operation its server still serves must not become an
 	* outage the adapter caused.
 	*/
-	retiredFor(label, method, path) {
+	retiredFor(label, method, full) {
 		if (label === this.#program.currentLabel) return void 0;
+		const path = this.#local(full);
 		const contract = this.#program.contracts.get(label);
-		const gone = contract && this.#retiredIn(contract, method, path);
+		const gone = contract && path !== void 0 && this.#retiredIn(contract, method, path);
 		if (!gone || gone.refuse) return void 0;
-		return new RetiredEndpointError(label, method, path, gone.c, gone.guidance);
+		return new RetiredEndpointError(label, method, full, gone.c, gone.guidance);
 	}
-	#siteFor(label, method, path) {
+	#siteFor(label, method, full) {
 		if (label === this.#program.currentLabel) return void 0;
+		const path = this.#local(full);
+		if (path === void 0) return void 0;
 		const flags = this.#flags();
 		const contract = this.#program.contracts.get(label);
 		if (!contract) throw new UnsupportedContractError(label, "no compiled program for this contract");
 		const gone = this.#retiredIn(contract, method, path);
-		if (gone?.refuse) throw new RetiredEndpointError(label, method, path, gone.c, gone.guidance);
+		if (gone?.refuse) throw new RetiredEndpointError(label, method, full, gone.c, gone.guidance);
 		if (flags.allDisabled) throw new UnsupportedContractError(label, "compatibility is switched off");
 		if (flags.disabledContracts?.includes(label)) throw new UnsupportedContractError(label, "this contract is switched off");
 		const site = findSite(contract, method, path);

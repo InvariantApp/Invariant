@@ -256,6 +256,42 @@ describe("an old caller, through the proxy", () => {
   });
 });
 
+/**
+ * An API served under a path, as `https://api.example.com/v1` or a Swagger
+ * 2.0 basePath gives it. The contract's paths are relative to it, and without
+ * taking it off first no request matched anything, so old callers were passed
+ * through untranslated.
+ */
+describe("an API served under a base path", () => {
+  const underV1 = { ...PROGRAM, basePath: "/api" };
+  const proxyUnder = (fetchImpl: typeof fetch) =>
+    createProxy({
+      runtime: createRuntime({
+        program: underV1,
+        identity: [
+          { kind: "header", name: "payments-version" },
+          { kind: "default", label: "2026-09-20" },
+        ],
+      }),
+      upstream: "http://api.internal:8080",
+      fetch: fetchImpl,
+    });
+
+  it("routes and transforms an old caller under it, and keeps it on the way out", async () => {
+    const { fetchImpl, calls } = upstream(() => jsonAnswer({ amount_cents: 500 }));
+    await proxyUnder(fetchImpl)(post("/api/v1/charges", { amount: 500 }, "2026-01-01"));
+    expect(calls[0]?.url).toBe("http://api.internal:8080/api/v1/payments");
+    expect(JSON.parse(calls[0]?.body ?? "{}")).toEqual({ amount_cents: 500 });
+  });
+
+  it("leaves a path outside it alone", async () => {
+    const { fetchImpl, calls } = upstream(() => jsonAnswer({}));
+    await proxyUnder(fetchImpl)(post("/v1/charges", { amount: 500 }, "2026-01-01"));
+    expect(calls[0]?.url).toBe("http://api.internal:8080/v1/charges");
+    expect(JSON.parse(calls[0]?.body ?? "{}")).toEqual({ amount: 500 });
+  });
+});
+
 describe("numbers a double cannot hold", () => {
   // Found by the Rig F fuzzers. The provider was sent {"amount_cents":null}.
   it("reach the provider, and come back, exactly as they were written", async () => {

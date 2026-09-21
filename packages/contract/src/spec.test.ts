@@ -15,9 +15,11 @@ import { findSchemaSites } from "./sites.ts";
 import {
   ambiguousPaths,
   ContractError,
+  contractOf,
   normalizeDocument,
   type OpenApiDocument,
   operationsOf,
+  SWAGGER_CONVERTER,
 } from "./spec.ts";
 
 const base = { openapi: "3.1.0", info: { title: "t", version: "1" } };
@@ -270,9 +272,82 @@ describe("documents with nothing to serve", () => {
     expect(() => normalizeDocument(doc({}))).toThrow(/no paths or webhooks/);
   });
 
-  it("refuses anything that is not OpenAPI 3", () => {
+  it("refuses anything that is neither OpenAPI 3 nor Swagger 2.0", () => {
     expect(() =>
-      normalizeDocument({ swagger: "2.0", paths: {} } as unknown as OpenApiDocument),
+      normalizeDocument({ swagger: "1.2", paths: {} } as unknown as OpenApiDocument),
     ).toThrow(/Only OpenAPI 3.x/);
+  });
+});
+
+/**
+ * Kubernetes, Slack, Square, Docker Engine, Gitea and GitLab publish Swagger
+ * 2.0, and refusing it left all of them out.
+ */
+describe("a Swagger 2.0 document", () => {
+  const swagger = {
+    swagger: "2.0",
+    info: { title: "pets", version: "1" },
+    basePath: "/v1",
+    consumes: ["application/json"],
+    produces: ["application/json"],
+    paths: {
+      "/pets": {
+        post: {
+          operationId: "createPet",
+          parameters: [
+            {
+              in: "body",
+              name: "pet",
+              required: true,
+              schema: { $ref: "#/definitions/Pet" },
+            },
+            { in: "query", name: "dry_run", type: "boolean" },
+          ],
+          responses: {
+            "201": { description: "made", schema: { $ref: "#/definitions/Pet" } },
+          },
+        },
+      },
+    },
+    definitions: {
+      Pet: {
+        type: "object",
+        required: ["name"],
+        properties: { name: { type: "string" }, tag: { type: "string" } },
+      },
+    },
+  } as unknown as OpenApiDocument;
+
+  it("is read as the OpenAPI 3.0 it describes", () => {
+    const contract = contractOf("1", swagger);
+    // biome-ignore lint/suspicious/noExplicitAny: a converted document, read loosely
+    const document = contract.document as Record<string, any>;
+    expect(document["openapi"]).toMatch(/^3\.0/);
+    expect(document["components"].schemas.Pet.required).toEqual(["name"]);
+    const post = document["paths"]["/pets"].post;
+    expect(post.requestBody.content["application/json"].schema).toEqual({
+      $ref: "#/components/schemas/Pet",
+    });
+    expect(post.responses["201"].content["application/json"].schema).toEqual({
+      $ref: "#/components/schemas/Pet",
+    });
+    expect(post.parameters).toEqual([
+      expect.objectContaining({
+        in: "query",
+        name: "dry_run",
+        schema: { type: "boolean" },
+      }),
+    ]);
+  });
+
+  it("says it was converted, and by what, and leaves the original alone", () => {
+    const before = JSON.stringify(swagger);
+    const contract = contractOf("1", swagger);
+    expect(contract.convertedFrom).toEqual({
+      format: "swagger-2.0",
+      by: SWAGGER_CONVERTER,
+    });
+    expect(JSON.stringify(swagger)).toBe(before);
+    expect(contractOf("1", swagger).digest).toBe(contract.digest);
   });
 });

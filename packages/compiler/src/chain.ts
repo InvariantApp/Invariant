@@ -20,7 +20,7 @@ import type {
   RouteRule,
   SiteProgram,
 } from "@invariant/ir";
-import { IR_VERSION, siteKey } from "@invariant/ir";
+import { IR_VERSION, isJsonObject, siteKey } from "@invariant/ir";
 import { mapEndpoint, type RouteMapping, routeMappings } from "./predict.ts";
 import { type ProjectionIssue, projectStep } from "./project.ts";
 
@@ -187,6 +187,31 @@ function routeChangeFor(
  * `steps` runs oldest first. The program for contract N is built from step N
  * onward, so each active contract gets a direct path to current.
  */
+/**
+ * The path every server of a contract serves the API under, when they agree
+ * on one. `https://api.example.com/v1` and `/v1` both give `/v1`. Servers that
+ * disagree, or a URL with a variable in its path, give nothing, rather than a
+ * guess that would stop every request matching.
+ */
+export function basePathOf(document: OpenApiDocument | undefined): string | undefined {
+  const servers = document?.["servers"];
+  if (!Array.isArray(servers) || servers.length === 0) return undefined;
+  const paths = new Set<string>();
+  for (const server of servers) {
+    const url = isJsonObject(server) ? server["url"] : undefined;
+    if (typeof url !== "string" || url.includes("{")) return undefined;
+    let path: string;
+    try {
+      path = new URL(url, "http://base.invalid").pathname;
+    } catch {
+      return undefined;
+    }
+    paths.add(path.replace(/\/+$/, ""));
+  }
+  const [only] = [...paths];
+  return paths.size === 1 && only !== undefined && only !== "" ? only : undefined;
+}
+
 export function chainProgram(
   api: string,
   currentLabel: string,
@@ -208,10 +233,12 @@ export function chainProgram(
     contracts[label] = chained.program;
   });
 
+  const base = basePathOf(steps.at(-1)?.to);
   return {
     program: {
       irVersion: IR_VERSION,
       api,
+      ...(base === undefined ? {} : { basePath: base }),
       current: currentDigest,
       currentLabel,
       contracts,

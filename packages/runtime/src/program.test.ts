@@ -115,6 +115,18 @@ describe("decoding", () => {
     );
   });
 
+  it("accepts a base path, and refuses one that is not a path", () => {
+    expect(decodeProgram({ ...(program({}) as object), basePath: "/v1" }).basePath).toBe(
+      "/v1",
+    );
+    expect(decodeProgram(program({})).basePath).toBe("");
+    for (const bad of ["v1", "/v1/", 7]) {
+      expect(() => decodeProgram({ ...(program({}) as object), basePath: bad })).toThrow(
+        ProgramError,
+      );
+    }
+  });
+
   it("rejects a program that is not an object at all", () => {
     expect(() => decodeProgram("nope")).toThrow(ProgramError);
     expect(() => decodeProgram(null)).toThrow(ProgramError);

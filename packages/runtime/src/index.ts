@@ -427,8 +427,22 @@ export class InvariantRuntime {
    * only if every contract that knows it agrees on where it went; disagreement
    * is left alone rather than guessed at.
    */
-  route(method: string, path: string, headers: Headers): RouteDecision {
-    const hint = this.hintFrom(headers, path);
+  /**
+   * A request's path as the contract writes it: the base path the API is
+   * served under taken off. Undefined for a path outside it, which is not a
+   * call to this API and is never touched.
+   */
+  #local(path: string): string | undefined {
+    const base = this.#program.basePath;
+    if (base === "") return path;
+    if (path === base) return "/";
+    return path.startsWith(`${base}/`) ? path.slice(base.length) : undefined;
+  }
+
+  route(method: string, full: string, headers: Headers): RouteDecision {
+    const hint = this.hintFrom(headers, full);
+    const path = this.#local(full);
+    if (path === undefined) return { path: full, hint, rewritten: false };
 
     const candidates: DecodedContract[] = hint
       ? [this.#program.contracts.get(hint.label)].filter(
@@ -447,12 +461,12 @@ export class InvariantRuntime {
     }
 
     if (matches.size !== 1) {
-      return { path, hint, rewritten: false };
+      return { path: full, hint, rewritten: false };
     }
 
     const [target, origin] = [...matches.entries()][0] as [string, { label: string }];
     return {
-      path: target,
+      path: `${this.#program.basePath}${target}`,
       hint: hint ?? { label: origin.label, source: "route" },
       rewritten: target !== path,
     };
@@ -548,17 +562,21 @@ export class InvariantRuntime {
   retiredFor(
     label: string,
     method: string,
-    path: string,
+    full: string,
   ): RetiredEndpointError | undefined {
     if (label === this.#program.currentLabel) return undefined;
+    const path = this.#local(full);
     const contract = this.#program.contracts.get(label);
-    const gone = contract && this.#retiredIn(contract, method, path);
+    const gone =
+      contract && path !== undefined && this.#retiredIn(contract, method, path);
     if (!gone || gone.refuse) return undefined;
-    return new RetiredEndpointError(label, method, path, gone.c, gone.guidance);
+    return new RetiredEndpointError(label, method, full, gone.c, gone.guidance);
   }
 
-  #siteFor(label: string, method: string, path: string): DecodedSite | undefined {
+  #siteFor(label: string, method: string, full: string): DecodedSite | undefined {
     if (label === this.#program.currentLabel) return undefined;
+    const path = this.#local(full);
+    if (path === undefined) return undefined;
 
     const flags = this.#flags();
     const contract = this.#program.contracts.get(label);
@@ -571,7 +589,7 @@ export class InvariantRuntime {
     // on is answered by the binding once the provider has answered.
     const gone = this.#retiredIn(contract, method, path);
     if (gone?.refuse) {
-      throw new RetiredEndpointError(label, method, path, gone.c, gone.guidance);
+      throw new RetiredEndpointError(label, method, full, gone.c, gone.guidance);
     }
     if (flags.allDisabled) {
       throw new UnsupportedContractError(label, "compatibility is switched off");

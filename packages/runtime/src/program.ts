@@ -53,6 +53,8 @@ export interface DecodedProgram {
   current: string;
   currentLabel: string;
   contracts: Map<string, DecodedContract>;
+  /** The path the API is served under, or empty when it is served at the root. */
+  basePath: string;
 }
 
 const SCALARS = new Set<ScalarType>(["string", "integer", "number", "boolean"]);
@@ -277,9 +279,18 @@ export function decodeProgram(raw: unknown): DecodedProgram {
   const value = object(raw, "program");
   expectKeys(
     value,
-    ["irVersion", "api", "current", "currentLabel", "contracts"],
+    ["irVersion", "api", "current", "currentLabel", "contracts", "basePath"],
     "program",
   );
+  const basePath = value["basePath"];
+  if (
+    basePath !== undefined &&
+    (typeof basePath !== "string" || !basePath.startsWith("/") || basePath.endsWith("/"))
+  ) {
+    throw new ProgramError(
+      "program.basePath must be a path such as /v1, without a trailing /",
+    );
+  }
 
   if (value["irVersion"] !== 1) {
     throw new ProgramError(`Unsupported IR version ${String(value["irVersion"])}`);
@@ -336,6 +347,7 @@ export function decodeProgram(raw: unknown): DecodedProgram {
     current: string(value["current"], "program.current"),
     currentLabel: string(value["currentLabel"], "program.currentLabel"),
     contracts,
+    basePath: (basePath as string | undefined) ?? "",
   };
 }
 

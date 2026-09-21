@@ -5,6 +5,7 @@ import {
   type JsonObject,
   type JsonValue,
 } from "@invariant/ir";
+import { upgradeFromTwoToThree } from "@scalar/openapi-upgrader/2.0-to-3.0";
 import { parse as parseYaml } from "yaml";
 import { digestOf, stripNonWire } from "./canonical.ts";
 
@@ -24,7 +25,16 @@ export interface Contract {
   label: string;
   digest: string;
   document: OpenApiDocument;
+  /**
+   * Set when the document was converted before anything read it, and by
+   * what, so a digest or a report can always be traced to the bytes the
+   * provider actually published.
+   */
+  convertedFrom?: { format: "swagger-2.0"; by: string };
 }
+
+/** What converts a Swagger 2.0 document, pinned and named in every contract it produced. */
+export const SWAGGER_CONVERTER = "@scalar/openapi-upgrader@0.2.16 2.0-to-3.0";
 
 export interface OperationRef {
   operationId: string;
@@ -145,7 +155,28 @@ export function ambiguousPaths(document: OpenApiDocument): string[][] {
   return [...byShape.values()].filter((group) => group.length > 1);
 }
 
-export function normalizeDocument(document: OpenApiDocument): OpenApiDocument {
+/**
+ * A Swagger 2.0 document as the OpenAPI 3.0 it describes.
+ *
+ * Kubernetes, Slack, Square, Docker Engine, Gitea and GitLab still publish
+ * 2.0, and refusing it left them out of everything. Converted to 3.0 rather
+ * than 3.1, as the smallest step from what was published. The input is never
+ * mutated.
+ */
+export function upgradeSwagger(document: OpenApiDocument): OpenApiDocument {
+  const converted = upgradeFromTwoToThree(structuredClone(document) as never);
+  if (!isJsonObject(converted as JsonValue)) {
+    throw new ContractError("The Swagger 2.0 document could not be converted");
+  }
+  return converted as OpenApiDocument;
+}
+
+export function isSwagger2(document: OpenApiDocument): boolean {
+  return document["swagger"] === "2.0";
+}
+
+export function normalizeDocument(input: OpenApiDocument): OpenApiDocument {
+  const document = isSwagger2(input) ? upgradeSwagger(input) : input;
   assertRefsResolve(document);
   const version = document["openapi"];
   if (typeof version !== "string" || !version.startsWith("3.")) {
@@ -168,6 +199,9 @@ export function contractOf(label: string, document: OpenApiDocument): Contract {
     label,
     digest: digestOf(stripNonWire(normalized)),
     document: normalized,
+    ...(isSwagger2(document)
+      ? { convertedFrom: { format: "swagger-2.0" as const, by: SWAGGER_CONVERTER } }
+      : {}),
   };
 }
 

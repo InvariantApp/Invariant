@@ -179,6 +179,13 @@ export const CompiledProgram = Type.Object(
     currentLabel: Type.String(),
     /** Every historical contract still served, each compiled straight to current. */
     contracts: Type.Record(Type.String(), ContractProgram),
+    /**
+     * The path the API is served under, from the contract's `servers`, such
+     * as `/v1` for `https://api.example.com/v1`. The contract's paths are
+     * relative to it, so it is taken off a request's path before matching,
+     * and put back on any path the program rewrites.
+     */
+    basePath: Type.Optional(Type.String({ pattern: "^/.+" })),
   },
   { additionalProperties: false },
 );
