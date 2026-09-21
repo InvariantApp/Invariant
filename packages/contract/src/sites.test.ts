@@ -74,9 +74,9 @@ describe("unions on the way to a schema", () => {
   });
   const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
 
-  it("refuses a schema that is reached only through a oneOf", () => {
-    // Which branch a value took is not something the runtime can tell, so a
-    // transform placed there could apply to the wrong kind of value.
+  it("refuses a schema reached through a oneOf whose branches nothing tells apart", () => {
+    // Which branch a value took is then not something the runtime can tell,
+    // so a transform placed there could apply to the wrong kind of value.
     const scan = findSchemaSites(
       document({
         type: "object",
@@ -86,8 +86,83 @@ describe("unions on the way to a schema", () => {
     );
     expect(scan.sites).toEqual([]);
     expect(scan.unsupported).toEqual([
-      "things.get response 200: /method reaches the schema through oneOf",
+      "things.get response 200: /method reaches the schema through oneOf, and nothing tells its branches apart",
     ]);
+  });
+
+  it("places a guard where a discriminator names the branch", () => {
+    const scan = findSchemaSites(
+      document({
+        type: "object",
+        properties: {
+          method: {
+            oneOf: [ref("Card"), ref("Bank")],
+            discriminator: {
+              propertyName: "kind",
+              mapping: {
+                card: "#/components/schemas/Card",
+                debit: "#/components/schemas/Card",
+              },
+            },
+          },
+        },
+      }) as never,
+      "#/components/schemas/Card",
+    );
+    expect(scan.unsupported).toEqual([]);
+    expect(scan.sites[0]).toMatchObject({
+      prefix: "/method",
+      guards: [{ at: "/method", key: "/kind", values: ["card", "debit"] }],
+    });
+  });
+
+  it("places a guard where every branch fixes a key to values of its own, as Adyen's do", () => {
+    const typed = (name: string, value: string) => ({
+      type: "object",
+      properties: { type: { type: "string", enum: [value] }, [name]: { type: "string" } },
+    });
+    const scan = findSchemaSites(
+      {
+        ...document({
+          type: "object",
+          properties: {
+            data: { type: "array", items: { oneOf: [ref("Card"), ref("Bank")] } },
+          },
+        }),
+        components: {
+          schemas: { Card: typed("last4", "scheme"), Bank: typed("iban", "sepa") },
+        },
+      } as never,
+      "#/components/schemas/Card",
+    );
+    expect(scan.unsupported).toEqual([]);
+    expect(scan.sites[0]?.guards).toEqual([
+      { at: "/data/*", key: "/type", values: ["scheme"] },
+    ]);
+  });
+
+  it("places a guard on a field only its branch requires", () => {
+    const scan = findSchemaSites(
+      {
+        ...document({ oneOf: [ref("Card"), ref("Bank")] }),
+        components: {
+          schemas: {
+            Card: {
+              type: "object",
+              required: ["last4"],
+              properties: { last4: { type: "string" } },
+            },
+            Bank: {
+              type: "object",
+              required: ["iban"],
+              properties: { iban: { type: "string" } },
+            },
+          },
+        },
+      } as never,
+      "#/components/schemas/Card",
+    );
+    expect(scan.sites[0]?.guards).toEqual([{ at: "", has: "last4" }]);
   });
 
   it("says nothing about a oneOf the schema is not part of", () => {

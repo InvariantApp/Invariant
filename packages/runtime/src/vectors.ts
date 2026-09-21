@@ -251,6 +251,124 @@ export const CONFORMANCE_VECTORS: Vector[] = [
     expect: { refuses: C },
   },
   {
+    name: "within runs a block at every element of a list",
+    why: "A Change to one element of a list is written once, relative to the element.",
+    instrs: [
+      {
+        k: "within",
+        path: "/data/*",
+        block: [{ k: "move", from: "/a", to: "/b", c: C }],
+        c: C,
+      },
+    ],
+    input: { data: [{ a: 1 }, { a: 2 }, "not an object"] },
+    expect: { output: { data: [{ b: 1 }, { b: 2 }, "not an object"] } },
+  },
+  {
+    name: "switch runs only the block for the variant the key names",
+    why:
+      "A Change to one variant of a union must not touch the others, which may " +
+      "have a field of the same name meaning something else.",
+    instrs: [
+      {
+        k: "within",
+        path: "/methods/*",
+        block: [
+          {
+            k: "switch",
+            path: "/type",
+            cases: { scheme: [{ k: "move", from: "/number", to: "/card_number", c: C }] },
+            c: C,
+          },
+        ],
+        c: C,
+      },
+    ],
+    input: {
+      methods: [
+        { type: "scheme", number: "4111" },
+        { type: "ideal", number: "NL01" },
+        { number: "no type" },
+      ],
+    },
+    expect: {
+      output: {
+        methods: [
+          { type: "scheme", card_number: "4111" },
+          { type: "ideal", number: "NL01" },
+          { number: "no type" },
+        ],
+      },
+    },
+  },
+  {
+    name: "switch reads its key once, before the block can change it",
+    why: "Which variant a value is must not depend on what the block does to it.",
+    instrs: [
+      {
+        k: "switch",
+        path: "/type",
+        cases: {
+          card: [
+            { k: "enum", path: "/type", map: { card: "scheme" }, c: C },
+            { k: "set", path: "/converted", value: true, ifAbsent: false, c: C },
+          ],
+          scheme: [{ k: "set", path: "/wrong", value: true, ifAbsent: false, c: C }],
+        },
+        c: C,
+      },
+    ],
+    input: { type: "card" },
+    expect: { output: { type: "scheme", converted: true } },
+  },
+  {
+    name: "switch on a number or a boolean matches its text",
+    why: "A discriminator is not always a string.",
+    instrs: [
+      {
+        k: "switch",
+        path: "/version",
+        cases: { "2": [{ k: "del", path: "/legacy", c: C }] },
+        c: C,
+      },
+    ],
+    input: { version: 2, legacy: "x" },
+    expect: { output: { version: 2 } },
+  },
+  {
+    name: "has runs its block only where the field is present",
+    why: "A union told apart by which field it has, rather than by a key's value.",
+    instrs: [
+      {
+        k: "has",
+        path: "/card",
+        block: [{ k: "del", path: "/card/cvc", c: C }],
+        c: C,
+      },
+    ],
+    input: { card: { number: "4111", cvc: "123" } },
+    expect: { output: { card: { number: "4111" } } },
+  },
+  {
+    name: "a key read through a wildcard is refused",
+    why: "A key is one value at one place; a wildcard would make it several.",
+    instrs: [{ k: "switch", path: "/data/*/type", cases: {}, c: C }],
+    input: {},
+    expect: { refuses: "decode" },
+  },
+  {
+    name: "blocks nested past the limit are refused",
+    why: "Each level multiplies how many places one instruction reaches.",
+    instrs: [
+      Array.from({ length: 9 }).reduce<unknown>(
+        (inner) => ({ k: "within", path: "/a", block: [inner], c: C }),
+        { k: "del", path: "/x", c: C },
+      ) as never,
+    ],
+    input: {},
+    expect: { refuses: "decode" },
+  },
+  {
     name: "a program naming a prototype key is refused",
     why:
       "`__proto__` reaches an object every other object shares. A program is " +

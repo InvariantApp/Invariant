@@ -93,7 +93,7 @@ export function formProgramFor(
 ): FormProgram {
   const types: Record<string, FormType> = {};
   for (const instr of instrs) {
-    for (const pointer of instr.k === "move" ? [instr.from] : [instr.path]) {
+    for (const pointer of readsOf(instr)) {
       typesAlong(oldDocument, old.schema, pointer, types);
     }
   }
@@ -101,6 +101,30 @@ export function formProgramFor(
     fields: { ...fieldsOf(current?.encoding), ...fieldsOf(old.encoding) },
     types,
   };
+}
+
+/**
+ * Every place an instruction reads, from the root it runs at, looking inside
+ * blocks: what a `within` block reads is read under each of its matches.
+ */
+function readsOf(instr: Instr): string[] {
+  const under = (base: string, inner: string) =>
+    formatPointer([...parsePointer(base), ...parsePointer(inner)]);
+  switch (instr.k) {
+    case "move":
+      return [instr.from];
+    case "within":
+      return [
+        instr.path,
+        ...instr.block.flatMap(readsOf).map((inner) => under(instr.path, inner)),
+      ];
+    case "switch":
+      return [instr.path, ...Object.values(instr.cases).flat().flatMap(readsOf)];
+    case "has":
+      return [instr.path, ...instr.block.flatMap(readsOf)];
+    default:
+      return [instr.path];
+  }
 }
 
 /** Whether an operation's request body can arrive as a form. */

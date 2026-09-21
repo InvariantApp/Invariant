@@ -3317,14 +3317,43 @@ const DelInstr = Type.Object({
 	ifNull: Type.Optional(Type.Literal(true)),
 	c: ChangeId
 }, { additionalProperties: false });
-const Instr = Type.Union([
+/**
+* The six primitives, and three that only choose where and whether they run.
+*
+* `within` runs a block at every place a pointer matches, with pointers in the
+* block read from there, so a Change to one element of a list is written once
+* for all of them. `switch` runs the block for the value a key holds, and
+* nothing for any other; `has` runs its block only where a field is present.
+* Together they place a Change to one variant of a union: at the union's
+* position, for the values that are that variant. The key is read once, as
+* the block is entered, so nothing inside the block can change which one ran.
+*/
+const Instr = Type.Recursive((Self) => Type.Union([
 	MoveInstr,
 	ScaleInstr,
 	EnumInstr,
 	CastInstr,
 	SetInstr,
-	DelInstr
-]);
+	DelInstr,
+	Type.Object({
+		k: Type.Literal("within"),
+		path: Pointer,
+		block: Type.Array(Self),
+		c: ChangeId
+	}, { additionalProperties: false }),
+	Type.Object({
+		k: Type.Literal("switch"),
+		path: Pointer,
+		cases: Type.Record(Type.String(), Type.Array(Self)),
+		c: ChangeId
+	}, { additionalProperties: false }),
+	Type.Object({
+		k: Type.Literal("has"),
+		path: Pointer,
+		block: Type.Array(Self),
+		c: ChangeId
+	}, { additionalProperties: false })
+]), { $id: "Instr" });
 const RouteRule = Type.Object({
 	from: Type.Object({
 		method: Type.String(),
@@ -12040,12 +12069,81 @@ function mergeSchemas(document, left, right, depth) {
 * inside `GET /v1/payments` 200. Walking `$ref` usage is what turns one
 * statement about a schema into the exact set of pointers to transform.
 */
+const escapeSegment = (segment) => segment.replaceAll("~", "~0").replaceAll("/", "~1");
+/** The values a property of a branch can hold, where it declares a closed set. */
+function closedValues(document, branch, property) {
+	const resolved = resolveSchema(document, branch);
+	if (!isJsonObject(resolved) || !isJsonObject(resolved["properties"])) return void 0;
+	const schema = resolveSchema(document, resolved["properties"][property] ?? {});
+	if (!isJsonObject(schema)) return void 0;
+	const scalar = (value) => typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+	if (schema["const"] !== void 0 && scalar(schema["const"])) return [String(schema["const"])];
+	const values = schema["enum"];
+	if (Array.isArray(values) && values.length > 0 && values.every(scalar)) return values.map(String);
+}
+/**
+* How the branch at `index` of a union is told apart from the rest, or
+* nothing when it cannot be. In order: the union's own `discriminator`, then
+* a property every branch gives a closed set of values that do not overlap,
+* as Adyen's payment methods each fix `type`, then a field only this branch
+* requires.
+*/
+function guardFor(document, union, branches, index, at) {
+	const branch = branches[index];
+	const discriminator = union["discriminator"];
+	if (isJsonObject(discriminator) && typeof discriminator["propertyName"] === "string") {
+		const name = discriminator["propertyName"];
+		const ref = isJsonObject(branch) && typeof branch["$ref"] === "string" ? branch["$ref"] : void 0;
+		const mapping = isJsonObject(discriminator["mapping"]) ? discriminator["mapping"] : {};
+		let values = Object.entries(mapping).filter(([, target]) => ref !== void 0 && (target === ref || target === ref.slice(ref.lastIndexOf("/") + 1))).map(([key]) => key);
+		if (values.length === 0 && ref !== void 0) values = [ref.slice(ref.lastIndexOf("/") + 1)];
+		if (values.length === 0) values = closedValues(document, branch, name) ?? [];
+		if (values.length > 0) return {
+			at,
+			key: `/${escapeSegment(name)}`,
+			values
+		};
+	}
+	const resolved = resolveSchema(document, branch);
+	const own = isJsonObject(resolved) && isJsonObject(resolved["properties"]) ? Object.keys(resolved["properties"]) : [];
+	const preferred = [
+		"type",
+		"object",
+		"kind"
+	];
+	const candidates = [...preferred.filter((name) => own.includes(name)), ...own.filter((name) => !preferred.includes(name)).sort()];
+	for (const property of candidates) {
+		const mine = closedValues(document, branch, property);
+		if (!mine) continue;
+		if (branches.every((other, at2) => {
+			if (at2 === index) return true;
+			const theirs = closedValues(document, other, property);
+			return theirs !== void 0 && !theirs.some((value) => mine.includes(value));
+		})) return {
+			at,
+			key: `/${escapeSegment(property)}`,
+			values: mine
+		};
+	}
+	const required = isJsonObject(resolved) && Array.isArray(resolved["required"]) ? resolved["required"].filter((name) => typeof name === "string") : [];
+	for (const name of required) if (!branches.some((other, at2) => {
+		if (at2 === index) return false;
+		const theirs = resolveSchema(document, other);
+		return !isJsonObject(theirs) || !isJsonObject(theirs["properties"]) || theirs["properties"][name] !== void 0;
+	})) return {
+		at,
+		has: name
+	};
+}
 function walk$1(ctx, schema, segments) {
 	if (!isJsonObject(schema)) return;
 	const ref = schema["$ref"];
 	if (typeof ref === "string") {
 		if (ref === ctx.target) {
-			ctx.found.push(formatPointer(segments));
+			ctx.found.push({
+				prefix: formatPointer(segments),
+				guards: []
+			});
 			return;
 		}
 		if (ctx.visiting.has(ref)) return;
@@ -12064,14 +12162,26 @@ function walk$1(ctx, schema, segments) {
 		const value = schema[key];
 		if (value === void 0) continue;
 		const branches = Array.isArray(value) ? value : [value];
-		const inner = {
-			...ctx,
-			found: [],
-			unsupported: []
-		};
-		for (const branch of branches) walk$1(inner, branch, segments);
-		if (inner.found.length > 0) ctx.unsupported.push(`${formatPointer(segments) || "/"} reaches the schema through ${key}`);
-		ctx.unsupported.push(...inner.unsupported);
+		branches.forEach((branch, index) => {
+			const inner = {
+				...ctx,
+				found: [],
+				unsupported: []
+			};
+			walk$1(inner, branch, segments);
+			ctx.unsupported.push(...inner.unsupported);
+			if (inner.found.length === 0) return;
+			const at = formatPointer(segments);
+			const guard = key === "not" ? void 0 : guardFor(ctx.document, schema, branches, index, at);
+			if (!guard) {
+				ctx.unsupported.push(`${at || "/"} reaches the schema through ${key}, and nothing tells its branches apart`);
+				return;
+			}
+			for (const found of inner.found) ctx.found.push({
+				prefix: found.prefix,
+				guards: [guard, ...found.guards]
+			});
+		});
 	}
 	const allOf = schema["allOf"];
 	if (Array.isArray(allOf)) for (const branch of allOf) walk$1(ctx, branch, segments);
@@ -12112,24 +12222,26 @@ function findSchemaSites(document, schemaRef) {
 		if (request !== void 0) {
 			const scan = scanRoot(document, schemaRef, request);
 			unsupported.push(...scan.unsupported.map((u) => `${operationId} request: ${u}`));
-			for (const prefix of scan.prefixes) sites.push({
+			for (const { prefix, guards } of scan.prefixes) sites.push({
 				operationId,
 				method,
 				path,
 				direction: "request",
-				prefix
+				prefix,
+				...guards.length > 0 ? { guards } : {}
 			});
 		}
 		for (const { status, schema } of responseSchemas(document, operation)) {
 			const scan = scanRoot(document, schemaRef, schema);
 			unsupported.push(...scan.unsupported.map((u) => `${operationId} response ${status}: ${u}`));
-			for (const prefix of scan.prefixes) sites.push({
+			for (const { prefix, guards } of scan.prefixes) sites.push({
 				operationId,
 				method,
 				path,
 				direction: "response",
 				status,
-				prefix
+				prefix,
+				...guards.length > 0 ? { guards } : {}
 			});
 		}
 	}
@@ -12203,7 +12315,7 @@ function typesAlong(document, root, pointer, into) {
 */
 function formProgramFor(oldDocument, old, current, instrs) {
 	const types = {};
-	for (const instr of instrs) for (const pointer of instr.k === "move" ? [instr.from] : [instr.path]) typesAlong(oldDocument, old.schema, pointer, types);
+	for (const instr of instrs) for (const pointer of readsOf(instr)) typesAlong(oldDocument, old.schema, pointer, types);
 	return {
 		fields: {
 			...fieldsOf(current?.encoding),
@@ -12211,6 +12323,20 @@ function formProgramFor(oldDocument, old, current, instrs) {
 		},
 		types
 	};
+}
+/**
+* Every place an instruction reads, from the root it runs at, looking inside
+* blocks: what a `within` block reads is read under each of its matches.
+*/
+function readsOf(instr) {
+	const under = (base, inner) => formatPointer([...parsePointer(base), ...parsePointer(inner)]);
+	switch (instr.k) {
+		case "move": return [instr.from];
+		case "within": return [instr.path, ...instr.block.flatMap(readsOf).map((inner) => under(instr.path, inner))];
+		case "switch": return [instr.path, ...Object.values(instr.cases).flat().flatMap(readsOf)];
+		case "has": return [instr.path, ...instr.block.flatMap(readsOf)];
+		default: return [instr.path];
+	}
 }
 /** Whether an operation's request body can arrive as a form. */
 function takesForm(media) {
@@ -13765,11 +13891,68 @@ function collectForward(change, oldContract, newContract, routes, sites, issues)
 		const target = mapEndpoint(routes, site.method, site.path);
 		const entry = accumulatorFor(sites, siteKey(target.method, target.path));
 		entry.body ??= bodiesOf(oldContract, newContract, site, target);
-		for (const op of dataOps) entry.request.push(...forwardInstrs(op, site.prefix, change.id).map((instr) => ({
+		entry.request.push(...guarded(site, change, "forward", (prefix) => dataOps.flatMap((op) => forwardInstrs(op, prefix, change.id))).map((instr) => ({
 			instr,
 			param: false
 		})));
 	}
+}
+/**
+* A site's instructions, placed so they run only for values of the branch the
+* site is in: `within` each union on the way, and a `switch` on the key or a
+* `has` on the field that tells the branch apart. `build` makes the
+* instructions for a prefix relative to the innermost union.
+*
+* On the way back the key already holds the new contract's value, so any
+* value this Change's own enum map renames is matched by what it became.
+*/
+function guarded(site, change, direction, build) {
+	const guards = site.guards ?? [];
+	if (guards.length === 0) return build(site.prefix);
+	const relative = (from, to) => {
+		const outer = parsePointer(from);
+		return formatPointer(parsePointer(to).slice(outer.length));
+	};
+	const innermost = guards[guards.length - 1];
+	let block = build(relative(innermost.at, site.prefix));
+	if (block.length === 0) return [];
+	for (let index = guards.length - 1; index >= 0; index -= 1) {
+		const guard = guards[index];
+		const outer = index === 0 ? "" : guards[index - 1].at;
+		let inner;
+		if ("has" in guard) inner = {
+			k: "has",
+			path: formatPointer([guard.has]),
+			block,
+			c: change.id
+		};
+		else {
+			const renames = direction === "backward" && guard.at === site.prefix ? renamesOf(change, guard.key) : /* @__PURE__ */ new Map();
+			const values = [...new Set(guard.values.map((value) => renames.get(value) ?? value))];
+			inner = {
+				k: "switch",
+				path: guard.key,
+				cases: Object.fromEntries(values.map((value) => [value, block])),
+				c: change.id
+			};
+		}
+		block = [{
+			k: "within",
+			path: relative(outer, guard.at),
+			block: [inner],
+			c: change.id
+		}];
+	}
+	return block;
+}
+/** What a Change's enum map at `path` renames each old value to. */
+function renamesOf(change, path) {
+	const renames = /* @__PURE__ */ new Map();
+	for (const op of change.ops) {
+		if (op.op !== "convert" || op.codec.kind !== "enumMap" || op.path !== path) continue;
+		for (const [from, to] of op.codec.pairs) renames.set(from, to);
+	}
+	return renames;
 }
 /** An operation's request body before and after, located by where its calls now land. */
 function bodiesOf(oldContract, newContract, from, target) {
@@ -14004,7 +14187,7 @@ function collectBackward(change, oldContract, routes, sites, issues) {
 			instrs = [];
 			entry.response.set(site.status, instrs);
 		}
-		for (const op of [...dataOps].reverse()) instrs.push(...backwardInstrs(op, site.prefix, change.id));
+		instrs.push(...guarded(site, change, "backward", (prefix) => [...dataOps].reverse().flatMap((op) => backwardInstrs(op, prefix, change.id))));
 	}
 }
 /**
@@ -27979,6 +28162,20 @@ function pruneEmptyAncestors(root, segments, captures) {
 * never hand back a body in the wrong shape, so every refusal raises rather
 * than skipping the instruction.
 */
+/**
+* Every place an instruction reads or writes, from the root it runs at,
+* including what its blocks touch: a block under `within` is read from each
+* match, which a wildcard stands for here.
+*/
+function touchedPaths(instr) {
+	switch (instr.k) {
+		case "move": return [instr.from, instr.to];
+		case "within": return [instr.path, ...instr.block.flatMap(touchedPaths).map((inner) => [...instr.path, ...inner])];
+		case "switch": return [instr.path, ...[...instr.cases.values()].flat().flatMap(touchedPaths)];
+		case "has": return [instr.path, ...instr.block.flatMap(touchedPaths)];
+		default: return [instr.path];
+	}
+}
 var TransformError = class extends Error {
 	changeId;
 	constructor(changeId, message) {
@@ -28173,11 +28370,51 @@ function step(root, instr, limits, result) {
 		case "set":
 			countApplied(result, instr.c, applySet(root, instr, limits));
 			break;
-		case "del": countApplied(result, instr.c, applyDel(root, instr, limits));
+		case "del":
+			countApplied(result, instr.c, applyDel(root, instr, limits));
+			break;
+		case "within": {
+			const nodes = instr.path.length === 0 ? [root] : resolveSlots(root, instr.path, limits.maxMatches).map(readSlot);
+			for (const node of nodes) {
+				if (typeof node !== "object" || node === null || JSON.isRawJSON(node)) continue;
+				for (const inner of instr.block) step(node, inner, limits, result);
+			}
+			break;
+		}
+		case "switch": {
+			const value = instr.path.length === 0 ? root : readOne(root, instr.path, limits.maxMatches);
+			const key = typeof value === "string" ? value : typeof value === "boolean" ? String(value) : isNumberLike(value) ? numberTextOf(value) : void 0;
+			const block = key === void 0 ? void 0 : instr.cases.get(key);
+			for (const inner of block ?? []) step(root, inner, limits, result);
+			break;
+		}
+		case "has":
+			if (resolveSlots(root, instr.path, limits.maxMatches).length === 0) break;
+			for (const inner of instr.block) step(root, inner, limits, result);
 	}
+}
+function readOne(root, path, limit) {
+	const [slot] = resolveSlots(root, path, limit);
+	return slot === void 0 ? void 0 : readSlot(slot);
 }
 //#endregion
 //#region ../runtime/src/envelope.ts
+/**
+* A request as one tree, and back.
+*
+* `open` reads the parameters a program names out of the request, decoded
+* into typed values the way their declaration says they are written, and
+* places them beside the body under `@path`, `@query`, `@header` and
+* `@cookie`. The interpreter then runs over that tree like any body. `close`
+* writes what the tree holds back into the request, encoded the way the
+* current contract declares each parameter.
+*
+* Only named parameters are ever decoded or rewritten. Everything else in the
+* request, including the order of an untouched query string, is passed on
+* exactly as it arrived, because a program that quietly re-encodes what it
+* was never asked about is a program that breaks a signature or a cache key
+* nobody knew depended on those bytes.
+*/
 const PART = {
 	path: "@path",
 	query: "@query",
@@ -28370,7 +28607,7 @@ const FALLBACK = {
 function writerOf$1(instrs, part, name) {
 	for (let index = instrs.length - 1; index >= 0; index -= 1) {
 		const instr = instrs[index];
-		if ((instr.k === "move" ? [instr.from, instr.to] : [instr.path]).some((path) => path[0] === part && path[1] === name)) return instr.c;
+		if (touchedPaths(instr).some((path) => path[0] === part && path[1] === name)) return instr.c;
 	}
 	return instrs[0]?.c ?? "";
 }
@@ -28697,7 +28934,7 @@ function encodeField(root, value, field, changeId) {
 function writerOf(instrs, root, depth) {
 	for (let index = instrs.length - 1; index >= 0; index -= 1) {
 		const instr = instrs[index];
-		if ((instr.k === "move" ? [instr.from, instr.to] : [instr.path]).some((path) => path[depth] === root)) return instr.c;
+		if (touchedPaths(instr).some((path) => path[depth] === root)) return instr.c;
 	}
 	return instrs[0]?.c ?? "";
 }
@@ -28717,13 +28954,10 @@ function closeForm(form, roots, original, tree, instrs, depth) {
 /** The top-level fields a list of instructions names, under `depth` leading segments. */
 function formRoots(instrs, depth) {
 	const roots = /* @__PURE__ */ new Set();
-	for (const instr of instrs) {
-		const paths = instr.k === "move" ? [instr.from, instr.to] : [instr.path];
-		for (const path of paths) {
-			if (depth === 1 && path[0] !== "@body") continue;
-			const root = path[depth];
-			if (root !== void 0 && root !== "*") roots.add(root);
-		}
+	for (const instr of instrs) for (const path of touchedPaths(instr)) {
+		if (depth === 1 && path[0] !== "@body") continue;
+		const root = path[depth];
+		if (root !== void 0 && root !== "*") roots.add(root);
 	}
 	return roots;
 }
@@ -28895,11 +29129,68 @@ function segmentsOf(pointer, where) {
 function countWildcards(segments) {
 	return segments.filter((segment) => segment === "*").length;
 }
-function decodeInstr(raw, where) {
+/**
+* How deeply blocks may nest. A union inside a union inside a list is three;
+* nothing a compiler emits needs more, and each level multiplies how many
+* places one instruction can reach.
+*/
+const MAX_BLOCK_DEPTH = 8;
+function decodeBlock(raw, where, depth) {
+	if (depth > MAX_BLOCK_DEPTH) throw new ProgramError(`${where} nests blocks more than ${MAX_BLOCK_DEPTH} deep`);
+	return array(raw, where).map((instr, index) => decodeInstr(instr, `${where}[${index}]`, depth));
+}
+function decodeInstr(raw, where, depth = 0) {
 	const value = object(raw, where);
 	const kind = string(value["k"], `${where}.k`);
 	const changeId = string(value["c"], `${where}.c`);
 	switch (kind) {
+		case "within":
+			expectKeys(value, [
+				"k",
+				"path",
+				"block",
+				"c"
+			], where);
+			return {
+				k: "within",
+				path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
+				block: decodeBlock(value["block"], `${where}.block`, depth + 1),
+				c: changeId
+			};
+		case "switch":
+		case "has": {
+			const path = segmentsOf(string(value["path"], `${where}.path`), `${where}.path`);
+			if (path.includes("*")) throw new ProgramError(`${where}.path reads a key through a wildcard`);
+			if (kind === "has") {
+				expectKeys(value, [
+					"k",
+					"path",
+					"block",
+					"c"
+				], where);
+				if (path.length === 0) throw new ProgramError(`${where}.path names nothing`);
+				return {
+					k: "has",
+					path,
+					block: decodeBlock(value["block"], `${where}.block`, depth + 1),
+					c: changeId
+				};
+			}
+			expectKeys(value, [
+				"k",
+				"path",
+				"cases",
+				"c"
+			], where);
+			const cases = /* @__PURE__ */ new Map();
+			for (const [key, block] of Object.entries(object(value["cases"], `${where}.cases`))) cases.set(key, decodeBlock(block, `${where}.cases.${key}`, depth + 1));
+			return {
+				k: "switch",
+				path,
+				cases,
+				c: changeId
+			};
+		}
 		case "move": {
 			expectKeys(value, [
 				"k",
@@ -29014,7 +29305,12 @@ function decodeInstr(raw, where) {
 	}
 }
 function needsExactNumbers(instrs) {
-	return instrs.some((instr) => instr.k === "scale" || instr.k === "cast");
+	return instrs.some((instr) => {
+		if (instr.k === "scale" || instr.k === "cast") return true;
+		if (instr.k === "within" || instr.k === "has") return needsExactNumbers(instr.block);
+		if (instr.k === "switch") return [...instr.cases.values()].some(needsExactNumbers);
+		return false;
+	});
 }
 const LOCATIONS = {
 	"@path": "path",
@@ -29135,8 +29431,7 @@ function decodeEnvelope(raw, where) {
 	const body = value["body"];
 	if (typeof body !== "boolean") throw new ProgramError(`${where}.body must be a boolean`);
 	instrs.forEach((instr, index) => {
-		const paths = instr.k === "move" ? [instr.from, instr.to] : [instr.path];
-		for (const path of paths) {
+		for (const path of touchedPaths(instr)) {
 			const part = path[0];
 			if (part === "@body") {
 				if (!body) throw new ProgramError(`${where}.instrs[${index}] reaches the body, which body says is not read`);
@@ -29445,7 +29740,7 @@ function readParameters(codecs, template, request) {
 * rolls back with the code it belongs to.
 */
 function pathsOfInstr(instr) {
-	return instr.k === "move" ? [instr.from, instr.to] : [instr.path];
+	return touchedPaths(instr);
 }
 /** Header stage one uses to tell stage two what it concluded. */
 const CONTRACT_HINT_HEADER = "x-invariant-contract-hint";

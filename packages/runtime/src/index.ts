@@ -23,6 +23,7 @@ import {
   execute,
   MatchLimitError,
   TransformError,
+  touchedPaths,
 } from "./interpreter.ts";
 import { type Json, type NumberFidelity, parseJson, stringifyJson } from "./json.ts";
 import {
@@ -71,7 +72,7 @@ export interface AdaptedRequest {
 }
 
 function pathsOfInstr(instr: CompiledInstr): readonly (readonly string[])[] {
-  return instr.k === "move" ? [instr.from, instr.to] : [instr.path];
+  return touchedPaths(instr);
 }
 
 /** A transformed body, and the paths at which a value was folded to produce it. */

@@ -423,15 +423,74 @@ function collectForward(
     const target = mapEndpoint(routes, site.method, site.path);
     const entry = accumulatorFor(sites, siteKey(target.method, target.path));
     entry.body ??= bodiesOf(oldContract, newContract, site, target);
-    for (const op of dataOps) {
-      entry.request.push(
-        ...forwardInstrs(op, site.prefix, change.id).map((instr) => ({
-          instr,
-          param: false,
-        })),
-      );
-    }
+    entry.request.push(
+      ...guarded(site, change, "forward", (prefix) =>
+        dataOps.flatMap((op) => forwardInstrs(op, prefix, change.id)),
+      ).map((instr) => ({ instr, param: false })),
+    );
   }
+}
+
+/**
+ * A site's instructions, placed so they run only for values of the branch the
+ * site is in: `within` each union on the way, and a `switch` on the key or a
+ * `has` on the field that tells the branch apart. `build` makes the
+ * instructions for a prefix relative to the innermost union.
+ *
+ * On the way back the key already holds the new contract's value, so any
+ * value this Change's own enum map renames is matched by what it became.
+ */
+function guarded(
+  site: Site,
+  change: Change,
+  direction: "forward" | "backward",
+  build: (prefix: string) => Instr[],
+): Instr[] {
+  const guards = site.guards ?? [];
+  if (guards.length === 0) return build(site.prefix);
+  const relative = (from: string, to: string) => {
+    const outer = parsePointer(from);
+    return formatPointer(parsePointer(to).slice(outer.length));
+  };
+  const innermost = guards[guards.length - 1] as NonNullable<Site["guards"]>[number];
+  let block = build(relative(innermost.at, site.prefix));
+  if (block.length === 0) return [];
+  for (let index = guards.length - 1; index >= 0; index -= 1) {
+    const guard = guards[index] as NonNullable<Site["guards"]>[number];
+    const outer = index === 0 ? "" : (guards[index - 1] as typeof guard).at;
+    let inner: Instr;
+    if ("has" in guard) {
+      inner = { k: "has", path: formatPointer([guard.has]), block, c: change.id };
+    } else {
+      const renames =
+        direction === "backward" && guard.at === site.prefix
+          ? renamesOf(change, guard.key)
+          : new Map<string, string>();
+      const values = [
+        ...new Set(guard.values.map((value) => renames.get(value) ?? value)),
+      ];
+      inner = {
+        k: "switch",
+        path: guard.key,
+        cases: Object.fromEntries(values.map((value) => [value, block])),
+        c: change.id,
+      };
+    }
+    block = [
+      { k: "within", path: relative(outer, guard.at), block: [inner], c: change.id },
+    ];
+  }
+  return block;
+}
+
+/** What a Change's enum map at `path` renames each old value to. */
+function renamesOf(change: Change, path: string): Map<string, string> {
+  const renames = new Map<string, string>();
+  for (const op of change.ops) {
+    if (op.op !== "convert" || op.codec.kind !== "enumMap" || op.path !== path) continue;
+    for (const [from, to] of op.codec.pairs) renames.set(from, to);
+  }
+  return renames;
 }
 
 /** An operation's request body before and after, located by where its calls now land. */
@@ -729,9 +788,11 @@ function collectBackward(
       instrs = [];
       entry.response.set(site.status, instrs);
     }
-    for (const op of [...dataOps].reverse()) {
-      instrs.push(...backwardInstrs(op, site.prefix, change.id));
-    }
+    instrs.push(
+      ...guarded(site, change, "backward", (prefix) =>
+        [...dataOps].reverse().flatMap((op) => backwardInstrs(op, prefix, change.id)),
+      ),
+    );
   }
 }
 

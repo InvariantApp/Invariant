@@ -16,7 +16,7 @@ import {
   type ParamType,
 } from "./envelope.ts";
 import type { DecodedForm, FormField, FormType } from "./form.ts";
-import type { CompiledInstr, ScalarType } from "./interpreter.ts";
+import { type CompiledInstr, type ScalarType, touchedPaths } from "./interpreter.ts";
 import type { Json } from "./json.ts";
 import { isUnsafeKey } from "./pointer.ts";
 
@@ -148,12 +148,63 @@ function countWildcards(segments: readonly string[]): number {
   return segments.filter((segment) => segment === "*").length;
 }
 
-function decodeInstr(raw: unknown, where: string): CompiledInstr {
+/**
+ * How deeply blocks may nest. A union inside a union inside a list is three;
+ * nothing a compiler emits needs more, and each level multiplies how many
+ * places one instruction can reach.
+ */
+const MAX_BLOCK_DEPTH = 8;
+
+function decodeBlock(raw: unknown, where: string, depth: number): CompiledInstr[] {
+  if (depth > MAX_BLOCK_DEPTH) {
+    throw new ProgramError(`${where} nests blocks more than ${MAX_BLOCK_DEPTH} deep`);
+  }
+  return (array(raw, where) as unknown[]).map((instr, index) =>
+    decodeInstr(instr, `${where}[${index}]`, depth),
+  );
+}
+
+function decodeInstr(raw: unknown, where: string, depth = 0): CompiledInstr {
   const value = object(raw, where);
   const kind = string(value["k"], `${where}.k`);
   const changeId = string(value["c"], `${where}.c`);
 
   switch (kind) {
+    case "within": {
+      expectKeys(value, ["k", "path", "block", "c"], where);
+      return {
+        k: "within",
+        path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
+        block: decodeBlock(value["block"], `${where}.block`, depth + 1),
+        c: changeId,
+      };
+    }
+    case "switch":
+    case "has": {
+      const path = segmentsOf(string(value["path"], `${where}.path`), `${where}.path`);
+      // A key is one value, read at one place.
+      if (path.includes("*")) {
+        throw new ProgramError(`${where}.path reads a key through a wildcard`);
+      }
+      if (kind === "has") {
+        expectKeys(value, ["k", "path", "block", "c"], where);
+        if (path.length === 0) throw new ProgramError(`${where}.path names nothing`);
+        return {
+          k: "has",
+          path,
+          block: decodeBlock(value["block"], `${where}.block`, depth + 1),
+          c: changeId,
+        };
+      }
+      expectKeys(value, ["k", "path", "cases", "c"], where);
+      const cases = new Map<string, CompiledInstr[]>();
+      for (const [key, block] of Object.entries(
+        object(value["cases"], `${where}.cases`),
+      )) {
+        cases.set(key, decodeBlock(block, `${where}.cases.${key}`, depth + 1));
+      }
+      return { k: "switch", path, cases, c: changeId };
+    }
     case "move": {
       expectKeys(value, ["k", "from", "to", "c"], where);
       const from = segmentsOf(string(value["from"], `${where}.from`), `${where}.from`);
@@ -260,7 +311,12 @@ function decodeInstr(raw: unknown, where: string): CompiledInstr {
 }
 
 function needsExactNumbers(instrs: readonly CompiledInstr[]): boolean {
-  return instrs.some((instr) => instr.k === "scale" || instr.k === "cast");
+  return instrs.some((instr) => {
+    if (instr.k === "scale" || instr.k === "cast") return true;
+    if (instr.k === "within" || instr.k === "has") return needsExactNumbers(instr.block);
+    if (instr.k === "switch") return [...instr.cases.values()].some(needsExactNumbers);
+    return false;
+  });
 }
 
 const LOCATIONS: Record<string, ParamLocation> = {
@@ -400,8 +456,7 @@ function decodeEnvelope(raw: unknown, where: string): DecodedEnvelope {
   // the body, one named parameter the program says how to write. Anything
   // else would be a program rewriting what it has no declaration for.
   instrs.forEach((instr, index) => {
-    const paths = instr.k === "move" ? [instr.from, instr.to] : [instr.path];
-    for (const path of paths) {
+    for (const path of touchedPaths(instr)) {
       const part = path[0];
       if (part === "@body") {
         if (!body) {

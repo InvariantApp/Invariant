@@ -15,8 +15,7 @@
  */
 
 import { BodyTooDeepError } from "./errors.ts";
-import type { CompiledInstr } from "./interpreter.ts";
-import { TransformError } from "./interpreter.ts";
+import { type CompiledInstr, TransformError, touchedPaths } from "./interpreter.ts";
 import { type Json, type NumberFidelity, numberTextOf, parseJson } from "./json.ts";
 import { isUnsafeKey } from "./pointer.ts";
 
@@ -309,8 +308,7 @@ function encodeField(
 function writerOf(instrs: readonly CompiledInstr[], root: string, depth: number): string {
   for (let index = instrs.length - 1; index >= 0; index -= 1) {
     const instr = instrs[index] as CompiledInstr;
-    const paths = instr.k === "move" ? [instr.from, instr.to] : [instr.path];
-    if (paths.some((path) => path[depth] === root)) return instr.c;
+    if (touchedPaths(instr).some((path) => path[depth] === root)) return instr.c;
   }
   return instrs[0]?.c ?? "";
 }
@@ -349,8 +347,7 @@ export function closeForm(
 export function formRoots(instrs: readonly CompiledInstr[], depth: number): Set<string> {
   const roots = new Set<string>();
   for (const instr of instrs) {
-    const paths = instr.k === "move" ? [instr.from, instr.to] : [instr.path];
-    for (const path of paths) {
+    for (const path of touchedPaths(instr)) {
       if (depth === 1 && path[0] !== "@body") continue;
       const root = path[depth];
       if (root !== undefined && root !== "*") roots.add(root);

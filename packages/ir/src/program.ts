@@ -104,14 +104,51 @@ export const DelInstr = Type.Object(
   { additionalProperties: false },
 );
 
-export const Instr = Type.Union([
-  MoveInstr,
-  ScaleInstr,
-  EnumInstr,
-  CastInstr,
-  SetInstr,
-  DelInstr,
-]);
+/**
+ * The six primitives, and three that only choose where and whether they run.
+ *
+ * `within` runs a block at every place a pointer matches, with pointers in the
+ * block read from there, so a Change to one element of a list is written once
+ * for all of them. `switch` runs the block for the value a key holds, and
+ * nothing for any other; `has` runs its block only where a field is present.
+ * Together they place a Change to one variant of a union: at the union's
+ * position, for the values that are that variant. The key is read once, as
+ * the block is entered, so nothing inside the block can change which one ran.
+ */
+export const Instr = Type.Recursive(
+  (Self) =>
+    Type.Union([
+      MoveInstr,
+      ScaleInstr,
+      EnumInstr,
+      CastInstr,
+      SetInstr,
+      DelInstr,
+      Type.Object(
+        {
+          k: Type.Literal("within"),
+          path: Pointer,
+          block: Type.Array(Self),
+          c: ChangeId,
+        },
+        { additionalProperties: false },
+      ),
+      Type.Object(
+        {
+          k: Type.Literal("switch"),
+          path: Pointer,
+          cases: Type.Record(Type.String(), Type.Array(Self)),
+          c: ChangeId,
+        },
+        { additionalProperties: false },
+      ),
+      Type.Object(
+        { k: Type.Literal("has"), path: Pointer, block: Type.Array(Self), c: ChangeId },
+        { additionalProperties: false },
+      ),
+    ]),
+  { $id: "Instr" },
+);
 
 export const RouteRule = Type.Object(
   {

@@ -14,8 +14,7 @@
  * was never asked about is a program that breaks a signature or a cache key
  * nobody knew depended on those bytes.
  */
-import type { CompiledInstr } from "./interpreter.ts";
-import { TransformError } from "./interpreter.ts";
+import { type CompiledInstr, TransformError, touchedPaths } from "./interpreter.ts";
 import {
   type Json,
   type NumberFidelity,
@@ -327,8 +326,9 @@ const FALLBACK: Record<ParamLocation, Pick<ParamCodec, "style" | "explode">> = {
 function writerOf(instrs: readonly CompiledInstr[], part: string, name: string): string {
   for (let index = instrs.length - 1; index >= 0; index -= 1) {
     const instr = instrs[index] as CompiledInstr;
-    const paths = instr.k === "move" ? [instr.from, instr.to] : [instr.path];
-    if (paths.some((path) => path[0] === part && path[1] === name)) return instr.c;
+    if (touchedPaths(instr).some((path) => path[0] === part && path[1] === name)) {
+      return instr.c;
+    }
   }
   return instrs[0]?.c ?? "";
 }

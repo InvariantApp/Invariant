@@ -51,7 +51,33 @@ export type CompiledInstr =
       ifNull?: boolean;
       c: string;
     }
-  | { k: "del"; path: Segments; ifNull?: boolean; c: string };
+  | { k: "del"; path: Segments; ifNull?: boolean; c: string }
+  | { k: "within"; path: Segments; block: CompiledInstr[]; c: string }
+  | { k: "switch"; path: Segments; cases: Map<string, CompiledInstr[]>; c: string }
+  | { k: "has"; path: Segments; block: CompiledInstr[]; c: string };
+
+/**
+ * Every place an instruction reads or writes, from the root it runs at,
+ * including what its blocks touch: a block under `within` is read from each
+ * match, which a wildcard stands for here.
+ */
+export function touchedPaths(instr: CompiledInstr): Segments[] {
+  switch (instr.k) {
+    case "move":
+      return [instr.from, instr.to];
+    case "within":
+      return [
+        instr.path,
+        ...instr.block.flatMap(touchedPaths).map((inner) => [...instr.path, ...inner]),
+      ];
+    case "switch":
+      return [instr.path, ...[...instr.cases.values()].flat().flatMap(touchedPaths)];
+    case "has":
+      return [instr.path, ...instr.block.flatMap(touchedPaths)];
+    default:
+      return [instr.path];
+  }
+}
 
 export class TransformError extends Error {
   readonly changeId: string;
@@ -399,7 +425,45 @@ function step(
     case "del":
       countApplied(result, instr.c, applyDel(root, instr, limits));
       break;
+    case "within": {
+      // The block runs at each match, reading its pointers from there.
+      const nodes =
+        instr.path.length === 0
+          ? [root]
+          : resolveSlots(root, instr.path, limits.maxMatches).map(readSlot);
+      for (const node of nodes) {
+        if (typeof node !== "object" || node === null || JSON.isRawJSON(node)) continue;
+        for (const inner of instr.block) step(node as Json, inner, limits, result);
+      }
+      break;
+    }
+    case "switch": {
+      // Read once, before anything in the chosen block can change it.
+      const value =
+        instr.path.length === 0 ? root : readOne(root, instr.path, limits.maxMatches);
+      const key =
+        typeof value === "string"
+          ? value
+          : typeof value === "boolean"
+            ? String(value)
+            : isNumberLike(value)
+              ? numberTextOf(value)
+              : undefined;
+      const block = key === undefined ? undefined : instr.cases.get(key);
+      for (const inner of block ?? []) step(root, inner, limits, result);
+      break;
+    }
+    case "has": {
+      if (resolveSlots(root, instr.path, limits.maxMatches).length === 0) break;
+      for (const inner of instr.block) step(root, inner, limits, result);
+      break;
+    }
   }
+}
+
+function readOne(root: Json, path: Segments, limit: number): unknown {
+  const [slot] = resolveSlots(root, path, limit);
+  return slot === undefined ? undefined : readSlot(slot);
 }
 
 export { compareDecimal };

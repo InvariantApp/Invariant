@@ -6,7 +6,14 @@
  * inside `GET /v1/payments` 200. Walking `$ref` usage is what turns one
  * statement about a schema into the exact set of pointers to transform.
  */
-import { formatPointer, isJsonObject, type JsonValue, type Pointer } from "@invariant/ir";
+import {
+  formatPointer,
+  isJsonObject,
+  type JsonObject,
+  type JsonValue,
+  type Pointer,
+} from "@invariant/ir";
+import { resolveSchema } from "./resolve.ts";
 import {
   deref,
   type HttpMethod,
@@ -28,7 +35,21 @@ export interface Site {
   status?: string;
   /** Where the schema sits inside the body. Empty string means the body root. */
   prefix: Pointer;
+  /**
+   * The unions on the way to it, outermost first, and how the branch that
+   * leads here is told apart from the others. A transform at this site runs
+   * only for values that are this branch.
+   */
+  guards?: Guard[];
 }
+
+/**
+ * How one branch of a union is recognised at `at`: by the value a key holds,
+ * such as `type` being `scheme`, or by a field only that branch requires.
+ */
+export type Guard =
+  | { at: Pointer; key: Pointer; values: string[] }
+  | { at: Pointer; has: string };
 
 export interface SiteScanResult {
   sites: Site[];
@@ -36,12 +57,126 @@ export interface SiteScanResult {
   unsupported: string[];
 }
 
+interface Found {
+  prefix: Pointer;
+  guards: Guard[];
+}
+
 interface WalkContext {
   document: OpenApiDocument;
   target: string;
-  found: Pointer[];
+  found: Found[];
   unsupported: string[];
   visiting: Set<string>;
+}
+
+const escapeSegment = (segment: string): string =>
+  segment.replaceAll("~", "~0").replaceAll("/", "~1");
+
+/** The values a property of a branch can hold, where it declares a closed set. */
+function closedValues(
+  document: OpenApiDocument,
+  branch: JsonValue,
+  property: string,
+): string[] | undefined {
+  const resolved = resolveSchema(document, branch);
+  if (!isJsonObject(resolved) || !isJsonObject(resolved["properties"])) return undefined;
+  const schema = resolveSchema(
+    document,
+    (resolved["properties"] as JsonObject)[property] ?? {},
+  );
+  if (!isJsonObject(schema)) return undefined;
+  const scalar = (value: JsonValue) =>
+    typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+  if (schema["const"] !== undefined && scalar(schema["const"] as JsonValue)) {
+    return [String(schema["const"])];
+  }
+  const values = schema["enum"];
+  if (Array.isArray(values) && values.length > 0 && values.every(scalar)) {
+    return values.map(String);
+  }
+  return undefined;
+}
+
+/**
+ * How the branch at `index` of a union is told apart from the rest, or
+ * nothing when it cannot be. In order: the union's own `discriminator`, then
+ * a property every branch gives a closed set of values that do not overlap,
+ * as Adyen's payment methods each fix `type`, then a field only this branch
+ * requires.
+ */
+function guardFor(
+  document: OpenApiDocument,
+  union: JsonObject,
+  branches: readonly JsonValue[],
+  index: number,
+  at: Pointer,
+): Guard | undefined {
+  const branch = branches[index] as JsonValue;
+  const discriminator = union["discriminator"];
+  if (isJsonObject(discriminator) && typeof discriminator["propertyName"] === "string") {
+    const name = discriminator["propertyName"];
+    const ref =
+      isJsonObject(branch) && typeof branch["$ref"] === "string"
+        ? branch["$ref"]
+        : undefined;
+    const mapping = isJsonObject(discriminator["mapping"])
+      ? discriminator["mapping"]
+      : {};
+    let values = Object.entries(mapping)
+      .filter(
+        ([, target]) =>
+          ref !== undefined &&
+          (target === ref || target === ref.slice(ref.lastIndexOf("/") + 1)),
+      )
+      .map(([key]) => key);
+    // Without a mapping entry, the branch's value is its schema's name.
+    if (values.length === 0 && ref !== undefined)
+      values = [ref.slice(ref.lastIndexOf("/") + 1)];
+    if (values.length === 0) values = closedValues(document, branch, name) ?? [];
+    if (values.length > 0) return { at, key: `/${escapeSegment(name)}`, values };
+  }
+
+  const resolved = resolveSchema(document, branch);
+  const own =
+    isJsonObject(resolved) && isJsonObject(resolved["properties"])
+      ? Object.keys(resolved["properties"])
+      : [];
+  const preferred = ["type", "object", "kind"];
+  const candidates = [
+    ...preferred.filter((name) => own.includes(name)),
+    ...own.filter((name) => !preferred.includes(name)).sort(),
+  ];
+  for (const property of candidates) {
+    const mine = closedValues(document, branch, property);
+    if (!mine) continue;
+    const disjoint = branches.every((other, at2) => {
+      if (at2 === index) return true;
+      const theirs = closedValues(document, other, property);
+      return theirs !== undefined && !theirs.some((value) => mine.includes(value));
+    });
+    if (disjoint) return { at, key: `/${escapeSegment(property)}`, values: mine };
+  }
+
+  const required =
+    isJsonObject(resolved) && Array.isArray(resolved["required"])
+      ? (resolved["required"] as JsonValue[]).filter(
+          (name): name is string => typeof name === "string",
+        )
+      : [];
+  for (const name of required) {
+    const elsewhere = branches.some((other, at2) => {
+      if (at2 === index) return false;
+      const theirs = resolveSchema(document, other);
+      return (
+        !isJsonObject(theirs) ||
+        !isJsonObject(theirs["properties"]) ||
+        (theirs["properties"] as JsonObject)[name] !== undefined
+      );
+    });
+    if (!elsewhere) return { at, has: name };
+  }
+  return undefined;
 }
 
 function walk(ctx: WalkContext, schema: JsonValue, segments: string[]): void {
@@ -50,7 +185,7 @@ function walk(ctx: WalkContext, schema: JsonValue, segments: string[]): void {
   const ref = schema["$ref"];
   if (typeof ref === "string") {
     if (ref === ctx.target) {
-      ctx.found.push(formatPointer(segments));
+      ctx.found.push({ prefix: formatPointer(segments), guards: [] });
       return;
     }
     if (ctx.visiting.has(ref)) return;
@@ -62,22 +197,34 @@ function walk(ctx: WalkContext, schema: JsonValue, segments: string[]): void {
     return;
   }
 
-  // A union is only a problem when the target is actually inside it: the
-  // runtime has no way to tell which branch a value took, so a transform
-  // there cannot be placed. A union elsewhere in the same body is none of
-  // this Change's business, and reporting it would refuse unrelated releases.
+  // A union is only a problem when the target is actually inside it and
+  // nothing tells its branches apart: then the runtime cannot know which
+  // branch a value took, and a transform cannot be placed. Where something
+  // does, the site carries a guard and the transform runs only for values of
+  // that branch. A union elsewhere in the same body is none of this Change's
+  // business, and reporting it would refuse unrelated releases.
   for (const key of ["oneOf", "anyOf", "not"]) {
     const value = schema[key];
     if (value === undefined) continue;
-    const branches = Array.isArray(value) ? value : [value];
-    const inner: WalkContext = { ...ctx, found: [], unsupported: [] };
-    for (const branch of branches) walk(inner, branch as JsonValue, segments);
-    if (inner.found.length > 0) {
-      ctx.unsupported.push(
-        `${formatPointer(segments) || "/"} reaches the schema through ${key}`,
-      );
-    }
-    ctx.unsupported.push(...inner.unsupported);
+    const branches = (Array.isArray(value) ? value : [value]) as JsonValue[];
+    branches.forEach((branch, index) => {
+      const inner: WalkContext = { ...ctx, found: [], unsupported: [] };
+      walk(inner, branch, segments);
+      ctx.unsupported.push(...inner.unsupported);
+      if (inner.found.length === 0) return;
+      const at = formatPointer(segments);
+      const guard =
+        key === "not" ? undefined : guardFor(ctx.document, schema, branches, index, at);
+      if (!guard) {
+        ctx.unsupported.push(
+          `${at || "/"} reaches the schema through ${key}, and nothing tells its branches apart`,
+        );
+        return;
+      }
+      for (const found of inner.found) {
+        ctx.found.push({ prefix: found.prefix, guards: [guard, ...found.guards] });
+      }
+    });
   }
 
   const allOf = schema["allOf"];
@@ -100,7 +247,7 @@ function scanRoot(
   document: OpenApiDocument,
   target: string,
   root: JsonValue,
-): { prefixes: Pointer[]; unsupported: string[] } {
+): { prefixes: Found[]; unsupported: string[] } {
   const ctx: WalkContext = {
     document,
     target,
@@ -147,8 +294,15 @@ export function findSchemaSites(
     if (request !== undefined) {
       const scan = scanRoot(document, schemaRef, request);
       unsupported.push(...scan.unsupported.map((u) => `${operationId} request: ${u}`));
-      for (const prefix of scan.prefixes) {
-        sites.push({ operationId, method, path, direction: "request", prefix });
+      for (const { prefix, guards } of scan.prefixes) {
+        sites.push({
+          operationId,
+          method,
+          path,
+          direction: "request",
+          prefix,
+          ...(guards.length > 0 ? { guards } : {}),
+        });
       }
     }
 
@@ -157,8 +311,16 @@ export function findSchemaSites(
       unsupported.push(
         ...scan.unsupported.map((u) => `${operationId} response ${status}: ${u}`),
       );
-      for (const prefix of scan.prefixes) {
-        sites.push({ operationId, method, path, direction: "response", status, prefix });
+      for (const { prefix, guards } of scan.prefixes) {
+        sites.push({
+          operationId,
+          method,
+          path,
+          direction: "response",
+          status,
+          prefix,
+          ...(guards.length > 0 ? { guards } : {}),
+        });
       }
     }
   }

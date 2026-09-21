@@ -7,6 +7,7 @@
  * refusals. An engine that rounds where this one rejects would pass a test
  * suite written against its own behaviour and fail these.
  */
+import { Instr } from "@invariant/ir";
 import { describe, expect, it } from "vitest";
 import { createRuntime } from "./index.ts";
 import { CONFORMANCE_VECTORS, type Vector } from "./vectors.ts";
@@ -81,8 +82,13 @@ describe("conformance vectors", () => {
     );
 
     // A portability contract that omits an instruction is one a port can get
-    // wrong while passing.
-    expect(covered).toEqual(new Set(["move", "scale", "enum", "cast", "set", "del"]));
+    // wrong while passing. The list is read from the IR's own schema, so a new
+    // instruction fails here until it has a vector.
+    const kinds = (Instr.anyOf as { properties: { k: { const: string } } }[]).map(
+      (entry) => entry.properties.k.const,
+    );
+    expect(kinds.length).toBeGreaterThanOrEqual(9);
+    expect(covered).toEqual(new Set(kinds));
   });
 
   it("states what must be refused, not only what must be produced", () => {
