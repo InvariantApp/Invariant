@@ -11,8 +11,20 @@ document, at two points in time.
 
 ## 0. Find out what you are about to break
 
-Two specification files and five lines of configuration. No Change files, no
-compiled program, nothing running in your service.
+In the repository that holds your OpenAPI document:
+
+```console
+$ npx @invariant/cli init
+```
+
+It finds the document, or runs the command that generates it if you pass
+`--spec-command`, and snapshots it as the baseline: the contract every existing
+caller is on. It reads the version header from the document if one is declared,
+writes `invariant.yaml` and a CI workflow, and runs a first check, which passes
+because nothing has changed yet. Nothing runs in your service.
+
+Change the API in a pull request and run the check again. The configuration it
+writes is five lines at heart, and you can write it by hand instead:
 
 ```yaml
 api: acme-payments

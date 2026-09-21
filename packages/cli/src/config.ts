@@ -6,7 +6,7 @@
  * release gate blocks on. Nothing is fetched, so `invariant check` gives the
  * same answer on a laptop with no network as it does in CI.
  */
-import { execFile } from "node:child_process";
+import { exec } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
@@ -14,7 +14,7 @@ import { promisify } from "node:util";
 import { isJsonObject, type JsonValue } from "@invariant/ir";
 import { parse as parseYaml } from "yaml";
 
-const execFileAsync = promisify(execFile);
+const execShell = promisify(exec);
 
 export class ConfigError extends Error {
   constructor(message: string) {
@@ -151,9 +151,12 @@ async function currentSpecOf(
   }
 
   const out = resolve(root, raw["out"]);
-  const { command, args } = words(raw["command"]);
   try {
-    await execFileAsync(command, args, { cwd: root });
+    // Through the shell, as the provider wrote it. Generators are usually run
+    // with a redirect or through a package script, and splitting on spaces
+    // broke both. The command comes from the provider's own repository and
+    // runs in their own CI, so nothing here widens what can run.
+    await execShell(raw["command"], { cwd: root, maxBuffer: 64 * 1024 * 1024 });
   } catch (error) {
     // Their generator failing is their problem to fix, but a gate that reported
     // it as a stale specification would send them looking in the wrong place.

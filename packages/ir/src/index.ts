@@ -1,3 +1,4 @@
+export * from "./brand.ts";
 export * from "./change.ts";
 export * from "./json.ts";
 export * from "./program.ts";

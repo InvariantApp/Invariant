@@ -11,6 +11,7 @@ import { dirname, resolve } from "node:path";
 import { check, renderReport } from "./check.ts";
 import { renderComment } from "./comment.ts";
 import { loadConfig } from "./config.ts";
+import { type InitOptions, init, renderInit } from "./init.ts";
 import { renderProposals, runPropose } from "./propose.ts";
 import { release, renderRelease, verifyRelease } from "./release.ts";
 import { assessRetirement, renderRetirement, retireContracts } from "./retire.ts";
@@ -18,6 +19,8 @@ import { readLedger } from "./usage.ts";
 
 const USAGE = `invariant <command>
 
+  init      Set up this repository: find the specification, snapshot it as the
+            baseline, and write invariant.yaml and a CI workflow.
   check     Does this release's declared Changes explain what the API did?
             With --full, also starts both builds and compares what they do.
   propose   Draft Change files for whatever this release has not explained.
@@ -27,6 +30,14 @@ const USAGE = `invariant <command>
   retire    Say which old contracts nobody is using any more.
 
 Options
+  --spec <path>     init: the OpenAPI document, when there is more than one
+  --spec-command <c> init: a command that writes it, for generated specifications
+  --spec-out <path> init: where that command writes it
+  --api <name>      init: the API's name (default: the document's title)
+  --label <label>   init: the baseline contract's name (default: today)
+  --header <name>   init: the header callers name a contract in
+  --no-ci           init: do not write a GitHub Actions workflow
+  --force           init: replace an existing invariant.yaml
   --config <path>   Path to invariant.yaml (default: ./invariant.yaml)
   --out <path>      Where compile writes (default: invariant/compiled/program.json)
   --full            check: also start the real builds and compare them
@@ -58,6 +69,34 @@ async function main(argv: string[]): Promise<number> {
   if (!command || command === "--help" || command === "-h") {
     process.stdout.write(USAGE);
     return command ? 0 : 1;
+  }
+
+  if (command === "init") {
+    const options: InitOptions = {
+      root: process.cwd(),
+      ci: argv.includes("--no-ci") ? "none" : "github",
+      force: argv.includes("--force"),
+    };
+    for (const [name, key] of [
+      ["spec", "spec"],
+      ["spec-command", "specCommand"],
+      ["spec-out", "specOut"],
+      ["api", "api"],
+      ["label", "label"],
+      ["header", "header"],
+    ] as const) {
+      const value = flag(argv, name);
+      if (value !== undefined) options[key] = value;
+    }
+    const result = await init(options);
+    process.stdout.write(`${renderInit(result)}\n`);
+
+    // The first check, run straight away, so the provider sees the gate work
+    // before committing anything: against a baseline that is the same
+    // document, it has to pass.
+    const report = await check(await loadConfig(result.configPath));
+    process.stdout.write(`\nFirst check: ${report.result.toUpperCase()}\n`);
+    return report.result === "block" ? 1 : 0;
   }
 
   const config = await loadConfig(resolve(flag(argv, "config") ?? "invariant.yaml"));

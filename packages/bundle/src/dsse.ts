@@ -21,9 +21,10 @@ import {
   sign as nodeSign,
   verify as nodeVerify,
 } from "node:crypto";
+import { BRAND } from "@invariant/ir";
 
 export const PAYLOAD_TYPE = "application/vnd.in-toto+json";
-export const PREDICATE_TYPE = "https://invariant.dev/evolution-bundle/v1";
+export const PREDICATE_TYPE = BRAND.predicateType;
 
 export interface Signature {
   /** Which key signed it. A digest of the public key, not a name anyone chose. */
