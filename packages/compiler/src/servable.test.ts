@@ -542,16 +542,20 @@ function unserved(change: Change, program: unknown): string[] {
   const parameterScoped = (change.scopes ?? []).some((scope) => !("schema" in scope));
   if (dataOps.length > 0 && parameterScoped) {
     // A parameter only exists on the way in, so every op that faces new has
-    // to have left an instruction in the operation's envelope.
+    // to have left a request instruction: in the operation's envelope, or,
+    // for a scope on the operation's own body alone, in its body program.
     const facing = dataOps.filter(
       (op) => !((op.op === "default" || op.op === "dropNull") && op.toward === "old"),
     );
-    const envelopes = Object.values(
-      (contract["sites"] ?? {}) as Record<string, { envelope?: unknown }>,
-    ).map((site) => JSON.stringify(site.envelope ?? null));
-    const inEnvelope = envelopes.join().split(`"c":"${change.id}"`).length - 1;
-    if (facing.length > 0 && inEnvelope < facing.length) {
-      missing.push(`${facing.length} parameter ops, ${inEnvelope} envelope instructions`);
+    const requests = Object.values(
+      (contract["sites"] ?? {}) as Record<
+        string,
+        { envelope?: unknown; request?: unknown }
+      >,
+    ).map((site) => JSON.stringify([site.envelope ?? null, site.request ?? null]));
+    const onTheWayIn = requests.join().split(`"c":"${change.id}"`).length - 1;
+    if (facing.length > 0 && onTheWayIn < facing.length) {
+      missing.push(`${facing.length} parameter ops, ${onTheWayIn} request instructions`);
     }
   } else if (dataOps.length > 0) {
     const sites = (change.scopes ?? [])
@@ -629,6 +633,19 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
       {
         numRuns: Number(process.env["FUZZ_RUNS"] ?? 2000),
         seed: Number(process.env["FUZZ_SEED"] ?? 1),
+        // Found by the nightly run: a Change on the operation's own body is
+        // served by its body program, not its envelope.
+        examples: [
+          [
+            {
+              irVersion: 1,
+              id: "chg_generated",
+              summary: "paid",
+              scopes: [{ operation: "createOrder", location: "body" }],
+              ops: [{ op: "add", path: "/shipping/zip", value: "x" }],
+            } as Change,
+          ],
+        ],
       },
     );
     console.log(`passed the gate, by op: ${JSON.stringify(Object.fromEntries(passed))}`);
