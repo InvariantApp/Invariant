@@ -1,5 +1,10 @@
 import { readFile } from "node:fs/promises";
-import { HTTP_METHODS, isJsonObject, type JsonObject, type JsonValue } from "@invariant/ir";
+import {
+  HTTP_METHODS,
+  isJsonObject,
+  type JsonObject,
+  type JsonValue,
+} from "@invariant/ir";
 import { parse as parseYaml } from "yaml";
 import { digestOf, stripNonWire } from "./canonical.ts";
 
