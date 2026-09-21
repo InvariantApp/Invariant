@@ -23,27 +23,17 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - uses: actions/setup-go@v6
-        with:
-          go-version: "1.27"
-          cache: false
-
-      # The closure check runs the real differ. Without it those tests skip,
-      # which would quietly remove the safety property CI exists to enforce.
-      - name: Install oasdiff
-        run: |
-          # A published pre-release, pinned past v1.32.1 on purpose: that
-          # release returns a different answer each run on documents with
-          # reference cycles (oasdiff #1230). The gate confirms every
-          # comparison anyway, so this pin is about not wasting the second run,
-          # not about being trusted. Move to the stable release when one ships.
-          go install github.com/oasdiff/oasdiff@v1.33.0-rc.1
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-
       - run: pnpm install --frozen-lockfile
 
-      - name: Check oasdiff is on PATH
-        run: oasdiff --version
+      # The release binary a provider actually gets, verified against upstream's
+      # checksums and the hash committed in packages/diff/src/binaries.ts. CI
+      # runs the gate on exactly what ships, rather than on a local build of
+      # the same tag, and needs no Go toolchain to do it.
+      - name: Fetch the pinned oasdiff release
+        run: node --import tsx scripts/fetch-oasdiff.mts --host
+
+      - name: Check the gate finds the shipped oasdiff
+        run: node --import tsx -e 'import("@invariant/diff").then(async (m) => { await m.assertUsableOasdiff(); console.log(m.oasdiffBinary()); })'
 
       - name: Lint
         run: pnpm lint

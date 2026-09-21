@@ -245,6 +245,22 @@ importers:
       '@invariant/ir':
         specifier: workspace:*
         version: link:../ir
+    optionalDependencies:
+      '@invariant/oasdiff-darwin':
+        specifier: workspace:*
+        version: link:../oasdiff-darwin
+      '@invariant/oasdiff-linux-arm64':
+        specifier: workspace:*
+        version: link:../oasdiff-linux-arm64
+      '@invariant/oasdiff-linux-x64':
+        specifier: workspace:*
+        version: link:../oasdiff-linux-x64
+      '@invariant/oasdiff-win32-arm64':
+        specifier: workspace:*
+        version: link:../oasdiff-win32-arm64
+      '@invariant/oasdiff-win32-x64':
+        specifier: workspace:*
+        version: link:../oasdiff-win32-x64
 
   packages/eval:
     dependencies:
@@ -294,6 +310,16 @@ importers:
       '@invariant/contract':
         specifier: workspace:*
         version: link:../contract
+
+  packages/oasdiff-darwin: {}
+
+  packages/oasdiff-linux-arm64: {}
+
+  packages/oasdiff-linux-x64: {}
+
+  packages/oasdiff-win32-arm64: {}
+
+  packages/oasdiff-win32-x64: {}
 
   packages/proposer:
     dependencies:

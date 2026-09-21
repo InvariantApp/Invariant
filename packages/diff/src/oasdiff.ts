@@ -1,9 +1,12 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { ambiguousPaths, type OpenApiDocument } from "@invariant/contract";
+import { binaryFor } from "./binaries.ts";
 import { BREAKING_INFO_IDS } from "./policy.ts";
 import { OASDIFF_INSTALL, unusableVersion } from "./version.ts";
 
@@ -29,8 +32,33 @@ export class OasdiffError extends Error {
   }
 }
 
+/**
+ * Which oasdiff to run.
+ *
+ * An explicit OASDIFF_BIN wins, so a provider can always choose. Then the
+ * binary published for this platform alongside the packages, so the gate needs
+ * no Go toolchain. Then whatever is on PATH.
+ */
 export function oasdiffBinary(): string {
-  return process.env["OASDIFF_BIN"] ?? "oasdiff";
+  const configured = process.env["OASDIFF_BIN"];
+  if (configured) return configured;
+  return bundledBinary() ?? "oasdiff";
+}
+
+function bundledBinary(): string | undefined {
+  const binary = binaryFor();
+  if (!binary) return undefined;
+  try {
+    const manifest = createRequire(import.meta.url).resolve(
+      `${binary.package}/package.json`,
+    );
+    const path = join(dirname(manifest), "bin", binary.executable);
+    return existsSync(path) ? path : undefined;
+  } catch {
+    // Not installed, which is normal on an unsupported platform or when
+    // optional dependencies were skipped.
+    return undefined;
+  }
 }
 
 export async function oasdiffAvailable(): Promise<boolean> {

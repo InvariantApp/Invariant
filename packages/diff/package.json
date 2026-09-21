@@ -38,5 +38,12 @@
   "dependencies": {
     "@invariant/contract": "workspace:*",
     "@invariant/ir": "workspace:*"
+  },
+  "optionalDependencies": {
+    "@invariant/oasdiff-linux-x64": "workspace:*",
+    "@invariant/oasdiff-linux-arm64": "workspace:*",
+    "@invariant/oasdiff-darwin": "workspace:*",
+    "@invariant/oasdiff-win32-x64": "workspace:*",
+    "@invariant/oasdiff-win32-arm64": "workspace:*"
   }
 }

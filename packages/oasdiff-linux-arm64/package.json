@@ -1,0 +1,26 @@
+{
+  "name": "@invariant/oasdiff-linux-arm64",
+  "version": "0.1.0",
+  "description": "The oasdiff release binary for linux-arm64, repackaged unmodified for the Invariant release gate.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/InvariantApp/Invariant.git",
+    "directory": "packages/oasdiff-linux-arm64"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

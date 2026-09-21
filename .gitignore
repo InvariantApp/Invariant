@@ -12,3 +12,5 @@ coverage/
 # Copied from the root at pack time; see scripts/prepack.mjs.
 packages/*/LICENSE
 packages/*/NOTICE
+# Upstream oasdiff binaries, fetched and verified by scripts/fetch-oasdiff.mts.
+packages/oasdiff-*/bin/

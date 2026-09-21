@@ -35,9 +35,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Every platform's binary, verified, so each platform package is packed
+      # with the file it exists to carry.
+      - run: node --import tsx scripts/fetch-oasdiff.mts
+
       # The same checks the published artifacts are held to on every push.
       - run: pnpm build
-      - run: pnpm check:packages
+      - run: pnpm check:packages --all-binaries
 
       # Opens a version pull request while changesets are pending, and
       # publishes once that pull request is merged.

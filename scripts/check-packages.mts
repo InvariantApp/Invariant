@@ -14,11 +14,13 @@
  * Run after `pnpm build`. Exits non-zero on the first package that fails.
  */
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { builtinModules } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { binaryFor, PLATFORM_BINARIES } from "@invariant/diff";
 import { publint } from "publint";
 import { formatMessage } from "publint/utils";
 
@@ -34,6 +36,7 @@ const RUNTIME_ONLY = new Map([
 interface Manifest {
   name: string;
   private?: boolean;
+  os?: string[];
   dependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
 }
@@ -67,6 +70,32 @@ for (const name of packages) {
     await readFile(join(dir, "package.json"), "utf8"),
   ) as Manifest;
   if (manifest.private) continue;
+
+  // A platform package carries one upstream binary and no code of ours. What
+  // matters is that the binary is there and is the one that was verified.
+  if (manifest.os) {
+    const binary = PLATFORM_BINARIES.find((entry) => entry.package === manifest.name);
+    if (!binary) {
+      failures.push(`${manifest.name} is not listed in packages/diff/src/binaries.ts`);
+      continue;
+    }
+    // Every platform's binary is fetched for a release. An ordinary CI run
+    // fetches only its own, so only that one is required there.
+    const required = process.argv.includes("--all-binaries") || binary === binaryFor();
+    if (!required) {
+      process.stdout.write(`checked ${manifest.name} (binary not fetched here)\n`);
+      continue;
+    }
+    for (const file of [join("bin", binary.executable), "LICENSE", "NOTICE"]) {
+      if (!existsSync(join(dir, file))) {
+        failures.push(
+          `${manifest.name} has no ${file}. Run scripts/fetch-oasdiff.mts before packing.`,
+        );
+      }
+    }
+    process.stdout.write(`checked ${manifest.name}\n`);
+    continue;
+  }
 
   const declared = new Set([
     ...Object.keys(manifest.dependencies ?? {}),

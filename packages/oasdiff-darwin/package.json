@@ -1,0 +1,27 @@
+{
+  "name": "@invariant/oasdiff-darwin",
+  "version": "0.1.0",
+  "description": "The oasdiff release binary for darwin, repackaged unmodified for the Invariant release gate.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/InvariantApp/Invariant.git",
+    "directory": "packages/oasdiff-darwin"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "files": [
+    "bin",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
