@@ -114,7 +114,15 @@ export function createProxy(options: ProxyOptions): FetchHandler {
     }
 
     if (options.skip?.(url.pathname)) {
-      return forward(request, url.pathname, url.search, headers, request.body, undefined);
+      return forward(
+        request,
+        request.method,
+        url.pathname,
+        url.search,
+        headers,
+        request.body,
+        undefined,
+      );
     }
 
     // Stage one decides which handler the provider should see, and stage two
@@ -127,7 +135,7 @@ export function createProxy(options: ProxyOptions): FetchHandler {
       decision = runtime.route(request.method, url.pathname, headers);
       if (decision.hint) headers.set(CONTRACT_HINT_HEADER, decision.hint.label);
       contract = runtime.resolve(headers, decision.path, undefined).label;
-      site = runtime.siteFor(contract, request.method, decision.path);
+      site = runtime.siteFor(contract, decision.method, decision.path);
     } catch (error) {
       if (error instanceof UnsupportedContractError) {
         return shapedResponse(
@@ -144,7 +152,7 @@ export function createProxy(options: ProxyOptions): FetchHandler {
     // The hint has done its job, and the provider has no business reading it.
     headers.delete(CONTRACT_HINT_HEADER);
 
-    const operation = `${request.method.toLowerCase()} ${decision.path}`;
+    const operation = `${decision.method.toLowerCase()} ${decision.path}`;
     const context = { contract, operation, consumer: undefined };
 
     // Only a JSON body is something the program describes. A form or an
@@ -165,6 +173,7 @@ export function createProxy(options: ProxyOptions): FetchHandler {
 
     const answer = await forward(
       request,
+      decision.method,
       adapted.path,
       adapted.search,
       adapted.headers,
@@ -189,6 +198,7 @@ export function createProxy(options: ProxyOptions): FetchHandler {
 
   async function forward(
     request: Request,
+    method: string,
     path: string,
     search: string,
     headers: Headers,
@@ -214,14 +224,19 @@ export function createProxy(options: ProxyOptions): FetchHandler {
     headers.set("x-forwarded-host", new URL(request.url).host);
     headers.set("x-forwarded-proto", new URL(request.url).protocol.replace(":", ""));
 
+    // A method with no body sends none, including when a route changed a
+    // POST into a GET and its fields moved into the query string.
+    const bodyless = method === "GET" || method === "HEAD";
+    if (bodyless && body !== null) {
+      headers.delete("content-length");
+      headers.delete("content-type");
+    }
     let answer: Response;
     try {
       answer = await send(target, {
-        method: request.method,
+        method,
         headers,
-        ...(body !== null && request.method !== "GET" && request.method !== "HEAD"
-          ? { body, duplex: "half" as const }
-          : {}),
+        ...(body !== null && !bodyless ? { body, duplex: "half" as const } : {}),
         // A redirect is the provider's answer to the caller, not an instruction
         // to this proxy. Following it would also let an upstream bounce a
         // request somewhere it was never meant to go.

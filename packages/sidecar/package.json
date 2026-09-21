@@ -43,5 +43,10 @@
   },
   "dependencies": {
     "@invariant/runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "@invariant/compiler": "workspace:*",
+    "@invariant/contract": "workspace:*",
+    "@invariant/ir": "workspace:*"
   }
 }

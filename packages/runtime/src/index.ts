@@ -273,6 +273,8 @@ export interface BehaviorContext {
 export interface RouteDecision {
   /** The path the canonical handler should see. */
   path: string;
+  /** The method it should see, uppercase: the caller's own unless a route changed it. */
+  method: string;
   /** What stage one could tell about the caller's contract, if anything. */
   hint: ContractResolution | undefined;
   rewritten: boolean;
@@ -505,7 +507,8 @@ export class InvariantRuntime {
       hint = older.hint;
     }
     const path = this.#local(full);
-    if (path === undefined) return { path: full, hint, rewritten: moved };
+    const asSent = method.toUpperCase();
+    if (path === undefined) return { path: full, method: asSent, hint, rewritten: moved };
 
     const candidates: DecodedContract[] = hint
       ? [this.#program.contracts.get(hint.label)].filter(
@@ -513,25 +516,34 @@ export class InvariantRuntime {
         )
       : [...this.#program.contracts.values()];
 
-    const matches = new Map<string, { label: string }>();
+    const matches = new Map<string, { label: string; method: string; path: string }>();
     for (const contract of candidates) {
       for (const rule of contract.routes) {
         if (rule.method !== method.toLowerCase()) continue;
         const params = matchTemplate(rule.from, path);
         if (!params) continue;
-        matches.set(fillTemplate(rule.to, params), { label: contract.label });
+        const target = fillTemplate(rule.to, params);
+        matches.set(`${rule.toMethod} ${target}`, {
+          label: contract.label,
+          method: rule.toMethod,
+          path: target,
+        });
       }
     }
 
     if (matches.size !== 1) {
-      return { path: full, hint, rewritten: moved };
+      return { path: full, method: asSent, hint, rewritten: moved };
     }
 
-    const [target, origin] = [...matches.entries()][0] as [string, { label: string }];
+    const [origin] = [...matches.values()] as [
+      { label: string; method: string; path: string },
+    ];
+    const changedMethod = origin.method !== method.toLowerCase();
     return {
-      path: `${this.#program.basePath}${target}`,
+      path: `${this.#program.basePath}${origin.path}`,
+      method: changedMethod ? origin.method.toUpperCase() : asSent,
       hint: hint ?? { label: origin.label, source: "route" },
-      rewritten: moved || target !== path,
+      rewritten: moved || changedMethod || origin.path !== path,
     };
   }
 

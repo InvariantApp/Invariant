@@ -6,6 +6,7 @@ import {
   findSchemaSites,
   type OpenApiDocument,
   operationsOf,
+  resolveRef,
   resolveSchema,
   type Site,
 } from "@invariant/contract";
@@ -108,6 +109,28 @@ function applyRoute(
 
   const moved: JsonObject = { ...operation };
   if (op.operationId) moved["operationId"] = op.operationId.to;
+  // Parameters its old path declared for every method go with it: they were
+  // the operation's, whatever path it now lives at.
+  const shared = item["parameters"];
+  if (op.to.path !== op.from.path && Array.isArray(shared) && shared.length > 0) {
+    const own = Array.isArray(moved["parameters"])
+      ? (moved["parameters"] as JsonValue[])
+      : [];
+    const key = (entry: JsonValue): string | undefined => {
+      const resolved =
+        isJsonObject(entry) && typeof entry["$ref"] === "string"
+          ? resolveRef(document, entry["$ref"])
+          : entry;
+      return isJsonObject(resolved)
+        ? `${String(resolved["in"])} ${String(resolved["name"])}`
+        : undefined;
+    };
+    const mine = new Set(own.map(key));
+    moved["parameters"] = [
+      ...structuredClone(shared).filter((entry: JsonValue) => !mine.has(key(entry))),
+      ...own,
+    ];
+  }
 
   const target = paths[op.to.path];
   if (isJsonObject(target)) {

@@ -2933,7 +2933,7 @@ const Codec = Type.Union([
 * API that declared HEAD or OPTIONS operations had them compared by the differ
 * and invisible to everything that acted on the comparison.
 */
-const HTTP_METHODS = [
+const HTTP_METHODS$1 = [
 	"get",
 	"put",
 	"post",
@@ -2944,7 +2944,7 @@ const HTTP_METHODS = [
 	"trace"
 ];
 const Endpoint = Type.Object({
-	method: Type.Union(HTTP_METHODS.map((method) => Type.Literal(method))),
+	method: Type.Union(HTTP_METHODS$1.map((method) => Type.Literal(method))),
 	path: Type.String({ pattern: "^/" })
 }, { additionalProperties: false });
 const MoveOp = Type.Object({
@@ -11849,7 +11849,7 @@ function operationsOf(document) {
 	for (const [path, rawItem, isWebhook] of entries) {
 		const item = rawItem;
 		if (!isJsonObject(item)) continue;
-		for (const method of HTTP_METHODS) {
+		for (const method of HTTP_METHODS$1) {
 			const operation = item[method];
 			if (!isJsonObject(operation)) continue;
 			const declared = operation["operationId"];
@@ -12922,7 +12922,7 @@ function locate(document, oldContract, routes, operationId) {
 function ownParameters(document, located) {
 	const shared = located.item["parameters"];
 	if (Array.isArray(shared) && shared.length > 0) {
-		for (const method of HTTP_METHODS) {
+		for (const method of HTTP_METHODS$1) {
 			const value = located.item[method];
 			if (!isJsonObject(value)) continue;
 			const own = Array.isArray(value["parameters"]) ? value["parameters"] : [];
@@ -13208,6 +13208,16 @@ function applyRoute(document, op, issues, changeId) {
 	if (Object.keys(item).filter((key) => key !== "parameters").length === 0) delete paths[op.from.path];
 	const moved = { ...operation };
 	if (op.operationId) moved["operationId"] = op.operationId.to;
+	const shared = item["parameters"];
+	if (op.to.path !== op.from.path && Array.isArray(shared) && shared.length > 0) {
+		const own = Array.isArray(moved["parameters"]) ? moved["parameters"] : [];
+		const key = (entry) => {
+			const resolved = isJsonObject(entry) && typeof entry["$ref"] === "string" ? resolveRef(document, entry["$ref"]) : entry;
+			return isJsonObject(resolved) ? `${String(resolved["in"])} ${String(resolved["name"])}` : void 0;
+		};
+		const mine = new Set(own.map(key));
+		moved["parameters"] = [...structuredClone(shared).filter((entry) => !mine.has(key(entry))), ...own];
+	}
 	const target = paths[op.to.path];
 	if (isJsonObject(target)) target[op.to.method] = moved;
 	else paths[op.to.path] = { [op.to.method]: moved };
@@ -28840,6 +28850,16 @@ var ProgramError = class extends Error {
 		this.name = "ProgramError";
 	}
 };
+const HTTP_METHODS = /* @__PURE__ */ new Set([
+	"get",
+	"put",
+	"post",
+	"delete",
+	"options",
+	"head",
+	"patch",
+	"trace"
+]);
 const SCALARS = /* @__PURE__ */ new Set([
 	"string",
 	"integer",
@@ -29208,9 +29228,11 @@ function decodeRoute(raw, where) {
 	const from = object(value["from"], `${where}.from`);
 	const to = object(value["to"], `${where}.to`);
 	const fromMethod = string(from["method"], `${where}.from.method`).toLowerCase();
-	if (fromMethod !== string(to["method"], `${where}.to.method`).toLowerCase()) throw new ProgramError(`${where} changes the HTTP method, which is not supported`);
+	const toMethod = string(to["method"], `${where}.to.method`).toLowerCase();
+	for (const method of [fromMethod, toMethod]) if (!HTTP_METHODS.has(method)) throw new ProgramError(`${where} names ${method}, which is not an HTTP method`);
 	return {
 		method: fromMethod,
+		toMethod,
 		from: string(from["path"], `${where}.from.path`).split("/"),
 		to: string(to["path"], `${where}.to.path`).split("/"),
 		changeId: string(value["c"], `${where}.c`)
@@ -29644,8 +29666,10 @@ var InvariantRuntime = class {
 			hint = older.hint;
 		}
 		const path = this.#local(full);
+		const asSent = method.toUpperCase();
 		if (path === void 0) return {
 			path: full,
+			method: asSent,
 			hint,
 			rewritten: moved
 		};
@@ -29655,21 +29679,29 @@ var InvariantRuntime = class {
 			if (rule.method !== method.toLowerCase()) continue;
 			const params = matchTemplate(rule.from, path);
 			if (!params) continue;
-			matches.set(fillTemplate(rule.to, params), { label: contract.label });
+			const target = fillTemplate(rule.to, params);
+			matches.set(`${rule.toMethod} ${target}`, {
+				label: contract.label,
+				method: rule.toMethod,
+				path: target
+			});
 		}
 		if (matches.size !== 1) return {
 			path: full,
+			method: asSent,
 			hint,
 			rewritten: moved
 		};
-		const [target, origin] = [...matches.entries()][0];
+		const [origin] = [...matches.values()];
+		const changedMethod = origin.method !== method.toLowerCase();
 		return {
-			path: `${this.#program.basePath}${target}`,
+			path: `${this.#program.basePath}${origin.path}`,
+			method: changedMethod ? origin.method.toUpperCase() : asSent,
 			hint: hint ?? {
 				label: origin.label,
 				source: "route"
 			},
-			rewritten: moved || target !== path
+			rewritten: moved || changedMethod || origin.path !== path
 		};
 	}
 	/** Stage two. Which contract this request is actually served under. */

@@ -399,6 +399,16 @@ importers:
       '@invariant/runtime':
         specifier: workspace:*
         version: link:../runtime
+    devDependencies:
+      '@invariant/compiler':
+        specifier: workspace:*
+        version: link:../compiler
+      '@invariant/contract':
+        specifier: workspace:*
+        version: link:../contract
+      '@invariant/ir':
+        specifier: workspace:*
+        version: link:../ir
 
   packages/verifier:
     dependencies:

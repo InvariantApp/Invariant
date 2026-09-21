@@ -134,7 +134,23 @@ export function wrapFetch(
     }
 
     url.pathname = decision.path;
-    return handler(new Request(url, { ...requestInit(request), headers }), ...rest);
+    const init = requestInit(request);
+    // A route can change the method, and a method with no body sends none.
+    const method = decision.method;
+    const bodyless = method === "GET" || method === "HEAD";
+    if (bodyless && request.body) {
+      headers.delete("content-length");
+      headers.delete("content-type");
+    }
+    return handler(
+      new Request(url, {
+        ...init,
+        method,
+        ...(bodyless ? { body: null } : {}),
+        headers,
+      }),
+      ...rest,
+    );
   };
 }
 

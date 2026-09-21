@@ -88,18 +88,31 @@ describe("decoding", () => {
     ).toThrow(/invalid status key/);
   });
 
-  it("refuses a route that changes the HTTP method", () => {
+  it("decodes a route that changes the HTTP method, and refuses one naming no method", () => {
+    const decoded = decodeProgram(
+      program({}, [
+        {
+          from: { method: "get", path: "/search" },
+          to: { method: "POST", path: "/search" },
+          c: "chg",
+        },
+      ]),
+    );
+    expect(decoded.contracts.get("2026-01-15")?.routes[0]).toMatchObject({
+      method: "get",
+      toMethod: "post",
+    });
     expect(() =>
       decodeProgram(
         program({}, [
           {
             from: { method: "get", path: "/a" },
-            to: { method: "post", path: "/b" },
+            to: { method: "fetch", path: "/a" },
             c: "chg",
           },
         ]),
       ),
-    ).toThrow(/changes the HTTP method/);
+    ).toThrow(/not an HTTP method/);
   });
 
   it("marks a site as numeric only when it actually needs exact digits", () => {

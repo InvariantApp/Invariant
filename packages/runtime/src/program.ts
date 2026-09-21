@@ -40,8 +40,24 @@ export interface DecodedSite {
   numeric: boolean;
 }
 
+const HTTP_METHODS = new Set([
+  "get",
+  "put",
+  "post",
+  "delete",
+  "options",
+  "head",
+  "patch",
+  "trace",
+]);
+
 export interface DecodedRoute {
   method: string;
+  /**
+   * The method the canonical handler takes, which a route can change: a
+   * search that moved from `GET` with a query string to `POST` with a body.
+   */
+  toMethod: string;
   /** Template segments; `{name}` matches one segment. */
   from: string[];
   to: string[];
@@ -517,11 +533,14 @@ function decodeRoute(raw: unknown, where: string): DecodedRoute {
   const to = object(value["to"], `${where}.to`);
   const fromMethod = string(from["method"], `${where}.from.method`).toLowerCase();
   const toMethod = string(to["method"], `${where}.to.method`).toLowerCase();
-  if (fromMethod !== toMethod) {
-    throw new ProgramError(`${where} changes the HTTP method, which is not supported`);
+  for (const method of [fromMethod, toMethod]) {
+    if (!HTTP_METHODS.has(method)) {
+      throw new ProgramError(`${where} names ${method}, which is not an HTTP method`);
+    }
   }
   return {
     method: fromMethod,
+    toMethod,
     from: string(from["path"], `${where}.from.path`).split("/"),
     to: string(to["path"], `${where}.to.path`).split("/"),
     changeId: string(value["c"], `${where}.c`),
