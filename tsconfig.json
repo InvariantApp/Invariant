@@ -17,7 +17,8 @@
     "packages/*/tsdown*.ts",
     "scripts/**/*.mts",
     "proving/**/*.mts",
-    "proving/**/*.ts"
+    "proving/**/*.ts",
+    "eval/**/*.mts"
   ],
   "exclude": ["**/node_modules", "**/dist"]
 }

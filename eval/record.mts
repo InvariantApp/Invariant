@@ -15,7 +15,14 @@ import {
   runJudge,
   summarize,
 } from "@invariant/eval";
-import { JevJudge, RulesJudge } from "@invariant/proposer";
+import {
+  EscalatingJudge,
+  HybridJudge,
+  JevJudge,
+  type Judge,
+  RulesJudge,
+  S2Judge,
+} from "@invariant/proposer";
 
 const CORPUS = fileURLToPath(new URL("corpus", import.meta.url));
 const CACHE = fileURLToPath(new URL("cache", import.meta.url));
@@ -23,7 +30,28 @@ const CACHE = fileURLToPath(new URL("cache", import.meta.url));
 const cases = await loadCorpus(CORPUS);
 console.log(`corpus: ${cases.length} cases\n`);
 
-for (const judge of [new RulesJudge(), new JevJudge()]) {
+const rules = new RulesJudge();
+const jev = new JevJudge();
+const judges: Judge[] = [rules, jev];
+// S2 only with a key, and only once its pinned model is confirmed to exist.
+// The escalation chain is recorded beside it, because that is what drafts.
+if (process.env["ANTHROPIC_API_KEY"]) {
+  const { default: Anthropic } = await import("@anthropic-ai/sdk");
+  const { anthropicMessages, verifiedModel } = await import("./models.mts");
+  const client = new Anthropic();
+  const s2 = new S2Judge({
+    client: anthropicMessages(client),
+    model: await verifiedModel(client),
+  });
+  judges.push(
+    s2,
+    new EscalatingJudge(new HybridJudge(rules, jev), s2, { threshold: 0.9 }),
+  );
+} else {
+  console.log("ANTHROPIC_API_KEY is not set: S2 is not recorded.\n");
+}
+
+for (const judge of judges) {
   const run = await runJudge(judge, cases, { cacheDir: CACHE, record: true });
   const outcomes = outcomesOf(cases, run.results);
   const metrics = summarize(outcomes);
