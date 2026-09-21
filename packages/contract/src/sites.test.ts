@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findSchemaSites } from "./sites.ts";
+import { findSchemaSites, schemaDirections } from "./sites.ts";
 import { loadContract } from "./spec.ts";
 
 const HEAD = new URL("../../../fixtures/provider-acme/openapi/head.json", import.meta.url)
@@ -178,5 +178,80 @@ describe("unions on the way to a schema", () => {
     );
     expect(scan.sites.map((site) => site.prefix)).toEqual(["/thing"]);
     expect(scan.unsupported).toEqual([]);
+  });
+});
+
+/**
+ * Stripe's shape, reduced: every object refers to the next through an
+ * expandable field, a union of an id and the object, and each also refers
+ * two steps ahead. The number of distinct paths to the last object doubles
+ * with every link, which once made a single search run for minutes.
+ */
+function fanOut(links: number): Record<string, unknown> {
+  const schemas: Record<string, unknown> = {};
+  const expandable = (to: number) => ({
+    anyOf: [{ type: "string" }, { $ref: `#/components/schemas/n${to}` }],
+  });
+  for (let index = 0; index < links; index += 1) {
+    const properties: Record<string, unknown> = { id: { type: "string" } };
+    if (index + 1 < links) properties["next"] = expandable(index + 1);
+    if (index + 2 < links) properties["skip"] = expandable(index + 2);
+    schemas[`n${index}`] = { type: "object", properties };
+  }
+  return {
+    openapi: "3.1.0",
+    info: { title: "fan", version: "1" },
+    paths: {
+      "/n": {
+        get: {
+          operationId: "getN",
+          responses: {
+            "200": {
+              description: "ok",
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/n0" } },
+              },
+            },
+          },
+        },
+        post: {
+          operationId: "createN",
+          requestBody: {
+            content: {
+              "application/json": {
+                schema: { type: "object", properties: { name: { type: "string" } } },
+              },
+            },
+          },
+          responses: { "204": { description: "done" } },
+        },
+      },
+    },
+    components: { schemas },
+  };
+}
+
+describe("a schema reached along combinatorially many paths", () => {
+  it("is refused quickly rather than walked for minutes", () => {
+    const document = fanOut(40) as unknown as Parameters<typeof findSchemaSites>[0];
+    const started = performance.now();
+    const scan = findSchemaSites(document, "#/components/schemas/n39");
+    expect(performance.now() - started).toBeLessThan(10_000);
+    expect(scan.unsupported.length).toBeGreaterThan(0);
+  });
+
+  it("still says which ways it travels, from the reference graph alone", () => {
+    const document = fanOut(40) as unknown as Parameters<typeof findSchemaSites>[0];
+    expect(schemaDirections(document, "#/components/schemas/n39")).toEqual({
+      request: false,
+      response: true,
+    });
+  });
+
+  it("walks nothing that cannot lead to the schema, so a nearby one is found exactly", () => {
+    const document = fanOut(40) as unknown as Parameters<typeof findSchemaSites>[0];
+    // n0 is only ever the body itself.
+    const scan = findSchemaSites(document, "#/components/schemas/n0");
+    expect(scan.sites.map((site) => site.prefix)).toEqual([""]);
   });
 });

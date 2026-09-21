@@ -10,7 +10,7 @@
  * which; whether that is a rename, a unit change or an enum remapping, and
  * what the scale factor is, comes from the declared shapes.
  */
-import { findSchemaSites } from "@invariant/contract";
+import { schemaDirections } from "@invariant/contract";
 import type { Change, Op, ScalarType, Scope } from "@invariant/ir";
 import { type FieldShape, type SchemaDelta, schemaDeltas } from "./candidates.ts";
 import type { Decision, ValueDecision } from "./decisions.ts";
@@ -563,19 +563,18 @@ function scopeName(proposal: Proposal): string {
 }
 
 /**
- * Which sides of a message a schema appears on in a contract. A scan that
- * could not say for certain counts as both, so nothing is drafted on a guess.
+ * Which sides of a message a schema appears on in a contract.
+ *
+ * From the reference graph rather than by listing every place the schema
+ * sits: only the direction matters here, and on Stripe, where nearly every
+ * object reaches nearly every other through expandable fields, listing the
+ * places took minutes per schema.
  */
 function sidesOf(
   document: Parameters<typeof schemaDeltas>[0],
   schema: string,
 ): { request: boolean; response: boolean } {
-  const scan = findSchemaSites(document, `#/components/schemas/${schema}`);
-  if (scan.unsupported.length > 0) return { request: true, response: true };
-  return {
-    request: scan.sites.some((site) => site.direction === "request"),
-    response: scan.sites.some((site) => site.direction === "response"),
-  };
+  return schemaDirections(document, `#/components/schemas/${schema}`);
 }
 
 /** What a Change about this delta is scoped to. */

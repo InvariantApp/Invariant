@@ -12097,6 +12097,99 @@ function mergeSchemas(document, left, right, depth) {
 * inside `GET /v1/payments` 200. Walking `$ref` usage is what turns one
 * statement about a schema into the exact set of pointers to transform.
 */
+/**
+* How many schema nodes one search for a schema may visit, across every
+* operation, before it stops and says so.
+*
+* Every place a schema sits is listed separately, and where references fan
+* out the places multiply: in Stripe nearly every object reaches nearly every
+* other through expandable fields, and listing where `balance_transaction`
+* sits walked for minutes. Stopping refuses the Change as unsupported, which
+* blocks rather than guesses, and it stays refused until one transform per
+* schema can be shared by every place it sits.
+*/
+const MAX_WALK_STEPS = 2e6;
+/** How many reasons a search keeps; the rest are counted, not listed. */
+const MAX_NOTES = 100;
+const freshBudget = () => ({
+	steps: 0,
+	exhausted: false,
+	dropped: 0
+});
+/** Records why the schema cannot be placed somewhere, keeping the list bounded. */
+function note(ctx, message) {
+	if (ctx.unsupported.length < MAX_NOTES) ctx.unsupported.push(message);
+	else ctx.budget.dropped += 1;
+}
+/** Every `$ref` directly inside a schema, without following any of them. */
+function refsIn$1(value, into) {
+	if (Array.isArray(value)) {
+		for (const item of value) refsIn$1(item, into);
+		return;
+	}
+	if (!isJsonObject(value)) return;
+	const ref = value["$ref"];
+	if (typeof ref === "string") {
+		into.add(ref);
+		return;
+	}
+	for (const child of Object.values(value)) refsIn$1(child, into);
+}
+/**
+* For each reference, the references whose schemas point at it directly.
+*
+* Built once per document and kept, because every Change in a release scans
+* the same contract. A loaded contract is never edited in place (the
+* predictor edits a copy), which is what makes keeping it by identity sound.
+*/
+const REFERRERS = /* @__PURE__ */ new WeakMap();
+function referrers(document) {
+	const known = REFERRERS.get(document);
+	if (known) return known;
+	const children = /* @__PURE__ */ new Map();
+	const seed = /* @__PURE__ */ new Set();
+	refsIn$1(document, seed);
+	const pending = [...seed];
+	while (pending.length > 0) {
+		const ref = pending.pop();
+		if (children.has(ref)) continue;
+		const direct = /* @__PURE__ */ new Set();
+		refsIn$1(resolveRef(document, ref), direct);
+		children.set(ref, direct);
+		for (const next of direct) if (!children.has(next)) pending.push(next);
+	}
+	const parents = /* @__PURE__ */ new Map();
+	for (const [ref, direct] of children) for (const child of direct) {
+		const list = parents.get(child);
+		if (list) list.push(ref);
+		else parents.set(child, [ref]);
+	}
+	REFERRERS.set(document, parents);
+	return parents;
+}
+/**
+* The references from which `target` can be reached, `target` included.
+*
+* One pass over the reference graph, walked backwards from the target. The
+* walk below enters only these, which changes nothing it finds and removes the
+* cost that made it exponential: expandable fields written as a union of an id
+* and a referenced object, as Stripe writes nearly all of them, otherwise send
+* it through every schema on every path.
+*/
+function leadingTo(document, target) {
+	const parents = referrers(document);
+	const leads = /* @__PURE__ */ new Set([target]);
+	const queue = [target];
+	while (queue.length > 0) {
+		const ref = queue.pop();
+		for (const parent of parents.get(ref) ?? []) {
+			if (leads.has(parent)) continue;
+			leads.add(parent);
+			queue.push(parent);
+		}
+	}
+	return leads;
+}
 const escapeSegment = (segment) => segment.replaceAll("~", "~0").replaceAll("/", "~1");
 /** The values a property of a branch can hold, where it declares a closed set. */
 function closedValues(document, branch, property) {
@@ -12164,7 +12257,13 @@ function guardFor(document, union, branches, index, at) {
 	};
 }
 function walk$1(ctx, schema, segments) {
-	if (!isJsonObject(schema)) return;
+	if (!isJsonObject(schema) || ctx.budget.exhausted) return;
+	ctx.budget.steps += 1;
+	if (ctx.budget.steps > MAX_WALK_STEPS) {
+		ctx.budget.exhausted = true;
+		note(ctx, `the schema can be reached along more than ${MAX_WALK_STEPS} paths, too many to place a transform on each`);
+		return;
+	}
 	const ref = schema["$ref"];
 	if (typeof ref === "string") {
 		if (ref === ctx.target) {
@@ -12174,7 +12273,7 @@ function walk$1(ctx, schema, segments) {
 			});
 			return;
 		}
-		if (ctx.visiting.has(ref)) return;
+		if (!ctx.leads.has(ref) || ctx.visiting.has(ref)) return;
 		const resolved = resolveRef(ctx.document, ref);
 		if (resolved === void 0) return;
 		ctx.visiting.add(ref);
@@ -12197,12 +12296,12 @@ function walk$1(ctx, schema, segments) {
 				unsupported: []
 			};
 			walk$1(inner, branch, segments);
-			ctx.unsupported.push(...inner.unsupported);
+			for (const message of inner.unsupported) note(ctx, message);
 			if (inner.found.length === 0) return;
 			const at = formatPointer(segments);
 			const guard = key === "not" ? void 0 : guardFor(ctx.document, schema, branches, index, at);
 			if (!guard) {
-				ctx.unsupported.push(`${at || "/"} reaches the schema through ${key}, and nothing tells its branches apart`);
+				note(ctx, `${at || "/"} reaches the schema through ${key}, and nothing tells its branches apart`);
 				return;
 			}
 			for (const found of inner.found) ctx.found.push({
@@ -12218,13 +12317,15 @@ function walk$1(ctx, schema, segments) {
 	const items = schema["items"];
 	if (items !== void 0) walk$1(ctx, items, [...segments, "*"]);
 }
-function scanRoot(document, target, root) {
+function scanRoot(document, target, root, leads = leadingTo(document, target), budget = freshBudget()) {
 	const ctx = {
 		document,
 		target,
 		found: [],
 		unsupported: [],
-		visiting: /* @__PURE__ */ new Set()
+		visiting: /* @__PURE__ */ new Set(),
+		leads,
+		budget
 	};
 	walk$1(ctx, root, []);
 	return {
@@ -12238,17 +12339,19 @@ function scanRoot(document, target, root) {
 function findSchemaSites(document, schemaRef) {
 	const sites = [];
 	const unsupported = [];
+	const leads = leadingTo(document, schemaRef);
+	const budget = freshBudget();
 	for (const { operationId, method, path, operation, webhook } of operationsOf(document)) {
 		if (webhook === true) {
 			const payload = requestBodySchema(document, operation);
 			if (payload === void 0) continue;
-			const scan = scanRoot(document, schemaRef, payload);
+			const scan = scanRoot(document, schemaRef, payload, leads, budget);
 			if (scan.prefixes.length > 0 || scan.unsupported.length > 0) unsupported.push(`${operationId} is a webhook that sends this schema, which this runtime cannot adapt. Describe it as a \`behavior\` change, or send the new shape.`);
 			continue;
 		}
 		const request = requestBodySchema(document, operation);
 		if (request !== void 0) {
-			const scan = scanRoot(document, schemaRef, request);
+			const scan = scanRoot(document, schemaRef, request, leads, budget);
 			unsupported.push(...scan.unsupported.map((u) => `${operationId} request: ${u}`));
 			for (const { prefix, guards } of scan.prefixes) sites.push({
 				operationId,
@@ -12260,7 +12363,7 @@ function findSchemaSites(document, schemaRef) {
 			});
 		}
 		for (const { status, schema } of responseSchemas(document, operation)) {
-			const scan = scanRoot(document, schemaRef, schema);
+			const scan = scanRoot(document, schemaRef, schema, leads, budget);
 			unsupported.push(...scan.unsupported.map((u) => `${operationId} response ${status}: ${u}`));
 			for (const { prefix, guards } of scan.prefixes) sites.push({
 				operationId,
@@ -12273,9 +12376,12 @@ function findSchemaSites(document, schemaRef) {
 			});
 		}
 	}
+	const dropped = budget.dropped + Math.max(0, unsupported.length - MAX_NOTES);
+	const listed = unsupported.slice(0, MAX_NOTES);
+	if (dropped > 0) listed.push(`and ${dropped} more places like these`);
 	return {
 		sites,
-		unsupported
+		unsupported: listed
 	};
 }
 /**

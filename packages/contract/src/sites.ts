@@ -68,6 +68,116 @@ interface WalkContext {
   found: Found[];
   unsupported: string[];
   visiting: Set<string>;
+  /** References whose schemas can lead to the target; nothing else is entered. */
+  leads: ReadonlySet<string>;
+  /** Shared by every branch of one search, so a union cannot multiply it. */
+  budget: Budget;
+}
+
+/**
+ * How many schema nodes one search for a schema may visit, across every
+ * operation, before it stops and says so.
+ *
+ * Every place a schema sits is listed separately, and where references fan
+ * out the places multiply: in Stripe nearly every object reaches nearly every
+ * other through expandable fields, and listing where `balance_transaction`
+ * sits walked for minutes. Stopping refuses the Change as unsupported, which
+ * blocks rather than guesses, and it stays refused until one transform per
+ * schema can be shared by every place it sits.
+ */
+const MAX_WALK_STEPS = 2_000_000;
+
+/** How many reasons a search keeps; the rest are counted, not listed. */
+const MAX_NOTES = 100;
+
+interface Budget {
+  steps: number;
+  exhausted: boolean;
+  /** Reasons beyond `MAX_NOTES`, which are the same problem at more places. */
+  dropped: number;
+}
+
+const freshBudget = (): Budget => ({ steps: 0, exhausted: false, dropped: 0 });
+
+/** Records why the schema cannot be placed somewhere, keeping the list bounded. */
+function note(ctx: WalkContext, message: string): void {
+  if (ctx.unsupported.length < MAX_NOTES) ctx.unsupported.push(message);
+  else ctx.budget.dropped += 1;
+}
+
+/** Every `$ref` directly inside a schema, without following any of them. */
+function refsIn(value: JsonValue | undefined, into: Set<string>): void {
+  if (Array.isArray(value)) {
+    for (const item of value) refsIn(item, into);
+    return;
+  }
+  if (!isJsonObject(value)) return;
+  const ref = value["$ref"];
+  if (typeof ref === "string") {
+    into.add(ref);
+    return;
+  }
+  for (const child of Object.values(value)) refsIn(child, into);
+}
+
+/**
+ * For each reference, the references whose schemas point at it directly.
+ *
+ * Built once per document and kept, because every Change in a release scans
+ * the same contract. A loaded contract is never edited in place (the
+ * predictor edits a copy), which is what makes keeping it by identity sound.
+ */
+const REFERRERS = new WeakMap<OpenApiDocument, Map<string, string[]>>();
+
+function referrers(document: OpenApiDocument): Map<string, string[]> {
+  const known = REFERRERS.get(document);
+  if (known) return known;
+  const children = new Map<string, Set<string>>();
+  const seed = new Set<string>();
+  refsIn(document as unknown as JsonValue, seed);
+  const pending = [...seed];
+  while (pending.length > 0) {
+    const ref = pending.pop() as string;
+    if (children.has(ref)) continue;
+    const direct = new Set<string>();
+    refsIn(resolveRef(document, ref), direct);
+    children.set(ref, direct);
+    for (const next of direct) if (!children.has(next)) pending.push(next);
+  }
+  const parents = new Map<string, string[]>();
+  for (const [ref, direct] of children) {
+    for (const child of direct) {
+      const list = parents.get(child);
+      if (list) list.push(ref);
+      else parents.set(child, [ref]);
+    }
+  }
+  REFERRERS.set(document, parents);
+  return parents;
+}
+
+/**
+ * The references from which `target` can be reached, `target` included.
+ *
+ * One pass over the reference graph, walked backwards from the target. The
+ * walk below enters only these, which changes nothing it finds and removes the
+ * cost that made it exponential: expandable fields written as a union of an id
+ * and a referenced object, as Stripe writes nearly all of them, otherwise send
+ * it through every schema on every path.
+ */
+function leadingTo(document: OpenApiDocument, target: string): Set<string> {
+  const parents = referrers(document);
+  const leads = new Set<string>([target]);
+  const queue = [target];
+  while (queue.length > 0) {
+    const ref = queue.pop() as string;
+    for (const parent of parents.get(ref) ?? []) {
+      if (leads.has(parent)) continue;
+      leads.add(parent);
+      queue.push(parent);
+    }
+  }
+  return leads;
 }
 
 const escapeSegment = (segment: string): string =>
@@ -180,7 +290,16 @@ function guardFor(
 }
 
 function walk(ctx: WalkContext, schema: JsonValue, segments: string[]): void {
-  if (!isJsonObject(schema)) return;
+  if (!isJsonObject(schema) || ctx.budget.exhausted) return;
+  ctx.budget.steps += 1;
+  if (ctx.budget.steps > MAX_WALK_STEPS) {
+    ctx.budget.exhausted = true;
+    note(
+      ctx,
+      `the schema can be reached along more than ${MAX_WALK_STEPS} paths, too many to place a transform on each`,
+    );
+    return;
+  }
 
   const ref = schema["$ref"];
   if (typeof ref === "string") {
@@ -188,7 +307,8 @@ function walk(ctx: WalkContext, schema: JsonValue, segments: string[]): void {
       ctx.found.push({ prefix: formatPointer(segments), guards: [] });
       return;
     }
-    if (ctx.visiting.has(ref)) return;
+    // Nothing under a reference that cannot lead to the target can hold it.
+    if (!ctx.leads.has(ref) || ctx.visiting.has(ref)) return;
     const resolved = resolveRef(ctx.document, ref);
     if (resolved === undefined) return;
     ctx.visiting.add(ref);
@@ -210,13 +330,14 @@ function walk(ctx: WalkContext, schema: JsonValue, segments: string[]): void {
     branches.forEach((branch, index) => {
       const inner: WalkContext = { ...ctx, found: [], unsupported: [] };
       walk(inner, branch, segments);
-      ctx.unsupported.push(...inner.unsupported);
+      for (const message of inner.unsupported) note(ctx, message);
       if (inner.found.length === 0) return;
       const at = formatPointer(segments);
       const guard =
         key === "not" ? undefined : guardFor(ctx.document, schema, branches, index, at);
       if (!guard) {
-        ctx.unsupported.push(
+        note(
+          ctx,
           `${at || "/"} reaches the schema through ${key}, and nothing tells its branches apart`,
         );
         return;
@@ -247,6 +368,8 @@ function scanRoot(
   document: OpenApiDocument,
   target: string,
   root: JsonValue,
+  leads: ReadonlySet<string> = leadingTo(document, target),
+  budget: Budget = freshBudget(),
 ): { prefixes: Found[]; unsupported: string[] } {
   const ctx: WalkContext = {
     document,
@@ -254,6 +377,8 @@ function scanRoot(
     found: [],
     unsupported: [],
     visiting: new Set(),
+    leads,
+    budget,
   };
   walk(ctx, root, []);
   return { prefixes: ctx.found, unsupported: ctx.unsupported };
@@ -268,6 +393,8 @@ export function findSchemaSites(
 ): SiteScanResult {
   const sites: Site[] = [];
   const unsupported: string[] = [];
+  const leads = leadingTo(document, schemaRef);
+  const budget = freshBudget();
 
   for (const { operationId, method, path, operation, webhook } of operationsOf(
     document,
@@ -281,7 +408,7 @@ export function findSchemaSites(
       // run. A webhook that never carries the schema is not affected at all.
       const payload = requestBodySchema(document, operation);
       if (payload === undefined) continue;
-      const scan = scanRoot(document, schemaRef, payload);
+      const scan = scanRoot(document, schemaRef, payload, leads, budget);
       if (scan.prefixes.length > 0 || scan.unsupported.length > 0) {
         unsupported.push(
           `${operationId} is a webhook that sends this schema, which this runtime ` +
@@ -292,7 +419,7 @@ export function findSchemaSites(
     }
     const request = requestBodySchema(document, operation);
     if (request !== undefined) {
-      const scan = scanRoot(document, schemaRef, request);
+      const scan = scanRoot(document, schemaRef, request, leads, budget);
       unsupported.push(...scan.unsupported.map((u) => `${operationId} request: ${u}`));
       for (const { prefix, guards } of scan.prefixes) {
         sites.push({
@@ -307,7 +434,7 @@ export function findSchemaSites(
     }
 
     for (const { status, schema } of responseSchemas(document, operation)) {
-      const scan = scanRoot(document, schemaRef, schema);
+      const scan = scanRoot(document, schemaRef, schema, leads, budget);
       unsupported.push(
         ...scan.unsupported.map((u) => `${operationId} response ${status}: ${u}`),
       );
@@ -325,7 +452,44 @@ export function findSchemaSites(
     }
   }
 
-  return { sites, unsupported };
+  const dropped = budget.dropped + Math.max(0, unsupported.length - MAX_NOTES);
+  const listed = unsupported.slice(0, MAX_NOTES);
+  if (dropped > 0) listed.push(`and ${dropped} more places like these`);
+  return { sites, unsupported: listed };
+}
+
+/**
+ * Which ways a schema travels: whether any request body or any response can
+ * carry it. Answered from the reference graph alone, in time linear in the
+ * document, where listing every place it sits can be exponential. A webhook
+ * that sends it counts as both, as `findSchemaSites` refuses it.
+ */
+export function schemaDirections(
+  document: OpenApiDocument,
+  schemaRef: string,
+): { request: boolean; response: boolean } {
+  const leads = leadingTo(document, schemaRef);
+  const reaches = (root: JsonValue | undefined): boolean => {
+    if (root === undefined) return false;
+    const refs = new Set<string>();
+    refsIn(root, refs);
+    return [...refs].some((ref) => leads.has(ref));
+  };
+  let request = false;
+  let response = false;
+  for (const { operation, webhook } of operationsOf(document)) {
+    const body = requestBodySchema(document, operation);
+    if (webhook === true) {
+      if (reaches(body)) return { request: true, response: true };
+      continue;
+    }
+    request ||= reaches(body);
+    response ||= responseSchemas(document, operation).some(({ schema }) =>
+      reaches(schema),
+    );
+    if (request && response) break;
+  }
+  return { request, response };
 }
 
 /** Where one schema sits inside another, and what tells apart the unions on the way. */

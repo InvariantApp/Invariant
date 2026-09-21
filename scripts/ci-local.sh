@@ -57,8 +57,13 @@ if $quick; then echo "quick checks passed"; exit 0; fi
 
 step "build the published packages" pnpm build
 step "check the published packages" pnpm check:packages
-step "action bundle is current" bash -c \
-  'pnpm --filter @invariant/action bundle && git diff --exit-code -- packages/action/bundle'
+# The bundle in the working tree has to be what the source builds; CI compares
+# with the commit, which here may not exist yet.
+step "action bundle is current" bash -c '
+  before=$(cat packages/action/bundle/* | sha256sum)
+  pnpm --filter @invariant/action bundle
+  after=$(cat packages/action/bundle/* | sha256sum)
+  [ "$before" = "$after" ] || { echo "the bundle was stale; it has been rebuilt, commit it"; exit 1; }'
 step "release gate on the fixture (--full)" bash -c \
   'cd fixtures/provider-acme && timeout 360 pnpm exec invariant check --full'
 
