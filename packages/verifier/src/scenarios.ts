@@ -13,7 +13,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { isJsonObject, type JsonValue } from "@invariant/ir";
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 export class ScenarioError extends Error {
   constructor(message: string) {
@@ -57,12 +57,31 @@ export interface Acknowledgement {
   reason: string;
 }
 
+/**
+ * A list whose order the API does not promise, compared as a set.
+ *
+ * Without this one shuffled list either marks every item volatile, so none of
+ * its values is compared, or reports a difference no caller could see. Sorted
+ * the same way in every run, by `by` within each item when given, which a
+ * list of things carrying generated ids needs: sorted by the whole item, the
+ * ids would decide the order and the order would never repeat.
+ */
+export interface Unordered {
+  step: string;
+  /** JSON Pointer to the list; `*` stands for every item of a list on the way. */
+  pointer: string;
+  /** JSON Pointer within each item to sort by. */
+  by?: string;
+}
+
 export interface Scenario {
   name: string;
   /** The contract the requests are written in. */
   contract: string;
   steps: ScenarioStep[];
   acknowledged: Acknowledgement[];
+  /** Lists compared as sets. */
+  unordered?: Unordered[];
 }
 
 function str(value: JsonValue | undefined, where: string): string {
@@ -140,12 +159,63 @@ export function parseScenario(text: string, where: string): Scenario {
     });
   }
 
+  const unordered: Unordered[] = [];
+  const rawUnordered = raw["unordered"];
+  if (rawUnordered !== undefined && !Array.isArray(rawUnordered)) {
+    throw new ScenarioError(`${where} unordered must be a list`);
+  }
+  (rawUnordered ?? []).forEach((entry, index) => {
+    if (!isJsonObject(entry)) {
+      throw new ScenarioError(`${where} unordered ${index} is not a mapping`);
+    }
+    const by = entry["by"];
+    unordered.push({
+      step: str(entry["step"], `${where} unordered ${index} step`),
+      pointer: str(entry["pointer"], `${where} unordered ${index} pointer`),
+      ...(by === undefined ? {} : { by: str(by, `${where} unordered ${index} by`) }),
+    });
+  });
+
   return {
     name: str(raw["name"], `${where} name`),
     contract: str(raw["contract"], `${where} contract`),
     steps: steps.map((step, index) => stepFrom(step as JsonValue, index, where)),
     acknowledged,
+    ...(unordered.length > 0 ? { unordered } : {}),
   };
+}
+
+/**
+ * A scenario as a file `parseScenario` reads back as the same scenario, for a
+ * provider to keep and edit: one written this way is theirs from then on.
+ */
+export function scenarioYaml(scenario: Scenario, comment?: string): string {
+  const document = {
+    name: scenario.name,
+    contract: scenario.contract,
+    steps: scenario.steps.map((step) => ({
+      id: step.id,
+      request: {
+        method: step.method.toLowerCase(),
+        path: step.path,
+        ...(Object.keys(step.headers).length > 0 ? { headers: step.headers } : {}),
+        ...(step.body === undefined ? {} : { body: step.body }),
+      },
+      ...(Object.keys(step.capture).length > 0 ? { capture: step.capture } : {}),
+      ...(step.expectStatus === undefined ? {} : { expectStatus: step.expectStatus }),
+    })),
+    ...(scenario.acknowledged.length > 0 ? { acknowledged: scenario.acknowledged } : {}),
+    ...(scenario.unordered && scenario.unordered.length > 0
+      ? { unordered: scenario.unordered }
+      : {}),
+  };
+  const heading = comment
+    ? `${comment
+        .split("\n")
+        .map((line) => `# ${line}`.trimEnd())
+        .join("\n")}\n`
+    : "";
+  return `${heading}${stringifyYaml(document, { lineWidth: 0 })}`;
 }
 
 export async function loadScenarios(directory: string): Promise<Scenario[]> {

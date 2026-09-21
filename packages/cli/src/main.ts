@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { existsSync } from "node:fs";
 /**
  * The `invariant` command.
  *
@@ -7,8 +8,10 @@
  * with the code it belongs to.
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
-import { check, renderReport } from "./check.ts";
+import { dirname, join, relative, resolve } from "node:path";
+import { loadContract } from "@invariant/contract";
+import { scenariosFromDocument, scenarioYaml } from "@invariant/verifier";
+import { check, renderReport, reportJson } from "./check.ts";
 import { renderComment } from "./comment.ts";
 import { loadConfig } from "./config.ts";
 import { doctor, renderDoctor } from "./doctor.ts";
@@ -17,6 +20,7 @@ import { renderProposals, runPropose } from "./propose.ts";
 import { rebuildAt, release, renderRelease, verifyRelease } from "./release.ts";
 import { assessRetirement, renderRetirement, retireContracts } from "./retire.ts";
 import { readLedger } from "./usage.ts";
+import { watchChecks } from "./watch.ts";
 
 const USAGE = `invariant <command>
 
@@ -34,6 +38,9 @@ const USAGE = `invariant <command>
             the compiled program is what the Changes compile to now.
   contract export --label <c> [--out <path>]
             Write one contract's specification, for configuring a gateway.
+  scenarios generate [--label <c>]
+            Write the scenarios check --full would make from each released
+            contract's document into invariant/scenarios, to keep and edit.
 
 Options
   --spec <path>     init: the OpenAPI document, when there is more than one
@@ -49,7 +56,8 @@ Options
   --full            check: also start the real builds and compare them
   --outcomes <path> check: what the deployed runtime reported, for E9
   --usage <path>    check, retire: the usage ledger the runtime's counters wrote
-  --format markdown check: write the report as a pull request comment
+  --format <f>      check: markdown for a pull request comment, json for a machine
+  --watch           check: check again whenever a file under the configuration changes
   --write           propose: write the drafts into invariant/changes
   --offline         propose: deterministic rules only, no model calls
   --context <text>  propose: notes about this release, weighed as evidence
@@ -105,20 +113,36 @@ async function main(argv: string[]): Promise<number> {
     return report.result === "block" ? 1 : 0;
   }
 
-  const config = await loadConfig(resolve(flag(argv, "config") ?? "invariant.yaml"));
+  const configPath = resolve(flag(argv, "config") ?? "invariant.yaml");
 
   if (command === "check") {
+    const format = flag(argv, "format") ?? "text";
+    if (!["text", "markdown", "json"].includes(format)) {
+      throw new Error(`--format must be text, markdown or json, not ${format}`);
+    }
     const outcomes = flag(argv, "outcomes");
     const usage = flag(argv, "usage");
-    const report = await check(config, {
-      full: argv.includes("--full"),
-      ...(outcomes === undefined ? {} : { outcomes }),
-      ...(usage === undefined ? {} : { usage }),
-    });
-    const markdown = flag(argv, "format") === "markdown";
-    process.stdout.write(markdown ? renderComment(report) : `${renderReport(report)}\n`);
-    return report.result === "block" ? 1 : 0;
+    const once = async (): Promise<number> => {
+      // Read again each time, so a watch sees an edited invariant.yaml too.
+      const report = await check(await loadConfig(configPath), {
+        full: argv.includes("--full"),
+        ...(outcomes === undefined ? {} : { outcomes }),
+        ...(usage === undefined ? {} : { usage }),
+      });
+      process.stdout.write(
+        format === "markdown"
+          ? renderComment(report)
+          : format === "json"
+            ? reportJson(report)
+            : `${renderReport(report)}\n`,
+      );
+      return report.result === "block" ? 1 : 0;
+    };
+    if (!argv.includes("--watch")) return once();
+    return watchChecks(dirname(configPath), once);
   }
+
+  const config = await loadConfig(configPath);
 
   if (command === "propose") {
     const context = flag(argv, "context");
@@ -245,6 +269,59 @@ async function main(argv: string[]): Promise<number> {
       process.stdout.write(`wrote ${label} to ${resolve(out)}\n`);
     } else {
       process.stdout.write(text);
+    }
+    return 0;
+  }
+
+  if (command === "scenarios" && argv[1] === "generate") {
+    const only = flag(argv, "label");
+    const labels = only === undefined ? [...config.releasedSpecs.keys()] : [only];
+    const directory = join(config.invariantDir, "scenarios");
+    await mkdir(directory, { recursive: true });
+    for (const label of labels) {
+      const specPath = config.releasedSpecs.get(label);
+      if (!specPath) {
+        process.stderr.write(
+          `There is no released contract called ${label}. Released: ${[...config.releasedSpecs.keys()].join(", ")}.\n`,
+        );
+        return 1;
+      }
+      const made = scenariosFromDocument(
+        (await loadContract(specPath, label)).document,
+        label,
+        {
+          headers: config.scenarios.headers,
+        },
+      );
+      for (const scenario of made.scenarios) {
+        const slug = scenario.name
+          .replace(/ \(generated\)$/, "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
+        const path = join(directory, `${label}-${slug}.yaml`);
+        // A file already there may have been edited, and is the provider's.
+        if (existsSync(path)) {
+          process.stdout.write(
+            `kept ${relative(process.cwd(), path)}, which is already there\n`,
+          );
+          continue;
+        }
+        await writeFile(
+          path,
+          scenarioYaml(
+            { ...scenario, name: scenario.name.replace(/ \(generated\)$/, "") },
+            `Made by \`invariant scenarios generate\` from contract ${label}'s document.\n` +
+              "Yours now: edit the values, add steps, or delete it. It is written in\n" +
+              `the shapes of ${label}, because that is the traffic whose meaning has to survive.`,
+          ),
+          "utf8",
+        );
+        process.stdout.write(`wrote ${relative(process.cwd(), path)}\n`);
+      }
+      for (const reason of made.skipped) {
+        process.stdout.write(`left out ${label} ${reason}\n`);
+      }
     }
     return 0;
   }

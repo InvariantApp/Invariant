@@ -366,6 +366,28 @@ export async function check(
   };
 }
 
+/**
+ * The report for a machine: everything the text says, and the gate's result,
+ * in a shape that keeps its meaning across releases. The compiled program is
+ * left out, since `invariant compile` writes it, and each step names its
+ * Changes by id rather than repeating them.
+ */
+export function reportJson(report: CheckReport): string {
+  const { program: _program, steps, ...rest } = report;
+  return `${JSON.stringify(
+    {
+      version: 1,
+      ...rest,
+      steps: steps.map(({ changes, ...step }) => ({
+        ...step,
+        changes: changes.map((change) => change.id),
+      })),
+    },
+    null,
+    2,
+  )}\n`;
+}
+
 /** The report a provider reads in their pull request. */
 export function renderReport(report: CheckReport): string {
   const lines: string[] = [];

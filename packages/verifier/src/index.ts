@@ -3,6 +3,7 @@ export * from "./conformance.ts";
 export * from "./differential.ts";
 export * from "./equivalence.ts";
 export * from "./evidence.ts";
+export * from "./generate.ts";
 export * from "./laws.ts";
 export * from "./run.ts";
 export * from "./scenarios.ts";

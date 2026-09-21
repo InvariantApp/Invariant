@@ -24,7 +24,7 @@
  */
 import { isJsonObject, type JsonValue } from "@invariant/ir";
 import { type Evidence, inputsDigest } from "./evidence.ts";
-import { type Scenario, substitute } from "./scenarios.ts";
+import { type Scenario, substitute, type Unordered } from "./scenarios.ts";
 
 /** A running build, however it was started. */
 export interface Target {
@@ -275,6 +275,77 @@ export function volatilePaths(
   return volatile;
 }
 
+/** JSON with object keys sorted, so equal values are equal text. */
+function canonical(value: JsonValue): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (isJsonObject(value)) {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonical(value[key] as JsonValue)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function unescapeSegment(segment: string): string {
+  return segment.replaceAll("~1", "/").replaceAll("~0", "~");
+}
+
+/** The value at a pointer inside one item, for sorting by. */
+function within(value: JsonValue, pointer: string | undefined): JsonValue {
+  if (pointer === undefined || pointer === "") return value;
+  let cursor: JsonValue = value;
+  for (const segment of pointer.split("/").slice(1).map(unescapeSegment)) {
+    if (Array.isArray(cursor)) cursor = (cursor[Number(segment)] ?? null) as JsonValue;
+    else if (isJsonObject(cursor)) cursor = (cursor[segment] ?? null) as JsonValue;
+    else return null;
+  }
+  return cursor;
+}
+
+/**
+ * Observations with every list a scenario declares unordered sorted the one
+ * way, so two runs that returned the same things in another order agree.
+ */
+export function inDeclaredOrder(
+  observations: readonly StepObservation[],
+  unordered: readonly Unordered[],
+): StepObservation[] {
+  if (unordered.length === 0) return [...observations];
+  return observations.map((observation) => {
+    const mine = unordered.filter((entry) => entry.step === observation.id);
+    if (mine.length === 0) return observation;
+    let sorted = observation;
+    for (const entry of mine) {
+      const segments = entry.pointer.split("/").slice(1).map(unescapeSegment);
+      const visit = (node: JsonValue, at: number): JsonValue => {
+        if (at === segments.length) {
+          if (!Array.isArray(node)) return node;
+          const key = (item: JsonValue) => canonical(within(item, entry.by));
+          return [...node].sort((a, b) =>
+            key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0,
+          );
+        }
+        const segment = segments[at] as string;
+        if (segment === "*" && Array.isArray(node)) {
+          return node.map((item) => visit(item, at + 1));
+        }
+        if (isJsonObject(node) && segment in node) {
+          return { ...node, [segment]: visit(node[segment] as JsonValue, at + 1) };
+        }
+        if (Array.isArray(node) && node[Number(segment)] !== undefined) {
+          const copy = [...node];
+          copy[Number(segment)] = visit(copy[Number(segment)] as JsonValue, at + 1);
+          return copy;
+        }
+        return node;
+      };
+      sorted = { ...sorted, body: visit(sorted.body, 0) };
+    }
+    return sorted;
+  });
+}
+
 function kindOf(value: JsonValue): string {
   if (value === null) return "null";
   if (Array.isArray(value)) return "array";
@@ -450,7 +521,11 @@ export async function checkDifferential(
       const second = await withTarget(options.launch, scenario.contract, (target) =>
         observe(target, scenario, {}, compared),
       );
-      volatile = volatilePaths(first, second);
+      const declared = scenario.unordered ?? [];
+      volatile = volatilePaths(
+        inDeclaredOrder(first, declared),
+        inDeclaredOrder(second, declared),
+      );
 
       note(`${scenario.name}: starting the current build`);
       const head = await withTarget(options.launch, "head", (target) =>
@@ -465,7 +540,14 @@ export async function checkDifferential(
         `${scenario.name}: compared in ${((Date.now() - started) / 1000).toFixed(1)}s`,
       );
 
-      found.push(...compare(scenario.name, first, head, volatile));
+      found.push(
+        ...compare(
+          scenario.name,
+          inDeclaredOrder(first, declared),
+          inDeclaredOrder(head, declared),
+          volatile,
+        ),
+      );
     } catch (error) {
       found.push({
         scenario: scenario.name,

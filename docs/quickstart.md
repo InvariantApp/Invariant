@@ -105,6 +105,58 @@ build:
 The `released` list is the set of contracts you are still willing to serve.
 Removing one is how you stop.
 
+`base` starts an old contract from your current code, which works when your
+code can still behave as it did. When it cannot, say where each released
+contract's build really is:
+
+```yaml
+build:
+  contracts:
+    "2026-01-15":
+      url: https://v2026-01-15.staging.acme.dev    # already running; nothing is started
+    "2026-03-01":
+      image: ghcr.io/acme/api:2026-03-01           # the image you released
+      port: 8080                                   # the port it listens on inside
+    "2026-06-01":
+      worktree: v2026-06-01                        # the tag or commit it was released from
+      install: pnpm install --frozen-lockfile
+      command: pnpm start
+```
+
+A worktree is checked out beside your repository and removed when the check
+ends. An image is run with Docker and removed when it stops. A running
+environment is shared by both runs that measure what varies between answers,
+so the evidence says so.
+
+`check --full` then asks each released contract's build and the current build
+the same questions, in that contract's shapes, and compares the answers. The
+questions are the scenarios in `invariant/scenarios`. A released contract you
+have written none for is asked what its own document describes: each
+collection with an item path as a chain, create it, read it back by the id it
+returned, update, list and delete it, and every other operation whose inputs
+the document's examples, defaults and types can fill. What cannot be filled
+is left out and named in the evidence. Give the requests a test credential,
+or turn this off:
+
+```yaml
+scenarios:
+  generate: missing        # missing (the default), always, or never
+  headers:
+    authorization: Bearer sk_test_for_ci
+```
+
+Values that differ between two runs of the same old build, generated ids and
+timestamps, are compared by type only. A list whose order your API does not
+promise can be declared in a scenario, and is compared as a set, sorted by
+the field you name:
+
+```yaml
+unordered:
+  - step: list
+    pointer: /data
+    by: /name
+```
+
 If your specification is generated from your code rather than written by hand,
 name the generator instead of a path and it runs at gate time:
 

@@ -42,7 +42,29 @@ export interface BuildConfig {
   baseEnv: Record<string, string>;
   /** Path that returns 200 once the server is ready. */
   healthPath: string;
+  /**
+   * Where a released contract's build comes from, when it is not the current
+   * code started with the base environment. Keyed by contract label.
+   */
+  contracts: Map<string, BuildSource>;
 }
+
+/**
+ * One released contract's build, stood up the way the provider can: an
+ * environment already running, the image that was released, or the commit it
+ * was released from, installed and started beside the repository.
+ */
+export type BuildSource =
+  | { kind: "url"; url: string }
+  | { kind: "image"; image: string; port: number; env: Record<string, string> }
+  | {
+      kind: "worktree";
+      ref: string;
+      install: { command: string; args: string[] } | undefined;
+      command: string;
+      args: string[];
+      env: Record<string, string>;
+    };
 
 export interface InvariantConfig {
   /** The configuration file itself, which a release edits. */
@@ -68,6 +90,15 @@ export interface InvariantConfig {
   invariantDir: string;
   /** The header a caller uses to declare its contract, if the provider has one. */
   contractHeader: string | undefined;
+  /**
+   * Scenarios made from each released contract's own document: for a
+   * contract with none written by hand (`missing`, the default), beside them
+   * (`always`), or not at all (`never`), with headers every request carries.
+   */
+  scenarios: {
+    generate: "missing" | "always" | "never";
+    headers: Record<string, string>;
+  };
   /**
    * How a request names its contract, compiled into the program so every
    * binding and the proxy read this one declaration.
@@ -95,7 +126,7 @@ function words(command: string): { command: string; args: string[] } {
   return { command: parts[0] ?? "", args: parts.slice(1) };
 }
 
-function buildFrom(raw: JsonValue | undefined): BuildConfig | undefined {
+function buildFrom(raw: JsonValue | undefined, path: string): BuildConfig | undefined {
   if (!isJsonObject(raw)) return undefined;
   const head = raw["head"];
   const base = raw["base"];
@@ -108,7 +139,104 @@ function buildFrom(raw: JsonValue | undefined): BuildConfig | undefined {
     headEnv: env(head["env"]),
     baseEnv: isJsonObject(base) ? env(base["env"]) : {},
     healthPath: typeof raw["healthPath"] === "string" ? raw["healthPath"] : "/__health",
+    contracts: sourcesFrom(raw["contracts"], path),
   };
+}
+
+function scenariosFrom(
+  raw: JsonValue | undefined,
+  path: string,
+): InvariantConfig["scenarios"] {
+  if (raw === undefined) return { generate: "missing", headers: {} };
+  if (!isJsonObject(raw)) throw new ConfigError(`${path}: scenarios must be a mapping`);
+  for (const key of Object.keys(raw)) {
+    if (key !== "generate" && key !== "headers") {
+      throw new ConfigError(
+        `${path}: scenarios.${key} is not a setting (generate, headers)`,
+      );
+    }
+  }
+  const generate = raw["generate"] ?? "missing";
+  if (generate !== "missing" && generate !== "always" && generate !== "never") {
+    throw new ConfigError(`${path}: scenarios.generate must be missing, always or never`);
+  }
+  const headers: Record<string, string> = {};
+  for (const [name, value] of Object.entries(env(raw["headers"]))) {
+    headers[name.toLowerCase()] = value;
+  }
+  return { generate, headers };
+}
+
+/** `build.contracts`: each released contract's own source, checked here. */
+function sourcesFrom(raw: JsonValue | undefined, path: string): Map<string, BuildSource> {
+  const sources = new Map<string, BuildSource>();
+  if (raw === undefined) return sources;
+  if (!isJsonObject(raw)) {
+    throw new ConfigError(
+      `${path}: build.contracts must map contract labels to a source`,
+    );
+  }
+  for (const [label, entry] of Object.entries(raw)) {
+    const where = `${path}: build.contracts.${label}`;
+    if (!isJsonObject(entry)) throw new ConfigError(`${where} must be an object`);
+    const kinds = ["url", "image", "worktree"].filter(
+      (kind) => entry[kind] !== undefined,
+    );
+    if (kinds.length !== 1) {
+      throw new ConfigError(`${where} must name exactly one of url, image or worktree`);
+    }
+    const text = (key: string): string => {
+      const value = entry[key];
+      if (typeof value !== "string" || value.trim() === "") {
+        throw new ConfigError(`${where}.${key} must be a non-empty string`);
+      }
+      return value;
+    };
+    const allowed: Record<string, string[]> = {
+      url: ["url"],
+      image: ["image", "port", "env"],
+      worktree: ["worktree", "install", "command", "env"],
+    };
+    const kind = kinds[0] as string;
+    for (const key of Object.keys(entry)) {
+      if (!allowed[kind]?.includes(key)) {
+        throw new ConfigError(
+          `${where}.${key} is not a setting of ${kind === "image" ? "an" : "a"} ${kind} source`,
+        );
+      }
+    }
+    if (kind === "url") {
+      const url = text("url");
+      if (!/^https?:\/\//.test(url))
+        throw new ConfigError(`${where}.url must be http or https`);
+      sources.set(label, { kind: "url", url: url.replace(/\/$/, "") });
+    } else if (kind === "image") {
+      const port = entry["port"] ?? 8080;
+      if (
+        typeof port !== "number" ||
+        !Number.isInteger(port) ||
+        port < 1 ||
+        port > 65535
+      ) {
+        throw new ConfigError(`${where}.port must be the port the image listens on`);
+      }
+      sources.set(label, {
+        kind: "image",
+        image: text("image"),
+        port,
+        env: env(entry["env"]),
+      });
+    } else {
+      sources.set(label, {
+        kind: "worktree",
+        ref: text("worktree"),
+        install: entry["install"] === undefined ? undefined : words(text("install")),
+        ...words(text("command")),
+        env: env(entry["env"]),
+      });
+    }
+  }
+  return sources;
 }
 
 /** The first header strategy, which is what the differential check sets. */
@@ -275,8 +403,9 @@ export async function loadConfig(path: string): Promise<InvariantConfig> {
     releasedSpecs: released,
     invariantDir: resolve(root, "invariant"),
     contractHeader: headerStrategy(parsed["identity"]),
+    scenarios: scenariosFrom(parsed["scenarios"], path),
     identity: identityFrom(parsed["identity"], path),
-    build: buildFrom(parsed["build"]),
+    build: buildFrom(parsed["build"], path),
     gate: {
       declaredLossy: level(gate["declaredLossy"], "declaredLossy"),
       unmigratableWithActiveConsumers: level(

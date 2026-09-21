@@ -3,7 +3,7 @@ import { chmodSync, existsSync, statSync } from "node:fs";
 import { appendFile, chmod, copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { createHash } from "node:crypto";
-import { exec, execFile, spawn } from "node:child_process";
+import { exec, execFile, spawn, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
 import { createServer } from "node:net";
@@ -12528,7 +12528,7 @@ function mediaTypes(value) {
 	const types = value.filter((entry) => typeof entry === "string");
 	return types.length > 0 ? types : void 0;
 }
-function parametersOf$1(pathItem, operation) {
+function parametersOf$2(pathItem, operation) {
 	return [...Array.isArray(pathItem["parameters"]) ? pathItem["parameters"] : [], ...Array.isArray(operation["parameters"]) ? operation["parameters"] : []].filter(isJsonObject);
 }
 /**
@@ -12591,7 +12591,7 @@ function correctUpgrade(source, converted) {
 			const operation = item[method];
 			if (!isJsonObject(sourceOperation) || !isJsonObject(operation)) continue;
 			responseMediaTypes(sourceOperation, operation);
-			requiredForm(parametersOf$1(sourceItem, sourceOperation), operation);
+			requiredForm(parametersOf$2(sourceItem, sourceOperation), operation);
 		}
 	}
 	nullableFromExtension(converted);
@@ -13018,7 +13018,7 @@ function responseSchemas(document, operation) {
 * through the same view, so they cannot disagree about what a field is.
 */
 /** Deepest `allOf` nesting followed before giving up, which only a cycle reaches. */
-const MAX_DEPTH$3 = 32;
+const MAX_DEPTH$4 = 32;
 /**
 * The schema as it applies to a value: every `$ref` in the chain followed and
 * every `allOf` merged into one object.
@@ -13032,7 +13032,7 @@ function resolveSchema(document, schema) {
 	return resolveAt(document, schema, 0);
 }
 function resolveAt(document, schema, depth) {
-	if (depth > MAX_DEPTH$3) throw new ContractError("allOf nests too deeply to resolve");
+	if (depth > MAX_DEPTH$4) throw new ContractError("allOf nests too deeply to resolve");
 	const target = deref(document, schema);
 	if (!isJsonObject(target)) return target;
 	const branches = target["allOf"];
@@ -13591,7 +13591,7 @@ function findSchemaWithin(document, schemaRef, rootRef) {
 */
 function variantGuard(document, schemaRef, pointer, variantRef) {
 	let current = resolveRef(document, schemaRef);
-	for (const segment of pointer.split("/").slice(1).map(unescapeSegment)) {
+	for (const segment of pointer.split("/").slice(1).map(unescapeSegment$1)) {
 		const resolved = resolveSchema(document, current ?? {});
 		if (!isJsonObject(resolved)) return void 0;
 		current = segment === "*" ? resolved["items"] : segment === "{}" ? resolved["additionalProperties"] : isJsonObject(resolved["properties"]) ? resolved["properties"][segment] : void 0;
@@ -13604,7 +13604,7 @@ function variantGuard(document, schemaRef, pointer, variantRef) {
 	const index = branches.findIndex((branch) => isJsonObject(branch) && branch["$ref"] === variantRef);
 	return index < 0 ? void 0 : guardFor(document, union, branches, index, "");
 }
-const unescapeSegment = (segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~");
+const unescapeSegment$1 = (segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~");
 /**
 * Where each reference in `keep` sits directly inside `root`, without
 * following any reference. This is one step of the shared blocks: the block
@@ -14278,7 +14278,7 @@ function addressOf(pointer) {
 	};
 }
 /** An operation's parameters in effect: the path item's, unless the operation redeclares one. */
-function parametersOf(document, method, path) {
+function parametersOf$1(document, method, path) {
 	const paths = document["paths"];
 	const item = isJsonObject(paths) ? paths[path] : void 0;
 	if (!isJsonObject(item)) return [];
@@ -15609,7 +15609,7 @@ function openEnvelope(envelope, template, pathValues, request, fidelity) {
 	if (envelope.body && request.body !== void 0 && request.body !== "") tree[PART.body] = parseJson(request.body, fidelity);
 	return tree;
 }
-function text$1(value, changeId, where) {
+function text$2(value, changeId, where) {
 	if (typeof value === "string") return value;
 	if (typeof value === "boolean") return String(value);
 	if (value === null) return "";
@@ -15623,15 +15623,15 @@ function text$1(value, changeId, where) {
 function encodeValue(value, codec, changeId) {
 	const where = `${codec.in} parameter ${codec.name}`;
 	if (Array.isArray(value)) {
-		const items = value.map((entry) => text$1(entry, changeId, where));
+		const items = value.map((entry) => text$2(entry, changeId, where));
 		if (codec.explode && (codec.in === "query" || codec.in === "cookie")) return items;
 		return [items.join(delimiterOf(codec))];
 	}
 	if (typeof value === "object" && value !== null && !numberLike(value)) {
-		const entries = Object.entries(value).map(([key, entry]) => [key, text$1(entry, changeId, where)]);
+		const entries = Object.entries(value).map(([key, entry]) => [key, text$2(entry, changeId, where)]);
 		return [codec.explode ? entries.map(([key, entry]) => `${key}=${entry}`).join(",") : entries.flat().join(",")];
 	}
-	return [text$1(value, changeId, where)];
+	return [text$2(value, changeId, where)];
 }
 function numberLike(value) {
 	return JSON.isRawJSON(value);
@@ -15715,7 +15715,7 @@ function closeEnvelope(envelope, template, pathValues, request, tree) {
 			const codec = codecFor("query", name);
 			const changeId = writerOf$1(envelope.instrs, PART.query, name);
 			if (codec.style === "deepObject" && typeof value === "object" && value !== null && !Array.isArray(value) && !numberLike(value)) {
-				for (const [key, entry] of Object.entries(value)) written.push(`${encodeURIComponent(name)}[${encodeURIComponent(key)}]=${encodeURIComponent(text$1(entry, changeId, `query parameter ${name}`))}`);
+				for (const [key, entry] of Object.entries(value)) written.push(`${encodeURIComponent(name)}[${encodeURIComponent(key)}]=${encodeURIComponent(text$2(entry, changeId, `query parameter ${name}`))}`);
 				continue;
 			}
 			const parts = encodeValue(value, codec, changeId);
@@ -15935,7 +15935,7 @@ function openForm(form, roots, text, fidelity) {
 	applyTypes(tree, form.types, fidelity);
 	return tree;
 }
-function text(value, changeId, where) {
+function text$1(value, changeId, where) {
 	if (typeof value === "string") return value;
 	if (typeof value === "boolean") return String(value);
 	if (value === null) return "";
@@ -15961,11 +15961,11 @@ function encodeField(root, value, field, changeId) {
 			for (const [key, child] of Object.entries(node)) nested([...segments, key], child);
 			return;
 		}
-		out.push(`${encodeKey(root, segments)}=${encodeURIComponent(text(node, changeId, root))}`);
+		out.push(`${encodeKey(root, segments)}=${encodeURIComponent(text$1(node, changeId, root))}`);
 	};
 	if (field.style === "deepObject" || isNode(value) || Array.isArray(value) && value.some((item) => isNode(item) || Array.isArray(item))) {
 		if (field.style !== "deepObject" && isNode(value) && !field.explode) {
-			const flat = Object.entries(value).flatMap(([key, child]) => [key, text(child, changeId, root)]);
+			const flat = Object.entries(value).flatMap(([key, child]) => [key, text$1(child, changeId, root)]);
 			out.push(`${encodeURIComponent(root)}=${flat.map(encodeURIComponent).join(",")}`);
 			return out;
 		}
@@ -15973,12 +15973,12 @@ function encodeField(root, value, field, changeId) {
 		return out;
 	}
 	if (Array.isArray(value)) {
-		const items = value.map((item) => text(item, changeId, root));
+		const items = value.map((item) => text$1(item, changeId, root));
 		if (field.explode) for (const item of items) out.push(`${encodeURIComponent(root)}=${encodeURIComponent(item)}`);
 		else out.push(`${encodeURIComponent(root)}=${items.map(encodeURIComponent).join(",")}`);
 		return out;
 	}
-	out.push(`${encodeURIComponent(root)}=${encodeURIComponent(text(value, changeId, root))}`);
+	out.push(`${encodeURIComponent(root)}=${encodeURIComponent(text$1(value, changeId, root))}`);
 	return out;
 }
 /** The change that last wrote under a root, for naming a refusal. */
@@ -19852,8 +19852,8 @@ function collectParameters(change, oldContract, newContract, routes, sites, issu
 			continue;
 		}
 		const target = mapEndpoint(routes, operation.method, operation.path);
-		const oldParams = parametersOf(oldContract, operation.method, operation.path);
-		const newParams = newContract ? parametersOf(newContract, target.method, target.path) : [];
+		const oldParams = parametersOf$1(oldContract, operation.method, operation.path);
+		const newParams = newContract ? parametersOf$1(newContract, target.method, target.path) : [];
 		const oldNames = templateNames(operation.path);
 		const newNames = templateNames(target.path);
 		const staged = [];
@@ -20930,7 +20930,7 @@ function catalogueEntry(id, level) {
 * hashes, upstream's checksums.txt and the one committed in binaries.ts, and
 * the binary has to report the pinned version when run.
 */
-const run$2 = promisify(execFile);
+const run$3 = promisify(execFile);
 const RELEASE_BASE = `https://github.com/oasdiff/oasdiff/releases/download/${OASDIFF_VERSION}`;
 var InstallError = class extends Error {
 	constructor(message) {
@@ -21005,7 +21005,7 @@ async function installBinary(binary, dir, checksums) {
 	try {
 		const archive = join(work, binary.asset);
 		await writeFile(archive, bytes);
-		await run$2("tar", [
+		await run$3("tar", [
 			"-xzf",
 			archive,
 			"-C",
@@ -21031,7 +21031,7 @@ async function installBinary(binary, dir, checksums) {
 }
 /** Throws unless the binary runs and reports the pinned version. */
 async function assertPinnedVersion(executable) {
-	const { stdout } = await run$2(executable, ["--version"]);
+	const { stdout } = await run$3(executable, ["--version"]);
 	if ((stdout.trim().split(/\s+/).at(-1) ?? "").replace(/^v/, "") !== "v1.33.0-rc.1".replace(/^v/, "")) throw new InstallError(`${executable} reports ${stdout.trim()}, not ${OASDIFF_VERSION}`);
 }
 //#endregion
@@ -21062,14 +21062,14 @@ function statementOf(document, branch) {
 	return isJsonObject(target) ? target : void 0;
 }
 /** Deepest nesting followed; only a schema that contains itself goes further. */
-const MAX_DEPTH$1 = 32;
+const MAX_DEPTH$2 = 32;
 /**
 * The slots a branch stands for once its own `allOf` is merged in: each of
 * its branches, then the keywords beside them, as the resolver reads it.
 */
 function expand(document, slot, depth) {
 	const statement = statementOf(document, slot.raw() ?? null);
-	if (!statement || !Array.isArray(statement["allOf"]) || depth > MAX_DEPTH$1) return [slot];
+	if (!statement || !Array.isArray(statement["allOf"]) || depth > MAX_DEPTH$2) return [slot];
 	const own = () => editable(document, slot);
 	const branches = statement["allOf"];
 	return [{
@@ -21113,7 +21113,7 @@ function editable(document, slot) {
 * document can be checked without a copy.
 */
 function agree(document, slots, apply, depth) {
-	if (depth > MAX_DEPTH$1) return false;
+	if (depth > MAX_DEPTH$2) return false;
 	const parts = slots.flatMap((slot) => expand(document, slot, depth));
 	if (parts.length < 2) return false;
 	let disagreed = false;
@@ -21307,7 +21307,7 @@ function wholeSchemaRefs(input) {
 }
 //#endregion
 //#region ../diff/src/oasdiff.ts
-const run$1 = promisify(execFile);
+const run$2 = promisify(execFile);
 var OasdiffError = class extends Error {
 	constructor(message) {
 		super(message);
@@ -21351,7 +21351,7 @@ async function assertUsableOasdiff() {
 	const binary = oasdiffBinary();
 	let output;
 	try {
-		output = (await run$1(binary, ["--version"])).stdout;
+		output = (await run$2(binary, ["--version"])).stdout;
 	} catch (error) {
 		if (error.code === "EACCES") throw new OasdiffError(`${binary} exists but cannot be executed. Make it executable, or set OASDIFF_BIN to one that can be.`);
 		throw new OasdiffError(`oasdiff is required and was not found. Install it with "${OASDIFF_INSTALL}", or set OASDIFF_BIN to its path.`);
@@ -21461,7 +21461,7 @@ async function changelogFiles(baseFile, revisionFile, options) {
 	if (process.env["OASDIFF_DEBUG"]) process.stderr.write(`[oasdiff] ${args.join(" ")}\n`);
 	let stdout;
 	try {
-		({stdout} = await run$1(oasdiffBinary(), args, {
+		({stdout} = await run$2(oasdiffBinary(), args, {
 			maxBuffer: 536870912,
 			timeout: timeoutMs,
 			killSignal: "SIGKILL",
@@ -33756,7 +33756,7 @@ var ArbitraryError = class extends Error {
 	}
 };
 /** How deep to follow nested objects before giving up on a recursive schema. */
-const MAX_DEPTH = 6;
+const MAX_DEPTH$1 = 6;
 /**
 * Beyond MAX_DEPTH only what the schema requires is generated. Real contracts
 * nest deeper than six levels, Adyen's terminal API well past it, and an
@@ -33811,7 +33811,7 @@ const DATES = fast_check_default.date({
 	max: /* @__PURE__ */ new Date("2030-01-01T00:00:00Z"),
 	noInvalidDate: true
 });
-function stringFor(schema) {
+function stringFor$1(schema) {
 	const format = schema["format"];
 	if (format === "date-time") return DATES.map((date) => date.toISOString());
 	if (format === "date") return DATES.map((date) => date.toISOString().slice(0, 10));
@@ -33937,7 +33937,7 @@ function arbitraryFor(document, raw, depth) {
 	const primary = types.find((type) => type !== "null");
 	const base = (() => {
 		switch (primary) {
-			case "string": return stringFor(schema);
+			case "string": return stringFor$1(schema);
 			case "boolean": return fast_check_default.boolean();
 			case "integer": return integerFor(schema);
 			case "number": {
@@ -33950,7 +33950,7 @@ function arbitraryFor(document, raw, depth) {
 				const items = schema["items"];
 				const minItems = typeof schema["minItems"] === "number" ? schema["minItems"] : 0;
 				if (items === void 0 || depth >= HARD_DEPTH) return fast_check_default.constant([]);
-				if (depth >= MAX_DEPTH) {
+				if (depth >= MAX_DEPTH$1) {
 					if (minItems === 0) return fast_check_default.constant([]);
 					return fast_check_default.array(arbitraryFor(document, items, depth + 1), {
 						minLength: minItems,
@@ -33969,7 +33969,7 @@ function arbitraryFor(document, raw, depth) {
 				if (!isJsonObject(properties)) {
 					const named = Array.isArray(schema["required"]) ? schema["required"].filter((entry) => typeof entry === "string") : [];
 					const keys = schema["propertyNames"];
-					if (!isJsonObject(additional) && !isJsonObject(keys) && named.length === 0 || depth >= MAX_DEPTH) return fast_check_default.constant({});
+					if (!isJsonObject(additional) && !isJsonObject(keys) && named.length === 0 || depth >= MAX_DEPTH$1) return fast_check_default.constant({});
 					const value = isJsonObject(additional) ? arbitraryFor(document, additional, depth + 1) : fast_check_default.string({
 						maxLength: 8,
 						unit: "grapheme-ascii"
@@ -33986,7 +33986,7 @@ function arbitraryFor(document, raw, depth) {
 					}));
 				}
 				if (depth >= HARD_DEPTH) return fast_check_default.constant({});
-				const minimal = depth >= MAX_DEPTH;
+				const minimal = depth >= MAX_DEPTH$1;
 				const required = new Set(Array.isArray(schema["required"]) ? schema["required"].filter((entry) => typeof entry === "string") : []);
 				const entries = Object.entries(properties).filter(([name]) => !minimal || required.has(name)).map(([name, child]) => {
 					const value = arbitraryFor(document, child, depth + 1);
@@ -34111,11 +34111,24 @@ function parseScenario(text, where) {
 			reason
 		});
 	});
+	const unordered = [];
+	const rawUnordered = raw["unordered"];
+	if (rawUnordered !== void 0 && !Array.isArray(rawUnordered)) throw new ScenarioError(`${where} unordered must be a list`);
+	(rawUnordered ?? []).forEach((entry, index) => {
+		if (!isJsonObject(entry)) throw new ScenarioError(`${where} unordered ${index} is not a mapping`);
+		const by = entry["by"];
+		unordered.push({
+			step: str(entry["step"], `${where} unordered ${index} step`),
+			pointer: str(entry["pointer"], `${where} unordered ${index} pointer`),
+			...by === void 0 ? {} : { by: str(by, `${where} unordered ${index} by`) }
+		});
+	});
 	return {
 		name: str(raw["name"], `${where} name`),
 		contract: str(raw["contract"], `${where} contract`),
 		steps: steps.map((step, index) => stepFrom(step, index, where)),
-		acknowledged
+		acknowledged,
+		...unordered.length > 0 ? { unordered } : {}
 	};
 }
 async function loadScenarios(directory) {
@@ -34431,6 +34444,63 @@ function volatilePaths(a, b) {
 	});
 	return volatile;
 }
+/** JSON with object keys sorted, so equal values are equal text. */
+function canonical(value) {
+	if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+	if (isJsonObject(value)) return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`;
+	return JSON.stringify(value);
+}
+function unescapeSegment(segment) {
+	return segment.replaceAll("~1", "/").replaceAll("~0", "~");
+}
+/** The value at a pointer inside one item, for sorting by. */
+function within(value, pointer) {
+	if (pointer === void 0 || pointer === "") return value;
+	let cursor = value;
+	for (const segment of pointer.split("/").slice(1).map(unescapeSegment)) if (Array.isArray(cursor)) cursor = cursor[Number(segment)] ?? null;
+	else if (isJsonObject(cursor)) cursor = cursor[segment] ?? null;
+	else return null;
+	return cursor;
+}
+/**
+* Observations with every list a scenario declares unordered sorted the one
+* way, so two runs that returned the same things in another order agree.
+*/
+function inDeclaredOrder(observations, unordered) {
+	if (unordered.length === 0) return [...observations];
+	return observations.map((observation) => {
+		const mine = unordered.filter((entry) => entry.step === observation.id);
+		if (mine.length === 0) return observation;
+		let sorted = observation;
+		for (const entry of mine) {
+			const segments = entry.pointer.split("/").slice(1).map(unescapeSegment);
+			const visit = (node, at) => {
+				if (at === segments.length) {
+					if (!Array.isArray(node)) return node;
+					const key = (item) => canonical(within(item, entry.by));
+					return [...node].sort((a, b) => key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0);
+				}
+				const segment = segments[at];
+				if (segment === "*" && Array.isArray(node)) return node.map((item) => visit(item, at + 1));
+				if (isJsonObject(node) && segment in node) return {
+					...node,
+					[segment]: visit(node[segment], at + 1)
+				};
+				if (Array.isArray(node) && node[Number(segment)] !== void 0) {
+					const copy = [...node];
+					copy[Number(segment)] = visit(copy[Number(segment)], at + 1);
+					return copy;
+				}
+				return node;
+			};
+			sorted = {
+				...sorted,
+				body: visit(sorted.body, 0)
+			};
+		}
+		return sorted;
+	});
+}
 function kindOf(value) {
 	if (value === null) return "null";
 	if (Array.isArray(value)) return "array";
@@ -34552,11 +34622,13 @@ async function checkDifferential(scenarios, options) {
 			const first = await withTarget(options.launch, scenario.contract, (target) => observe(target, scenario, {}, compared));
 			await nextTick();
 			note(`${scenario.name}: starting ${scenario.contract} again`);
-			volatile = volatilePaths(first, await withTarget(options.launch, scenario.contract, (target) => observe(target, scenario, {}, compared)));
+			const second = await withTarget(options.launch, scenario.contract, (target) => observe(target, scenario, {}, compared));
+			const declared = scenario.unordered ?? [];
+			volatile = volatilePaths(inDeclaredOrder(first, declared), inDeclaredOrder(second, declared));
 			note(`${scenario.name}: starting the current build`);
 			const head = await withTarget(options.launch, "head", (target) => observe(target, scenario, options.contractHeader ? { [options.contractHeader]: scenario.contract } : {}, compared));
 			note(`${scenario.name}: compared in ${((Date.now() - started) / 1e3).toFixed(1)}s`);
-			found.push(...compare(scenario.name, first, head, volatile));
+			found.push(...compare(scenario.name, inDeclaredOrder(first, declared), inDeclaredOrder(head, declared), volatile));
 		} catch (error) {
 			found.push({
 				scenario: scenario.name,
@@ -34791,6 +34863,235 @@ function endpointAfter(programs, method, path) {
 	return siteKey(cursor.method, cursor.path);
 }
 //#endregion
+//#region ../verifier/src/generate.ts
+/**
+* Scenarios from a contract's own document, for a provider who has written
+* none.
+*
+* The differential check is only as good as what it asks, and hand-written
+* scenarios are what a stranger adopting the product does not have. A
+* document already says most of what one would say: which operations make a
+* thing, which read it back by id, which list, update and delete it, and,
+* where the provider wrote them, examples of every value. So a collection
+* with an item path becomes a chain, create then read it back, update, list
+* and delete, with the id the create returned carried into the rest, and any
+* other operation whose inputs can be filled in becomes a single step.
+*
+* Values come from the document: an example, a default, the first value an
+* enum allows. Where it gives none, a value is made from the type alone, and
+* where not even that is possible the operation is left out and said so,
+* rather than sent with something invented that proves nothing. Written in the
+* contract's own shapes, like any scenario, because that is the traffic whose
+* meaning has to survive.
+*/
+const MAX_DEPTH = 6;
+/** A value the schema allows, from what the document says, or nothing. */
+function exampleOf(document, schema, depth = 0) {
+	if (schema === void 0 || depth > MAX_DEPTH) return void 0;
+	const resolved = resolveSchema(document, schema);
+	if (!isJsonObject(resolved)) return void 0;
+	if (resolved["example"] !== void 0) return resolved["example"];
+	const examples = resolved["examples"];
+	if (Array.isArray(examples) && examples.length > 0) return examples[0];
+	if (resolved["default"] !== void 0) return resolved["default"];
+	if (resolved["const"] !== void 0) return resolved["const"];
+	const allowed = resolved["enum"];
+	if (Array.isArray(allowed)) {
+		const value = allowed.find((entry) => entry !== null);
+		if (value !== void 0) return value;
+	}
+	for (const union of ["oneOf", "anyOf"]) {
+		const branches = resolved[union];
+		if (Array.isArray(branches)) {
+			for (const branch of branches) {
+				const value = exampleOf(document, branch, depth + 1);
+				if (value !== void 0) return value;
+			}
+			return;
+		}
+	}
+	const declared = resolved["type"];
+	const type = Array.isArray(declared) ? declared.find((entry) => entry !== "null") : declared;
+	const properties = isJsonObject(resolved["properties"]) ? resolved["properties"] : {};
+	switch (type ?? (Object.keys(properties).length > 0 ? "object" : void 0)) {
+		case "object": {
+			const required = Array.isArray(resolved["required"]) ? resolved["required"].filter((name) => typeof name === "string") : [];
+			const out = {};
+			for (const name of required) {
+				const property = properties[name];
+				const field = isJsonObject(property) ? resolveSchema(document, property) : property;
+				if (isJsonObject(field) && field["readOnly"] === true) continue;
+				const value = exampleOf(document, property, depth + 1);
+				if (value === void 0) return void 0;
+				out[name] = value;
+			}
+			return out;
+		}
+		case "array": {
+			const minimum = typeof resolved["minItems"] === "number" ? resolved["minItems"] : 0;
+			if (minimum === 0) return [];
+			const item = exampleOf(document, resolved["items"], depth + 1);
+			return item === void 0 ? void 0 : Array.from({ length: minimum }, () => item);
+		}
+		case "string": return stringFor(resolved);
+		case "integer": return typeof resolved["minimum"] === "number" ? Math.ceil(resolved["minimum"]) : 1;
+		case "number": return typeof resolved["minimum"] === "number" ? resolved["minimum"] : 1;
+		case "boolean": return true;
+	}
+}
+function stringFor(schema) {
+	if (typeof schema["pattern"] === "string") return void 0;
+	switch (schema["format"]) {
+		case "date-time": return "2026-01-01T00:00:00Z";
+		case "date": return "2026-01-01";
+		case "email": return "someone@example.com";
+		case "uuid": return "00000000-0000-4000-8000-000000000000";
+		case "uri":
+		case "url": return "https://example.com";
+	}
+	const minimum = typeof schema["minLength"] === "number" ? schema["minLength"] : 0;
+	return "example".padEnd(minimum, "x");
+}
+function parametersOf(document, path, operation) {
+	const item = document["paths"]?.[path];
+	const shared = isJsonObject(item) && Array.isArray(item["parameters"]) ? item["parameters"] : [];
+	const own = Array.isArray(operation["parameters"]) ? operation["parameters"] : [];
+	const byKey = /* @__PURE__ */ new Map();
+	for (const raw of [...shared, ...own]) {
+		const parameter = deref(document, raw);
+		if (!isJsonObject(parameter) || typeof parameter["name"] !== "string") continue;
+		const examples = parameter["examples"];
+		const first = isJsonObject(examples) ? Object.values(examples)[0] : void 0;
+		const example = parameter["example"] ?? (isJsonObject(first) ? deref(document, first)["value"] : void 0);
+		byKey.set(`${parameter["in"]} ${parameter["name"]}`, {
+			name: parameter["name"],
+			in: String(parameter["in"]),
+			required: parameter["required"] === true || parameter["in"] === "path",
+			schema: parameter["schema"],
+			example
+		});
+	}
+	return [...byKey.values()];
+}
+const text = (value) => typeof value === "string" ? value : JSON.stringify(value);
+/**
+* One request for an operation, or why it cannot be made. `known` supplies
+* path parameters an earlier step captured, as `${step.name}` references.
+*/
+function stepFor(document, operation, id, known, options) {
+	const headers = { ...options.headers ?? {} };
+	let path = operation.path;
+	const query = [];
+	for (const parameter of parametersOf(document, operation.path, operation.operation)) {
+		if (!parameter.required) continue;
+		const value = parameter.in === "path" && known[parameter.name] !== void 0 ? known[parameter.name] : parameter.example ?? exampleOf(document, parameter.schema);
+		if (value === void 0) return `its ${parameter.in} parameter ${parameter.name} has no example and no type to make one from`;
+		const written = text(value);
+		if (parameter.in === "path") path = path.replace(`{${parameter.name}}`, written.startsWith("${") ? written : encodeURIComponent(written));
+		else if (parameter.in === "query") query.push(`${encodeURIComponent(parameter.name)}=${encodeURIComponent(written)}`);
+		else if (parameter.in === "header") headers[parameter.name.toLowerCase()] = written;
+		else return `its required ${parameter.in} parameter ${parameter.name} is not something a scenario sends`;
+	}
+	path = path.replace(/(?<!\$)\{([^{}]+)\}/g, (whole, name) => known[name] ?? whole);
+	if (/(?<!\$)\{[^}]+\}/.test(path)) return "its path has a parameter the document does not declare";
+	let body;
+	const requestBody = deref(document, operation.operation["requestBody"] ?? null);
+	if (isJsonObject(requestBody)) {
+		const media = requestBodyMedia(document, operation.operation);
+		if (media?.media !== "json") {
+			if (requestBody["required"] === true) return "its body is not JSON";
+		} else {
+			const json = requestBody["content"]["application/json"];
+			const examples = json["examples"];
+			const first = isJsonObject(examples) ? Object.values(examples)[0] : void 0;
+			body = json["example"] ?? (isJsonObject(first) ? deref(document, first)["value"] : void 0) ?? exampleOf(document, media.schema);
+			if (body === void 0) return "its body has no example and a required field nothing can fill";
+			headers["content-type"] = "application/json";
+		}
+	}
+	return {
+		id,
+		method: operation.method.toUpperCase(),
+		path: query.length > 0 ? `${path}?${query.join("&")}` : path,
+		headers,
+		body,
+		capture: {},
+		expectStatus: void 0
+	};
+}
+/** Whether a successful answer to this operation carries a top-level `id`. */
+function returnsId(document, operation) {
+	return responseSchemas(document, operation.operation).filter((entry) => entry.status.startsWith("2")).some((entry) => {
+		const schema = resolveSchema(document, entry.schema);
+		return isJsonObject(schema) && isJsonObject(schema["properties"]) && "id" in schema["properties"];
+	});
+}
+/** The single parameter an item path adds to its collection's, as in `/things/{id}`. */
+function itemParameter(collection, path) {
+	const match = /^\/\{([^{}]+)\}$/.exec(path.slice(collection.length));
+	return path.startsWith(collection) ? match?.[1] : void 0;
+}
+function scenariosFromDocument(document, contract, options = {}) {
+	const operations = operationsOf(document).filter((operation) => !operation.webhook);
+	const scenarios = [];
+	const skipped = [];
+	const used = /* @__PURE__ */ new Set();
+	const find = (method, path) => operations.find((operation) => operation.method === method && operation.path === path);
+	for (const create of operations) {
+		if (create.method !== "post" || !returnsId(document, create)) continue;
+		const items = operations.filter((operation) => itemParameter(create.path, operation.path) !== void 0);
+		const read = items.find((operation) => operation.method === "get");
+		if (!read) continue;
+		const name = itemParameter(create.path, read.path);
+		const first = stepFor(document, create, "create", {}, options);
+		if (typeof first === "string") {
+			skipped.push(`${create.method.toUpperCase()} ${create.path}: ${first}`);
+			continue;
+		}
+		first.capture["id"] = "/id";
+		const steps = [first];
+		used.add(create);
+		const then = (operation, id) => {
+			if (!operation) return;
+			const step = stepFor(document, operation, id, { [name]: `\${create.id}` }, options);
+			if (typeof step === "string") {
+				skipped.push(`${operation.method.toUpperCase()} ${operation.path}: ${step}`);
+				return;
+			}
+			steps.push(step);
+			used.add(operation);
+		};
+		then(read, "read");
+		then(items.find((operation) => operation.method === "patch") ?? items.find((operation) => operation.method === "put"), "update");
+		then(find("get", create.path), "list");
+		then(items.find((operation) => operation.method === "delete"), "delete");
+		scenarios.push({
+			name: `make ${create.path} and use it (generated)`,
+			contract,
+			steps,
+			acknowledged: []
+		});
+	}
+	for (const operation of operations) {
+		if (used.has(operation)) continue;
+		const step = stepFor(document, operation, "call", {}, options);
+		if (typeof step === "string") {
+			skipped.push(`${operation.method.toUpperCase()} ${operation.path}: ${step}`);
+			continue;
+		}
+		scenarios.push({
+			name: `${operation.method.toUpperCase()} ${operation.path} (generated)`,
+			contract,
+			steps: [step],
+			acknowledged: []
+		});
+	}
+	return {
+		scenarios,
+		skipped
+	};
+}
+//#endregion
 //#region ../verifier/src/parameter-laws.ts
 /**
 * The laws for a parameter-scoped Change.
@@ -34866,8 +35167,8 @@ function checkParameterLaws(oldContract, predicted, changes, options) {
 		});
 		const decoded = runtime.siteFor(LABEL, target.method, target.path);
 		if (!decoded) continue;
-		const oldParams = parametersOf(oldContract, operation.method, operation.path);
-		const newParams = parametersOf(predicted, target.method, target.path);
+		const oldParams = parametersOf$1(oldContract, operation.method, operation.path);
+		const newParams = parametersOf$1(predicted, target.method, target.path);
 		const oldCodecs = envelope.params.old;
 		const readCodecs = [];
 		const expected = [];
@@ -35061,7 +35362,7 @@ function checkLaws(oldContract, predicted, changes, options = {}) {
 		const label = ids.join(", ");
 		try {
 			const lens = lensFor(entry.forward, entry.backward, entry.blocks);
-			const outbound = run(oldContract, entry.scope, runs, options.seed, (value) => {
+			const outbound = run$1(oldContract, entry.scope, runs, options.seed, (value) => {
 				const canonical = lens.forward(value);
 				const violations = validateAgainst(predicted, entry.scope, canonical);
 				if (violations.length > 0) return `forward produced a value the new contract does not allow (${describe(violations)})`;
@@ -35074,7 +35375,7 @@ function checkLaws(oldContract, predicted, changes, options = {}) {
 				scope: entry.scope,
 				law: "forward round trip"
 			});
-			const inbound = run(predicted, entry.scope, runs, options.seed, (value) => {
+			const inbound = run$1(predicted, entry.scope, runs, options.seed, (value) => {
 				const old = lens.backward(value);
 				const violations = validateAgainst(oldContract, entry.scope, old);
 				if (violations.length > 0) return `backward produced a value the old contract does not allow (${describe(violations)})`;
@@ -35135,7 +35436,7 @@ function checkLaws(oldContract, predicted, changes, options = {}) {
 * outcome: the input came from the contract's own schema, so refusing it means
 * the program is not total over the traffic it will actually receive.
 */
-function run(document, ref, runs, seed, property) {
+function run$1(document, ref, runs, seed, property) {
 	const why = (value) => {
 		try {
 			return property(value);
@@ -35467,7 +35768,7 @@ async function waitForHealth(base, path, child, timeoutMs) {
 	const deadline = Date.now() + timeoutMs;
 	let lastError = "no response yet";
 	while (Date.now() < deadline) {
-		if (child.exitCode !== null) throw new LaunchError(`the build exited with code ${child.exitCode} before it became ready`);
+		if (child && child.exitCode !== null) throw new LaunchError(`the build exited with code ${child.exitCode} before it became ready`);
 		try {
 			const response = await fetch(`${base}${path}`);
 			if (response.ok) return;
@@ -35489,6 +35790,8 @@ async function waitForHealth(base, path, child, timeoutMs) {
 * this run takes responsibility for them itself.
 */
 const running = /* @__PURE__ */ new Set();
+/** Checkouts made for historical builds, removed once the run is over. */
+const checkouts = /* @__PURE__ */ new Set();
 let cleanupInstalled = false;
 function installCleanup() {
 	if (cleanupInstalled) return;
@@ -35496,6 +35799,8 @@ function installCleanup() {
 	const stopAll = () => {
 		for (const stop of running) stop();
 		running.clear();
+		for (const remove of checkouts) remove();
+		checkouts.clear();
 	};
 	process.once("exit", stopAll);
 	for (const signal of [
@@ -35510,12 +35815,15 @@ function installCleanup() {
 /**
 * Starts one build and returns something the verifier can send requests to.
 *
-* `head` uses the configured current-build environment; any other value is a
-* contract label, and `${contract}` in the base environment is replaced with
-* it. That is what lets one start command serve every historical build the
-* provider still supports.
+* `head` uses the configured current-build environment. Any other value is a
+* contract label: one named under `build.contracts` is stood up from its own
+* source, and any other is the current code with `${contract}` in the base
+* environment replaced by the label, which is what lets one start command
+* serve every historical build a provider still supports.
 */
 async function launchBuild(label, options) {
+	const source = label === "head" ? void 0 : options.build.contracts.get(label);
+	if (source?.kind === "url") return reach(label, source.url, options);
 	let last;
 	for (let attempt = 0; attempt < 5; attempt += 1) try {
 		return await startOnce(label, options);
@@ -35525,17 +35833,172 @@ async function launchBuild(label, options) {
 	}
 	throw last;
 }
+/** Fills `${contract}` into each value, beside the port the build is given. */
+function environment(configured, label, port) {
+	const env = { PORT: String(port) };
+	for (const [name, value] of Object.entries(configured)) env[name] = value.replaceAll(CONTRACT_PLACEHOLDER, label);
+	return env;
+}
+async function planFor(label, source, port, options) {
+	const build = options.build;
+	if (source?.kind === "image") {
+		const name = `invariant-${label.replace(/[^a-zA-Z0-9_.-]/g, "-")}-${port}`;
+		const env = environment(source.env, label, port);
+		delete env["PORT"];
+		return {
+			command: "docker",
+			args: [
+				"run",
+				"--rm",
+				"--name",
+				name,
+				"-p",
+				`127.0.0.1:${port}:${source.port}`,
+				...Object.entries(env).flatMap(([key, value]) => ["-e", `${key}=${value}`]),
+				source.image
+			],
+			cwd: options.cwd,
+			env: {},
+			after: () => {
+				spawnSync("docker", [
+					"rm",
+					"-f",
+					name
+				], { stdio: "ignore" });
+			}
+		};
+	}
+	if (source?.kind === "worktree") return {
+		command: source.command,
+		args: source.args,
+		cwd: await checkout(source, options.cwd),
+		env: environment(source.env, label, port)
+	};
+	return {
+		command: build.command,
+		args: build.args,
+		cwd: options.cwd,
+		env: environment(label === "head" ? build.headEnv : build.baseEnv, label, port)
+	};
+}
+/** A command's standard error, and whether it succeeded. */
+function run(command, args, cwd, timeoutMs) {
+	return new Promise((resolve) => {
+		const child = spawn(command, args, {
+			cwd,
+			stdio: [
+				"ignore",
+				"ignore",
+				"pipe"
+			]
+		});
+		let stderr = "";
+		child.stderr.on("data", (chunk) => {
+			stderr += chunk.toString();
+		});
+		const timer = setTimeout(() => child.kill("SIGKILL"), timeoutMs);
+		child.once("error", (error) => {
+			clearTimeout(timer);
+			resolve({
+				ok: false,
+				stderr: error.message
+			});
+		});
+		child.once("close", (code) => {
+			clearTimeout(timer);
+			resolve({
+				ok: code === 0,
+				stderr
+			});
+		});
+	});
+}
+const lastLines = (text) => text.trim().split("\n").slice(-5).join("\n");
+/**
+* The commit a contract was released from, checked out beside the repository
+* and installed, once per run however many times the build is started. It is
+* removed when the run ends.
+*/
+const worktrees = /* @__PURE__ */ new Map();
+function checkout(source, cwd) {
+	const key = `${source.ref}\0${source.install?.command ?? ""} ${source.install?.args.join(" ") ?? ""}`;
+	let made = worktrees.get(key);
+	if (!made) {
+		made = (async () => {
+			const top = spawnSync("git", ["rev-parse", "--show-toplevel"], {
+				cwd,
+				encoding: "utf8"
+			});
+			if (top.status !== 0) throw new LaunchError(`a worktree build needs a git repository: ${lastLines(top.stderr)}`);
+			const repository = top.stdout.trim();
+			const dir = await mkdtemp(join(tmpdir(), "invariant-build-"));
+			const added = await run("git", [
+				"worktree",
+				"add",
+				"--detach",
+				dir,
+				source.ref
+			], repository, 12e4);
+			if (!added.ok) throw new LaunchError(`could not check out ${source.ref}: ${lastLines(added.stderr)}`);
+			installCleanup();
+			checkouts.add(() => {
+				spawnSync("git", [
+					"worktree",
+					"remove",
+					"--force",
+					dir
+				], {
+					cwd: repository,
+					stdio: "ignore"
+				});
+			});
+			const at = join(dir, relative(repository, cwd));
+			if (source.install) {
+				const installed = await run(source.install.command, source.install.args, at, 6e5);
+				if (!installed.ok) throw new LaunchError(`installing ${source.ref} failed: ${lastLines(installed.stderr)}`);
+			}
+			return at;
+		})();
+		worktrees.set(key, made);
+	}
+	return made;
+}
+/**
+* An environment the provider already runs for this contract. Nothing is
+* started or stopped, and nothing about its state is fresh: two runs against
+* it share whatever it holds.
+*/
+async function reach(label, url, options) {
+	try {
+		await waitForHealth(url, options.build.healthPath, void 0, options.timeoutMs ?? 3e4);
+	} catch (error) {
+		throw new LaunchError(`${label}: ${url} ${error instanceof Error ? error.message : String(error)}`);
+	}
+	return {
+		fetch: (request) => forward(url, request),
+		close: async () => {}
+	};
+}
+async function forward(base, request) {
+	const url = new URL(request.url);
+	return fetch(`${base}${url.pathname}${url.search}`, {
+		method: request.method,
+		headers: request.headers,
+		...request.body === null ? {} : {
+			body: await request.text(),
+			duplex: "half"
+		}
+	});
+}
 async function startOnce(label, options) {
 	const port = await freePort();
 	const base = `http://127.0.0.1:${port}`;
-	const configured = label === "head" ? options.build.headEnv : options.build.baseEnv;
-	const env = { PORT: String(port) };
-	for (const [name, value] of Object.entries(configured)) env[name] = value.replaceAll(CONTRACT_PLACEHOLDER, label);
-	const child = spawn(options.build.command, options.build.args, {
-		cwd: options.cwd,
+	const plan = await planFor(label, label === "head" ? void 0 : options.build.contracts.get(label), port, options);
+	const child = spawn(plan.command, plan.args, {
+		cwd: plan.cwd,
 		env: {
 			...process.env,
-			...env
+			...plan.env
 		},
 		stdio: [
 			"ignore",
@@ -35553,6 +36016,7 @@ async function startOnce(label, options) {
 		if (child.pid !== void 0) try {
 			process.kill(-child.pid, "SIGKILL");
 		} catch {}
+		plan.after?.();
 	};
 	running.add(emergencyStop);
 	const signalGroup = (signal) => {
@@ -35563,7 +36027,10 @@ async function startOnce(label, options) {
 	};
 	const close = async () => {
 		running.delete(emergencyStop);
-		if (child.exitCode !== null) return;
+		if (child.exitCode !== null) {
+			plan.after?.();
+			return;
+		}
 		signalGroup("SIGTERM");
 		await new Promise((resolve) => {
 			const timer = setTimeout(() => {
@@ -35576,6 +36043,7 @@ async function startOnce(label, options) {
 			});
 		});
 		child.stderr?.destroy();
+		plan.after?.();
 	};
 	try {
 		await waitForHealth(base, options.build.healthPath, child, options.timeoutMs ?? 3e4);
@@ -35586,17 +36054,7 @@ async function startOnce(label, options) {
 		throw new LaunchError(`${label}: ${error instanceof Error ? error.message : String(error)}` + (detail ? `\n${detail}` : ""));
 	}
 	return {
-		fetch: async (request) => {
-			const url = new URL(request.url);
-			return fetch(`${base}${url.pathname}${url.search}`, {
-				method: request.method,
-				headers: request.headers,
-				...request.body === null ? {} : {
-					body: await request.text(),
-					duplex: "half"
-				}
-			});
-		},
+		fetch: (request) => forward(base, request),
 		close
 	};
 }
@@ -35649,7 +36107,17 @@ async function verify(config, steps, currentLabel, currentDocument, options = {}
 			acknowledged
 		};
 	}
-	const scenarios = await loadScenarios(join(config.invariantDir, "scenarios"));
+	const written = await loadScenarios(join(config.invariantDir, "scenarios"));
+	const generated = [];
+	const leftOut = [];
+	if (config.scenarios.generate !== "never") for (const [label, specPath] of config.releasedSpecs) {
+		if (written.some((scenario) => scenario.contract === label) && config.scenarios.generate === "missing") continue;
+		const document = (await loadContract(specPath, label)).document;
+		const made = scenariosFromDocument(document, label, { headers: config.scenarios.headers });
+		generated.push(...made.scenarios);
+		leftOut.push(...made.skipped.map((reason) => `${label} ${reason}`));
+	}
+	const scenarios = [...written, ...generated];
 	if (scenarios.length === 0) {
 		evidence.push({
 			kind: "E6-differential",
@@ -35681,7 +36149,12 @@ async function verify(config, steps, currentLabel, currentDocument, options = {}
 		onProgress: (message) => process.stderr.write(`  ${message}\n`),
 		...config.contractHeader ? { contractHeader: config.contractHeader } : {}
 	});
-	evidence.push(...differential.evidence);
+	const sources = [...build.contracts].map(([label, source]) => source.kind === "url" ? `${label} at ${source.url}, a running environment whose state both runs shared` : source.kind === "image" ? `${label} from image ${source.image}` : `${label} from ${source.ref}`);
+	const notes = [...sources.length > 0 ? [`Historical builds: ${sources.join("; ")}.`] : [], ...generated.length > 0 ? [`${generated.length} scenarios were made from the released documents` + (leftOut.length > 0 ? `; left out: ${leftOut.slice(0, 5).join("; ")}${leftOut.length > 5 ? `; and ${leftOut.length - 5} more` : ""}.` : ".")] : []];
+	evidence.push(...differential.evidence.map((record) => record.kind === "E6-differential" && notes.length > 0 ? {
+		...record,
+		summary: `${record.summary} ${notes.join(" ")}`
+	} : record));
 	for (const difference of differential.differences) problems.push(`${difference.scenario} / ${difference.step} ${difference.pointer}: ${difference.detail}`);
 	for (const entry of differential.acknowledged) acknowledged.push(`${entry.scenario} / ${entry.step} ${entry.pointer}: ${entry.detail} (${entry.acknowledged})`);
 	const current = scenarios.filter((scenario) => isCurrent(scenario.contract, currentLabel));
@@ -36005,7 +36478,7 @@ function words(command) {
 		args: parts.slice(1)
 	};
 }
-function buildFrom(raw) {
+function buildFrom(raw, path) {
 	if (!isJsonObject(raw)) return void 0;
 	const head = raw["head"];
 	const base = raw["base"];
@@ -36016,8 +36489,86 @@ function buildFrom(raw) {
 		args,
 		headEnv: env(head["env"]),
 		baseEnv: isJsonObject(base) ? env(base["env"]) : {},
-		healthPath: typeof raw["healthPath"] === "string" ? raw["healthPath"] : "/__health"
+		healthPath: typeof raw["healthPath"] === "string" ? raw["healthPath"] : "/__health",
+		contracts: sourcesFrom(raw["contracts"], path)
 	};
+}
+function scenariosFrom(raw, path) {
+	if (raw === void 0) return {
+		generate: "missing",
+		headers: {}
+	};
+	if (!isJsonObject(raw)) throw new ConfigError(`${path}: scenarios must be a mapping`);
+	for (const key of Object.keys(raw)) if (key !== "generate" && key !== "headers") throw new ConfigError(`${path}: scenarios.${key} is not a setting (generate, headers)`);
+	const generate = raw["generate"] ?? "missing";
+	if (generate !== "missing" && generate !== "always" && generate !== "never") throw new ConfigError(`${path}: scenarios.generate must be missing, always or never`);
+	const headers = {};
+	for (const [name, value] of Object.entries(env(raw["headers"]))) headers[name.toLowerCase()] = value;
+	return {
+		generate,
+		headers
+	};
+}
+/** `build.contracts`: each released contract's own source, checked here. */
+function sourcesFrom(raw, path) {
+	const sources = /* @__PURE__ */ new Map();
+	if (raw === void 0) return sources;
+	if (!isJsonObject(raw)) throw new ConfigError(`${path}: build.contracts must map contract labels to a source`);
+	for (const [label, entry] of Object.entries(raw)) {
+		const where = `${path}: build.contracts.${label}`;
+		if (!isJsonObject(entry)) throw new ConfigError(`${where} must be an object`);
+		const kinds = [
+			"url",
+			"image",
+			"worktree"
+		].filter((kind) => entry[kind] !== void 0);
+		if (kinds.length !== 1) throw new ConfigError(`${where} must name exactly one of url, image or worktree`);
+		const text = (key) => {
+			const value = entry[key];
+			if (typeof value !== "string" || value.trim() === "") throw new ConfigError(`${where}.${key} must be a non-empty string`);
+			return value;
+		};
+		const allowed = {
+			url: ["url"],
+			image: [
+				"image",
+				"port",
+				"env"
+			],
+			worktree: [
+				"worktree",
+				"install",
+				"command",
+				"env"
+			]
+		};
+		const kind = kinds[0];
+		for (const key of Object.keys(entry)) if (!allowed[kind]?.includes(key)) throw new ConfigError(`${where}.${key} is not a setting of ${kind === "image" ? "an" : "a"} ${kind} source`);
+		if (kind === "url") {
+			const url = text("url");
+			if (!/^https?:\/\//.test(url)) throw new ConfigError(`${where}.url must be http or https`);
+			sources.set(label, {
+				kind: "url",
+				url: url.replace(/\/$/, "")
+			});
+		} else if (kind === "image") {
+			const port = entry["port"] ?? 8080;
+			if (typeof port !== "number" || !Number.isInteger(port) || port < 1 || port > 65535) throw new ConfigError(`${where}.port must be the port the image listens on`);
+			sources.set(label, {
+				kind: "image",
+				image: text("image"),
+				port,
+				env: env(entry["env"])
+			});
+		} else sources.set(label, {
+			kind: "worktree",
+			ref: text("worktree"),
+			install: entry["install"] === void 0 ? void 0 : words(text("install")),
+			...words(text("command")),
+			env: env(entry["env"])
+		});
+	}
+	return sources;
 }
 /** The first header strategy, which is what the differential check sets. */
 /**
@@ -36128,8 +36679,9 @@ async function loadConfig(path) {
 		releasedSpecs: released,
 		invariantDir: resolve(root, "invariant"),
 		contractHeader: headerStrategy(parsed["identity"]),
+		scenarios: scenariosFrom(parsed["scenarios"], path),
 		identity: identityFrom(parsed["identity"], path),
-		build: buildFrom(parsed["build"]),
+		build: buildFrom(parsed["build"], path),
 		gate: {
 			declaredLossy: level(gate["declaredLossy"], "declaredLossy"),
 			unmigratableWithActiveConsumers: level(gate["unmigratableWithActiveConsumers"], "unmigratableWithActiveConsumers")

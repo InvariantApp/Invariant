@@ -13,7 +13,7 @@
 
 import { join } from "node:path";
 import { type ContractStep, predictDocument } from "@invariant/compiler";
-import type { OpenApiDocument } from "@invariant/contract";
+import { loadContract, type OpenApiDocument } from "@invariant/contract";
 import {
   CURRENT_CONTRACT_ALIAS,
   checkChainEquivalence,
@@ -24,6 +24,7 @@ import {
   isCurrent,
   loadScenarios,
   type Scenario,
+  scenariosFromDocument,
 } from "@invariant/verifier";
 import type { InvariantConfig } from "./config.ts";
 import { launchBuild } from "./launch.ts";
@@ -112,9 +113,25 @@ export async function verify(
     return { evidence, problems, acknowledged };
   }
 
-  const scenarios: Scenario[] = await loadScenarios(
-    join(config.invariantDir, "scenarios"),
-  );
+  const written: Scenario[] = await loadScenarios(join(config.invariantDir, "scenarios"));
+  // A released contract nobody wrote scenarios for is asked what its own
+  // document says it serves, so a stranger's first `check --full` compares
+  // something rather than nothing.
+  const generated: Scenario[] = [];
+  const leftOut: string[] = [];
+  if (config.scenarios.generate !== "never") {
+    for (const [label, specPath] of config.releasedSpecs) {
+      const covered = written.some((scenario) => scenario.contract === label);
+      if (covered && config.scenarios.generate === "missing") continue;
+      const document = (await loadContract(specPath, label)).document;
+      const made = scenariosFromDocument(document, label, {
+        headers: config.scenarios.headers,
+      });
+      generated.push(...made.scenarios);
+      leftOut.push(...made.skipped.map((reason) => `${label} ${reason}`));
+    }
+  }
+  const scenarios = [...written, ...generated];
   if (scenarios.length === 0) {
     evidence.push({
       kind: "E6-differential",
@@ -145,7 +162,35 @@ export async function verify(
     onProgress: (message) => process.stderr.write(`  ${message}\n`),
     ...(config.contractHeader ? { contractHeader: config.contractHeader } : {}),
   });
-  evidence.push(...differential.evidence);
+  // Where each historical build came from, so a reader of the evidence knows
+  // what was compared: a running environment shares state between the two
+  // runs that calibrate volatility, which a fresh build does not.
+  const sources = [...build.contracts].map(([label, source]) =>
+    source.kind === "url"
+      ? `${label} at ${source.url}, a running environment whose state both runs shared`
+      : source.kind === "image"
+        ? `${label} from image ${source.image}`
+        : `${label} from ${source.ref}`,
+  );
+  // And what was asked that nobody wrote, and what could not be asked.
+  const notes = [
+    ...(sources.length > 0 ? [`Historical builds: ${sources.join("; ")}.`] : []),
+    ...(generated.length > 0
+      ? [
+          `${generated.length} scenarios were made from the released documents` +
+            (leftOut.length > 0
+              ? `; left out: ${leftOut.slice(0, 5).join("; ")}${leftOut.length > 5 ? `; and ${leftOut.length - 5} more` : ""}.`
+              : "."),
+        ]
+      : []),
+  ];
+  evidence.push(
+    ...differential.evidence.map((record) =>
+      record.kind === "E6-differential" && notes.length > 0
+        ? { ...record, summary: `${record.summary} ${notes.join(" ")}` }
+        : record,
+    ),
+  );
   for (const difference of differential.differences) {
     problems.push(
       `${difference.scenario} / ${difference.step} ${difference.pointer}: ${difference.detail}`,
