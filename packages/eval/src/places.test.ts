@@ -44,6 +44,40 @@ describe("a delta's place", () => {
     expect(placeOf(at("status"))).not.toBe(placeOf(at("data/items/status")));
   });
 
+  it("is the same for one schema's field however many routes through a union reach it", () => {
+    // Figma's node tree: one enum value added to ConnectorNode, reported once
+    // for every chain of children and unions that can hold one.
+    const reached = (route: string) =>
+      entry(
+        "response-property-enum-value-added",
+        `added the new \`CURVED\` enum value to the \`${route}oneOf[#/components/schemas/ConnectorNode]/connectorLineType\` response property for the response status \`200\``,
+        "GET",
+        "/v1/files/{file_key}",
+      );
+    const places = new Set(
+      [
+        "document/children/items/children/items/",
+        "nodes/additionalProperties/document/oneOf[#/components/schemas/CanvasNode]/children/items/",
+        "document/children/items/oneOf[#/components/schemas/FrameNode]/children/items/",
+      ].map((route) => placeOf(reached(route))),
+    );
+    expect(places.size).toBe(1);
+    expect([...places][0]).toContain(
+      "`#/components/schemas/ConnectorNode/connectorLineType`",
+    );
+  });
+
+  it("still tells apart two fields of the same schema", () => {
+    const at = (field: string) =>
+      entry(
+        "response-property-enum-value-added",
+        `added the new \`X\` enum value to the \`a/oneOf[#/components/schemas/Node]/${field}\` response property for the response status \`200\``,
+        "GET",
+        "/v1/files",
+      );
+    expect(placeOf(at("kind"))).not.toBe(placeOf(at("state")));
+  });
+
   it("keeps the operation for a delta that names no property", () => {
     const removed = (path: string) =>
       entry(

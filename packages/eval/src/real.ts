@@ -148,11 +148,25 @@ function tally(entries: readonly DiffEntry[]): Record<string, number> {
  * that returns the schema, so one enum value Stripe adds to a shared object
  * is thousands of entries, and a count by entry measures how widely a schema
  * is used rather than how much changed. A property's place in a body is the
- * nearest thing the report carries to the schema it belongs to. A removed
- * path names no property, and each one is its own break.
+ * nearest thing the report carries to the schema it belongs to, and where
+ * the path passes through a union the report names that schema outright. A
+ * removed path names no property, and each one is its own break.
  */
 export function placeOf(entry: DiffEntry): string {
-  const text = entry.text.replace(/`([1-5]\d\d|[1-5]xx|default)`/gi, "`*`");
+  const text = entry.text
+    .replace(/`([1-5]\d\d|[1-5]xx|default)`/gi, "`*`")
+    // A property reached through a union names the schema it sits in, as
+    // `children/items/oneOf[#/components/schemas/ConnectorNode]/lineType`.
+    // Figma's node tree reaches one such schema by hundreds of routes, and
+    // each route is the same change to the same field: counted from the
+    // innermost schema, it is one place.
+    .replace(/`([^`]*\[#\/components\/schemas\/[^`]*)`/g, (_whole, path: string) => {
+      const at = path.lastIndexOf("[#/components/schemas/");
+      const close = path.indexOf("]", at);
+      return close === -1
+        ? `\`${path}\``
+        : `\`${path.slice(at + 1, close)}${path.slice(close + 1)}\``;
+    });
   return /propert/i.test(entry.text)
     ? `${entry.id}\n${text}`
     : `${entry.id}\n${entry.operation} ${entry.path}\n${text}`;
