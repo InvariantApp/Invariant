@@ -6,11 +6,6 @@ packages:
 allowBuilds:
   esbuild: true
 
-minimumReleaseAgeExclude:
-  - '@verdaccio/middleware@8.1.4'
-  - verdaccio-audit@13.1.4
-  - verdaccio@6.10.4
-
 # openapi-typescript 7.13 (latest) declares TypeScript ^5 only. Consumer B's
 # generated types are compiled and tested under this repository's TypeScript 6
 # on every run, so the combination is known to work rather than assumed to.

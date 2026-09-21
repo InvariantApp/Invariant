@@ -56,7 +56,7 @@
     "tsdown": "0.23.0",
     "tsx": "^4.23.13",
     "typescript": "6.0.3",
-    "verdaccio": "6.10.4",
+    "verdaccio": "6.10.3",
     "vitest": "^5.0.1"
   }
 }
