@@ -12018,6 +12018,101 @@ function migrateParameters(parameters, consumes) {
 	return result;
 }
 //#endregion
+//#region ../contract/src/swagger.ts
+/**
+* Where the Swagger 2.0 upgrade is wrong about the API, put right.
+*
+* Every correction here was found by converting the corpus's real 2.0
+* documents with a second, independent converter and diffing the two results
+* (`proving/swagger/oracle.mts`), then reading the 2.0 source to see which one
+* described the provider's API. Each is applied to the upgrader's output
+* rather than by patching the upgrader, so a new release of it that fixes the
+* same thing makes the correction a no-op instead of a conflict, and the
+* regression tests say whether it did.
+*/
+const METHODS = [
+	"get",
+	"put",
+	"post",
+	"delete",
+	"options",
+	"head",
+	"patch"
+];
+function mediaTypes(value) {
+	if (!Array.isArray(value)) return void 0;
+	const types = value.filter((entry) => typeof entry === "string");
+	return types.length > 0 ? types : void 0;
+}
+function parametersOf$1(pathItem, operation) {
+	return [...Array.isArray(pathItem["parameters"]) ? pathItem["parameters"] : [], ...Array.isArray(operation["parameters"]) ? operation["parameters"] : []].filter(isJsonObject);
+}
+/**
+* An operation's own `produces` replaces the document's, as 2.0 defines it.
+* The upgrader reads them the other way round, so Gitea's raw file download,
+* which declares `application/octet-stream`, came out as JSON.
+*/
+function responseMediaTypes(source, operation) {
+	const produces = mediaTypes(source["produces"]);
+	const responses = operation["responses"];
+	if (produces === void 0 || !isJsonObject(responses)) return;
+	for (const response of Object.values(responses)) {
+		if (!isJsonObject(response) || !isJsonObject(response["content"])) continue;
+		const content = response["content"];
+		const first = Object.values(content).find(isJsonObject);
+		if (first === void 0) continue;
+		response["content"] = Object.fromEntries(produces.map((type) => {
+			const existing = content[type];
+			return [type, (isJsonObject(existing) ? existing : void 0) ?? (first["schema"] === void 0 ? {} : { schema: first["schema"] })];
+		}));
+	}
+}
+/**
+* A form with a required field is a required body. The upgrader carries
+* `required` over from a `body` parameter and not from `formData` ones, so a
+* request that leaves the whole form out looked allowed.
+*/
+function requiredForm(parameters, operation) {
+	const body = operation["requestBody"];
+	if (!isJsonObject(body) || body["required"] === true) return;
+	if (parameters.some((parameter) => parameter["in"] === "formData" && parameter["required"] === true)) body["required"] = true;
+}
+/**
+* `x-nullable`, the extension go-swagger and Docker use because 2.0 has no
+* way to say null is allowed, is what 3.0 calls `nullable`. Left as an
+* extension, every field Docker declares nullable reads as one that never is.
+*/
+function nullableFromExtension(value) {
+	if (Array.isArray(value)) {
+		for (const item of value) nullableFromExtension(item);
+		return;
+	}
+	if (!isJsonObject(value)) return;
+	if (value["x-nullable"] === true) {
+		const target = typeof value["in"] === "string" && isJsonObject(value["schema"]) ? value["schema"] : value;
+		target["nullable"] = true;
+		delete value["x-nullable"];
+	} else if (value["x-nullable"] === false) delete value["x-nullable"];
+	for (const child of Object.values(value)) nullableFromExtension(child);
+}
+/** The upgrader's output, corrected against the 2.0 document it came from. Mutates `converted`. */
+function correctUpgrade(source, converted) {
+	const sourcePaths = source["paths"];
+	const paths = converted["paths"];
+	if (isJsonObject(sourcePaths) && isJsonObject(paths)) for (const [path, sourceItem] of Object.entries(sourcePaths)) {
+		const item = paths[path];
+		if (!isJsonObject(sourceItem) || !isJsonObject(item)) continue;
+		for (const method of METHODS) {
+			const sourceOperation = sourceItem[method];
+			const operation = item[method];
+			if (!isJsonObject(sourceOperation) || !isJsonObject(operation)) continue;
+			responseMediaTypes(sourceOperation, operation);
+			requiredForm(parametersOf$1(sourceItem, sourceOperation), operation);
+		}
+	}
+	nullableFromExtension(converted);
+}
+//#endregion
 //#region ../contract/src/spec.ts
 var ContractError = class extends Error {
 	constructor(message) {
@@ -12026,7 +12121,7 @@ var ContractError = class extends Error {
 	}
 };
 /** What converts a Swagger 2.0 document, pinned and named in every contract it produced. */
-const SWAGGER_CONVERTER = "@scalar/openapi-upgrader@0.2.16 2.0-to-3.0";
+const SWAGGER_CONVERTER = "@scalar/openapi-upgrader@0.2.16 2.0-to-3.0, with Invariant's corrections 1";
 /**
 * Places whose contents describe an API without constraining the wire, so a
 * reference that dangles inside one is not a reason to refuse the document.
@@ -12083,6 +12178,91 @@ function assertRefsResolve(document) {
 	const more = dangling.length > 1 ? ` (and ${dangling.length - 1} other unresolved reference${dangling.length > 2 ? "s" : ""})` : "";
 	throw new ContractError(`\`${firstRef}\` is referenced but not defined, from ${sites.length} place${sites.length === 1 ? "" : "s"} including ${sites[0]}${more}. The document has to define everything it points at before it can be compared.`);
 }
+/** A key as a JSON Pointer segment writes it. */
+function pointerSegment(key) {
+	return key.replaceAll("~", "~0").replaceAll("/", "~1");
+}
+/** Keywords whose value is one schema, which a list cannot be. */
+const ONE_SCHEMA = [
+	"items",
+	"additionalProperties",
+	"not"
+];
+/** Keywords whose value is a list of schemas, or a map of them. */
+const SCHEMA_LISTS = [
+	"allOf",
+	"anyOf",
+	"oneOf"
+];
+const SCHEMA_MAPS = ["properties", "patternProperties"];
+/**
+* The first place a schema holds a list where OpenAPI takes one schema.
+*
+* Slack's document writes `items: [{ $ref: message }, { type: "null" }]`,
+* JSON Schema draft 4's positional tuple, which neither Swagger 2.0 nor
+* OpenAPI 3.0 has. The differ refuses it with an exit code; saying where and
+* why is the difference between a provider fixing it and giving up. What the
+* author meant is not guessed at: "the first item is a message and the second
+* is null" and "each item is a message or null" are different APIs.
+*/
+function misplacedList(schema, at, seen) {
+	if (!isJsonObject(schema) || seen.has(schema)) return void 0;
+	seen.add(schema);
+	for (const keyword of ONE_SCHEMA) {
+		const value = schema[keyword];
+		if (Array.isArray(value)) return `${at}/${keyword}`;
+		const inner = value === void 0 ? void 0 : misplacedList(value, `${at}/${keyword}`, seen);
+		if (inner) return inner;
+	}
+	for (const keyword of SCHEMA_LISTS) {
+		const value = schema[keyword];
+		if (!Array.isArray(value)) continue;
+		for (const [index, branch] of value.entries()) {
+			const inner = misplacedList(branch, `${at}/${keyword}/${index}`, seen);
+			if (inner) return inner;
+		}
+	}
+	for (const keyword of SCHEMA_MAPS) {
+		const value = schema[keyword];
+		if (!isJsonObject(value)) continue;
+		for (const [name, child] of Object.entries(value)) {
+			const inner = misplacedList(child, `${at}/${keyword}/${pointerSegment(name)}`, seen);
+			if (inner) return inner;
+		}
+	}
+}
+/** Every schema a document declares or uses in place, with where it is. */
+function schemaRoots(document) {
+	const roots = [];
+	const components = document["components"];
+	const schemas = isJsonObject(components) ? components["schemas"] : void 0;
+	if (isJsonObject(schemas)) for (const [name, schema] of Object.entries(schemas)) roots.push([`#/components/schemas/${pointerSegment(name)}`, schema]);
+	const visit = (value, at) => {
+		if (Array.isArray(value)) {
+			for (const [index, item] of value.entries()) visit(item, `${at}/${index}`);
+			return;
+		}
+		if (!isJsonObject(value)) return;
+		for (const [key, child] of Object.entries(value)) if (key === "schema") roots.push([`${at}/schema`, child]);
+		else if (key !== "example" && key !== "examples") visit(child, `${at}/${pointerSegment(key)}`);
+	};
+	visit(document["paths"] ?? {}, "#/paths");
+	if (isJsonObject(components)) for (const section of [
+		"parameters",
+		"responses",
+		"requestBodies",
+		"headers"
+	]) visit(components[section] ?? {}, `#/components/${section}`);
+	return roots;
+}
+function assertSchemasWellFormed(document) {
+	const seen = /* @__PURE__ */ new Set();
+	for (const [at, schema] of schemaRoots(document)) {
+		const where = misplacedList(schema, at, seen);
+		if (where === void 0) continue;
+		throw new ContractError(`${where} is a list of schemas, where OpenAPI takes one. A list there is JSON Schema's positional tuple, which neither Swagger 2.0 nor OpenAPI 3.0 has. If each value may be one of several shapes, write that as anyOf.`);
+	}
+}
 /**
 * Path templates that are the same endpoint once the parameter names come out.
 *
@@ -12122,6 +12302,7 @@ function ambiguousPaths(document) {
 function upgradeSwagger(document) {
 	const converted = upgradeFromTwoToThree(structuredClone(document));
 	if (!isJsonObject(converted)) throw new ContractError("The Swagger 2.0 document could not be converted");
+	correctUpgrade(document, converted);
 	return converted;
 }
 function isSwagger2(document) {
@@ -12130,6 +12311,7 @@ function isSwagger2(document) {
 function normalizeDocument(input) {
 	const document = isSwagger2(input) ? upgradeSwagger(input) : input;
 	assertRefsResolve(document);
+	assertSchemasWellFormed(document);
 	const version = document["openapi"];
 	if (typeof version !== "string" || !version.startsWith("3.")) throw new ContractError(`Only OpenAPI 3.x is supported, got ${String(version)}`);
 	if (!isJsonObject(document["paths"]) && !isJsonObject(document["webhooks"])) throw new ContractError("Document has no paths or webhooks object");
@@ -12147,11 +12329,15 @@ function contractOf(label, document) {
 		} } : {}
 	};
 }
-async function loadContract(path, label) {
+/** A document as its file has it, before any conversion. */
+async function readDocument(path) {
 	const text = await readFile(path, "utf8");
 	const parsed = path.endsWith(".json") ? JSON.parse(text) : (0, import_dist.parse)(text);
 	if (!isJsonObject(parsed)) throw new ContractError(`${path} does not contain an OpenAPI document`);
-	return contractOf(label, parsed);
+	return parsed;
+}
+async function loadContract(path, label) {
+	return contractOf(label, await readDocument(path));
 }
 /** Every operation in the document, in a stable order. */
 function operationsOf(document) {

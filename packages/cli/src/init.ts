@@ -22,7 +22,6 @@ import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { loadContract, operationsOf } from "@invariant/contract";
 import { actionRef, BRAND, isJsonObject, type JsonValue } from "@invariant/ir";
-import { parse as parseYaml } from "yaml";
 
 const run = promisify(execFile);
 const runShell = promisify(exec);
@@ -293,15 +292,6 @@ function slug(text: string): string {
   );
 }
 
-async function readDocument(path: string): Promise<Record<string, JsonValue>> {
-  const text = await readFile(path, "utf8");
-  const parsed: unknown = /\.json$/i.test(path) ? JSON.parse(text) : parseYaml(text);
-  if (!isJsonObject(parsed as JsonValue)) {
-    throw new InitError(`${path} is not an OpenAPI document`);
-  }
-  return parsed as Record<string, JsonValue>;
-}
-
 /** Picks the specification, or explains exactly why it cannot. */
 async function chooseSpec(options: InitOptions): Promise<string> {
   if (options.specCommand) {
@@ -346,12 +336,15 @@ async function chooseSpec(options: InitOptions): Promise<string> {
     );
   }
 
+  // A Swagger 2.0 document is read as it is published and converted on every
+  // load, so the provider keeps the file they already maintain.
   const swagger = found.filter((spec) => spec.version.startsWith("swagger"));
-  if (swagger.length > 0) {
+  if (swagger.length === 1) return (swagger[0] as FoundSpec).path;
+  if (swagger.length > 1) {
     throw new InitError(
-      "Only Swagger 2.0 documents were found, and this version reads OpenAPI 3.x:\n" +
-        swagger.map((spec) => `  ${spec.path}`).join("\n") +
-        "\nConvert one to OpenAPI 3 and pass it with --spec.",
+      "This repository has more than one Swagger 2.0 document, and which one describes " +
+        "the API is not something to guess. Name it with --spec:\n" +
+        swagger.map((spec) => `  ${spec.path}`).join("\n"),
     );
   }
 
@@ -471,8 +464,10 @@ export async function init(options: InitOptions): Promise<InitResult> {
 
   // Loaded the way every check will load it, so a document the gate cannot
   // read is refused now, with the reason, rather than on the first pull request.
-  await loadContract(specPath, "baseline");
-  const document = await readDocument(specPath);
+  // What is read from it is read from that same form, so a Swagger 2.0
+  // document's parameters are found where OpenAPI 3 puts them.
+  const contract = await loadContract(specPath, "baseline");
+  const document = contract.document as Record<string, JsonValue>;
 
   const info = document["info"];
   const title =
@@ -513,6 +508,12 @@ export async function init(options: InitOptions): Promise<InitResult> {
   const notes: string[] = [
     `The baseline is ${spec} as it is right now. It should describe what production ` +
       "serves today, because every existing caller is assumed to be on it.",
+    ...(contract.convertedFrom
+      ? [
+          `${spec} is Swagger 2.0. It stays as you publish it, and every check reads it ` +
+            `converted to OpenAPI 3.0 by ${contract.convertedFrom.by}.`,
+        ]
+      : []),
   ];
 
   if ((options.ci ?? "github") === "github") {

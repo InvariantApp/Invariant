@@ -95,6 +95,43 @@ jobs:
             proving/traffic/REPORT.md
             proving/traffic/results.json
 
+  swagger:
+    name: swagger 2.0 (two converters)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: node --import tsx scripts/fetch-oasdiff.mts --host
+
+      - uses: actions/cache@v4
+        with:
+          path: .cache/corpus
+          key: corpus-${{ hashFiles('proving/corpus/manifest.json') }}
+
+      # Every Swagger 2.0 document in the corpus, Kubernetes included, which
+      # is too large to diff on a small machine. Fails on any difference
+      # between the two conversions that nobody has settled.
+      - name: Both conversions, compared by the differ
+        run: node --import tsx proving/swagger/oracle.mts
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: swagger-report
+          path: proving/swagger/REPORT.md
+
   servers:
     name: servers (rig D, ${{ matrix.project }})
     strategy:
@@ -205,7 +242,7 @@ jobs:
           git push
 
   report:
-    needs: [corpus, traffic, servers, fuzz]
+    needs: [corpus, traffic, swagger, servers, fuzz]
     # Every rig's result is gathered even when one of them failed, so the
     # scoreboard says which; nothing is recorded unless all of them passed.
     if: always()
@@ -237,6 +274,11 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
+          name: swagger-report
+          path: proving/swagger
+
+      - uses: actions/download-artifact@v4
+        with:
           pattern: servers-*
           path: servers-results
           merge-multiple: true
@@ -265,6 +307,7 @@ jobs:
             proving/corpus/results.json
             proving/servers/REPORT.md
             proving/servers/results.json
+            proving/swagger/REPORT.md
 
       # Recorded in the repository, so a number quoted anywhere can be traced
       # to the run that produced it. Nothing is committed when nothing changed.
@@ -273,7 +316,7 @@ jobs:
         run: |
           git config user.name "invariant-proving"
           git config user.email "proving@users.noreply.github.com"
-          git add proving/SCOREBOARD.md proving/corpus proving/traffic proving/servers
+          git add proving/SCOREBOARD.md proving/corpus proving/traffic proving/servers proving/swagger
           git diff --cached --quiet || git commit -m "Record the nightly proving run"
           git pull --rebase
           git push

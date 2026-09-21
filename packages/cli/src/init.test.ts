@@ -98,6 +98,55 @@ describe.skipIf(!hasOasdiff)("invariant init", () => {
     expect(check.stdout).toContain("currency");
   });
 
+  it("takes a Swagger 2.0 document as it is published, and catches a break in it", async () => {
+    const swagger = {
+      swagger: "2.0",
+      info: { title: "Pets", version: "1" },
+      basePath: "/v1",
+      paths: {
+        "/pets/{id}": {
+          get: {
+            operationId: "getPet",
+            parameters: [
+              { name: "id", in: "path", required: true, type: "string" },
+              { name: "Pets-Version", in: "header", type: "string" },
+            ],
+            responses: {
+              "200": { description: "a pet", schema: { $ref: "#/definitions/Pet" } },
+            },
+          },
+        },
+      },
+      definitions: {
+        Pet: {
+          type: "object",
+          required: ["id", "name"],
+          properties: { id: { type: "string" }, name: { type: "string" } },
+        },
+      },
+    };
+    const root = await repository({ "swagger.json": JSON.stringify(swagger) });
+    const result = await invariant(root, ["init", "--label", "2026-09-01", "--no-ci"]);
+
+    expect(result.stderr).toBe("");
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("First check: PASS");
+    expect(result.stdout).toContain("swagger.json is Swagger 2.0");
+    const config = await readFile(join(root, "invariant.yaml"), "utf8");
+    expect(config).toContain("current: swagger.json");
+    // Read from the converted form, where OpenAPI 3 keeps a header parameter.
+    expect(config).toContain("Pets-Version");
+
+    const pet = swagger.definitions.Pet;
+    pet.required = ["id"];
+    delete (pet.properties as Record<string, unknown>)["name"];
+    await writeFile(join(root, "swagger.json"), JSON.stringify(swagger), "utf8");
+    const check = await invariant(root, ["check"]);
+    expect(check.code).toBe(1);
+    expect(check.stdout).toContain("Release status: BLOCK");
+    expect(check.stdout).toContain("name");
+  });
+
   it("runs a generator through the shell, redirects and all", async () => {
     const root = await repository({ "spec-source.json": await acme() });
     const result = await invariant(root, [

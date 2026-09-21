@@ -258,7 +258,48 @@ const SOURCES: Source[] = [
     branch: "main",
     depth: 40,
   },
+  // Swagger 2.0, as each publishes it, read through the upgrade every load
+  // goes through. Until the upgrade existed these were left out entirely, and
+  // they are some of the most integrated-against APIs there are.
+  {
+    provider: "gitea.com",
+    repo: "go-gitea/gitea",
+    path: "templates/swagger/v1-swagger.generated.json",
+    branch: "main",
+    depth: 20,
+  },
+  {
+    provider: "docker.com",
+    repo: "moby/moby",
+    path: "api/swagger.yaml",
+    branch: "master",
+    depth: 20,
+  },
+  {
+    provider: "slack.com",
+    repo: "slackapi/slack-api-specs",
+    path: "web-api/slack_web_openapi_v2.json",
+    branch: "master",
+    depth: 20,
+  },
+  {
+    provider: "kubernetes.io",
+    repo: "kubernetes/kubernetes",
+    path: "api/openapi-spec/swagger.json",
+    branch: "master",
+    depth: 4,
+  },
 ];
+
+/**
+ * `--provider a,b` limits a run to those providers, or to sources by their
+ * path, so adding one source costs that source's requests and no more.
+ */
+const only = (() => {
+  const index = process.argv.indexOf("--provider");
+  const value = index === -1 ? undefined : process.argv[index + 1];
+  return value === undefined ? undefined : new Set(value.split(","));
+})();
 
 async function api<T>(path: string): Promise<T> {
   const response = await fetch(`https://api.github.com/${path}`, {
@@ -305,6 +346,7 @@ const added: ManifestPair[] = [];
 await mkdir(CACHE, { recursive: true });
 
 for (const source of SOURCES) {
+  if (only && !only.has(source.provider) && !only.has(source.path ?? "")) continue;
   let paths: string[];
   try {
     paths = await filesIn(source);

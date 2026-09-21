@@ -2081,6 +2081,33 @@ is wrong. Every re-encoding it cannot rewrite, which is now all of them but
 `scale10` and `enumMap`, is flagged for a person at the site instead. The
 codemods themselves are M6 work.
 
+### Swagger 2.0, and a converter that agreed with itself
+
+The corpus had no Swagger 2.0 pairs at all, although the loader had converted
+2.0 for weeks and `init` still refused it with a message saying to convert by
+hand. Fifty-two pairs from Docker Engine, Gitea, Slack and Kubernetes are in
+the manifest now, and `init` takes a 2.0 document as it is published.
+
+A conversion mistake cannot show up in the corpus numbers, because both halves
+of every pair go through the same converter and agree with each other about
+it. So every 2.0 document is also converted by `swagger2openapi` and the two
+results compared by the differ. The first run found over five thousand
+differences. Read against the 2.0 source, three were ours: the upgrader
+preferred the document's `produces` to the operation's own, which the 2.0
+specification defines the other way round, so Gitea's file download was
+declared as JSON; a form with a required field did not make the body
+required; and Docker's `x-nullable`, on thousands of fields, was dropped. The
+rest were the other converter inventing a media type from an example's key.
+The corrections are applied to the upgrader's output, each with a regression
+test, and the oracle runs nightly and fails on any difference nobody has
+settled.
+
+Slack's document writes `items` as a list, JSON Schema's positional tuple,
+which neither 2.0 nor 3.0 has, and the differ refused it with exit code 102.
+The loader now refuses it first and names the place. What the author meant is
+not guessed: "each item is a message or null" and "the second item is null"
+are different APIs.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no

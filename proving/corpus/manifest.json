@@ -27018,6 +27018,942 @@
         "sha256": "5688b3010c3c2f4cbb3345a1ea43ca1df218143e87a9f5ef1d489e26ecfd1c90",
         "format": "yaml"
       }
+    },
+    {
+      "api": "gitea.com:v1-swagger.generated",
+      "title": "gitea.com v1-swagger.generated",
+      "provider": "gitea.com",
+      "source": "git",
+      "from": {
+        "label": "2026-07-31 f0a95ee",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/f0a95eebe342495cf355b7e0e5b3f0ef5ede4106/templates/swagger/v1-swagger.generated.json",
+        "sha256": "5b0f16a3c5adb751facc64374f30c57209b97979e03eceac67fbd4cd6510e30b",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-08-02 a65f422",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/a65f422b89ca38fcbb85922b897aea4ece444415/templates/swagger/v1-swagger.generated.json",
+        "sha256": "b681320eb7fe43d710f1fd280c6dd46e0d0e05770279b3d18e5aba37bd138b5c",
+        "format": "json"
+      }
+    },
+    {
+      "api": "gitea.com:v1-swagger.generated",
+      "title": "gitea.com v1-swagger.generated",
+      "provider": "gitea.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-02 a65f422",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/a65f422b89ca38fcbb85922b897aea4ece444415/templates/swagger/v1-swagger.generated.json",
+        "sha256": "b681320eb7fe43d710f1fd280c6dd46e0d0e05770279b3d18e5aba37bd138b5c",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-08-03 09f7c71",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/09f7c71e3daad77d85c4495b5ea79acc3f763013/templates/swagger/v1-swagger.generated.json",
+        "sha256": "ca7172b15fc9d2607722be0cff7e3adb9a31ab38ac1b7ecc2ee89e2ef672d2b8",
+        "format": "json"
+      }
+    },
+    {
+      "api": "gitea.com:v1-swagger.generated",
+      "title": "gitea.com v1-swagger.generated",
+      "provider": "gitea.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-03 09f7c71",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/09f7c71e3daad77d85c4495b5ea79acc3f763013/templates/swagger/v1-swagger.generated.json",
+        "sha256": "ca7172b15fc9d2607722be0cff7e3adb9a31ab38ac1b7ecc2ee89e2ef672d2b8",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-08-05 c46f0d5",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/c46f0d545e7379173f97f56aaf4baa4958db95d0/templates/swagger/v1-swagger.generated.json",
+        "sha256": "64cafd491b0bff956ee60b60a8d5c55323cb7fb280330f64c0a743c97deeebc1",
+        "format": "json"
+      }
+    },
+    {
+      "api": "gitea.com:v1-swagger.generated",
+      "title": "gitea.com v1-swagger.generated",
+      "provider": "gitea.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-05 c46f0d5",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/c46f0d545e7379173f97f56aaf4baa4958db95d0/templates/swagger/v1-swagger.generated.json",
+        "sha256": "64cafd491b0bff956ee60b60a8d5c55323cb7fb280330f64c0a743c97deeebc1",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-08-07 8873150",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/88731502062f3159ae687578bdf9244e9884a87f/templates/swagger/v1-swagger.generated.json",
+        "sha256": "6085a805aecea4c2ffbd9e47e709a4e3e7432d55100acf871efcffce39106d22",
+        "format": "json"
+      }
+    },
+    {
+      "api": "gitea.com:v1-swagger.generated",
+      "title": "gitea.com v1-swagger.generated",
+      "provider": "gitea.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-07 8873150",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/88731502062f3159ae687578bdf9244e9884a87f/templates/swagger/v1-swagger.generated.json",
+        "sha256": "6085a805aecea4c2ffbd9e47e709a4e3e7432d55100acf871efcffce39106d22",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-08-07 9fc5d20",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/9fc5d20006f70043d5e82d74dea7c7d32c472502/templates/swagger/v1-swagger.generated.json",
+        "sha256": "b467a18af45f5d85a39a1c858b0c6a83ad85f9497ba2cee5c015b19076dba797",
+        "format": "json"
+      }
+    },
+    {
+      "api": "gitea.com:v1-swagger.generated",
+      "title": "gitea.com v1-swagger.generated",
+      "provider": "gitea.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-07 9fc5d20",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/9fc5d20006f70043d5e82d74dea7c7d32c472502/templates/swagger/v1-swagger.generated.json",
+        "sha256": "b467a18af45f5d85a39a1c858b0c6a83ad85f9497ba2cee5c015b19076dba797",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-08-08 7fae3d5",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/7fae3d5db3df8996f39b2b4ce4435158c5c54b66/templates/swagger/v1-swagger.generated.json",
+        "sha256": "e7f090c75c117ca67b24e291afe740cee96a9973295be8b34d7be4f23b673ac6",
+        "format": "json"
+      }
+    },
+    {
+      "api": "gitea.com:v1-swagger.generated",
+      "title": "gitea.com v1-swagger.generated",
+      "provider": "gitea.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-08 7fae3d5",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/7fae3d5db3df8996f39b2b4ce4435158c5c54b66/templates/swagger/v1-swagger.generated.json",
+        "sha256": "e7f090c75c117ca67b24e291afe740cee96a9973295be8b34d7be4f23b673ac6",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-08-14 befeacd",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/befeacdf7dd930d98a032291fca964254fa55297/templates/swagger/v1-swagger.generated.json",
+        "sha256": "c89d05f3af0b1cd5962f05f94695c7f5df012decd55c765d7b01887e67617fdb",
+        "format": "json"
+      }
+    },
+    {
+      "api": "gitea.com:v1-swagger.generated",
+      "title": "gitea.com v1-swagger.generated",
+      "provider": "gitea.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-14 befeacd",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/befeacdf7dd930d98a032291fca964254fa55297/templates/swagger/v1-swagger.generated.json",
+        "sha256": "c89d05f3af0b1cd5962f05f94695c7f5df012decd55c765d7b01887e67617fdb",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-08-16 63f2918",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/63f2918336aec5ef960e31e03f207a39967d14bf/templates/swagger/v1-swagger.generated.json",
+        "sha256": "4941c7200fbd32a96d9e79dd2dac7d38b92af1f0f8a3d63c05fe694b6a23ebf0",
+        "format": "json"
+      }
+    },
+    {
+      "api": "gitea.com:v1-swagger.generated",
+      "title": "gitea.com v1-swagger.generated",
+      "provider": "gitea.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-16 63f2918",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/63f2918336aec5ef960e31e03f207a39967d14bf/templates/swagger/v1-swagger.generated.json",
+        "sha256": "4941c7200fbd32a96d9e79dd2dac7d38b92af1f0f8a3d63c05fe694b6a23ebf0",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-08-17 ed4a23e",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/ed4a23e893b0bfb4eed85e34fde72da2774c982a/templates/swagger/v1-swagger.generated.json",
+        "sha256": "9045b58f0c09a1cdfb65bae9ec1a1e6fff7c7b99c0b98aa5633d0afdc5ad8fcd",
+        "format": "json"
+      }
+    },
+    {
+      "api": "gitea.com:v1-swagger.generated",
+      "title": "gitea.com v1-swagger.generated",
+      "provider": "gitea.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-17 ed4a23e",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/ed4a23e893b0bfb4eed85e34fde72da2774c982a/templates/swagger/v1-swagger.generated.json",
+        "sha256": "9045b58f0c09a1cdfb65bae9ec1a1e6fff7c7b99c0b98aa5633d0afdc5ad8fcd",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-08-22 f7072b0",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/f7072b030599aa791926213b5e4563545394b83b/templates/swagger/v1-swagger.generated.json",
+        "sha256": "c816daa60f66be29b1f7c190a281995bd85e6c7c5c3700b4828bd3e2180fac2b",
+        "format": "json"
+      }
+    },
+    {
+      "api": "gitea.com:v1-swagger.generated",
+      "title": "gitea.com v1-swagger.generated",
+      "provider": "gitea.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-22 f7072b0",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/f7072b030599aa791926213b5e4563545394b83b/templates/swagger/v1-swagger.generated.json",
+        "sha256": "c816daa60f66be29b1f7c190a281995bd85e6c7c5c3700b4828bd3e2180fac2b",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-08-23 204c0ba",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/204c0bafd358d69d7d1a565a89d4f16b440efda4/templates/swagger/v1-swagger.generated.json",
+        "sha256": "603abedd3a22eaa99cf7c2ab347083cca7ddd5491a321b249e0b5987d38a2382",
+        "format": "json"
+      }
+    },
+    {
+      "api": "gitea.com:v1-swagger.generated",
+      "title": "gitea.com v1-swagger.generated",
+      "provider": "gitea.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-23 204c0ba",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/204c0bafd358d69d7d1a565a89d4f16b440efda4/templates/swagger/v1-swagger.generated.json",
+        "sha256": "603abedd3a22eaa99cf7c2ab347083cca7ddd5491a321b249e0b5987d38a2382",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-08-26 646ea0f",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/646ea0f2538b02b2c4946aef1e5c23e77964061d/templates/swagger/v1-swagger.generated.json",
+        "sha256": "4d5b39fca8a8f1965d00aecaa32fefe73e831d262862fa2e28f67a7648329713",
+        "format": "json"
+      }
+    },
+    {
+      "api": "gitea.com:v1-swagger.generated",
+      "title": "gitea.com v1-swagger.generated",
+      "provider": "gitea.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-26 646ea0f",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/646ea0f2538b02b2c4946aef1e5c23e77964061d/templates/swagger/v1-swagger.generated.json",
+        "sha256": "4d5b39fca8a8f1965d00aecaa32fefe73e831d262862fa2e28f67a7648329713",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-09-08 8b6ad49",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/8b6ad49a5f85c10595792e62971f0bf4ea5676d1/templates/swagger/v1-swagger.generated.json",
+        "sha256": "ba4fb0ff7ffe7f82a24484b912aafecbba4a30754c49943e3cce9776a51626d2",
+        "format": "json"
+      }
+    },
+    {
+      "api": "gitea.com:v1-swagger.generated",
+      "title": "gitea.com v1-swagger.generated",
+      "provider": "gitea.com",
+      "source": "git",
+      "from": {
+        "label": "2026-09-08 8b6ad49",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/8b6ad49a5f85c10595792e62971f0bf4ea5676d1/templates/swagger/v1-swagger.generated.json",
+        "sha256": "ba4fb0ff7ffe7f82a24484b912aafecbba4a30754c49943e3cce9776a51626d2",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-09-16 7ebb2ca",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/7ebb2caa9e65f394cfe6bcf710d02679a52b199b/templates/swagger/v1-swagger.generated.json",
+        "sha256": "007a599c7990a5ff9fbee6ae222ac33900cfc8130201f5c968655fd09b4ae94c",
+        "format": "json"
+      }
+    },
+    {
+      "api": "gitea.com:v1-swagger.generated",
+      "title": "gitea.com v1-swagger.generated",
+      "provider": "gitea.com",
+      "source": "git",
+      "from": {
+        "label": "2026-09-16 7ebb2ca",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/7ebb2caa9e65f394cfe6bcf710d02679a52b199b/templates/swagger/v1-swagger.generated.json",
+        "sha256": "007a599c7990a5ff9fbee6ae222ac33900cfc8130201f5c968655fd09b4ae94c",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-09-17 be7cde7",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/be7cde75395b179d1ada9d2c97ede0217076d1fe/templates/swagger/v1-swagger.generated.json",
+        "sha256": "22be165abe30735e4ab6ae7a92b365afe47e2cb9081c6ebaf465da93565fbcf9",
+        "format": "json"
+      }
+    },
+    {
+      "api": "gitea.com:v1-swagger.generated",
+      "title": "gitea.com v1-swagger.generated",
+      "provider": "gitea.com",
+      "source": "git",
+      "from": {
+        "label": "2026-09-17 be7cde7",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/be7cde75395b179d1ada9d2c97ede0217076d1fe/templates/swagger/v1-swagger.generated.json",
+        "sha256": "22be165abe30735e4ab6ae7a92b365afe47e2cb9081c6ebaf465da93565fbcf9",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-09-18 3bec08f",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/3bec08f998eb0d4a90615a4f580715a7364f7d61/templates/swagger/v1-swagger.generated.json",
+        "sha256": "f4375fab5365dbf3a3b0053c2f456471d5a398825ed4102f7d164f59bffb17d1",
+        "format": "json"
+      }
+    },
+    {
+      "api": "gitea.com:v1-swagger.generated",
+      "title": "gitea.com v1-swagger.generated",
+      "provider": "gitea.com",
+      "source": "git",
+      "from": {
+        "label": "2026-09-18 3bec08f",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/3bec08f998eb0d4a90615a4f580715a7364f7d61/templates/swagger/v1-swagger.generated.json",
+        "sha256": "f4375fab5365dbf3a3b0053c2f456471d5a398825ed4102f7d164f59bffb17d1",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-09-18 85eaf5c",
+        "url": "https://raw.githubusercontent.com/go-gitea/gitea/85eaf5c71c2049a06aa8d94b8cda9f47e63fa533/templates/swagger/v1-swagger.generated.json",
+        "sha256": "39307136a6b5ea796e754c2a31b89eae23101e36858e1a89163b73ffc1399158",
+        "format": "json"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-06-05 2ecaac9",
+        "url": "https://raw.githubusercontent.com/moby/moby/2ecaac9631bbe08cb855262b1fd03a509b740763/api/swagger.yaml",
+        "sha256": "5b2fe9a6ec8e84e247dc5d658ca2b741671e5fc2a2c8c14d877f1f321fe5be76",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-06-11 8368bcd",
+        "url": "https://raw.githubusercontent.com/moby/moby/8368bcd28fbf743b22498fe5bdd6fe490a42e7f2/api/swagger.yaml",
+        "sha256": "e5a186828a096d4318b3d47979a08682fec2053279c1b56217c05846effe6ecb",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-06-11 8368bcd",
+        "url": "https://raw.githubusercontent.com/moby/moby/8368bcd28fbf743b22498fe5bdd6fe490a42e7f2/api/swagger.yaml",
+        "sha256": "e5a186828a096d4318b3d47979a08682fec2053279c1b56217c05846effe6ecb",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-06-11 2badd7e",
+        "url": "https://raw.githubusercontent.com/moby/moby/2badd7ece3f1814f73dc89d5aa38dc43e48b2503/api/swagger.yaml",
+        "sha256": "d42a678bd8efb811c7a9d96137073c662b7fe0a1b5a9a9fd3695f48e0e984c19",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-06-11 2badd7e",
+        "url": "https://raw.githubusercontent.com/moby/moby/2badd7ece3f1814f73dc89d5aa38dc43e48b2503/api/swagger.yaml",
+        "sha256": "d42a678bd8efb811c7a9d96137073c662b7fe0a1b5a9a9fd3695f48e0e984c19",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-06-12 a0b6dbc",
+        "url": "https://raw.githubusercontent.com/moby/moby/a0b6dbc2fc36ce1574685bdfce3ac0e9d6ff8d6f/api/swagger.yaml",
+        "sha256": "0eaee9c75f04aaf9dd9bebd00518886fd06330f618a60dc7a271561fc81b4aea",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-06-12 a0b6dbc",
+        "url": "https://raw.githubusercontent.com/moby/moby/a0b6dbc2fc36ce1574685bdfce3ac0e9d6ff8d6f/api/swagger.yaml",
+        "sha256": "0eaee9c75f04aaf9dd9bebd00518886fd06330f618a60dc7a271561fc81b4aea",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-06-12 0b2c378",
+        "url": "https://raw.githubusercontent.com/moby/moby/0b2c3780bee0dac3dcc1efaee205b49a9ac0339b/api/swagger.yaml",
+        "sha256": "733d3bed046e31729f129f91d0bab39713f25046ea7cc2ed551fa49345bdf6d4",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-06-12 0b2c378",
+        "url": "https://raw.githubusercontent.com/moby/moby/0b2c3780bee0dac3dcc1efaee205b49a9ac0339b/api/swagger.yaml",
+        "sha256": "733d3bed046e31729f129f91d0bab39713f25046ea7cc2ed551fa49345bdf6d4",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-06-12 53ecd32",
+        "url": "https://raw.githubusercontent.com/moby/moby/53ecd322ff8cf61b2db4568761cb9954597fbde3/api/swagger.yaml",
+        "sha256": "10617b2a7c57362f083d69ad24c0545b878d22dee447f300622dc9830fe9a82c",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-06-12 53ecd32",
+        "url": "https://raw.githubusercontent.com/moby/moby/53ecd322ff8cf61b2db4568761cb9954597fbde3/api/swagger.yaml",
+        "sha256": "10617b2a7c57362f083d69ad24c0545b878d22dee447f300622dc9830fe9a82c",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-07-16 3730216",
+        "url": "https://raw.githubusercontent.com/moby/moby/37302166e03d4a442804f8ba83085f4c48ac12c9/api/swagger.yaml",
+        "sha256": "618f1ee3244b17065a0465c6d5ed7ad9b7d7e5c009119c2f5f08804f428850c6",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-07-16 3730216",
+        "url": "https://raw.githubusercontent.com/moby/moby/37302166e03d4a442804f8ba83085f4c48ac12c9/api/swagger.yaml",
+        "sha256": "618f1ee3244b17065a0465c6d5ed7ad9b7d7e5c009119c2f5f08804f428850c6",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-07-27 99c1a9c",
+        "url": "https://raw.githubusercontent.com/moby/moby/99c1a9c77898108ad06e61b8a221d8dd4dece698/api/swagger.yaml",
+        "sha256": "26199cb31badf7a35627ab94e2b45d76a7b93a7cd3f5c6c334f383ae25003e76",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-07-27 99c1a9c",
+        "url": "https://raw.githubusercontent.com/moby/moby/99c1a9c77898108ad06e61b8a221d8dd4dece698/api/swagger.yaml",
+        "sha256": "26199cb31badf7a35627ab94e2b45d76a7b93a7cd3f5c6c334f383ae25003e76",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-07-30 1f093a7",
+        "url": "https://raw.githubusercontent.com/moby/moby/1f093a7944f4fa8e5b65baab9bf7c18c2222a996/api/swagger.yaml",
+        "sha256": "4752769870dae04fc03f94eb8c136892dc5c65f6147774e00193d06d14d27478",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-07-30 1f093a7",
+        "url": "https://raw.githubusercontent.com/moby/moby/1f093a7944f4fa8e5b65baab9bf7c18c2222a996/api/swagger.yaml",
+        "sha256": "4752769870dae04fc03f94eb8c136892dc5c65f6147774e00193d06d14d27478",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-08-20 4f84bcb",
+        "url": "https://raw.githubusercontent.com/moby/moby/4f84bcb9674a2ea88f25387aa841041379b9bf76/api/swagger.yaml",
+        "sha256": "6cdfea77dcf97bab7ded27ef4813ae368ff78d65e0c82a7ee8a35f43b6ffe0f9",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-20 4f84bcb",
+        "url": "https://raw.githubusercontent.com/moby/moby/4f84bcb9674a2ea88f25387aa841041379b9bf76/api/swagger.yaml",
+        "sha256": "6cdfea77dcf97bab7ded27ef4813ae368ff78d65e0c82a7ee8a35f43b6ffe0f9",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-08-20 29faac6",
+        "url": "https://raw.githubusercontent.com/moby/moby/29faac60e0bae0008e684f11669697f97a271a7f/api/swagger.yaml",
+        "sha256": "0346509dd20c9b2cd89fe557bc93bd14b3ca0a4aeef16579788c19ecc186910a",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-20 29faac6",
+        "url": "https://raw.githubusercontent.com/moby/moby/29faac60e0bae0008e684f11669697f97a271a7f/api/swagger.yaml",
+        "sha256": "0346509dd20c9b2cd89fe557bc93bd14b3ca0a4aeef16579788c19ecc186910a",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-08-20 4f7f31e",
+        "url": "https://raw.githubusercontent.com/moby/moby/4f7f31e7b7c5296a066aae7d78b8aba4527361e0/api/swagger.yaml",
+        "sha256": "94316a13f7c454939556bd6e55d53afc1137c5f1b2f2eec5812a564aa1b9e92b",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-20 4f7f31e",
+        "url": "https://raw.githubusercontent.com/moby/moby/4f7f31e7b7c5296a066aae7d78b8aba4527361e0/api/swagger.yaml",
+        "sha256": "94316a13f7c454939556bd6e55d53afc1137c5f1b2f2eec5812a564aa1b9e92b",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-08-21 f4cf048",
+        "url": "https://raw.githubusercontent.com/moby/moby/f4cf04858e1fad2378027fe3f95f5fc2dfd459e5/api/swagger.yaml",
+        "sha256": "d3dd7ea891f84ed7676c865f55f707e86d047d17644bae192f76db52d04c3f78",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-21 f4cf048",
+        "url": "https://raw.githubusercontent.com/moby/moby/f4cf04858e1fad2378027fe3f95f5fc2dfd459e5/api/swagger.yaml",
+        "sha256": "d3dd7ea891f84ed7676c865f55f707e86d047d17644bae192f76db52d04c3f78",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-08-22 78484bc",
+        "url": "https://raw.githubusercontent.com/moby/moby/78484bc3e1374fc8b11d65a28b8d66f06adc353b/api/swagger.yaml",
+        "sha256": "f366abaa1fa5f8b22b59324fd7e47098c455c96a768aacf7aa7e84f2e0a0d5ca",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-22 78484bc",
+        "url": "https://raw.githubusercontent.com/moby/moby/78484bc3e1374fc8b11d65a28b8d66f06adc353b/api/swagger.yaml",
+        "sha256": "f366abaa1fa5f8b22b59324fd7e47098c455c96a768aacf7aa7e84f2e0a0d5ca",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-08-30 02a6472",
+        "url": "https://raw.githubusercontent.com/moby/moby/02a6472912ab3f3e7a9f179d37bb1ae5b493b78a/api/swagger.yaml",
+        "sha256": "17c168b59c71672137923acd751106af5f7d36bf8207a8b73c4cda3f5cc04a6b",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-08-30 02a6472",
+        "url": "https://raw.githubusercontent.com/moby/moby/02a6472912ab3f3e7a9f179d37bb1ae5b493b78a/api/swagger.yaml",
+        "sha256": "17c168b59c71672137923acd751106af5f7d36bf8207a8b73c4cda3f5cc04a6b",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-09-01 a991b0e",
+        "url": "https://raw.githubusercontent.com/moby/moby/a991b0e390d1db56d7540d773c5e9c0d97a89d62/api/swagger.yaml",
+        "sha256": "cb016070b801c38795e6ed56b9e335e0c97780dc132e628e7755f540e719d622",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-09-01 a991b0e",
+        "url": "https://raw.githubusercontent.com/moby/moby/a991b0e390d1db56d7540d773c5e9c0d97a89d62/api/swagger.yaml",
+        "sha256": "cb016070b801c38795e6ed56b9e335e0c97780dc132e628e7755f540e719d622",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-09-01 72a8f1d",
+        "url": "https://raw.githubusercontent.com/moby/moby/72a8f1dc560b9f97a9f0119546f6892ce163280d/api/swagger.yaml",
+        "sha256": "96230f6026cbd6ece9356bfa434e1d786310bc66866bd2407015c3bb786c9abf",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-09-01 72a8f1d",
+        "url": "https://raw.githubusercontent.com/moby/moby/72a8f1dc560b9f97a9f0119546f6892ce163280d/api/swagger.yaml",
+        "sha256": "96230f6026cbd6ece9356bfa434e1d786310bc66866bd2407015c3bb786c9abf",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-09-01 bef664b",
+        "url": "https://raw.githubusercontent.com/moby/moby/bef664b955ada9e7366232ebca7756d5c11d21c1/api/swagger.yaml",
+        "sha256": "9b0ab62d6b84904e572fa0c73dab3fdc99014ae11ef08a9933806ea44a16ad39",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-09-01 bef664b",
+        "url": "https://raw.githubusercontent.com/moby/moby/bef664b955ada9e7366232ebca7756d5c11d21c1/api/swagger.yaml",
+        "sha256": "9b0ab62d6b84904e572fa0c73dab3fdc99014ae11ef08a9933806ea44a16ad39",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-09-03 235d287",
+        "url": "https://raw.githubusercontent.com/moby/moby/235d2876f80fff1ee13378646a4d41a4c670a052/api/swagger.yaml",
+        "sha256": "abd97457e0c5aa5646f466516de9daf7bd81722c0ab96a47fb2ac393023cbab6",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "docker.com:swagger",
+      "title": "docker.com swagger",
+      "provider": "docker.com",
+      "source": "git",
+      "from": {
+        "label": "2026-09-03 235d287",
+        "url": "https://raw.githubusercontent.com/moby/moby/235d2876f80fff1ee13378646a4d41a4c670a052/api/swagger.yaml",
+        "sha256": "abd97457e0c5aa5646f466516de9daf7bd81722c0ab96a47fb2ac393023cbab6",
+        "format": "yaml"
+      },
+      "to": {
+        "label": "2026-09-03 2803839",
+        "url": "https://raw.githubusercontent.com/moby/moby/2803839c3f30344de950e35dfe5cc4e1e170cb0d/api/swagger.yaml",
+        "sha256": "f09a22ad220d551dca5d6c402052204d3e9fd1f16943cd78ba6677ea1266616f",
+        "format": "yaml"
+      }
+    },
+    {
+      "api": "slack.com:slack_web_openapi_v2",
+      "title": "slack.com slack_web_openapi_v2",
+      "provider": "slack.com",
+      "source": "git",
+      "from": {
+        "label": "2017-11-01 38cfaba",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/38cfaba115403d7a12639a8e921dc7c7526e94ac/web-api/slack_web_openapi_v2.json",
+        "sha256": "8524fae2a26c64a02868670f4117ba24a6190b4820f48cf426fb814c95f75925",
+        "format": "json"
+      },
+      "to": {
+        "label": "2017-11-13 c57545d",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/c57545d90ca1b2edb41dec7f21cce62f34067293/web-api/slack_web_openapi_v2.json",
+        "sha256": "c61cd0f67fcb82018ebc5020937bb56ac5bc3bbdfde8c3d289cb9af1a6c83e20",
+        "format": "json"
+      }
+    },
+    {
+      "api": "slack.com:slack_web_openapi_v2",
+      "title": "slack.com slack_web_openapi_v2",
+      "provider": "slack.com",
+      "source": "git",
+      "from": {
+        "label": "2017-11-13 c57545d",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/c57545d90ca1b2edb41dec7f21cce62f34067293/web-api/slack_web_openapi_v2.json",
+        "sha256": "c61cd0f67fcb82018ebc5020937bb56ac5bc3bbdfde8c3d289cb9af1a6c83e20",
+        "format": "json"
+      },
+      "to": {
+        "label": "2017-11-17 46b40e4",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/46b40e4ecc994c3e46a00f806b7d65b7f650d84b/web-api/slack_web_openapi_v2.json",
+        "sha256": "c1d8887841fa5bbd1b14381585519eea8a658f733fee28b8b32dd5abdd59b7e0",
+        "format": "json"
+      }
+    },
+    {
+      "api": "slack.com:slack_web_openapi_v2",
+      "title": "slack.com slack_web_openapi_v2",
+      "provider": "slack.com",
+      "source": "git",
+      "from": {
+        "label": "2017-11-17 46b40e4",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/46b40e4ecc994c3e46a00f806b7d65b7f650d84b/web-api/slack_web_openapi_v2.json",
+        "sha256": "c1d8887841fa5bbd1b14381585519eea8a658f733fee28b8b32dd5abdd59b7e0",
+        "format": "json"
+      },
+      "to": {
+        "label": "2017-12-15 0d8d82b",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/0d8d82bd3f0d90c97510c04b56cc923dc35d9435/web-api/slack_web_openapi_v2.json",
+        "sha256": "bc90e11de196d5ea3f4431cec6ed1cb26ad64d3e101fd27554ac00a40c1248d5",
+        "format": "json"
+      }
+    },
+    {
+      "api": "slack.com:slack_web_openapi_v2",
+      "title": "slack.com slack_web_openapi_v2",
+      "provider": "slack.com",
+      "source": "git",
+      "from": {
+        "label": "2017-12-15 0d8d82b",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/0d8d82bd3f0d90c97510c04b56cc923dc35d9435/web-api/slack_web_openapi_v2.json",
+        "sha256": "bc90e11de196d5ea3f4431cec6ed1cb26ad64d3e101fd27554ac00a40c1248d5",
+        "format": "json"
+      },
+      "to": {
+        "label": "2018-03-12 9ddac0e",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/9ddac0e6ad21072439e86792c79978677022b118/web-api/slack_web_openapi_v2.json",
+        "sha256": "59d1b001482053f67ad0a707ea8d9d44790eb76b9ef119c34b26f664277fde23",
+        "format": "json"
+      }
+    },
+    {
+      "api": "slack.com:slack_web_openapi_v2",
+      "title": "slack.com slack_web_openapi_v2",
+      "provider": "slack.com",
+      "source": "git",
+      "from": {
+        "label": "2018-03-12 9ddac0e",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/9ddac0e6ad21072439e86792c79978677022b118/web-api/slack_web_openapi_v2.json",
+        "sha256": "59d1b001482053f67ad0a707ea8d9d44790eb76b9ef119c34b26f664277fde23",
+        "format": "json"
+      },
+      "to": {
+        "label": "2018-04-03 923ee1c",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/923ee1c833f39290ffbe2e92f8efb93bbdaa2b71/web-api/slack_web_openapi_v2.json",
+        "sha256": "16df9b7e8e8e2d8a107efe8dab7c0a4009dfca28be3905cc2a10291493980e6d",
+        "format": "json"
+      }
+    },
+    {
+      "api": "slack.com:slack_web_openapi_v2",
+      "title": "slack.com slack_web_openapi_v2",
+      "provider": "slack.com",
+      "source": "git",
+      "from": {
+        "label": "2018-04-03 923ee1c",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/923ee1c833f39290ffbe2e92f8efb93bbdaa2b71/web-api/slack_web_openapi_v2.json",
+        "sha256": "16df9b7e8e8e2d8a107efe8dab7c0a4009dfca28be3905cc2a10291493980e6d",
+        "format": "json"
+      },
+      "to": {
+        "label": "2018-05-16 b624aa2",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/b624aa2ee1c91300f7724951c7df29d9f9675a25/web-api/slack_web_openapi_v2.json",
+        "sha256": "77e2ebc28fc4e06678e23a79a3193b4719300c1652dc559598c7792de501c49f",
+        "format": "json"
+      }
+    },
+    {
+      "api": "slack.com:slack_web_openapi_v2",
+      "title": "slack.com slack_web_openapi_v2",
+      "provider": "slack.com",
+      "source": "git",
+      "from": {
+        "label": "2018-05-16 b624aa2",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/b624aa2ee1c91300f7724951c7df29d9f9675a25/web-api/slack_web_openapi_v2.json",
+        "sha256": "77e2ebc28fc4e06678e23a79a3193b4719300c1652dc559598c7792de501c49f",
+        "format": "json"
+      },
+      "to": {
+        "label": "2018-05-16 386926f",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/386926fc055ead5d41d7ac475656dc9ffd9d0f8b/web-api/slack_web_openapi_v2.json",
+        "sha256": "0cfb5cf54cf1fb46f67f520d9ff6d52cb08eba7b685af1cd5537dfbbdf550a0b",
+        "format": "json"
+      }
+    },
+    {
+      "api": "slack.com:slack_web_openapi_v2",
+      "title": "slack.com slack_web_openapi_v2",
+      "provider": "slack.com",
+      "source": "git",
+      "from": {
+        "label": "2018-05-16 386926f",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/386926fc055ead5d41d7ac475656dc9ffd9d0f8b/web-api/slack_web_openapi_v2.json",
+        "sha256": "0cfb5cf54cf1fb46f67f520d9ff6d52cb08eba7b685af1cd5537dfbbdf550a0b",
+        "format": "json"
+      },
+      "to": {
+        "label": "2019-07-16 36d043c",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/36d043c0a7809eb3397171b0b05cd04a1b2fd953/web-api/slack_web_openapi_v2.json",
+        "sha256": "a9cb45b306cdd00d4119d906b492f95d0dea6dad0e3e6ea5086f1e93c367bfbf",
+        "format": "json"
+      }
+    },
+    {
+      "api": "slack.com:slack_web_openapi_v2",
+      "title": "slack.com slack_web_openapi_v2",
+      "provider": "slack.com",
+      "source": "git",
+      "from": {
+        "label": "2019-07-16 36d043c",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/36d043c0a7809eb3397171b0b05cd04a1b2fd953/web-api/slack_web_openapi_v2.json",
+        "sha256": "a9cb45b306cdd00d4119d906b492f95d0dea6dad0e3e6ea5086f1e93c367bfbf",
+        "format": "json"
+      },
+      "to": {
+        "label": "2019-07-17 6c7e787",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/6c7e7878541d2b162c24f7d89764e0207c7bec2f/web-api/slack_web_openapi_v2.json",
+        "sha256": "67f30b9ea6c056eae31c723441a1db1b10f47c4e5052b98a9fc5bca8d1682319",
+        "format": "json"
+      }
+    },
+    {
+      "api": "slack.com:slack_web_openapi_v2",
+      "title": "slack.com slack_web_openapi_v2",
+      "provider": "slack.com",
+      "source": "git",
+      "from": {
+        "label": "2019-07-17 6c7e787",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/6c7e7878541d2b162c24f7d89764e0207c7bec2f/web-api/slack_web_openapi_v2.json",
+        "sha256": "67f30b9ea6c056eae31c723441a1db1b10f47c4e5052b98a9fc5bca8d1682319",
+        "format": "json"
+      },
+      "to": {
+        "label": "2020-03-13 39b7cc5",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/39b7cc5b8fa47bc03ec9bcba36ce3064ac64121d/web-api/slack_web_openapi_v2.json",
+        "sha256": "9ee26b924b91b73864f4552b0efaf9936df16ab3c4c429bb2f348337286ad85b",
+        "format": "json"
+      }
+    },
+    {
+      "api": "slack.com:slack_web_openapi_v2",
+      "title": "slack.com slack_web_openapi_v2",
+      "provider": "slack.com",
+      "source": "git",
+      "from": {
+        "label": "2020-03-13 39b7cc5",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/39b7cc5b8fa47bc03ec9bcba36ce3064ac64121d/web-api/slack_web_openapi_v2.json",
+        "sha256": "9ee26b924b91b73864f4552b0efaf9936df16ab3c4c429bb2f348337286ad85b",
+        "format": "json"
+      },
+      "to": {
+        "label": "2020-03-13 9d979d9",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/9d979d927895de5cf18a93f4b81a96a871e543db/web-api/slack_web_openapi_v2.json",
+        "sha256": "ac57f2cb5d58608470e2a1f6b8bc9618895f1f63ed6caca0bc5f5b78f4a0cc92",
+        "format": "json"
+      }
+    },
+    {
+      "api": "slack.com:slack_web_openapi_v2",
+      "title": "slack.com slack_web_openapi_v2",
+      "provider": "slack.com",
+      "source": "git",
+      "from": {
+        "label": "2020-03-13 9d979d9",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/9d979d927895de5cf18a93f4b81a96a871e543db/web-api/slack_web_openapi_v2.json",
+        "sha256": "ac57f2cb5d58608470e2a1f6b8bc9618895f1f63ed6caca0bc5f5b78f4a0cc92",
+        "format": "json"
+      },
+      "to": {
+        "label": "2020-04-03 3f1e8b4",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/3f1e8b4a03855cb29cffbfcaf60195e5867780ea/web-api/slack_web_openapi_v2.json",
+        "sha256": "b026c31dddfe96d9ff2d32832c0c18538eb9c94db66c824c8bcbac546032e856",
+        "format": "json"
+      }
+    },
+    {
+      "api": "slack.com:slack_web_openapi_v2",
+      "title": "slack.com slack_web_openapi_v2",
+      "provider": "slack.com",
+      "source": "git",
+      "from": {
+        "label": "2020-04-03 3f1e8b4",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/3f1e8b4a03855cb29cffbfcaf60195e5867780ea/web-api/slack_web_openapi_v2.json",
+        "sha256": "b026c31dddfe96d9ff2d32832c0c18538eb9c94db66c824c8bcbac546032e856",
+        "format": "json"
+      },
+      "to": {
+        "label": "2020-10-06 dfea73e",
+        "url": "https://raw.githubusercontent.com/slackapi/slack-api-specs/dfea73e06d146c368d7f94b52ac90796dc4e27e1/web-api/slack_web_openapi_v2.json",
+        "sha256": "742a5c977180a829df8767cf57bc417d99b3713583aee83741efb9c08ca731e7",
+        "format": "json"
+      }
+    },
+    {
+      "api": "kubernetes.io:swagger",
+      "title": "kubernetes.io swagger",
+      "provider": "kubernetes.io",
+      "source": "git",
+      "from": {
+        "label": "2026-09-15 9562e9c",
+        "url": "https://raw.githubusercontent.com/kubernetes/kubernetes/9562e9cdac6c78e1900e23a986cc19183ede40c6/api/openapi-spec/swagger.json",
+        "sha256": "fb6ba39a76462ec302335ee7398fce2aef760a5fa87a1143c5909a09d3d81231",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-09-17 2a9e93b",
+        "url": "https://raw.githubusercontent.com/kubernetes/kubernetes/2a9e93ba6b390778058e31800d1bbebb6eeae6e3/api/openapi-spec/swagger.json",
+        "sha256": "0a1a8f3619d206a8a2437821d696b99970e3e6025affc6c62f2bdf7e5a3082fc",
+        "format": "json"
+      }
+    },
+    {
+      "api": "kubernetes.io:swagger",
+      "title": "kubernetes.io swagger",
+      "provider": "kubernetes.io",
+      "source": "git",
+      "from": {
+        "label": "2026-09-17 2a9e93b",
+        "url": "https://raw.githubusercontent.com/kubernetes/kubernetes/2a9e93ba6b390778058e31800d1bbebb6eeae6e3/api/openapi-spec/swagger.json",
+        "sha256": "0a1a8f3619d206a8a2437821d696b99970e3e6025affc6c62f2bdf7e5a3082fc",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-09-17 746eaf9",
+        "url": "https://raw.githubusercontent.com/kubernetes/kubernetes/746eaf9cc8f60f064c43dc0d7c0603b6461756a5/api/openapi-spec/swagger.json",
+        "sha256": "b738cc321aac3d2c068c1e58789bbb648a8f7ec5773130dcea4030a7d12890cc",
+        "format": "json"
+      }
+    },
+    {
+      "api": "kubernetes.io:swagger",
+      "title": "kubernetes.io swagger",
+      "provider": "kubernetes.io",
+      "source": "git",
+      "from": {
+        "label": "2026-09-17 746eaf9",
+        "url": "https://raw.githubusercontent.com/kubernetes/kubernetes/746eaf9cc8f60f064c43dc0d7c0603b6461756a5/api/openapi-spec/swagger.json",
+        "sha256": "b738cc321aac3d2c068c1e58789bbb648a8f7ec5773130dcea4030a7d12890cc",
+        "format": "json"
+      },
+      "to": {
+        "label": "2026-09-18 1712e02",
+        "url": "https://raw.githubusercontent.com/kubernetes/kubernetes/1712e02df5ce79a2ec66a407ef93fc26594a24a2/api/openapi-spec/swagger.json",
+        "sha256": "2c9b045e3d88853681516da732194f5b3676971fe059c129558c26bba71c5c9f",
+        "format": "json"
+      }
     }
   ]
 }

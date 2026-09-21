@@ -8,6 +8,7 @@ import {
 import { upgradeFromTwoToThree } from "@scalar/openapi-upgrader/2.0-to-3.0";
 import { parse as parseYaml } from "yaml";
 import { digestOf, stripNonWire } from "./canonical.ts";
+import { correctUpgrade } from "./swagger.ts";
 
 export type OpenApiDocument = JsonObject;
 
@@ -34,7 +35,8 @@ export interface Contract {
 }
 
 /** What converts a Swagger 2.0 document, pinned and named in every contract it produced. */
-export const SWAGGER_CONVERTER = "@scalar/openapi-upgrader@0.2.16 2.0-to-3.0";
+export const SWAGGER_CONVERTER =
+  "@scalar/openapi-upgrader@0.2.16 2.0-to-3.0, with Invariant's corrections 1";
 
 export interface OperationRef {
   operationId: string;
@@ -125,6 +127,110 @@ function assertRefsResolve(document: OpenApiDocument): void {
   );
 }
 
+/** A key as a JSON Pointer segment writes it. */
+function pointerSegment(key: string): string {
+  return key.replaceAll("~", "~0").replaceAll("/", "~1");
+}
+
+/** Keywords whose value is one schema, which a list cannot be. */
+const ONE_SCHEMA = ["items", "additionalProperties", "not"] as const;
+/** Keywords whose value is a list of schemas, or a map of them. */
+const SCHEMA_LISTS = ["allOf", "anyOf", "oneOf"] as const;
+const SCHEMA_MAPS = ["properties", "patternProperties"] as const;
+
+/**
+ * The first place a schema holds a list where OpenAPI takes one schema.
+ *
+ * Slack's document writes `items: [{ $ref: message }, { type: "null" }]`,
+ * JSON Schema draft 4's positional tuple, which neither Swagger 2.0 nor
+ * OpenAPI 3.0 has. The differ refuses it with an exit code; saying where and
+ * why is the difference between a provider fixing it and giving up. What the
+ * author meant is not guessed at: "the first item is a message and the second
+ * is null" and "each item is a message or null" are different APIs.
+ */
+function misplacedList(
+  schema: JsonValue,
+  at: string,
+  seen: Set<JsonValue>,
+): string | undefined {
+  if (!isJsonObject(schema) || seen.has(schema)) return undefined;
+  seen.add(schema);
+  for (const keyword of ONE_SCHEMA) {
+    const value = schema[keyword];
+    if (Array.isArray(value)) return `${at}/${keyword}`;
+    const inner =
+      value === undefined ? undefined : misplacedList(value, `${at}/${keyword}`, seen);
+    if (inner) return inner;
+  }
+  for (const keyword of SCHEMA_LISTS) {
+    const value = schema[keyword];
+    if (!Array.isArray(value)) continue;
+    for (const [index, branch] of value.entries()) {
+      const inner = misplacedList(branch, `${at}/${keyword}/${index}`, seen);
+      if (inner) return inner;
+    }
+  }
+  for (const keyword of SCHEMA_MAPS) {
+    const value = schema[keyword];
+    if (!isJsonObject(value)) continue;
+    for (const [name, child] of Object.entries(value)) {
+      const inner = misplacedList(
+        child,
+        `${at}/${keyword}/${pointerSegment(name)}`,
+        seen,
+      );
+      if (inner) return inner;
+    }
+  }
+  return undefined;
+}
+
+/** Every schema a document declares or uses in place, with where it is. */
+function schemaRoots(document: OpenApiDocument): [string, JsonValue][] {
+  const roots: [string, JsonValue][] = [];
+  const components = document["components"];
+  const schemas = isJsonObject(components) ? components["schemas"] : undefined;
+  if (isJsonObject(schemas)) {
+    for (const [name, schema] of Object.entries(schemas)) {
+      roots.push([`#/components/schemas/${pointerSegment(name)}`, schema]);
+    }
+  }
+  // A schema written in place sits under a `schema` key, in a parameter, a
+  // header or a media type, wherever those are.
+  const visit = (value: JsonValue, at: string) => {
+    if (Array.isArray(value)) {
+      for (const [index, item] of value.entries()) visit(item, `${at}/${index}`);
+      return;
+    }
+    if (!isJsonObject(value)) return;
+    for (const [key, child] of Object.entries(value)) {
+      if (key === "schema") roots.push([`${at}/schema`, child]);
+      else if (key !== "example" && key !== "examples")
+        visit(child, `${at}/${pointerSegment(key)}`);
+    }
+  };
+  visit(document["paths"] ?? {}, "#/paths");
+  if (isJsonObject(components)) {
+    for (const section of ["parameters", "responses", "requestBodies", "headers"]) {
+      visit(components[section] ?? {}, `#/components/${section}`);
+    }
+  }
+  return roots;
+}
+
+function assertSchemasWellFormed(document: OpenApiDocument): void {
+  const seen = new Set<JsonValue>();
+  for (const [at, schema] of schemaRoots(document)) {
+    const where = misplacedList(schema, at, seen);
+    if (where === undefined) continue;
+    throw new ContractError(
+      `${where} is a list of schemas, where OpenAPI takes one. A list there is JSON ` +
+        "Schema's positional tuple, which neither Swagger 2.0 nor OpenAPI 3.0 has. If " +
+        "each value may be one of several shapes, write that as anyOf.",
+    );
+  }
+}
+
 /**
  * Path templates that are the same endpoint once the parameter names come out.
  *
@@ -168,6 +274,7 @@ export function upgradeSwagger(document: OpenApiDocument): OpenApiDocument {
   if (!isJsonObject(converted as JsonValue)) {
     throw new ContractError("The Swagger 2.0 document could not be converted");
   }
+  correctUpgrade(document, converted as JsonObject);
   return converted as OpenApiDocument;
 }
 
@@ -178,6 +285,7 @@ export function isSwagger2(document: OpenApiDocument): boolean {
 export function normalizeDocument(input: OpenApiDocument): OpenApiDocument {
   const document = isSwagger2(input) ? upgradeSwagger(input) : input;
   assertRefsResolve(document);
+  assertSchemasWellFormed(document);
   const version = document["openapi"];
   if (typeof version !== "string" || !version.startsWith("3.")) {
     throw new ContractError(`Only OpenAPI 3.x is supported, got ${String(version)}`);
@@ -205,13 +313,18 @@ export function contractOf(label: string, document: OpenApiDocument): Contract {
   };
 }
 
-export async function loadContract(path: string, label: string): Promise<Contract> {
+/** A document as its file has it, before any conversion. */
+export async function readDocument(path: string): Promise<OpenApiDocument> {
   const text = await readFile(path, "utf8");
   const parsed: unknown = path.endsWith(".json") ? JSON.parse(text) : parseYaml(text);
   if (!isJsonObject(parsed)) {
     throw new ContractError(`${path} does not contain an OpenAPI document`);
   }
-  return contractOf(label, parsed);
+  return parsed;
+}
+
+export async function loadContract(path: string, label: string): Promise<Contract> {
+  return contractOf(label, await readDocument(path));
 }
 
 export function schemasOf(document: OpenApiDocument): JsonObject {

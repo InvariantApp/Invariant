@@ -35,6 +35,26 @@ pnpm proving:discover                        # add newly published pairs
 Specifications are downloaded into `.cache/corpus/`, named by hash, and never
 committed. They belong to the providers who wrote them.
 
+### Swagger 2.0, checked by a second converter
+
+Docker Engine, Gitea, Slack and Kubernetes publish Swagger 2.0, which every
+load converts to OpenAPI 3.0. Both halves of a pair go through the same
+converter, so a conversion mistake would agree with itself and be invisible.
+`swagger/oracle.mts` converts every 2.0 document in the manifest a second way,
+with `swagger2openapi`, and compares the two results with the differ the gate
+uses. Each difference is read against the 2.0 source: where ours was wrong it
+is corrected in `packages/contract/src/swagger.ts` with a regression test, and
+where the other converter was wrong the reason is written into the oracle, so
+only a difference nobody has looked at fails the run. `swagger/REPORT.md` is
+the latest result.
+
+It found three mistakes of ours in the first run, across more than five
+thousand differences: an operation's own `produces` lost to the document's,
+a form with a required field not making the body required, and Docker's
+`x-nullable` read as nothing. Slack's document is refused rather than
+compared: it writes `items` as a list, which neither 2.0 nor 3.0 allows, and
+the loader now says where instead of the differ failing with an exit code.
+
 ## Rig C: generated traffic
 
 For every pair the recorded corpus run found closing, the Changes are drafted
