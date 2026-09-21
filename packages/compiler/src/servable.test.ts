@@ -517,6 +517,9 @@ function fitToParameters(change: Change, location: string): Change | undefined {
         return { ...op, path: `/${n.num}`, toward: "new" };
       case "dropNull":
         return { ...op, path: `/${n.enum}`, toward: "new" };
+      case "relax":
+        // A parameter is only sent, so only a bound that widens can be served.
+        return { ...op, path: `/${n.num}`, set: { maximum: null } };
       default:
         return op;
     }
@@ -571,6 +574,14 @@ function fitTo(change: Change, name: string): fc.Arbitrary<Change | undefined> {
                 toward: name === "OrderCreate" ? "new" : "old",
               }
             : op,
+        );
+      case "relax":
+        // A bound taken away, which widens on either side and so is served
+        // wherever the schema is used.
+        return pick(
+          fields.filter((field) => field.type === "integer" || field.type === "number"),
+        ).map((field) =>
+          field ? { ...op, path: field.pointer, set: { maximum: null } } : op,
         );
       case "convert": {
         const codec = op.codec;
@@ -699,8 +710,11 @@ function unserved(change: Change, program: unknown): string[] {
     // A parameter only exists on the way in, so every op that faces new has
     // to have left a request instruction: in the operation's envelope, or,
     // for a scope on the operation's own body alone, in its body program.
+    // A bound is served by leaving the value alone, so it leaves no work.
     const facing = dataOps.filter(
-      (op) => !((op.op === "default" || op.op === "dropNull") && op.toward === "old"),
+      (op) =>
+        op.op !== "relax" &&
+        !((op.op === "default" || op.op === "dropNull") && op.toward === "old"),
     );
     const requests = Object.values(
       (contract["sites"] ?? {}) as Record<
@@ -887,6 +901,7 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
       "default",
       "dropNull",
       "widen",
+      "relax",
       "route",
       "retire",
       "behavior",
