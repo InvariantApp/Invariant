@@ -2,7 +2,7 @@
  * Documents real providers publish that the differ would not read, each in
  * its smallest form, compared through the differ the way the gate does.
  */
-import type { OpenApiDocument } from "@invariant/contract";
+import { type OpenApiDocument, resolveSchema } from "@invariant/contract";
 import { describe, expect, it } from "vitest";
 import { agreeingAllOf } from "./allof.ts";
 import { wholeSchemaRefs } from "./deep-refs.ts";
@@ -110,6 +110,23 @@ const deepReference = (withId = true) => {
 };
 const DEEP_REFERENCE = deepReference();
 
+/**
+ * Cloudflare's shape: a default written beside an `allOf` of a reference,
+ * which is how OpenAPI 3.0 overrides an annotation on a referenced schema.
+ */
+const besideReference = (withRegion = false) =>
+  api({
+    Caching: { type: "boolean", default: false },
+    Thing: {
+      type: "object",
+      properties: {
+        caching: { default: true, allOf: [{ $ref: "#/components/schemas/Caching" }] },
+        ...(withRegion ? { region: { type: "string" } } : {}),
+      },
+      ...(withRegion ? { required: ["region"] } : {}),
+    },
+  });
+
 describe("documents the differ would not read", () => {
   it("keeps the first default where allOf branches restate it, as the resolver does", () => {
     const agreed = agreeingAllOf(RESTATED_DEFAULT);
@@ -122,6 +139,23 @@ describe("documents the differ would not read", () => {
     // Nothing is copied when there is nothing to reconcile.
     const plain = api({ Thing: { type: "object" } });
     expect(agreeingAllOf(plain)).toBe(plain);
+  });
+
+  it("keeps the default written beside a reference, as the resolver does", () => {
+    // It used to find this conflict and then delete the default from a copy
+    // of the keywords, so the document reached the differ unchanged, and all
+    // three of Cloudflare's pairs were lost.
+    const agreed = agreeingAllOf(besideReference());
+    const schemas = pick(agreed, "components", "schemas");
+    expect(pick(schemas, "Thing", "properties", "caching", "default")).toBe(true);
+    expect(pick(schemas, "Thing", "properties", "caching", "allOf", 0)).toEqual({
+      type: "boolean",
+    });
+    expect(pick(schemas, "Caching", "default")).toBe(false);
+    const resolved = resolveSchema(besideReference(), {
+      $ref: "#/components/schemas/Thing",
+    });
+    expect(pick(resolved, "properties", "caching", "default")).toBe(true);
   });
 
   it("gives a reference into a schema's middle a schema of its own", () => {
@@ -148,6 +182,13 @@ describe("documents the differ would not read", () => {
         mode: "breaking",
       });
       expect(first.map((entry) => entry.id)).toContain(
+        "response-required-property-added",
+      );
+
+      const beside = await diffDocuments(besideReference(), besideReference(true), {
+        mode: "breaking",
+      });
+      expect(beside.map((entry) => entry.id)).toContain(
         "response-required-property-added",
       );
 

@@ -39,11 +39,15 @@ function resolveAt(
   const branches = target["allOf"];
   if (!Array.isArray(branches)) return target;
 
-  // Keywords beside `allOf` apply to the value too, so they are one more branch.
+  // Keywords beside `allOf` apply to the value too, so they are one more
+  // branch, and the first: `{default: true, allOf: [{$ref}]}` is how OpenAPI
+  // 3.0, which ignores keywords beside a `$ref`, says "this schema, but with
+  // this default here". Where a keyword keeps its first statement, the one
+  // written beside the reference is the one the provider meant.
   const { allOf: _, ...siblings } = target;
   const parts = [
-    ...branches.map((branch) => resolveAt(document, branch, depth + 1)),
     siblings,
+    ...branches.map((branch) => resolveAt(document, branch, depth + 1)),
   ].filter(isJsonObject);
   const merged = parts.reduce<JsonObject>(
     (result, part) => mergeSchemas(document, result, part, depth),

@@ -10,8 +10,9 @@
  * Okta, Mistral and PagerDuty do it, and every one of their pairs was lost.
  *
  * `resolveSchema` in `@invariant/contract` keeps the first statement of such
- * a keyword, so the differ is given the same: the first branch that states
- * it keeps it, and later branches that state something else do not. Lists of
+ * a keyword, reading the keywords beside an `allOf` before its branches, so
+ * the differ is given the same: the first part that states it keeps it, and
+ * later ones that state something else do not. Lists of
  * allowed values are intersected, as the differ does, except where the
  * intersection is empty, which describes no value and is read as the first
  * list, as the resolver reads it. A later
@@ -58,6 +59,12 @@ function statementOf(document: JsonObject, branch: JsonValue): JsonObject | unde
 interface Slot {
   raw: () => JsonValue | undefined;
   write: (next: JsonObject) => void;
+  /**
+   * The object to change in place, where `raw` hands back a copy: the
+   * keywords beside an `allOf`, which are read as a branch of their own but
+   * live on the schema that holds it.
+   */
+  live?: () => JsonObject;
 }
 
 /** Deepest nesting followed; only a schema that contains itself goes further. */
@@ -74,6 +81,20 @@ function expand(document: JsonObject, slot: Slot, depth: number): Slot[] {
   const own = () => editable(document, slot);
   const branches = statement["allOf"];
   return [
+    // Beside the `allOf` first, as the resolver reads them: that is where
+    // OpenAPI 3.0 writes "this schema, but with this default here".
+    {
+      raw: () => {
+        const { allOf: _, ...siblings } = statementOf(document, slot.raw() ?? null) ?? {};
+        return siblings;
+      },
+      write: (next) => {
+        const target = own();
+        for (const key of Object.keys(target)) if (key !== "allOf") delete target[key];
+        Object.assign(target, next);
+      },
+      live: own,
+    },
     ...branches.flatMap((_, index) =>
       expand(
         document,
@@ -90,17 +111,6 @@ function expand(document: JsonObject, slot: Slot, depth: number): Slot[] {
         depth + 1,
       ),
     ),
-    {
-      raw: () => {
-        const { allOf: _, ...siblings } = statementOf(document, slot.raw() ?? null) ?? {};
-        return siblings;
-      },
-      write: (next) => {
-        const target = own();
-        for (const key of Object.keys(target)) if (key !== "allOf") delete target[key];
-        Object.assign(target, next);
-      },
-    },
   ];
 }
 
@@ -109,6 +119,7 @@ function expand(document: JsonObject, slot: Slot, depth: number): Slot[] {
  * copy of what it refers to, so the schema it names is untouched elsewhere.
  */
 function editable(document: JsonObject, slot: Slot): JsonObject {
+  if (slot.live) return slot.live();
   const raw = slot.raw();
   if (isJsonObject(raw) && typeof raw["$ref"] !== "string") return raw;
   const copy = structuredClone(statementOf(document, raw ?? null) ?? {});
