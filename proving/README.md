@@ -128,6 +128,29 @@ GITHUB_TOKEN=... node --import tsx proving/replay/mine.mts --months 36 --limit 1
 GITHUB_TOKEN=... node --import tsx proving/replay/mine.mts --package github.com/google/go-github
 ```
 
-The nightly run adds up to 150 cases. Replaying them, and scoring the
-engine's edits against the humans', follows once the engine reads code it did
-not write (M6).
+The nightly run adds up to 150 cases.
+
+`replay/run.mts` replays them. Each repository is fetched at the bump's base
+with no history and no blob it does not need, the SDK alone is installed at
+the version the base's lockfile names, with install scripts off, and the
+engine reads the consumer's source against it. Nothing from the repository is
+executed. The humans' result and the engine's are both read as the regions
+changed from the base, and each human region is identical (the engine wrote
+the same lines, whatever the indentation), differs (left for a person to judge
+equivalent or wrong), or missed; what the engine changed where no human did is
+counted as extra.
+
+Most of what humans edit on a major bump is the SDK's own interface changing,
+not the API's contract: typing, import paths, renamed classes. L8 counts only
+the contract sites, so `--classify` has Jev class each site as `contract`,
+`sdk` or `unrelated` (`replay/classify.mts`). The classes are model-judged and
+labelled as such, kept in `replay/classes.json` without any code, and a sample
+is audited by hand before a number from them is quoted.
+
+```console
+node --env-file-if-exists=.env --import tsx proving/replay/run.mts --classify
+node --import tsx proving/replay/run.mts --package stripe --limit 5 --keep
+```
+
+`replay/sites.mts` reads every case's human hunks from the GitHub API, which
+is the denominator at a glance without cloning anything.

@@ -1,0 +1,3572 @@
+{
+  "aikawame/rsslovers#1051|frontend/pages/api/checkouts.tsx|9|14874e2365857181": {
+    "class": "contract",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "appstrate/appstrate#1301|packages/module-ee/src/stripe/client.ts|10|fd871c886c6702e5": {
+    "class": "contract",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "BakArchive/wordcraft#15|lib/payments/stripe.ts|10|b3f8677b739c09dd": {
+    "class": "contract",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "beaugmented/agency#945|packages/agency/src/openai.ts|14|3e5b7fa0710b194d": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "beaugmented/agency#945|packages/agency/src/openai.ts|2|f6f974e5933ad920": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "beaugmented/agency#945|packages/agency/src/openai.ts|3|f2ee33a6d91e0c05": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "beaugmented/agency#945|packages/safegen/src/openai/set-up-openai-json-generator.ts|2|f2ee33a6d91e0c05": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "beaugmented/agency#945|packages/safegen/src/openai/set-up-openai-json-generator.ts|9|7bb5352eec8d2770": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "boxyhq/saas-starter-kit#1253|lib/stripe.ts|6|a1c1e22a255ecad5": {
+    "class": "contract",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "boxyhq/saas-starter-kit#1253|pages/api/webhooks/stripe.ts|26|e46af5f5479f020f": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "boxyhq/saas-starter-kit#1253|pages/api/webhooks/stripe.ts|30|5e7533c7dc3b9ec5": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "boxyhq/saas-starter-kit#1253|pages/api/webhooks/stripe.ts|48|70fd8d7c7dbb311d": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "boxyhq/saas-starter-kit#1480|lib/stripe.ts|6|aeeb00e220c406d2": {
+    "class": "contract",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "ChristianMP/foodbot#34|src/slack.ts|6|35f9a0573929e2f7": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "christophehurpeau/pob#2110|packages/yarn-version/src/utils/githubUtils.ts|0|080b0313dc66b495": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "CleanExpo/NodeJS-Starter-V1#60|apps/web/lib/api/stripe.ts|38|1682c25ae159368a": {
+    "class": "contract",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "cncf/prow-github-actions#122|src/cronJobs/lgtm.ts|1|b8cf6b861c7b4bf2": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "cncf/prow-github-actions#122|src/cronJobs/lgtm.ts|11|e1d5d9cbb2a53671": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "cncf/prow-github-actions#122|src/cronJobs/prLabeler.ts|10|eda7a319766f1b8e": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "cncf/prow-github-actions#122|src/cronJobs/prLabeler.ts|25|e1d5d9cbb2a53671": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "cncf/prow-github-actions#122|src/cronJobs/prLabeler.ts|8|ab8ed31204095509": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "cncf/prow-github-actions#122|src/issueComment/approve.ts|1|b8cf6b861c7b4bf2": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "cncf/prow-github-actions#122|src/issueComment/approve.ts|12|56f8b9e10c4c9412": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "codeoverflow-org/nodecg-io#1087|samples/slack-post/extension/index.ts|12|a9f87f6dee6c9a00": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "codeoverflow-org/nodecg-io#1087|services/nodecg-io-slack/extension/index.ts|18|2947bfc4c95c22ba": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "codeoverflow-org/nodecg-io#1087|services/nodecg-io-slack/extension/index.ts|29|2947bfc4c95c22ba": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "decipad/decipad#6655|apps/backend-tests/src/workspaces-subscriptions.spec.ts|246|450c37f9c4a96c0d": {
+    "class": "contract",
+    "confidence": 0.74,
+    "model": "jev-1.13.0"
+  },
+  "decipad/decipad#6655|apps/backend-tests/src/workspaces-subscriptions.spec.ts|49|77d88e2d9f115257": {
+    "class": "contract",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "decipad/decipad#6655|apps/backend-tests/src/workspaces-subscriptions.spec.ts|58|1a05a46f2fda8a37": {
+    "class": "contract",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "decipad/decipad#6655|apps/backend-tests/src/workspaces-subscriptions.spec.ts|69|162084f4b3899722": {
+    "class": "contract",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "decipad/decipad#6655|apps/backend-tests/src/workspaces-subscriptions.spec.ts|78|fc8374b51c5f04c8": {
+    "class": "contract",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "decipad/decipad#6655|apps/backend-tests/src/workspaces-subscriptions.spec.ts|97|0d45440f16d5e770": {
+    "class": "contract",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "decipad/decipad#6655|libs/backend-config/src/index.ts|376|458531d80505464e": {
+    "class": "contract",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "EvanGribar/Swarm-Review#80|src/context.ts|50|e975b90815a597a0": {
+    "class": "unrelated",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#122|src/github/getStageMessage.ts|10|c99b90c803cce0fc": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#122|src/github/getStageMessage.ts|30|e64892fdd0b325b1": {
+    "class": "sdk",
+    "confidence": 0.54,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#122|src/github/getStageMessage.ts|38|adb6f412a027642a": {
+    "class": "sdk",
+    "confidence": 0.44,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#122|src/github/getStageMessage.ts|8|bec227db133b25db": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#122|src/github/types.ts|12|504e8be1e0238720": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#122|src/github/types.ts|15|f81833d8d3a0ee66": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#122|src/github/types.ts|3|26daf47490853015": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#122|src/postMessage.ts|36|a63c2ba24aafb864": {
+    "class": "contract",
+    "confidence": 0.45999999999999996,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#122|src/postMessage.ts|41|665255c7df637a08": {
+    "class": "sdk",
+    "confidence": 0.46,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#122|src/postMessage.ts|48|11014cf98980aa2d": {
+    "class": "sdk",
+    "confidence": 0.43,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#122|src/postMessage.ts|55|eadaa1e30ed8bda2": {
+    "class": "sdk",
+    "confidence": 0.64,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#122|src/slack/SlackClient.ts|34|8e6daeaa6f32713a": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#122|src/slack/types.ts|0|2ab80a2931f3cd13": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#122|src/slack/types.ts|37|a293f4965f601da6": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#122|src/slack/types.ts|42|845967a1d4660d4b": {
+    "class": "sdk",
+    "confidence": 0.8200000000000001,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#122|src/slack/types.ts|47|cce2150efb35b031": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#190|src/slack/__tests__/SlackClient.test.ts|1|38e3fdd78cb1bc53": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#190|src/slack/__tests__/SlackClient.test.ts|10|b4b3e297825ecff5": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#190|src/slack/__tests__/SlackClient.test.ts|110|d7af8fb789d9ed99": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#190|src/slack/__tests__/SlackClient.test.ts|122|07df4c61563810e2": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#190|src/slack/__tests__/SlackClient.test.ts|149|24c1f73c2faf96fb": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#190|src/slack/__tests__/SlackClient.test.ts|24|3d1a65223dd1aad4": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#190|src/slack/__tests__/SlackClient.test.ts|69|07df4c61563810e2": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#190|src/slack/__tests__/SlackClient.test.ts|9|4f4c504a4bff7e69": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#190|src/slack/MissingScopeError.ts|0|5e62b132f396b4ca": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#190|src/slack/MissingScopeError.ts|1|b0dc15435848dba3": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#190|src/slack/MissingScopeError.ts|12|3198b6dc7b766fe3": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#190|src/slack/SlackClient.ts|1|75b6c891916eee28": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#190|src/slack/SlackClient.ts|10|b0dc15435848dba3": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#190|src/slack/SlackClient.ts|112|691ec8431d28c8a0": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "Fieldguide/action-slack-deploy-pipeline#190|src/slack/utils/isCodedPlatformError.ts|0|6fc4e8d4571fbd62": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "flags-gg/dashboard#1844|src/app/api/company/upgrade/route.ts|36|d22760cb978d965c": {
+    "class": "contract",
+    "confidence": 0.72,
+    "model": "jev-1.13.0"
+  },
+  "form8ion/github#15|src/octokit/factory.js|0|03e7ec1ccba657d3": {
+    "class": "sdk",
+    "confidence": 0.59,
+    "model": "jev-1.13.0"
+  },
+  "form8ion/github#15|src/octokit/factory.test.js|0|03e7ec1ccba657d3": {
+    "class": "sdk",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "frank-bot07/usrcp#147|packages/usrcp-github/src/index.ts|23|9b125affe2f969b1": {
+    "class": "unrelated",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "frank-bot07/usrcp#147|packages/usrcp-github/src/index.ts|678|9f665f36fa5c8e07": {
+    "class": "unrelated",
+    "confidence": 0.79,
+    "model": "jev-1.13.0"
+  },
+  "github/vscode-codeql#4114|extensions/ql-vscode/src/variant-analysis/gh-api/gh-api-client.ts|0|bd9e4af7e0425842": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "github/vscode-codeql#4114|extensions/ql-vscode/src/variant-analysis/gh-api/gh-api-client.ts|28|985d9b6df80d4e59": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "github/vscode-codeql#4114|extensions/ql-vscode/src/variant-analysis/gh-api/gh-api-client.ts|46|5c53d12b93ea0124": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "github/vscode-codeql#4114|extensions/ql-vscode/src/variant-analysis/gh-api/gh-api-client.ts|65|410ad8905840d20b": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "graphql-hive/console#3089|packages/services/stripe-billing/src/billing-sync.ts|26|e53837f4132ff3e5": {
+    "class": "contract",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "Hannah-Sten/TeXiFy-IDEA#3641|.github/actions/insert-youtrack-link/index.js|0|31e70f33dd59095b": {
+    "class": "unrelated",
+    "confidence": 0.74,
+    "model": "jev-1.13.0"
+  },
+  "Hannah-Sten/TeXiFy-IDEA#3641|.github/actions/insert-youtrack-link/index.js|100|9ee9153156fc9690": {
+    "class": "unrelated",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "Hannah-Sten/TeXiFy-IDEA#3641|.github/actions/insert-youtrack-link/index.js|75|e4078d2c42c54f47": {
+    "class": "unrelated",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "Hannah-Sten/TeXiFy-IDEA#3641|.github/actions/insert-youtrack-link/index.js|80|efb08a2c232457a9": {
+    "class": "unrelated",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "Hannah-Sten/TeXiFy-IDEA#3641|.github/actions/insert-youtrack-link/index.js|85|163c550a5eeccc67": {
+    "class": "unrelated",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "Hannah-Sten/TeXiFy-IDEA#3641|.github/actions/insert-youtrack-link/index.js|87|f93d1c53c096ddf1": {
+    "class": "unrelated",
+    "confidence": 0.79,
+    "model": "jev-1.13.0"
+  },
+  "Hannah-Sten/TeXiFy-IDEA#3641|.github/actions/insert-youtrack-link/index.js|92|3f2807d7f58d3463": {
+    "class": "unrelated",
+    "confidence": 0.8200000000000001,
+    "model": "jev-1.13.0"
+  },
+  "Hannah-Sten/TeXiFy-IDEA#3641|.github/actions/insert-youtrack-link/index.js|94|f0356c20a481ac15": {
+    "class": "unrelated",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "Hannah-Sten/TeXiFy-IDEA#3641|.github/actions/insert-youtrack-link/index.js|96|475709c9513ad741": {
+    "class": "unrelated",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "hfappmaker/flow-report#111|src/features/subscription/libs/stripe.ts|9|3b5a15b9d67e9c15": {
+    "class": "contract",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "hfappmaker/flow-report#159|src/features/subscription/libs/stripe.ts|9|5ec80268c72cc768": {
+    "class": "contract",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "hiroppy/web-app-template#526|src/app/_actions/payment.test.ts|187|adbd69893c368408": {
+    "class": "contract",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "hiroppy/web-app-template#526|src/app/_utils/payment.test.ts|110|0153196658fcfd98": {
+    "class": "contract",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "hiroppy/web-app-template#526|src/app/_utils/payment.test.ts|29|7d702e18dae0d7ed": {
+    "class": "contract",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "hiroppy/web-app-template#526|src/app/_utils/payment.test.ts|41|6947defc65aaa8f2": {
+    "class": "contract",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "hiroppy/web-app-template#526|src/app/_utils/payment.test.ts|94|6947defc65aaa8f2": {
+    "class": "contract",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "hiroppy/web-app-template#526|src/app/_utils/payment.ts|19|211e9fd22b61f8ac": {
+    "class": "contract",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "int128/trigger-actions-bot#434|src/run.ts|0|37ade4405f3e7ab6": {
+    "class": "unrelated",
+    "confidence": 0.61,
+    "model": "jev-1.13.0"
+  },
+  "int128/trigger-actions-bot#434|src/run.ts|23|9a6db552aac12d05": {
+    "class": "sdk",
+    "confidence": 0.5599999999999999,
+    "model": "jev-1.13.0"
+  },
+  "issue-ops/labeler#117|rollup.config.ts|12|835478b332295bcc": {
+    "class": "unrelated",
+    "confidence": 0.54,
+    "model": "jev-1.13.0"
+  },
+  "issue-ops/labeler#117|rollup.config.ts|9|b895e2f3a57ffefe": {
+    "class": "unrelated",
+    "confidence": 0.6,
+    "model": "jev-1.13.0"
+  },
+  "jeremybanka/wayforge#4190|packages/varmint/__tests__/agents.ts|15|57be3f13bc5c254b": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "jeremybanka/wayforge#4190|packages/varmint/__tests__/agents.ts|159|7bb5352eec8d2770": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "jeremybanka/wayforge#4190|packages/varmint/__tests__/agents.ts|325|f1de102673c981eb": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "jeremybanka/wayforge#4190|packages/varmint/__tests__/ferret.test.ts|1|fbc2e4c56999dccc": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "jeremybanka/wayforge#4190|packages/varmint/__tests__/ferret.test.ts|39|17ba43620c010439": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "jeremybanka/wayforge#4190|packages/varmint/__tests__/ferret.test.ts|64|895b88dddda0e8d8": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "jeremybanka/wayforge#4190|packages/varmint/__tests__/ferret.test.ts|75|17ba43620c010439": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "jogold/cloudstructs#280|src/slack-textract/detect.lambda.ts|10|ba52a401b153a639": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "jogold/cloudstructs#280|src/slack-textract/detect.lambda.ts|2|743d264367beedd5": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "jogold/cloudstructs#280|src/slack-textract/detect.lambda.ts|35|9b7472497fe4cb54": {
+    "class": "sdk",
+    "confidence": 0.64,
+    "model": "jev-1.13.0"
+  },
+  "jogold/cloudstructs#280|src/slack-textract/detect.lambda.ts|38|8a58951da88a1ac6": {
+    "class": "sdk",
+    "confidence": 0.54,
+    "model": "jev-1.13.0"
+  },
+  "jogold/cloudstructs#280|src/slack-textract/detect.lambda.ts|43|a9a67c9aeb9f3217": {
+    "class": "sdk",
+    "confidence": 0.47,
+    "model": "jev-1.13.0"
+  },
+  "jogold/cloudstructs#280|src/slack-textract/detect.lambda.ts|64|8996492f72daab01": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "jogold/cloudstructs#280|test/slack-textract/handler.test.ts|2|933d877840a905eb": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0"
+  },
+  "jogold/cloudstructs#280|test/slack-textract/handler.test.ts|20|fb0db1e348b38811": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "jogold/cloudstructs#280|test/slack-textract/handler.test.ts|5|0637caf566f07ee4": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/balanceService.ts|1|b30cea85f5d9f594": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/balanceService.ts|11|8104908695b5b7fd": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/cardService.ts|1|582a5f8875c3e680": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/cardService.ts|121|b7baa5a77bfd172e": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/cardService.ts|39|e89692219da50e7b": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/cardService.ts|76|b7baa5a77bfd172e": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/checkoutSimulator.ts|1|9f5857853952a08b": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/checkoutSimulator.ts|30|b3431599c1e1f24b": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/spendingControls.ts|0|c7a6d25363aa88eb": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/spendingControls.ts|11|cf4dd6c20c4e0e05": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/spendingControls.ts|5|5b835209eb4a8cfb": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/stripeClient.ts|1|565d2d8407e45100": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/stripeClient.ts|2|acf4ee94825c7406": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/stripeClient.ts|4|ef754ff2574b8eff": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/stripeClient.ts|8|2ac771ef726ef7ec": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/validateStripe.ts|15|8d31313815b67ea2": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/webhookHandler.ts|0|45941ae03b17ce24": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/webhookHandler.ts|17|1eb87518dcbbd5ac": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/webhookHandler.ts|32|8abcc0abe0f0b596": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/webhookHandler.ts|41|8abcc0abe0f0b596": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/webhookHandler.ts|50|9bcd7fbb0941e237": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "karpikpl/azdo-release-notes-action#15|__tests__/main.test.ts|11|4556d9fc1e1a1c72": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0"
+  },
+  "karpikpl/azdo-release-notes-action#15|__tests__/main.test.ts|17|bffed6b143928f95": {
+    "class": "sdk",
+    "confidence": 0.59,
+    "model": "jev-1.13.0"
+  },
+  "karpikpl/azdo-release-notes-action#15|__tests__/main.test.ts|18|c97574576421e55c": {
+    "class": "sdk",
+    "confidence": 0.69,
+    "model": "jev-1.13.0"
+  },
+  "karpikpl/azdo-release-notes-action#15|__tests__/main.test.ts|26|3ef000339384a35b": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "karpikpl/azdo-release-notes-action#15|__tests__/main.test.ts|35|7457c6328f9007ec": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "karpikpl/azdo-release-notes-action#15|__tests__/main.test.ts|41|927411216389bcbb": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "karpikpl/azdo-release-notes-action#15|__tests__/main.test.ts|42|b2230c7207a13316": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "karpikpl/azdo-release-notes-action#15|__tests__/main.test.ts|7|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "karpikpl/azdo-release-notes-action#15|__tests__/main.test.ts|9|a3827cbc6c79dd59": {
+    "class": "sdk",
+    "confidence": 0.61,
+    "model": "jev-1.13.0"
+  },
+  "KeepSoftwareSimple/compass-calendar#3603|packages/backend/src/billing/billing.constants.ts|36|eab24d17a931fcf2": {
+    "class": "sdk",
+    "confidence": 0.58,
+    "model": "jev-1.13.0"
+  },
+  "KeepSoftwareSimple/compass-calendar#3603|packages/backend/src/billing/billing.constants.ts|9|fad6109f7d25761c": {
+    "class": "sdk",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "KeepSoftwareSimple/compass-calendar#3603|packages/backend/src/billing/services/billing.webhook.service.ts|4|28c1b5f0271459e3": {
+    "class": "sdk",
+    "confidence": 0.59,
+    "model": "jev-1.13.0"
+  },
+  "KeepSoftwareSimple/compass-calendar#3603|packages/backend/src/billing/services/billing.webhook.service.ts|5|2ae5564facf7ff63": {
+    "class": "sdk",
+    "confidence": 0.57,
+    "model": "jev-1.13.0"
+  },
+  "KeepSoftwareSimple/compass-calendar#3603|packages/backend/src/billing/services/billing.webhook.service.ts|72|c7440c8a27c306d7": {
+    "class": "sdk",
+    "confidence": 0.71,
+    "model": "jev-1.13.0"
+  },
+  "KeepSoftwareSimple/compass-calendar#3603|packages/backend/src/billing/services/billing.webhook.service.ts|80|f8eaa1feb97f8827": {
+    "class": "sdk",
+    "confidence": 0.69,
+    "model": "jev-1.13.0"
+  },
+  "KeepSoftwareSimple/compass-calendar#3603|packages/backend/src/billing/services/stripe.client.ts|1|44925841cb135e88": {
+    "class": "contract",
+    "confidence": 0.43,
+    "model": "jev-1.13.0"
+  },
+  "KeepSoftwareSimple/compass-calendar#3603|packages/backend/src/billing/services/stripe.client.ts|5|31e34ff2e77d5c9c": {
+    "class": "contract",
+    "confidence": 0.75,
+    "model": "jev-1.13.0"
+  },
+  "KeepSoftwareSimple/compass-calendar#3603|packages/backend/src/billing/services/stripe.service.ts|404|08ee48c0f2ec14f2": {
+    "class": "contract",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "KeepSoftwareSimple/compass-calendar#3603|packages/backend/src/billing/services/stripe.service.ts|411|072370e36b9ef6da": {
+    "class": "contract",
+    "confidence": 0.54,
+    "model": "jev-1.13.0"
+  },
+  "KenKaiii/gg-framework#64|gg-app/src/gaze/mediapipe-tracker.test.ts|0|634768a4873fd4c8": {
+    "class": "unrelated",
+    "confidence": 0.54,
+    "model": "jev-1.13.0"
+  },
+  "KenKaiii/gg-framework#64|gg-app/src/gaze/mediapipe-tracker.ts|20|3d9fdb85cb930f2d": {
+    "class": "unrelated",
+    "confidence": 0.49,
+    "model": "jev-1.13.0"
+  },
+  "KenKaiii/gg-framework#64|gg-app/src/gaze/mediapipe-tracker.ts|5|4b57032513650fd6": {
+    "class": "unrelated",
+    "confidence": 0.58,
+    "model": "jev-1.13.0"
+  },
+  "kevinoid/hub-ci-status#38|lib/fetch-ci-status.js|9|6e58bed862d0cfbe": {
+    "class": "unrelated",
+    "confidence": 0.79,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|__tests__/lib/trpc/routers/billing.test.ts|18|8d6f68e49d9a1e81": {
+    "class": "contract",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|__tests__/lib/trpc/routers/billing.test.ts|195|9b6018348bb38d5e": {
+    "class": "contract",
+    "confidence": 0.6,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|app/(logged-in)/settings/billing/page.tsx|172|5a97111f94985743": {
+    "class": "unrelated",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|components/providers.tsx|11|30c8d5c59bd84e8b": {
+    "class": "unrelated",
+    "confidence": 0.8099999999999999,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|components/providers.tsx|72|5060722e90fd5e51": {
+    "class": "unrelated",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|hooks/use-iframe-message-handler.ts|0|4bed541eccd52bf4": {
+    "class": "unrelated",
+    "confidence": 0.66,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|hooks/use-subscription-actions.ts|107|52438a5f4fc857bf": {
+    "class": "contract",
+    "confidence": 0.59,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|hooks/use-subscription-actions.ts|18|70e4efc8b5c5a146": {
+    "class": "unrelated",
+    "confidence": 0.5,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|hooks/use-subscription-actions.ts|24|597f76ee08ac2791": {
+    "class": "sdk",
+    "confidence": 0.37,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|hooks/use-subscription-actions.ts|43|2fb01e6788b20186": {
+    "class": "sdk",
+    "confidence": 0.39,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|hooks/use-subscription-actions.ts|6|f5784724e035f4f7": {
+    "class": "unrelated",
+    "confidence": 0.53,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|hooks/use-subscription-actions.ts|65|2fb01e6788b20186": {
+    "class": "sdk",
+    "confidence": 0.43,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|hooks/use-subscription-actions.ts|87|2fb01e6788b20186": {
+    "class": "contract",
+    "confidence": 0.48,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|hooks/use-subscription-data.ts|10|23dbf6714410b175": {
+    "class": "contract",
+    "confidence": 0.66,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|hooks/use-subscription-data.ts|19|23dbf6714410b175": {
+    "class": "contract",
+    "confidence": 0.78,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|lib/billing/client.ts|12|24a091bc0067dd90": {
+    "class": "contract",
+    "confidence": 0.79,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|lib/billing/operations.ts|155|849ca8aa1d2e1625": {
+    "class": "unrelated",
+    "confidence": 0.75,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|lib/billing/operations.ts|180|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|lib/billing/operations.ts|189|ba896b40ac3bcea1": {
+    "class": "unrelated",
+    "confidence": 0.65,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|lib/trpc/routers/billing.ts|20|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|lib/trpc/routers/billing.ts|3|84d8e20f44a94d99": {
+    "class": "unrelated",
+    "confidence": 0.75,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|lib/trpc/routers/billing.ts|87|73b9a5a422271f52": {
+    "class": "unrelated",
+    "confidence": 0.71,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|lib/trpc/routers/billing.ts|91|eee99552891bb85d": {
+    "class": "unrelated",
+    "confidence": 0.65,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|lib/trpc/schemas/billing.ts|11|035b5102197d9ae3": {
+    "class": "contract",
+    "confidence": 0.49,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|lib/types/billing.ts|36|1b569a58104c2cb4": {
+    "class": "contract",
+    "confidence": 0.51,
+    "model": "jev-1.13.0"
+  },
+  "Kosuke-Org/kosuke-template#354|store/use-iframe-message-handler.ts|0|6225f7de59b6a6fb": {
+    "class": "unrelated",
+    "confidence": 0.79,
+    "model": "jev-1.13.0"
+  },
+  "kula-app/OnLaunch#1052|src/services/stripe.ts|10|16bbc9826322c738": {
+    "class": "contract",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "kula-app/OnLaunch#1487|src/services/stripe.ts|10|4bcb3a0fca94f9e2": {
+    "class": "contract",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "lifestyle3nergy-web/TWGT-#73|tests/tooling/openai-sdk-contract.test.mjs|0|21a37313a4e6051d": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "linklaterscreateiq/reviewer-roulette#9|scripts/proxy-check.mjs|0|891c268de15f5967": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0"
+  },
+  "linklaterscreateiq/reviewer-roulette#9|src/roulette.ts|11|600623c80f249eb6": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "linklaterscreateiq/reviewer-roulette#9|src/roulette.ts|86|b266c4667931c841": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "linklaterscreateiq/reviewer-roulette#9|src/roulette.ts|89|a2e9953a7f5c7244": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "linklaterscreateiq/reviewer-roulette#9|tsup.config.ts|8|b6be84d336007bf1": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "marc-aurele-besner/slack-utility#348|src/slackUtils/slackUpdateView.ts|20|379f0935fa66604d": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "marc-aurele-besner/slack-utility#348|src/slackUtils/slackUploadFile.ts|14|8c855a1c1162628e": {
+    "class": "contract",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "marcusrbrown/gpt#852|src/services/openai-service.ts|365|bc96c824ca2f8f1d": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "marcusrbrown/gpt#852|src/services/openai-service.ts|394|0d01ca3c14b9b40b": {
+    "class": "contract",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "marcusrbrown/gpt#852|src/services/openai-service.ts|570|f43eb02c1e479871": {
+    "class": "contract",
+    "confidence": 0.58,
+    "model": "jev-1.13.0"
+  },
+  "masumi-network/sokosumi#1595|web-app/src/lib/clients/stripe.client.ts|129|a227f3f22cc7cf5d": {
+    "class": "contract",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "masumi-network/sokosumi#1595|web-app/src/lib/clients/stripe.client.ts|145|4935bd674eb03e2f": {
+    "class": "contract",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "maxbrunet/renovate-approve-job#102|index.js|1|ae4d1885ab7c8273": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "mdn/yari#9888|client/src/plus/ai-help/use-ai.ts|12|56f0f0516c17f502": {
+    "class": "sdk",
+    "confidence": 0.73,
+    "model": "jev-1.13.0"
+  },
+  "mdn/yari#9888|client/src/plus/ai-help/use-ai.ts|2|fef6d22d9bf0d9e6": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "mdn/yari#9888|client/src/plus/ai-help/use-ai.ts|240|cd31990e13c1e3e4": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0"
+  },
+  "mdn/yari#9888|client/src/plus/ai-help/use-ai.ts|246|1bc2c22e596fb7f7": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "mdn/yari#9888|scripts/ai-help.ts|50|d6d7d3ca19af658b": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "mdn/yari#9888|scripts/ai-help.ts|53|c8fd3b0ac46973b9": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "mdn/yari#9888|scripts/ai-help.ts|61|8721fc06a1013497": {
+    "class": "sdk",
+    "confidence": 0.9400000000000001,
+    "model": "jev-1.13.0"
+  },
+  "mdn/yari#9888|scripts/ai-help.ts|7|d8bc56e589c00c89": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "mdn/yari#9888|scripts/ai-help.ts|77|8721fc06a1013497": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "opencollective/opencollective-api#10416|test/mocks/stripe.ts|437|8ba675a29ded8b13": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "opencollective/opencollective-api#10416|test/mocks/stripe.ts|495|2b3b48838242d65e": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "opencollective/opencollective-api#10416|test/mocks/stripe.ts|544|2b3b48838242d65e": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "opencollective/opencollective-api#9400|test/mocks/stripe.ts|472|1f6f5105bca1e7e3": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "opencollective/opencollective-api#9400|test/mocks/stripe.ts|477|f1cf6f190157ab99": {
+    "class": "sdk",
+    "confidence": 0.66,
+    "model": "jev-1.13.0"
+  },
+  "opencollective/opencollective-api#9400|test/mocks/stripe.ts|512|f1cf6f190157ab99": {
+    "class": "sdk",
+    "confidence": 0.6,
+    "model": "jev-1.13.0"
+  },
+  "OpenLightingProject/open-fixture-library#4027|.eslintrc.cjs|94|09e09618faad85f0": {
+    "class": "sdk",
+    "confidence": 0.74,
+    "model": "jev-1.13.0"
+  },
+  "otto-de/purge-deprecated-workflow-runs#35|index.js|0|47f444cbcfa79b5d": {
+    "class": "sdk",
+    "confidence": 0.5700000000000001,
+    "model": "jev-1.13.0"
+  },
+  "otto-de/purge-deprecated-workflow-runs#35|process_older_than.js|28|2d38e564bd56766f": {
+    "class": "sdk",
+    "confidence": 0.6,
+    "model": "jev-1.13.0"
+  },
+  "otto-de/purge-deprecated-workflow-runs#35|process_older_than.js|45|83ec300bc1d94bb1": {
+    "class": "sdk",
+    "confidence": 0.66,
+    "model": "jev-1.13.0"
+  },
+  "otto-de/purge-deprecated-workflow-runs#35|process_older_than.js|9|9635ef75d70579f0": {
+    "class": "sdk",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|src/providers/fetch.ts|0|c4dcd87900dab8bc": {
+    "class": "unrelated",
+    "confidence": 0.69,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|src/providers/promptfooModel.ts|115|eb6a2815e411208d": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|src/providers/promptfooModel.ts|2|b6d2d48003bd609a": {
+    "class": "unrelated",
+    "confidence": 0.74,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|src/providers/registry.ts|1698|5ba7b5b9634bc259": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|src/providers/slack.ts|0|fd17bad5ffb7c0a0": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|src/providers/slack.ts|141|623a3e01244501c7": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|src/providers/slack.ts|144|3429ec3497dd2ef9": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|src/providers/slack.ts|145|dbdd13c77973af69": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|src/providers/slack.ts|2|67445627baaf1713": {
+    "class": "sdk",
+    "confidence": 0.5,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|src/providers/slack.ts|61|470c838b7ad19a7c": {
+    "class": "sdk",
+    "confidence": 0.7,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|test/providers.slack.test.ts|0|fd17bad5ffb7c0a0": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|test/providers.slack.test.ts|11|63f5f95193a0e4a3": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|test/providers.slack.test.ts|16|63de01e0647ec34e": {
+    "class": "sdk",
+    "confidence": 0.73,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|test/providers.slack.test.ts|19|db6e89d17b922c91": {
+    "class": "sdk",
+    "confidence": 0.66,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|test/providers.slack.test.ts|211|ea910dc787adec26": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|test/providers.slack.test.ts|25|64617d67309ee6ad": {
+    "class": "sdk",
+    "confidence": 0.62,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|test/providers.slack.test.ts|3|ce49ca8021838267": {
+    "class": "sdk",
+    "confidence": 0.68,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|test/providers.slack.test.ts|67|d7ea2fd9ce2c7c49": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|test/providers.slack.test.ts|77|22cf16a26ce3bb5e": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|test/providers.slack.test.ts|8|7acf16d48bd9e11e": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#10206|test/providers.slack.test.ts|80|eeb96f9ba09b3554": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#4250|src/providers/openai/assistant.ts|103|1c49a648a49901de": {
+    "class": "contract",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#4250|src/providers/openai/assistant.ts|137|f0d184d6220e5442": {
+    "class": "contract",
+    "confidence": 0.64,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#4250|src/providers/openai/assistant.ts|152|407f362232161143": {
+    "class": "contract",
+    "confidence": 0.58,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#4250|src/providers/openai/assistant.ts|192|28600fde319301d1": {
+    "class": "contract",
+    "confidence": 0.61,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#4250|src/providers/openai/assistant.ts|2|e45d4c7c84f892de": {
+    "class": "unrelated",
+    "confidence": 0.74,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#4250|src/providers/openai/assistant.ts|207|9b3819e36f11d9d8": {
+    "class": "contract",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#4250|src/providers/openai/assistant.ts|209|6f62d8c63c9b910f": {
+    "class": "sdk",
+    "confidence": 0.62,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#4250|src/providers/openai/assistant.ts|22|0c97d48d701de6d9": {
+    "class": "sdk",
+    "confidence": 0.73,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#4250|src/providers/openai/assistant.ts|3|1653bfa19841880a": {
+    "class": "unrelated",
+    "confidence": 0.71,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#4250|src/providers/openai/assistant.ts|39|51bea4e5e0e7a56b": {
+    "class": "sdk",
+    "confidence": 0.36,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#4250|src/providers/openai/assistant.ts|47|8ffebcc4b20202a9": {
+    "class": "contract",
+    "confidence": 0.44,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#4250|src/providers/openai/assistant.ts|49|44d2ed5cb1d8009c": {
+    "class": "contract",
+    "confidence": 0.49,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#4250|src/providers/openai/assistant.ts|7|39192ec3725016ad": {
+    "class": "unrelated",
+    "confidence": 0.62,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#4250|test/providers/openai/assistant.test.ts|189|41a8213621d5a2c8": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "promptfoo/promptfoo#4250|test/providers/openai/util.test.ts|14|9b43e924326a08cd": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "ryanrosello-og/playwright-slack-report#430|cli.ts|3|83fcc3d9d805d239": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "ryanrosello-og/playwright-slack-report#430|cli.ts|39|f011f33570a07591": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "ryanrosello-og/playwright-slack-report#430|cli.ts|5|6a0414b3b68ddc13": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "ryanrosello-og/playwright-slack-report#430|cli.ts|54|a12c4129e15b2ff4": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "ryanrosello-og/playwright-slack-report#430|src/SlackReporter.ts|135|e21f48e338ed2fc9": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "ryanrosello-og/playwright-slack-report#430|src/SlackReporter.ts|157|015d022ab7516f34": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "ryanrosello-og/playwright-slack-report#430|src/SlackReporter.ts|7|83fcc3d9d805d239": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "ryanrosello-og/playwright-slack-report#430|src/SlackReporter.ts|9|6a0414b3b68ddc13": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/canva-clone#106|src/lib/stripe.ts|3|44441de2d0e0df44": {
+    "class": "contract",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/canva-clone#122|src/lib/stripe.ts|3|7f459b28e9e935c0": {
+    "class": "contract",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/canva-clone#154|src/lib/stripe.ts|3|fd0c085288419eb9": {
+    "class": "contract",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/duolingo-clone#110|lib/stripe.ts|3|6527773ec72c5690": {
+    "class": "contract",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/duolingo-clone#47|app/api/webhooks/stripe/route.ts|43|0b40c1ff54fb6ca3": {
+    "class": "contract",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/duolingo-clone#47|app/api/webhooks/stripe/route.ts|58|9cbbafea7943a381": {
+    "class": "contract",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/duolingo-clone#47|drizzle.config.ts|15|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/duolingo-clone#47|lib/admin.ts|4|746a6b1dd0d4b908": {
+    "class": "unrelated",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/duolingo-clone#47|lib/stripe.ts|3|b9b461716ba282a5": {
+    "class": "contract",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/quill#120|src/lib/stripe.ts|7|ff2026e2246a2688": {
+    "class": "contract",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/quill#62|src/app/api/webhooks/stripe/route.ts|16|71b64b4cbe90f4b2": {
+    "class": "unrelated",
+    "confidence": 0.59,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/quill#62|src/app/api/webhooks/stripe/route.ts|21|aa06a37cde7c0d98": {
+    "class": "unrelated",
+    "confidence": 0.59,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/quill#62|src/app/api/webhooks/stripe/route.ts|35|f1bddea92f53ab29": {
+    "class": "contract",
+    "confidence": 0.54,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/quill#62|src/app/api/webhooks/stripe/route.ts|47|80eed57bca3e2fd8": {
+    "class": "contract",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/quill#62|src/app/api/webhooks/stripe/route.ts|56|f1bddea92f53ab29": {
+    "class": "sdk",
+    "confidence": 0.5,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/quill#62|src/app/api/webhooks/stripe/route.ts|66|80eed57bca3e2fd8": {
+    "class": "contract",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/quill#62|src/lib/stripe.ts|41|b541154042dcb869": {
+    "class": "unrelated",
+    "confidence": 0.58,
+    "model": "jev-1.13.0"
+  },
+  "sanidhyy/quill#62|src/lib/stripe.ts|7|777ffffcb5edea1d": {
+    "class": "contract",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "sethrylan/issue-digest#63|src/models.ts|0|c4b04165ab890b5d": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1032|public/sw.js|0|e6e81428f063e039": {
+    "class": "unrelated",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1032|utils/stripe/config.ts|16|b3dd6d8c6c257f97": {
+    "class": "contract",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1032|utils/stripe/config.ts|8|0f0766a4d5407aaa": {
+    "class": "contract",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|app/api/webhooks/route.ts|64|1e577c32557431b1": {
+    "class": "unrelated",
+    "confidence": 0.44,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|app/api/webhooks/route.ts|74|05e10b41b1bf6242": {
+    "class": "unrelated",
+    "confidence": 0.5700000000000001,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|app/api/webhooks/route.ts|78|68e7d17675ce458f": {
+    "class": "unrelated",
+    "confidence": 0.43,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|app/api/webhooks/route.ts|8|a4c17c164791ab5b": {
+    "class": "unrelated",
+    "confidence": 0.57,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|app/api/webhooks/route.ts|93|23111a47bd943f32": {
+    "class": "unrelated",
+    "confidence": 0.68,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/stripe/config.ts|8|aa10cbbb2966dabf": {
+    "class": "contract",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|104|42a742b8fd2a8c61": {
+    "class": "unrelated",
+    "confidence": 0.54,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|141|d11a6dd2deec7bf2": {
+    "class": "unrelated",
+    "confidence": 0.6,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|16|6f31ccf15c5f96a5": {
+    "class": "unrelated",
+    "confidence": 0.62,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|167|e2ccf803104260d8": {
+    "class": "unrelated",
+    "confidence": 0.66,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|170|ac4708d0e2366500": {
+    "class": "unrelated",
+    "confidence": 0.67,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|177|bbaa4a9f40e760fe": {
+    "class": "unrelated",
+    "confidence": 0.5,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|183|58c310c9152315b1": {
+    "class": "unrelated",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|197|23acf20af8f4498b": {
+    "class": "unrelated",
+    "confidence": 0.57,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|219|849e51ca1c160c55": {
+    "class": "unrelated",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|236|cabc084a7e88f695": {
+    "class": "contract",
+    "confidence": 0.65,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|254|80148f444c459edf": {
+    "class": "contract",
+    "confidence": 0.74,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|257|bccba72b44d986cd": {
+    "class": "contract",
+    "confidence": 0.74,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|276|f478da12ff73c8e4": {
+    "class": "unrelated",
+    "confidence": 0.67,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|279|bbaabc3e554cc0bd": {
+    "class": "unrelated",
+    "confidence": 0.6799999999999999,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|282|cca3e97f1836c27f": {
+    "class": "unrelated",
+    "confidence": 0.42,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|323|6cf5fd7f495943b3": {
+    "class": "sdk",
+    "confidence": 0.37,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|326|337035ddf0c46ef6": {
+    "class": "contract",
+    "confidence": 0.41,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|334|f1930ffe23646ec7": {
+    "class": "unrelated",
+    "confidence": 0.38,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|349|a4c17c164791ab5b": {
+    "class": "unrelated",
+    "confidence": 0.44,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|40|79bce704e9adf9dd": {
+    "class": "unrelated",
+    "confidence": 0.54,
+    "model": "jev-1.13.0"
+  },
+  "synapsy-ai/write#1856|utils/supabase/admin.ts|67|7a8ae03a5e8c80e0": {
+    "class": "unrelated",
+    "confidence": 0.7,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/lib/importers/createSubscriptionImporter.ts|10|d7d30d78edb7fa57": {
+    "class": "contract",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/lib/importers/createSubscriptionImporter.ts|13|5a81c4b6355ff6a2": {
+    "class": "contract",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/lib/importers/createSubscriptionImporter.ts|286|406f34f81bf12758": {
+    "class": "contract",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/lib/importers/createSubscriptionImporter.ts|301|4973a1c2632e5d78": {
+    "class": "contract",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/lib/importers/createSubscriptionImporter.ts|305|674c91d688ed63a5": {
+    "class": "contract",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/lib/importers/createSubscriptionImporter.ts|313|cdf84a3dd5f6a3a2": {
+    "class": "contract",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/lib/importers/createSubscriptionImporter.ts|379|27b161f7a592974e": {
+    "class": "contract",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/lib/importers/createSubscriptionImporter.ts|454|2733161cf71166dd": {
+    "class": "contract",
+    "confidence": 0.78,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/lib/importers/createSubscriptionImporter.ts|467|49d7e8217227ea15": {
+    "class": "contract",
+    "confidence": 0.77,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/lib/importers/createSubscriptionImporter.ts|478|c08ca5b2849d0ebb": {
+    "class": "contract",
+    "confidence": 0.77,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/lib/importers/createSubscriptionImporter.ts|491|133b6947e48df76e": {
+    "class": "contract",
+    "confidence": 0.76,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/lib/StripeAPI.ts|20|d53fe0bde190947d": {
+    "class": "contract",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|106|b03d47169acc796d": {
+    "class": "contract",
+    "confidence": 0.5700000000000001,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|125|c275ff24306a6677": {
+    "class": "contract",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|162|ae571545e44f668a": {
+    "class": "contract",
+    "confidence": 0.71,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|188|062db1485e138975": {
+    "class": "contract",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|193|512f6afc45e4ffa4": {
+    "class": "contract",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|198|900778a43a418182": {
+    "class": "unrelated",
+    "confidence": 0.62,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|235|ae571545e44f668a": {
+    "class": "contract",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|261|062db1485e138975": {
+    "class": "contract",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|266|fb90e9a3cec32609": {
+    "class": "contract",
+    "confidence": 0.79,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|271|289eb878860f81da": {
+    "class": "unrelated",
+    "confidence": 0.4,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|317|ae571545e44f668a": {
+    "class": "contract",
+    "confidence": 0.78,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|344|062db1485e138975": {
+    "class": "contract",
+    "confidence": 0.77,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|349|512f6afc45e4ffa4": {
+    "class": "contract",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|354|3ceebd37e8d5a8c0": {
+    "class": "contract",
+    "confidence": 0.53,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|392|c583439dd53997cf": {
+    "class": "contract",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|394|e4e10efda15185b6": {
+    "class": "contract",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|398|0e59aae851e27108": {
+    "class": "contract",
+    "confidence": 0.65,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|404|ae571545e44f668a": {
+    "class": "contract",
+    "confidence": 0.79,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|407|835069ab6020261e": {
+    "class": "contract",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|432|062db1485e138975": {
+    "class": "contract",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|437|512f6afc45e4ffa4": {
+    "class": "contract",
+    "confidence": 0.77,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|442|4023a6206f1aaf4c": {
+    "class": "unrelated",
+    "confidence": 0.6,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|481|847761377b2b6108": {
+    "class": "contract",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|508|062db1485e138975": {
+    "class": "contract",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|56|debc540d10d3b701": {
+    "class": "contract",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|1007|8b405a0c05ff0e33": {
+    "class": "unrelated",
+    "confidence": 0.4,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|101|c275ff24306a6677": {
+    "class": "contract",
+    "confidence": 0.61,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|1040|c1b4556ad4aa7920": {
+    "class": "contract",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|1058|783bced877d5cf81": {
+    "class": "contract",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|1063|e76b8b3d9ba388aa": {
+    "class": "contract",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|1100|9aa6fecedc89379c": {
+    "class": "contract",
+    "confidence": 0.65,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|1151|c1b4556ad4aa7920": {
+    "class": "contract",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|1169|783bced877d5cf81": {
+    "class": "contract",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|1174|e76b8b3d9ba388aa": {
+    "class": "contract",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|1211|3c384ec7ae7c3ff4": {
+    "class": "contract",
+    "confidence": 0.75,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|1258|c1b4556ad4aa7920": {
+    "class": "contract",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|1276|783bced877d5cf81": {
+    "class": "contract",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|1281|e76b8b3d9ba388aa": {
+    "class": "contract",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|1303|3cebbd5520f9ce6b": {
+    "class": "unrelated",
+    "confidence": 0.5700000000000001,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|134|ae571545e44f668a": {
+    "class": "contract",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|1350|c1b4556ad4aa7920": {
+    "class": "contract",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|1368|783bced877d5cf81": {
+    "class": "contract",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|1373|e76b8b3d9ba388aa": {
+    "class": "contract",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|151|062db1485e138975": {
+    "class": "contract",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|156|512f6afc45e4ffa4": {
+    "class": "contract",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|193|900778a43a418182": {
+    "class": "contract",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|227|ae571545e44f668a": {
+    "class": "contract",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|244|062db1485e138975": {
+    "class": "contract",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|249|1b6f5491ab803dac": {
+    "class": "contract",
+    "confidence": 0.68,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|254|2e094d937dbe1c12": {
+    "class": "contract",
+    "confidence": 0.71,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|287|81986a79bbd70f13": {
+    "class": "contract",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|305|313682a06a42d42d": {
+    "class": "contract",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|309|2762e85b6c431401": {
+    "class": "contract",
+    "confidence": 0.53,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|314|2550ba94e693a400": {
+    "class": "contract",
+    "confidence": 0.53,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|346|ce903a79c3a1e791": {
+    "class": "contract",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|364|bfcadc62cfae3fdf": {
+    "class": "contract",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|377|45e1f13a91efdec8": {
+    "class": "contract",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|399|0c87453510894e76": {
+    "class": "contract",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|434|ae571545e44f668a": {
+    "class": "contract",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|451|3d7a14d9d396865f": {
+    "class": "contract",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|485|37935957de553698": {
+    "class": "contract",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|504|f63f174052d749d3": {
+    "class": "contract",
+    "confidence": 0.6,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|51|b03d47169acc796d": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|537|37935957de553698": {
+    "class": "contract",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|556|20e588d96e7a40be": {
+    "class": "contract",
+    "confidence": 0.75,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|607|ae571545e44f668a": {
+    "class": "contract",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|627|0c5debd57e9f3e38": {
+    "class": "contract",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|642|062db1485e138975": {
+    "class": "contract",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|647|3603c2123b91b62d": {
+    "class": "contract",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|650|3dd0a851a42c2f06": {
+    "class": "unrelated",
+    "confidence": 0.75,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|685|3ef755a3be4779ea": {
+    "class": "contract",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|702|5f41445c59e18811": {
+    "class": "contract",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|725|9bfd37b8a6759050": {
+    "class": "unrelated",
+    "confidence": 0.6,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|755|e76727a936f57134": {
+    "class": "unrelated",
+    "confidence": 0.65,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|785|4bc1c95e6c94218a": {
+    "class": "contract",
+    "confidence": 0.42,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|817|c583439dd53997cf": {
+    "class": "contract",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|819|e4e10efda15185b6": {
+    "class": "contract",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|838|fb8f985c22ef5b2a": {
+    "class": "contract",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|849|5607f55607892015": {
+    "class": "contract",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|854|c4f485f0fc032ac9": {
+    "class": "contract",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|858|a438b02c39e497c3": {
+    "class": "contract",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|890|c583439dd53997cf": {
+    "class": "contract",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|892|e4e10efda15185b6": {
+    "class": "contract",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|922|3d5c672567550b68": {
+    "class": "contract",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|927|c4f485f0fc032ac9": {
+    "class": "contract",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|931|811ed8b71dbb36fe": {
+    "class": "unrelated",
+    "confidence": 0.65,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|96|5297d462f04bfea6": {
+    "class": "contract",
+    "confidence": 0.76,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|992|3d5c672567550b68": {
+    "class": "contract",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|998|c4f485f0fc032ac9": {
+    "class": "contract",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|120|5a54ae8f074c5db0": {
+    "class": "contract",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|125|d847a7bf671d48ce": {
+    "class": "contract",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|132|9b3ebc423e0e3163": {
+    "class": "contract",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|165|ca88d95c57d492dc": {
+    "class": "contract",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|170|edafd39badcaf625": {
+    "class": "contract",
+    "confidence": 0.71,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|199|d743d745393cd679": {
+    "class": "contract",
+    "confidence": 0.76,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|205|bc2702a8b1fdffaf": {
+    "class": "contract",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|214|6626b8c0f59ef593": {
+    "class": "contract",
+    "confidence": 0.78,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|216|2223d4fe970b2016": {
+    "class": "contract",
+    "confidence": 0.78,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|222|4bea6e77def6767e": {
+    "class": "contract",
+    "confidence": 0.77,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|230|e09a7219e37b7c0b": {
+    "class": "contract",
+    "confidence": 0.78,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|236|bb0001025f27dd7d": {
+    "class": "contract",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|238|904150cb1a475d47": {
+    "class": "contract",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|242|d847a7bf671d48ce": {
+    "class": "contract",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|246|49f4d60e3ea44086": {
+    "class": "contract",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|252|7bca7ca09a483888": {
+    "class": "contract",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|254|6860abe14f0e3de6": {
+    "class": "contract",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|272|de6b046343db142c": {
+    "class": "contract",
+    "confidence": 0.47,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|283|b4a5398740d6f682": {
+    "class": "contract",
+    "confidence": 0.74,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|289|677d2e0723c995b7": {
+    "class": "contract",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|292|7a3334e4e928ea1f": {
+    "class": "contract",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|293|a8a2ad1170a16bc7": {
+    "class": "contract",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|297|8368f8da7bb82475": {
+    "class": "contract",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|298|5a246ad2862cf323": {
+    "class": "contract",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|317|37fb7f25391a1603": {
+    "class": "contract",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|321|b39c47870a978a6a": {
+    "class": "contract",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|325|277117e2b78a17cc": {
+    "class": "contract",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|326|0b7f37dd98f2f75a": {
+    "class": "contract",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|328|e1988c09f64f79bd": {
+    "class": "contract",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|329|2a054c65f1bfc135": {
+    "class": "contract",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|334|d847a7bf671d48ce": {
+    "class": "contract",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|344|e224b4bd93ee84b4": {
+    "class": "contract",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|351|766f7de9390721e8": {
+    "class": "contract",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|358|3a3f31425fe623a7": {
+    "class": "contract",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|366|78c9e337f41bbff8": {
+    "class": "contract",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|368|13ad0eff75ae0cae": {
+    "class": "contract",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|377|75c0ae9ccf2438a2": {
+    "class": "contract",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|382|319edf031293766e": {
+    "class": "contract",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|385|b06c249d8982a980": {
+    "class": "contract",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1680|packages/mg-stripe/src/lib/StripeAPI.ts|44|86c4d56c8c0b9a2a": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "TryGhost/migrate#1680|packages/mg-stripe/src/test/utils/stripe.ts|206|4ba335db03e4f598": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "unlock-protocol/unlock#14035|locksmith/src/config/stripe.ts|5|89c0e12a207dce0c": {
+    "class": "contract",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "unlock-protocol/unlock#14781|locksmith/src/config/config.ts|85|006c6bc6b78880e0": {
+    "class": "unrelated",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "unlock-protocol/unlock#14781|locksmith/src/config/stripe.ts|5|0f4cf07918e6d233": {
+    "class": "contract",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "unlock-protocol/unlock#15886|locksmith/src/config/stripe.ts|5|94eb4003b7b74686": {
+    "class": "contract",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|10509|561a2f55264f9a00": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|12310|afc4f0e8cfd0fbfa": {
+    "class": "sdk",
+    "confidence": 0.71,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|15183|3d80ee9e34ab1ac6": {
+    "class": "sdk",
+    "confidence": 0.76,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|15186|5948355db02a9603": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|15391|b81a712de88af04d": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4695|10d82b5c94ce29c2": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4698|ad5aad83c74016ef": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4705|6c9696541bca8342": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4708|06eb28f4bd489ba8": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4721|299e7cfc5b860a46": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4724|8c33ffefd9187a11": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4733|84797631bdb74244": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4736|7a3976cf6faaa18f": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4745|9291c5607443e844": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4748|19e863146b867e3e": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4754|0ee799e886d43dae": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4757|c200ad97d05195db": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4761|ec98c2251b6d5dae": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4764|4f9124a17e24c55a": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4778|3046a1aee2bdbd1e": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4781|a54df20f4bf82238": {
+    "class": "sdk",
+    "confidence": 0.76,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4785|5bf850a3c900eaae": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4788|f289114881bbb51a": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4800|4be867e409180fe8": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4803|309d709f83178438": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4807|c59e05753040df13": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4810|1d2ac239eef60bad": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4823|4b3369dfdaa0dc98": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4826|fe1dd6dd027858e8": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4838|df317ab53911ef56": {
+    "class": "sdk",
+    "confidence": 0.76,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4841|6d801a137491a04e": {
+    "class": "sdk",
+    "confidence": 0.76,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4850|f4db5fd86545a254": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4853|34363ec0cd840f91": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4862|6c4434636e578691": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4872|cd2c684fc925310c": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4875|c3ff9714fa484976": {
+    "class": "sdk",
+    "confidence": 0.8099999999999999,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|4879|2634542eb7b18718": {
+    "class": "sdk",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|55|b81a712de88af04d": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|6775|dd97421393435e7a": {
+    "class": "sdk",
+    "confidence": 0.69,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|6778|163baa9fc634b07f": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|8068|181cf13f8aed3b32": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0"
+  },
+  "verdaccio/verdaccio#5068|.pnp.cjs|9150|29550ce95f4232ff": {
+    "class": "sdk",
+    "confidence": 0.57,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|.eslintrc.cjs|0|ffe459fd679585a5": {
+    "class": "unrelated",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|bin/create-pr.js|0|40c795ca4176448e": {
+    "class": "unrelated",
+    "confidence": 0.73,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|bin/create-pr.js|1|700fdbd9c3fb1214": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|jest.config.cjs|0|fefdf5f6d3b76238": {
+    "class": "unrelated",
+    "confidence": 0.53,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|0|93effca8c6e5c7f7": {
+    "class": "unrelated",
+    "confidence": 0.51,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|104|574d81d1d48f21fb": {
+    "class": "sdk",
+    "confidence": 0.64,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|146|020fd090ea830108": {
+    "class": "sdk",
+    "confidence": 0.5700000000000001,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|181|8de7ff7852dfb2b6": {
+    "class": "sdk",
+    "confidence": 0.5,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|19|ec5318eaa0ff9604": {
+    "class": "unrelated",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|193|6325213ed51d91cf": {
+    "class": "unrelated",
+    "confidence": 0.5,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|204|685ad1459201005a": {
+    "class": "unrelated",
+    "confidence": 0.5,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|207|4cf89432ef377609": {
+    "class": "sdk",
+    "confidence": 0.51,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|21|2f8a19a4e3100f07": {
+    "class": "sdk",
+    "confidence": 0.57,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|211|67001ec8ca5123f5": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|213|c23c6086e2580f11": {
+    "class": "sdk",
+    "confidence": 0.6,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|216|cc390f3e12aab8d2": {
+    "class": "sdk",
+    "confidence": 0.64,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|227|5001c9ef79c1774b": {
+    "class": "sdk",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|234|6b6f411a60cce9c3": {
+    "class": "unrelated",
+    "confidence": 0.59,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|262|ec0427e057e8f25c": {
+    "class": "unrelated",
+    "confidence": 0.54,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|271|bbd4a7439cc3e697": {
+    "class": "unrelated",
+    "confidence": 0.61,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|277|07fbde3a4a844151": {
+    "class": "unrelated",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|279|47dc14d802d2aff0": {
+    "class": "unrelated",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|287|965574e95af2ef9e": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|291|0e99ff3a348b37e9": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|30|7111e71a449a373c": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|316|0298e27d0a1d5efb": {
+    "class": "unrelated",
+    "confidence": 0.56,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|321|f6e552ad57662a46": {
+    "class": "unrelated",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|324|0809195262275d2e": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|37|83421c611ecd3a67": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|48|f71d13c9429bf35f": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|51|c32d7f6f78bbab78": {
+    "class": "sdk",
+    "confidence": 0.5,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|57|00c1c860472342f1": {
+    "class": "unrelated",
+    "confidence": 0.5,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|64|75a17aeedff599bc": {
+    "class": "unrelated",
+    "confidence": 0.51,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|73|d595cc6510e00d08": {
+    "class": "unrelated",
+    "confidence": 0.5,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|80|4dc5fec3c07a6e1a": {
+    "class": "unrelated",
+    "confidence": 0.5,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|90|1bf70a6540ac7fb2": {
+    "class": "sdk",
+    "confidence": 0.51,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/commands/create-pr.js|94|7c3f850390c861b6": {
+    "class": "sdk",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/constants/index.js|0|97af2c4fcec2d68b": {
+    "class": "unrelated",
+    "confidence": 0.69,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/constants/index.js|106|822a983c8727ee74": {
+    "class": "unrelated",
+    "confidence": 0.53,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/constants/index.js|112|ebbfca261d0aff16": {
+    "class": "unrelated",
+    "confidence": 0.6,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/constants/index.js|117|feb2dd6e3cfa6832": {
+    "class": "unrelated",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/constants/index.js|122|6d6c3c43baa72b23": {
+    "class": "unrelated",
+    "confidence": 0.5700000000000001,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/constants/index.js|37|4f85c45229149fcc": {
+    "class": "unrelated",
+    "confidence": 0.5700000000000001,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/constants/index.js|52|7deae456d5f4e254": {
+    "class": "unrelated",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/constants/index.js|60|f9f96f27dd487a57": {
+    "class": "unrelated",
+    "confidence": 0.54,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/constants/index.js|67|b553627bbe0353f1": {
+    "class": "unrelated",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/constants/index.js|79|90b317103a592cc2": {
+    "class": "unrelated",
+    "confidence": 0.54,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/constants/index.js|86|ded5d091a319d66b": {
+    "class": "unrelated",
+    "confidence": 0.61,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/constants/index.js|96|8c6ba50a0ba1bccf": {
+    "class": "unrelated",
+    "confidence": 0.54,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|1|d9f95f2fa90653c7": {
+    "class": "sdk",
+    "confidence": 0.51,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|103|f9b6086973db291c": {
+    "class": "unrelated",
+    "confidence": 0.64,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|111|50cbd1a6f6f6d81c": {
+    "class": "unrelated",
+    "confidence": 0.53,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|115|99c340b00358c852": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|120|68553058b2bb9c98": {
+    "class": "sdk",
+    "confidence": 0.5700000000000001,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|125|a2f4ec707fa581e7": {
+    "class": "sdk",
+    "confidence": 0.6,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|17|65977becf3928d30": {
+    "class": "sdk",
+    "confidence": 0.62,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|19|4e3c55c7c0bf89c8": {
+    "class": "sdk",
+    "confidence": 0.5,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|24|4a3ba6297ffe6765": {
+    "class": "unrelated",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|30|4ac2703b89dc9f62": {
+    "class": "unrelated",
+    "confidence": 0.66,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|32|4093540bcab8ea12": {
+    "class": "unrelated",
+    "confidence": 0.5700000000000001,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|36|a2f4ec707fa581e7": {
+    "class": "unrelated",
+    "confidence": 0.65,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|44|7fd943c0cfc590eb": {
+    "class": "unrelated",
+    "confidence": 0.64,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|50|645b10a91b3543f0": {
+    "class": "unrelated",
+    "confidence": 0.65,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|72|337dcd520eb1b42d": {
+    "class": "unrelated",
+    "confidence": 0.61,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|80|016a29257678b1ae": {
+    "class": "unrelated",
+    "confidence": 0.71,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|84|989ca37e9064065f": {
+    "class": "unrelated",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|89|a5887e3890243352": {
+    "class": "unrelated",
+    "confidence": 0.66,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/index.js|94|a2f4ec707fa581e7": {
+    "class": "unrelated",
+    "confidence": 0.66,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.d.ts|0|4445d3093de188ce": {
+    "class": "sdk",
+    "confidence": 0.68,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|0|4eed3678cfd491b9": {
+    "class": "unrelated",
+    "confidence": 0.54,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|118|9a41e2ca711551b0": {
+    "class": "sdk",
+    "confidence": 0.64,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|142|14db2f1718bcc313": {
+    "class": "unrelated",
+    "confidence": 0.61,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|17|1b89a822b3ff8494": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|184|bc2294942827df30": {
+    "class": "unrelated",
+    "confidence": 0.6,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|201|7a59d15dc0d50273": {
+    "class": "unrelated",
+    "confidence": 0.65,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|22|2f4038d379752948": {
+    "class": "sdk",
+    "confidence": 0.51,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|33|72e55e8af98e34ee": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|355|90cd24a12285f2d4": {
+    "class": "unrelated",
+    "confidence": 0.69,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|37|d064319e47f9d8d2": {
+    "class": "unrelated",
+    "confidence": 0.54,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|390|10c32a37ef3469ed": {
+    "class": "unrelated",
+    "confidence": 0.59,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|40|a93fa8e327bf1a96": {
+    "class": "unrelated",
+    "confidence": 0.53,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|48|18343a9a8d244db0": {
+    "class": "unrelated",
+    "confidence": 0.51,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|511|05f3f94f86eed557": {
+    "class": "sdk",
+    "confidence": 0.59,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|52|89a8dd2878038f50": {
+    "class": "unrelated",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|521|ee43077af70581aa": {
+    "class": "unrelated",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|523|bac3f93457bb9511": {
+    "class": "unrelated",
+    "confidence": 0.61,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|525|d9a34c6e3a887943": {
+    "class": "unrelated",
+    "confidence": 0.59,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|527|16736833eb20a75a": {
+    "class": "unrelated",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|54|a93fa8e327bf1a96": {
+    "class": "unrelated",
+    "confidence": 0.5,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|551|7e0e04077c481998": {
+    "class": "unrelated",
+    "confidence": 0.65,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|568|7e0e04077c481998": {
+    "class": "unrelated",
+    "confidence": 0.6,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|592|d1b661d78a038be4": {
+    "class": "unrelated",
+    "confidence": 0.62,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|604|7e0e04077c481998": {
+    "class": "unrelated",
+    "confidence": 0.53,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|62|aba563299c09f1ca": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|72|54473e530ca845cb": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|76|e41b44366387d043": {
+    "class": "sdk",
+    "confidence": 0.58,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|784|c1b7a4b0a1f68d0e": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|79|a93fa8e327bf1a96": {
+    "class": "unrelated",
+    "confidence": 0.58,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/git.js|0|a8a1e1fa25e09ccf": {
+    "class": "sdk",
+    "confidence": 0.69,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/git.js|110|079a4b2b0aedb680": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/git.js|143|1f5a31a5b0b954d2": {
+    "class": "sdk",
+    "confidence": 0.74,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/git.js|50|3a2361c027c6a8b4": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/git.js|7|8ea1f475b37b98a5": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/git.js|9|af7dc11a54e18775": {
+    "class": "unrelated",
+    "confidence": 0.51,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/github.js|0|0272de0365b6274a": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/github.js|157|b9e561f797b43387": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/github.js|160|3e87ffcfaff541b7": {
+    "class": "sdk",
+    "confidence": 0.7,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/github.js|163|5833ba3435d2a1a1": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/github.js|232|4684ec802b6c5b71": {
+    "class": "sdk",
+    "confidence": 0.76,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/github.js|256|8b1e2688cb7ee04f": {
+    "class": "sdk",
+    "confidence": 0.76,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/github.js|44|fff04e0198122c9c": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/github.js|48|57a34a6f7dee787e": {
+    "class": "sdk",
+    "confidence": 0.66,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/github.js|50|0715745cf4aca887": {
+    "class": "sdk",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/github.js|52|8ea1f475b37b98a5": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/github.js|56|0804757e45d81082": {
+    "class": "sdk",
+    "confidence": 0.54,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/github.js|61|fc3bf87b0ade1d84": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/github.js|82|b91652900a49844b": {
+    "class": "sdk",
+    "confidence": 0.64,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/jira.js|0|c1d4bac0643c779f": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/jira.js|11|6b7a6e90d7f880b0": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/jira.js|15|f5866f64bf947f12": {
+    "class": "sdk",
+    "confidence": 0.76,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/jira.js|22|392d22d87d2e1a99": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/jira.js|29|a1045e2e3c0c68b0": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/jira.js|49|1994a31998c33291": {
+    "class": "sdk",
+    "confidence": 0.7,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/jira.js|53|0448081591ef45d4": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/jira.js|56|0e83591d993cac73": {
+    "class": "sdk",
+    "confidence": 0.73,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/services/jira.js|74|76b9a7b483cb2c55": {
+    "class": "sdk",
+    "confidence": 0.7,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/config.js|0|55387c14a7c8790c": {
+    "class": "sdk",
+    "confidence": 0.67,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/config.js|109|ba38aca38ee8f5e8": {
+    "class": "sdk",
+    "confidence": 0.51,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/config.js|49|07c09eb6f26d8d83": {
+    "class": "sdk",
+    "confidence": 0.68,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/config.js|55|e86bb1d0297b924f": {
+    "class": "unrelated",
+    "confidence": 0.5700000000000001,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/config.js|72|4f39b58ea83f8429": {
+    "class": "sdk",
+    "confidence": 0.59,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/config.js|79|dda5c4e614e32724": {
+    "class": "sdk",
+    "confidence": 0.51,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/config.js|90|4e8e79d2054ed90d": {
+    "class": "sdk",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|0|8798ec7b832881e4": {
+    "class": "sdk",
+    "confidence": 0.57,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|135|5d8ab600ef6b7eea": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|176|9c561dc68281b30e": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|31|0302d08aff8df54a": {
+    "class": "sdk",
+    "confidence": 0.58,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|34|f1095316d641055f": {
+    "class": "sdk",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|36|0a5ef6cba44ffb96": {
+    "class": "sdk",
+    "confidence": 0.6,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|40|39eee441c79c4132": {
+    "class": "sdk",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|42|0e72f16c80636526": {
+    "class": "sdk",
+    "confidence": 0.58,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|46|1aee8a274f5768af": {
+    "class": "sdk",
+    "confidence": 0.61,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|51|2c1963ae755ed6ba": {
+    "class": "sdk",
+    "confidence": 0.6,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|60|8a74da54d86f381f": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|69|83df92c6ca987d3f": {
+    "class": "sdk",
+    "confidence": 0.6,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|72|013391d6a8b96681": {
+    "class": "sdk",
+    "confidence": 0.64,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|75|140e58f39d9bba26": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|78|5a35892fef94d94b": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|81|a5b6ee6a77eb84e3": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|89|a468bcba0cecb675": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/error-handler.js|92|27ddb36e26c5c75d": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|0|14b306b9995fc517": {
+    "class": "sdk",
+    "confidence": 0.74,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|18|311e602833e4277b": {
+    "class": "sdk",
+    "confidence": 0.74,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|22|2f06631269102de8": {
+    "class": "sdk",
+    "confidence": 0.68,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|24|fd6c52ac3239bee9": {
+    "class": "sdk",
+    "confidence": 0.68,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|26|c06c23eef3130c4a": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|28|54c77aee3353e21c": {
+    "class": "sdk",
+    "confidence": 0.62,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|30|01ebbcb3ea7ddd12": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|32|fd86c630f4577f01": {
+    "class": "sdk",
+    "confidence": 0.7,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|34|2d8ae04e4ac292b0": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|40|8c896cab1df6cf75": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|42|2f8efddd61ec3050": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|44|6cf33b83226285ae": {
+    "class": "sdk",
+    "confidence": 0.64,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|51|6d5dc5db81e0ef8e": {
+    "class": "sdk",
+    "confidence": 0.62,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|54|cf703fb6ed640b09": {
+    "class": "sdk",
+    "confidence": 0.68,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|63|74481b903d5c744a": {
+    "class": "sdk",
+    "confidence": 0.57,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|67|ab026e928fb905d5": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|69|bc93964c8f4f7ad7": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|lib/utils/validation.js|76|1c6112eab11cc4d7": {
+    "class": "sdk",
+    "confidence": 0.69,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|scripts/build-optimized.js|2|33f5caa0a31a294a": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|scripts/build-optimized.js|239|a6e984e62abe9860": {
+    "class": "sdk",
+    "confidence": 0.54,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|scripts/build-optimized.js|243|7406d677788f707b": {
+    "class": "sdk",
+    "confidence": 0.66,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|scripts/build-optimized.js|7|806cd34fecc8fd20": {
+    "class": "sdk",
+    "confidence": 0.58,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|src/__tests__/create-pr-command.test.ts|8|52ae700312bcfda5": {
+    "class": "sdk",
+    "confidence": 0.61,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|src/__tests__/github.test.ts|0|de68b2a9bf25161a": {
+    "class": "sdk",
+    "confidence": 0.67,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|src/__tests__/github.test.ts|11|d0bf762b243daae2": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|src/__tests__/github.test.ts|5|e700565d0f4850cd": {
+    "class": "sdk",
+    "confidence": 0.66,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|src/commands/create-pr.ts|3|c540a468338068a2": {
+    "class": "unrelated",
+    "confidence": 0.51,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|src/index.ts|5|01afde210a09e281": {
+    "class": "unrelated",
+    "confidence": 0.59,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|src/index.ts|9|20c82056a8042650": {
+    "class": "unrelated",
+    "confidence": 0.62,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|src/services/ai-description-generator.ts|1|c1f2b6021e15c12a": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|src/services/ai-description-generator.ts|6|81cc9ff20acc478f": {
+    "class": "unrelated",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|src/services/git.ts|1|a445928ba82c27dd": {
+    "class": "unrelated",
+    "confidence": 0.63,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|src/services/github.ts|2|fbe6171da3c3a5f9": {
+    "class": "unrelated",
+    "confidence": 0.54,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|src/services/jira.ts|1|4360d2b6315ab43f": {
+    "class": "unrelated",
+    "confidence": 0.64,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|src/services/jira.ts|85|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 0.73,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|src/utils/config.ts|3|21d3b1fb30d60a86": {
+    "class": "unrelated",
+    "confidence": 0.56,
+    "model": "jev-1.13.0"
+  },
+  "Vibe-Code-Agent/create-pull-request#49|src/utils/validation.ts|0|ce6d87f8c438f4c0": {
+    "class": "unrelated",
+    "confidence": 0.55,
+    "model": "jev-1.13.0"
+  },
+  "vignesh-gupta/digibee-marketplace#250|src/lib/stripe.ts|3|450103b42cb3c832": {
+    "class": "contract",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "vignesh-gupta/digibee-marketplace#93|src/lib/stripe.ts|3|51262ffaa020dee5": {
+    "class": "contract",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "vignesh-gupta/digibee-marketplace#93|src/lib/stripe.ts|5|4eb504a64a3c90e7": {
+    "class": "contract",
+    "confidence": 0.74,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|104|a370818922df703e": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|108|9c4a1666f3e1b0e7": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|114|920f24f709ec82ae": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|118|d28e3567e51c72f0": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|13|4f26e6e3e9358ee6": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|17|104c549e7ad29317": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|23|8e06f285480d223d": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|27|980c75402df7ba19": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|33|53482d418c75d939": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|38|5460ddf52cbbc7b5": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|42|78d31609ff364b67": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|47|2c2e4d174f4241b8": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|51|b36c538bc579c81a": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|56|0bd2b7fbb315ad92": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|60|8182e05b8eb128e0": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|66|5b2b07992d77d245": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|70|69c329ffb6ca6ddf": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|76|33621b38ea89ba25": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|80|0f80b98a95864df0": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|85|e10e74f52ce05cba": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|89|1c8e14120cb4932a": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|95|10abca3fede9854f": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "vineethkrishnan/mcp-pool#42|packages/stripe/src/services/stripe.service.ts|99|d05d4788296e5860": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "WordPress/openverse#5139|automations/js/src/last_week_tonight.mjs|10|03e7ec1ccba657d3": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0"
+  }
+}

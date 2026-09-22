@@ -138,6 +138,8 @@ export interface Score {
   extra: number;
 }
 
+export type Outcome = "identical" | "differs" | "missed";
+
 /** Whitespace is layout, and a formatter the repository runs would settle it. */
 const normal = (lines: readonly string[]) =>
   lines.map((line) => line.trim()).filter((line) => line !== "");
@@ -158,13 +160,20 @@ export function score(
   base: readonly string[],
   human: readonly Region[],
   engine: readonly Region[],
-): Score {
-  const result: Score = { identical: 0, differs: 0, missed: 0, extra: 0 };
+): Score & { outcomes: Outcome[] } {
+  const result: Score & { outcomes: Outcome[] } = {
+    identical: 0,
+    differs: 0,
+    missed: 0,
+    extra: 0,
+    outcomes: [],
+  };
   const used = new Set<Region>();
   for (const site of human) {
     const covering = engine.filter((region) => overlaps(site, region));
     if (covering.length === 0) {
       result.missed += 1;
+      result.outcomes.push("missed");
       continue;
     }
     for (const region of covering) used.add(region);
@@ -176,6 +185,7 @@ export function score(
       normal(applied(base, site, covering)).join("\n") === normal(site.lines).join("\n");
     if (same) result.identical += 1;
     else result.differs += 1;
+    result.outcomes.push(same ? "identical" : "differs");
   }
   result.extra = engine.filter((region) => !used.has(region)).length;
   return result;

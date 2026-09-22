@@ -1505,6 +1505,24 @@
       ]
     },
     {
+      "id": "dimagi/open-chat-studio#3129",
+      "repo": "dimagi/open-chat-studio",
+      "pr": 3129,
+      "base": "e9ebe135f8eaa5b2a33a75e5e1361884a4e913f6",
+      "head": "a2cf97649dd19f733b2db217ee672200c092b77d",
+      "package": "langfuse",
+      "ecosystem": "pypi",
+      "from": "3.14.5",
+      "to": "4.0.4",
+      "license": "BSD-3-Clause",
+      "mergedAt": "2026-04-28T06:28:01Z",
+      "files": [
+        "apps/service_providers/management/commands/migrate_langfuse_data.py",
+        "apps/service_providers/tests/test_langfuse_tracer.py",
+        "apps/service_providers/tracing/langfuse.py"
+      ]
+    },
+    {
       "id": "distr-sh/distr#1480",
       "repo": "distr-sh/distr",
       "pr": 1480,
@@ -2974,6 +2992,25 @@
       ]
     },
     {
+      "id": "ImageMarkup/isic#1471",
+      "repo": "ImageMarkup/isic",
+      "pr": 1471,
+      "base": "6d91ba544cdf3d54de3253f0510b317dfafb55bd",
+      "head": "a76736ca62ff3ab085640170e4462dec3e10409d",
+      "package": "elasticsearch",
+      "ecosystem": "pypi",
+      "from": "",
+      "to": "9",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-05-22T20:44:16Z",
+      "files": [
+        "isic/core/dsl.py",
+        "isic/core/models/image.py",
+        "isic/core/search.py",
+        "isic/ingest/models/lesion.py"
+      ]
+    },
+    {
       "id": "int128/ghcp#1013",
       "repo": "int128/ghcp",
       "pr": 1013,
@@ -3088,6 +3125,22 @@
       "mergedAt": "2025-06-06T15:02:59Z",
       "files": [
         "rollup.config.ts"
+      ]
+    },
+    {
+      "id": "it-at-m/zammad-ai#128",
+      "repo": "it-at-m/zammad-ai",
+      "pr": 128,
+      "base": "69010a0393924a7b8f6e5f460973593a4bc40bd7",
+      "head": "ba1e63799e0ab78c3a51b7e7d4d3d6f5c8050fa1",
+      "package": "langfuse",
+      "ecosystem": "pypi",
+      "from": "",
+      "to": "4",
+      "license": "MIT",
+      "mergedAt": "2026-03-25T13:32:29Z",
+      "files": [
+        "zammad-ai/app/triage/genai_handler.py"
       ]
     },
     {
@@ -4249,6 +4302,23 @@
         "pkg/artifact/github/release_test.go",
         "pkg/github/github.go",
         "pkg/repometrics/github.go"
+      ]
+    },
+    {
+      "id": "neurogeom/CopilotJ#36",
+      "repo": "neurogeom/CopilotJ",
+      "pr": 36,
+      "base": "ad533b7f5157805dabe4114e8529f19b7d664a97",
+      "head": "4d9c7e783f7140e2cd361163bc455aa92d684624",
+      "package": "langfuse",
+      "ecosystem": "pypi",
+      "from": "3",
+      "to": "4",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-05-30T14:09:37Z",
+      "files": [
+        "copilotj/core/agent.py",
+        "copilotj/server/threads.py"
       ]
     },
     {

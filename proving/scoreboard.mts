@@ -19,6 +19,7 @@ import type { BUDGET, ChainCost } from "./chains/cost.ts";
 import { ROOT } from "./corpus/manifest.mts";
 import type { BUDGET as OVERHEAD_BUDGET, OverheadResult } from "./overhead/overhead.ts";
 import type { ReplayIndex } from "./replay/mine.mts";
+import type { ReplayResult } from "./replay/run.mts";
 import type { PairResult as ServerResult } from "./servers/run.mts";
 import type { TrafficResult } from "./traffic/run.mts";
 
@@ -59,6 +60,7 @@ export function scoreboard(inputs: {
   traffic: TrafficResult[] | undefined;
   servers: ServerResult[] | undefined;
   replay: ReplayIndex | undefined;
+  replayed?: ReplayResult[] | undefined;
   fuzz: string | undefined;
   chains?: (ChainCost & { budget: typeof BUDGET }) | undefined;
   overhead?: (OverheadResult & { budget: typeof OVERHEAD_BUDGET }) | undefined;
@@ -234,15 +236,39 @@ export function scoreboard(inputs: {
   });
 
   const cases = inputs.replay?.cases ?? [];
+  const replayed = (inputs.replayed ?? []).filter((entry) => entry.error === undefined);
+  const failed = (inputs.replayed ?? []).filter((entry) => entry.error !== undefined);
   const count = (ecosystem: string) =>
     cases.filter((entry) => entry.ecosystem === ecosystem).length;
   lines.push({
     id: "L8",
     claim:
       "Migration replay on at least 50 human migrations each for TypeScript, Python and Go, and 25 for JavaScript: 90% handled, no wrong edits.",
-    status: "not measured",
-    value: `${cases.length} cases mined (npm ${count("npm")}, pypi ${count("pypi")}, go ${count("go")}); replay not built`,
-    evidence: "proving/replay/index.json; replay follows M6",
+    status: replayed.length === 0 ? "not measured" : "not met",
+    value:
+      `${cases.length} cases mined (npm ${count("npm")}, pypi ${count("pypi")}, go ${count("go")}). ` +
+      (replayed.length === 0
+        ? "Not yet replayed."
+        : `Replayed ${replayed.length}: ${(
+            ["typescript", "javascript", "python", "go"] as const
+          )
+            .map((language) => {
+              const mine = replayed.filter((entry) => entry.language === language);
+              if (mine.length === 0) return `${language} none`;
+              const sum = (pick: (entry: ReplayResult) => number) =>
+                mine.reduce((total, entry) => total + pick(entry), 0);
+              const sites = sum((entry) => entry.sites);
+              const inScope = sum((entry) => entry.inScope?.sites ?? 0);
+              const identical = sum((entry) => entry.inScope?.identical ?? 0);
+              const differs = sum((entry) => entry.inScope?.differs ?? 0);
+              const unclassified = sum(
+                (entry) => entry.inScope?.unclassified ?? entry.sites,
+              );
+              return `${language} ${mine.length} cases: of ${sites} human sites, ${inScope} follow from a contract change, ${identical} of them identical (${percent(identical, inScope)}) and ${differs} to adjudicate; ${unclassified} not yet classed`;
+            })
+            .join("; ")}. ` +
+          `${failed.length} could not be replayed. Sites are classed by Jev, not yet audited by hand.`),
+    evidence: "proving/replay/results.json (run.mts), index.json",
   });
 
   lines.push(
@@ -471,6 +497,7 @@ if (process.argv[1]?.endsWith("scoreboard.mts")) {
     traffic: read<TrafficResult[]>("proving/traffic/results.json"),
     servers,
     replay: read<ReplayIndex>("proving/replay/index.json"),
+    replayed: read<ReplayResult[]>("proving/replay/results.json"),
     fuzz: process.env["FUZZ_RESULT"],
     chains: read<ChainCost & { budget: typeof BUDGET }>("proving/chains/results.json"),
     vectors: read<VectorCounts>("conformance/vectors.json"),

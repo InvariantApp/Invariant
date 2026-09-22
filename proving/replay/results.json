@@ -1,0 +1,1322 @@
+[
+  {
+    "id": "aikawame/rsslovers#1051",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 1,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "algolia/api-clients-automation#3235",
+    "language": "javascript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "missed": 1,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 1
+    }
+  },
+  {
+    "id": "appstrate/appstrate#1301",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 1,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "BakArchive/wordcraft#15",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 0,
+    "differs": 1,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 0,
+      "differs": 1,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "beaugmented/agency#945",
+    "language": "typescript",
+    "package": "openai",
+    "engine": "none",
+    "sites": 5,
+    "identical": 0,
+    "differs": 0,
+    "missed": 5,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "boxyhq/saas-starter-kit#1253",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 4,
+    "identical": 1,
+    "differs": 0,
+    "missed": 3,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "boxyhq/saas-starter-kit#1480",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 1,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "ChristianMP/foodbot#34",
+    "language": "typescript",
+    "package": "@slack/web-api",
+    "engine": "none",
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "missed": 1,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "christophehurpeau/pob#2110",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "missed": 1,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "CleanExpo/NodeJS-Starter-V1#60",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 1,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "cncf/prow-github-actions#122",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 7,
+    "identical": 0,
+    "differs": 0,
+    "missed": 7,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "codeoverflow-org/nodecg-io#1087",
+    "language": "typescript",
+    "package": "@slack/web-api",
+    "engine": "none",
+    "sites": 3,
+    "identical": 0,
+    "differs": 0,
+    "missed": 3,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "decipad/decipad#6655",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 7,
+    "identical": 0,
+    "differs": 0,
+    "missed": 7,
+    "extra": 0,
+    "inScope": {
+      "sites": 7,
+      "identical": 0,
+      "differs": 0,
+      "missed": 7,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "EvanGribar/Swarm-Review#80",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "missed": 1,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "Fieldguide/action-slack-deploy-pipeline#122",
+    "language": "typescript",
+    "package": "@slack/web-api",
+    "engine": "none",
+    "sites": 16,
+    "identical": 0,
+    "differs": 0,
+    "missed": 16,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 0,
+      "differs": 0,
+      "missed": 1,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "Fieldguide/action-slack-deploy-pipeline#190",
+    "language": "typescript",
+    "package": "@slack/web-api",
+    "engine": "none",
+    "sites": 15,
+    "identical": 0,
+    "differs": 0,
+    "missed": 15,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "flags-gg/dashboard#1844",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "missed": 1,
+    "extra": 1,
+    "inScope": {
+      "sites": 1,
+      "identical": 0,
+      "differs": 0,
+      "missed": 1,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "form8ion/github#15",
+    "language": "javascript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "missed": 2,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "frank-bot07/usrcp#147",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "missed": 2,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "github/vscode-codeql#4114",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 4,
+    "identical": 0,
+    "differs": 0,
+    "missed": 4,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "graphql-hive/console#3089",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 1,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "Hannah-Sten/TeXiFy-IDEA#3641",
+    "language": "javascript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 9,
+    "identical": 0,
+    "differs": 0,
+    "missed": 9,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "hfappmaker/flow-report#111",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 1,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "hfappmaker/flow-report#159",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 1,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "hiroppy/web-app-template#526",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 6,
+    "identical": 0,
+    "differs": 0,
+    "missed": 6,
+    "extra": 0,
+    "inScope": {
+      "sites": 6,
+      "identical": 0,
+      "differs": 0,
+      "missed": 6,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "int128/trigger-actions-bot#434",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "missed": 2,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "issue-ops/labeler#117",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "missed": 2,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "jeremybanka/wayforge#4190",
+    "language": "typescript",
+    "package": "openai",
+    "engine": "none",
+    "sites": 7,
+    "identical": 0,
+    "differs": 0,
+    "missed": 7,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "jogold/cloudstructs#280",
+    "language": "typescript",
+    "package": "@slack/web-api",
+    "engine": "none",
+    "sites": 9,
+    "identical": 0,
+    "differs": 0,
+    "missed": 9,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "JonasBaeumer/AgentWallet#159",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 21,
+    "identical": 0,
+    "differs": 2,
+    "missed": 19,
+    "extra": 3,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "karpikpl/azdo-release-notes-action#15",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 9,
+    "identical": 0,
+    "differs": 0,
+    "missed": 9,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "KeepSoftwareSimple/compass-calendar#3603",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 10,
+    "identical": 0,
+    "differs": 1,
+    "missed": 9,
+    "extra": 0,
+    "inScope": {
+      "sites": 4,
+      "identical": 0,
+      "differs": 1,
+      "missed": 3,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "KenKaiii/gg-framework#64",
+    "language": "typescript",
+    "package": "openai",
+    "engine": "none",
+    "sites": 3,
+    "identical": 0,
+    "differs": 0,
+    "missed": 3,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "kevinoid/hub-ci-status#38",
+    "language": "javascript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "missed": 1,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "Kosuke-Org/kosuke-template#354",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 26,
+    "identical": 1,
+    "differs": 0,
+    "missed": 25,
+    "extra": 0,
+    "inScope": {
+      "sites": 9,
+      "identical": 1,
+      "differs": 0,
+      "missed": 8,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "kula-app/OnLaunch#1052",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 1,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "kula-app/OnLaunch#1487",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 1,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "lifestyle3nergy-web/TWGT-#73",
+    "language": "javascript",
+    "package": "openai",
+    "engine": "none",
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "missed": 1,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "linklaterscreateiq/reviewer-roulette#9",
+    "language": "typescript",
+    "package": "@slack/web-api",
+    "engine": "none",
+    "sites": 5,
+    "identical": 0,
+    "differs": 0,
+    "missed": 5,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "marc-aurele-besner/slack-utility#348",
+    "language": "typescript",
+    "package": "@slack/web-api",
+    "engine": "none",
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "missed": 2,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 0,
+      "differs": 0,
+      "missed": 1,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "marcusrbrown/gpt#852",
+    "language": "typescript",
+    "package": "openai",
+    "engine": "none",
+    "sites": 3,
+    "identical": 0,
+    "differs": 0,
+    "missed": 3,
+    "extra": 0,
+    "inScope": {
+      "sites": 2,
+      "identical": 0,
+      "differs": 0,
+      "missed": 2,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "masumi-network/sokosumi#1595",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "missed": 2,
+    "extra": 0,
+    "inScope": {
+      "sites": 2,
+      "identical": 0,
+      "differs": 0,
+      "missed": 2,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "maxbrunet/renovate-approve-job#102",
+    "language": "javascript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "missed": 1,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "mdn/yari#9888",
+    "language": "typescript",
+    "package": "openai",
+    "engine": "none",
+    "sites": 9,
+    "identical": 0,
+    "differs": 0,
+    "missed": 9,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "opencollective/opencollective-api#10416",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 3,
+    "identical": 0,
+    "differs": 0,
+    "missed": 3,
+    "extra": 2,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "opencollective/opencollective-api#9400",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 3,
+    "identical": 0,
+    "differs": 0,
+    "missed": 3,
+    "extra": 2,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "OpenLightingProject/open-fixture-library#4027",
+    "language": "javascript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "missed": 1,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "otto-de/purge-deprecated-workflow-runs#35",
+    "language": "javascript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 4,
+    "identical": 0,
+    "differs": 0,
+    "missed": 4,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "Pocket/pocket-monorepo#299",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 0,
+    "identical": 0,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "error": "the SDK records no API version"
+  },
+  {
+    "id": "promptfoo/promptfoo#10206",
+    "language": "typescript",
+    "package": "@slack/web-api",
+    "engine": "none",
+    "sites": 21,
+    "identical": 0,
+    "differs": 0,
+    "missed": 21,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "promptfoo/promptfoo#4250",
+    "language": "typescript",
+    "package": "openai",
+    "engine": "none",
+    "sites": 15,
+    "identical": 0,
+    "differs": 0,
+    "missed": 15,
+    "extra": 0,
+    "inScope": {
+      "sites": 7,
+      "identical": 0,
+      "differs": 0,
+      "missed": 7,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "ryanrosello-og/playwright-slack-report#430",
+    "language": "typescript",
+    "package": "@slack/web-api",
+    "engine": "none",
+    "sites": 8,
+    "identical": 0,
+    "differs": 0,
+    "missed": 8,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "sanidhyy/canva-clone#106",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 1,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "sanidhyy/canva-clone#122",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 1,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "sanidhyy/canva-clone#154",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 1,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "sanidhyy/duolingo-clone#110",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 1,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "sanidhyy/duolingo-clone#47",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 5,
+    "identical": 1,
+    "differs": 0,
+    "missed": 4,
+    "extra": 0,
+    "inScope": {
+      "sites": 3,
+      "identical": 1,
+      "differs": 0,
+      "missed": 2,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "sanidhyy/quill#120",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 1,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "sanidhyy/quill#62",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 8,
+    "identical": 1,
+    "differs": 0,
+    "missed": 7,
+    "extra": 0,
+    "inScope": {
+      "sites": 4,
+      "identical": 1,
+      "differs": 0,
+      "missed": 3,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "sethrylan/issue-digest#63",
+    "language": "typescript",
+    "package": "openai",
+    "engine": "none",
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "missed": 1,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "synapsy-ai/write#1032",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 3,
+    "identical": 1,
+    "differs": 0,
+    "missed": 2,
+    "extra": 0,
+    "inScope": {
+      "sites": 2,
+      "identical": 1,
+      "differs": 0,
+      "missed": 1,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "synapsy-ai/write#1856",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 27,
+    "identical": 0,
+    "differs": 1,
+    "missed": 26,
+    "extra": 0,
+    "inScope": {
+      "sites": 5,
+      "identical": 0,
+      "differs": 1,
+      "missed": 4,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "TryGhost/migrate#1658",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 140,
+    "identical": 1,
+    "differs": 0,
+    "missed": 139,
+    "extra": 0,
+    "inScope": {
+      "sites": 130,
+      "identical": 1,
+      "differs": 0,
+      "missed": 129,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "TryGhost/migrate#1680",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "missed": 2,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "tsedio/tsed#3004",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 0,
+    "identical": 0,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "error": "the SDK records no API version"
+  },
+  {
+    "id": "unlock-protocol/unlock#14035",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 1,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "unlock-protocol/unlock#14781",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 2,
+    "identical": 1,
+    "differs": 0,
+    "missed": 1,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "unlock-protocol/unlock#15886",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 1,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "verdaccio/verdaccio#5068",
+    "language": "javascript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 42,
+    "identical": 0,
+    "differs": 0,
+    "missed": 42,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "Vibe-Code-Agent/create-pull-request#49",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 188,
+    "identical": 0,
+    "differs": 0,
+    "missed": 188,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "vignesh-gupta/digibee-marketplace#250",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 1,
+    "identical": 1,
+    "differs": 0,
+    "missed": 0,
+    "extra": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 1,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "vignesh-gupta/digibee-marketplace#93",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 2,
+    "identical": 1,
+    "differs": 0,
+    "missed": 1,
+    "extra": 0,
+    "inScope": {
+      "sites": 2,
+      "identical": 1,
+      "differs": 0,
+      "missed": 1,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "vineethkrishnan/mcp-pool#42",
+    "language": "typescript",
+    "package": "stripe",
+    "engine": "pin",
+    "sites": 23,
+    "identical": 0,
+    "differs": 0,
+    "missed": 23,
+    "extra": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "WordPress/openverse#5139",
+    "language": "javascript",
+    "package": "@octokit/rest",
+    "engine": "none",
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "missed": 1,
+    "extra": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  }
+]

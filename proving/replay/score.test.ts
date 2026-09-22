@@ -40,6 +40,7 @@ describe("the engine against the humans", () => {
       differs: 0,
       missed: 1,
       extra: 0,
+      outcomes: ["identical", "missed"],
     });
   });
 
@@ -55,6 +56,7 @@ describe("the engine against the humans", () => {
       differs: 1,
       missed: 1,
       extra: 1,
+      outcomes: ["differs", "missed"],
     });
   });
 });

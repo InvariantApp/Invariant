@@ -21,20 +21,41 @@
  * out of the denominator.
  *
  * Usage:
- *   node --import tsx proving/replay/run.mts [--package stripe] [--limit 10] [--keep]
+ *   node --env-file-if-exists=.env --import tsx proving/replay/run.mts [--package stripe]
+ *     [--case owner/repo#1] [--limit 10] [--keep] [--classify] [--again]
+ *
+ * Cases already in the results are skipped, so a run resumes where the last
+ * one stopped; `--again` replays them too.
+ *
+ * `--classify` asks Jev which sites follow from a contract change
+ * (`classify.mts`), for sites not already classed.
  *
  * `--keep` leaves each case's checkout in place and prints what the engine
  * was told and did, for reading a miss.
  */
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { buildPlan, migrate, type SymbolMap } from "@invariant/migrate-ts";
 import { ROOT } from "../corpus/manifest.mts";
+import {
+  type ClassRecord,
+  classify,
+  readClasses,
+  type Site,
+  siteKey,
+  writeClasses,
+} from "./classify.mts";
 import type { ReplayCase, ReplayIndex } from "./mine.mts";
-import { changedRegions, type Region, type Score, score } from "./score.mts";
+import {
+  changedRegions,
+  type Outcome,
+  type Region,
+  type Score,
+  score,
+} from "./score.mts";
 import { type Language, languageOf } from "./sites.mts";
 
 const run = promisify(execFile);
@@ -53,8 +74,22 @@ export interface ReplayResult extends Score {
   engine: "pin" | "none";
   /** Human sites: regions of source the humans changed. */
   sites: number;
+  /**
+   * The same, over only the sites that follow from a change to the API's
+   * contract, as classed by `classify.mts`; the rest are the SDK's own
+   * changes, or unrelated. Sites not yet classed are counted apart.
+   */
+  inScope?: ScopedScore;
   /** Sites the engine could not reach for a reason outside it, such as a repository gone. */
   error?: string;
+}
+
+export interface ScopedScore {
+  sites: number;
+  identical: number;
+  differs: number;
+  missed: number;
+  unclassified: number;
 }
 
 /** What an SDK records about itself, read from the installed package. */
@@ -106,6 +141,76 @@ async function git(repo: string, ...args: string[]): Promise<string> {
     env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
   });
   return stdout;
+}
+
+/**
+ * Fetches the blobs in a few requests. A blobless clone otherwise fetches each
+ * one as it is first read, a request per file, which on a monorepo took most
+ * of an hour for one case.
+ */
+async function prefetch(repo: string, blobs: readonly string[]): Promise<void> {
+  const CHUNK = 2_000;
+  for (let start = 0; start < blobs.length; start += CHUNK) {
+    await new Promise<void>((done, fail) => {
+      const child = spawn(
+        "git",
+        [
+          "-C",
+          repo,
+          "-c",
+          "fetch.negotiationAlgorithm=noop",
+          "fetch",
+          "-q",
+          "origin",
+          "--no-tags",
+          "--no-write-fetch-head",
+          "--recurse-submodules=no",
+          "--filter=blob:none",
+          "--stdin",
+        ],
+        {
+          stdio: ["pipe", "ignore", "pipe"],
+          env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+        },
+      );
+      let stderr = "";
+      child.stderr.on("data", (chunk: Buffer) => {
+        stderr += chunk.toString();
+      });
+      child.on("error", fail);
+      child.on("close", (code) =>
+        code === 0
+          ? done()
+          : fail(new Error(`fetching blobs: ${stderr.trim().split("\n")[0]}`)),
+      );
+      child.stdin.end(`${blobs.slice(start, start + CHUNK).join("\n")}\n`);
+    });
+  }
+}
+
+/**
+ * The files that import the SDK. Only there can its options be written, and a
+ * constant they pass comes in through their own imports, which the engine
+ * follows. Reading every file of a monorepo instead ran out of memory.
+ */
+export function importing(
+  repo: string,
+  paths: readonly string[],
+  name: string,
+): string[] {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+  const imports = new RegExp(
+    `(?:from|import|require\\()\\s*['"]${escaped}(?:/[^'"]*)?['"]`,
+  );
+  return paths
+    .map((path) => join(repo, path))
+    .filter((path) => {
+      try {
+        return imports.test(readFileSync(path, "utf8"));
+      } catch {
+        return false;
+      }
+    });
 }
 
 /** A file's text at a commit, or none where the commit does not have it. */
@@ -192,6 +297,10 @@ export function lockedVersion(
         "g",
       );
       for (const match of text.matchAll(pattern)) found.push(match[1] as string);
+    } else if (path.endsWith("bun.lock")) {
+      // `"stripe": ["stripe@20.0.0", "", { ... }, "sha512-..."]`
+      const pattern = new RegExp(`"${escaped}": \\[\\s*"${escaped}@(\\d[^"]*)"`, "g");
+      for (const match of text.matchAll(pattern)) found.push(match[1] as string);
     } else if (path.endsWith("yarn.lock")) {
       const pattern = new RegExp(
         `(?:^|\\n)"?${escaped}@[^\\n]*:\\n\\s+version:? "?(\\d[^"\\n]*)`,
@@ -245,7 +354,14 @@ function packageRoots(paths: readonly string[], files: readonly string[]): strin
   return [...roots];
 }
 
-async function replay(entry: ReplayCase, keep = false): Promise<ReplayResult> {
+interface ReplayOptions {
+  keep: boolean;
+  classes: Record<string, ClassRecord>;
+  classifier?: { client: Parameters<typeof classify>[2]; model: string };
+}
+
+async function replay(entry: ReplayCase, options: ReplayOptions): Promise<ReplayResult> {
+  const keep = options.keep;
   const language = languageOf(entry);
   const base: Omit<ReplayResult, keyof Score | "sites"> = {
     id: entry.id,
@@ -314,9 +430,13 @@ async function replay(entry: ReplayCase, keep = false): Promise<ReplayResult> {
     const stamp = STAMPS[entry.package];
     const engineText = new Map<string, string>();
     if (stamp) {
-      const paths = (await git(repo, "ls-tree", "-r", "--name-only", entry.base))
-        .split("\n")
-        .filter(Boolean);
+      // Each file's blob id comes with the tree, before any blob is fetched.
+      const blobs = new Map<string, string>();
+      for (const line of (await git(repo, "ls-tree", "-r", entry.base)).split("\n")) {
+        const match = /^\d+ blob ([0-9a-f]+)\t(.+)$/.exec(line);
+        if (match) blobs.set(match[2] as string, match[1] as string);
+      }
+      const paths = [...blobs.keys()];
       const roots = packageRoots(paths, files);
       const readable = paths
         .filter(
@@ -332,6 +452,13 @@ async function replay(entry: ReplayCase, keep = false): Promise<ReplayResult> {
       await writeFile(
         join(work, "paths"),
         [...new Set([...readable, ...roots.map(manifestOf)])].join("\n"),
+      );
+      await prefetch(
+        repo,
+        [...readable, ...roots.map(manifestOf)].flatMap((path) => {
+          const blob = blobs.get(path);
+          return blob ? [blob] : [];
+        }),
       );
       await git(
         repo,
@@ -379,7 +506,7 @@ async function replay(entry: ReplayCase, keep = false): Promise<ReplayResult> {
       const result = await migrate({
         repoDir: `${repo}/`,
         generated: [oldSdk],
-        sources: readable.map((path) => join(repo, path)),
+        sources: importing(repo, readable, entry.package),
         plan: buildPlan([], symbols),
       });
       if (keep) {
@@ -393,19 +520,69 @@ async function replay(entry: ReplayCase, keep = false): Promise<ReplayResult> {
     }
 
     const total: Score = { identical: 0, differs: 0, missed: 0, extra: 0 };
+    const scope: ScopedScore = {
+      sites: 0,
+      identical: 0,
+      differs: 0,
+      missed: 0,
+      unclassified: 0,
+    };
+    const scored: { site: Site; outcome: Outcome }[] = [];
     for (const file of new Set([...human.keys(), ...engineText.keys()])) {
       const text = before.get(file) ?? (await textAt(repo, entry.base, file));
       const lines = text.split("\n");
       const engine = engineText.has(file)
         ? changedRegions(lines, (engineText.get(file) as string).split("\n"))
         : [];
-      const scored = score(lines, human.get(file) ?? [], engine);
-      total.identical += scored.identical;
-      total.differs += scored.differs;
-      total.missed += scored.missed;
-      total.extra += scored.extra;
+      const regions = human.get(file) ?? [];
+      const result = score(lines, regions, engine);
+      total.identical += result.identical;
+      total.differs += result.differs;
+      total.missed += result.missed;
+      total.extra += result.extra;
+      regions.forEach((region, at) => {
+        scored.push({
+          site: {
+            caseId: entry.id,
+            package: entry.package,
+            from: entry.from,
+            to: entry.to,
+            file,
+            base: lines,
+            region,
+          },
+          outcome: result.outcomes[at] as Outcome,
+        });
+      });
     }
-    return { ...base, sites, ...total };
+    if (options.classifier) {
+      try {
+        await classify(
+          scored.map((each) => each.site),
+          options.classes,
+          options.classifier.client,
+          options.classifier.model,
+        );
+      } catch (error) {
+        // The case is still scored; what could not be classed counts as
+        // unclassified, and no later case asks again.
+        process.stderr.write(
+          `classification stopped: ${(error instanceof Error ? error.message : String(error)).slice(0, 200)}\n`,
+        );
+        delete options.classifier;
+      }
+    }
+    for (const { site, outcome } of scored) {
+      const record = options.classes[siteKey(site)];
+      if (!record) {
+        scope.unclassified += 1;
+        continue;
+      }
+      if (record.class !== "contract") continue;
+      scope.sites += 1;
+      scope[outcome] += 1;
+    }
+    return { ...base, sites, ...total, inScope: scope };
   } catch (error) {
     return {
       ...base,
@@ -437,6 +614,20 @@ async function main(): Promise<void> {
     return at === -1 ? undefined : args[at + 1];
   };
   const only = option("package");
+  const single = option("case");
+  const classes = readClasses();
+  // Sites are classed by Jev, only when asked and with a key.
+  let classifier: ReplayOptions["classifier"];
+  if (args.includes("--classify")) {
+    if (!process.env["TYPESAFE_API_KEY"])
+      throw new Error("--classify needs TYPESAFE_API_KEY");
+    const { TypeSafeClient } = await import("@typesafe-ai/sdk");
+    const { JEV_MODEL } = await import("@invariant/proposer");
+    classifier = {
+      client: new TypeSafeClient() as unknown as Parameters<typeof classify>[2],
+      model: JEV_MODEL,
+    };
+  }
   const limit = Number(option("limit") ?? Number.POSITIVE_INFINITY);
   const index = JSON.parse(
     readFileSync(join(ROOT, "proving/replay/index.json"), "utf8"),
@@ -446,10 +637,22 @@ async function main(): Promise<void> {
     : [];
   const results = new Map(previous.map((entry) => [entry.id, entry]));
   const cases = index.cases
-    .filter((entry) => entry.ecosystem === "npm" && (!only || entry.package === only))
+    .filter(
+      (entry) =>
+        entry.ecosystem === "npm" &&
+        (!only || entry.package === only) &&
+        (!single || entry.id === single),
+    )
     .slice(0, limit);
   for (const entry of cases) {
-    const result = await replay(entry, args.includes("--keep"));
+    // A run picks up where the last one stopped, unless asked to start over.
+    if (results.has(entry.id) && !args.includes("--again")) continue;
+    const result = await replay(entry, {
+      keep: args.includes("--keep"),
+      classes,
+      ...(classifier ? { classifier } : {}),
+    });
+    await writeClasses(classes);
     results.set(entry.id, result);
     process.stdout.write(
       `${entry.id} ${entry.package}: ${result.error ?? `${result.identical}/${result.sites} identical, ${result.differs} differ, ${result.missed} missed, ${result.extra} extra`}\n`,
