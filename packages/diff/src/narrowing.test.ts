@@ -139,3 +139,105 @@ describe("a request field whose list of values went", () => {
     ]);
   });
 });
+
+describe("a field reached through a map's values", () => {
+  // Discord's members, keyed by id, each with a nameplate palette.
+  const withPalette = (palette: object) =>
+    ({
+      openapi: "3.0.3",
+      info: { title: "t", version: "1" },
+      paths: {
+        "/x": {
+          get: {
+            operationId: "getX",
+            responses: {
+              "200": {
+                description: "ok",
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      additionalProperties: {
+                        type: "object",
+                        properties: { palette: { type: "string", ...palette } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }) as unknown as OpenApiDocument;
+
+  it("is not reported where it allowed any value before", async () => {
+    const entries = await diffDocuments(
+      withPalette({}),
+      withPalette({ enum: ["berry"] }),
+    );
+    expect(
+      entries.filter((entry) => entry.id === "response-property-enum-value-added"),
+    ).toEqual([]);
+  });
+});
+
+describe("a request property that moved into every variant of a choice", () => {
+  // Okta's signing key: an allOf base held `kid`, then each variant did.
+  const key = (variantsHoldKid: boolean, base: boolean) =>
+    ({
+      openapi: "3.0.3",
+      info: { title: "t", version: "1" },
+      paths: {
+        "/keys": {
+          post: {
+            operationId: "addKey",
+            requestBody: {
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/Key" } },
+              },
+            },
+            responses: { "204": { description: "added" } },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          Base: { type: "object", properties: { kid: { type: "string" } } },
+          Rsa: {
+            type: "object",
+            properties: {
+              kty: { type: "string" },
+              ...(variantsHoldKid ? { kid: { type: "string" } } : {}),
+            },
+          },
+          Ec: {
+            type: "object",
+            properties: {
+              crv: { type: "string" },
+              ...(variantsHoldKid ? { kid: { type: "string" } } : {}),
+            },
+          },
+          Key: {
+            ...(base ? { allOf: [{ $ref: "#/components/schemas/Base" }] } : {}),
+            oneOf: [
+              { $ref: "#/components/schemas/Rsa" },
+              { $ref: "#/components/schemas/Ec" },
+            ],
+          },
+        },
+      },
+    }) as unknown as OpenApiDocument;
+  const removed = async (after: OpenApiDocument) =>
+    (await diffDocuments(key(false, true), after)).filter(
+      (entry) => entry.id === "request-property-removed",
+    );
+
+  it("is not reported, since old callers' requests are still accepted", async () => {
+    expect(await removed(key(true, false))).toEqual([]);
+  });
+
+  it("is still reported where no variant took it", async () => {
+    expect(await removed(key(false, false))).not.toEqual([]);
+  });
+});

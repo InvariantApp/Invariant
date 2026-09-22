@@ -15443,6 +15443,42 @@ function responsesFromRequestBodies(input) {
 	}
 	return document;
 }
+/**
+* An empty list of choices, read as no list at all.
+*
+* Discord's generator writes `oneOf: []` and `enum: []` for the lists it has
+* not filled in: `NameplatePalette` was `oneOf: []` for months before its
+* palettes were listed, while every response carried one. JSON Schema asks for
+* at least one choice, and an empty list taken literally allows no value, so
+* every palette the list later named was reported as a value added to a field
+* that could hold none. What the document meant is a field it did not
+* constrain, and that is how it is read. The input is not changed; a copy
+* is, and only when there is something to change.
+*/
+function emptyChoicesAsAbsent(input) {
+	let changed = false;
+	const visit = (value) => {
+		if (Array.isArray(value)) return value.map(visit);
+		if (!isJsonObject(value)) return value;
+		const out = {};
+		const elsewhere = [
+			"$ref",
+			"allOf",
+			"not",
+			"const"
+		].some((key) => key in value);
+		for (const [key, entry] of Object.entries(value)) {
+			if (!elsewhere && (key === "enum" || key === "oneOf" || key === "anyOf") && Array.isArray(entry) && entry.length === 0) {
+				changed = true;
+				continue;
+			}
+			out[key] = visit(entry);
+		}
+		return out;
+	};
+	const rewritten = visit(input);
+	return changed ? rewritten : input;
+}
 /** Keywords a branch of a union of constants may carry beside its one value. */
 const CONSTANT_BRANCH_KEYS = /* @__PURE__ */ new Set([
 	"type",
@@ -15453,6 +15489,8 @@ const CONSTANT_BRANCH_KEYS = /* @__PURE__ */ new Set([
 ]);
 /** Keywords that may sit beside such a union without changing what it means. */
 const CONSTANT_UNION_SIBLINGS = /* @__PURE__ */ new Set([
+	"type",
+	"format",
 	"oneOf",
 	"anyOf",
 	"description",
@@ -15472,8 +15510,9 @@ const CONSTANT_UNION_SIBLINGS = /* @__PURE__ */ new Set([
 * each with a description, and the next release wrote the same three as one
 * `enum`. The two mean the same thing, and the differ does not see it: it
 * reported `cached` as a value added in every one of the 222 places the schema
-* is used. Only unions whose every branch is one or more values of the same
-* scalar type are taken, so nothing is rewritten that means anything else.
+* is used. Discord writes the same with the type stated once, on the union.
+* Only unions whose every branch is one or more values of the same scalar
+* type are taken, so nothing is rewritten that means anything else.
 * The input is not changed; a copy is, and only when there is something to
 * change.
 */
@@ -15486,22 +15525,23 @@ function constantUnionsAsEnums(input) {
 		for (const [key, entry] of Object.entries(value)) out[key] = visit(entry);
 		for (const union of ["oneOf", "anyOf"]) {
 			const branches = out[union];
-			if (!Array.isArray(branches) || branches.length < 2) continue;
+			if (!Array.isArray(branches) || branches.length === 0) continue;
 			if (Object.keys(out).some((key) => !CONSTANT_UNION_SIBLINGS.has(key))) continue;
 			if (out["oneOf"] !== void 0 && out["anyOf"] !== void 0) continue;
-			let type;
+			let type = out["type"];
 			const values = [];
 			if (!branches.every((branch) => {
 				if (!isJsonObject(branch)) return false;
 				if (Object.keys(branch).some((key) => !CONSTANT_BRANCH_KEYS.has(key))) return false;
+				const branchType = branch["type"] ?? type;
 				if (![
 					"string",
 					"integer",
 					"number",
 					"boolean"
-				].includes(branch["type"])) return false;
-				if (type !== void 0 && branch["type"] !== type) return false;
-				type = branch["type"];
+				].includes(branchType)) return false;
+				if (type !== void 0 && branchType !== type) return false;
+				type = branchType;
 				const own = Array.isArray(branch["enum"]) ? branch["enum"] : branch["const"] !== void 0 ? [branch["const"]] : void 0;
 				if (!own || own.length === 0 || own.some((entry) => typeof entry === "object")) return false;
 				values.push(...own);
@@ -15518,7 +15558,7 @@ function constantUnionsAsEnums(input) {
 	return changed ? rewritten : input;
 }
 function normalizeDocument(input) {
-	const document = constantUnionsAsEnums(responsesFromRequestBodies(isSwagger2(input) ? upgradeSwagger(input) : input));
+	const document = constantUnionsAsEnums(emptyChoicesAsAbsent(responsesFromRequestBodies(isSwagger2(input) ? upgradeSwagger(input) : input)));
 	assertRefsResolve(document);
 	assertSchemasWellFormed(document);
 	const version = document["openapi"];
@@ -24164,6 +24204,7 @@ function declaredSecurity(document) {
 */
 const ADDED = /^added the new `.*` enum value to the `(.+)` response property for the response status `(.+)`$/;
 const REMOVED_PROPERTY = /^removed the enum value `.*` of the request property `(.+)`$/;
+const REMOVED_REQUEST_PROPERTY = /^removed the request property `(.+)`$/;
 const REMOVED_PARAMETER = /^removed the enum value `.*` from the `(path|query|header|cookie)` request parameter `(.+)`$/;
 function withoutNarrowing(entries, base, revision) {
 	const unconstrained = /* @__PURE__ */ new Map();
@@ -24188,6 +24229,12 @@ function withoutNarrowing(entries, base, revision) {
 			if (!match) return true;
 			const [, pointer = ""] = match;
 			return !once(`removed ${at} body ${pointer}`, () => listsNoValues(revision, requestSchemas(revision, entry), pointer));
+		}
+		if (entry.id === "request-property-removed") {
+			const match = REMOVED_REQUEST_PROPERTY.exec(entry.text);
+			if (!match) return true;
+			const [, pointer = ""] = match;
+			return !once(`moved ${at} ${pointer}`, () => inEveryVariant(revision, requestSchemas(revision, entry), pointer));
 		}
 		if (entry.id === "request-parameter-enum-value-removed") {
 			const match = REMOVED_PARAMETER.exec(entry.text);
@@ -24226,6 +24273,32 @@ function parameterSchemas(document, entry, location, name) {
 	const found = [...isJsonObject(item) && Array.isArray(item["parameters"]) ? item["parameters"] : [], ...operationOf(document, entry)?.["parameters"] ?? []].map((parameter) => resolveSchema(document, parameter)).filter((parameter) => isJsonObject(parameter) && parameter["in"] === location && parameter["name"] === name);
 	const last = found[found.length - 1];
 	return isJsonObject(last) && last["schema"] !== void 0 ? [last["schema"]] : void 0;
+}
+/**
+* Whether a request property the differ reports removed is still accepted
+* because every variant of the choice it sits in now has it. Okta's signing
+* key request lost the `allOf` base that held `kid`, and each of its RSA and
+* EC variants gained it: an old caller sending `kid` is still accepted, and a
+* Change dropping it from their requests would lose their key's id.
+*/
+function inEveryVariant(document, schemas, pointer) {
+	try {
+		const segments = segmentsOf(pointer);
+		const name = segments.pop();
+		if (schemas === void 0 || schemas.length === 0 || name === void 0) return false;
+		return schemas.every((schema) => {
+			const parent = walk$1(document, schema, segments.join("/"));
+			if (parent === void 0) return false;
+			const variants = ["oneOf", "anyOf"].flatMap((keyword) => Array.isArray(parent[keyword]) ? parent[keyword] : []);
+			return variants.length > 0 && variants.every((variant) => {
+				const resolved = resolveSchema(document, variant);
+				const properties = isJsonObject(resolved) ? resolved["properties"] : void 0;
+				return isJsonObject(properties) && properties[name] !== void 0;
+			});
+		});
+	} catch {
+		return false;
+	}
 }
 /** Whether the field at the pointer, in every schema given, lists no values. */
 function listsNoValues(document, schemas, pointer) {
@@ -24271,8 +24344,9 @@ function branchOf(at, segment) {
 	return branches.find((branch) => isJsonObject(branch) && branch["$ref"] === old);
 }
 /**
-* The field at the differ's pointer, which names properties, `items` and
-* union branches, and ends with `items/` where the values are a list's items.
+* The field at the differ's pointer, which names properties, `items`, a
+* map's `additionalProperties` and union branches, and ends with `items/`
+* where the values are a list's items.
 */
 function walk$1(base, schema, pointer) {
 	let at = resolveSchema(base, schema);
@@ -24282,6 +24356,7 @@ function walk$1(base, schema, pointer) {
 		const branch = branchOf(at, segment);
 		if (isJsonObject(properties) && properties[segment] !== void 0) at = resolveSchema(base, properties[segment]);
 		else if (segment === "items" && at["items"] !== void 0) at = resolveSchema(base, at["items"]);
+		else if (segment === "additionalProperties" && isJsonObject(at["additionalProperties"])) at = resolveSchema(base, at["additionalProperties"]);
 		else if (branch !== void 0) at = resolveSchema(base, branch);
 		else return;
 	}

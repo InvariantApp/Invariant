@@ -220,6 +220,33 @@ describe("a removed field beside fields that were added", () => {
     ).toEqual([]);
   });
 
+  it("is drafted where the schema stayed a choice and lost a base no variant holds", async () => {
+    // Okta's signing key request kept its oneOf and lost the allOf base that
+    // held `kid`; no variant has it, so it was removed.
+    const variant = (kty: string) => object({ kty: { type: "string", enum: [kty] } });
+    const choice = (extra: Schema) => ({
+      ...extra,
+      oneOf: [
+        { $ref: "#/components/schemas/RsaCreate" },
+        { $ref: "#/components/schemas/EcCreate" },
+      ],
+    });
+    const keys = { RsaCreate: variant("RSA"), EcCreate: variant("EC") };
+    const outcome = await propose(
+      contract({
+        ...base,
+        ...keys,
+        KeyBase: object({ kid: { type: "string" } }),
+        ThingCreate: choice({ allOf: [{ $ref: "#/components/schemas/KeyBase" }] }),
+      }),
+      contract({ ...base, ...keys, ThingCreate: choice({}) }),
+      { judge: new RulesJudge() },
+    );
+    expect(
+      outcome.proposals.map((p) => p.change.ops).filter((ops) => ops[0]?.op === "remove"),
+    ).toEqual([[{ op: "remove", path: "/kid" }]]);
+  });
+
   it("is a decision where old callers' responses always carried it", async () => {
     const outcome = await drafts({
       Thing: object({ colour: { type: "string" } }, ["colour"]),
@@ -439,6 +466,67 @@ describe("a field that stopped stating its values or its type", () => {
     );
     expect(outcome.proposals.filter((p) => p.change.id.includes("name"))).toEqual([]);
     expect(outcome.unresolved).toEqual([]);
+  });
+});
+
+describe("objects written in place that became references", () => {
+  // PayPal moved an invoice written out in full into named schemas, one
+  // referring to the next: nothing a caller sends or receives changed.
+  it("drafts nothing, however deep the references go", async () => {
+    const address = object({ country_code: { type: "string" } }, ["country_code"]);
+    const party = (a: Schema) => object({ name: { type: "string" }, address: a });
+    const outcome = await propose(
+      contract({
+        ...base,
+        Thing: object({ id: { type: "string" }, invoicer: party(address) }),
+      }),
+      contract({
+        ...base,
+        Address: address,
+        Party: party({ $ref: "#/components/schemas/Address" }),
+        Thing: object({
+          id: { type: "string" },
+          invoicer: { $ref: "#/components/schemas/Party" },
+        }),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.proposals).toEqual([]);
+    expect(outcome.decisions).toEqual([]);
+  });
+
+  it("still finds what changed inside them", async () => {
+    // A request field old callers could leave out, now required inside the
+    // schema the object became.
+    const address = (required: string[]) =>
+      object({ country_code: { type: "string" } }, required);
+    const outcome = await propose(
+      contract({
+        ...base,
+        ThingCreate: object({ name: { type: "string" }, address: address([]) }),
+      }),
+      contract({
+        ...base,
+        Address: address(["country_code"]),
+        ThingCreate: object({
+          name: { type: "string" },
+          address: { $ref: "#/components/schemas/Address" },
+        }),
+      }),
+      { judge: new RulesJudge() },
+    );
+    const decision = outcome.decisions.find(
+      (entry) => entry.field === "address.country_code",
+    );
+    expect(decision && decisionChange(decision).ops).toEqual([
+      {
+        op: "default",
+        path: "/address/country_code",
+        value: CHOOSE_ONE,
+        when: "absent",
+        toward: "new",
+      },
+    ]);
   });
 });
 

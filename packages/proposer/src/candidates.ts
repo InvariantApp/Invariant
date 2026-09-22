@@ -495,18 +495,122 @@ function shapeDiffers(a: FieldShape, b: FieldShape): boolean {
 }
 
 /**
- * Whether a schema became a choice between others. Datadog's
- * `TopologyMapWidgetDefinition` became a `oneOf` of a data-streams and a
- * service-map definition, each holding the fields it had: none of them was
- * dropped, they moved into the variants, and drafting their removal would
- * take them from every old caller.
+ * Whether what a schema lost went into the variants it became a choice
+ * between. Datadog's `TopologyMapWidgetDefinition` became a `oneOf` of a
+ * data-streams and a service-map definition, each holding the fields it had:
+ * none of them was dropped, and drafting their removal would take them from
+ * every old caller. Okta's signing key request kept its `oneOf` and lost the
+ * `allOf` base that held `kid` and `status`, which no variant has: those were
+ * removed, and are drafted as removed.
  */
-function isUnion(document: OpenApiDocument, schema: JsonValue): boolean {
+function movedIntoVariants(
+  document: OpenApiDocument,
+  schema: JsonValue,
+  removed: readonly FieldShape[],
+): boolean {
+  if (removed.length === 0) return false;
   const resolved = resolvedObject(document, schema);
-  return ["oneOf", "anyOf"].some((keyword) => {
+  const variants = ["oneOf", "anyOf"].flatMap((keyword) => {
     const branches = resolved[keyword];
-    return Array.isArray(branches) && branches.filter((b) => !isNullBranch(b)).length > 1;
+    return Array.isArray(branches)
+      ? branches.filter((branch) => !isNullBranch(branch))
+      : [];
   });
+  if (variants.length < 2) return false;
+  const held = new Set(
+    variants.flatMap((variant) =>
+      fieldsOf(document, variant).map((field) => field.pointer),
+    ),
+  );
+  return removed.every((field) => held.has(field.pointer));
+}
+
+/**
+ * `compare`, reading through a reference the new contract made where the old
+ * one wrote an object in place, so the object is compared with what it
+ * became rather than reported as gone.
+ */
+function compareReading(
+  newContract: OpenApiDocument,
+  newSchemas: Record<string, JsonValue>,
+  before: FieldShape[],
+  after: FieldShape[],
+): ReturnType<typeof compare> {
+  const compared = compare(before, after);
+  if (!compared || compared.removed.length === 0) return compared;
+  const inlined = referencesInPlace(
+    newContract,
+    after,
+    compared.removed.map((field) => field.pointer),
+    newSchemas,
+  );
+  return inlined.length > 0 ? compare(before, [...after, ...inlined]) : compared;
+}
+
+/**
+ * The fields of a named schema, read where a field now refers to it and the
+ * old contract wrote the object in place.
+ *
+ * PayPal's error responses listed each issue as an object written in place,
+ * and a later release made it a reference to a new `error_details`, in which
+ * `issue` is required. A referenced schema is compared as itself, under its
+ * own name, which says nothing about how it differs from the object written
+ * here before: its fields looked removed from every error, and the one that
+ * became required went unexplained. Only fields under a place something was
+ * removed from are read, which is a place the old contract wrote in place, so
+ * a reference that replaced nothing adds nothing and nothing is read twice.
+ */
+function referencesInPlace(
+  document: OpenApiDocument,
+  fields: readonly FieldShape[],
+  removed: readonly string[],
+  newSchemas: Record<string, JsonValue>,
+): FieldShape[] {
+  const found: FieldShape[] = [];
+  const read = new Set<string>();
+  // Read again through what was just read: PayPal nested its references, an
+  // invoice's `detail` referring to one whose `attachments` refer to another.
+  for (let pending = [...fields]; pending.length > 0; ) {
+    const next: FieldShape[] = [];
+    for (const field of pending) {
+      const targets: [string | undefined, string, string][] = [
+        [field.ref, field.pointer, field.name],
+        [field.items?.ref, `${field.pointer}/*`, `${field.name}.*`],
+      ];
+      for (const [ref, pointer, name] of targets) {
+        const target = ref === undefined ? undefined : schemaName(ref);
+        if (target === undefined || !(target in newSchemas) || read.has(pointer))
+          continue;
+        // Only the outermost of what went is listed: the field itself,
+        // something under it, or something it is under.
+        const related = (gone: string) =>
+          gone === pointer ||
+          gone.startsWith(`${pointer}/`) ||
+          pointer.startsWith(`${gone}/`);
+        if (!removed.some(related)) continue;
+        read.add(pointer);
+        // As deep as the same object written in place would be read.
+        const depth = pointer
+          .split("/")
+          .filter(
+            (segment) => segment !== "" && segment !== "*" && segment !== "{}",
+          ).length;
+        // No deeper than the old side is ever read, or what it never listed
+        // would look added.
+        if (depth > NESTING) continue;
+        const inner = fieldsOf(
+          document,
+          newSchemas[target] as JsonValue,
+          { name, pointer },
+          depth,
+        );
+        found.push(...inner);
+        next.push(...inner);
+      }
+    }
+    pending = next;
+  }
+  return found;
 }
 
 /** The named schemas a schema is built from through `allOf`, however deep. */
@@ -845,7 +949,9 @@ export function schemaDeltas(
     const counterpart = counterparts.get(name);
     if (!counterpart) continue;
 
-    const compared = compare(
+    const compared = compareReading(
+      newContract,
+      newSchemas,
       shapeOf(oldContract, oldSchemas[name] as JsonValue, name),
       shapeOf(newContract, counterpart.schema, name),
     );
@@ -854,7 +960,7 @@ export function schemaDeltas(
       schema: name,
       newSchema: counterpart.name,
       ...compared,
-      ...(compared.removed.length > 0 && isUnion(newContract, counterpart.schema)
+      ...(movedIntoVariants(newContract, counterpart.schema, compared.removed)
         ? { replaced: true as const }
         : {}),
       operations: oldUses.get(name) ?? [],
@@ -890,7 +996,12 @@ export function schemaDeltas(
     if (!counterpart) continue;
     const after = requestBodySchema(newContract, counterpart.operation);
     if (after === undefined) continue;
-    const compared = compare(fieldsOf(oldContract, body), fieldsOf(newContract, after));
+    const compared = compareReading(
+      newContract,
+      newSchemas,
+      fieldsOf(oldContract, body),
+      fieldsOf(newContract, after),
+    );
     if (!compared) continue;
     deltas.push({
       schema: `${operation.operationId} request body`,
@@ -922,7 +1033,9 @@ export function schemaDeltas(
       if (!isJsonObject(schema) || typeof schema["$ref"] === "string") continue;
       const next = after.get(status);
       if (next === undefined) continue;
-      const compared = compare(
+      const compared = compareReading(
+        newContract,
+        newSchemas,
         fieldsOf(oldContract, schema),
         fieldsOf(newContract, next),
       );

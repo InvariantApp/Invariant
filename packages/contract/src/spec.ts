@@ -358,10 +358,53 @@ function responsesFromRequestBodies(input: OpenApiDocument): OpenApiDocument {
   return document;
 }
 
+/**
+ * An empty list of choices, read as no list at all.
+ *
+ * Discord's generator writes `oneOf: []` and `enum: []` for the lists it has
+ * not filled in: `NameplatePalette` was `oneOf: []` for months before its
+ * palettes were listed, while every response carried one. JSON Schema asks for
+ * at least one choice, and an empty list taken literally allows no value, so
+ * every palette the list later named was reported as a value added to a field
+ * that could hold none. What the document meant is a field it did not
+ * constrain, and that is how it is read. The input is not changed; a copy
+ * is, and only when there is something to change.
+ */
+function emptyChoicesAsAbsent(input: OpenApiDocument): OpenApiDocument {
+  let changed = false;
+  const visit = (value: JsonValue): JsonValue => {
+    if (Array.isArray(value)) return value.map(visit);
+    if (!isJsonObject(value)) return value;
+    const out: JsonObject = {};
+    // Beside another statement of its values, what the empty list meant is
+    // not clear: Discord's webhook event types were `enum: []` beside
+    // `allOf` of every gateway event, and read as unconstrained they became a
+    // hundred values the field never took. Those are left as written.
+    const elsewhere = ["$ref", "allOf", "not", "const"].some((key) => key in value);
+    for (const [key, entry] of Object.entries(value)) {
+      if (
+        !elsewhere &&
+        (key === "enum" || key === "oneOf" || key === "anyOf") &&
+        Array.isArray(entry) &&
+        entry.length === 0
+      ) {
+        changed = true;
+        continue;
+      }
+      out[key] = visit(entry);
+    }
+    return out;
+  };
+  const rewritten = visit(input) as OpenApiDocument;
+  return changed ? rewritten : input;
+}
+
 /** Keywords a branch of a union of constants may carry beside its one value. */
 const CONSTANT_BRANCH_KEYS = new Set(["type", "enum", "const", "description", "title"]);
 /** Keywords that may sit beside such a union without changing what it means. */
 const CONSTANT_UNION_SIBLINGS = new Set([
+  "type",
+  "format",
   "oneOf",
   "anyOf",
   "description",
@@ -382,8 +425,9 @@ const CONSTANT_UNION_SIBLINGS = new Set([
  * each with a description, and the next release wrote the same three as one
  * `enum`. The two mean the same thing, and the differ does not see it: it
  * reported `cached` as a value added in every one of the 222 places the schema
- * is used. Only unions whose every branch is one or more values of the same
- * scalar type are taken, so nothing is rewritten that means anything else.
+ * is used. Discord writes the same with the type stated once, on the union.
+ * Only unions whose every branch is one or more values of the same scalar
+ * type are taken, so nothing is rewritten that means anything else.
  * The input is not changed; a copy is, and only when there is something to
  * change.
  */
@@ -396,22 +440,23 @@ function constantUnionsAsEnums(input: OpenApiDocument): OpenApiDocument {
     for (const [key, entry] of Object.entries(value)) out[key] = visit(entry);
     for (const union of ["oneOf", "anyOf"]) {
       const branches = out[union];
-      if (!Array.isArray(branches) || branches.length < 2) continue;
+      if (!Array.isArray(branches) || branches.length === 0) continue;
       if (Object.keys(out).some((key) => !CONSTANT_UNION_SIBLINGS.has(key))) continue;
       if (out["oneOf"] !== undefined && out["anyOf"] !== undefined) continue;
-      let type: JsonValue | undefined;
+      // Discord states the type once, on the union, and gives each branch
+      // only its value, a title and a description.
+      let type: JsonValue | undefined = out["type"];
       const values: JsonValue[] = [];
       const constant = branches.every((branch) => {
         if (!isJsonObject(branch)) return false;
         if (Object.keys(branch).some((key) => !CONSTANT_BRANCH_KEYS.has(key)))
           return false;
-        if (
-          !["string", "integer", "number", "boolean"].includes(branch["type"] as string)
-        ) {
+        const branchType = branch["type"] ?? type;
+        if (!["string", "integer", "number", "boolean"].includes(branchType as string)) {
           return false;
         }
-        if (type !== undefined && branch["type"] !== type) return false;
-        type = branch["type"];
+        if (type !== undefined && branchType !== type) return false;
+        type = branchType;
         const own = Array.isArray(branch["enum"])
           ? branch["enum"]
           : branch["const"] !== undefined
@@ -442,7 +487,9 @@ function constantUnionsAsEnums(input: OpenApiDocument): OpenApiDocument {
 
 export function normalizeDocument(input: OpenApiDocument): OpenApiDocument {
   const document = constantUnionsAsEnums(
-    responsesFromRequestBodies(isSwagger2(input) ? upgradeSwagger(input) : input),
+    emptyChoicesAsAbsent(
+      responsesFromRequestBodies(isSwagger2(input) ? upgradeSwagger(input) : input),
+    ),
   );
   assertRefsResolve(document);
   assertSchemasWellFormed(document);

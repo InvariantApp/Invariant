@@ -32,6 +32,7 @@ import type { DiffEntry } from "./oasdiff.ts";
 const ADDED =
   /^added the new `.*` enum value to the `(.+)` response property for the response status `(.+)`$/;
 const REMOVED_PROPERTY = /^removed the enum value `.*` of the request property `(.+)`$/;
+const REMOVED_REQUEST_PROPERTY = /^removed the request property `(.+)`$/;
 const REMOVED_PARAMETER =
   /^removed the enum value `.*` from the `(path|query|header|cookie)` request parameter `(.+)`$/;
 
@@ -65,6 +66,14 @@ export function withoutNarrowing(
       const [, pointer = ""] = match;
       return !once(`removed ${at} body ${pointer}`, () =>
         listsNoValues(revision, requestSchemas(revision, entry), pointer),
+      );
+    }
+    if (entry.id === "request-property-removed") {
+      const match = REMOVED_REQUEST_PROPERTY.exec(entry.text);
+      if (!match) return true;
+      const [, pointer = ""] = match;
+      return !once(`moved ${at} ${pointer}`, () =>
+        inEveryVariant(revision, requestSchemas(revision, entry), pointer),
       );
     }
     if (entry.id === "request-parameter-enum-value-removed") {
@@ -146,6 +155,42 @@ function parameterSchemas(
     : undefined;
 }
 
+/**
+ * Whether a request property the differ reports removed is still accepted
+ * because every variant of the choice it sits in now has it. Okta's signing
+ * key request lost the `allOf` base that held `kid`, and each of its RSA and
+ * EC variants gained it: an old caller sending `kid` is still accepted, and a
+ * Change dropping it from their requests would lose their key's id.
+ */
+function inEveryVariant(
+  document: OpenApiDocument,
+  schemas: JsonValue[] | undefined,
+  pointer: string,
+): boolean {
+  try {
+    const segments = segmentsOf(pointer);
+    const name = segments.pop();
+    if (schemas === undefined || schemas.length === 0 || name === undefined) return false;
+    return schemas.every((schema) => {
+      const parent = walk(document, schema, segments.join("/"));
+      if (parent === undefined) return false;
+      const variants = ["oneOf", "anyOf"].flatMap((keyword) =>
+        Array.isArray(parent[keyword]) ? (parent[keyword] as JsonValue[]) : [],
+      );
+      return (
+        variants.length > 0 &&
+        variants.every((variant) => {
+          const resolved = resolveSchema(document, variant);
+          const properties = isJsonObject(resolved) ? resolved["properties"] : undefined;
+          return isJsonObject(properties) && properties[name] !== undefined;
+        })
+      );
+    });
+  } catch {
+    return false;
+  }
+}
+
 /** Whether the field at the pointer, in every schema given, lists no values. */
 function listsNoValues(
   document: OpenApiDocument,
@@ -206,8 +251,9 @@ function branchOf(at: JsonObject, segment: string): JsonValue | undefined {
 }
 
 /**
- * The field at the differ's pointer, which names properties, `items` and
- * union branches, and ends with `items/` where the values are a list's items.
+ * The field at the differ's pointer, which names properties, `items`, a
+ * map's `additionalProperties` and union branches, and ends with `items/`
+ * where the values are a list's items.
  */
 function walk(
   base: OpenApiDocument,
@@ -223,6 +269,11 @@ function walk(
       at = resolveSchema(base, properties[segment] as JsonValue);
     } else if (segment === "items" && at["items"] !== undefined) {
       at = resolveSchema(base, at["items"] as JsonValue);
+    } else if (
+      segment === "additionalProperties" &&
+      isJsonObject(at["additionalProperties"])
+    ) {
+      at = resolveSchema(base, at["additionalProperties"]);
     } else if (branch !== undefined) {
       at = resolveSchema(base, branch);
     } else {

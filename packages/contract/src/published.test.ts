@@ -23,6 +23,70 @@ const base = (extra: Record<string, unknown>): OpenApiDocument =>
   }) as OpenApiDocument;
 
 describe("what providers publish", () => {
+  it("reads an empty list of choices as none at all (Discord)", () => {
+    const input = base({
+      components: {
+        schemas: {
+          NameplatePalette: { type: "string", oneOf: [] },
+          EventTypes: { type: "array", items: { type: "string", enum: [] } },
+          // Beside another statement of the values, left as written.
+          WebhookTypes: {
+            type: "string",
+            enum: [],
+            allOf: [{ $ref: "#/components/schemas/NameplatePalette" }],
+          },
+        },
+      },
+    });
+    const document = normalizeDocument(input);
+    expect(pick(document, "components", "schemas", "NameplatePalette")).toEqual({
+      type: "string",
+    });
+    expect(pick(document, "components", "schemas", "EventTypes")).toEqual({
+      type: "array",
+      items: { type: "string" },
+    });
+    expect(pick(document, "components", "schemas", "WebhookTypes")).toEqual({
+      type: "string",
+      enum: [],
+      allOf: [{ $ref: "#/components/schemas/NameplatePalette" }],
+    });
+  });
+
+  it("reads a union of constants typed once, on the union, as the enum it is (Discord)", () => {
+    const input = base({
+      components: {
+        schemas: {
+          GuildFeatures: {
+            type: "string",
+            oneOf: [
+              {
+                title: "ANIMATED_ICON",
+                description: "Can set an animated icon",
+                const: "ANIMATED_ICON",
+              },
+              { title: "BANNER", description: "Can set a banner", const: "BANNER" },
+            ],
+          },
+          // A branch of another type means more than a list of values.
+          Mixed: {
+            type: "string",
+            oneOf: [{ const: "a" }, { type: "integer", const: 1 }],
+          },
+        },
+      },
+    });
+    const document = normalizeDocument(input);
+    expect(pick(document, "components", "schemas", "GuildFeatures")).toEqual({
+      type: "string",
+      enum: ["ANIMATED_ICON", "BANNER"],
+    });
+    expect(pick(document, "components", "schemas", "Mixed")).toEqual({
+      type: "string",
+      oneOf: [{ const: "a" }, { type: "integer", const: 1 }],
+    });
+  });
+
   it("reads a union of constants as the enum it is (Qdrant)", () => {
     const branch = (value: string) => ({
       description: `The ${value} placement.`,
