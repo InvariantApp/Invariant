@@ -518,13 +518,22 @@ function composedOf(
 function inheritedOnce(
   document: OpenApiDocument,
   schemas: Record<string, JsonValue>,
+  newDocument: OpenApiDocument,
+  newSchemas: Record<string, JsonValue>,
   deltas: SchemaDelta[],
 ): void {
   const byName = new Map(deltas.map((delta) => [delta.schema, delta]));
   for (const delta of [...deltas]) {
+    // Only while it is still built from them: Okta's `EmailServerRequest` was
+    // replaced by `BaseEmailServer` itself, so what the base changed is what
+    // the request body changed too, and nothing else would say so.
+    const stillComposed = composedOf(newDocument, newSchemas[delta.newSchema] ?? null);
     const bases = [...composedOf(document, schemas[delta.schema] ?? null)]
       .map((name) => byName.get(name))
-      .filter((base): base is SchemaDelta => base !== undefined);
+      .filter(
+        (base): base is SchemaDelta =>
+          base !== undefined && stillComposed.has(base.newSchema),
+      );
     if (bases.length === 0) continue;
     // The same change, not only the same place: a schema may declare its own
     // version of a property it inherits, and a change to that one is its own.
@@ -729,7 +738,7 @@ export function schemaDeltas(
     });
   }
 
-  inheritedOnce(oldContract, oldSchemas, deltas);
+  inheritedOnce(oldContract, oldSchemas, newContract, newSchemas, deltas);
 
   // Request bodies declared inline, as Twilio and Stripe declare theirs, have
   // no name to be compared by, so the operation is the name, found where it

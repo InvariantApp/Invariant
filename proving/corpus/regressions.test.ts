@@ -60,6 +60,28 @@ describe("comparing a run with the recorded one", () => {
     ).toEqual(["acme 1 -> 2: 12 breaking deltas left unexplained, was 0"]);
   });
 
+  it("notes, without failing, breakage that answering the decisions still explains", () => {
+    const before = pair({ breakingAfter: 235, breakingAfterDecided: 136 });
+    expect(
+      compareRuns([before], [pair({ breakingAfter: 260, breakingAfterDecided: 133 })]),
+    ).toEqual({
+      regressions: [],
+      notes: [
+        "acme 1 -> 2: 260 breaking deltas left unexplained, was 235, and 133 once every decision is answered, was 136",
+      ],
+    });
+  });
+
+  it("counts breakage that grew once every decision is answered", () => {
+    const before = pair({ breakingAfter: 175, breakingAfterDecided: 133 });
+    expect(
+      compareRuns([before], [pair({ breakingAfter: 175, breakingAfterDecided: 137 })])
+        .regressions,
+    ).toEqual([
+      "acme 1 -> 2: 137 breaking deltas left once every decision is answered, was 133",
+    ]);
+  });
+
   it("counts a pair that was recorded and not run", () => {
     expect(compareRuns([pair()], []).regressions).toEqual([
       "acme 1 -> 2: recorded, but not run",

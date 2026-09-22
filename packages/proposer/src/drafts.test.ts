@@ -223,6 +223,31 @@ describe("a field a schema inherits through allOf", () => {
       expect.stringContaining("status_trait"),
     ]);
   });
+
+  // Okta's email-server request was built from `BaseEmailServer`, and then
+  // replaced by it: the request body itself now requires what it did not.
+  it("is its own to change once it is no longer built from there", async () => {
+    const server = (required: string[]) =>
+      object({ alias: { type: "string" }, host: { type: "string" } }, required);
+    const outcome = await propose(
+      contract({
+        ...base,
+        BaseServer: server([]),
+        ThingCreate: { allOf: [{ $ref: "#/components/schemas/BaseServer" }] },
+      }),
+      contract({
+        ...base,
+        BaseServer: server(["alias"]),
+        ThingCreate: server(["alias"]),
+      }),
+      { judge: new RulesJudge() },
+    );
+    const about = [
+      ...outcome.decisions.map((decision) => decisionChange(decision).id),
+      ...outcome.proposals.map((proposal) => proposal.change.id),
+    ];
+    expect(about).toContainEqual(expect.stringContaining("thing_create"));
+  });
 });
 
 describe("an operation renamed where it stood", () => {

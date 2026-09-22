@@ -14,6 +14,12 @@
  * breaking deltas, all explained by the move, to 105 with 52 unexplained.
  * That pair explains more than it did. Unexplained breakage counts against a
  * pair only where it grew by more than the breakage the run can now see.
+ *
+ * Nor is a question newly asked. Matching a renamed schema lets the differ
+ * compare its values, so PayPal's vault tokens went from 235 breaks left to
+ * 260 while the breaks left once every decision is answered fell from 136 to
+ * 133: the new ones are decisions. Where both runs answered the decisions,
+ * breakage counts against a pair only if it grew once they are answered.
  */
 import type { PairResult } from "@invariant-app/eval";
 
@@ -54,7 +60,27 @@ export function compareRuns(
     if (before.reached !== "done" || after.reached !== "done") continue;
     const unexplained = after.breakingAfter - before.breakingAfter;
     const newlySeen = Math.max(0, after.breakingAligned - before.breakingAligned);
-    if (unexplained > newlySeen) {
+    const decided =
+      before.breakingAfterDecided !== undefined &&
+      after.breakingAfterDecided !== undefined
+        ? {
+            before: before.breakingAfterDecided,
+            after: after.breakingAfterDecided,
+          }
+        : undefined;
+    if (decided !== undefined && decided.after - decided.before > newlySeen) {
+      regressions.push(
+        `${key}: ${decided.after} breaking deltas left once every decision is answered, was ${decided.before}`,
+      );
+    } else if (
+      decided !== undefined &&
+      unexplained > newlySeen &&
+      decided.after <= decided.before
+    ) {
+      notes.push(
+        `${key}: ${after.breakingAfter} breaking deltas left unexplained, was ${before.breakingAfter}, and ${decided.after} once every decision is answered, was ${decided.before}`,
+      );
+    } else if (unexplained > newlySeen) {
       regressions.push(
         `${key}: ${after.breakingAfter} breaking deltas left unexplained, was ${before.breakingAfter}`,
       );
