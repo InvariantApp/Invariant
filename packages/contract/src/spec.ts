@@ -399,6 +399,59 @@ function emptyChoicesAsAbsent(input: OpenApiDocument): OpenApiDocument {
   return changed ? rewritten : input;
 }
 
+/** Keywords whose value is data rather than a schema. */
+const DATA_KEYWORDS = new Set(["example", "examples", "default", "enum", "const"]);
+
+/** Keywords whose value maps names to schemas: the map itself is not one. */
+const MAPS_OF_SCHEMAS = new Set([
+  ...SCHEMA_MAPS,
+  "schemas",
+  "definitions",
+  "$defs",
+  "dependentSchemas",
+]);
+
+/**
+ * A schema with properties and no type, read as the object it describes.
+ *
+ * Adyen's `AccountHolderDetails` listed its properties and its required ones
+ * and never said `type: object`; a later release said it, and the differ
+ * reported the type changed from anything at all to an object, on every field
+ * that held one. Nothing a caller sends or receives changed. Only a schema
+ * that says what its members are and states no type at all is read this way,
+ * and one built from others, or a choice between them, is left alone: what
+ * those hold is theirs to say. The input is not changed; a copy is, and only
+ * when there is something to change.
+ */
+function objectsThatSaySo(input: OpenApiDocument): OpenApiDocument {
+  let changed = false;
+  // A schema's `properties` is a map of names to schemas, and a field may be
+  // called `properties` or `type` like any other: the map itself is never a
+  // schema, and writing a type into it would make the document unreadable.
+  const visit = (value: JsonValue, isMap: boolean): JsonValue => {
+    if (Array.isArray(value)) return value.map((entry) => visit(entry, false));
+    if (!isJsonObject(value)) return value;
+    const out: JsonObject = {};
+    for (const [key, entry] of Object.entries(value)) {
+      out[key] =
+        !isMap && (DATA_KEYWORDS.has(key) || key.startsWith("x-"))
+          ? entry
+          : visit(entry, !isMap && MAPS_OF_SCHEMAS.has(key));
+    }
+    if (isMap) return out;
+    const members =
+      isJsonObject(out["properties"]) || isJsonObject(out["additionalProperties"]);
+    const composed = ["$ref", "allOf", "anyOf", "oneOf", "not"].some((key) => key in out);
+    if (members && !composed && out["type"] === undefined) {
+      out["type"] = "object";
+      changed = true;
+    }
+    return out;
+  };
+  const rewritten = visit(input, false) as OpenApiDocument;
+  return changed ? rewritten : input;
+}
+
 /** Keywords a branch of a union of constants may carry beside its one value. */
 const CONSTANT_BRANCH_KEYS = new Set(["type", "enum", "const", "description", "title"]);
 /** Keywords that may sit beside such a union without changing what it means. */
@@ -486,9 +539,11 @@ function constantUnionsAsEnums(input: OpenApiDocument): OpenApiDocument {
 }
 
 export function normalizeDocument(input: OpenApiDocument): OpenApiDocument {
-  const document = constantUnionsAsEnums(
-    emptyChoicesAsAbsent(
-      responsesFromRequestBodies(isSwagger2(input) ? upgradeSwagger(input) : input),
+  const document = objectsThatSaySo(
+    constantUnionsAsEnums(
+      emptyChoicesAsAbsent(
+        responsesFromRequestBodies(isSwagger2(input) ? upgradeSwagger(input) : input),
+      ),
     ),
   );
   assertRefsResolve(document);

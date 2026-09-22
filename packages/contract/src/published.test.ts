@@ -23,6 +23,47 @@ const base = (extra: Record<string, unknown>): OpenApiDocument =>
   }) as OpenApiDocument;
 
 describe("what providers publish", () => {
+  it("reads a schema that lists its properties as the object it is (Adyen)", () => {
+    const input = base({
+      components: {
+        schemas: {
+          AccountHolderDetails: {
+            properties: { email: { type: "string" } },
+            required: ["email"],
+          },
+          // Built from others, or a choice between them: theirs to say.
+          Composed: { allOf: [{ $ref: "#/components/schemas/AccountHolderDetails" }] },
+          Map: { additionalProperties: { type: "string" } },
+          // An example that happens to hold a `properties` key is data.
+          Sample: { type: "object", example: { properties: { a: 1 } } },
+          // A field of that name is a field, and the map holding it is not a schema.
+          Named: { type: "object", properties: { properties: { type: "string" } } },
+        },
+      },
+    });
+    const document = normalizeDocument(input);
+    expect(pick(document, "components", "schemas", "AccountHolderDetails")).toEqual({
+      properties: { email: { type: "string" } },
+      required: ["email"],
+      type: "object",
+    });
+    expect(pick(document, "components", "schemas", "Composed")).toEqual({
+      allOf: [{ $ref: "#/components/schemas/AccountHolderDetails" }],
+    });
+    expect(pick(document, "components", "schemas", "Map")).toEqual({
+      additionalProperties: { type: "string" },
+      type: "object",
+    });
+    expect(pick(document, "components", "schemas", "Sample")).toEqual({
+      type: "object",
+      example: { properties: { a: 1 } },
+    });
+    expect(pick(document, "components", "schemas", "Named")).toEqual({
+      type: "object",
+      properties: { properties: { type: "string" } },
+    });
+  });
+
   it("reads an empty list of choices as none at all (Discord)", () => {
     const input = base({
       components: {
