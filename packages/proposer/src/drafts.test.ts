@@ -875,6 +875,56 @@ describe("a vocabulary that grew on a response", () => {
   });
 });
 
+describe("a list of named values", () => {
+  // Stripe's `payment_method_types`: a list whose items are an inline enum.
+  // Its gained `satispay` reached thousands of places and was asked nowhere.
+  const withTypes = (values: string[]) => ({
+    ...base,
+    Thing: object(
+      {
+        id: { type: "string" },
+        payment_method_types: { type: "array", items: { type: "string", enum: values } },
+      },
+      ["id"],
+    ),
+  });
+
+  it("is a vocabulary of its items, asked about when it gains a value", async () => {
+    const outcome = await propose(
+      contract(withTypes(["card", "sepa_debit"])),
+      contract(withTypes(["card", "sepa_debit", "satispay"])),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.unresolved).toEqual([]);
+    expect(outcome.decisions).toEqual([
+      expect.objectContaining({
+        kind: "vocabulary",
+        schema: "Thing",
+        pointer: "/payment_method_types/*",
+        gained: ["satispay"],
+      }),
+    ]);
+  });
+
+  it("is a declared loss when its items only lost a value", async () => {
+    const outcome = await propose(
+      contract(withTypes(["card", "sepa_debit", "giropay"])),
+      contract(withTypes(["card", "sepa_debit"])),
+      { judge: new RulesJudge() },
+    );
+    const draft = outcome.proposals.find((p) =>
+      p.change.ops.some((op) => op.op === "relax"),
+    );
+    expect(draft?.change.ops).toEqual([
+      {
+        op: "relax",
+        path: "/payment_method_types/*",
+        set: { enum: ["card", "sepa_debit"] },
+      },
+    ]);
+  });
+});
+
 describe("a vocabulary that only lost values", () => {
   const withState = (values: string[], request = false) => ({
     ...base,

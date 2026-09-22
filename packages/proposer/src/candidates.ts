@@ -290,6 +290,36 @@ function fieldsOf(
               ...itemUnion,
             },
           ];
+    // A list of named values, as Stripe's `payment_method_types`: each item
+    // is a field with that vocabulary, so a value the list gains is asked
+    // about like any other vocabulary's. A named enum is compared once, as
+    // its own schema, wherever it is listed.
+    const itemSchema = items ? resolvedObject(document, items) : undefined;
+    const itemEnum = itemSchema?.["enum"];
+    if (
+      items &&
+      itemSchema &&
+      inline(items) &&
+      Array.isArray(itemEnum) &&
+      itemEnum.length > 0 &&
+      (itemEnum as JsonValue[]).every((v) => typeof v === "string" || v === null)
+    ) {
+      const itemNull = (itemEnum as JsonValue[]).includes(null);
+      listed.push({
+        name: `${here.name}.*`,
+        pointer: `${here.pointer}/*`,
+        type: typeOf(itemSchema),
+        format:
+          typeof itemSchema["format"] === "string" ? itemSchema["format"] : undefined,
+        enumValues: (itemEnum as JsonValue[]).filter(
+          (v): v is string => typeof v === "string",
+        ),
+        ...(itemNull ? { enumNull: true as const } : {}),
+        description: undefined,
+        required: true,
+        nullable: itemNull || itemSchema["nullable"] === true,
+      });
+    }
     if (depth >= NESTING || !inline(raw)) return [field, ...listed];
     const mapValues = isJsonObject(value["additionalProperties"])
       ? (value["additionalProperties"] as JsonObject)
