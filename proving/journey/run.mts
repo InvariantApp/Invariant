@@ -71,7 +71,10 @@ async function sh(cwd: string, command: string, args: string[]): Promise<string>
     const { stdout } = await run(command, args, {
       cwd,
       env,
-      shell: WINDOWS,
+      // npm and npx are `.cmd` shims on Windows, which only a shell runs; a
+      // shell joins arguments unquoted, so nothing else is given one: a
+      // commit message would reach git as one path per word.
+      shell: WINDOWS && (command === "npm" || command === "npx"),
       maxBuffer: 64 * 1024 * 1024,
     });
     return stdout;
