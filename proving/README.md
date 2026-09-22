@@ -19,6 +19,7 @@ product; the first two are what make it mean something.
 | F. Hostile input | `fuzz/` | The runtime, the proxy and the parsers survive input designed to break them. | Anything not fuzzed. |
 | Long chains | `chains/` | A 50-step chain over a Stripe-sized, generated API stays within stated budgets for program size, compile time, load time and p99 transform (L18), and means what its steps run in turn mean. | The cost of a real provider's history, whose steps reach fewer sites than these. |
 | Proxy overhead | `overhead/` | The proxy adds no more than a stated p99 to an old caller's list response, every item adapted, at a fixed request rate, with the upstream, proxy and client in separate processes (L19). | Overhead on the provider's own hardware, network and body sizes, which a shared CI runner only approximates. |
+| Signed webhooks | `webhooks/` | A real GitHub `issues` payload and a real Stripe charge event, from a release that renamed a field, reach a subscriber on the old contract as that contract describes them, and verify under each provider's own signature scheme when signed after adapting and fail when signed before (M4.6). | Every event type either provider sends; two payloads show the order is right, not that every schema is covered. |
 
 ## Rig A: the corpus
 
