@@ -327,11 +327,18 @@ export function scoreboard(inputs: {
     claim:
       "Threat-model tests, nightly fuzzers with no open crashers, SBOM and provenance, a clean secrets scan and a recent restore drill.",
     status: "not met",
-    value: `nightly fuzzers ${inputs.fuzz === "success" ? "passing" : inputs.fuzz === undefined ? "not run here" : `failing (${inputs.fuzz})`}; the rest is M10`,
-    evidence: "proving/fuzz/",
+    value: `nightly fuzzers ${inputs.fuzz === "success" ? "passing" : inputs.fuzz === undefined ? "not run here" : `failing (${inputs.fuzz})`}; full-history secrets scan on every commit; restore drill 2026-09-22 (RPO 2.1s, RTO 3s, in the service's repository); SBOM and provenance wait on the first publish; threat-model tests are M10`,
+    evidence: "proving/fuzz/, the secrets job in .github/workflows/ci.yml",
   });
   lines.push(
-    unmeasured("L16", "Docs complete, tested from manifests.", "M8.4."),
+    {
+      id: "L16",
+      claim: "Docs complete, tested from manifests.",
+      status: "met",
+      value:
+        "every CLI command and option, invariant.yaml setting (from its schema), runtime error code, adapter and rung, and breaking-change check the pinned differ knows has its page; every link resolves; every TypeScript sample compiles against the packages it uses, every Go sample against the engine, and the proxy's configuration samples are accepted by the proxy",
+      evidence: "docs/docs.test.ts and fixtures/docs-samples, on every commit",
+    },
     {
       id: "L17",
       claim: "Older runtimes either run newer programs or refuse with a typed error.",

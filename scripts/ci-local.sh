@@ -55,6 +55,7 @@ step "typecheck" npx tsc --build
 step "test" npx vitest run --reporter=dot --maxWorkers=2
 if $quick; then echo "quick checks passed"; exit 0; fi
 
+step "the docs' code samples compile" pnpm --filter @fixtures/docs-samples check
 step "build the published packages" pnpm build
 step "check the published packages" pnpm check:packages
 # The bundle in the working tree has to be what the source builds; CI compares

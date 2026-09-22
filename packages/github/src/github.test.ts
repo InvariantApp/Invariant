@@ -6,6 +6,7 @@
  * Most of what follows is about refusing, because that is where the security
  * of the whole thing lives.
  */
+import { createHmac } from "node:crypto";
 import type { EvolutionBundle } from "@invariant/bundle";
 import type { ManualSite } from "@invariant/migrate-ts";
 import { describe, expect, it } from "vitest";
@@ -179,6 +180,21 @@ describe("the sponsored link", () => {
     expect(() => redeemLink(`${edited}.${signature}`, { secret: SECRET })).toThrow(
       LinkError,
     );
+  });
+
+  it("refuses a signed one whose contents are not claims, with a LinkError", () => {
+    // Found by the trust fuzzer (proving/fuzz/trust.test.ts): `null` signed
+    // correctly used to escape as a TypeError from reading `.api` off it.
+    for (const contents of ["null", "7", '"acme"', "[]"]) {
+      const body = Buffer.from(contents, "utf8").toString("base64url");
+      const signature = createHmac("sha256", SECRET)
+        .update(body, "utf8")
+        .digest("base64url");
+      expect(
+        () => redeemLink(`${body}.${signature}`, { secret: SECRET }),
+        contents,
+      ).toThrow(/missing something it needs/);
+    }
   });
 
   it("refuses one minted by somebody else", () => {

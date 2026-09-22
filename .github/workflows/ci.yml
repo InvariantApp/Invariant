@@ -42,6 +42,21 @@ jobs:
       - name: The runtime and the Node adapters pass on Node 22
         run: pnpm exec vitest run packages/runtime packages/runtime-node packages/runtime-hono packages/sidecar
 
+  secrets:
+    name: No secrets anywhere in the history (L15)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Every commit, not just this one: a secret removed later is still published.
+          fetch-depth: 0
+          persist-credentials: false
+      - run: bash scripts/fetch-gitleaks.sh
+      - run: .cache/gitleaks/gitleaks git --log-opts="--all" --redact --no-banner .
+
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -94,6 +109,9 @@ jobs:
       # What a provider would actually install: every published package built,
       # packed as a publish would pack it, and checked for undeclared imports,
       # broken manifests and types a TypeScript consumer cannot resolve.
+      - name: The docs' code samples compile (L16)
+        run: pnpm --filter @fixtures/docs-samples check
+
       - name: Build the published packages
         run: pnpm build
 

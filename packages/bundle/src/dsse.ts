@@ -113,6 +113,14 @@ export function verify(
   envelope: DsseEnvelope,
   trustedPublicKeysPem: readonly string[],
 ): { payload: string; keyid: string } {
+  // An envelope is read from a file or a request, so its type is a hope until
+  // this holds; anything else is refused here, never by a TypeError later.
+  if (!isEnvelope(envelope)) {
+    throw new SignatureError(
+      "this is not a DSSE envelope: it needs a payloadType, a base64 payload, " +
+        "and a list of signatures, each with a keyid and a sig",
+    );
+  }
   if (envelope.payloadType !== PAYLOAD_TYPE) {
     throw new SignatureError(
       `this envelope carries ${envelope.payloadType}, not ${PAYLOAD_TYPE}`,
@@ -145,6 +153,23 @@ export function verify(
   throw new SignatureError(
     "none of the trusted keys signed this bundle. " +
       `It carries signatures from: ${envelope.signatures.map((entry) => entry.keyid).join(", ") || "nobody"}.`,
+  );
+}
+
+function isEnvelope(value: unknown): value is DsseEnvelope {
+  if (value === null || typeof value !== "object") return false;
+  const { payload, payloadType, signatures } = value as Record<string, unknown>;
+  return (
+    typeof payload === "string" &&
+    typeof payloadType === "string" &&
+    Array.isArray(signatures) &&
+    signatures.every(
+      (signature: unknown) =>
+        signature !== null &&
+        typeof signature === "object" &&
+        typeof (signature as Record<string, unknown>)["keyid"] === "string" &&
+        typeof (signature as Record<string, unknown>)["sig"] === "string",
+    )
   );
 }
 

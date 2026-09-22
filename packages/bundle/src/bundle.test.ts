@@ -237,6 +237,37 @@ describe("the signing envelope", () => {
     ).toThrow(/ed25519/);
   });
 
+  it("refuses anything that is not an envelope with a SignatureError", () => {
+    // Found by the trust fuzzer (proving/fuzz/trust.test.ts): `invariant
+    // verify` on a file whose signatures were not a list printed
+    // "envelope.signatures is not iterable".
+    const { publicKeyPem } = generateSigningKey();
+    for (const candidate of [
+      null,
+      [],
+      "envelope",
+      { payload: "", payloadType: PAYLOAD_TYPE, signatures: {} },
+      { payload: 1, payloadType: PAYLOAD_TYPE, signatures: [] },
+      { payload: "", payloadType: PAYLOAD_TYPE, signatures: [null] },
+      { payload: "", payloadType: PAYLOAD_TYPE, signatures: [{ keyid: "k", sig: 1 }] },
+    ]) {
+      expect(
+        () => verify(candidate as never, [publicKeyPem]),
+        JSON.stringify(candidate),
+      ).toThrow(/not a DSSE envelope/);
+    }
+  });
+
+  it("refuses a signed payload that is not a statement with a BundleError", () => {
+    const { privateKeyPem, publicKeyPem } = generateSigningKey();
+    for (const payload of ["null", "[]", "3"]) {
+      expect(
+        () => openBundle(sign(payload, privateKeyPem), [publicKeyPem]),
+        payload,
+      ).toThrow(BundleError);
+    }
+  });
+
   it("refuses to verify against an empty set of trusted keys", () => {
     const { privateKeyPem } = generateSigningKey();
     const envelope = sign("{}", privateKeyPem);

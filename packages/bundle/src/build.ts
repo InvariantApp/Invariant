@@ -185,6 +185,9 @@ export function openBundle(
   } catch {
     throw new BundleError("the signed payload is not JSON");
   }
+  if (statement === null || typeof statement !== "object" || Array.isArray(statement)) {
+    throw new BundleError("the signed payload is not an in-toto statement");
+  }
 
   if (statement.predicateType !== PREDICATE_TYPE) {
     throw new BundleError(

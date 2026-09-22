@@ -90,6 +90,8 @@ export function redeemLink(
   }
 
   if (
+    claims === null ||
+    typeof claims !== "object" ||
     typeof claims.api !== "string" ||
     typeof claims.consumer !== "string" ||
     typeof claims.expiresAt !== "number"

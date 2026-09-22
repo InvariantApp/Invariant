@@ -20,7 +20,8 @@
     "dist",
     "README.md",
     "LICENSE",
-    "NOTICE"
+    "NOTICE",
+    "sbom.cdx.json"
   ],
   "scripts": {
     "build": "tsdown",
