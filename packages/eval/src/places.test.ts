@@ -67,6 +67,36 @@ describe("a delta's place", () => {
     );
   });
 
+  it("is the same through a titled branch written in place, whatever the route", () => {
+    // Stripe: one variant added to a union under Customer, reached from
+    // hundreds of objects that can expand a customer.
+    const reached = (route: string) =>
+      entry(
+        "response-property-any-of-added",
+        `added \`#/components/schemas/payer_details\` to the \`${route}anyOf[subschema #2: Customer]/subscriptions/data/items/payer\` response property for the response status \`200\``,
+        "GET",
+        "/v1/things",
+      );
+    const places = new Set(
+      ["error/payment_intent/customer/", "data/items/invoice/customer/"].map((route) =>
+        placeOf(reached(route)),
+      ),
+    );
+    expect(places.size).toBe(1);
+    expect([...places][0]).toContain("`Customer/subscriptions/data/items/payer`");
+  });
+
+  it("tells apart branches with different titles", () => {
+    const at = (title: string) =>
+      entry(
+        "response-property-any-of-added",
+        `added \`#/components/schemas/x\` to the \`a/anyOf[subschema #1: ${title}]/b\` response property for the response status \`200\``,
+        "GET",
+        "/v1/things",
+      );
+    expect(placeOf(at("Customer"))).not.toBe(placeOf(at("Account")));
+  });
+
   it("still tells apart two fields of the same schema", () => {
     const at = (field: string) =>
       entry(

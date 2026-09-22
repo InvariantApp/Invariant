@@ -182,13 +182,16 @@ export function placeOf(entry: DiffEntry): string {
     // `children/items/oneOf[#/components/schemas/ConnectorNode]/lineType`.
     // Figma's node tree reaches one such schema by hundreds of routes, and
     // each route is the same change to the same field: counted from the
-    // innermost schema, it is one place.
-    .replace(/`([^`]*\[#\/components\/schemas\/[^`]*)`/g, (_whole, path: string) => {
-      const at = path.lastIndexOf("[#/components/schemas/");
-      const close = path.indexOf("]", at);
-      return close === -1
-        ? `\`${path}\``
-        : `\`${path.slice(at + 1, close)}${path.slice(close + 1)}\``;
+    // innermost schema, it is one place. A branch written in place is named
+    // by its title and position, `anyOf[subschema #2: Customer]`, and Stripe
+    // reaches one by hundreds of routes through expandable fields; counted
+    // from its title, it is one place too.
+    .replace(/`([^`]*(?:anyOf|oneOf)\[[^`]*)`/g, (_whole, path: string) => {
+      const open = Math.max(path.lastIndexOf("anyOf["), path.lastIndexOf("oneOf[")) + 5;
+      const close = path.indexOf("]", open);
+      if (close === -1) return `\`${path}\``;
+      const branch = path.slice(open + 1, close).replace(/subschema #\d+: /g, "");
+      return `\`${branch}${path.slice(close + 1)}\``;
     });
   return /propert/i.test(entry.text)
     ? `${entry.id}\n${text}`
