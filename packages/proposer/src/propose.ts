@@ -875,7 +875,8 @@ function alteredProposals(
         reshaped &&
         shape.ops.length === 0 &&
         narrowed.ops.length === 0 &&
-        !foldCovers(pair, sides ?? NEITHER)
+        !foldCovers(pair, sides ?? NEITHER) &&
+        !onlyUnstated(pair.old, pair.new)
       ) {
         unresolved.push({
           schema: delta.schema,
@@ -992,7 +993,7 @@ export function relaxOps(
 ): { ops: Op[]; notes: string[]; unresolved?: string } {
   const before = old.bounds ?? {};
   const after = next.bounds ?? {};
-  const set: Record<string, JsonValue> = {};
+  const set: Record<string, JsonValue> = { ...unstated(old, next) };
   for (const keyword of new Set([...Object.keys(before), ...Object.keys(after)])) {
     const value = after[keyword] ?? null;
     if (JSON.stringify(before[keyword] ?? null) !== JSON.stringify(value))
@@ -1155,6 +1156,33 @@ export function widenOps(
  * `relax` states; counting it here reported PayPal's hundreds of dropped
  * formats as reshapings no op could express.
  */
+/**
+ * What a field stopped stating about its value: the list of values it held,
+ * as Mistral's fine-tuning `model` became any string, or its type, as
+ * Twilio's free-form objects lost `type: object`. Either only widens what it
+ * may hold. A field that became a union has not stopped stating anything; it
+ * states something else, and is not this.
+ */
+function unstated(old: FieldShape, next: FieldShape): { enum?: null; type?: null } {
+  if (next.variants !== undefined || next.unlistedValues || next.ref !== undefined)
+    return {};
+  // Listed in place, or in a named schema the field referred to: Mistral's
+  // `model` was a reference to `FineTuneableModel` and became a plain string.
+  const listed = Boolean(old.enumValues?.length) || old.unlistedValues === true;
+  return {
+    ...(listed && next.enumValues === undefined ? { enum: null } : {}),
+    ...(old.type !== undefined && next.type === undefined ? { type: null } : {}),
+  };
+}
+
+/** Whether all that changed about its values is what it stopped stating. */
+function onlyUnstated(old: FieldShape, next: FieldShape): boolean {
+  if (Object.keys(unstated(old, next)).length === 0) return false;
+  return (
+    next.enumValues === undefined && (next.type === old.type || next.type === undefined)
+  );
+}
+
 function valuesDiffer(a: FieldShape, b: FieldShape): boolean {
   // A vocabulary is a set: the same values listed in another order are the
   // same vocabulary.

@@ -215,7 +215,11 @@ function fieldsOf(
     // Only a vocabulary of strings can be mapped by an `enumMap`. Filtering
     // the rest out used to turn `[true, false]` into an empty vocabulary, which
     // then drafted a mapping with no pairs that no compiler could apply.
-    const declaredEnum = value["enum"];
+    // `const: x` is JSON Schema's other spelling of `enum: [x]`, which Mistral
+    // switched to for every single value in one release.
+    const declaredEnum =
+      value["enum"] ??
+      (value["const"] !== undefined ? [value["const"] as JsonValue] : undefined);
     // A vocabulary that belongs to a named schema is compared as that schema,
     // at its root, once for every place it is used; read again through each
     // field that refers to it, one change was asked about twice.
@@ -483,6 +487,9 @@ function shapeDiffers(a: FieldShape, b: FieldShape): boolean {
   const left = a.enumValues?.join("|");
   const right = b.enumValues?.join("|");
   if (left !== right || a.enumNull !== b.enumNull) return true;
+  // Values listed in a named schema are compared there, but a field that
+  // stopped referring to any list at all changed here.
+  if (Boolean(a.unlistedValues) !== Boolean(b.unlistedValues)) return true;
   if (a.variants?.join("|") !== b.variants?.join("|")) return true;
   return JSON.stringify(a.bounds ?? {}) !== JSON.stringify(b.bounds ?? {});
 }

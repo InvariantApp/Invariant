@@ -324,6 +324,90 @@ describe("a schema kept for requests and replaced for responses", () => {
   });
 });
 
+describe("a field that stopped stating its values or its type", () => {
+  // Mistral's fine-tuning `model` went from nine names to any string.
+  it("is declared with a relax where old callers are sent it", async () => {
+    const before = await propose(
+      contract({
+        ...base,
+        Thing: object(
+          { id: { type: "string" }, model: { type: "string", enum: ["a", "b"] } },
+          ["id"],
+        ),
+      }),
+      contract({
+        ...base,
+        Thing: object({ id: { type: "string" }, model: { type: "string" } }, ["id"]),
+      }),
+      { judge: new RulesJudge() },
+    );
+    const change = before.proposals.find((proposal) =>
+      proposal.change.id.includes("model"),
+    );
+    expect(change?.change.ops).toEqual([
+      { op: "relax", path: "/model", set: { enum: null } },
+    ]);
+    expect(before.unresolved).toEqual([]);
+  });
+
+  it("is declared where the values were a named schema's, and the field now refers to none", async () => {
+    const names = { type: "string", enum: ["small", "large"] };
+    const outcome = await propose(
+      contract({
+        ...base,
+        ModelName: names,
+        Thing: object({
+          id: { type: "string" },
+          model: { $ref: "#/components/schemas/ModelName" },
+        }),
+      }),
+      contract({
+        ...base,
+        ModelName: names,
+        Thing: object({ id: { type: "string" }, model: { type: "string" } }),
+      }),
+      { judge: new RulesJudge() },
+    );
+    const change = outcome.proposals.find((proposal) =>
+      proposal.change.id.includes("model"),
+    );
+    expect(change?.change.ops).toEqual([
+      { op: "relax", path: "/model", set: { enum: null } },
+    ]);
+  });
+
+  // Twilio's free-form objects lost `type: object`.
+  it("is declared with a relax where a response's value lost its type", async () => {
+    const outcome = await propose(
+      contract({
+        ...base,
+        Thing: object({ id: { type: "string" }, extra: { type: "object" } }),
+      }),
+      contract({ ...base, Thing: object({ id: { type: "string" }, extra: {} }) }),
+      { judge: new RulesJudge() },
+    );
+    const change = outcome.proposals.find((proposal) =>
+      proposal.change.id.includes("extra"),
+    );
+    expect(change?.change.ops).toEqual([
+      { op: "relax", path: "/extra", set: { type: null } },
+    ]);
+  });
+
+  it("needs nothing where only old callers' requests carry it", async () => {
+    const outcome = await propose(
+      contract({
+        ...base,
+        ThingCreate: object({ name: { type: "string", enum: ["a", "b"] } }),
+      }),
+      contract({ ...base, ThingCreate: object({ name: { type: "string" } }) }),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.proposals.filter((p) => p.change.id.includes("name"))).toEqual([]);
+    expect(outcome.unresolved).toEqual([]);
+  });
+});
+
 describe("an operation renamed where it stood", () => {
   it("is recorded as a route with the new operationId", async () => {
     const outcome = await drafts({}, { get: "retrieveThing", post: "createThing" });

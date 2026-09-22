@@ -701,7 +701,13 @@ export function schemaRelax(
   for (const [keyword, value] of Object.entries(set)) {
     // A value old callers never heard of has to be shown to them as one they
     // know, which is a fold; passing it through would hide it in a relax.
-    if (keyword === "enum" && vocabularyGrows(node[keyword], value)) {
+    // Where the new contract lists no values at all there is nothing to fold
+    // onto, and passing them through, declared, is all there is.
+    if (
+      keyword === "enum" &&
+      Array.isArray(value) &&
+      vocabularyGrows(node[keyword], value)
+    ) {
       throw new SchemaOpError(
         `${path || "the body"} can now hold values old callers never heard of, which a fold decides; relax only takes values away`,
       );

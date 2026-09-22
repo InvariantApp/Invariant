@@ -3238,12 +3238,25 @@ const RelaxOp = Type$1.Object({
 		* callers are never sent a value they do not know, and what they may
 		* wait for and never see is a loss to acknowledge. A vocabulary that
 		* grew is a fold decision instead, and is refused here.
+		*
+		* Null where the new contract lists no values at all, as Mistral's
+		* fine-tuning `model` went from nine names to any string. There is
+		* then nothing to fold a new value onto, so it passes through, and a
+		* caller that checks the list may meet a name it never heard of.
 		*/
-		enum: Type$1.Optional(Type$1.Array(Type$1.Union([
+		enum: Type$1.Optional(Type$1.Union([Type$1.Array(Type$1.Union([
 			Type$1.String(),
 			Type$1.Number(),
 			Type$1.Boolean()
-		]), { minItems: 1 }))
+		]), { minItems: 1 }), Type$1.Null()])),
+		/**
+		* Null where the new contract states no type for a value it typed
+		* before: Twilio's generator stopped writing `type: object` on its
+		* free-form objects. The value passes through as the API produced
+		* it; a caller that checks the type may be sent one it did not
+		* expect. A type changed to another is a `convert`, not this.
+		*/
+		type: Type$1.Optional(Type$1.Null())
 	}, {
 		additionalProperties: false,
 		minProperties: 1
@@ -15637,7 +15650,7 @@ function requestBodyMedia(document, operation) {
 function requestBodySchema(document, operation) {
 	return requestBodyMedia(document, operation)?.schema;
 }
-function responseSchemas(document, operation) {
+function responseSchemas$1(document, operation) {
 	const responses = operation["responses"];
 	if (!isJsonObject(responses)) return [];
 	const out = [];
@@ -16167,7 +16180,7 @@ function findSchemaSites(document, schemaRef) {
 				...guards.length > 0 ? { guards } : {}
 			});
 		}
-		for (const { status, schema } of responseSchemas(document, operation)) {
+		for (const { status, schema } of responseSchemas$1(document, operation)) {
 			const scan = scanRoot(document, schemaRef, schema, leads, budget);
 			unsupported.push(...scan.unsupported.map((u) => `${operationId} response ${status}: ${u}`));
 			for (const { prefix, guards } of scan.prefixes) sites.push({
@@ -16214,7 +16227,7 @@ function schemaDirections(document, schemaRef) {
 		}
 		response ||= callbacksOf(document, operationId, operation).some((callback) => reaches(callback.payload));
 		request ||= reaches(body);
-		response ||= responseSchemas(document, operation).some(({ schema }) => reaches(schema));
+		response ||= responseSchemas$1(document, operation).some(({ schema }) => reaches(schema));
 		if (request && response) break;
 	}
 	return {
@@ -16347,7 +16360,7 @@ function bodySchemaFor(document, operation, direction, status) {
 		const schema = requestBodySchema(document, operation);
 		return schema === void 0 ? void 0 : deref(document, schema);
 	}
-	const match = responseSchemas(document, operation).find((r) => r.status === status);
+	const match = responseSchemas$1(document, operation).find((r) => r.status === status);
 	return match === void 0 ? void 0 : deref(document, match.schema);
 }
 //#endregion
@@ -21071,7 +21084,7 @@ function schemaRelax(document, root, path, set, sentByOldCallers) {
 		}
 	}
 	for (const [keyword, value] of Object.entries(set)) {
-		if (keyword === "enum" && vocabularyGrows(node[keyword], value)) throw new SchemaOpError(`${path || "the body"} can now hold values old callers never heard of, which a fold decides; relax only takes values away`);
+		if (keyword === "enum" && Array.isArray(value) && vocabularyGrows(node[keyword], value)) throw new SchemaOpError(`${path || "the body"} can now hold values old callers never heard of, which a fold decides; relax only takes values away`);
 		if (sentByOldCallers && narrows(keyword, node[keyword], value)) throw new SchemaOpError(`${path || "the body"} now allows less (${keyword}) and old callers send it, so they would be refused for what their contract allowed`);
 		if (value === null) delete node[keyword];
 		else node[keyword] = value;
@@ -21925,7 +21938,7 @@ function derive(change) {
 		}
 		case "relax":
 			runtime = worse(runtime, "declared-lossy");
-			reasons.push("enum" in op.set ? `${op.path || "the body"} no longer holds some values its contract allowed, so an old caller waiting for one of them will never see it` : `${op.path || "the body"} is bounded differently now (${Object.keys(op.set).join(", ")}), so an old caller may be sent values its contract ruled out, passed through as they are`);
+			reasons.push(op.set.enum === null || op.set.type === null ? `${op.path || "the body"} no longer states ${op.set.type === null ? "a type" : "the values it holds"}, so an old caller may be sent ${op.set.type === null ? "a kind of value" : "a value"} its contract ruled out, passed through as it is` : "enum" in op.set ? `${op.path || "the body"} no longer holds some values its contract allowed, so an old caller waiting for one of them will never see it` : `${op.path || "the body"} is bounded differently now (${Object.keys(op.set).join(", ")}), so an old caller may be sent values its contract ruled out, passed through as they are`);
 			break;
 		case "retire":
 			runtime = "none";
@@ -22398,7 +22411,7 @@ function collectShared(shared, oldContract, newContract, routes, sites) {
 				param: false
 			})));
 		}
-		for (const { status, schema } of responseSchemas(oldContract, operation)) {
+		for (const { status, schema } of responseSchemas$1(oldContract, operation)) {
 			const backward = shared.entry(schema, "backward");
 			if (backward.length === 0) continue;
 			const entry = accumulatorFor(sites, key);
@@ -24123,8 +24136,8 @@ function declaredSecurity(document) {
 //#endregion
 //#region ../diff/src/narrowing.ts
 /**
-* A response field that took a list of values where it had none, which the
-* differ reports as every value in the list added.
+* A list of values that appeared on a response field, or left a request field,
+* which the differ reports as every value in it added or removed.
 *
 * PayPal's error details carry a `location`, once any string and then one of
 * `body`, `path` or `query`. A response that can hold fewer values than it
@@ -24137,39 +24150,88 @@ function declaredSecurity(document) {
 * So an added value is dropped where the field it was added to allowed any
 * value before: found in the old document, through the response the entry
 * names, through properties, list items and union branches, it has neither
-* `enum` nor `const`. Wherever the field cannot be found with certainty, the
-* entry is kept: this only removes what it can show is not breaking.
+* `enum` nor `const`.
+*
+* The other way round is the same. Mistral's fine-tuning `model` was one of
+* nine names and became any string: every name old callers send is still
+* accepted, and the differ reported nine removed request values. A removed
+* value is dropped where the request field, found in the new document, lists
+* no values at all. On a response the same change is real, old callers may
+* be sent names they never heard of, and it is left for a Change to declare.
+*
+* Wherever the field cannot be found with certainty, the entry is kept: this
+* only removes what it can show is not breaking.
 */
 const ADDED = /^added the new `.*` enum value to the `(.+)` response property for the response status `(.+)`$/;
-function withoutNarrowing(entries, base) {
+const REMOVED_PROPERTY = /^removed the enum value `.*` of the request property `(.+)`$/;
+const REMOVED_PARAMETER = /^removed the enum value `.*` from the `(path|query|header|cookie)` request parameter `(.+)`$/;
+function withoutNarrowing(entries, base, revision) {
 	const unconstrained = /* @__PURE__ */ new Map();
-	return entries.filter((entry) => {
-		if (entry.id !== "response-property-enum-value-added") return true;
-		const match = ADDED.exec(entry.text);
-		if (!match) return true;
-		const [, pointer = "", status = ""] = match;
-		const key = `${entry.operation} ${entry.path} ${status} ${pointer}`;
+	const once = (key, find) => {
 		let known = unconstrained.get(key);
 		if (known === void 0) {
-			known = allowedAnyValue(base, entry, status, pointer);
+			known = find();
 			unconstrained.set(key, known);
 		}
-		return !known;
+		return known;
+	};
+	return entries.filter((entry) => {
+		const at = `${entry.operation} ${entry.path}`;
+		if (entry.id === "response-property-enum-value-added") {
+			const match = ADDED.exec(entry.text);
+			if (!match) return true;
+			const [, pointer = "", status = ""] = match;
+			return !once(`added ${at} ${status} ${pointer}`, () => listsNoValues(base, responseSchemas(base, entry, status), pointer));
+		}
+		if (entry.id === "request-property-enum-value-removed") {
+			const match = REMOVED_PROPERTY.exec(entry.text);
+			if (!match) return true;
+			const [, pointer = ""] = match;
+			return !once(`removed ${at} body ${pointer}`, () => listsNoValues(revision, requestSchemas(revision, entry), pointer));
+		}
+		if (entry.id === "request-parameter-enum-value-removed") {
+			const match = REMOVED_PARAMETER.exec(entry.text);
+			if (!match) return true;
+			const [, location = "", name = ""] = match;
+			return !once(`removed ${at} ${location} ${name}`, () => listsNoValues(revision, parameterSchemas(revision, entry, location, name), ""));
+		}
+		return true;
 	});
 }
-/** Whether every schema the entry's response gives the field lists no values. */
-function allowedAnyValue(base, entry, status, pointer) {
+/** The operation an entry names, in a document. */
+function operationOf(document, entry) {
+	const paths = document["paths"];
+	const item = isJsonObject(paths) ? paths[entry.path] : void 0;
+	const operation = isJsonObject(item) ? item[entry.operation.toLowerCase()] : void 0;
+	return isJsonObject(operation) ? operation : void 0;
+}
+/** The schema of each media type in a body or response, or undefined where it has none. */
+function mediaSchemas(document, holder) {
+	const resolved = holder === void 0 ? void 0 : resolveSchema(document, holder);
+	const content = isJsonObject(resolved) ? resolved["content"] : void 0;
+	if (!isJsonObject(content)) return void 0;
+	return Object.values(content).map((media) => isJsonObject(media) ? media["schema"] ?? null : null);
+}
+function responseSchemas(document, entry, status) {
+	const responses = operationOf(document, entry)?.["responses"];
+	return isJsonObject(responses) ? mediaSchemas(document, responses[status]) : void 0;
+}
+function requestSchemas(document, entry) {
+	return mediaSchemas(document, operationOf(document, entry)?.["requestBody"]);
+}
+/** The schema of a parameter, declared on the operation or on its path. */
+function parameterSchemas(document, entry, location, name) {
+	const paths = document["paths"];
+	const item = isJsonObject(paths) ? paths[entry.path] : void 0;
+	const found = [...isJsonObject(item) && Array.isArray(item["parameters"]) ? item["parameters"] : [], ...operationOf(document, entry)?.["parameters"] ?? []].map((parameter) => resolveSchema(document, parameter)).filter((parameter) => isJsonObject(parameter) && parameter["in"] === location && parameter["name"] === name);
+	const last = found[found.length - 1];
+	return isJsonObject(last) && last["schema"] !== void 0 ? [last["schema"]] : void 0;
+}
+/** Whether the field at the pointer, in every schema given, lists no values. */
+function listsNoValues(document, schemas, pointer) {
 	try {
-		const paths = base["paths"];
-		const item = isJsonObject(paths) ? paths[entry.path] : void 0;
-		const operation = isJsonObject(item) ? item[entry.operation.toLowerCase()] : void 0;
-		const responses = isJsonObject(operation) ? operation["responses"] : void 0;
-		const response = isJsonObject(responses) ? resolveSchema(base, responses[status] ?? null) : void 0;
-		const content = isJsonObject(response) ? response["content"] : void 0;
-		if (!isJsonObject(content)) return false;
-		const fields = Object.values(content).map((media) => isJsonObject(media) ? walk$1(base, media["schema"] ?? null, pointer) : void 0);
-		const found = fields.filter((field) => field !== void 0);
-		return found.length === fields.length && found.length > 0 && found.every((field) => field["enum"] === void 0 && field["const"] === void 0);
+		if (schemas === void 0 || schemas.length === 0) return false;
+		return schemas.map((schema) => walk$1(document, schema, pointer)).every((field) => field !== void 0 && field["enum"] === void 0 && field["const"] === void 0);
 	} catch {
 		return false;
 	}
@@ -24418,7 +24480,7 @@ async function diffOutcome(base, revision, options = {}) {
 	const outcome = await differ(base, revision, options);
 	return {
 		...outcome,
-		entries: withoutNarrowing(outcome.entries, base)
+		entries: withoutNarrowing(outcome.entries, base, revision)
 	};
 }
 /** What the differ itself reports, with the rungs it falls back through. */
@@ -37125,7 +37187,7 @@ function schemaFor(document, method, path, status) {
 	for (const operation of operationsOf(document)) {
 		if (operation.method !== method.toLowerCase()) continue;
 		if (!matches(operation.path, path)) continue;
-		const declared = responseSchemas(document, operation.operation);
+		const declared = responseSchemas$1(document, operation.operation);
 		const exact = declared.find((entry) => entry.status === String(status));
 		const byClass = declared.find((entry) => entry.status === `${Math.floor(status / 100)}XX`.toLowerCase() || entry.status === `${Math.floor(status / 100)}xx`);
 		const fallback = declared.find((entry) => entry.status === "default");
@@ -37949,7 +38011,7 @@ function stepFor(document, operation, id, known, options) {
 }
 /** Whether a successful answer to this operation carries a top-level `id`. */
 function returnsId(document, operation) {
-	return responseSchemas(document, operation.operation).filter((entry) => entry.status.startsWith("2")).some((entry) => {
+	return responseSchemas$1(document, operation.operation).filter((entry) => entry.status.startsWith("2")).some((entry) => {
 		const schema = resolveSchema(document, entry.schema);
 		return isJsonObject(schema) && isJsonObject(schema["properties"]) && "id" in schema["properties"];
 	});

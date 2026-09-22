@@ -78,3 +78,64 @@ describe("a response field that took a list of values", () => {
     expect(await added({ const: "body" }, { enum: ["body", "path"] })).toHaveLength(1);
   });
 });
+
+describe("a request field whose list of values went", () => {
+  // Mistral's fine-tuning `model`: one of nine names, then any string.
+  const withModel = (model: object) =>
+    ({
+      openapi: "3.0.3",
+      info: { title: "t", version: "1" },
+      paths: {
+        "/jobs": {
+          post: {
+            operationId: "createJob",
+            parameters: [
+              { name: "kind", in: "query", schema: { type: "string", ...model } },
+            ],
+            requestBody: {
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: { model: { type: "string", ...model } },
+                  },
+                },
+              },
+            },
+            responses: {
+              "200": {
+                description: "ok",
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: { model: { type: "string", ...model } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }) as unknown as OpenApiDocument;
+  const removed = async (before: object, after: object) =>
+    (await diffDocuments(withModel(before), withModel(after)))
+      .filter((entry) => entry.id.endsWith("enum-value-removed"))
+      .map((entry) => entry.id);
+
+  it("is not reported for requests, which still accept every value old callers send", async () => {
+    expect(await removed({ enum: ["a", "b"] }, {})).toEqual([
+      "response-property-enum-value-removed",
+      "response-property-enum-value-removed",
+    ]);
+  });
+
+  it("is still reported where the list only shrank", async () => {
+    expect(await removed({ enum: ["a", "b"] }, { enum: ["a"] })).toEqual([
+      "request-parameter-enum-value-removed",
+      "request-property-enum-value-removed",
+      "response-property-enum-value-removed",
+    ]);
+  });
+});

@@ -81,6 +81,12 @@ contract allowed, and so is an enum that grows: a value old callers never
 heard of has to be shown to them as one they know, which is a `convert` with a
 fold, decided by a person.
 
+Two settings say the new contract stopped stating something at all. `enum:
+null` is a field whose values were listed and now are not, such as a model name
+that became any string: there is nothing to fold a new value onto, so it passes
+through, declared. `type: null` is a value that was typed and now is not. A
+type changed to another type is a `convert`, never this.
+
 `move` covers rename, nest and unnest, because all three are the same
 operation on a pointer. A move whose source is absent does nothing; it must not
 create the target as null.

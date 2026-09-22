@@ -370,12 +370,28 @@ export const RelaxOp = Type.Object(
          * callers are never sent a value they do not know, and what they may
          * wait for and never see is a loss to acknowledge. A vocabulary that
          * grew is a fold decision instead, and is refused here.
+         *
+         * Null where the new contract lists no values at all, as Mistral's
+         * fine-tuning `model` went from nine names to any string. There is
+         * then nothing to fold a new value onto, so it passes through, and a
+         * caller that checks the list may meet a name it never heard of.
          */
         enum: Type.Optional(
-          Type.Array(Type.Union([Type.String(), Type.Number(), Type.Boolean()]), {
-            minItems: 1,
-          }),
+          Type.Union([
+            Type.Array(Type.Union([Type.String(), Type.Number(), Type.Boolean()]), {
+              minItems: 1,
+            }),
+            Type.Null(),
+          ]),
         ),
+        /**
+         * Null where the new contract states no type for a value it typed
+         * before: Twilio's generator stopped writing `type: object` on its
+         * free-form objects. The value passes through as the API produced
+         * it; a caller that checks the type may be sent one it did not
+         * expect. A type changed to another is a `convert`, not this.
+         */
+        type: Type.Optional(Type.Null()),
       },
       { additionalProperties: false, minProperties: 1 },
     ),

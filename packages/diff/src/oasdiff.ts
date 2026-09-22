@@ -401,7 +401,7 @@ export async function diffOutcome(
   options: DiffOptions = {},
 ): Promise<DiffOutcome> {
   const outcome = await differ(base, revision, options);
-  return { ...outcome, entries: withoutNarrowing(outcome.entries, base) };
+  return { ...outcome, entries: withoutNarrowing(outcome.entries, base, revision) };
 }
 
 /** What the differ itself reports, with the rungs it falls back through. */
