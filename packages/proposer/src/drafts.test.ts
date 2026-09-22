@@ -250,6 +250,80 @@ describe("a field a schema inherits through allOf", () => {
   });
 });
 
+describe("a schema kept for requests and replaced for responses", () => {
+  // Adyen kept `AfterpayTouchInfo` for requests and gave responses a new
+  // `AfterpayTouchResponseInfo`, in which `supportUrl` is optional.
+  const info = (required: string[]) =>
+    object(
+      { supportUrl: { type: "string" }, supportEmail: { type: "string" } },
+      required,
+    );
+  const holder = (name: string) =>
+    object(
+      { id: { type: "string" }, afterpay: { $ref: `#/components/schemas/${name}` } },
+      ["id"],
+    );
+
+  it("asks what old callers' responses show where a field they were promised may be missing", async () => {
+    const outcome = await propose(
+      contract({
+        ...base,
+        Info: info(["supportUrl"]),
+        ThingCreate: holder("Info"),
+        Shared: holder("Info"),
+      }),
+      contract({
+        ...base,
+        Info: info(["supportUrl"]),
+        InfoResponse: info([]),
+        ThingCreate: holder("Info"),
+        Shared: holder("InfoResponse"),
+      }),
+      { judge: new RulesJudge() },
+    );
+    const decision = outcome.decisions.find((entry) => entry.field === "supportUrl");
+    expect(decision && decisionChange(decision).ops).toEqual([
+      {
+        op: "default",
+        path: "/supportUrl",
+        value: CHOOSE_ONE,
+        when: "absent",
+        toward: "old",
+      },
+    ]);
+    expect(decision && decisionChange(decision).scopes).toEqual([
+      { schema: "#/components/schemas/Info" },
+    ]);
+  });
+
+  it("drafts nothing that would act on the requests, where nothing changed", async () => {
+    const outcome = await propose(
+      contract({
+        ...base,
+        Info: info([]),
+        ThingCreate: holder("Info"),
+        Shared: holder("Info"),
+      }),
+      contract({
+        ...base,
+        Info: info([]),
+        InfoResponse: object({ supportUrl: { type: "string" } }),
+        ThingCreate: holder("Info"),
+        Shared: holder("InfoResponse"),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(
+      [
+        ...outcome.proposals.map((p) => p.change),
+        ...outcome.decisions.map(decisionChange),
+      ]
+        .flatMap((change) => change.scopes ?? [])
+        .filter((scope) => JSON.stringify(scope).includes('/Info"')),
+    ).toEqual([]);
+  });
+});
+
 describe("an operation renamed where it stood", () => {
   it("is recorded as a route with the new operationId", async () => {
     const outcome = await drafts({}, { get: "retrieveThing", post: "createThing" });

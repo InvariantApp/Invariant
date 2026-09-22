@@ -21,6 +21,12 @@
  *   is written does not change what it allows. A reference to anything with
  *   structure is left alone, so the differ still reports a change to a shared
  *   object once, where it was made.
+ * - A way to authenticate that names a scheme the document never declares is
+ *   left out. Supabase listed `fga_permissions` beside `bearer` on hundreds of
+ *   operations without ever declaring it; no caller could use it, so its
+ *   removal broke nobody, and the differ reported every one. Where every way
+ *   listed names an undeclared scheme, the list is left as it is: an empty one
+ *   would mean no authentication at all.
  *
  * Only the documents handed to the differ change, never the contract.
  */
@@ -118,7 +124,38 @@ export function equivalentForms(document: OpenApiDocument): OpenApiDocument {
     return node;
   };
 
+  declaredSecurity(copy);
+
   // The definitions themselves stay as they are, apart from the one form, so
   // a change to a shared object is still reported once, at its definition.
   return visit(copy, false) as unknown as OpenApiDocument;
+}
+
+const METHODS = ["get", "put", "post", "delete", "options", "head", "patch", "trace"];
+
+/** Leaves out, in place, each way to authenticate that names an undeclared scheme. */
+function declaredSecurity(document: JsonObject): void {
+  const components = document["components"];
+  const schemes =
+    isJsonObject(components) && isJsonObject(components["securitySchemes"])
+      ? new Set(Object.keys(components["securitySchemes"]))
+      : new Set<string>();
+  const usable = (holder: JsonObject) => {
+    const ways = holder["security"];
+    if (!Array.isArray(ways)) return;
+    const kept = ways.filter(
+      (way) => isJsonObject(way) && Object.keys(way).every((name) => schemes.has(name)),
+    );
+    if (kept.length > 0 && kept.length < ways.length) holder["security"] = kept;
+  };
+  usable(document);
+  const paths = document["paths"];
+  if (!isJsonObject(paths)) return;
+  for (const item of Object.values(paths)) {
+    if (!isJsonObject(item)) continue;
+    for (const method of METHODS) {
+      const operation = item[method];
+      if (isJsonObject(operation)) usable(operation);
+    }
+  }
 }

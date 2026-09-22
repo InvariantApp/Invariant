@@ -13,6 +13,7 @@ import {
   requestBodySchema,
   resolveSchema,
   responseSchemas,
+  schemaDirections,
   schemasOf,
 } from "@invariant-app/contract";
 import {
@@ -677,6 +678,103 @@ function matchThroughReferences(
 }
 
 /**
+ * A schema kept under its name for one direction and given a new one for the
+ * other.
+ *
+ * Adyen's `AfterpayTouchInfo` was sent and received. A later release kept it
+ * for requests and pointed responses at a new `AfterpayTouchResponseInfo`,
+ * in which `supportUrl` is no longer required. Matched by name, the schema had
+ * not changed, and old callers, promised the field in every response, were
+ * left to find it missing.
+ *
+ * Where a schema matched under its own name, with nothing changed, is
+ * replaced by a new one wherever a matched schema or an operation now refers
+ * to it in one direction only, it is compared with that one, for that
+ * direction. Only what can change for one direction alone is kept: that a
+ * field may now be left out or null, which an op serves toward old callers'
+ * responses and nowhere else. A field removed, renamed, given other values or
+ * other bounds would be drafted with ops that act on requests too, where the
+ * schema did not change, so those are left to be reported.
+ */
+function splitByDirection(
+  oldContract: OpenApiDocument,
+  newContract: OpenApiDocument,
+  oldSchemas: Record<string, JsonValue>,
+  newSchemas: Record<string, JsonValue>,
+  counterparts: ReadonlyMap<string, Counterpart>,
+  uses: {
+    oldUses: ReadonlyMap<string, string[]>;
+    newByUse: ReadonlyMap<string, string>;
+    operationRenames: ReadonlyMap<string, string>;
+  },
+  deltas: SchemaDelta[],
+): void {
+  const { oldUses, newByUse, operationRenames } = uses;
+  const changed = new Set(deltas.map((delta) => delta.schema));
+  const splits = new Map<string, Set<string>>();
+  const note = (child: string, there: JsonValue | undefined) => {
+    if (!isJsonObject(there) || typeof there["$ref"] !== "string") return;
+    const target = schemaName(there["$ref"]);
+    if (target === undefined || target in oldSchemas || !(target in newSchemas)) return;
+    if (counterparts.get(child)?.name !== child || changed.has(child)) return;
+    splits.set(child, new Set([...(splits.get(child) ?? []), target]));
+  };
+  for (const [parent, references] of referencesIn(oldContract, oldSchemas)) {
+    const counterpart = counterparts.get(parent);
+    if (!counterpart) continue;
+    for (const [pointer, child] of references) {
+      note(child, schemaAt(newContract, counterpart.schema, pointer));
+    }
+  }
+  for (const [name, uses] of oldUses) {
+    for (const use of uses) {
+      const [operationId, ...rest] = use.split(" ");
+      const mapped = operationRenames.get(operationId as string) ?? operationId;
+      const found = newByUse.get([mapped, ...rest].join(" "));
+      if (found !== undefined) note(name, { $ref: `#/components/schemas/${found}` });
+    }
+  }
+
+  for (const [name, targets] of splits) {
+    // A field that may now be missing breaks only a response, so the schema
+    // responses were given is the one compared; one, or it is not clear which.
+    const responses = [...targets].filter((target) => {
+      const direction = schemaDirections(newContract, `#/components/schemas/${target}`);
+      return direction.response && !direction.request;
+    });
+    if (responses.length !== 1) continue;
+    const [target = ""] = responses;
+    const direction = { request: false, response: true };
+    const compared = compare(
+      shapeOf(oldContract, oldSchemas[name] as JsonValue, name),
+      shapeOf(newContract, newSchemas[target] as JsonValue, name),
+    );
+    // The presence part of each change alone: the old field, as the new one
+    // may be left out or null. What else changed about it stays reported.
+    const presence = (compared?.altered ?? [])
+      .filter(
+        (pair) =>
+          pair.old.required !== pair.new.required ||
+          pair.old.nullable !== pair.new.nullable,
+      )
+      .map((pair) => ({
+        old: pair.old,
+        new: { ...pair.old, required: pair.new.required, nullable: pair.new.nullable },
+      }));
+    if (presence.length === 0) continue;
+    deltas.push({
+      schema: name,
+      newSchema: target,
+      removed: [],
+      added: [],
+      altered: presence,
+      operations: [],
+      sides: direction,
+    });
+  }
+}
+
+/**
  * Compares the two contracts schema by schema.
  *
  * Schemas are matched by name. A renamed schema is matched by the operation it
@@ -738,6 +836,15 @@ export function schemaDeltas(
     });
   }
 
+  splitByDirection(
+    oldContract,
+    newContract,
+    oldSchemas,
+    newSchemas,
+    counterparts,
+    { oldUses, newByUse, operationRenames },
+    deltas,
+  );
   inheritedOnce(oldContract, oldSchemas, newContract, newSchemas, deltas);
 
   // Request bodies declared inline, as Twilio and Stripe declare theirs, have

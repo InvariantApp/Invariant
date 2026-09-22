@@ -15040,7 +15040,7 @@ function migrateParameters(parameters, consumes) {
 * same thing makes the correction a no-op instead of a conflict, and the
 * regression tests say whether it did.
 */
-const METHODS = [
+const METHODS$1 = [
 	"get",
 	"put",
 	"post",
@@ -15130,7 +15130,7 @@ function bodyFromSharedParameter(converted, consumed, sourceItem, item) {
 	const shared = withoutBody(item);
 	const components = converted["components"];
 	const bodies = isJsonObject(components) ? components["requestBodies"] : void 0;
-	for (const method of METHODS) {
+	for (const method of METHODS$1) {
 		const operation = item[method];
 		if (!isJsonObject(operation)) continue;
 		const reference = withoutBody(operation) ?? shared;
@@ -15160,7 +15160,7 @@ function correctUpgrade(source, converted) {
 		for (const [path, sourceItem] of Object.entries(sourcePaths)) {
 			const item = paths[path];
 			if (!isJsonObject(sourceItem) || !isJsonObject(item)) continue;
-			for (const method of METHODS) {
+			for (const method of METHODS$1) {
 				const sourceOperation = sourceItem[method];
 				const operation = item[method];
 				if (!isJsonObject(sourceOperation) || !isJsonObject(operation)) continue;
@@ -24086,7 +24086,39 @@ function equivalentForms(document) {
 		}
 		return node;
 	};
+	declaredSecurity(copy);
 	return visit(copy, false);
+}
+const METHODS = [
+	"get",
+	"put",
+	"post",
+	"delete",
+	"options",
+	"head",
+	"patch",
+	"trace"
+];
+/** Leaves out, in place, each way to authenticate that names an undeclared scheme. */
+function declaredSecurity(document) {
+	const components = document["components"];
+	const schemes = isJsonObject(components) && isJsonObject(components["securitySchemes"]) ? new Set(Object.keys(components["securitySchemes"])) : /* @__PURE__ */ new Set();
+	const usable = (holder) => {
+		const ways = holder["security"];
+		if (!Array.isArray(ways)) return;
+		const kept = ways.filter((way) => isJsonObject(way) && Object.keys(way).every((name) => schemes.has(name)));
+		if (kept.length > 0 && kept.length < ways.length) holder["security"] = kept;
+	};
+	usable(document);
+	const paths = document["paths"];
+	if (!isJsonObject(paths)) return;
+	for (const item of Object.values(paths)) {
+		if (!isJsonObject(item)) continue;
+		for (const method of METHODS) {
+			const operation = item[method];
+			if (isJsonObject(operation)) usable(operation);
+		}
+	}
 }
 //#endregion
 //#region ../diff/src/narrowing.ts

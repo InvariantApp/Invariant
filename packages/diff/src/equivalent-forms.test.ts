@@ -118,3 +118,55 @@ describe("two ways of writing one schema", () => {
     );
   });
 });
+
+describe("a way to authenticate naming a scheme the document never declares", () => {
+  const secured = (security: JsonObject[], declared: string[] = ["bearer"]) =>
+    ({
+      openapi: "3.0.3",
+      info: { title: "t", version: "1" },
+      paths: {
+        "/x": {
+          delete: {
+            operationId: "deleteX",
+            security,
+            responses: { "204": { description: "gone" } },
+          },
+        },
+      },
+      components: {
+        securitySchemes: Object.fromEntries(
+          declared.map((name) => [name, { type: "http", scheme: "bearer" }]),
+        ),
+      },
+    }) as unknown as OpenApiDocument;
+  const securityBreaks = async (before: OpenApiDocument, after: OpenApiDocument) =>
+    breakingEntries(await diffDocuments(before, after)).filter((entry) =>
+      entry.id.includes("security"),
+    );
+
+  // Supabase listed `fga_permissions` beside `bearer` and never declared it.
+  it("is not reported when it is removed", async () => {
+    expect(
+      await securityBreaks(
+        secured([{ bearer: [] }, { fga_permissions: ["branch_delete"] }]),
+        secured([{ bearer: [] }]),
+      ),
+    ).toEqual([]);
+  });
+
+  it("leaves a declared scheme's removal reported", async () => {
+    expect(
+      await securityBreaks(
+        secured([{ bearer: [] }, { key: [] }], ["bearer", "key"]),
+        secured([{ bearer: [] }], ["bearer", "key"]),
+      ),
+    ).not.toEqual([]);
+  });
+
+  it("is kept where every way listed names one, rather than listing none", () => {
+    const form = equivalentForms(
+      secured([{ fga_permissions: [] }]),
+    ) as unknown as JsonObject;
+    expect(JSON.stringify(form)).toContain("fga_permissions");
+  });
+});
