@@ -797,7 +797,7 @@ function droppedDraft(
   delta: SchemaDelta | undefined,
   oldContract: Parameters<typeof schemaDeltas>[0],
 ): { decision?: ValueDecision; proposal?: Proposal } | undefined {
-  if (!delta) return undefined;
+  if (!delta || delta.replaced) return undefined;
   const field = question.removed;
   const sides = sidesOfDelta(oldContract, delta);
   const others = question.candidates.map((candidate) => `\`${candidate.name}\``);

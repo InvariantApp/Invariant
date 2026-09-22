@@ -132,6 +132,11 @@ export interface SchemaDelta {
   scope?: Scope;
   /** Which way it travels, when that is known without scanning for sites. */
   sides?: { request: boolean; response: boolean };
+  /**
+   * Most of its fields gone and others in their place: a different schema
+   * under the old name, so nothing in it is drafted as dropped.
+   */
+  replaced?: true;
 }
 
 /** How far below the schema's own properties nested inline objects are followed. */
@@ -378,7 +383,7 @@ function operationsUsing(document: OpenApiDocument): Map<string, string[]> {
 function compare(
   before: FieldShape[],
   after: FieldShape[],
-): Pick<SchemaDelta, "removed" | "added" | "altered"> | undefined {
+): Pick<SchemaDelta, "removed" | "added" | "altered" | "replaced"> | undefined {
   // Keyed by pointer, which is what identifies a field; a nested name is
   // only for reading.
   const afterAt = new Map(after.map((field) => [field.pointer, field]));
@@ -407,7 +412,17 @@ function compare(
     .filter((pair) => shapeDiffers(pair.old, pair.new));
   if (removed.length === 0 && added.length === 0 && altered.length === 0)
     return undefined;
-  return { removed, added, altered };
+  // Most of what it held gone, and other things in their place: another
+  // schema under the same name, as PayPal's `payout_item` went from the item
+  // a caller sends to the item a response reports. Its fields were not
+  // dropped, they belong to a schema that now has another name.
+  const top = (fields: FieldShape[]) =>
+    fields.filter((field) => field.pointer.split("/").length === 2);
+  const held = top(before);
+  const kept = held.filter((field) => afterAt.has(field.pointer));
+  const replaced =
+    held.length >= 3 && kept.length * 2 < held.length && top(added).length > 0;
+  return { removed, added, altered, ...(replaced ? { replaced: true as const } : {}) };
 }
 
 /**
@@ -469,6 +484,70 @@ function shapeDiffers(a: FieldShape, b: FieldShape): boolean {
   if (left !== right || a.enumNull !== b.enumNull) return true;
   if (a.variants?.join("|") !== b.variants?.join("|")) return true;
   return JSON.stringify(a.bounds ?? {}) !== JSON.stringify(b.bounds ?? {});
+}
+
+/** The named schemas a schema is built from through `allOf`, however deep. */
+function composedOf(
+  document: OpenApiDocument,
+  schema: JsonValue,
+  seen = new Set<string>(),
+): Set<string> {
+  const resolved = isJsonObject(schema) ? schema : {};
+  for (const branch of Array.isArray(resolved["allOf"]) ? resolved["allOf"] : []) {
+    if (!isJsonObject(branch) || typeof branch["$ref"] !== "string") continue;
+    const name = schemaName(branch["$ref"]);
+    if (name === undefined || seen.has(name)) continue;
+    seen.add(name);
+    const target = schemasOf(document)[name];
+    if (target !== undefined) composedOf(document, target, seen);
+  }
+  return seen;
+}
+
+/**
+ * A field a schema has because it is built from another, through `allOf`, is
+ * that other schema's to change.
+ *
+ * Figma's `devStatus` is declared once, on `DevStatusTrait`, and eight node
+ * schemas are built from it. Compared schema by schema, the value it gained
+ * was eight questions, and eight answers: the first changed the shared part
+ * for all of them, and each of the rest then named values that were no longer
+ * there. Kept only where it is declared, it is one question, and the one
+ * answer reaches every schema built from it.
+ */
+function inheritedOnce(
+  document: OpenApiDocument,
+  schemas: Record<string, JsonValue>,
+  deltas: SchemaDelta[],
+): void {
+  const byName = new Map(deltas.map((delta) => [delta.schema, delta]));
+  for (const delta of [...deltas]) {
+    const bases = [...composedOf(document, schemas[delta.schema] ?? null)]
+      .map((name) => byName.get(name))
+      .filter((base): base is SchemaDelta => base !== undefined);
+    if (bases.length === 0) continue;
+    // The same change, not only the same place: a schema may declare its own
+    // version of a property it inherits, and a change to that one is its own.
+    const shape = ({ name: _name, ...field }: FieldShape) => JSON.stringify(field);
+    const theirs = (pick: (base: SchemaDelta) => string[]) =>
+      new Set(bases.flatMap(pick));
+    const removed = theirs((base) => base.removed.map(shape));
+    const added = theirs((base) => base.added.map(shape));
+    const altered = theirs((base) =>
+      base.altered.map((pair) => `${shape(pair.old)}>${shape(pair.new)}`),
+    );
+    delta.removed = delta.removed.filter((field) => !removed.has(shape(field)));
+    delta.added = delta.added.filter((field) => !added.has(shape(field)));
+    delta.altered = delta.altered.filter(
+      (pair) => !altered.has(`${shape(pair.old)}>${shape(pair.new)}`),
+    );
+  }
+  for (let index = deltas.length - 1; index >= 0; index -= 1) {
+    const delta = deltas[index] as SchemaDelta;
+    if (delta.removed.length + delta.added.length + delta.altered.length === 0) {
+      deltas.splice(index, 1);
+    }
+  }
 }
 
 /** What an old schema is compared with: a schema of the new contract, named or written in place. */
@@ -649,6 +728,8 @@ export function schemaDeltas(
       operations: oldUses.get(name) ?? [],
     });
   }
+
+  inheritedOnce(oldContract, oldSchemas, deltas);
 
   // Request bodies declared inline, as Twilio and Stripe declare theirs, have
   // no name to be compared by, so the operation is the name, found where it

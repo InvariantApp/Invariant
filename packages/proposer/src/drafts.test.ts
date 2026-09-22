@@ -162,6 +162,30 @@ describe("a removed field beside fields that were added", () => {
     expect(outcome.unresolved.map((entry) => entry.field)).toContain("legacy");
   });
 
+  it("is not drafted where the schema was replaced by another of the same name", async () => {
+    // PayPal's `payout_item`: the request item's name reused for a response
+    // detail. Its fields were not dropped, they moved to a renamed schema.
+    const sent = object({
+      receiver: { type: "string" },
+      amount: { type: "string" },
+      note: { type: "string" },
+      recipient_type: { type: "string" },
+    });
+    const reported = object({
+      payout_item_id: { type: "string" },
+      transaction_status: { type: "string" },
+      time_processed: { type: "string" },
+    });
+    const outcome = await propose(
+      contract({ ...base, ThingCreate: sent }),
+      contract({ ...base, ThingCreate: reported }),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.proposals.filter((p) => p.change.id.includes("removed"))).toEqual([]);
+    // Still asked about: which schema did they go to?
+    expect(outcome.unresolved.map((entry) => entry.field)).toContain("amount");
+  });
+
   it("is a decision where old callers' responses always carried it", async () => {
     const outcome = await drafts({
       Thing: object({ colour: { type: "string" } }, ["colour"]),
@@ -169,6 +193,34 @@ describe("a removed field beside fields that were added", () => {
     const decision = outcome.decisions.find((entry) => entry.field === "id");
     expect(decision && decisionChange(decision).ops).toEqual([
       { op: "remove", path: "/id", restore: CHOOSE_ONE },
+    ]);
+  });
+});
+
+describe("a field a schema inherits through allOf", () => {
+  // Figma declares `devStatus` once, on a trait eight node schemas are built
+  // from. A value it gains is one question, asked where it is declared.
+  it("is asked about once, where it is declared", async () => {
+    const trait = (values: string[]) =>
+      object({ status: { type: "string", enum: values } }, ["status"]);
+    const node = { allOf: [{ $ref: "#/components/schemas/StatusTrait" }] };
+    const outcome = await propose(
+      contract({
+        ...base,
+        StatusTrait: trait(["NONE", "READY"]),
+        Thing: node,
+        Shared: node,
+      }),
+      contract({
+        ...base,
+        StatusTrait: trait(["NONE", "READY", "DONE"]),
+        Thing: node,
+        Shared: node,
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.decisions.map((decision) => decisionChange(decision).id)).toEqual([
+      expect.stringContaining("status_trait"),
     ]);
   });
 });
