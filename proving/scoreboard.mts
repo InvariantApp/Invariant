@@ -12,6 +12,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { parseDocumentText } from "@invariant/contract";
 import { catalogueEntry, isUnclassified } from "@invariant/diff";
 import type { PairResult as CorpusResult } from "@invariant/eval";
 import type { BUDGET, ChainCost } from "./chains/cost.ts";
@@ -62,6 +63,7 @@ export function scoreboard(inputs: {
   chains?: (ChainCost & { budget: typeof BUDGET }) | undefined;
   overhead?: (OverheadResult & { budget: typeof OVERHEAD_BUDGET }) | undefined;
   vectors?: VectorCounts | undefined;
+  ownership?: Ownership | undefined;
 }): Line[] {
   const lines: Line[] = [];
   const unmeasured = (id: string, claim: string, why: string): Line => ({
@@ -184,13 +186,7 @@ export function scoreboard(inputs: {
     evidence:
       "proving/corpus/results.json (rules judge; without decisions, and with synthetic answers)",
   });
-  lines.push(
-    unmeasured(
-      "L4b",
-      "Judge precision of at least 99% per family, and no semantically wrong Change surviving the gate.",
-      "Needs the S2 judge (M2.2) and the labelled corpus (M3.10).",
-    ),
-  );
+  lines.push(judgeLine(inputs.ownership));
   lines.push(
     unmeasured(
       "L5",
@@ -319,6 +315,70 @@ export function scoreboard(inputs: {
   return lines;
 }
 
+/** What `eval/ownership.yaml` records of each judge, as far as L4b reads it. */
+export interface Ownership {
+  corpus?: { cases?: number; provenance?: { mined?: { cases?: number } } };
+  tasks?: {
+    alignment?: Record<
+      string,
+      {
+        model?: string;
+        atThreshold?: {
+          answered?: number;
+          selectiveAccuracy?: number;
+          answeredAndWrong?: number;
+        };
+      }
+    >;
+  };
+  byFamily?: Record<string, number>;
+}
+
+/** The labelled corpus the plan asks for before a judge's precision is quoted per family. */
+const LABELLED_TARGET = 600;
+
+function judgeLine(ownership: Ownership | undefined): Line {
+  const claim =
+    "Judge precision of at least 99% per family, and no semantically wrong Change surviving the gate.";
+  const evidence = "eval/ownership.yaml; Rig D for false closure";
+  const judges = Object.entries(ownership?.tasks?.alignment ?? {}).filter(
+    ([, judge]) => judge.atThreshold !== undefined,
+  );
+  if (!ownership || judges.length === 0) {
+    return { id: "L4b", claim, status: "not measured", value: "", evidence };
+  }
+  const cases = ownership.corpus?.cases ?? 0;
+  const mined = ownership.corpus?.provenance?.mined?.cases ?? 0;
+  const precise = judges.every(
+    ([, judge]) => (judge.atThreshold?.selectiveAccuracy ?? 0) >= 0.99,
+  );
+  const perJudge = judges
+    .map(([name, judge]) => {
+      const at = judge.atThreshold ?? {};
+      return `${name}${judge.model ? ` (${judge.model})` : ""} ${percent(at.selectiveAccuracy ?? 0, 1)} on ${at.answered ?? 0} answered, ${at.answeredAndWrong ?? 0} wrong`;
+    })
+    .join("; ");
+  const weakest = Object.entries(ownership.byFamily ?? {}).sort(
+    ([, a], [, b]) => a - b,
+  )[0];
+  return {
+    id: "L4b",
+    claim,
+    // Met only when every part is: the per-family figure at threshold is not
+    // yet recorded, the corpus is short of its size, and Rig D has not yet
+    // judged a Change's meaning against the old server.
+    status: "not met",
+    value:
+      `At each judge's threshold: ${perJudge}${precise ? "" : " (below 99%)"}. ` +
+      `Labelled corpus ${cases} of ${LABELLED_TARGET} cases (${mined} mined). ` +
+      (weakest
+        ? `Per family only unthresholded accuracy is recorded, lowest ${weakest[0]} at ${percent(weakest[1], 1)}. `
+        : "") +
+      "False closure on Rig D is not yet measured.",
+    evidence,
+  };
+}
+
 function overheadLine(
   overhead: (OverheadResult & { budget: typeof OVERHEAD_BUDGET }) | undefined,
 ): Line {
@@ -414,6 +474,12 @@ if (process.argv[1]?.endsWith("scoreboard.mts")) {
     fuzz: process.env["FUZZ_RESULT"],
     chains: read<ChainCost & { budget: typeof BUDGET }>("proving/chains/results.json"),
     vectors: read<VectorCounts>("conformance/vectors.json"),
+    ownership: existsSync(join(ROOT, "eval/ownership.yaml"))
+      ? (parseDocumentText(
+          "ownership.yaml",
+          readFileSync(join(ROOT, "eval/ownership.yaml"), "utf8"),
+        ) as Ownership)
+      : undefined,
     overhead: read<OverheadResult & { budget: typeof OVERHEAD_BUDGET }>(
       "proving/overhead/results.json",
     ),

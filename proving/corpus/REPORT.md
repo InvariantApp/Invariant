@@ -10,10 +10,10 @@ or a corpus written for it.
 ## Did the pipeline survive
 
 - 1553 version pairs
-- 1463 ran every stage (94.2%)
+- 1462 ran every stage (94.1%)
 - 73 stopped after `load`
-- 17 stopped after `budget`
-- median 436 ms per pair
+- 18 stopped after `budget`
+- median 455 ms per pair
 
 ### What stopped them
 
@@ -34,17 +34,17 @@ Error` |
 | 2 | `YAMLParseError: Missing closing 'quote at line 1732, column 1` |
 | 2 | `YAMLParseError: Missing closing 'quote at line 1796, column 1` |
 | 2 | `YAMLParseError: Map keys must be unique at line 55483, column 5` |
+| 1 | `Stopped after 180000 ms, in `decide` (62s there). The difference between these two versions is larger than one pair's budget.` |
 | 1 | `Stopped after 180000 ms, in `decide` (65s there). The difference between these two versions is larger than one pair's budget.` |
-| 1 | `Stopped after 180000 ms, in `decide` (66s there). The difference between these two versions is larger than one pair's budget.` |
 
 ## What real API changes look like
 
-Of the 1553 pairs, 993 were purely additive:
+Of the 1553 pairs, 994 were purely additive:
 the new version broke nothing. That is itself worth knowing, because it is
 the case this system should stay out of the way of.
 
-A raw diff of the rest finds 83013 breaking deltas.
-Lining the endpoints up first finds 83351.
+A raw diff of the rest finds 82654 breaking deltas.
+Lining the endpoints up first finds 82992.
 
 **338 of those are only visible after lining up.** Most real APIs
 put the version in the URL, so bumping it moves every endpoint at once. A diff
@@ -55,10 +55,10 @@ not otherwise have been told about.
 
 | Breaking change | Times | Pairs |
 |---|---|---|
-| `response-property-enum-value-added` | 35875 | 132 |
+| `response-property-enum-value-added` | 35651 | 130 |
 | `response-property-enum-value-removed` | 23766 | 42 |
 | `response-required-property-added` | 5195 | 72 |
-| `response-property-one-of-added` | 2556 | 40 |
+| `response-property-one-of-added` | 2548 | 38 |
 | `response-property-became-optional` | 2525 | 37 |
 | `response-required-property-removed` | 2336 | 28 |
 | `response-property-type-changed` | 1757 | 47 |
@@ -74,7 +74,7 @@ not otherwise have been told about.
 | `response-property-max-increased` | 292 | 2 |
 | `request-property-enum-value-removed` | 260 | 65 |
 | `response-property-max-length-increased` | 245 | 6 |
-| `request-property-type-changed` | 240 | 26 |
+| `request-property-type-changed` | 200 | 25 |
 | `request-property-became-required` | 163 | 26 |
 | `request-parameter-removed` | 149 | 23 |
 | `response-property-became-nullable` | 140 | 18 |
@@ -94,29 +94,29 @@ place, which is what this system is actually for.
 
 | Provider | Pairs | Completed | Over budget | Aligned breaking | Unexplained | Drafted |
 |---|---|---|---|---|---|---|
-| adyen.com | 304 | 299 | 0 | 2279 | 1977 | 130 |
-| twilio.com | 270 | 270 | 0 | 1145 | 745 | 91 |
+| adyen.com | 304 | 299 | 0 | 2279 | 1978 | 129 |
+| twilio.com | 270 | 270 | 0 | 1145 | 742 | 92 |
 | xero.com | 90 | 81 | 0 | 9 | 9 | 0 |
 | kubernetes.io | 81 | 78 | 0 | 1593 | 285 | 16 |
-| datadoghq.com | 78 | 76 | 2 | 335 | 285 | 19 |
-| paypal.com | 68 | 67 | 0 | 9382 | 5009 | 749 |
+| datadoghq.com | 78 | 75 | 3 | 327 | 281 | 18 |
+| paypal.com | 68 | 67 | 0 | 9382 | 4963 | 752 |
 | intercom.com | 42 | 35 | 0 | 56 | 33 | 14 |
 | asana.com | 39 | 39 | 0 | 616 | 613 | 3 |
 | grafana.com | 39 | 39 | 0 | 28 | 11 | 23 |
-| langfuse.com | 39 | 39 | 0 | 339 | 109 | 22 |
+| langfuse.com | 39 | 39 | 0 | 339 | 108 | 23 |
 | mistral.ai | 39 | 9 | 0 | 10 | 0 | 10 |
 | pagerduty.com | 39 | 39 | 0 | 163 | 134 | 35 |
-| qdrant.tech | 39 | 39 | 0 | 464 | 458 | 11 |
-| resend.com | 39 | 39 | 0 | 137 | 74 | 59 |
+| qdrant.tech | 39 | 39 | 0 | 122 | 116 | 11 |
+| resend.com | 39 | 39 | 0 | 137 | 20 | 63 |
 | sentry.io | 39 | 39 | 0 | 44 | 41 | 3 |
 | spotify.com | 39 | 39 | 0 | 68 | 42 | 10 |
-| supabase.com | 39 | 39 | 0 | 1252 | 859 | 227 |
+| supabase.com | 39 | 39 | 0 | 1243 | 802 | 235 |
 | discord.com | 36 | 36 | 0 | 1922 | 1613 | 23 |
 | figma.com | 34 | 33 | 0 | 7882 | 5942 | 34 |
-| okta.com | 25 | 22 | 0 | 353 | 306 | 45 |
+| okta.com | 25 | 22 | 0 | 353 | 300 | 45 |
 | docker.com | 19 | 19 | 0 | 14 | 14 | 2 |
 | gitea.com | 17 | 17 | 0 | 1 | 0 | 1 |
-| googleapis.com | 17 | 16 | 0 | 403 | 32 | 374 |
+| googleapis.com | 17 | 16 | 0 | 403 | 32 | 375 |
 | amazonaws.com | 15 | 15 | 0 | 1876 | 1280 | 555 |
 | slack.com | 13 | 0 | 0 | 0 | 0 | 0 |
 | elastic.co | 9 | 0 | 9 | 0 | 0 | 0 |
@@ -125,14 +125,14 @@ place, which is what this system is actually for.
 | openai.com | 7 | 7 | 0 | 8 | 8 | 0 |
 | plaid.com | 7 | 7 | 0 | 5610 | 5581 | 16 |
 | stripe.com | 7 | 3 | 4 | 40854 | 20427 | 37 |
-| meilisearch.com | 4 | 4 | 0 | 5245 | 5161 | 136 |
+| meilisearch.com | 4 | 4 | 0 | 5245 | 5158 | 135 |
 | cloudflare.com | 3 | 1 | 2 | 225 | 240 | 22 |
-| apicurio.local | 1 | 1 | 0 | 46 | 11 | 45 |
+| apicurio.local | 1 | 1 | 0 | 46 | 12 | 41 |
 | chaingateway.io | 1 | 1 | 0 | 21 | 0 | 21 |
 
 ## Pairs that cost more than they were given
 
-17 of 1553 pairs were stopped rather than finished.
+18 of 1553 pairs were stopped rather than finished.
 
 This is a real limit, not a crash. The differ's cost tracks the size of
 the difference rather than the size of the documents: two 13 MB GitHub
@@ -149,8 +149,9 @@ says which bound it hit.
 |---|---|---|
 | cloudflare.com:openapi | 2026-09-21 8cb1993 to 2026-09-21 0da700f | Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's bud |
 | cloudflare.com:openapi | 2026-09-21 0da700f to 2026-09-21 ce5342d | Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's bud |
-| datadoghq.com:v2/openapi | 2026-09-09 dacc44a to 2026-09-09 933deb0 | Stopped after 180000 ms, in `decide` (65s there). The difference between these two versions is larger than one pair's bu |
-| datadoghq.com:v2/openapi | 2026-09-09 53c9756 to 2026-09-09 c6b756d | Stopped after 180000 ms, in `decide` (66s there). The difference between these two versions is larger than one pair's bu |
+| datadoghq.com:v2/openapi | 2026-09-09 dacc44a to 2026-09-09 933deb0 | Stopped after 180000 ms, in `decide` (62s there). The difference between these two versions is larger than one pair's bu |
+| datadoghq.com:v2/openapi | 2026-09-09 53c9756 to 2026-09-09 c6b756d | Stopped after 180000 ms, in `decide` (65s there). The difference between these two versions is larger than one pair's bu |
+| datadoghq.com:v2/openapi | 2026-09-14 3c08df3 to 2026-09-14 2c10194 | Stopped after 180000 ms, in `decide` (63s there). The difference between these two versions is larger than one pair's bu |
 | elastic.co:elasticsearch-openapi | 2026-08-31 d57b93c to 2026-08-31 564993a | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
 | elastic.co:elasticsearch-openapi | 2026-08-31 564993a to 2026-09-02 18df28e | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
 | elastic.co:elasticsearch-openapi | 2026-09-02 18df28e to 2026-09-02 d8c8cc1 | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
@@ -167,7 +168,7 @@ says which bound it hit.
 
 ## Changes waiting on one decision
 
-1414 response fields across 166 pairs gained a value
+1384 response fields across 170 pairs gained a value
 their old contract never named. That is the largest category of real
 breaking change there is, and it was described here as inexpressible until
 it turned out not to be: `enumMap` takes a `fold` saying which existing
@@ -181,8 +182,8 @@ the values available to fold onto. The release stays blocked until somebody
 fills it in, which is the right place for the cost to sit: the provider
 makes the change and the caller pays for it.
 
-The ratio is the useful number: 35827 breaking deltas of this kind
-come from 1414 fields, about 25
+The ratio is the useful number: 35457 breaking deltas of this kind
+come from 1384 fields, about 26
 to one. A schema field that a hundred operations reference produces a
 hundred deltas and still only needs deciding once, so a count of deltas
 badly overstates how much work this is. Stripe is the extreme: 61,517
@@ -190,7 +191,7 @@ breaking deltas of this kind across 15 fields.
 
 ## What we could not explain
 
-3582 Changes were drafted, by deterministic rules alone, with no model asked anything.
+3593 Changes were drafted, by deterministic rules alone, with no model asked anything.
 
 The table below is the to-do list, and it is ordered by how often real
 companies actually do each thing. Three categories in it are already
@@ -198,9 +199,9 @@ reachable with ops that exist and are simply not wired up.
 
 | Unexplained | Times | Pairs | What it would take |
 |---|---|---|---|
-| `response-property-enum-value-added` | 35827 | 131 | a new value a client switching exhaustively would not know. Expressible: `enumMap` takes a `fold`, which says which existing value an old caller should be shown instead. Which value that is cannot be read off the documents, so it needs one sentence from the provider, and it is declared lossy because the caller cannot tell the new case apart. **Reachable, needs a decision.** |
-| `response-property-enum-value-removed` | 3501 | 26 | a value a client may still be storing. `enumMap` can express it once someone says what it became, which is exactly the question the model is asked. |
-| `response-property-one-of-added` | 2517 | 35 | A response field can now hold a kind of object old callers do not know. A `widen` shows it to them as its id where the field already allowed an id, or leaves it out or sends null where it could be; that is a declared loss you acknowledge. |
+| `response-property-enum-value-added` | 35457 | 126 | a new value a client switching exhaustively would not know. Expressible: `enumMap` takes a `fold`, which says which existing value an old caller should be shown instead. Which value that is cannot be read off the documents, so it needs one sentence from the provider, and it is declared lossy because the caller cannot tell the new case apart. **Reachable, needs a decision.** |
+| `response-property-enum-value-removed` | 3502 | 26 | a value a client may still be storing. `enumMap` can express it once someone says what it became, which is exactly the question the model is asked. |
+| `response-property-one-of-added` | 2515 | 34 | A response field can now hold a kind of object old callers do not know. A `widen` shows it to them as its id where the field already allowed an id, or leaves it out or sends null where it could be; that is a declared loss you acknowledge. |
 | `response-required-property-removed` | 2382 | 29 | a required response field gone. `remove` with a restore value expresses it; again the value is not in the document. |
 | `response-property-became-optional` | 1228 | 29 | a field a caller relied on may now be absent. Expressible only by supplying a value, which is a judgement. |
 | `response-body-type-changed` | 922 | 7 | a response schema replaced wholesale, often with an empty one. Not expressible and probably should not be: it is a rewrite, not a rename. |
@@ -209,34 +210,34 @@ reachable with ops that exist and are simply not wired up.
 | `request-property-removed` | 493 | 36 | a field dropped from a request. `remove` expresses it; the rules judge abstains on removals by design, so this needs the model or a person. |
 | `api-security-removed` | 381 | 6 | Authentication changed. An adapter must never alter who is allowed to call what, so old callers have to update their credentials; tell them directly. |
 | `request-property-pattern-added` | 363 | 10 | A request field now refuses values the old contract allowed. Rewriting a caller's value into a different one would change what they asked for. No translation can hide this from an old caller. Declare it as a `behavior` flag and branch on it in your own code, or keep the old behaviour for old contracts. |
-| `request-property-type-changed` | 239 | 25 | `cast` covers the scalar cases. Anything structural is out of scope on purpose. |
 | `request-property-enum-value-removed` | 217 | 60 | A request field no longer accepts some values old callers send. An enum map translates them into values it does accept, which you decide. |
+| `request-property-type-changed` | 199 | 24 | `cast` covers the scalar cases. Anything structural is out of scope on purpose. |
 | `request-property-became-required` | 163 | 26 | a caller who omitted it will now be refused. `add` with a default expresses it. |
 | `response-property-max-length-unset` | 146 | 7 | A response field may now hold values outside the bounds old callers were promised. Nothing should rewrite them, so a `relax` records the new bound and passes values through as the API produced them; that is a declared loss you acknowledge, since a caller that validates strictly may reject them. |
 | `response-property-max-length-increased` | 133 | 3 | A response field may now hold values outside the bounds old callers were promised. Nothing should rewrite them, so a `relax` records the new bound and passes values through as the API produced them; that is a declared loss you acknowledge, since a caller that validates strictly may reject them. |
 | `request-parameter-property-enum-value-removed` | 128 | 3 | as above, one level in. **Not yet servable.** |
 | `response-property-min-length-unset` | 128 | 6 | A response field may now hold values outside the bounds old callers were promised. Nothing should rewrite them, so a `relax` records the new bound and passes values through as the API produced them; that is a declared loss you acknowledge, since a caller that validates strictly may reject them. |
 | `request-property-max-length-set` | 111 | 13 | A request field now refuses values the old contract allowed. Rewriting a caller's value into a different one would change what they asked for. No translation can hide this from an old caller. Declare it as a `behavior` flag and branch on it in your own code, or keep the old behaviour for old contracts. |
-| `response-property-became-nullable` | 95 | 10 | A response field may now be null. Where old callers could already be sent it left out, a `dropNull` sends it that way; where they were always given a value, a `default` fills one in that you decide. |
+| `response-property-became-nullable` | 93 | 9 | A response field may now be null. Where old callers could already be sent it left out, a `dropNull` sends it that way; where they were always given a value, a `default` fills one in that you decide. |
 
 Counted once per place, which is how the launch gate is judged:
 
 | Unexplained | Places | Pairs | Class |
 |---|---|---|---|
-| `response-property-enum-value-added` | 5816 | 131 | needs-decision |
+| `response-property-enum-value-added` | 5725 | 126 | needs-decision |
 | `response-required-property-removed` | 567 | 29 | needs-decision |
 | `api-security-removed` | 381 | 6 | behavior-only |
 | `response-property-became-optional` | 366 | 29 | needs-decision |
 | `request-property-removed` | 286 | 36 | adaptable |
-| `response-property-enum-value-removed` | 246 | 26 | needs-decision |
+| `response-property-enum-value-removed` | 243 | 26 | needs-decision |
 | `request-property-pattern-added` | 172 | 10 | behavior-only |
 | `response-property-type-changed` | 170 | 34 | needs-decision |
 | `request-property-enum-value-removed` | 158 | 60 | needs-decision |
-| `response-property-one-of-added` | 150 | 35 | needs-decision |
+| `response-property-one-of-added` | 148 | 34 | needs-decision |
 | `response-body-type-changed` | 137 | 7 | needs-decision |
 | `request-parameter-property-enum-value-removed` | 128 | 3 | needs-decision |
 | `response-required-property-added` | 119 | 28 | adaptable |
-| `request-property-type-changed` | 106 | 25 | needs-decision |
+| `request-property-type-changed` | 105 | 24 | needs-decision |
 | `request-parameter-pattern-added` | 91 | 8 | behavior-only |
 | `request-property-became-required` | 85 | 26 | needs-decision |
 | `request-parameter-type-changed` | 75 | 10 | needs-decision |
@@ -252,12 +253,12 @@ Counted once per place, which is how the launch gate is judged:
 | plaid.com:2020-09-14 | 2026-06-25 050cfa0 to 2026-07-22 8a493a5 | 4312 | 4312 | 4301 | 4 |
 | figma.com:openapi | 2024-09-11 f0788ef to 2024-10-02 28286dd | 2640 | 2640 | 2640 | 0 |
 | meilisearch.com:open-api | 2025-04-16 d2fbc80 to 2025-06-16 a2bd213 | 2441 | 2441 | 2441 | 0 |
-| meilisearch.com:open-api | 2025-01-13 a7ce1c2 to 2025-02-19 89725c2 | 2420 | 2438 | 2429 | 5 |
+| meilisearch.com:open-api | 2025-01-13 a7ce1c2 to 2025-02-19 89725c2 | 2420 | 2438 | 2426 | 4 |
 | stripe.com:spec3 | 2026-07-01 7061322 to 2026-07-01 d5d11f6 | 20451 | 20451 | 2064 | 35 |
 | figma.com:openapi | 2024-05-29 18b0297 to 2024-06-06 e38f552 | 1760 | 1760 | 1760 | 0 |
 | discord.com:openapi | 2026-05-23 09c232e to 2026-06-05 cdbd53a | 1553 | 1553 | 1491 | 11 |
 | figma.com:openapi | 2023-12-14 cfd62bc to 2024-02-02 0d77b9d | 1286 | 1286 | 1273 | 9 |
-| paypal.com:checkout_orders_v2 | 2024-02-02 fb6f126 to 2025-07-16 a54ed77 | 1739 | 1739 | 1208 | 27 |
+| paypal.com:checkout_orders_v2 | 2024-02-02 fb6f126 to 2025-07-16 a54ed77 | 1739 | 1739 | 1218 | 26 |
 | paypal.com:checkout_orders_v2 | 2025-07-16 a54ed77 to 2026-04-07 9f0f528 | 2953 | 2953 | 1102 | 146 |
 | amazonaws.com:clouddirectory | 2016-05-10 to 2017-01-11 | 600 | 600 | 581 | 5 |
 | adyen.com:AccountService-v6 | 2022-10-06 49d15b1 to 2023-03-22 68a6f20 | 579 | 579 | 579 | 0 |
