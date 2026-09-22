@@ -374,12 +374,13 @@ function fanOut(links: number): Record<string, unknown> {
 }
 
 describe("a schema reached along combinatorially many paths", () => {
-  it("is refused quickly rather than walked for minutes", () => {
+  it("is refused after a bounded walk rather than walked for minutes", () => {
+    // Bounded by the walk's step budget, which is what makes it quick, and
+    // asserted as that rather than as a time a shared CI runner may not keep.
     const document = fanOut(40) as unknown as Parameters<typeof findSchemaSites>[0];
-    const started = performance.now();
     const scan = findSchemaSites(document, "#/components/schemas/n39");
-    expect(performance.now() - started).toBeLessThan(10_000);
-    expect(scan.unsupported.length).toBeGreaterThan(0);
+    expect(scan.exhausted).toBe(true);
+    expect(scan.unsupported.join()).toMatch(/too many to place a transform on each/);
   });
 
   it("still says which ways it travels, from the reference graph alone", () => {
