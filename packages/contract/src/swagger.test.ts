@@ -53,6 +53,52 @@ describe("the Swagger 2.0 upgrade", () => {
     ).toEqual(["application/octet-stream"]);
   });
 
+  it("sends a shared body parameter as each operation's body, in its media types (Kubernetes)", () => {
+    const converted = upgradeSwagger(
+      swagger(
+        {
+          "/configmaps": {
+            delete: {
+              consumes: ["*/*"],
+              parameters: [
+                { $ref: "#/parameters/body-delete" },
+                { name: "dryRun", in: "query", type: "string" },
+              ],
+              responses: { "200": { description: "deleted" } },
+            },
+          },
+          "/secrets": {
+            parameters: [{ $ref: "#/parameters/body-delete" }],
+            delete: { responses: { "200": { description: "deleted" } } },
+          },
+        },
+        {
+          parameters: {
+            "body-delete": {
+              in: "body",
+              name: "body",
+              schema: { $ref: "#/definitions/DeleteOptions" },
+            },
+          },
+          definitions: { DeleteOptions: { type: "object" } },
+        },
+      ),
+    );
+    // In each operation's own media types, the document's where it has none.
+    expect(at(converted, "paths", "/configmaps", "delete", "requestBody")).toEqual({
+      content: { "*/*": { schema: { $ref: "#/components/schemas/DeleteOptions" } } },
+    });
+    expect(at(converted, "paths", "/secrets", "delete", "requestBody")).toEqual({
+      content: {
+        "application/json": { schema: { $ref: "#/components/schemas/DeleteOptions" } },
+      },
+    });
+    expect(at(converted, "paths", "/configmaps", "delete", "parameters")).toEqual([
+      { name: "dryRun", in: "query", schema: { type: "string" } },
+    ]);
+    expect(at(converted, "paths", "/secrets", "parameters")).toBeUndefined();
+  });
+
   it("keeps an example with the media type it was given for, and adds none it was not", () => {
     // Docker's archive endpoint produces a tar and illustrates its error as JSON.
     const converted = upgradeSwagger(

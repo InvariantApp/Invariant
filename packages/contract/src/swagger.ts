@@ -97,6 +97,68 @@ function nullableFromExtension(value: JsonValue): void {
   for (const child of Object.values(value)) nullableFromExtension(child);
 }
 
+const REQUEST_BODIES = "#/components/requestBodies/";
+
+const isBodyRef = (parameter: JsonValue): boolean =>
+  isJsonObject(parameter) &&
+  typeof parameter["$ref"] === "string" &&
+  parameter["$ref"].startsWith(REQUEST_BODIES);
+
+/**
+ * A shared `in: body` parameter is the operation's body, in the media types
+ * the operation consumes. The upgrader moves the parameter to
+ * `components.requestBodies`, leaves every reference to it among the
+ * parameters, where it names something that is not a parameter, and gives
+ * the shared body one media type for every operation. Kubernetes shares one
+ * `DeleteOptions` body across 183 operations that consume any media type, and
+ * one patch body across 143 that consume five patch formats: every one was
+ * unreadable to the differ, and would have been read as JSON.
+ */
+function bodyFromSharedParameter(
+  converted: JsonObject,
+  consumed: string[] | undefined,
+  sourceItem: JsonObject,
+  item: JsonObject,
+): void {
+  const withoutBody = (holder: JsonObject): JsonObject | undefined => {
+    if (!Array.isArray(holder["parameters"])) return undefined;
+    const parameters = holder["parameters"] as JsonValue[];
+    const body = parameters.find(isBodyRef);
+    if (body === undefined) return undefined;
+    holder["parameters"] = parameters.filter((parameter) => !isBodyRef(parameter));
+    if ((holder["parameters"] as JsonValue[]).length === 0) delete holder["parameters"];
+    return body as JsonObject;
+  };
+  const shared = withoutBody(item);
+  const components = converted["components"];
+  const bodies = isJsonObject(components) ? components["requestBodies"] : undefined;
+  for (const method of METHODS) {
+    const operation = item[method];
+    if (!isJsonObject(operation)) continue;
+    // An operation's own body overrides one declared for the whole path.
+    const reference = withoutBody(operation) ?? shared;
+    if (reference === undefined || operation["requestBody"] !== undefined) continue;
+    const name = (reference["$ref"] as string).slice(REQUEST_BODIES.length);
+    const body = isJsonObject(bodies) ? bodies[name] : undefined;
+    const content = isJsonObject(body) ? body["content"] : undefined;
+    const first = isJsonObject(content) ? Object.values(content)[0] : undefined;
+    const sourceOperation = sourceItem[method];
+    const types =
+      (isJsonObject(sourceOperation)
+        ? mediaTypes(sourceOperation["consumes"])
+        : undefined) ?? consumed;
+    if (!isJsonObject(body) || !isJsonObject(first) || types === undefined) {
+      operation["requestBody"] = { $ref: reference["$ref"] as string };
+      continue;
+    }
+    operation["requestBody"] = {
+      ...(body["description"] === undefined ? {} : { description: body["description"] }),
+      content: Object.fromEntries(types.map((type) => [type, structuredClone(first)])),
+      ...(body["required"] === true ? { required: true } : {}),
+    };
+  }
+}
+
 /** The upgrader's output, corrected against the 2.0 document it came from. Mutates `converted`. */
 export function correctUpgrade(source: JsonObject, converted: JsonObject): void {
   const sourcePaths = source["paths"];
@@ -111,6 +173,17 @@ export function correctUpgrade(source: JsonObject, converted: JsonObject): void 
         if (!isJsonObject(sourceOperation) || !isJsonObject(operation)) continue;
         responseMediaTypes(sourceOperation, operation);
         requiredForm(parametersOf(sourceItem, sourceOperation), operation);
+      }
+    }
+    for (const [path, sourceItem] of Object.entries(sourcePaths)) {
+      const item = paths[path];
+      if (isJsonObject(sourceItem) && isJsonObject(item)) {
+        bodyFromSharedParameter(
+          converted,
+          mediaTypes(source["consumes"]),
+          sourceItem,
+          item,
+        );
       }
     }
   }

@@ -12608,19 +12608,72 @@ function nullableFromExtension(value) {
 	} else if (value["x-nullable"] === false) delete value["x-nullable"];
 	for (const child of Object.values(value)) nullableFromExtension(child);
 }
+const REQUEST_BODIES = "#/components/requestBodies/";
+const isBodyRef = (parameter) => isJsonObject(parameter) && typeof parameter["$ref"] === "string" && parameter["$ref"].startsWith(REQUEST_BODIES);
+/**
+* A shared `in: body` parameter is the operation's body, in the media types
+* the operation consumes. The upgrader moves the parameter to
+* `components.requestBodies`, leaves every reference to it among the
+* parameters, where it names something that is not a parameter, and gives
+* the shared body one media type for every operation. Kubernetes shares one
+* `DeleteOptions` body across 183 operations that consume any media type, and
+* one patch body across 143 that consume five patch formats: every one was
+* unreadable to the differ, and would have been read as JSON.
+*/
+function bodyFromSharedParameter(converted, consumed, sourceItem, item) {
+	const withoutBody = (holder) => {
+		if (!Array.isArray(holder["parameters"])) return void 0;
+		const parameters = holder["parameters"];
+		const body = parameters.find(isBodyRef);
+		if (body === void 0) return void 0;
+		holder["parameters"] = parameters.filter((parameter) => !isBodyRef(parameter));
+		if (holder["parameters"].length === 0) delete holder["parameters"];
+		return body;
+	};
+	const shared = withoutBody(item);
+	const components = converted["components"];
+	const bodies = isJsonObject(components) ? components["requestBodies"] : void 0;
+	for (const method of METHODS) {
+		const operation = item[method];
+		if (!isJsonObject(operation)) continue;
+		const reference = withoutBody(operation) ?? shared;
+		if (reference === void 0 || operation["requestBody"] !== void 0) continue;
+		const name = reference["$ref"].slice(27);
+		const body = isJsonObject(bodies) ? bodies[name] : void 0;
+		const content = isJsonObject(body) ? body["content"] : void 0;
+		const first = isJsonObject(content) ? Object.values(content)[0] : void 0;
+		const sourceOperation = sourceItem[method];
+		const types = (isJsonObject(sourceOperation) ? mediaTypes(sourceOperation["consumes"]) : void 0) ?? consumed;
+		if (!isJsonObject(body) || !isJsonObject(first) || types === void 0) {
+			operation["requestBody"] = { $ref: reference["$ref"] };
+			continue;
+		}
+		operation["requestBody"] = {
+			...body["description"] === void 0 ? {} : { description: body["description"] },
+			content: Object.fromEntries(types.map((type) => [type, structuredClone(first)])),
+			...body["required"] === true ? { required: true } : {}
+		};
+	}
+}
 /** The upgrader's output, corrected against the 2.0 document it came from. Mutates `converted`. */
 function correctUpgrade(source, converted) {
 	const sourcePaths = source["paths"];
 	const paths = converted["paths"];
-	if (isJsonObject(sourcePaths) && isJsonObject(paths)) for (const [path, sourceItem] of Object.entries(sourcePaths)) {
-		const item = paths[path];
-		if (!isJsonObject(sourceItem) || !isJsonObject(item)) continue;
-		for (const method of METHODS) {
-			const sourceOperation = sourceItem[method];
-			const operation = item[method];
-			if (!isJsonObject(sourceOperation) || !isJsonObject(operation)) continue;
-			responseMediaTypes(sourceOperation, operation);
-			requiredForm(parametersOf$2(sourceItem, sourceOperation), operation);
+	if (isJsonObject(sourcePaths) && isJsonObject(paths)) {
+		for (const [path, sourceItem] of Object.entries(sourcePaths)) {
+			const item = paths[path];
+			if (!isJsonObject(sourceItem) || !isJsonObject(item)) continue;
+			for (const method of METHODS) {
+				const sourceOperation = sourceItem[method];
+				const operation = item[method];
+				if (!isJsonObject(sourceOperation) || !isJsonObject(operation)) continue;
+				responseMediaTypes(sourceOperation, operation);
+				requiredForm(parametersOf$2(sourceItem, sourceOperation), operation);
+			}
+		}
+		for (const [path, sourceItem] of Object.entries(sourcePaths)) {
+			const item = paths[path];
+			if (isJsonObject(sourceItem) && isJsonObject(item)) bodyFromSharedParameter(converted, mediaTypes(source["consumes"]), sourceItem, item);
 		}
 	}
 	nullableFromExtension(converted);
