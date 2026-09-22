@@ -19599,7 +19599,7 @@ function checkVersion(value) {
 	const compiledBy = typeof value["compiledBy"] === "string" ? value["compiledBy"] : void 0;
 	const format = value["irVersion"];
 	if (typeof format === "number" && format > 2) throw new ProgramTooNewError(`program format ${format}`, compiledBy);
-	if (format !== 2) throw new ProgramError(`Unsupported program format ${String(format)}; this runtime reads format 2. Compile the program again with a current CLI.`);
+	if (format !== 2) throw new ProgramError(`Unsupported program format ${typeof format === "object" && format !== null ? Array.isArray(format) ? "an array" : "an object" : String(format)}; this runtime reads format 2. Compile the program again with a current CLI.`);
 	const minRuntime = value["minRuntime"];
 	if (minRuntime === void 0) return;
 	if (typeof minRuntime !== "string" || !/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(minRuntime)) throw new ProgramError("program.minRuntime must be a version such as 1.2.3");

@@ -40,6 +40,14 @@ describe("decoding", () => {
     expect(() => decodeProgram(value)).toThrow(/Unsupported program format 1/);
   });
 
+  it("refuses a program format no string can be made of, as a ProgramError", () => {
+    // Found by the nightly fuzzer: parsed JSON whose own `toString` is data.
+    const value = program({}) as Record<string, unknown>;
+    value["irVersion"] = JSON.parse('{"toString":false}');
+    expect(() => decodeProgram(value)).toThrow(ProgramError);
+    expect(() => decodeProgram(value)).toThrow(/Unsupported program format an object/);
+  });
+
   it("refuses an instruction it does not know", () => {
     expect(() =>
       decodeProgram(program({ "post /x": { request: [{ k: "exec", c: "chg" }] } })),

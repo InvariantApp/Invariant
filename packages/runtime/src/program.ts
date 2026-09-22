@@ -986,8 +986,15 @@ function checkVersion(value: Record<string, unknown>): void {
     throw new ProgramTooNewError(`program format ${format}`, compiledBy);
   }
   if (format !== PROGRAM_VERSION) {
+    // Parsed JSON can carry a `toString` that is data, so only a primitive is printed.
+    const shown =
+      typeof format === "object" && format !== null
+        ? Array.isArray(format)
+          ? "an array"
+          : "an object"
+        : String(format);
     throw new ProgramError(
-      `Unsupported program format ${String(format)}; this runtime reads format ` +
+      `Unsupported program format ${shown}; this runtime reads format ` +
         `${PROGRAM_VERSION}. Compile the program again with a current CLI.`,
     );
   }
