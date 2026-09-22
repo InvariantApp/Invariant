@@ -38,6 +38,7 @@ export type ProposeRequest = Schemas["ProposeRequest"];
 export type Proposal = Schemas["Proposal"];
 export type ConsumerPage = Schemas["ConsumerPage"];
 export type IntegrationPage = Schemas["IntegrationPage"];
+export type SdkMap = Schemas["SdkMap"];
 export type MigrationPage = Schemas["MigrationPage"];
 export type MigrationStatus = Schemas["MigrationStatus"];
 export type Token = Schemas["Token"];
@@ -350,6 +351,18 @@ export function createClient(options: ClientOptions) {
           ok: [200],
         })
       ).body as IntegrationPage;
+    },
+
+    /** How an SDK names what the contract describes, replacing any map its package had. */
+    async putSdk(map: SdkMap): Promise<SdkMap> {
+      return (await call({ method: "PUT", path: "/v1/sdks", body: map, ok: [200] }))
+        .body as SdkMap;
+    },
+
+    async listSdks(): Promise<{ sdks: SdkMap[] }> {
+      return (await call({ method: "GET", path: "/v1/sdks", ok: [200] })).body as {
+        sdks: SdkMap[];
+      };
     },
 
     async listMigrations(

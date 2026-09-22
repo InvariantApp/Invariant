@@ -514,6 +514,60 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "429": { $ref: "#/components/responses/RateLimited" }
 
+  /v1/sdks:
+    put:
+      operationId: putSdk
+      summary: Say how an SDK names what the contract describes.
+      description: |
+        One map per package, replaced whole each time it is sent: which type
+        the SDK exports for each schema, which accessor calls each operation,
+        and the package that speaks the current contract. The migration
+        service reads it to find where a consumer's code touches what a
+        release changed. A consumer whose SDK has no map is told what changed
+        and gets no pull request.
+      tags: [Consumers]
+      x-invariant-scope: publish
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SdkMap" }
+      responses:
+        "200":
+          description: Stored, replacing any map this package had.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SdkMap" }
+        "400": { $ref: "#/components/responses/Malformed" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { $ref: "#/components/responses/TooLarge" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    get:
+      operationId: listSdks
+      summary: The SDK maps this API has, by package.
+      tags: [Consumers]
+      x-invariant-scope: read
+      parameters:
+        - $ref: "#/components/parameters/InvariantVersion"
+      responses:
+        "200":
+          description: Every map.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sdks]
+                properties:
+                  sdks:
+                    type: array
+                    items: { $ref: "#/components/schemas/SdkMap" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
   /v1/tokens:
     get:
       operationId: listTokens
@@ -1325,6 +1379,81 @@ components:
           type: array
           items: { $ref: "#/components/schemas/Migration" }
         next: { type: string }
+
+    SdkMap:
+      type: object
+      description: How one SDK package names what the contract describes.
+      additionalProperties: false
+      required: [package, upgradeTo, types, accessors]
+      properties:
+        package:
+          type: string
+          description: The package consumers depend on today, as their manifest names it.
+          minLength: 1
+          maxLength: 214
+        upgradeTo:
+          type: object
+          description: The package that speaks the current contract, and what it calls each schema where that differs.
+          additionalProperties: false
+          required: [package, version]
+          properties:
+            package: { type: string, minLength: 1, maxLength: 214 }
+            version: { type: string, maxLength: 100 }
+            types:
+              type: object
+              maxProperties: 5000
+              additionalProperties: { type: string, maxLength: 300 }
+        types:
+          type: object
+          description: Schema name in the contract to the type the SDK exports for it.
+          maxProperties: 5000
+          additionalProperties: { type: string, maxLength: 300 }
+        pin:
+          type: object
+          description: Where a consumer names the contract it speaks, as an `apiVersion` option.
+          additionalProperties: false
+          required: [type, property, label]
+          properties:
+            type: { type: string, maxLength: 300 }
+            property: { type: string, maxLength: 100 }
+            label: { type: string, maxLength: 100 }
+        operations:
+          type: object
+          description: The SDK method that calls each operation, keyed `method path`.
+          maxProperties: 5000
+          additionalProperties:
+            type: object
+            additionalProperties: false
+            required: [type, method]
+            properties:
+              type: { type: string, maxLength: 300 }
+              method: { type: string, maxLength: 100 }
+        accessors:
+          type: array
+          description: Resource accessor paths that moved, `charges.create` to `payments.create`.
+          maxItems: 1000
+          items:
+            type: object
+            additionalProperties: false
+            required: [from, to]
+            properties:
+              from: { type: array, maxItems: 10, items: { type: string, maxLength: 100 } }
+              to: { type: array, maxItems: 10, items: { type: string, maxLength: 100 } }
+        helpers:
+          type: object
+          description: Exact conversion helpers, so no float arithmetic is written into a consumer's code.
+          additionalProperties: false
+          required: [toMinor, fromMinor]
+          properties:
+            toMinor: { type: string, maxLength: 100 }
+            fromMinor: { type: string, maxLength: 100 }
+            from: { type: string, maxLength: 300 }
+            emit:
+              type: object
+              additionalProperties: false
+              required: [path]
+              properties:
+                path: { type: string, maxLength: 300 }
 
     Token:
       type: object

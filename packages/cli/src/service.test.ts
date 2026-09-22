@@ -11,6 +11,7 @@ import {
   clientFromEnv,
   DEFAULT_SERVICE_URL,
   publishBundles,
+  publishSdks,
   renderPublished,
   renderStatus,
   ServiceError,
@@ -34,6 +35,11 @@ function service() {
         { digest, created, api: "acme", to: "x" },
         { status: created ? 201 : 200 },
       );
+    }
+    if (url.pathname === "/v1/sdks" && init?.method === "PUT") {
+      const map = JSON.parse(String(init.body)) as { package: string };
+      kept.set(`sdk ${map.package}`, map);
+      return Response.json(map);
     }
     if (url.pathname === "/v1/contracts") {
       return Response.json({
@@ -110,6 +116,41 @@ describe("publish", () => {
     await expect(publishBundles(await withBundles(["a"]), client, "b")).rejects.toThrow(
       /no signed release b/,
     );
+  });
+});
+
+describe("publishing SDK maps", () => {
+  it("sends each map in invariant/sdks, and says so before the releases", async () => {
+    const svc = service();
+    const { client, url } = clientFromEnv({ INVARIANT_TOKEN: "t" }, svc.fetchImpl);
+    const config = await withBundles(["2026-09-20"]);
+    await mkdir(join(config.invariantDir, "sdks"));
+    const map = {
+      package: "@acme/sdk",
+      upgradeTo: { package: "@acme/sdk", version: "3.0.0" },
+      types: { Payment: "Payment" },
+      accessors: [],
+    };
+    await writeFile(
+      join(config.invariantDir, "sdks", "acme-sdk.json"),
+      JSON.stringify(map),
+    );
+    const sent = await publishSdks(config, client);
+    expect(sent).toEqual(["@acme/sdk"]);
+    expect(svc.kept.get("sdk @acme/sdk")).toEqual(map);
+    const published = await publishBundles(config, client);
+    expect(renderPublished(published, url, sent).split("\n")[0]).toBe(
+      "sdk map  @acme/sdk",
+    );
+  });
+
+  it("sends nothing where there are none, and names a map that is not JSON", async () => {
+    const { client } = clientFromEnv({ INVARIANT_TOKEN: "t" }, service().fetchImpl);
+    const config = await withBundles(["a"]);
+    expect(await publishSdks(config, client)).toEqual([]);
+    await mkdir(join(config.invariantDir, "sdks"));
+    await writeFile(join(config.invariantDir, "sdks", "broken.json"), "{");
+    await expect(publishSdks(config, client)).rejects.toThrow(/broken\.json is not JSON/);
   });
 });
 

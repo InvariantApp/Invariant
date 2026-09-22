@@ -15,6 +15,7 @@ import {
   createClient,
   type DsseEnvelope,
   type Impact,
+  type SdkMap,
 } from "@invariant-app/client";
 import { BRAND } from "@invariant-app/ir";
 import type { InvariantConfig } from "./config.ts";
@@ -91,13 +92,46 @@ export async function publishBundles(
   return published;
 }
 
-export function renderPublished(published: readonly Published[], url: string): string {
-  return `${published
-    .map(
+/**
+ * The SDK maps in `invariant/sdks`, one JSON file per package, sent before
+ * any bundle: a release starts consumers' migrations, and a migration reads
+ * the map for the SDK the consumer uses.
+ */
+export async function publishSdks(
+  config: InvariantConfig,
+  client: Client,
+): Promise<string[]> {
+  const dir = join(config.invariantDir, "sdks");
+  const files = (await readdir(dir).catch(() => [] as string[]))
+    .filter((name) => name.endsWith(".json"))
+    .sort();
+  const sent: string[] = [];
+  for (const file of files) {
+    let map: SdkMap;
+    try {
+      map = JSON.parse(await readFile(join(dir, file), "utf8")) as SdkMap;
+    } catch (error) {
+      throw new ServiceError(
+        `${join(dir, file)} is not JSON: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    sent.push((await client.putSdk(map)).package);
+  }
+  return sent;
+}
+
+export function renderPublished(
+  published: readonly Published[],
+  url: string,
+  sdks: readonly string[] = [],
+): string {
+  return `${[
+    ...sdks.map((name) => `sdk map  ${name}`),
+    ...published.map(
       (p) =>
         `${p.created ? "published" : "already published"}  ${p.label}  ${p.digest.slice(0, 19)}…`,
-    )
-    .join("\n")}\n${url}\n`;
+    ),
+  ].join("\n")}\n${url}\n`;
 }
 
 /** What production is using, per contract, from the service's counters. */

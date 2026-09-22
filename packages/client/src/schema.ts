@@ -312,6 +312,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sdks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The SDK maps this API has, by package. */
+        get: operations["listSdks"];
+        /**
+         * Say how an SDK names what the contract describes.
+         * @description One map per package, replaced whole each time it is sent: which type
+         *     the SDK exports for each schema, which accessor calls each operation,
+         *     and the package that speaks the current contract. The migration
+         *     service reads it to find where a consumer's code touches what a
+         *     release changed. A consumer whose SDK has no map is told what changed
+         *     and gets no pull request.
+         */
+        put: operations["putSdk"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tokens": {
         parameters: {
             query?: never;
@@ -708,6 +734,50 @@ export interface components {
         MigrationPage: {
             migrations: components["schemas"]["Migration"][];
             next?: string;
+        };
+        /** @description How one SDK package names what the contract describes. */
+        SdkMap: {
+            /** @description The package consumers depend on today, as their manifest names it. */
+            package: string;
+            /** @description The package that speaks the current contract, and what it calls each schema where that differs. */
+            upgradeTo: {
+                package: string;
+                version: string;
+                types?: {
+                    [key: string]: string;
+                };
+            };
+            /** @description Schema name in the contract to the type the SDK exports for it. */
+            types: {
+                [key: string]: string;
+            };
+            /** @description Where a consumer names the contract it speaks, as an `apiVersion` option. */
+            pin?: {
+                type: string;
+                property: string;
+                label: string;
+            };
+            /** @description The SDK method that calls each operation, keyed `method path`. */
+            operations?: {
+                [key: string]: {
+                    type: string;
+                    method: string;
+                };
+            };
+            /** @description Resource accessor paths that moved, `charges.create` to `payments.create`. */
+            accessors: {
+                from: string[];
+                to: string[];
+            }[];
+            /** @description Exact conversion helpers, so no float arithmetic is written into a consumer's code. */
+            helpers?: {
+                toMinor: string;
+                fromMinor: string;
+                from?: string;
+                emit?: {
+                    path: string;
+                };
+            };
         };
         Token: {
             id: string;
@@ -1408,6 +1478,66 @@ export interface operations {
             400: components["responses"]["Malformed"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    listSdks: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The contract of this API the client was written against. */
+                "Invariant-Version"?: components["parameters"]["InvariantVersion"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every map. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sdks: components["schemas"]["SdkMap"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["RateLimited"];
+        };
+    };
+    putSdk: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The contract of this API the client was written against. */
+                "Invariant-Version"?: components["parameters"]["InvariantVersion"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SdkMap"];
+            };
+        };
+        responses: {
+            /** @description Stored, replacing any map this package had. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SdkMap"];
+                };
+            };
+            400: components["responses"]["Malformed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["TooLarge"];
             429: components["responses"]["RateLimited"];
         };
     };

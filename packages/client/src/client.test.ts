@@ -92,6 +92,15 @@ const CALLS: Record<string, (client: ControlPlaneClient) => Promise<unknown>> = 
   createLink: (c) => c.createLink(CONSUMER, { expiresInDays: 7 }),
   listIntegrations: (c) => c.listIntegrations(),
   listMigrations: (c) => c.listMigrations({ status: "opened" }),
+  putSdk: (c) =>
+    c.putSdk({
+      package: "@acme/sdk",
+      upgradeTo: { package: "@acme/sdk", version: "3.0.0" },
+      types: { Payment: "Payment" },
+      accessors: [{ from: ["charges"], to: ["payments"] }],
+      helpers: { toMinor: "toMinorUnits", fromMinor: "fromMinorUnits" },
+    }),
+  listSdks: (c) => c.listSdks(),
   listTokens: (c) => c.listTokens(),
   createToken: (c) => c.createToken({ name: "ci", scopes: ["publish", "read"] }),
   revokeToken: (c) => c.revokeToken("tok_abcdefgh1234"),

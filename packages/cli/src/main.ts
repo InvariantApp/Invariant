@@ -24,6 +24,7 @@ import { upsertReviewComment } from "./review.ts";
 import {
   clientFromEnv,
   publishBundles,
+  publishSdks,
   renderPublished,
   renderStatus,
   ServiceError,
@@ -44,8 +45,9 @@ const USAGE = `invariant <command>
   verify    Open a published bundle and check who signed it. With --rebuild,
             also rebuild it from the commit it names and compare.
   publish [label]
-            Send the signed releases in invariant/bundles to the service.
-            Safe to run again: a release it already has is not sent twice.
+            Send the SDK maps in invariant/sdks and the signed releases in
+            invariant/bundles to the service. Safe to run again: a release
+            it already has is not sent twice.
   status    What production is using: each contract, and who is still on it.
   retire    Say which old contracts nobody is using any more.
   doctor    Check the toolchain, the configuration, every contract, and that
@@ -251,12 +253,13 @@ async function main(argv: string[]): Promise<number> {
     try {
       const { client, url } = clientFromEnv(process.env);
       if (command === "publish") {
+        const sdks = await publishSdks(config, client);
         const published = await publishBundles(
           config,
           client,
           argv[1]?.startsWith("--") ? undefined : argv[1],
         );
-        process.stdout.write(renderPublished(published, url));
+        process.stdout.write(renderPublished(published, url, sdks));
       } else {
         const days = flag(argv, "days");
         process.stdout.write(
