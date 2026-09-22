@@ -6,9 +6,10 @@
  * would mean executing whatever its dependencies feel like running, which is
  * not a thing to do on someone else's behalf.
  */
+import { readdirSync, statSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { Node, Project, type SourceFile } from "ts-morph";
+import { Node, Project, type SourceFile, ts } from "ts-morph";
 import { applyEdits, type Edit, groupByFile } from "./edits.ts";
 import {
   type EditScope,
@@ -17,6 +18,7 @@ import {
   type ManualSite,
   runEngine,
 } from "./engine.ts";
+import { bumpPins } from "./pins.ts";
 import { buildPlan, type MigrationPlan, type SymbolMap } from "./plan.ts";
 
 export * from "./edits.ts";
@@ -45,7 +47,14 @@ export interface MigrateOptions {
    * are measured against what the consumer will actually compile against.
    */
   regenerate?: readonly { path: string; source: string }[];
-  tsConfigFilePath: string;
+  /**
+   * The consumer's own project, or, where its configuration cannot be loaded
+   * (it extends a package nobody installed), the files to read and whatever
+   * they import. The files are read with defaults any TypeScript or
+   * JavaScript accepts.
+   */
+  tsConfigFilePath?: string;
+  sources?: readonly string[];
   plan: MigrationPlan;
   /** Write the result to disk. Off by default, so a dry run stays a dry run. */
   write?: boolean;
@@ -133,6 +142,8 @@ function renameTypes(
 function swapPackage(project: Project, plan: MigrationPlan, scope: EditScope): Edit[] {
   const { package: from, upgradeTo } = plan.symbols;
   const edits: Edit[] = [];
+  // The same package at a new version: the manifest moves, and no import does.
+  if (upgradeTo.package === from) return edits;
   for (const source of project.getSourceFiles()) {
     if (!editable(source, scope)) continue;
     for (const declaration of source.getImportDeclarations()) {
@@ -222,6 +233,51 @@ function addHelperImports(
   return edits;
 }
 
+function projectFor(options: MigrateOptions): Project {
+  if (options.tsConfigFilePath) {
+    return new Project({ tsConfigFilePath: options.tsConfigFilePath });
+  }
+  const project = new Project({
+    compilerOptions: {
+      allowJs: true,
+      checkJs: false,
+      esModuleInterop: true,
+      jsx: ts.JsxEmit.Preserve,
+      module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      noEmit: true,
+      skipLibCheck: true,
+      strict: true,
+      target: ts.ScriptTarget.ES2022,
+    },
+  });
+  // One at a time, not as globs: a glob skips any directory whose name starts
+  // with a dot, and a checkout under one would silently read nothing.
+  for (const path of options.sources ?? []) project.addSourceFileAtPath(path);
+  // What the files import, which is where a constant they pass may be declared.
+  project.resolveSourceFileDependencies();
+  // The contract's declarations, which a checkout usually reaches through
+  // node_modules, where a project never lists a file it resolves.
+  for (const entry of options.generated) {
+    for (const path of declarationFiles(entry)) project.addSourceFileAtPath(path);
+  }
+  return project;
+}
+
+/** Every declaration file at `entry`, a file or a directory, outside nested dependencies. */
+function declarationFiles(entry: string): string[] {
+  let stat: ReturnType<typeof statSync>;
+  try {
+    stat = statSync(entry);
+  } catch {
+    return [];
+  }
+  if (!stat.isDirectory()) return /\.d\.[cm]?ts$/.test(entry) ? [entry] : [];
+  return readdirSync(entry, { withFileTypes: true }).flatMap((child) =>
+    child.name === "node_modules" ? [] : declarationFiles(join(entry, child.name)),
+  );
+}
+
 function diagnosticsOf(project: Project): string[] {
   return project.getPreEmitDiagnostics().map((diagnostic) => {
     const file = diagnostic.getSourceFile()?.getFilePath() ?? "(unknown)";
@@ -254,7 +310,7 @@ function relocateManualSites(manual: ManualSite[], edits: readonly Edit[]): void
 }
 
 export async function migrate(options: MigrateOptions): Promise<MigrationResult> {
-  const project = new Project({ tsConfigFilePath: options.tsConfigFilePath });
+  const project = projectFor(options);
   const diagnosticsBefore = diagnosticsOf(project);
 
   // First pass: everything that follows from the Changes themselves.
@@ -265,6 +321,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
   const result = runEngine(project, options.plan, scope);
   renameAccessors(project, options.plan, scope, result);
   renameTypes(project, options.plan, scope, result);
+  bumpPins(project, options.plan.symbols, scope, result);
 
   const files = new Map<string, string>();
   for (const [file, edits] of groupByFile(result.edits)) {

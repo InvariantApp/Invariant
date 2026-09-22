@@ -76,7 +76,7 @@ function roleOf(node: Node): Role {
   return "unknown";
 }
 
-function manualFrom(node: Node, changeId: string, reason: string): ManualSite {
+export function manualFrom(node: Node, changeId: string, reason: string): ManualSite {
   const source = node.getSourceFile();
   const { line, column } = source.getLineAndColumnAtPos(node.getStart());
   return {
@@ -596,13 +596,27 @@ export function editable(node: Node, scope: EditScope): boolean {
  * A dotted name in the symbol map is that path. A bare one is a top-level
  * declaration, which is what every existing map already contains.
  */
-function membersOf(
+export function membersOf(
   project: Project,
   path: string,
   scope: EditScope,
 ): TypeElementTypes[] | undefined {
   const [head, ...rest] = path.split(".");
   if (head === undefined) return undefined;
+
+  // A name qualified by the namespaces it is declared in, as stripe-node's
+  // `Stripe.StripeConfig` inside `declare module "stripe"`, before a path
+  // through members.
+  if (rest.length > 0) {
+    for (const source of project.getSourceFiles()) {
+      if (!isGenerated(source.getFilePath(), scope)) continue;
+      for (const declaration of source.getDescendantsOfKind(
+        SyntaxKind.InterfaceDeclaration,
+      )) {
+        if (qualifiedName(declaration) === path) return declaration.getMembers();
+      }
+    }
+  }
 
   for (const source of project.getSourceFiles()) {
     if (!isGenerated(source.getFilePath(), scope)) continue;
@@ -624,6 +638,21 @@ function membersOf(
     return members;
   }
   return undefined;
+}
+
+/**
+ * A declaration's name with the namespaces around it, leaving out an ambient
+ * module's quoted name, which is the package and not part of the type's name.
+ */
+function qualifiedName(declaration: Node & { getName(): string }): string {
+  const names = [declaration.getName()];
+  for (const ancestor of declaration.getAncestors()) {
+    if (!Node.isModuleDeclaration(ancestor)) continue;
+    const name = ancestor.getName();
+    if (/^["']/.test(name)) continue;
+    names.unshift(name);
+  }
+  return names.join(".");
 }
 
 function literalMembers(node: Node | undefined): TypeElementTypes[] {

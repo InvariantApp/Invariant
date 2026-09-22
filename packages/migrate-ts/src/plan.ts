@@ -16,6 +16,12 @@ export interface SymbolMap {
   upgradeTo: { package: string; version: string };
   /** Schema name in the consumer's contract to the type the SDK exports for it. */
   types: Record<string, string>;
+  /**
+   * Where the consumer names the contract it speaks, as stripe-node's
+   * `apiVersion`: the options type that declares it, qualified by its
+   * namespaces, the property, and the label the upgraded package speaks.
+   */
+  pin?: { type: string; property: string; label: string };
   /** Resource accessor paths that moved, for example charges.create to payments.create. */
   accessors: { from: string[]; to: string[] }[];
   /**

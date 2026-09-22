@@ -11,10 +11,12 @@
       "!**/dist",
       "!**/*.tsbuildinfo",
       "!fixtures/consumer-b-types-v2/src/acme-types.ts",
+      "!fixtures/consumer-pinned/src/clients.ts",
       "!conformance/vectors.json",
       "!proving/**/results*.json",
       "!proving/corpus/manifest.json",
       "!proving/replay/index.json",
+      "!proving/replay/sites.json",
       "!packages/action/bundle",
       "!packages/client/src/schema.ts"
     ]

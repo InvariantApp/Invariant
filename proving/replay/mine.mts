@@ -33,6 +33,16 @@ interface Target {
   titles: string[];
 }
 
+/** An SDK bumped the usual ways: by Dependabot, or by Renovate. */
+const sdk = (name: string, ecosystem: Ecosystem): Target => ({
+  package: name,
+  ecosystems: [ecosystem],
+  titles: [
+    `Bump ${name} from`,
+    ecosystem === "go" ? `update module ${name}` : `update dependency ${name} to`,
+  ],
+});
+
 /** SDKs of the APIs the corpus measures, in the languages the engine supports. */
 const TARGETS: Target[] = [
   {
@@ -77,6 +87,38 @@ const TARGETS: Target[] = [
     ],
   },
   {
+    // The corpus measures OpenAI's API, and its SDKs' 1.0 made every caller
+    // rewrite: the largest body of human migrations of any API here.
+    package: "openai",
+    ecosystems: ["npm", "pypi"],
+    titles: ["Bump openai from", "update dependency openai to"],
+  },
+  {
+    package: "@slack/web-api",
+    ecosystems: ["npm"],
+    titles: ["Bump @slack/web-api from", "update dependency @slack/web-api to"],
+  },
+  {
+    package: "slack-sdk",
+    ecosystems: ["pypi"],
+    titles: ["Bump slack-sdk from", "update dependency slack-sdk to"],
+  },
+  {
+    package: "PyGithub",
+    ecosystems: ["pypi"],
+    titles: ["Bump pygithub from", "update dependency pygithub to"],
+  },
+  {
+    package: "kubernetes",
+    ecosystems: ["pypi"],
+    titles: ["Bump kubernetes from", "update dependency kubernetes to"],
+  },
+  {
+    package: "docker",
+    ecosystems: ["pypi"],
+    titles: ["Bump docker from", "update dependency docker to"],
+  },
+  {
     package: "@shopify/shopify-api",
     ecosystems: ["npm"],
     titles: [
@@ -84,6 +126,53 @@ const TARGETS: Target[] = [
       "update dependency @shopify/shopify-api to",
     ],
   },
+  // The rest of the corpus's providers, each in whichever languages it ships.
+  ...[
+    "Adyen",
+    "asana",
+    "boxsdk",
+    "datadog-api-client",
+    "elasticsearch",
+    "langfuse",
+    "meilisearch",
+    "mistralai",
+    "okta",
+    "pdpyras",
+    "qdrant-client",
+    "resend",
+    "spotipy",
+    "supabase",
+    "xero-python",
+  ].map((name) => sdk(name, "pypi")),
+  ...[
+    "@adyen/api-library",
+    "asana",
+    "box-node-sdk",
+    "@datadog/datadog-api-client",
+    "@elastic/elasticsearch",
+    "langfuse",
+    "meilisearch",
+    "@mistralai/mistralai",
+    "@okta/okta-sdk-nodejs",
+    "@qdrant/js-client-rest",
+    "resend",
+    "@supabase/supabase-js",
+    "xero-node",
+    "intercom-client",
+    "@pagerduty/pdjs",
+  ].map((name) => sdk(name, "npm")),
+  ...[
+    "github.com/adyen/adyen-go-api-library",
+    "github.com/DataDog/datadog-api-client-go",
+    "code.gitea.io/sdk/gitea",
+    "github.com/slack-go/slack",
+    "github.com/elastic/go-elasticsearch",
+    "github.com/okta/okta-sdk-golang",
+    "github.com/meilisearch/meilisearch-go",
+    "github.com/PagerDuty/go-pagerduty",
+    "github.com/twilio/twilio-go",
+    "github.com/plaid/plaid-go",
+  ].map((name) => sdk(name, "go")),
 ];
 
 /** Licences under which a repository's history may be indexed and replayed. */
@@ -143,11 +232,15 @@ export function parseBump(
   const escaped = target.package.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
   const dependabot = new RegExp(
     `[Bb]ump ${escaped}(?:/v\\d+)? from v?([\\w.+-]+) to v?([\\w.+-]+)`,
+    // Package names are written in whatever case the ecosystem uses: PyPI's
+    // `PyGithub` appears as `pygithub` in Dependabot's titles.
+    "i",
   ).exec(title);
   if (dependabot) return { from: dependabot[1] as string, to: dependabot[2] as string };
   // Renovate names only the target: "Update dependency stripe to v14".
   const renovate = new RegExp(
     `[Uu]pdate (?:dependency|module) ${escaped}(?:/v(\\d+))? to v?([\\w.+-]+)`,
+    "i",
   ).exec(title);
   if (renovate) return { from: "", to: renovate[2] as string };
   return undefined;
@@ -266,6 +359,9 @@ async function mine(): Promise<void> {
   };
   const monthCount = Number(option("months") ?? 24);
   const limit = Number(option("limit") ?? 200);
+  // No one package may fill the index: go-github alone has hundreds of bumps a
+  // year, and left uncapped it crowded out every SDK in another language.
+  const perPackage = Number(option("per-package") ?? 60);
   const only = option("package");
   // Stops in time to write what it found, whatever else happens.
   const deadline = Date.now() + Number(option("minutes") ?? 40) * 60_000;
@@ -280,9 +376,11 @@ async function mine(): Promise<void> {
     search: for (const target of TARGETS.filter(
       (entry) => !only || entry.package === only,
     )) {
-      for (const window of months(monthCount)) {
+      let mine = index.cases.filter((entry) => entry.package === target.package).length;
+      windows: for (const window of months(monthCount)) {
         for (const phrase of target.titles) {
           if (added >= limit) break search;
+          if (mine >= perPackage) break windows;
           if (Date.now() > deadline) {
             stopped = "out of time";
             break search;
@@ -345,6 +443,7 @@ async function mine(): Promise<void> {
             });
             known.add(id);
             added += 1;
+            mine += 1;
             process.stdout.write(
               `${id} ${target.package} ${bump.from} -> ${bump.to} (${kind.sources.length} files)\n`,
             );

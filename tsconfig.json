@@ -11,6 +11,7 @@
     "packages/*/src/**/*.ts",
     "apps/*/src/**/*.ts",
     "fixtures/*/src/**/*.ts",
+    "fixtures/*/sdk/**/*.d.ts",
     "e2e/**/*.ts",
     "*.config.ts",
     "tsdown.shared.ts",
