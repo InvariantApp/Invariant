@@ -663,18 +663,28 @@ function render(
   // The same, counted once per place, which is how the gate is judged: one
   // enum value added to a schema Stripe returns from two hundred operations
   // is one place, not two hundred entries.
-  const byPlace = new Map<string, { places: number; pairs: number }>();
-  for (const result of all) {
-    for (const [kind, count] of Object.entries(result.unexplainedPlaceKinds ?? {})) {
-      const entry = byPlace.get(kind) ?? { places: 0, pairs: 0 };
-      entry.places += count;
-      entry.pairs += 1;
-      byPlace.set(kind, entry);
-    }
-  }
-  if (byPlace.size > 0) {
-    lines.push(
+  for (const [field, heading] of [
+    [
+      "unexplainedPlaceKinds",
       "Counted once per place, which is how the launch gate is judged:",
+    ],
+    [
+      "unexplainedDecidedPlaceKinds",
+      "Left once every decision is answered, counted once per place:",
+    ],
+  ] as const) {
+    const byPlace = new Map<string, { places: number; pairs: number }>();
+    for (const result of all) {
+      for (const [kind, count] of Object.entries(result[field] ?? {})) {
+        const entry = byPlace.get(kind) ?? { places: 0, pairs: 0 };
+        entry.places += count;
+        entry.pairs += 1;
+        byPlace.set(kind, entry);
+      }
+    }
+    if (byPlace.size === 0) continue;
+    lines.push(
+      heading,
       "",
       "| Unexplained | Places | Pairs | Class |",
       "|---|---|---|---|",

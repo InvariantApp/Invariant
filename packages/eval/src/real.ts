@@ -153,6 +153,8 @@ export interface PairResult {
   };
   /** The places left unexplained, by check id, so the largest are seen. */
   unexplainedPlaceKinds?: Record<string, number>;
+  /** The same, once every decision is answered: what L4 is measured on. */
+  unexplainedDecidedPlaceKinds?: Record<string, number>;
 }
 
 function tally(entries: readonly DiffEntry[]): Record<string, number> {
@@ -489,6 +491,7 @@ export async function analysePair(
       ...closed,
       breakingAfterDecided: closed.breakingAfter,
       unexplainedDecidedKinds: closed.unexplainedKinds,
+      unexplainedDecidedPlaceKinds: placeKinds(residual.value),
       residualExamples: examplesOf(residual.value),
       ...(options.keepResidual ? { residualDecided: residual.value } : {}),
       places: {
@@ -524,6 +527,7 @@ export async function analysePair(
           ...closed,
           breakingAfterDecided: decided.value.length,
           unexplainedDecidedKinds: tally(decided.value),
+          unexplainedDecidedPlaceKinds: placeKinds(decided.value),
           residualExamples: examplesOf(decided.value),
           ...(options.keepResidual ? { residualDecided: decided.value } : {}),
           places: {
