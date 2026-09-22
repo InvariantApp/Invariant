@@ -494,6 +494,15 @@ function shapeDiffers(a: FieldShape, b: FieldShape): boolean {
   return JSON.stringify(a.bounds ?? {}) !== JSON.stringify(b.bounds ?? {});
 }
 
+/** Whether a schema is a choice between two or more others. */
+function isUnion(document: OpenApiDocument, schema: JsonValue): boolean {
+  const resolved = resolvedObject(document, schema);
+  return ["oneOf", "anyOf"].some((keyword) => {
+    const branches = resolved[keyword];
+    return Array.isArray(branches) && branches.filter((b) => !isNullBranch(b)).length > 1;
+  });
+}
+
 /**
  * Whether what a schema lost went into the variants it became a choice
  * between. Datadog's `TopologyMapWidgetDefinition` became a `oneOf` of a
@@ -523,6 +532,29 @@ function movedIntoVariants(
     ),
   );
   return removed.every((field) => held.has(field.pointer));
+}
+
+/**
+ * Whether a body that named a schema now names a different one that the new
+ * contract also has under the old name. A name that is gone is a rename, and
+ * is matched by where it is used; one that stayed is another schema, and what
+ * this operation returns changed.
+ */
+function pointedElsewhere(
+  document: OpenApiDocument,
+  before: JsonObject,
+  after: JsonValue,
+  newSchemas: Record<string, JsonValue>,
+): boolean {
+  // A body that became a choice between schemas is not one schema to compare
+  // this one with; what it holds now is the variants' to say.
+  if (isUnion(document, after)) return false;
+  const was = schemaName(before["$ref"] as string);
+  const now =
+    isJsonObject(after) && typeof after["$ref"] === "string"
+      ? schemaName(after["$ref"])
+      : undefined;
+  return was !== undefined && now !== undefined && now !== was && was in newSchemas;
 }
 
 /**
@@ -1030,9 +1062,19 @@ export function schemaDeltas(
       ]),
     );
     for (const { status, schema } of responseSchemas(oldContract, operation.operation)) {
-      if (!isJsonObject(schema) || typeof schema["$ref"] === "string") continue;
+      if (!isJsonObject(schema)) continue;
       const next = after.get(status);
       if (next === undefined) continue;
+      // A response that names a schema is compared under that name, unless
+      // this operation now names another one: Plaid pointed three consent
+      // operations at `FDXError` while `PlaidError` stayed for everything
+      // else, so nothing compared the two.
+      if (
+        typeof schema["$ref"] === "string" &&
+        !pointedElsewhere(newContract, schema, next, newSchemas)
+      ) {
+        continue;
+      }
       const compared = compareReading(
         newContract,
         newSchemas,

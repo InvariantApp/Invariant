@@ -531,8 +531,11 @@ export const ParameterScope = Type.Object(
  * in place rather than named: PayPal's error responses are an `allOf` written
  * into each operation, and a field changed there has no schema to scope a
  * Change to. `response` is the status key as the old contract writes it,
- * `"400"`, `"4XX"` or `"default"`. A body that is a named schema is changed
- * with a schema scope, which reaches every place that schema is used.
+ * `"400"`, `"4XX"` or `"default"`. A body that is a named schema is usually
+ * changed with a schema scope, which reaches every place that schema is used;
+ * scoped here it changes this operation's response alone, which is what
+ * serves an operation pointed at another schema while the rest of the API
+ * keeps the one they shared.
  */
 export const ResponseScope = Type.Object(
   {

@@ -159,6 +159,12 @@ A scope names a schema in the **old** contract. The compiler finds every place
 that schema reaches the wire by walking `$ref` usage, so one statement covers a
 create body, a retrieve response and every element of a list envelope.
 
+A Change may instead be scoped to one operation's request parameters or to one
+operation's response at one status. That is what a body written in place needs,
+since it has no name, and what an operation whose response now names a
+different schema needs, since the schema the rest of the API shares did not
+change.
+
 Pointers are JSON Pointer with two additions: a `*` segment matches every
 element of an array, and a `{}` segment matches every value of an object used
 as a map (`additionalProperties`). Nothing else. A pointer naming `__proto__`, `constructor`

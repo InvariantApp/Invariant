@@ -141,8 +141,9 @@ describe("a Change to a response body written in place", () => {
     ).toBe(answer);
   });
 
-  it("is refused where the body is a named schema, which a schema scope reaches", () => {
-    // The same API with the summary's body named rather than written in place.
+  it("changes this operation's response alone where the body is a named schema", () => {
+    // Plaid pointed three consent operations at another error schema and left
+    // the rest of the API on the one they had shared.
     const named = orders("note");
     const summary = pick(
       named,
@@ -157,8 +158,34 @@ describe("a Change to a response body written in place", () => {
     named["components"] = { schemas: { Summary: summary["schema"] } } as never;
     summary["schema"] = { $ref: "#/components/schemas/Summary" };
     const prediction = predictDocument(named, orders("memo"), [RENAME]);
-    expect(prediction.issues.map((issue) => issue.message).join()).toContain(
-      "a Change to it is scoped to that schema",
-    );
+    expect(prediction.issues).toEqual([]);
+    // The shared schema itself is left as it was, for everything else using it.
+    expect(
+      Object.keys(
+        pick(
+          prediction.document,
+          "components",
+          "schemas",
+          "Summary",
+          "properties",
+        ) as object,
+      ),
+    ).toContain("note");
+    expect(
+      Object.keys(
+        pick(
+          prediction.document,
+          "paths",
+          "/orders/{id}/summary",
+          "get",
+          "responses",
+          "200",
+          "content",
+          "application/json",
+          "schema",
+          "properties",
+        ) as object,
+      ),
+    ).toContain("memo");
   });
 });

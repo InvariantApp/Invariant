@@ -77,10 +77,18 @@ function ownBody(
   const schema = media?.["schema"];
   if (!isJsonObject(schema))
     throw new SchemaOpError(`the ${status} response has no JSON body`);
+  // A body that names a schema gets its own copy too, so a Change scoped to
+  // this response alone leaves every other operation the schema serves as it
+  // is: Plaid pointed three consent operations at another error schema and
+  // left the rest on the one they shared.
   if (typeof schema["$ref"] === "string") {
-    throw new SchemaOpError(
-      `the ${status} response's body is ${schema["$ref"]}; a Change to it is scoped to that schema`,
-    );
+    const target = resolveRef(document, schema["$ref"]);
+    if (!isJsonObject(target)) {
+      throw new SchemaOpError(`the ${status} response's body is not a schema`);
+    }
+    const own = JSON.parse(JSON.stringify(target)) as JsonObject;
+    (media as JsonObject)["schema"] = own;
+    return own;
   }
   return schema;
 }

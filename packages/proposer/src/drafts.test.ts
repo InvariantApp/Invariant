@@ -46,6 +46,13 @@ function contract(
   } as unknown as OpenApiDocument;
 }
 
+/** The object at a path in a document, for tests that rewrite one place in it. */
+function pathAt(document: unknown, path: string[]): Record<string, unknown> {
+  let at = document as Record<string, unknown>;
+  for (const segment of path) at = at[segment] as Record<string, unknown>;
+  return at;
+}
+
 const object = (properties: Record<string, Schema>, required: string[] = []): Schema => ({
   type: "object",
   properties,
@@ -527,6 +534,85 @@ describe("objects written in place that became references", () => {
         toward: "new",
       },
     ]);
+  });
+});
+
+describe("a response that now names a different schema", () => {
+  // Plaid pointed three consent operations at `FDXError` and left the rest of
+  // the API on the `PlaidError` they had all shared.
+  const error = (values: string[]) =>
+    object({ error_type: { type: "string", enum: values } }, ["error_type"]);
+  const withError = (name: string) =>
+    ({
+      openapi: "3.0.3",
+      info: { title: "t", version: "1" },
+      paths: {
+        "/consents": {
+          get: {
+            operationId: "listConsents",
+            responses: {
+              default: {
+                description: "error",
+                content: {
+                  "application/json": {
+                    schema: { $ref: `#/components/schemas/${name}` },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          PlaidError: error(["API_ERROR", "ITEM_ERROR"]),
+          FdxError: error(["ITEM_ERROR"]),
+        },
+      },
+    }) as unknown as OpenApiDocument;
+
+  it("is compared with the one it now names, scoped to that response", async () => {
+    const outcome = await propose(withError("PlaidError"), withError("FdxError"), {
+      judge: new RulesJudge(),
+    });
+    const change = outcome.proposals.find((proposal) =>
+      proposal.change.id.includes("error_type"),
+    );
+    expect(change?.change.scopes).toEqual([
+      { operation: "listConsents", response: "default" },
+    ]);
+    expect(change?.change.ops).toEqual([
+      { op: "relax", path: "/error_type", set: { enum: ["ITEM_ERROR"] } },
+    ]);
+  });
+
+  it("is left to the variants where it became a choice between schemas", async () => {
+    const asChoice = (document: OpenApiDocument) => {
+      const copy = JSON.parse(JSON.stringify(document)) as Record<string, never>;
+      const media = pathAt(copy, [
+        "paths",
+        "/consents",
+        "get",
+        "responses",
+        "default",
+        "content",
+        "application/json",
+      ]);
+      media["schema"] = {
+        oneOf: [
+          { $ref: "#/components/schemas/PlaidError" },
+          { $ref: "#/components/schemas/FdxError" },
+        ],
+      };
+      return copy as unknown as OpenApiDocument;
+    };
+    const outcome = await propose(
+      withError("PlaidError"),
+      asChoice(withError("PlaidError")),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.proposals).toEqual([]);
+    expect(outcome.decisions).toEqual([]);
   });
 });
 

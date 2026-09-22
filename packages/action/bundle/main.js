@@ -3370,8 +3370,11 @@ const ParameterScope = Type$1.Object({
 * in place rather than named: PayPal's error responses are an `allOf` written
 * into each operation, and a field changed there has no schema to scope a
 * Change to. `response` is the status key as the old contract writes it,
-* `"400"`, `"4XX"` or `"default"`. A body that is a named schema is changed
-* with a schema scope, which reaches every place that schema is used.
+* `"400"`, `"4XX"` or `"default"`. A body that is a named schema is usually
+* changed with a schema scope, which reaches every place that schema is used;
+* scoped here it changes this operation's response alone, which is what
+* serves an operation pointed at another schema while the rest of the API
+* keeps the one they shared.
 */
 const ResponseScope = Type$1.Object({
 	operation: Type$1.String(),
@@ -21538,9 +21541,16 @@ function ownBody(document, operation, status) {
 	response = isJsonObject(declared) ? JSON.parse(JSON.stringify(declared)) : void 0;
 	if (response !== void 0) responses[status] = response;
 	const content = isJsonObject(response) ? response["content"] : void 0;
-	const schema = (isJsonObject(content) ? mediaOf(content) : void 0)?.["schema"];
+	const media = isJsonObject(content) ? mediaOf(content) : void 0;
+	const schema = media?.["schema"];
 	if (!isJsonObject(schema)) throw new SchemaOpError(`the ${status} response has no JSON body`);
-	if (typeof schema["$ref"] === "string") throw new SchemaOpError(`the ${status} response's body is ${schema["$ref"]}; a Change to it is scoped to that schema`);
+	if (typeof schema["$ref"] === "string") {
+		const target = resolveRef(document, schema["$ref"]);
+		if (!isJsonObject(target)) throw new SchemaOpError(`the ${status} response's body is not a schema`);
+		const own = JSON.parse(JSON.stringify(target));
+		media["schema"] = own;
+		return own;
+	}
 	return schema;
 }
 /**
