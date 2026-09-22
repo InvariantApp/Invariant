@@ -984,10 +984,29 @@ export function narrowOps(
 ): { ops: Op[]; notes: string[] } {
   const before = old.enumValues;
   const after = next.enumValues;
-  if (!sides.response || sides.request || !before?.length || !after?.length) {
+  if (!sides.response || sides.request || !after?.length || old.type !== next.type) {
     return { ops: [], notes: [] };
   }
-  if (old.type !== next.type || after.some((value) => !before.includes(value))) {
+  // A field that held any text and now names the values it holds, as PayPal's
+  // error `location` became `body`, `path` or `query`: every value it can send
+  // is one the old contract already allowed, so nothing is lost at all. The
+  // differ reports each named value as added, which is how one such field
+  // left hundreds of deltas unexplained.
+  if (
+    before === undefined &&
+    old.type === "string" &&
+    !old.variants &&
+    !old.unlistedValues &&
+    !next.unlistedValues
+  ) {
+    return {
+      ops: [{ op: "relax", path: next.pointer, set: { enum: after } }],
+      notes: [
+        `\`${old.name}\` now names the values it holds (${after.map((value) => `\`${value}\``).join(", ")}), each of them text the old contract already allowed; nothing an old caller is sent changes`,
+      ],
+    };
+  }
+  if (!before?.length || after.some((value) => !before.includes(value))) {
     return { ops: [], notes: [] };
   }
   const gone = before.filter((value) => !after.includes(value));

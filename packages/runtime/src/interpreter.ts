@@ -261,8 +261,9 @@ function applyScale(
   root: Json,
   instr: Extract<CompiledInstr, { k: "scale" }>,
   limits: ExecuteLimits,
+  here: Here | undefined,
 ): number {
-  const slots = resolveSlots(root, instr.path, limits.maxMatches);
+  const slots = slotsAt(root, instr.path, limits, here);
   let scaled = 0;
 
   for (const slot of slots) {
@@ -299,10 +300,11 @@ function applyEnum(
   root: Json,
   instr: Extract<CompiledInstr, { k: "enum" }>,
   limits: ExecuteLimits,
+  here: Here | undefined,
   folded: Set<string>,
 ): number {
   const folds = instr.folded === undefined ? undefined : new Set(instr.folded);
-  const slots = resolveSlots(root, instr.path, limits.maxMatches);
+  const slots = slotsAt(root, instr.path, limits, here);
   let mapped = 0;
 
   for (const slot of slots) {
@@ -384,11 +386,12 @@ function applyEach(
   root: Json,
   instr: Extract<CompiledInstr, { k: "time" | "case" | "wrap" | "unwrap" }>,
   limits: ExecuteLimits,
+  here: Here | undefined,
   convert: (value: unknown) => unknown,
 ): number {
   let done = 0;
   const removals: Slot[] = [];
-  for (const slot of resolveSlots(root, instr.path, limits.maxMatches)) {
+  for (const slot of slotsAt(root, instr.path, limits, here)) {
     const value = readSlot(slot);
     if (value === null) continue;
     let converted: unknown;
@@ -426,8 +429,9 @@ function applyCast(
   root: Json,
   instr: Extract<CompiledInstr, { k: "cast" }>,
   limits: ExecuteLimits,
+  here: Here | undefined,
 ): number {
-  const slots = resolveSlots(root, instr.path, limits.maxMatches);
+  const slots = slotsAt(root, instr.path, limits, here);
   let cast = 0;
 
   for (const slot of slots) {
@@ -566,6 +570,26 @@ interface Here {
   removals: Slot[];
 }
 
+/**
+ * The places an instruction's path names. An empty path names the value a
+ * `within` descended to, which a value such as a nullable enum can be: the
+ * instruction rewrites it where it is held.
+ */
+function slotsAt(
+  root: Json,
+  path: Segments,
+  limits: ExecuteLimits,
+  here: Here | undefined,
+): Slot[] {
+  if (path.length === 0) return here ? [here.slot] : [];
+  return resolveSlots(root, path, limits.maxMatches);
+}
+
+/** The value a block runs on, as it reads now, after what earlier instructions wrote. */
+function current(root: Json, here: Here | undefined): unknown {
+  return here ? readSlot(here.slot) : root;
+}
+
 function hereFor(instr: CompiledInstr, here: Here | undefined): Here {
   if (!here) {
     throw new TransformError(instr.c, "An instruction cannot replace a whole body");
@@ -608,19 +632,19 @@ function step(
       countApplied(result, instr.c, applyMove(root, instr, limits));
       break;
     case "scale":
-      countApplied(result, instr.c, applyScale(root, instr, limits));
+      countApplied(result, instr.c, applyScale(root, instr, limits, here));
       break;
     case "enum":
-      countApplied(result, instr.c, applyEnum(root, instr, limits, result.folded));
+      countApplied(result, instr.c, applyEnum(root, instr, limits, here, result.folded));
       break;
     case "cast":
-      countApplied(result, instr.c, applyCast(root, instr, limits));
+      countApplied(result, instr.c, applyCast(root, instr, limits, here));
       break;
     case "time":
       countApplied(
         result,
         instr.c,
-        applyEach(root, instr, limits, (value) =>
+        applyEach(root, instr, limits, here, (value) =>
           convertTime(value, instr.from, instr.to, instr.truncate === true),
         ),
       );
@@ -629,7 +653,7 @@ function step(
       countApplied(
         result,
         instr.c,
-        applyEach(root, instr, limits, (value) =>
+        applyEach(root, instr, limits, here, (value) =>
           convertCase(value, instr.from, instr.to),
         ),
       );
@@ -638,14 +662,16 @@ function step(
       countApplied(
         result,
         instr.c,
-        applyEach(root, instr, limits, (value) => [value]),
+        applyEach(root, instr, limits, here, (value) => [value]),
       );
       break;
     case "unwrap":
       countApplied(
         result,
         instr.c,
-        applyEach(root, instr, limits, (value) => unwrapped(value, instr.first === true)),
+        applyEach(root, instr, limits, here, (value) =>
+          unwrapped(value, instr.first === true),
+        ),
       );
       break;
     case "set":
@@ -668,16 +694,18 @@ function step(
     case "within": {
       // The block runs at each match, reading its pointers from there.
       if (instr.path.length === 0) {
-        if (typeof root === "object" && root !== null && !JSON.isRawJSON(root)) {
+        if (
+          here ||
+          (typeof root === "object" && root !== null && !JSON.isRawJSON(root))
+        ) {
           run(root, instr.block);
         }
         break;
       }
       const removals: Slot[] = [];
       for (const slot of resolveSlots(root, instr.path, limits.maxMatches)) {
-        const node = readSlot(slot);
-        if (typeof node !== "object" || node === null || JSON.isRawJSON(node)) continue;
-        run(node as Json, instr.block, calls, { slot, removals });
+        // A scalar too: the block's empty paths name it, and rewrite it in place.
+        run(readSlot(slot) as Json, instr.block, calls, { slot, removals });
       }
       // Back to front, so removing one list item never moves the next.
       for (const slot of removals.reverse()) deleteSlot(slot);
@@ -686,7 +714,9 @@ function step(
     case "switch": {
       // Read once, before anything in the chosen block can change it.
       const value =
-        instr.path.length === 0 ? root : readOne(root, instr.path, limits.maxMatches);
+        instr.path.length === 0
+          ? current(root, here)
+          : readOne(root, instr.path, limits.maxMatches);
       const key =
         typeof value === "string"
           ? value
@@ -707,7 +737,9 @@ function step(
     }
     case "is": {
       const value =
-        instr.path.length === 0 ? root : readOne(root, instr.path, limits.maxMatches);
+        instr.path.length === 0
+          ? current(root, here)
+          : readOne(root, instr.path, limits.maxMatches);
       if (value !== undefined && kindOf(value) === instr.type) run(root, instr.block);
       break;
     }

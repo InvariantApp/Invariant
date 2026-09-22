@@ -407,6 +407,34 @@ export const CONFORMANCE_VECTORS: Vector[] = [
     expect: { output: { data: [{ b: 1 }, { b: 2 }, "not an object"] } },
   },
   {
+    name: "within reaches a value that is not an object, and an empty path rewrites it",
+    why:
+      "A named vocabulary held where null is allowed too, as `anyOf: [Method, null]`, is " +
+      "reached by a within guarded on its type. Skipping a scalar there would leave " +
+      "every nullable use of the vocabulary unconverted while the plain uses are.",
+    instrs: [
+      {
+        k: "within",
+        path: "/methods/*",
+        block: [
+          {
+            k: "is",
+            path: "",
+            type: "string",
+            block: [
+              { k: "case", path: "", from: "screaming", to: "snake", c: C },
+              { k: "enum", path: "", map: { get: "fetch", post: "send" }, c: C },
+            ],
+            c: C,
+          },
+        ],
+        c: C,
+      },
+    ],
+    input: { methods: ["GET", null, "POST"] },
+    expect: { output: { methods: ["fetch", null, "send"] } },
+  },
+  {
     name: "switch runs only the block for the variant the key names",
     why:
       "A Change to one variant of a union must not touch the others, which may " +

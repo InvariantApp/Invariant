@@ -23,6 +23,47 @@ const base = (extra: Record<string, unknown>): OpenApiDocument =>
   }) as OpenApiDocument;
 
 describe("what providers publish", () => {
+  it("reads a union of constants as the enum it is (Qdrant)", () => {
+    const branch = (value: string) => ({
+      description: `The ${value} placement.`,
+      type: "string",
+      enum: [value],
+    });
+    const input = base({
+      components: {
+        schemas: {
+          Memory: {
+            description: "Memory placement.",
+            oneOf: [
+              branch("cold"),
+              branch("cached"),
+              { type: "string", const: "pinned" },
+            ],
+          },
+          // A union that means more than its values is left as it is.
+          Mixed: { oneOf: [branch("a"), { type: "integer", enum: [1] }] },
+          Shaped: { anyOf: [branch("a"), { type: "string", enum: ["b"], maxLength: 1 }] },
+          Discriminated: {
+            oneOf: [branch("a"), branch("b")],
+            discriminator: { propertyName: "kind" },
+          },
+        },
+      },
+    });
+    const document = normalizeDocument(input);
+    expect(pick(document, "components", "schemas", "Memory")).toEqual({
+      description: "Memory placement.",
+      type: "string",
+      enum: ["cold", "cached", "pinned"],
+    });
+    for (const name of ["Mixed", "Shaped", "Discriminated"]) {
+      expect(pick(document, "components", "schemas", name)).toEqual(
+        pick(input, "components", "schemas", name),
+      );
+    }
+    expect(pick(input, "components", "schemas", "Memory", "oneOf")).toHaveLength(3);
+  });
+
   it("follows a reference into a list by position, and a percent-encoded one (PagerDuty)", () => {
     const document = base({
       components: {

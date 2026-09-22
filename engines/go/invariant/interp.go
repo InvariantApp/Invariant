@@ -181,37 +181,37 @@ func (r *run) step(root any, instr *Instr, calls int, h *here) error {
 		r.count(instr.C, moved)
 		return err
 	case "scale":
-		n, err := r.scale(root, instr)
+		n, err := r.scale(root, instr, h)
 		r.count(instr.C, n)
 		return err
 	case "enum":
-		n, err := r.enum(root, instr)
+		n, err := r.enum(root, instr, h)
 		r.count(instr.C, n)
 		return err
 	case "cast":
-		n, err := r.each(root, instr, func(value any) (any, error) { return castValue(value, instr) }, false)
+		n, err := r.each(root, instr, h, func(value any) (any, error) { return castValue(value, instr) }, false)
 		r.count(instr.C, n)
 		return err
 	case "time":
-		n, err := r.each(root, instr, func(value any) (any, error) {
+		n, err := r.each(root, instr, h, func(value any) (any, error) {
 			return convertTime(value, instr.TimeFrom, instr.TimeTo, instr.Truncate)
 		}, true)
 		r.count(instr.C, n)
 		return err
 	case "case":
-		n, err := r.each(root, instr, func(value any) (any, error) {
+		n, err := r.each(root, instr, h, func(value any) (any, error) {
 			return convertCase(value, instr.CaseFrom, instr.CaseTo)
 		}, true)
 		r.count(instr.C, n)
 		return err
 	case "wrap":
-		n, err := r.each(root, instr, func(value any) (any, error) {
+		n, err := r.each(root, instr, h, func(value any) (any, error) {
 			return &Array{Items: []any{value}}, nil
 		}, true)
 		r.count(instr.C, n)
 		return err
 	case "unwrap":
-		n, err := r.each(root, instr, func(value any) (any, error) { return unwrapped(value, instr.First) }, true)
+		n, err := r.each(root, instr, h, func(value any) (any, error) { return unwrapped(value, instr.First) }, true)
 		r.count(instr.C, n)
 		return err
 	case "set":
@@ -242,7 +242,7 @@ func (r *run) step(root any, instr *Instr, calls int, h *here) error {
 		return err
 	case "within":
 		if len(instr.Path) == 0 {
-			if isContainer(root) {
+			if h != nil || isContainer(root) {
 				return r.block(root, instr.Block, calls, h)
 			}
 			return nil
@@ -253,10 +253,8 @@ func (r *run) step(root any, instr *Instr, calls int, h *here) error {
 		}
 		var removals []slot
 		for _, s := range slots {
+			// A scalar too: the block's empty paths name it, and rewrite it in place.
 			value, _ := readSlot(s)
-			if !isContainer(value) {
-				continue
-			}
 			if err := r.block(value, instr.Block, calls, &here{slot: s, removals: &removals}); err != nil {
 				return err
 			}
@@ -271,7 +269,7 @@ func (r *run) step(root any, instr *Instr, calls int, h *here) error {
 		var value any
 		var present bool
 		if len(instr.Path) == 0 {
-			value, present = root, true
+			value, present = current(root, h), true
 		} else {
 			var err error
 			value, present, err = readOne(root, instr.Path, r.limits.MaxMatches)
@@ -307,7 +305,7 @@ func (r *run) step(root any, instr *Instr, calls int, h *here) error {
 		var value any
 		var present bool
 		if len(instr.Path) == 0 {
-			value, present = root, true
+			value, present = current(root, h), true
 		} else {
 			var err error
 			value, present, err = readOne(root, instr.Path, r.limits.MaxMatches)
@@ -326,6 +324,29 @@ func (r *run) step(root any, instr *Instr, calls int, h *here) error {
 		return r.block(root, instr.Target.Instrs, calls+1, h)
 	}
 	return transformError(instr, "unknown instruction %s", instr.K)
+}
+
+// slotsAt is the places an instruction's path names. An empty path names the
+// value a within descended to, which a value such as a nullable enum can be:
+// the instruction rewrites it where it is held.
+func (r *run) slotsAt(root any, path []string, h *here) ([]slot, error) {
+	if len(path) == 0 {
+		if h == nil {
+			return nil, nil
+		}
+		return []slot{h.slot}, nil
+	}
+	return resolveSlots(root, path, r.limits.MaxMatches)
+}
+
+// current is the value a block runs on, as it reads now, after what earlier
+// instructions wrote.
+func current(root any, h *here) any {
+	if h == nil {
+		return root
+	}
+	value, _ := readSlot(h.slot)
+	return value
 }
 
 func readOne(root any, path []string, limit int) (any, bool, error) {
@@ -375,8 +396,8 @@ func (r *run) move(root any, instr *Instr) (int, error) {
 	return moved, nil
 }
 
-func (r *run) scale(root any, instr *Instr) (int, error) {
-	slots, err := resolveSlots(root, instr.Path, r.limits.MaxMatches)
+func (r *run) scale(root any, instr *Instr, h *here) (int, error) {
+	slots, err := r.slotsAt(root, instr.Path, h)
 	if err != nil {
 		return 0, err
 	}
@@ -404,8 +425,8 @@ func (r *run) scale(root any, instr *Instr) (int, error) {
 	return scaled, nil
 }
 
-func (r *run) enum(root any, instr *Instr) (int, error) {
-	slots, err := resolveSlots(root, instr.Path, r.limits.MaxMatches)
+func (r *run) enum(root any, instr *Instr, h *here) (int, error) {
+	slots, err := r.slotsAt(root, instr.Path, h)
 	if err != nil {
 		return 0, err
 	}
@@ -501,8 +522,8 @@ func unwrapped(value any, first bool) (any, error) {
 
 // each rewrites every value at the path, leaving null alone. Codec refusals
 // become transform errors naming the path.
-func (r *run) each(root any, instr *Instr, convert func(any) (any, error), codec bool) (int, error) {
-	slots, err := resolveSlots(root, instr.Path, r.limits.MaxMatches)
+func (r *run) each(root any, instr *Instr, h *here, convert func(any) (any, error), codec bool) (int, error) {
+	slots, err := r.slotsAt(root, instr.Path, h)
 	if err != nil {
 		return 0, err
 	}

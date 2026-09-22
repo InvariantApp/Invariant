@@ -358,9 +358,91 @@ function responsesFromRequestBodies(input: OpenApiDocument): OpenApiDocument {
   return document;
 }
 
+/** Keywords a branch of a union of constants may carry beside its one value. */
+const CONSTANT_BRANCH_KEYS = new Set(["type", "enum", "const", "description", "title"]);
+/** Keywords that may sit beside such a union without changing what it means. */
+const CONSTANT_UNION_SIBLINGS = new Set([
+  "oneOf",
+  "anyOf",
+  "description",
+  "title",
+  "default",
+  "example",
+  "examples",
+  "deprecated",
+  "readOnly",
+  "writeOnly",
+]);
+
+/**
+ * A union of constants, written as the enum it is.
+ *
+ * Generators document an enum's values by writing each as its own branch:
+ * Qdrant's `Memory` was `oneOf` three strings, `cold`, `cached` and `pinned`,
+ * each with a description, and the next release wrote the same three as one
+ * `enum`. The two mean the same thing, and the differ does not see it: it
+ * reported `cached` as a value added in every one of the 222 places the schema
+ * is used. Only unions whose every branch is one or more values of the same
+ * scalar type are taken, so nothing is rewritten that means anything else.
+ * The input is not changed; a copy is, and only when there is something to
+ * change.
+ */
+function constantUnionsAsEnums(input: OpenApiDocument): OpenApiDocument {
+  let changed = false;
+  const visit = (value: JsonValue): JsonValue => {
+    if (Array.isArray(value)) return value.map(visit);
+    if (!isJsonObject(value)) return value;
+    const out: JsonObject = {};
+    for (const [key, entry] of Object.entries(value)) out[key] = visit(entry);
+    for (const union of ["oneOf", "anyOf"]) {
+      const branches = out[union];
+      if (!Array.isArray(branches) || branches.length < 2) continue;
+      if (Object.keys(out).some((key) => !CONSTANT_UNION_SIBLINGS.has(key))) continue;
+      if (out["oneOf"] !== undefined && out["anyOf"] !== undefined) continue;
+      let type: JsonValue | undefined;
+      const values: JsonValue[] = [];
+      const constant = branches.every((branch) => {
+        if (!isJsonObject(branch)) return false;
+        if (Object.keys(branch).some((key) => !CONSTANT_BRANCH_KEYS.has(key)))
+          return false;
+        if (
+          !["string", "integer", "number", "boolean"].includes(branch["type"] as string)
+        ) {
+          return false;
+        }
+        if (type !== undefined && branch["type"] !== type) return false;
+        type = branch["type"];
+        const own = Array.isArray(branch["enum"])
+          ? branch["enum"]
+          : branch["const"] !== undefined
+            ? [branch["const"]]
+            : undefined;
+        if (!own || own.length === 0 || own.some((entry) => typeof entry === "object")) {
+          return false;
+        }
+        values.push(...own);
+        return true;
+      });
+      if (
+        !constant ||
+        new Set(values.map((entry) => JSON.stringify(entry))).size !== values.length
+      ) {
+        continue;
+      }
+      delete out[union];
+      out["type"] = type as JsonValue;
+      out["enum"] = values;
+      changed = true;
+    }
+    return out;
+  };
+  const rewritten = visit(input) as OpenApiDocument;
+  return changed ? rewritten : input;
+}
+
 export function normalizeDocument(input: OpenApiDocument): OpenApiDocument {
-  const document = responsesFromRequestBodies(
-    isSwagger2(input) ? upgradeSwagger(input) : input,
+  const document = constantUnionsAsEnums(
+    responsesFromRequestBodies(isSwagger2(input) ? upgradeSwagger(input) : input),
   );
   assertRefsResolve(document);
   assertSchemasWellFormed(document);

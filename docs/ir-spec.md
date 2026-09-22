@@ -229,7 +229,7 @@ given to it explicitly instead, and must refuse to start with neither.
 | `unwrap` | `path`, `first?` | take the one item out of a list; refuse any other length unless `first` |
 | `set` | `path`, `value`, `ifAbsent`, `ifNull?` | write a value; `ifAbsent` must not overwrite |
 | `del` | `path`, `ifNull?` | remove a field, or only a null one |
-| `within` | `path`, `block` | run the block at each match, its pointers read from there |
+| `within` | `path`, `block` | run the block at each match, its pointers read from there; a match need not be an object, and an empty path in the block names the match itself |
 | `switch` | `path`, `cases` | run the block for the value a key holds, read once on entry |
 | `has` | `path`, `block`, `absent?` | run the block where a field is present, or missing |
 | `is` | `path`, `type`, `block` | run the block where the value is of one JSON kind |

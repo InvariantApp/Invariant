@@ -856,8 +856,14 @@ describe("a vocabulary that grew on a response", () => {
       ["STRAIGHT", "ELBOWED", "CURVED"],
     );
     expect(outcome.unresolved).toEqual([]);
+    // Asked once, of the named schema, which answers for every use of it.
     expect(outcome.decisions).toEqual([
-      expect.objectContaining({ kind: "vocabulary", field: "line", gained: ["CURVED"] }),
+      expect.objectContaining({
+        kind: "vocabulary",
+        schema: "Line",
+        pointer: "",
+        gained: ["CURVED"],
+      }),
     ]);
   });
 
@@ -917,5 +923,46 @@ describe("a vocabulary that only lost values", () => {
     expect(outcome.unresolved.map((entry) => entry.reason).join()).toMatch(
       /`deleted` is no longer accepted/,
     );
+  });
+
+  it("is not read as any text where the old values were not text", async () => {
+    // Plaid's `AssetRetirementIndicator`: a string field whose old enum was
+    // `[true, false]`, now `Yes` or `No`. Both old values are gone.
+    const indicator = (values: unknown[]) => ({
+      ...base,
+      Thing: object(
+        { id: { type: "string" }, retired: { type: "string", enum: values } },
+        ["id"],
+      ),
+    });
+    const outcome = await propose(
+      contract(indicator([true, false])),
+      contract(indicator(["Yes", "No"])),
+      { judge: new RulesJudge() },
+    );
+    expect(
+      outcome.proposals.flatMap((proposal) => proposal.change.ops).map((op) => op.op),
+    ).not.toContain("relax");
+  });
+
+  it("is nothing lost where a field that held any text now names its values", async () => {
+    // PayPal's error `location` went from any string to body, path or query.
+    const location = (schema: Schema) => ({
+      ...base,
+      Thing: object({ id: { type: "string" }, location: schema }, ["id"]),
+    });
+    const outcome = await propose(
+      contract(location({ type: "string" })),
+      contract(location({ type: "string", enum: ["body", "path", "query"] })),
+      { judge: new RulesJudge() },
+    );
+    const draft = outcome.proposals.find((proposal) =>
+      proposal.change.ops.some((op) => op.op === "relax"),
+    );
+    expect(draft?.change.ops).toEqual([
+      { op: "relax", path: "/location", set: { enum: ["body", "path", "query"] } },
+    ]);
+    expect(draft?.notes.join()).toMatch(/text the old contract already allowed/);
+    expect(outcome.unresolved).toEqual([]);
   });
 });

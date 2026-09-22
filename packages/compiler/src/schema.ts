@@ -585,6 +585,20 @@ export function schemaConvert(
   codec: Codec,
 ): void {
   const segments = parsePointer(path);
+  if (segments.length === 0) {
+    // A scope that is itself a value, as a named enum is: its own values are
+    // what is re-encoded, in place, for every use of it.
+    if (codec.kind === "wrapArray") {
+      throw new SchemaOpError(
+        "Cannot wrap the scope itself in a list; wrap a field of it",
+      );
+    }
+    const own = ownRoot(document, root);
+    const converted = applyCodecToSchema(resolveSchema(document, own), codec);
+    for (const key of Object.keys(own)) delete own[key];
+    Object.assign(own, isJsonObject(converted) ? converted : {});
+    return;
+  }
   const slot = readSlot(document, root, segments);
   // A list of a named schema stays a list of that name, rather than of a copy.
   const converted =

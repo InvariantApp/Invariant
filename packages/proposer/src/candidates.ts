@@ -43,6 +43,12 @@ export interface FieldShape {
   readOnly?: boolean;
   /** For a union, the named schemas it can hold, as references. */
   variants?: string[];
+  /**
+   * The field holds only the values of an enum that `enumValues` does not
+   * list: a named schema's, compared under that name, or one whose values are
+   * not all text. Either way it is not a field that allows any value.
+   */
+  unlistedValues?: true;
   /** For a union, whether one of its branches is a plain string, as an id is. */
   idBranch?: boolean;
   /** The bounds the schema puts on the value, by keyword. */
@@ -171,7 +177,12 @@ function fieldsOf(
     // the rest out used to turn `[true, false]` into an empty vocabulary, which
     // then drafted a mapping with no pairs that no compiler could apply.
     const declaredEnum = value["enum"];
+    // A vocabulary that belongs to a named schema is compared as that schema,
+    // at its root, once for every place it is used; read again through each
+    // field that refers to it, one change was asked about twice.
+    const elsewhere = !inline(raw) && Array.isArray(declaredEnum);
     const enumValues =
+      !elsewhere &&
       Array.isArray(declaredEnum) &&
       (declaredEnum as JsonValue[]).every((v) => typeof v === "string")
         ? (declaredEnum as string[])
@@ -190,6 +201,9 @@ function fieldsOf(
       description:
         typeof value["description"] === "string" ? value["description"] : undefined,
       required: required.has(name),
+      ...(Array.isArray(declaredEnum) && enumValues === undefined
+        ? { unlistedValues: true }
+        : {}),
       // Each way a document can say it: 3.1's type list, 3.0's flag, or a
       // union with a null branch.
       nullable:
@@ -310,8 +324,14 @@ function compare(
       (field) => !pointers.some((other) => field.pointer.startsWith(`${other}/`)),
     );
   };
-  const removed = outermost(before.filter((field) => !afterAt.has(field.pointer)));
-  const added = outermost(after.filter((field) => !beforeAt.has(field.pointer)));
+  // A schema's own value is compared with itself or not at all: a named
+  // schema that became a scalar did not gain a field at its root.
+  const removed = outermost(
+    before.filter((field) => field.pointer !== "" && !afterAt.has(field.pointer)),
+  );
+  const added = outermost(
+    after.filter((field) => field.pointer !== "" && !beforeAt.has(field.pointer)),
+  );
   const altered = before
     .filter((field) => afterAt.has(field.pointer))
     .map((field) => ({ old: field, new: afterAt.get(field.pointer) as FieldShape }))
@@ -319,6 +339,51 @@ function compare(
   if (removed.length === 0 && added.length === 0 && altered.length === 0)
     return undefined;
   return { removed, added, altered };
+}
+
+/**
+ * A named schema's fields, and the schema's own value where it is a scalar
+ * with a vocabulary. Qdrant's `Memory` is a string enum used in a dozen
+ * places; it gained `cached`, and with only object properties compared that
+ * was never seen at all, so no decision was asked and every use of it stayed
+ * unexplained. The value itself is the field at the schema's root.
+ */
+function shapeOf(
+  document: OpenApiDocument,
+  schema: JsonValue,
+  name: string,
+): FieldShape[] {
+  const resolved = resolveSchema(document, schema);
+  if (!isJsonObject(resolved)) return [];
+  const declared = resolved["type"];
+  const types = Array.isArray(declared) ? declared : [declared];
+  const type = types.find((entry) => entry !== "null");
+  const values = resolved["enum"];
+  if (
+    (type === "string" || type === "integer" || type === "number") &&
+    Array.isArray(values) &&
+    values.every((value) => typeof value === "string" || value === null)
+  ) {
+    return [
+      {
+        name,
+        pointer: "",
+        type,
+        format: typeof resolved["format"] === "string" ? resolved["format"] : undefined,
+        enumValues: values.filter((value): value is string => typeof value === "string"),
+        description:
+          typeof resolved["description"] === "string"
+            ? resolved["description"]
+            : undefined,
+        required: true,
+        nullable:
+          types.includes("null") ||
+          resolved["nullable"] === true ||
+          values.includes(null),
+      },
+    ];
+  }
+  return fieldsOf(document, schema);
 }
 
 function shapeDiffers(a: FieldShape, b: FieldShape): boolean {
@@ -379,8 +444,8 @@ export function schemaDeltas(
     if (!counterpart) continue;
 
     const compared = compare(
-      fieldsOf(oldContract, oldSchemas[name] as JsonValue),
-      fieldsOf(newContract, newSchemas[counterpart] as JsonValue),
+      shapeOf(oldContract, oldSchemas[name] as JsonValue, name),
+      shapeOf(newContract, newSchemas[counterpart] as JsonValue, name),
     );
     if (!compared) continue;
     deltas.push({
