@@ -264,6 +264,9 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
+          # A new provider has no pnpm, and this repository's packageManager
+          # would otherwise make setup-node look for it to cache with.
+          package-manager-cache: false
 
       - uses: actions/create-github-app-token@v2
         id: app
