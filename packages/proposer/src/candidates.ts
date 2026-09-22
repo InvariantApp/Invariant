@@ -494,6 +494,21 @@ function shapeDiffers(a: FieldShape, b: FieldShape): boolean {
   return JSON.stringify(a.bounds ?? {}) !== JSON.stringify(b.bounds ?? {});
 }
 
+/**
+ * Whether a schema became a choice between others. Datadog's
+ * `TopologyMapWidgetDefinition` became a `oneOf` of a data-streams and a
+ * service-map definition, each holding the fields it had: none of them was
+ * dropped, they moved into the variants, and drafting their removal would
+ * take them from every old caller.
+ */
+function isUnion(document: OpenApiDocument, schema: JsonValue): boolean {
+  const resolved = resolvedObject(document, schema);
+  return ["oneOf", "anyOf"].some((keyword) => {
+    const branches = resolved[keyword];
+    return Array.isArray(branches) && branches.filter((b) => !isNullBranch(b)).length > 1;
+  });
+}
+
 /** The named schemas a schema is built from through `allOf`, however deep. */
 function composedOf(
   document: OpenApiDocument,
@@ -839,6 +854,9 @@ export function schemaDeltas(
       schema: name,
       newSchema: counterpart.name,
       ...compared,
+      ...(compared.removed.length > 0 && isUnion(newContract, counterpart.schema)
+        ? { replaced: true as const }
+        : {}),
       operations: oldUses.get(name) ?? [],
     });
   }

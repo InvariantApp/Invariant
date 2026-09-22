@@ -186,6 +186,40 @@ describe("a removed field beside fields that were added", () => {
     expect(outcome.unresolved.map((entry) => entry.field)).toContain("amount");
   });
 
+  it("is not drafted where the schema became a choice between others holding it", async () => {
+    // Datadog's topology map widget became a oneOf of two definitions, each
+    // with the fields the one definition had.
+    const variant = (kind: string) =>
+      object({
+        name: { type: "string" },
+        legacy: { type: "string" },
+        kind: { type: "string", enum: [kind] },
+      });
+    const outcome = await propose(
+      contract(base),
+      contract({
+        ...base,
+        StreamsCreate: variant("streams"),
+        MapCreate: variant("map"),
+        ThingCreate: {
+          oneOf: [
+            { $ref: "#/components/schemas/StreamsCreate" },
+            { $ref: "#/components/schemas/MapCreate" },
+          ],
+        },
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(
+      [
+        ...outcome.proposals.map((p) => p.change),
+        ...outcome.decisions.map(decisionChange),
+      ]
+        .flatMap((change) => change.ops)
+        .filter((op) => op.op === "remove"),
+    ).toEqual([]);
+  });
+
   it("is a decision where old callers' responses always carried it", async () => {
     const outcome = await drafts({
       Thing: object({ colour: { type: "string" } }, ["colour"]),

@@ -737,7 +737,9 @@ function removals(
   const unresolved: Unresolved[] = [];
   const decisions: ValueDecision[] = [];
   for (const delta of deltas) {
-    if (delta.added.length > 0 || delta.removed.length === 0) continue;
+    // A schema replaced under its name, or turned into a choice between
+    // others, kept its fields somewhere else: nothing here was dropped.
+    if (delta.added.length > 0 || delta.removed.length === 0 || delta.replaced) continue;
     const sides = sidesOfDelta(oldContract, delta);
     for (const field of delta.removed) {
       if (sides.response && field.required) {
