@@ -12,7 +12,9 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { promisify } from "node:util";
 import { type IdentityStrategy, isJsonObject, type JsonValue } from "@invariant/ir";
+import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
 import { parse as parseYaml } from "yaml";
+import SCHEMA from "../invariant.schema.json" with { type: "json" };
 
 const execShell = promisify(exec);
 
@@ -40,6 +42,11 @@ export interface BuildConfig {
   headEnv: Record<string, string>;
   /** Environment for a historical build, before `${contract}` is filled in. */
   baseEnv: Record<string, string>;
+  /**
+   * How a historical build started from the current code is started, when
+   * not the way the current build is: `build.base.command`.
+   */
+  base: { command: string; args: string[] } | undefined;
   /** Path that returns 200 once the server is ready. */
   healthPath: string;
   /**
@@ -138,6 +145,10 @@ function buildFrom(raw: JsonValue | undefined, path: string): BuildConfig | unde
     args,
     headEnv: env(head["env"]),
     baseEnv: isJsonObject(base) ? env(base["env"]) : {},
+    base:
+      isJsonObject(base) && typeof base["command"] === "string"
+        ? words(base["command"])
+        : undefined,
     healthPath: typeof raw["healthPath"] === "string" ? raw["healthPath"] : "/__health",
     contracts: sourcesFrom(raw["contracts"], path),
   };
@@ -355,6 +366,41 @@ async function currentSpecOf(
   return out;
 }
 
+/**
+ * The published schema, imported so every bundle of this module carries it
+ * (the GitHub Action is one file, with nothing beside it). Checked after the reading above, whose messages name the mistake
+ * more exactly; what is left for the schema is chiefly a setting nobody
+ * reads, which is refused rather than ignored, since a misspelled `gates:`
+ * silently doing nothing is worse than an error.
+ */
+let validator: ReturnType<Ajv2020["compile"]> | undefined;
+
+async function schemaProblems(config: unknown): Promise<string[]> {
+  validator ??= new Ajv2020({
+    allErrors: true,
+    strictRequired: false,
+    allowUnionTypes: true,
+  }).compile(SCHEMA);
+  if (validator(config)) return [];
+  const where = (error: ErrorObject) =>
+    error.instancePath.slice(1).replaceAll("/", ".") || "the top level";
+  return [
+    ...new Set(
+      (validator.errors ?? [])
+        // The branches of a choice each fail; the choice's own message says it once.
+        .filter(
+          (error) =>
+            !error.schemaPath.includes("/oneOf/") && !error.schemaPath.includes("/if"),
+        )
+        .map((error) =>
+          error.keyword === "additionalProperties"
+            ? `${where(error)}: ${String(error.params["additionalProperty"])} is not a setting`
+            : `${where(error)} ${error.message}`,
+        ),
+    ),
+  ];
+}
+
 function level(value: unknown, field: string): GateLevel {
   if (value === undefined) return "warn";
   if (value === "block" || value === "warn" || value === "allow") return value;
@@ -393,7 +439,7 @@ export async function loadConfig(path: string): Promise<InvariantConfig> {
 
   const gate = isJsonObject(parsed["gate"]) ? parsed["gate"] : {};
 
-  return {
+  const config: InvariantConfig = {
     path: resolve(path),
     root,
     api,
@@ -414,4 +460,9 @@ export async function loadConfig(path: string): Promise<InvariantConfig> {
       ),
     },
   };
+  const problems = await schemaProblems(parsed);
+  if (problems.length > 0) {
+    throw new ConfigError(`${path}:\n${problems.map((p) => `  ${p}`).join("\n")}`);
+  }
+  return config;
 }

@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/InvariantApp/Invariant/blob/main/packages/cli/invariant.schema.json",
+  "title": "invariant.yaml",
+  "description": "An API's Invariant configuration. Everything the command needs is here or beside it, so a check gives the same answer on a laptop with no network as it does in CI.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["api", "spec"],
+  "properties": {
+    "api": {
+      "description": "The API's name: what its runtimes, signed releases and the hosted service call it.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+    },
+    "spec": {
+      "description": "Where each contract's OpenAPI document comes from.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current"],
+      "properties": {
+        "current": {
+          "description": "The contract being built: a path to a committed document, or a command that generates one.",
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["command", "out"],
+              "properties": {
+                "command": {
+                  "description": "Run through the shell in the repository's root before every check.",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "out": {
+                  "description": "The file the command writes.",
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          ]
+        },
+        "currentLabel": {
+          "description": "What the contract being built is called before it is released. Without it the compiled program is named after the day it was built.",
+          "type": "string",
+          "minLength": 1
+        },
+        "released": {
+          "description": "Every contract still served, by label, to its committed document.",
+          "type": "object",
+          "additionalProperties": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "identity": {
+      "description": "How a request names the contract it expects. The first strategy that matches decides.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["kind"],
+        "properties": {
+          "kind": { "enum": ["header", "urlPrefix", "principal", "default"] },
+          "name": {
+            "description": "header: the request header that carries the label.",
+            "type": "string",
+            "minLength": 1
+          },
+          "map": {
+            "description": "urlPrefix: path prefixes to the contract each one means.",
+            "type": "object",
+            "additionalProperties": { "type": "string", "minLength": 1 }
+          },
+          "label": {
+            "description": "default: the contract a request that names none is on.",
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "description": "For whoever reads the file; not compiled.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": { "properties": { "kind": { "const": "header" } } },
+            "then": { "required": ["name"] }
+          },
+          {
+            "if": { "properties": { "kind": { "const": "urlPrefix" } } },
+            "then": { "required": ["map"] }
+          },
+          {
+            "if": { "properties": { "kind": { "const": "default" } } },
+            "then": { "required": ["label"] }
+          }
+        ]
+      }
+    },
+    "scenarios": {
+      "description": "Requests the full check sends each build, made from each released contract's own document.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "generate": {
+          "description": "For a contract with no scenarios written by hand (missing), beside them (always), or not at all (never).",
+          "enum": ["missing", "always", "never"],
+          "default": "missing"
+        },
+        "headers": {
+          "description": "Headers every generated request carries, such as a test credential.",
+          "type": "object",
+          "additionalProperties": { "type": ["string", "number", "boolean"] }
+        }
+      }
+    },
+    "build": {
+      "description": "How to stand up builds, so the full check can compare what the old and new builds do.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["head"],
+      "properties": {
+        "head": {
+          "description": "The current build.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["command"],
+          "properties": {
+            "command": {
+              "description": "Starts the server.",
+              "type": "string",
+              "minLength": 1
+            },
+            "env": { "$ref": "#/$defs/env" }
+          }
+        },
+        "base": {
+          "description": "A released contract's build, when it is the current code started differently.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "command": {
+              "description": "Starts a released contract's build, when not the way the current build is started.",
+              "type": "string",
+              "minLength": 1
+            },
+            "env": {
+              "$ref": "#/$defs/env",
+              "description": "${contract} is replaced with the label being built."
+            }
+          }
+        },
+        "healthPath": {
+          "description": "Answers 200 once the server is ready.",
+          "type": "string",
+          "default": "/__health"
+        },
+        "contracts": {
+          "description": "A released contract's own build, by label: an environment already running, the image that was released, or the commit it came from.",
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["url"],
+                "properties": {
+                  "url": { "type": "string", "pattern": "^https?://" }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["image"],
+                "properties": {
+                  "image": { "type": "string", "minLength": 1 },
+                  "port": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535,
+                    "default": 8080
+                  },
+                  "env": { "$ref": "#/$defs/env" }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["worktree", "command"],
+                "properties": {
+                  "worktree": { "type": "string", "minLength": 1 },
+                  "install": { "type": "string", "minLength": 1 },
+                  "command": { "type": "string", "minLength": 1 },
+                  "env": { "$ref": "#/$defs/env" }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "gate": {
+      "description": "What the release gate does about the things a provider may decide on. Unexplained breaking changes and failed verification always block.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "declaredLossy": {
+          "description": "A Change that serves old callers with something lost, and says so.",
+          "$ref": "#/$defs/level"
+        },
+        "unmigratableWithActiveConsumers": {
+          "description": "A Change no codemod can apply, while consumers still use what it changes.",
+          "$ref": "#/$defs/level"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "env": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "number", "boolean"] }
+    },
+    "level": { "enum": ["block", "warn", "allow"], "default": "warn" }
+  }
+}

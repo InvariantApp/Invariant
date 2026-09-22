@@ -127,3 +127,17 @@ describe("where a released contract's build comes from", () => {
     ).rejects.toThrow(ConfigError);
   });
 });
+
+describe("a setting nobody reads", () => {
+  it("is refused and named, never silently ignored", async () => {
+    const path = join(dir, "typo.yaml");
+    await writeFile(
+      path,
+      'api: acme\nspec:\n  current: openapi.json\ngates:\n  declaredLossy: block\nbuild:\n  head:\n    command: npm start\n    enviroment: { A: "1" }\n',
+    );
+    const error = await loadConfig(path).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(ConfigError);
+    expect((error as Error).message).toContain("the top level: gates is not a setting");
+    expect((error as Error).message).toContain("build.head: enviroment is not a setting");
+  });
+});

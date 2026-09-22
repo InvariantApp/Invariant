@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // As an application that uses these would be compiled: by a bundler's
+    // resolution, which is also what Next.js and most frameworks' own
+    // templates use.
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    // A sample builds a value and stops; the reader's code goes on to use it.
+    "noUnusedLocals": false,
+    "types": ["node"]
+  },
+  // The runtime's declaration of JSON.rawJSON, which its sources rely on.
+  "include": ["src/**/*.ts", "../../packages/runtime/src/json-source.d.ts"]
+}

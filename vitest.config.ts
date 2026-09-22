@@ -8,6 +8,7 @@ export default defineConfig({
       "fixtures/**/*.test.ts",
       "e2e/**/*.test.ts",
       "proving/**/*.test.ts",
+      "docs/**/*.test.ts",
     ],
     // `.migrated` holds the output of a migration run. It is exercised by the
     // end-to-end demo against a live provider, not by the ordinary suite.

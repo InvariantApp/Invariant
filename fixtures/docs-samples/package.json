@@ -1,0 +1,32 @@
+{
+  "name": "@fixtures/docs-samples",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The documentation's code samples, compiled against the packages and frameworks they use, so a sample that no longer matches the code fails CI (launch gate L16)",
+  "scripts": {
+    "check": "node --import tsx extract.mts && tsc --noEmit -p . && cd go && go vet ./..."
+  },
+  "dependencies": {
+    "@invariant/client": "workspace:*",
+    "@invariant/flags": "workspace:*",
+    "@invariant/runtime": "workspace:*",
+    "@invariant/runtime-hono": "workspace:*",
+    "@invariant/runtime-node": "workspace:*",
+    "@invariant/telemetry": "workspace:*",
+    "@nestjs/common": "12.0.4",
+    "@nestjs/core": "12.0.4",
+    "@nestjs/platform-express": "12.0.4",
+    "@types/express": "5.0.6",
+    "@types/koa": "3.0.3",
+    "express": "5.2.1",
+    "fastify": "5.12.5",
+    "hono": "^4.13.8",
+    "koa": "3.2.1",
+    "next": "16.3.5",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2"
+  }
+}

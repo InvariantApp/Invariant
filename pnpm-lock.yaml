@@ -149,6 +149,69 @@ importers:
         specifier: workspace:*
         version: link:../provider-acme
 
+  fixtures/docs-samples:
+    dependencies:
+      '@invariant/client':
+        specifier: workspace:*
+        version: link:../../packages/client
+      '@invariant/flags':
+        specifier: workspace:*
+        version: link:../../packages/flags
+      '@invariant/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      '@invariant/runtime-hono':
+        specifier: workspace:*
+        version: link:../../packages/runtime-hono
+      '@invariant/runtime-node':
+        specifier: workspace:*
+        version: link:../../packages/runtime-node
+      '@invariant/telemetry':
+        specifier: workspace:*
+        version: link:../../packages/telemetry
+      '@nestjs/common':
+        specifier: 12.0.4
+        version: 12.0.4(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
+      '@nestjs/core':
+        specifier: 12.0.4
+        version: 12.0.4(@nestjs/common@12.0.4(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/platform-express@12.0.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/platform-express':
+        specifier: 12.0.4
+        version: 12.0.4(@nestjs/common@12.0.4(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.0.4)(supports-color@10.2.2)
+      '@types/express':
+        specifier: 5.0.6
+        version: 5.0.6
+      '@types/koa':
+        specifier: 3.0.3
+        version: 3.0.3
+      express:
+        specifier: 5.2.1
+        version: 5.2.1(supports-color@10.2.2)
+      fastify:
+        specifier: 5.12.5
+        version: 5.12.5
+      hono:
+        specifier: ^4.13.8
+        version: 4.13.8
+      koa:
+        specifier: 3.2.1
+        version: 3.2.1
+      next:
+        specifier: 16.3.5
+        version: 16.3.5(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: 19.3.0
+        version: 19.3.0(react@19.3.0)
+      reflect-metadata:
+        specifier: 0.2.2
+        version: 0.2.2
+      rxjs:
+        specifier: 7.8.2
+        version: 7.8.2
+
   fixtures/nest10:
     dependencies:
       '@nestjs/common':
@@ -291,6 +354,9 @@ importers:
       '@invariant/bundle':
         specifier: workspace:*
         version: link:../bundle
+      '@invariant/client':
+        specifier: workspace:*
+        version: link:../client
       '@invariant/compiler':
         specifier: workspace:*
         version: link:../compiler
@@ -309,6 +375,9 @@ importers:
       '@invariant/verifier':
         specifier: workspace:*
         version: link:../verifier
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
       yaml:
         specifier: ^2.8.2
         version: 2.9.1

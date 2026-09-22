@@ -9,6 +9,7 @@ import { existsSync } from "node:fs";
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
+import { ControlPlaneError } from "@invariant/client";
 import { loadContract } from "@invariant/contract";
 import { scenariosFromDocument, scenarioYaml } from "@invariant/verifier";
 import { check, renderReport, reportJson } from "./check.ts";
@@ -20,6 +21,14 @@ import { renderProposals, runPropose } from "./propose.ts";
 import { rebuildAt, release, renderRelease, verifyRelease } from "./release.ts";
 import { assessRetirement, renderRetirement, retireContracts } from "./retire.ts";
 import { upsertReviewComment } from "./review.ts";
+import {
+  clientFromEnv,
+  publishBundles,
+  renderPublished,
+  renderStatus,
+  ServiceError,
+  status,
+} from "./service.ts";
 import { readLedger } from "./usage.ts";
 import { watchChecks } from "./watch.ts";
 
@@ -34,6 +43,10 @@ const USAGE = `invariant <command>
   release   Mint the contract, move the Changes, and sign the evolution bundle.
   verify    Open a published bundle and check who signed it. With --rebuild,
             also rebuild it from the commit it names and compare.
+  publish [label]
+            Send the signed releases in invariant/bundles to the service.
+            Safe to run again: a release it already has is not sent twice.
+  status    What production is using: each contract, and who is still on it.
   retire    Say which old contracts nobody is using any more.
   doctor    Check the toolchain, the configuration, every contract, and that
             the compiled program is what the Changes compile to now.
@@ -69,11 +82,14 @@ Options
   --commit <sha>    release: the commit this release came from
   --pr <number>     release: the pull request it was merged in
   --key <path>      verify: a trusted ed25519 public key, in PEM form
-  --days <n>        retire: how long a contract must be quiet (default 30)
+  --days <n>        retire: how long a contract must be quiet (default 30);
+                    status: how far back to count (default 30)
   --write           retire: remove the retired contracts from invariant.yaml
 
 Environment
   INVARIANT_SIGNING_KEY   release: the ed25519 private key, in PEM form
+  INVARIANT_TOKEN         publish, status: a token from the dashboard
+  INVARIANT_URL           publish, status: the service, if not the hosted one
 `;
 
 function flag(argv: readonly string[], name: string): string | undefined {
@@ -229,6 +245,32 @@ async function main(argv: string[]): Promise<number> {
       ].join("\n"),
     );
     return 0;
+  }
+
+  if (command === "publish" || command === "status") {
+    try {
+      const { client, url } = clientFromEnv(process.env);
+      if (command === "publish") {
+        const published = await publishBundles(
+          config,
+          client,
+          argv[1]?.startsWith("--") ? undefined : argv[1],
+        );
+        process.stdout.write(renderPublished(published, url));
+      } else {
+        const days = flag(argv, "days");
+        process.stdout.write(
+          renderStatus(await status(client, days === undefined ? 30 : Number(days))),
+        );
+      }
+      return 0;
+    } catch (error) {
+      if (error instanceof ServiceError || error instanceof ControlPlaneError) {
+        process.stderr.write(`${error.message}\n`);
+        return 1;
+      }
+      throw error;
+    }
   }
 
   if (command === "retire") {

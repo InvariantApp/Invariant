@@ -17,13 +17,16 @@
     "invariant": "./src/main.ts"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./invariant.schema.json": "./invariant.schema.json"
   },
   "files": [
     "dist",
+    "invariant.schema.json",
     "README.md",
     "LICENSE",
-    "NOTICE"
+    "NOTICE",
+    "sbom.cdx.json"
   ],
   "scripts": {
     "build": "tsdown",
@@ -35,7 +38,8 @@
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
-      }
+      },
+      "./invariant.schema.json": "./invariant.schema.json"
     },
     "bin": {
       "invariant": "./dist/main.js"
@@ -43,12 +47,14 @@
   },
   "dependencies": {
     "@invariant/bundle": "workspace:*",
+    "@invariant/client": "workspace:*",
     "@invariant/compiler": "workspace:*",
     "@invariant/contract": "workspace:*",
     "@invariant/diff": "workspace:*",
     "@invariant/ir": "workspace:*",
     "@invariant/proposer": "workspace:*",
     "@invariant/verifier": "workspace:*",
+    "ajv": "^8.20.0",
     "yaml": "^2.8.2"
   },
   "devDependencies": {

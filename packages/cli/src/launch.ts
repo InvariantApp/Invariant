@@ -221,9 +221,10 @@ async function planFor(
       env: environment(source.env, label, port),
     };
   }
+  const started = label !== "head" && build.base ? build.base : build;
   return {
-    command: build.command,
-    args: build.args,
+    command: started.command,
+    args: started.args,
     cwd: options.cwd,
     env: environment(label === "head" ? build.headEnv : build.baseEnv, label, port),
   };

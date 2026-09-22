@@ -5,7 +5,7 @@
  * works only for a repository written for that, which is a fixture's.
  */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -19,6 +19,7 @@ const build = (contracts: [string, BuildSource][]): BuildConfig => ({
   args: ["server.mjs"],
   headEnv: {},
   baseEnv: {},
+  base: undefined,
   healthPath: "/__health",
   contracts: new Map(contracts),
 });
@@ -138,5 +139,40 @@ describe("a build from the commit a contract was released from", () => {
         cwd: repository,
       }),
     ).rejects.toThrow(/could not check out no-such-ref/);
+  });
+});
+
+describe("a released build started from the current code", () => {
+  let repository: string;
+  beforeAll(() => {
+    repository = mkdtempSync(join(tmpdir(), "invariant-base-"));
+    writeFileSync(join(repository, "server.mjs"), server("head"));
+    writeFileSync(join(repository, "legacy.mjs"), server("started as a released build"));
+  });
+  afterAll(() => rmSync(repository, { recursive: true, force: true }));
+
+  it("is started with build.base.command, and the current build with the head's", async () => {
+    const config: BuildConfig = {
+      ...build([]),
+      base: { command: "node", args: ["legacy.mjs"] },
+      baseEnv: { CONTRACT: `\${contract}` },
+    };
+    const old = await launchBuild("2026-01-01", { build: config, cwd: repository });
+    try {
+      expect(await (await old.fetch(new Request("http://x/"))).json()).toEqual({
+        version: "started as a released build",
+        contract: "2026-01-01",
+      });
+    } finally {
+      await old.close();
+    }
+    const head = await launchBuild("head", { build: config, cwd: repository });
+    try {
+      expect(await (await head.fetch(new Request("http://x/"))).json()).toMatchObject({
+        version: "head",
+      });
+    } finally {
+      await head.close();
+    }
   });
 });

@@ -352,6 +352,18 @@ than take your word for it.
 
 `invariant verify <bundle> --key publisher.pub` is that check.
 
+To publish it to the hosted service, so consumers can migrate from it and the
+dashboard can show who is still on each contract, add the signing key's public
+half and issue a token with the `publish` scope in the dashboard, then:
+
+```sh
+INVARIANT_TOKEN="$INVARIANT_TOKEN" invariant publish
+```
+
+It sends every signed release in `invariant/bundles`; one the service already
+has is not sent again, so a retried job is harmless. `invariant status` (a
+token with `read`) shows each contract and who is still on it.
+
 ---
 
 ## 6. When something is wrong
