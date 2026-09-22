@@ -17,6 +17,11 @@ Change your API without breaking the integrations built on it.
 [Go net/http](adapters/go.md) ·
 [The proxy, for any language](adapters/proxy.md)
 
+## Move your consumers forward
+
+- [Migrating your consumers](migrations.md): a draft pull request in every connected
+  repository when you release.
+
 ## Reference
 
 - [The `invariant` command](reference/cli.md)
