@@ -52,7 +52,10 @@ step "oasdiff is the pinned release" node --import tsx -e \
   'import("@invariant-app/diff").then(async (m) => { await m.assertUsableOasdiff(); })'
 step "lint" npx biome check .
 step "typecheck" npx tsc --build
-step "test" npx vitest run --reporter=dot --maxWorkers=2
+# One worker: this machine is shared, and the demo's worker alone reaches
+# 650 MB, enough with a second one beside it to set off earlyoom's SIGTERM when
+# other work is running. GitHub's runners take the default.
+step "test" npx vitest run --reporter=dot --maxWorkers=1
 if $quick; then echo "quick checks passed"; exit 0; fi
 
 step "the docs' code samples compile" pnpm --filter @fixtures/docs-samples check
