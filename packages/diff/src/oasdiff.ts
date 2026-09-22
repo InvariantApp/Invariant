@@ -10,6 +10,7 @@ import { agreeingAllOf } from "./allof.ts";
 import { binaryFor } from "./binaries.ts";
 import { wholeSchemaRefs } from "./deep-refs.ts";
 import { equivalentForms } from "./equivalent-forms.ts";
+import { withoutNarrowing } from "./narrowing.ts";
 import { BREAKING_INFO_IDS } from "./policy.ts";
 import { OASDIFF_INSTALL, OASDIFF_VERSION, unusableVersion } from "./version.ts";
 
@@ -398,6 +399,16 @@ export async function diffOutcome(
   base: OpenApiDocument,
   revision: OpenApiDocument,
   options: DiffOptions = {},
+): Promise<DiffOutcome> {
+  const outcome = await differ(base, revision, options);
+  return { ...outcome, entries: withoutNarrowing(outcome.entries, base) };
+}
+
+/** What the differ itself reports, with the rungs it falls back through. */
+async function differ(
+  base: OpenApiDocument,
+  revision: OpenApiDocument,
+  options: DiffOptions,
 ): Promise<DiffOutcome> {
   const dir = await mkdtemp(join(tmpdir(), "invariant-diff-"));
   try {

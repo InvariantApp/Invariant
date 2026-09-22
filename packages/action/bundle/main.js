@@ -16006,7 +16006,7 @@ function guardFor(document, union, branches, index, at) {
 		};
 	}
 }
-function walk$1(ctx, schema, segments) {
+function walk$2(ctx, schema, segments) {
 	if (!isJsonObject(schema) || ctx.budget.exhausted) return;
 	ctx.budget.steps += 1;
 	if (ctx.budget.steps > MAX_WALK_STEPS) {
@@ -16027,7 +16027,7 @@ function walk$1(ctx, schema, segments) {
 		const resolved = resolveRef(ctx.document, ref);
 		if (resolved === void 0) return;
 		ctx.visiting.add(ref);
-		walk$1(ctx, resolved, segments);
+		walk$2(ctx, resolved, segments);
 		ctx.visiting.delete(ref);
 		return;
 	}
@@ -16045,7 +16045,7 @@ function walk$1(ctx, schema, segments) {
 				found: [],
 				unsupported: []
 			};
-			walk$1(inner, branch, segments);
+			walk$2(inner, branch, segments);
 			for (const message of inner.unsupported) note(ctx, message);
 			if (inner.found.length === 0) return;
 			const at = formatPointer(segments);
@@ -16061,13 +16061,13 @@ function walk$1(ctx, schema, segments) {
 		});
 	}
 	const allOf = schema["allOf"];
-	if (Array.isArray(allOf)) for (const branch of allOf) walk$1(ctx, branch, segments);
+	if (Array.isArray(allOf)) for (const branch of allOf) walk$2(ctx, branch, segments);
 	const properties = schema["properties"];
-	if (isJsonObject(properties)) for (const name of Object.keys(properties).sort()) walk$1(ctx, properties[name], [...segments, name]);
+	if (isJsonObject(properties)) for (const name of Object.keys(properties).sort()) walk$2(ctx, properties[name], [...segments, name]);
 	const items = schema["items"];
-	if (items !== void 0) walk$1(ctx, items, [...segments, "*"]);
+	if (items !== void 0) walk$2(ctx, items, [...segments, "*"]);
 	const values = schema["additionalProperties"];
-	if (isJsonObject(values)) walk$1(ctx, values, [...segments, "{}"]);
+	if (isJsonObject(values)) walk$2(ctx, values, [...segments, "{}"]);
 }
 function scanRoot(document, target, root, leads = leadingTo(document, target), budget = freshBudget()) {
 	const ctx = {
@@ -16079,7 +16079,7 @@ function scanRoot(document, target, root, leads = leadingTo(document, target), b
 		leads,
 		budget
 	};
-	walk$1(ctx, root, []);
+	walk$2(ctx, root, []);
 	return {
 		prefixes: ctx.found,
 		unsupported: ctx.unsupported
@@ -18940,7 +18940,7 @@ function expectKeys(value, allowed, where) {
 	for (const key of Object.keys(value)) if (!allowed.includes(key)) throw new ProgramError(`${where} has an unexpected field "${key}"`);
 }
 const POINTER_SEGMENT = /^([^/~]|~[01])*$/;
-function segmentsOf$1(pointer, where) {
+function segmentsOf$2(pointer, where) {
 	if (pointer === "") return [];
 	if (!pointer.startsWith("/")) throw new ProgramError(`${where} must be a JSON Pointer, got "${pointer}"`);
 	return pointer.slice(1).split("/").map((raw) => {
@@ -18994,7 +18994,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 				"block",
 				"c"
 			], where);
-			const path = segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`);
+			const path = segmentsOf$2(string$1(value["path"], `${where}.path`), `${where}.path`);
 			return {
 				k: "within",
 				path,
@@ -19021,7 +19021,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 		case "switch":
 		case "has":
 		case "is": {
-			const path = segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`);
+			const path = segmentsOf$2(string$1(value["path"], `${where}.path`), `${where}.path`);
 			if (path.some(isWildcard)) throw new ProgramError(`${where}.path reads a key through a wildcard`);
 			if (kind === "has") {
 				expectKeys(value, [
@@ -19080,8 +19080,8 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 				"to",
 				"c"
 			], where);
-			const from = segmentsOf$1(string$1(value["from"], `${where}.from`), `${where}.from`);
-			const to = segmentsOf$1(string$1(value["to"], `${where}.to`), `${where}.to`);
+			const from = segmentsOf$2(string$1(value["from"], `${where}.from`), `${where}.from`);
+			const to = segmentsOf$2(string$1(value["to"], `${where}.to`), `${where}.to`);
 			if (wildcardsOf(from) !== wildcardsOf(to)) throw new ProgramError(`${where} moves between paths whose wildcards do not line up`);
 			if (from.length === 0) throw new ProgramError(`${where} cannot move the document root`);
 			itself(to, "to");
@@ -19103,7 +19103,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 			if (typeof exp !== "number" || !Number.isInteger(exp) || exp < -9 || exp > 9) throw new ProgramError(`${where}.exp must be an integer between -9 and 9`);
 			return {
 				k: "scale",
-				path: segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`),
+				path: segmentsOf$2(string$1(value["path"], `${where}.path`), `${where}.path`),
 				exp,
 				c: changeId
 			};
@@ -19130,7 +19130,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 			}
 			return {
 				k: "enum",
-				path: segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`),
+				path: segmentsOf$2(string$1(value["path"], `${where}.path`), `${where}.path`),
 				map: decoded,
 				...lenient === true ? { lenient: true } : {},
 				...folded !== void 0 && folded.length > 0 ? { folded } : {},
@@ -19148,7 +19148,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 			if (!SCALARS$1.has(to)) throw new ProgramError(`${where}.to is not a scalar type`);
 			return {
 				k: "cast",
-				path: segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`),
+				path: segmentsOf$2(string$1(value["path"], `${where}.path`), `${where}.path`),
 				to,
 				c: changeId
 			};
@@ -19167,7 +19167,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 			if (!TIME_FORMATS.has(from) || !TIME_FORMATS.has(to) || from === to) throw new ProgramError(`${where} must name two different time formats`);
 			return {
 				k: "time",
-				path: segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`),
+				path: segmentsOf$2(string$1(value["path"], `${where}.path`), `${where}.path`),
 				from,
 				to,
 				...onlyTrue(value["truncate"], `${where}.truncate`) ? { truncate: true } : {},
@@ -19187,7 +19187,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 			if (!STRING_CASES.has(from) || !STRING_CASES.has(to) || from === to) throw new ProgramError(`${where} must name two different cases`);
 			return {
 				k: "case",
-				path: segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`),
+				path: segmentsOf$2(string$1(value["path"], `${where}.path`), `${where}.path`),
 				from,
 				to,
 				c: changeId
@@ -19201,7 +19201,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 			], where);
 			return {
 				k: "wrap",
-				path: segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`),
+				path: segmentsOf$2(string$1(value["path"], `${where}.path`), `${where}.path`),
 				c: changeId
 			};
 		case "unwrap":
@@ -19213,7 +19213,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 			], where);
 			return {
 				k: "unwrap",
-				path: segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`),
+				path: segmentsOf$2(string$1(value["path"], `${where}.path`), `${where}.path`),
 				...onlyTrue(value["first"], `${where}.first`) ? { first: true } : {},
 				c: changeId
 			};
@@ -19227,7 +19227,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 				"c"
 			], where);
 			if (typeof value["ifAbsent"] !== "boolean") throw new ProgramError(`${where}.ifAbsent must be a boolean`);
-			const path = segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`);
+			const path = segmentsOf$2(string$1(value["path"], `${where}.path`), `${where}.path`);
 			itself(path, "path");
 			if (path.length === 0 && (value["ifAbsent"] || value["ifNull"] !== void 0)) throw new ProgramError(`${where} replaces the value itself, which is never absent`);
 			return {
@@ -19246,7 +19246,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 				"ifNull",
 				"c"
 			], where);
-			const path = segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`);
+			const path = segmentsOf$2(string$1(value["path"], `${where}.path`), `${where}.path`);
 			itself(path, "path");
 			if (path.length === 0 && value["ifNull"] !== void 0) throw new ProgramError(`${where} removes the value itself, which is never null`);
 			return {
@@ -19489,7 +19489,7 @@ function decodeForm(raw, where) {
 	}
 	const types = /* @__PURE__ */ new Map();
 	for (const [pointer, type] of Object.entries(object$1(value["types"], `${where}.types`))) {
-		segmentsOf$1(pointer, `${where}.types`);
+		segmentsOf$2(pointer, `${where}.types`);
 		if (typeof type !== "string" || !FORM_TYPES.has(type)) throw new ProgramError(`${where}.types["${pointer}"] is not a type`);
 		types.set(pointer, type);
 	}
@@ -23896,7 +23896,7 @@ function agreeingAllOf(input) {
 //#region ../diff/src/deep-refs.ts
 /** How many segments a reference to a whole component has: components, kind, name. */
 const WHOLE = 3;
-function segmentsOf(ref) {
+function segmentsOf$1(ref) {
 	if (!ref.startsWith("#/")) return void 0;
 	try {
 		return ref.slice(2).split("/").map((raw) => decodeURIComponent(raw).replaceAll("~1", "/").replaceAll("~0", "~"));
@@ -23915,7 +23915,7 @@ function at(document, segments, hops = 0) {
 	let node = document;
 	for (const [index, key] of segments.entries()) {
 		if (isJsonObject(node) && node[key] === void 0 && typeof node["$ref"] === "string") {
-			const through = segmentsOf(node["$ref"]);
+			const through = segmentsOf$1(node["$ref"]);
 			if (through === void 0 || hops > 16) return void 0;
 			return at(document, [...through, ...segments.slice(index)], hops + 1);
 		}
@@ -23930,7 +23930,7 @@ function at(document, segments, hops = 0) {
 * PagerDuty also points, six levels into a response's schema.
 */
 function isDeep(ref) {
-	const segments = segmentsOf(ref);
+	const segments = segmentsOf$1(ref);
 	if (segments === void 0) return false;
 	return segments[0] === "components" ? segments.length > WHOLE : segments[0] === "paths";
 }
@@ -23960,7 +23960,7 @@ function wholeSchemaRefs(input) {
 	const whole = (ref) => {
 		const known = moved.get(ref);
 		if (known !== void 0) return known;
-		const segments = segmentsOf(ref);
+		const segments = segmentsOf$1(ref);
 		if (!pointsAtSchema(segments)) return void 0;
 		const content = at(document, segments);
 		if (content === void 0) return void 0;
@@ -24087,6 +24087,111 @@ function equivalentForms(document) {
 		return node;
 	};
 	return visit(copy, false);
+}
+//#endregion
+//#region ../diff/src/narrowing.ts
+/**
+* A response field that took a list of values where it had none, which the
+* differ reports as every value in the list added.
+*
+* PayPal's error details carry a `location`, once any string and then one of
+* `body`, `path` or `query`. A response that can hold fewer values than it
+* could breaks no caller, yet the differ compares the two lists of values,
+* finds the old one empty, and reports each new value as added, which is the
+* breaking change of a response value old callers were never told of. Across
+* PayPal that was hundreds of places no Change could explain, because nothing
+* about them needed explaining.
+*
+* So an added value is dropped where the field it was added to allowed any
+* value before: found in the old document, through the response the entry
+* names, through properties, list items and union branches, it has neither
+* `enum` nor `const`. Wherever the field cannot be found with certainty, the
+* entry is kept: this only removes what it can show is not breaking.
+*/
+const ADDED = /^added the new `.*` enum value to the `(.+)` response property for the response status `(.+)`$/;
+function withoutNarrowing(entries, base) {
+	const unconstrained = /* @__PURE__ */ new Map();
+	return entries.filter((entry) => {
+		if (entry.id !== "response-property-enum-value-added") return true;
+		const match = ADDED.exec(entry.text);
+		if (!match) return true;
+		const [, pointer = "", status = ""] = match;
+		const key = `${entry.operation} ${entry.path} ${status} ${pointer}`;
+		let known = unconstrained.get(key);
+		if (known === void 0) {
+			known = allowedAnyValue(base, entry, status, pointer);
+			unconstrained.set(key, known);
+		}
+		return !known;
+	});
+}
+/** Whether every schema the entry's response gives the field lists no values. */
+function allowedAnyValue(base, entry, status, pointer) {
+	try {
+		const paths = base["paths"];
+		const item = isJsonObject(paths) ? paths[entry.path] : void 0;
+		const operation = isJsonObject(item) ? item[entry.operation.toLowerCase()] : void 0;
+		const responses = isJsonObject(operation) ? operation["responses"] : void 0;
+		const response = isJsonObject(responses) ? resolveSchema(base, responses[status] ?? null) : void 0;
+		const content = isJsonObject(response) ? response["content"] : void 0;
+		if (!isJsonObject(content)) return false;
+		const fields = Object.values(content).map((media) => isJsonObject(media) ? walk$1(base, media["schema"] ?? null, pointer) : void 0);
+		const found = fields.filter((field) => field !== void 0);
+		return found.length === fields.length && found.length > 0 && found.every((field) => field["enum"] === void 0 && field["const"] === void 0);
+	} catch {
+		return false;
+	}
+}
+/** The pointer's segments: a `/` inside a union's brackets is part of its segment. */
+function segmentsOf(pointer) {
+	const segments = [];
+	let depth = 0;
+	let current = "";
+	for (const char of pointer) {
+		if (char === "[") depth += 1;
+		if (char === "]") depth -= 1;
+		if (char === "/" && depth === 0) {
+			segments.push(current);
+			current = "";
+		} else current += char;
+	}
+	segments.push(current);
+	return segments.filter((segment) => segment !== "");
+}
+/**
+* A branch of a union as the differ names it, on the old side: by position,
+* `oneOf[subschema #2: Title]` (or `... -> subschema #3: Title` where the
+* branch moved, whose left side is the old one), or by the schema it refers
+* to, `anyOf[#/components/schemas/Card]`.
+*/
+const BRANCH = /^(oneOf|anyOf)\[(.*)\]$/;
+function branchOf(at, segment) {
+	const match = BRANCH.exec(segment);
+	if (!match) return void 0;
+	const [, keyword = "", name = ""] = match;
+	const branches = at[keyword];
+	if (!Array.isArray(branches)) return void 0;
+	const old = name.split(" -> ")[0] ?? "";
+	const position = /^subschema #(\d+)(:|$)/.exec(old);
+	if (position) return branches[Number(position[1]) - 1];
+	return branches.find((branch) => isJsonObject(branch) && branch["$ref"] === old);
+}
+/**
+* The field at the differ's pointer, which names properties, `items` and
+* union branches, and ends with `items/` where the values are a list's items.
+*/
+function walk$1(base, schema, pointer) {
+	let at = resolveSchema(base, schema);
+	for (const segment of segmentsOf(pointer)) {
+		if (!isJsonObject(at)) return void 0;
+		const properties = at["properties"];
+		const branch = branchOf(at, segment);
+		if (isJsonObject(properties) && properties[segment] !== void 0) at = resolveSchema(base, properties[segment]);
+		else if (segment === "items" && at["items"] !== void 0) at = resolveSchema(base, at["items"]);
+		else if (branch !== void 0) at = resolveSchema(base, branch);
+		else return;
+	}
+	return isJsonObject(at) ? at : void 0;
 }
 //#endregion
 //#region ../diff/src/oasdiff.ts
@@ -24278,6 +24383,14 @@ async function changelogFiles(baseFile, revisionFile, options) {
 * nothing downstream reports a count it did not measure.
 */
 async function diffOutcome(base, revision, options = {}) {
+	const outcome = await differ(base, revision, options);
+	return {
+		...outcome,
+		entries: withoutNarrowing(outcome.entries, base)
+	};
+}
+/** What the differ itself reports, with the rungs it falls back through. */
+async function differ(base, revision, options) {
 	const dir = await mkdtemp(join(tmpdir(), "invariant-diff-"));
 	try {
 		const baseFile = join(dir, "base.json");
