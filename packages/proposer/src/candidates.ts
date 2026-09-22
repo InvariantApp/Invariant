@@ -597,12 +597,13 @@ function compareReading(
  * The fields under a field that points at a different schema than it did.
  *
  * Datadog's `last_revision` went from `CustomRuleRevision` to
- * `CustomRuleRevisionInput`, and both schemas stayed: each is compared with
- * itself, under its own name, and nothing compared what a rule's revision
- * became, so seven fields it gained and two it lost had nothing to explain
- * them. A name that is gone is a rename, matched by where it is used, and is
- * not read here. Only a schema whose fields the walk reads to the same depth
- * as it reads an object written in place.
+ * `CustomRuleRevisionInput`, and both schemas stayed unchanged: each is
+ * compared with itself, under its own name, and nothing compared what a
+ * rule's revision became, so seven fields it gained and two it lost had
+ * nothing to explain them. A name that is gone is a rename, matched by where
+ * it is used, and is not read here; nor is one that changed under its own
+ * name, which is drafted there. Only a schema whose fields the walk reads to
+ * the same depth as it reads an object written in place.
  */
 function repointedFields(
   oldContract: OpenApiDocument,
@@ -621,6 +622,13 @@ function repointedFields(
     ] as [string | undefined, string, string][]) {
       const was = ref === undefined ? undefined : schemaName(ref);
       if (was === undefined || !(was in newSchemas)) continue;
+      // Only where the schema it pointed at is itself unchanged: one that
+      // changed is compared under its own name, and reading it here as well
+      // would draft the same difference twice. Adyen's `BalanceAccount`
+      // recased its status and the list beside it moved to
+      // `BalanceAccountBase`, and the second draft met values the first had
+      // already converted.
+      if (JSON.stringify(oldSchemas[was]) !== JSON.stringify(newSchemas[was])) continue;
       const there = newAt.get(field.pointer);
       const now = schemaName(
         (pointer.endsWith("/*") ? there?.items?.ref : there?.ref) ?? "",
