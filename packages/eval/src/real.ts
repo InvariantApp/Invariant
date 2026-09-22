@@ -127,6 +127,11 @@ export interface PairResult {
   decidedError?: string;
   /** With `keepResidual`: what is still breaking once every decision is answered. */
   residualDecided?: readonly DiffEntry[];
+  /**
+   * A few of the places still breaking once every decision is answered, one
+   * per kind, so the corpus says what is left and not only how much.
+   */
+  residualExamples?: string[] | undefined;
   /** How long each stage took, in milliseconds, in the order they ran. */
   stageMs?: Record<string, number>;
   /**
@@ -186,6 +191,18 @@ export function placeOf(entry: DiffEntry): string {
   return /propert/i.test(entry.text)
     ? `${entry.id}\n${text}`
     : `${entry.id}\n${entry.operation} ${entry.path}\n${text}`;
+}
+
+/** One place of each kind, at most six, each short enough to read in a table. */
+function examplesOf(entries: readonly DiffEntry[]): string[] | undefined {
+  const byKind = new Map<string, string>();
+  for (const entry of entries) {
+    if (byKind.size >= 6) break;
+    if (byKind.has(entry.id)) continue;
+    const place = placeOf(entry).replaceAll("\n", " | ");
+    byKind.set(entry.id, place.length > 300 ? `${place.slice(0, 299)}…` : place);
+  }
+  return byKind.size > 0 ? [...byKind.values()] : undefined;
 }
 
 function placesIn(entries: readonly DiffEntry[]): number {
@@ -472,6 +489,7 @@ export async function analysePair(
       ...closed,
       breakingAfterDecided: closed.breakingAfter,
       unexplainedDecidedKinds: closed.unexplainedKinds,
+      residualExamples: examplesOf(residual.value),
       ...(options.keepResidual ? { residualDecided: residual.value } : {}),
       places: {
         ...places,
@@ -506,6 +524,7 @@ export async function analysePair(
           ...closed,
           breakingAfterDecided: decided.value.length,
           unexplainedDecidedKinds: tally(decided.value),
+          residualExamples: examplesOf(decided.value),
           ...(options.keepResidual ? { residualDecided: decided.value } : {}),
           places: {
             ...places,
