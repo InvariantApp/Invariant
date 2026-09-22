@@ -134,7 +134,7 @@ func TestIdentityMustNameKnownContracts(t *testing.T) {
 func TestProgramsTooNewAreRefused(t *testing.T) {
 	for _, program := range []string{
 		`{"irVersion": 3}`,
-		`{"irVersion": 2, "minRuntime": "99.0.0", "compiledBy": "@invariant/compiler@99.0.0"}`,
+		`{"irVersion": 2, "minRuntime": "99.0.0", "compiledBy": "@invariant-app/compiler@99.0.0"}`,
 	} {
 		_, err := Load([]byte(program), Options{})
 		var tooNew *ProgramTooNewError

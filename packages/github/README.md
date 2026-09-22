@@ -1,4 +1,4 @@
-# @invariant/github
+# @invariant-app/github
 
 Delivers consumer migrations as GitHub pull requests: the GitHub App's authentication, webhook verification, sponsored links, and pull request bodies that carry each edit's provenance.
 

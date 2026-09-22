@@ -19,13 +19,13 @@ import {
   check,
   loadConfig,
   renderComment,
-} from "@invariant/cli";
+} from "@invariant-app/cli";
 import {
   assertPinnedVersion,
   binaryFor,
   installBinary,
   OASDIFF_VERSION,
-} from "@invariant/diff";
+} from "@invariant-app/diff";
 
 export type Env = Record<string, string | undefined>;
 

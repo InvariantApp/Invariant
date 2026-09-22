@@ -1,4 +1,4 @@
-import type { Change } from "@invariant/ir";
+import type { Change } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import { findInterference } from "./independence.ts";
 

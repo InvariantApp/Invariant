@@ -1,5 +1,5 @@
 {
-  "name": "@invariant/cli",
+  "name": "@invariant-app/cli",
   "version": "0.1.0",
   "description": "The invariant command, run by a provider in their own CI",
   "license": "Apache-2.0",
@@ -46,18 +46,18 @@
     }
   },
   "dependencies": {
-    "@invariant/bundle": "workspace:*",
-    "@invariant/client": "workspace:*",
-    "@invariant/compiler": "workspace:*",
-    "@invariant/contract": "workspace:*",
-    "@invariant/diff": "workspace:*",
-    "@invariant/ir": "workspace:*",
-    "@invariant/proposer": "workspace:*",
-    "@invariant/verifier": "workspace:*",
+    "@invariant-app/bundle": "workspace:*",
+    "@invariant-app/client": "workspace:*",
+    "@invariant-app/compiler": "workspace:*",
+    "@invariant-app/contract": "workspace:*",
+    "@invariant-app/diff": "workspace:*",
+    "@invariant-app/ir": "workspace:*",
+    "@invariant-app/proposer": "workspace:*",
+    "@invariant-app/verifier": "workspace:*",
     "ajv": "^8.20.0",
     "yaml": "^2.8.2"
   },
   "devDependencies": {
-    "@invariant/runtime": "workspace:*"
+    "@invariant-app/runtime": "workspace:*"
   }
 }

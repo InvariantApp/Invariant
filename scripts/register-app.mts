@@ -12,7 +12,7 @@
 import { chmod, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { registerApp } from "@invariant/github";
+import { registerApp } from "@invariant-app/github";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const OUT_DIR = join(ROOT, ".secrets");

@@ -19,7 +19,7 @@
  * makes the change and the caller pays for it, so the provider is the one who
  * should have to say what the caller sees.
  */
-import { CHOOSE_ONE, type Change } from "@invariant/ir";
+import { CHOOSE_ONE, type Change } from "@invariant-app/ir";
 import type { SchemaDelta } from "./candidates.ts";
 
 export interface FoldDecision {

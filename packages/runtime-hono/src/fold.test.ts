@@ -10,7 +10,7 @@
  * makes its absence mean something: no header, and every value in the body is
  * one the API really produced.
  */
-import { createRuntime, FOLDED_HEADER } from "@invariant/runtime";
+import { createRuntime, FOLDED_HEADER } from "@invariant-app/runtime";
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { adapt, wrapFetch } from "./index.ts";

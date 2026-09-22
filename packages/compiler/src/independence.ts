@@ -16,7 +16,7 @@ import {
   isDataOp,
   isSchemaScope,
   parsePointer,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 
 export interface InterferenceIssue {
   changeId: string;

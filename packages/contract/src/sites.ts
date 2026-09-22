@@ -13,7 +13,7 @@ import {
   type JsonObject,
   type JsonValue,
   type Pointer,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 import { resolveSchema } from "./resolve.ts";
 import {
   deref,

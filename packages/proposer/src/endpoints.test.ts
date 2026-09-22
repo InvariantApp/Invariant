@@ -10,7 +10,7 @@
  * endpoint that moved must not also be reported as retired, and a parameter on
  * an endpoint that no longer exists must not be reported at all.
  */
-import type { OpenApiDocument } from "@invariant/contract";
+import type { OpenApiDocument } from "@invariant-app/contract";
 import { describe, expect, it } from "vitest";
 import {
   type ParameterDelta,

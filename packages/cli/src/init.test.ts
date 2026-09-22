@@ -12,7 +12,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { oasdiffAvailable } from "@invariant/diff";
+import { oasdiffAvailable } from "@invariant-app/diff";
 import { afterEach, describe, expect, it } from "vitest";
 import { versionHeader } from "./init.ts";
 

@@ -23,7 +23,7 @@ const PACKAGES = join(import.meta.dirname, "../..");
  * point and the alternative is inlining it. It has no dependencies of its own,
  * which this test also checks.
  */
-const ALLOWED_PACKAGES = new Set(["@invariant/decimal"]);
+const ALLOWED_PACKAGES = new Set(["@invariant-app/decimal"]);
 
 /**
  * Node built-ins the request path may use.
@@ -108,7 +108,7 @@ describe("what the request path can reach", () => {
     // One level is not enough: a dependency that grew a network client would
     // put one in the request path without changing a line of this package.
     for (const allowed of ALLOWED_PACKAGES) {
-      const name = allowed.replace("@invariant/", "");
+      const name = allowed.replace("@invariant-app/", "");
       const specifiers = await importsOfPackage(name);
       const external = specifiers.filter((entry) => !entry.startsWith("."));
       expect(external, `${allowed} should import nothing at all`).toEqual([]);
@@ -118,9 +118,9 @@ describe("what the request path can reach", () => {
   it("counts a value import even when a type import of the same thing is fine", () => {
     // The distinction this rests on, stated rather than assumed. The first
     // disappears at compile time; the second is a module loaded at a request.
-    expect(importsIn('import type { Instr } from "@invariant/ir";')).toEqual([]);
-    expect(importsIn('import { parseChange } from "@invariant/ir";')).toEqual([
-      "@invariant/ir",
+    expect(importsIn('import type { Instr } from "@invariant-app/ir";')).toEqual([]);
+    expect(importsIn('import { parseChange } from "@invariant-app/ir";')).toEqual([
+      "@invariant-app/ir",
     ]);
     expect(importsIn('import { type A, b } from "x";')).toEqual(["x"]);
   });

@@ -26,8 +26,8 @@ import {
   requestBodyMedia,
   resolveSchema,
   responseSchemas,
-} from "@invariant/contract";
-import { isJsonObject, type JsonObject, type JsonValue } from "@invariant/ir";
+} from "@invariant-app/contract";
+import { isJsonObject, type JsonObject, type JsonValue } from "@invariant-app/ir";
 import type { Scenario, ScenarioStep } from "./scenarios.ts";
 
 export interface GeneratedScenarios {

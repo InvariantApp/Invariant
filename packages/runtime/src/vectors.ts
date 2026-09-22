@@ -9,7 +9,7 @@
  * of the contract as a result: an engine that quietly rounds where this one
  * rejects is not compatible, it is dangerous.
  */
-import type { Instr } from "@invariant/ir";
+import type { Instr } from "@invariant-app/ir";
 
 export interface Vector {
   name: string;

@@ -1,4 +1,4 @@
-# @invariant/telemetry
+# @invariant-app/telemetry
 
 Takes what a running adapter did out of the process, as hourly counters with no bodies and no field values: to the control plane, a rotating JSONL file, or an OpenTelemetry meter. Bounded, and never throws into the request path.
 

@@ -10,7 +10,7 @@
  * lens-law check needs to know which fields are allowed to differ before it can
  * insist that everything else matches exactly.
  */
-import type { Change, Op, RuntimeClass, SourceClass } from "@invariant/ir";
+import type { Change, Op, RuntimeClass, SourceClass } from "@invariant-app/ir";
 
 export interface Derived {
   runtime: RuntimeClass;

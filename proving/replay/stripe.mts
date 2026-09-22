@@ -19,9 +19,9 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { type OpenApiDocument, readDocument } from "@invariant/contract";
-import type { Change } from "@invariant/ir";
-import { propose, RulesJudge } from "@invariant/proposer";
+import { type OpenApiDocument, readDocument } from "@invariant-app/contract";
+import type { Change } from "@invariant-app/ir";
+import { propose, RulesJudge } from "@invariant-app/proposer";
 import { ROOT } from "../corpus/manifest.mts";
 
 const SPECS = join(ROOT, ".cache/replay/specs");

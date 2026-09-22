@@ -4,7 +4,7 @@ import {
   isJsonObject,
   type JsonObject,
   type JsonValue,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 import { upgradeFromTwoToThree } from "@scalar/openapi-upgrader/2.0-to-3.0";
 import { BundleError, bundleDocument } from "./bundle.ts";
 import { digestOf, stripNonWire } from "./canonical.ts";

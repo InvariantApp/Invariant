@@ -6,7 +6,7 @@
  * carries ids, and one label value per payment is a metrics system brought
  * down by its own traffic. Nothing here holds a body or a value from one.
  */
-import type { OutcomeEvent, UsageEvent } from "@invariant/runtime";
+import type { OutcomeEvent, UsageEvent } from "@invariant-app/runtime";
 
 type Labels = Record<string, string>;
 

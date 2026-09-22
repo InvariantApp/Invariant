@@ -1,4 +1,4 @@
-# @invariant/ir
+# @invariant-app/ir
 
 The Change IR and compiled-program formats, as TypeBox schemas with JSON Schema export. Every other package speaks these types.
 

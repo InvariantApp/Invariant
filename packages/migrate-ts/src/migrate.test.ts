@@ -7,8 +7,8 @@
  * the Changes the provider already confirmed, with no changelog anywhere in the
  * pipeline.
  */
-import { loadPendingChanges, loadReleaseStep } from "@invariant/contract";
-import type { Change } from "@invariant/ir";
+import { loadPendingChanges, loadReleaseStep } from "@invariant-app/contract";
+import type { Change } from "@invariant-app/ir";
 import { beforeAll, describe, expect, it } from "vitest";
 import { migrate } from "./index.ts";
 import type { SymbolMap } from "./plan.ts";

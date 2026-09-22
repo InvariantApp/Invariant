@@ -8,8 +8,8 @@
  * Each step renames one field of `Resource` and converts another's unit, so
  * every step reaches every site, which is the case that grows fastest.
  */
-import type { OpenApiDocument } from "@invariant/contract";
-import { type Change, parseChange } from "@invariant/ir";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { type Change, parseChange } from "@invariant-app/ir";
 
 export interface ChainShape {
   operations: number;

@@ -19,7 +19,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AlignmentQuestion, Judge, JudgeResult } from "@invariant/proposer";
+import type { AlignmentQuestion, Judge, JudgeResult } from "@invariant-app/proposer";
 import { afterEach, describe, expect, it } from "vitest";
 import type { EvalCase } from "./corpus.ts";
 import { runJudge } from "./runner.ts";

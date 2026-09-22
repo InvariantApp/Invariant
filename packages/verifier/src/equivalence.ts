@@ -15,15 +15,15 @@
  * the design promised for any future optimising flattener: whatever that
  * produces has to pass this unchanged.
  */
-import { type ContractStep, chainProgram, projectStep } from "@invariant/compiler";
-import { type OpenApiDocument, operationsOf } from "@invariant/contract";
+import { type ContractStep, chainProgram, projectStep } from "@invariant-app/compiler";
+import { type OpenApiDocument, operationsOf } from "@invariant-app/contract";
 import {
   type ContractProgram,
   type Instr,
   isJsonObject,
   type JsonValue,
   siteKey,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 import fc from "fast-check";
 import { schemaArbitrary } from "./arbitrary.ts";
 import { type Evidence, inputsDigest } from "./evidence.ts";

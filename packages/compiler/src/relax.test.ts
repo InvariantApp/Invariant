@@ -8,8 +8,8 @@
  * different: they would be refused for what their contract allowed, and no
  * Change may pretend otherwise.
  */
-import type { OpenApiDocument } from "@invariant/contract";
-import { narrows, parseChange } from "@invariant/ir";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { narrows, parseChange } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import { chainProgram } from "./chain.ts";
 import { derive } from "./derive.ts";

@@ -16,7 +16,7 @@
  * later anyway. A provider that really does read bodies with arbitrary
  * precision can turn it on.
  */
-import { numberToDecimalText } from "@invariant/decimal";
+import { numberToDecimalText } from "@invariant-app/decimal";
 import { BodyTooDeepError } from "./errors.ts";
 
 export type Json = unknown;

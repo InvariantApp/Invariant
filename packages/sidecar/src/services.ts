@@ -8,20 +8,20 @@
  * and counters wait for the next attempt.
  */
 import { createHash } from "node:crypto";
-import { type ControlPlaneClient, createClient } from "@invariant/client";
+import { type ControlPlaneClient, createClient } from "@invariant-app/client";
 import {
   combineFlags,
   type FlagsSource,
   flagsFrom,
   type RemoteFlagsSource,
   remoteFlags,
-} from "@invariant/flags";
+} from "@invariant-app/flags";
 import {
   type OutcomeEvent,
   RUNTIME_VERSION,
   type RuntimeFlags,
   type UsageEvent,
-} from "@invariant/runtime";
+} from "@invariant-app/runtime";
 import {
   controlPlaneSink,
   createTelemetry,
@@ -29,7 +29,7 @@ import {
   type Sink,
   startHeartbeat,
   type Telemetry,
-} from "@invariant/telemetry";
+} from "@invariant-app/telemetry";
 import { ConfigError, type SidecarConfig } from "./config.ts";
 import { createMetrics, type Metrics } from "./metrics.ts";
 

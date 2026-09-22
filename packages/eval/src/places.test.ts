@@ -2,7 +2,7 @@
  * A delta counted once per place, so a shared schema's one change is one
  * change however many operations return it.
  */
-import type { DiffEntry } from "@invariant/diff";
+import type { DiffEntry } from "@invariant-app/diff";
 import { describe, expect, it } from "vitest";
 import { placeOf } from "./real.ts";
 

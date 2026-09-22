@@ -10,8 +10,8 @@
  * that passed, because a reader who cannot tell the difference between "this
  * held" and "this never ran" has not been told anything.
  */
-import { catalogueEntry, kindsOf } from "@invariant/diff";
-import type { EvidenceKind } from "@invariant/verifier";
+import { catalogueEntry, kindsOf } from "@invariant-app/diff";
+import type { EvidenceKind } from "@invariant-app/verifier";
 import type { CheckReport } from "./check.ts";
 
 const HEADINGS: Record<GateVerdict, string> = {

@@ -23,13 +23,13 @@ import {
   requestBodySchema,
   resolveRef,
   resolveSchema,
-} from "@invariant/contract";
+} from "@invariant-app/contract";
 import {
   type Change,
   isJsonObject,
   type JsonObject,
   type JsonValue,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 import { listCodec, timeCodec } from "./codecs.ts";
 
 export interface RetiredEndpoint {

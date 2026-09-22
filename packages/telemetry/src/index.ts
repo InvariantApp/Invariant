@@ -28,8 +28,8 @@ import type {
   IngestBatch,
   OutcomeRow,
   UsageRow,
-} from "@invariant/client";
-import type { OutcomeEvent, UsageEvent } from "@invariant/runtime";
+} from "@invariant-app/client";
+import type { OutcomeEvent, UsageEvent } from "@invariant-app/runtime";
 
 export { type JsonlOptions, jsonlSink } from "./jsonl.ts";
 export { type Meter, meterSink } from "./meter.ts";

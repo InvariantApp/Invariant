@@ -15,7 +15,7 @@
  * generated Changes land on real sites as well as on nothing.
  */
 import { readFileSync } from "node:fs";
-import { findSchemaSites, type OpenApiDocument } from "@invariant/contract";
+import { findSchemaSites, type OpenApiDocument } from "@invariant-app/contract";
 import {
   type Change,
   type ConvertOp,
@@ -23,7 +23,7 @@ import {
   isDataOp,
   parseChange,
   type ScalarType,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { chainProgram } from "./chain.ts";

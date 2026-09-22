@@ -29,46 +29,46 @@ importers:
       '@hono/node-server':
         specifier: ^2.1.1
         version: 2.1.1(hono@4.13.8)
-      '@invariant/bundle':
+      '@invariant-app/bundle':
         specifier: workspace:*
         version: link:packages/bundle
-      '@invariant/cli':
+      '@invariant-app/cli':
         specifier: workspace:*
         version: link:packages/cli
-      '@invariant/compiler':
+      '@invariant-app/compiler':
         specifier: workspace:*
         version: link:packages/compiler
-      '@invariant/contract':
+      '@invariant-app/contract':
         specifier: workspace:*
         version: link:packages/contract
-      '@invariant/diff':
+      '@invariant-app/diff':
         specifier: workspace:*
         version: link:packages/diff
-      '@invariant/eval':
+      '@invariant-app/eval':
         specifier: workspace:*
         version: link:packages/eval
-      '@invariant/flags':
+      '@invariant-app/flags':
         specifier: workspace:*
         version: link:packages/flags
-      '@invariant/github':
+      '@invariant-app/github':
         specifier: workspace:*
         version: link:packages/github
-      '@invariant/ir':
+      '@invariant-app/ir':
         specifier: workspace:*
         version: link:packages/ir
-      '@invariant/migrate-ts':
+      '@invariant-app/migrate-ts':
         specifier: workspace:*
         version: link:packages/migrate-ts
-      '@invariant/proposer':
+      '@invariant-app/proposer':
         specifier: workspace:*
         version: link:packages/proposer
-      '@invariant/runtime':
+      '@invariant-app/runtime':
         specifier: workspace:*
         version: link:packages/runtime
-      '@invariant/sidecar':
+      '@invariant-app/sidecar':
         specifier: workspace:*
         version: link:packages/sidecar
-      '@invariant/verifier':
+      '@invariant-app/verifier':
         specifier: workspace:*
         version: link:packages/verifier
       '@types/node':
@@ -151,22 +151,22 @@ importers:
 
   fixtures/docs-samples:
     dependencies:
-      '@invariant/client':
+      '@invariant-app/client':
         specifier: workspace:*
         version: link:../../packages/client
-      '@invariant/flags':
+      '@invariant-app/flags':
         specifier: workspace:*
         version: link:../../packages/flags
-      '@invariant/runtime':
+      '@invariant-app/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
-      '@invariant/runtime-hono':
+      '@invariant-app/runtime-hono':
         specifier: workspace:*
         version: link:../../packages/runtime-hono
-      '@invariant/runtime-node':
+      '@invariant-app/runtime-node':
         specifier: workspace:*
         version: link:../../packages/runtime-node
-      '@invariant/telemetry':
+      '@invariant-app/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry
       '@nestjs/common':
@@ -250,10 +250,10 @@ importers:
 
   fixtures/next-app:
     dependencies:
-      '@invariant/runtime':
+      '@invariant-app/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
-      '@invariant/runtime-node':
+      '@invariant-app/runtime-node':
         specifier: workspace:*
         version: link:../../packages/runtime-node
 
@@ -307,20 +307,20 @@ importers:
       '@hono/node-server':
         specifier: ^2.1.1
         version: 2.1.1(hono@4.13.8)
-      '@invariant/runtime':
+      '@invariant-app/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
-      '@invariant/runtime-hono':
+      '@invariant-app/runtime-hono':
         specifier: workspace:*
         version: link:../../packages/runtime-hono
       hono:
         specifier: ^4.13.8
         version: 4.13.8
     devDependencies:
-      '@invariant/cli':
+      '@invariant-app/cli':
         specifier: workspace:*
         version: link:../../packages/cli
-      '@invariant/contract':
+      '@invariant-app/contract':
         specifier: workspace:*
         version: link:../../packages/contract
 
@@ -330,49 +330,49 @@ importers:
 
   packages/action:
     dependencies:
-      '@invariant/cli':
+      '@invariant-app/cli':
         specifier: workspace:*
         version: link:../cli
-      '@invariant/diff':
+      '@invariant-app/diff':
         specifier: workspace:*
         version: link:../diff
 
   packages/bundle:
     dependencies:
-      '@invariant/contract':
+      '@invariant-app/contract':
         specifier: workspace:*
         version: link:../contract
-      '@invariant/ir':
+      '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
-      '@invariant/verifier':
+      '@invariant-app/verifier':
         specifier: workspace:*
         version: link:../verifier
 
   packages/cli:
     dependencies:
-      '@invariant/bundle':
+      '@invariant-app/bundle':
         specifier: workspace:*
         version: link:../bundle
-      '@invariant/client':
+      '@invariant-app/client':
         specifier: workspace:*
         version: link:../client
-      '@invariant/compiler':
+      '@invariant-app/compiler':
         specifier: workspace:*
         version: link:../compiler
-      '@invariant/contract':
+      '@invariant-app/contract':
         specifier: workspace:*
         version: link:../contract
-      '@invariant/diff':
+      '@invariant-app/diff':
         specifier: workspace:*
         version: link:../diff
-      '@invariant/ir':
+      '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
-      '@invariant/proposer':
+      '@invariant-app/proposer':
         specifier: workspace:*
         version: link:../proposer
-      '@invariant/verifier':
+      '@invariant-app/verifier':
         specifier: workspace:*
         version: link:../verifier
       ajv:
@@ -382,13 +382,13 @@ importers:
         specifier: ^2.8.2
         version: 2.9.1
     devDependencies:
-      '@invariant/runtime':
+      '@invariant-app/runtime':
         specifier: workspace:*
         version: link:../runtime
 
   packages/client:
     devDependencies:
-      '@invariant/contract':
+      '@invariant-app/contract':
         specifier: workspace:*
         version: link:../contract
       openapi-typescript:
@@ -400,25 +400,25 @@ importers:
 
   packages/compiler:
     dependencies:
-      '@invariant/contract':
+      '@invariant-app/contract':
         specifier: workspace:*
         version: link:../contract
-      '@invariant/decimal':
+      '@invariant-app/decimal':
         specifier: workspace:*
         version: link:../decimal
-      '@invariant/diff':
+      '@invariant-app/diff':
         specifier: workspace:*
         version: link:../diff
-      '@invariant/ir':
+      '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
-      '@invariant/runtime':
+      '@invariant-app/runtime':
         specifier: workspace:*
         version: link:../runtime
 
   packages/contract:
     dependencies:
-      '@invariant/ir':
+      '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
       '@scalar/openapi-upgrader':
@@ -439,44 +439,44 @@ importers:
 
   packages/diff:
     dependencies:
-      '@invariant/contract':
+      '@invariant-app/contract':
         specifier: workspace:*
         version: link:../contract
-      '@invariant/ir':
+      '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
     optionalDependencies:
-      '@invariant/oasdiff-darwin':
+      '@invariant-app/oasdiff-darwin':
         specifier: workspace:*
         version: link:../oasdiff-darwin
-      '@invariant/oasdiff-linux-arm64':
+      '@invariant-app/oasdiff-linux-arm64':
         specifier: workspace:*
         version: link:../oasdiff-linux-arm64
-      '@invariant/oasdiff-linux-x64':
+      '@invariant-app/oasdiff-linux-x64':
         specifier: workspace:*
         version: link:../oasdiff-linux-x64
-      '@invariant/oasdiff-win32-arm64':
+      '@invariant-app/oasdiff-win32-arm64':
         specifier: workspace:*
         version: link:../oasdiff-win32-arm64
-      '@invariant/oasdiff-win32-x64':
+      '@invariant-app/oasdiff-win32-x64':
         specifier: workspace:*
         version: link:../oasdiff-win32-x64
 
   packages/eval:
     dependencies:
-      '@invariant/compiler':
+      '@invariant-app/compiler':
         specifier: workspace:*
         version: link:../compiler
-      '@invariant/contract':
+      '@invariant-app/contract':
         specifier: workspace:*
         version: link:../contract
-      '@invariant/diff':
+      '@invariant-app/diff':
         specifier: workspace:*
         version: link:../diff
-      '@invariant/ir':
+      '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
-      '@invariant/proposer':
+      '@invariant-app/proposer':
         specifier: workspace:*
         version: link:../proposer
       yaml:
@@ -485,22 +485,22 @@ importers:
 
   packages/flags:
     dependencies:
-      '@invariant/client':
+      '@invariant-app/client':
         specifier: workspace:*
         version: link:../client
-      '@invariant/runtime':
+      '@invariant-app/runtime':
         specifier: workspace:*
         version: link:../runtime
 
   packages/github:
     dependencies:
-      '@invariant/bundle':
+      '@invariant-app/bundle':
         specifier: workspace:*
         version: link:../bundle
-      '@invariant/ir':
+      '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
-      '@invariant/migrate-ts':
+      '@invariant-app/migrate-ts':
         specifier: workspace:*
         version: link:../migrate-ts
 
@@ -512,17 +512,17 @@ importers:
 
   packages/migrate-ts:
     dependencies:
-      '@invariant/decimal':
+      '@invariant-app/decimal':
         specifier: workspace:*
         version: link:../decimal
-      '@invariant/ir':
+      '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
       ts-morph:
         specifier: ^28.0.0
         version: 28.0.0
     devDependencies:
-      '@invariant/contract':
+      '@invariant-app/contract':
         specifier: workspace:*
         version: link:../contract
 
@@ -538,13 +538,13 @@ importers:
 
   packages/proposer:
     dependencies:
-      '@invariant/contract':
+      '@invariant-app/contract':
         specifier: workspace:*
         version: link:../contract
-      '@invariant/ir':
+      '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
-      '@invariant/runtime':
+      '@invariant-app/runtime':
         specifier: workspace:*
         version: link:../runtime
       '@typesafe-ai/sdk':
@@ -553,17 +553,17 @@ importers:
 
   packages/runtime:
     dependencies:
-      '@invariant/decimal':
+      '@invariant-app/decimal':
         specifier: workspace:*
         version: link:../decimal
     devDependencies:
-      '@invariant/ir':
+      '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
 
   packages/runtime-hono:
     dependencies:
-      '@invariant/runtime':
+      '@invariant-app/runtime':
         specifier: workspace:*
         version: link:../runtime
     devDependencies:
@@ -573,7 +573,7 @@ importers:
 
   packages/runtime-node:
     dependencies:
-      '@invariant/runtime':
+      '@invariant-app/runtime':
         specifier: workspace:*
         version: link:../runtime
     devDependencies:
@@ -622,63 +622,63 @@ importers:
 
   packages/sidecar:
     dependencies:
-      '@invariant/client':
+      '@invariant-app/client':
         specifier: workspace:*
         version: link:../client
-      '@invariant/flags':
+      '@invariant-app/flags':
         specifier: workspace:*
         version: link:../flags
-      '@invariant/runtime':
+      '@invariant-app/runtime':
         specifier: workspace:*
         version: link:../runtime
-      '@invariant/telemetry':
+      '@invariant-app/telemetry':
         specifier: workspace:*
         version: link:../telemetry
     devDependencies:
-      '@invariant/compiler':
+      '@invariant-app/compiler':
         specifier: workspace:*
         version: link:../compiler
-      '@invariant/contract':
+      '@invariant-app/contract':
         specifier: workspace:*
         version: link:../contract
-      '@invariant/ir':
+      '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
 
   packages/telemetry:
     dependencies:
-      '@invariant/client':
+      '@invariant-app/client':
         specifier: workspace:*
         version: link:../client
     devDependencies:
-      '@invariant/cli':
+      '@invariant-app/cli':
         specifier: workspace:*
         version: link:../cli
-      '@invariant/contract':
+      '@invariant-app/contract':
         specifier: workspace:*
         version: link:../contract
-      '@invariant/runtime':
+      '@invariant-app/runtime':
         specifier: workspace:*
         version: link:../runtime
 
   packages/verifier:
     dependencies:
-      '@invariant/compiler':
+      '@invariant-app/compiler':
         specifier: workspace:*
         version: link:../compiler
-      '@invariant/contract':
+      '@invariant-app/contract':
         specifier: workspace:*
         version: link:../contract
-      '@invariant/decimal':
+      '@invariant-app/decimal':
         specifier: workspace:*
         version: link:../decimal
-      '@invariant/diff':
+      '@invariant-app/diff':
         specifier: workspace:*
         version: link:../diff
-      '@invariant/ir':
+      '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
-      '@invariant/runtime':
+      '@invariant-app/runtime':
         specifier: workspace:*
         version: link:../runtime
       fast-check:

@@ -1,4 +1,4 @@
-# @invariant/client
+# @invariant-app/client
 
 The contract of the Invariant control plane, `openapi.yaml`, and a typed client for it with no dependencies: publishing signed bundles, reporting what running adapters did, polling and changing flags, and reading which old contracts are still in use.
 

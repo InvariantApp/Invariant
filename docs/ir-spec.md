@@ -162,7 +162,7 @@ list of primitives per site, already inverted where inversion was needed.
 ```json
 {
   "irVersion": 2,
-  "compiledBy": "@invariant/compiler@0.1.0",
+  "compiledBy": "@invariant-app/compiler@0.1.0",
   "minRuntime": "0.1.0",
   "api": "acme-payments",
   "current": "sha256:...",

@@ -24,15 +24,15 @@ import {
   openBundle,
   reproduces,
   signBundle,
-} from "@invariant/bundle";
+} from "@invariant-app/bundle";
 import {
   listReleasedLabels,
   loadContract,
   loadPendingChanges,
   standaloneText,
-} from "@invariant/contract";
-import type { Change } from "@invariant/ir";
-import { type Evidence, inputsDigest } from "@invariant/verifier";
+} from "@invariant-app/contract";
+import type { Change } from "@invariant-app/ir";
+import { type Evidence, inputsDigest } from "@invariant-app/verifier";
 import { isMap, parseDocument, type Scalar, stringify as stringifyYaml } from "yaml";
 import { type CheckReport, check } from "./check.ts";
 import { type InvariantConfig, loadConfig } from "./config.ts";

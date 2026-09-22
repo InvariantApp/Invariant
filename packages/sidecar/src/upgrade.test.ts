@@ -6,7 +6,7 @@
 import { createServer, request, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
-import { createRuntime } from "@invariant/runtime";
+import { createRuntime } from "@invariant-app/runtime";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createProxy } from "./proxy.ts";
 import { type Listening, serve } from "./server.ts";

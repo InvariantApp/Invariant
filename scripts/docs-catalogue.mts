@@ -15,7 +15,7 @@ import {
   catalogueEntry,
   OASDIFF_VERSION,
   oasdiffBinary,
-} from "@invariant/diff";
+} from "@invariant-app/diff";
 
 const OUT = join(import.meta.dirname, "../docs/reference/breaking-changes.md");
 

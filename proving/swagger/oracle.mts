@@ -28,8 +28,8 @@ import {
   type OpenApiDocument,
   readDocument,
   upgradeSwagger,
-} from "@invariant/contract";
-import { type DiffEntry, diffDocuments } from "@invariant/diff";
+} from "@invariant-app/contract";
+import { type DiffEntry, diffDocuments } from "@invariant-app/diff";
 import swagger2openapi from "swagger2openapi";
 import {
   type ManifestFile,

@@ -1,8 +1,8 @@
-# @invariant/oasdiff-darwin
+# @invariant-app/oasdiff-darwin
 
 The unmodified [oasdiff](https://github.com/oasdiff/oasdiff) release binary for
 darwin, so the Invariant release gate needs no Go toolchain. It is installed
-automatically as an optional dependency of `@invariant/diff` on the platform it
+automatically as an optional dependency of `@invariant-app/diff` on the platform it
 is for, and is never needed directly.
 
 The binary is upstream's release asset, checked against upstream's published

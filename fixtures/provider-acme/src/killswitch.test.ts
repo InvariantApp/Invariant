@@ -14,7 +14,7 @@
  * wrong; or something is wrong and nobody yet knows what.
  */
 
-import type { RuntimeFlags } from "@invariant/runtime";
+import type { RuntimeFlags } from "@invariant-app/runtime";
 import { describe, expect, it } from "vitest";
 import { type AcmeApp, createAcmeApp } from "./index.ts";
 import { ACME_PROGRAM } from "./program.ts";

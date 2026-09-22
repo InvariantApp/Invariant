@@ -4,8 +4,12 @@
  * its program is the real test of chaining: two steps of Changes collapsed into
  * one pass, requests replayed forward and responses undone in reverse.
  */
-import { loadContract, loadPendingChanges, loadReleaseStep } from "@invariant/contract";
-import { type CompiledProgram, parseCompiledProgram } from "@invariant/ir";
+import {
+  loadContract,
+  loadPendingChanges,
+  loadReleaseStep,
+} from "@invariant-app/contract";
+import { type CompiledProgram, parseCompiledProgram } from "@invariant-app/ir";
 import { beforeAll, describe, expect, it } from "vitest";
 import { type ContractStep, chainProgram, expandChains } from "./chain.ts";
 

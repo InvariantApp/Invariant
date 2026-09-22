@@ -1,4 +1,4 @@
-# @invariant/migrate-ts
+# @invariant-app/migrate-ts
 
 Rewrites a consumer's TypeScript code across a release, from the same Changes that drive the runtime, with byte-range edits that leave everything else untouched.
 

@@ -7,7 +7,7 @@
  */
 import { watch } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { createRuntime } from "@invariant/runtime";
+import { createRuntime } from "@invariant-app/runtime";
 import { accessLogged } from "./access-log.ts";
 import { ConfigError, loadConfig, skipper } from "./config.ts";
 import { createProxy } from "./proxy.ts";

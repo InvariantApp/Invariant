@@ -6,7 +6,7 @@
  * contract's schemas to the symbols the consumer's SDK actually exports, and
  * everything it does follows from those two.
  */
-import type { Change, DataOp } from "@invariant/ir";
+import type { Change, DataOp } from "@invariant-app/ir";
 
 /** How a generated SDK names the things a contract describes. */
 export interface SymbolMap {

@@ -1,5 +1,5 @@
 {
-  "name": "@invariant/proposer",
+  "name": "@invariant-app/proposer",
   "version": "0.1.0",
   "description": "Drafts candidate Changes from a structural diff. Proposals only: nothing here can ship.",
   "license": "Apache-2.0",
@@ -37,9 +37,9 @@
     }
   },
   "dependencies": {
-    "@invariant/contract": "workspace:*",
-    "@invariant/ir": "workspace:*",
-    "@invariant/runtime": "workspace:*",
+    "@invariant-app/contract": "workspace:*",
+    "@invariant-app/ir": "workspace:*",
+    "@invariant-app/runtime": "workspace:*",
     "@typesafe-ai/sdk": "^0.6.0"
   }
 }

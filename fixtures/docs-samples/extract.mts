@@ -23,13 +23,13 @@ declare const app: Hono;
 declare const yourAuth: MiddlewareHandler;
 declare const log: { append(event: unknown): void };
 declare function splitName(name: string): { first_name: string; last_name: string };
-declare const inv: import("@invariant/runtime").InvariantRuntime;
-declare const identity: NonNullable<Parameters<typeof import("@invariant/runtime").createRuntime>[0]["identity"]>;`,
+declare const inv: import("@invariant-app/runtime").InvariantRuntime;
+declare const identity: NonNullable<Parameters<typeof import("@invariant-app/runtime").createRuntime>[0]["identity"]>;`,
 };
 
 /** Names a later sample uses that an earlier one defined, in its own block. */
-const SHARED = `declare const client: ReturnType<typeof import("@invariant/client").createClient>;
-declare const flags: ReturnType<typeof import("@invariant/flags").remoteFlags>;`;
+const SHARED = `declare const client: ReturnType<typeof import("@invariant-app/client").createClient>;
+declare const flags: ReturnType<typeof import("@invariant-app/flags").remoteFlags>;`;
 
 const PAGES = [
   ...readdirSync(GUIDES)

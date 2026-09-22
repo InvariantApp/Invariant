@@ -7,7 +7,7 @@
  * as an unexplained 500 and the provider's guidance never reached anybody. The
  * op was tested and the path a real request takes was not.
  */
-import { createRuntime } from "@invariant/runtime";
+import { createRuntime } from "@invariant-app/runtime";
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { adapt, wrapFetch } from "./index.ts";

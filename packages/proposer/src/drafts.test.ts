@@ -7,7 +7,7 @@
  * requests with nothing added in its place, and an operation renamed where it
  * stood. Anything else still goes to a person.
  */
-import type { OpenApiDocument } from "@invariant/contract";
+import type { OpenApiDocument } from "@invariant-app/contract";
 import { describe, expect, it } from "vitest";
 import { decisionChange } from "./decisions.ts";
 import type { Judge } from "./judge.ts";

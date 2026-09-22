@@ -2,7 +2,7 @@
  * The provider runs only its canonical current API. Everything an old contract
  * needs comes from the compiled program, inside this same build.
  */
-import type { UsageEvent } from "@invariant/runtime";
+import type { UsageEvent } from "@invariant-app/runtime";
 import { beforeEach, describe, expect, it } from "vitest";
 import { sign } from "./auth.ts";
 import { ACME_PROGRAM, createAcmeApp } from "./index.ts";

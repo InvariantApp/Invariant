@@ -12,7 +12,7 @@
  * reorganised would bury genuine removals under a route change that looks like
  * it explained them.
  */
-import type { OpenApiDocument } from "@invariant/contract";
+import type { OpenApiDocument } from "@invariant-app/contract";
 import { describe, expect, it } from "vitest";
 import { detectPrefixMove, prefixChange } from "./prefix.ts";
 

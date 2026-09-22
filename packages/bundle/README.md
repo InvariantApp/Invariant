@@ -1,4 +1,4 @@
-# @invariant/bundle
+# @invariant-app/bundle
 
 Signed, reproducible evolution bundles: DSSE envelopes around an in-toto statement, signed with Ed25519.
 

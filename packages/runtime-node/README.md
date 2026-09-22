@@ -1,11 +1,11 @@
-# @invariant/runtime-node
+# @invariant-app/runtime-node
 
 The Invariant runtime in any Node server: Express 4 and 5, Koa, Fastify 4 and 5, NestJS 10 to 12 on Express, a Next.js 14 to 16 custom server, or plain `node:http`. One conformance suite holds each of them to the same behaviour.
 
 ```ts
 import { createServer } from "node:http";
-import { createRuntime } from "@invariant/runtime";
-import { adaptListener } from "@invariant/runtime-node";
+import { createRuntime } from "@invariant-app/runtime";
+import { adaptListener } from "@invariant-app/runtime-node";
 import program from "./invariant/compiled/program.json" with { type: "json" };
 
 const runtime = createRuntime({ program });

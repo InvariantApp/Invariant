@@ -2,9 +2,9 @@
  * Long chains (launch gate L18): a program that stays the size of its history
  * rather than its square, and still means what every step run in turn means.
  */
-import { expandChains } from "@invariant/compiler";
-import { createRuntime } from "@invariant/runtime";
-import { checkChainEquivalence } from "@invariant/verifier";
+import { expandChains } from "@invariant-app/compiler";
+import { createRuntime } from "@invariant-app/runtime";
+import { checkChainEquivalence } from "@invariant-app/verifier";
 import { describe, expect, it } from "vitest";
 import { BUDGET, compile, currentResource, measureChain, stepsOf } from "./cost.ts";
 import { STRIPE_SIZED } from "./synthetic.ts";

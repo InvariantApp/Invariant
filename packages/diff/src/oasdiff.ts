@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
-import { ambiguousPaths, type OpenApiDocument } from "@invariant/contract";
+import { ambiguousPaths, type OpenApiDocument } from "@invariant-app/contract";
 import { agreeingAllOf } from "./allof.ts";
 import { binaryFor } from "./binaries.ts";
 import { wholeSchemaRefs } from "./deep-refs.ts";

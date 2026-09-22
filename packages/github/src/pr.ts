@@ -12,8 +12,8 @@
  * consumer's own CI decides whether it is ready, because the consumer's own CI
  * is the only thing here that knows what their code is for.
  */
-import type { EvolutionBundle } from "@invariant/bundle";
-import type { ManualSite } from "@invariant/migrate-ts";
+import type { EvolutionBundle } from "@invariant-app/bundle";
+import type { ManualSite } from "@invariant-app/migrate-ts";
 
 export interface HunkProvenance {
   file: string;

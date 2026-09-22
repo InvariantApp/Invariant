@@ -7,7 +7,7 @@
  * the handler wrote, shaped for a contract they do not speak, with a 200. That
  * is the one outcome the runtime exists to prevent.
  */
-import { createRuntime } from "@invariant/runtime";
+import { createRuntime } from "@invariant-app/runtime";
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { adapt, wrapFetch } from "./index.ts";

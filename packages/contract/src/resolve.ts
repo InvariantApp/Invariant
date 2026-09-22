@@ -9,7 +9,7 @@
  * behind a `$ref` only one of them looked through. Reading and writing now go
  * through the same view, so they cannot disagree about what a field is.
  */
-import { isJsonObject, type JsonObject, type JsonValue } from "@invariant/ir";
+import { isJsonObject, type JsonObject, type JsonValue } from "@invariant-app/ir";
 import { ContractError, deref, type OpenApiDocument } from "./spec.ts";
 
 /** Deepest `allOf` nesting followed before giving up, which only a cycle reaches. */

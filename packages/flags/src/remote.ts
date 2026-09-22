@@ -10,8 +10,8 @@
  */
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import type { ControlPlaneClient } from "@invariant/client";
-import type { RuntimeFlags } from "@invariant/runtime";
+import type { ControlPlaneClient } from "@invariant-app/client";
+import type { RuntimeFlags } from "@invariant-app/runtime";
 import type { FlagsSource } from "./index.ts";
 import { parseFlags } from "./parse.ts";
 

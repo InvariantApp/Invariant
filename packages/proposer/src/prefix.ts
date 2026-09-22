@@ -22,8 +22,12 @@
  * were reorganised" and "the whole API moved" deserve different answers, and
  * guessing the second when it was the first would paper over real removals.
  */
-import { type HttpMethod, type OpenApiDocument, operationsOf } from "@invariant/contract";
-import type { Change, Op } from "@invariant/ir";
+import {
+  type HttpMethod,
+  type OpenApiDocument,
+  operationsOf,
+} from "@invariant-app/contract";
+import type { Change, Op } from "@invariant-app/ir";
 
 /** How much of the disappearance one substitution has to explain to be believed. */
 export const PREFIX_CONFIDENCE = 0.6;

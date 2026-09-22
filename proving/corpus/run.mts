@@ -14,8 +14,8 @@ import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { catalogueEntry } from "@invariant/diff";
-import { type PairResult, type RealSummary, summarizeReal } from "@invariant/eval";
+import { catalogueEntry } from "@invariant-app/diff";
+import { type PairResult, type RealSummary, summarizeReal } from "@invariant-app/eval";
 import { DIAGNOSIS } from "./diagnosis.mts";
 import {
   type LocalPair,

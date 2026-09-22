@@ -658,7 +658,7 @@ const PARAM_TYPES = new Set([
 /**
  * Headers no program may touch. The compiler refuses these first; this is the
  * copy the runtime holds, so a program built by anything else is refused too.
- * `DENIED_HEADERS` in `@invariant/ir` is the list, and a test keeps them equal.
+ * `DENIED_HEADERS` in `@invariant-app/ir` is the list, and a test keeps them equal.
  */
 export const RUNTIME_DENIED_HEADERS: ReadonlySet<string> = new Set([
   "authorization",

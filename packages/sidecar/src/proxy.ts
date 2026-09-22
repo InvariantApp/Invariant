@@ -35,7 +35,7 @@ import {
   requestFailure,
   type ShapedError,
   UnsupportedContractError,
-} from "@invariant/runtime";
+} from "@invariant-app/runtime";
 
 export interface ProxyOptions {
   runtime: InvariantRuntime;

@@ -13,7 +13,7 @@ import {
   loadReleaseStep,
   operationsOf,
   requestBodySchema,
-} from "@invariant/contract";
+} from "@invariant-app/contract";
 import {
   applyEdits,
   buildPlan,
@@ -22,7 +22,7 @@ import {
   migrate,
   migrateRawCallSites,
   type SymbolMap,
-} from "@invariant/migrate-ts";
+} from "@invariant-app/migrate-ts";
 import { Project } from "ts-morph";
 import { REPO_ROOT } from "./harness.ts";
 

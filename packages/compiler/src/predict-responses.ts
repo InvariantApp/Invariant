@@ -15,7 +15,7 @@ import {
   operationsOf,
   resolveRef,
   resolveSchema,
-} from "@invariant/contract";
+} from "@invariant-app/contract";
 import {
   type DataOp,
   isJsonObject,
@@ -23,7 +23,7 @@ import {
   type JsonValue,
   parsePointer,
   type ResponseScope,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 import { importReferences } from "./import.ts";
 import { operationById } from "./parameters.ts";
 import { mapEndpoint, type PredictionIssue, type RouteMapping } from "./predict.ts";

@@ -4,9 +4,9 @@
  * L18).
  */
 
-import type { ContractStep } from "@invariant/compiler";
-import { type ChainResult, chainProgram, predictDocument } from "@invariant/compiler";
-import { createRuntime } from "@invariant/runtime";
+import type { ContractStep } from "@invariant-app/compiler";
+import { type ChainResult, chainProgram, predictDocument } from "@invariant-app/compiler";
+import { createRuntime } from "@invariant-app/runtime";
 import { type ChainShape, changeAt, documentAt } from "./synthetic.ts";
 
 export interface ChainCost {

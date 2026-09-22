@@ -7,7 +7,7 @@
  * compressed bytes. Each is either passed through untouched or, where it is
  * JSON underneath, translated like any other body.
  */
-import { createRuntime } from "@invariant/runtime";
+import { createRuntime } from "@invariant-app/runtime";
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { adapt, wrapFetch } from "./index.ts";

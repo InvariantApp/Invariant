@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { isJsonObject, type JsonValue } from "@invariant/ir";
+import { isJsonObject, type JsonValue } from "@invariant-app/ir";
 
 /**
  * RFC 8785 JSON Canonicalization Scheme.

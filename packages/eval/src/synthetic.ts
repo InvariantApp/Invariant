@@ -11,14 +11,14 @@
  * Used only by the proving ground. A synthetic answer never reaches a
  * provider's Change files, and every Change built here says so in its id.
  */
-import type { Change, JsonValue } from "@invariant/ir";
+import type { Change, JsonValue } from "@invariant-app/ir";
 import {
   CHOOSE_ONE,
   type Decision,
   decisionChange,
   type FieldShape,
   type FoldDecision,
-} from "@invariant/proposer";
+} from "@invariant-app/proposer";
 
 type Pair = [string, string];
 

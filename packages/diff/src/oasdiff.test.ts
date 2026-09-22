@@ -1,8 +1,8 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { OpenApiDocument } from "@invariant/contract";
-import type { JsonObject, JsonValue } from "@invariant/ir";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import type { JsonObject, JsonValue } from "@invariant-app/ir";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   diffDocuments,

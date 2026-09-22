@@ -1,4 +1,4 @@
-# @invariant/decimal
+# @invariant-app/decimal
 
 Exact decimal arithmetic on number text, so money is never scaled through floating point. No dependencies.
 

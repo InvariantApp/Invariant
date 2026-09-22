@@ -14,7 +14,7 @@ import {
   renderVerdict,
   runJudge,
   summarize,
-} from "@invariant/eval";
+} from "@invariant-app/eval";
 import {
   ANTHROPIC_PRICING,
   EscalatingJudge,
@@ -23,7 +23,7 @@ import {
   type Judge,
   RulesJudge,
   S2Judge,
-} from "@invariant/proposer";
+} from "@invariant-app/proposer";
 
 const CORPUS = fileURLToPath(new URL("corpus", import.meta.url));
 const CACHE = fileURLToPath(new URL("cache", import.meta.url));

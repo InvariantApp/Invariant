@@ -14,7 +14,7 @@
  */
 import { createHash } from "node:crypto";
 import { appendFile, readFile } from "node:fs/promises";
-import { isJsonObject } from "@invariant/ir";
+import { isJsonObject } from "@invariant-app/ir";
 
 export interface UsageRecord {
   /** Hash of the consumer's key, never the key. */

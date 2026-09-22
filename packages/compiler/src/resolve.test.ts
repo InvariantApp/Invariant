@@ -13,8 +13,8 @@ import {
   describeEntry,
   diffDocuments,
   oasdiffAvailable,
-} from "@invariant/diff";
-import type { Change, JsonObject } from "@invariant/ir";
+} from "@invariant-app/diff";
+import type { Change, JsonObject } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import { predictDocument } from "./predict.ts";
 

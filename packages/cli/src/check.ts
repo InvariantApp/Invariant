@@ -12,14 +12,18 @@
 
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { type ContractStep, chainProgram, predictDocument } from "@invariant/compiler";
+import {
+  type ContractStep,
+  chainProgram,
+  predictDocument,
+} from "@invariant-app/compiler";
 import {
   type Contract,
   listReleasedLabels,
   loadContract,
   loadPendingChanges,
   loadReleaseStep,
-} from "@invariant/contract";
+} from "@invariant-app/contract";
 import {
   assertUsableOasdiff,
   breakingEntries,
@@ -27,9 +31,9 @@ import {
   describeEntry,
   diffDocuments,
   kindsOf,
-} from "@invariant/diff";
-import type { Change, CompiledProgram } from "@invariant/ir";
-import { type Evidence, inputsDigest } from "@invariant/verifier";
+} from "@invariant-app/diff";
+import type { Change, CompiledProgram } from "@invariant-app/ir";
+import { type Evidence, inputsDigest } from "@invariant-app/verifier";
 import type { InvariantConfig } from "./config.ts";
 import { outcomeEvidence, readOutcomes } from "./outcomes.ts";
 import { applyGatePolicy } from "./policy.ts";

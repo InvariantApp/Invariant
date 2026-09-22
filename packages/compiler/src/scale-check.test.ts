@@ -3,14 +3,14 @@
  * still looks plausible. These tests pin down exactly which wrong exponents the
  * compiler can reject on its own, and say plainly where it needs help.
  */
-import { loadContract, loadPendingChanges } from "@invariant/contract";
+import { loadContract, loadPendingChanges } from "@invariant-app/contract";
 import {
   breakingEntries,
   describeEntry,
   diffDocuments,
   oasdiffAvailable,
-} from "@invariant/diff";
-import type { Change, ConvertOp } from "@invariant/ir";
+} from "@invariant-app/diff";
+import type { Change, ConvertOp } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import { predictDocument } from "./predict.ts";
 

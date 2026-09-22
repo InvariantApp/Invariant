@@ -8,8 +8,8 @@
 import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadContract } from "@invariant/contract";
-import { BREAKING_INFO_IDS, breakingEntries, diffOutcome } from "@invariant/diff";
+import { loadContract } from "@invariant-app/contract";
+import { BREAKING_INFO_IDS, breakingEntries, diffOutcome } from "@invariant-app/diff";
 import { materializePair, readManifest } from "./manifest.mts";
 
 // Generated from the policy, so this check cannot pass because the file it

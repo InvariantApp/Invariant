@@ -11,9 +11,13 @@
  * against what the contract promised. It is the cheapest check here and the one
  * that holds the others up.
  */
-import { type OpenApiDocument, operationsOf, responseSchemas } from "@invariant/contract";
-import type { JsonValue } from "@invariant/ir";
-import { matchTemplate } from "@invariant/runtime";
+import {
+  type OpenApiDocument,
+  operationsOf,
+  responseSchemas,
+} from "@invariant-app/contract";
+import type { JsonValue } from "@invariant-app/ir";
+import { matchTemplate } from "@invariant-app/runtime";
 import type { Target } from "./differential.ts";
 import { type Evidence, inputsDigest } from "./evidence.ts";
 import { type Scenario, substitute } from "./scenarios.ts";

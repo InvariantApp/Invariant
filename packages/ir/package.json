@@ -1,5 +1,5 @@
 {
-  "name": "@invariant/ir",
+  "name": "@invariant-app/ir",
   "version": "0.1.0",
   "description": "Versioned schemas and types for the Invariant change IR",
   "license": "Apache-2.0",

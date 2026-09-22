@@ -12,7 +12,7 @@
  */
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AlignmentQuestion, FieldShape } from "@invariant/proposer";
+import type { AlignmentQuestion, FieldShape } from "@invariant-app/proposer";
 import { parse as parseYaml } from "yaml";
 
 export type CaseTag =

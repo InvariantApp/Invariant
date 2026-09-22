@@ -14,14 +14,14 @@ import {
   resolveSchema,
   responseSchemas,
   schemasOf,
-} from "@invariant/contract";
+} from "@invariant-app/contract";
 import {
   CONSTRAINT_KEYWORDS,
   isJsonObject,
   type JsonObject,
   type JsonValue,
   type Scope,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 
 export interface FieldShape {
   name: string;

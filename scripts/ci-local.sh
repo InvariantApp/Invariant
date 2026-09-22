@@ -49,7 +49,7 @@ step() {
 }
 
 step "oasdiff is the pinned release" node --import tsx -e \
-  'import("@invariant/diff").then(async (m) => { await m.assertUsableOasdiff(); })'
+  'import("@invariant-app/diff").then(async (m) => { await m.assertUsableOasdiff(); })'
 step "lint" npx biome check .
 step "typecheck" npx tsc --build
 step "test" npx vitest run --reporter=dot --maxWorkers=2
@@ -62,7 +62,7 @@ step "check the published packages" pnpm check:packages
 # with the commit, which here may not exist yet.
 step "action bundle is current" bash -c '
   before=$(cat packages/action/bundle/* | sha256sum)
-  pnpm --filter @invariant/action bundle
+  pnpm --filter @invariant-app/action bundle
   after=$(cat packages/action/bundle/* | sha256sum)
   [ "$before" = "$after" ] || { echo "the bundle was stale; it has been rebuilt, commit it"; exit 1; }'
 step "release gate on the fixture (--full)" bash -c \

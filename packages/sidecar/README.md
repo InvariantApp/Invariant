@@ -1,4 +1,4 @@
-# @invariant/sidecar
+# @invariant-app/sidecar
 
 The runtime as a standalone reverse proxy, for providers whose API is not written in Node. `invariant-sidecar --config sidecar.json`.
 

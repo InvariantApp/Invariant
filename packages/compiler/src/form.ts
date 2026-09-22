@@ -9,8 +9,8 @@
  * `amount=49.99` reaches a scale as a number.
  */
 
-import type { OpenApiDocument } from "@invariant/contract";
-import { type RequestBodyMedia, resolveSchema } from "@invariant/contract";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { type RequestBodyMedia, resolveSchema } from "@invariant-app/contract";
 import {
   type FormProgram,
   formatPointer,
@@ -19,7 +19,7 @@ import {
   type JsonObject,
   type JsonValue,
   parsePointer,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 
 type FormType = FormProgram["types"][string];
 

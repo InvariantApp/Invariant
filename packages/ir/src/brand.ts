@@ -1,11 +1,8 @@
 /**
  * Every name this product is published under, in one place.
  *
- * The product name, the npm scope and the domain are not settled: "Invariant"
- * is also the name of an AI security company, and the scope and domain have
- * to be owned before anything is published under them. When they change, this
- * is the file that changes, and a test fails on any copy of them written
- * anywhere else.
+ * When one changes, this is the file that changes, and brand.test.ts fails
+ * on any copy of the addresses written anywhere else in the code.
  */
 export const BRAND = {
   /** What the product is called in prose. */
@@ -13,17 +10,20 @@ export const BRAND = {
   /** The command a provider types. */
   command: "invariant",
   /** The npm scope every published package lives under. */
-  scope: "@invariant",
+  scope: "@invariant-app",
   /** The public repository, which also hosts the GitHub Action. */
   repository: "InvariantApp/Invariant",
   /** Where the documentation lives. */
   docs: "https://github.com/InvariantApp/Invariant/blob/main/docs",
+  /** The hosted service a command or runtime talks to unless told otherwise. */
+  service: "https://invariant-cloud.fly.dev",
   /**
-   * The in-toto predicate type a signed bundle carries. Embedded in every
-   * bundle ever signed, so it must be a URL this project controls before the
-   * first bundle is published.
+   * The in-toto predicate type a signed bundle carries: the page that says
+   * what the predicate means, at an address this project controls. Embedded
+   * in every bundle ever signed, so it never changes.
    */
-  predicateType: "https://invariant.dev/evolution-bundle/v1",
+  predicateType:
+    "https://github.com/InvariantApp/Invariant/blob/main/docs/evolution-bundle-v1.md",
 } as const;
 
 /** The GitHub Action a provider's workflow uses, at the given major version. */

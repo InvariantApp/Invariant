@@ -6,10 +6,10 @@
  * shape. A field renamed in that shape is renamed in every value, whatever
  * the keys are.
  */
-import type { OpenApiDocument } from "@invariant/contract";
-import { parseChange } from "@invariant/ir";
-import { propose, RulesJudge } from "@invariant/proposer";
-import { createRuntime } from "@invariant/runtime";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { parseChange } from "@invariant-app/ir";
+import { propose, RulesJudge } from "@invariant-app/proposer";
+import { createRuntime } from "@invariant-app/runtime";
 import { describe, expect, it } from "vitest";
 import { chainProgram } from "./chain.ts";
 import { predictDocument } from "./predict.ts";

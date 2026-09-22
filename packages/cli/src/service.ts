@@ -15,11 +15,12 @@ import {
   createClient,
   type DsseEnvelope,
   type Impact,
-} from "@invariant/client";
+} from "@invariant-app/client";
+import { BRAND } from "@invariant-app/ir";
 import type { InvariantConfig } from "./config.ts";
 
 /** The hosted service, unless INVARIANT_URL names another (a self-hosted one, say). */
-export const DEFAULT_SERVICE_URL = "https://invariant-cloud.fly.dev";
+export const DEFAULT_SERVICE_URL = BRAND.service;
 
 export class ServiceError extends Error {
   constructor(message: string) {

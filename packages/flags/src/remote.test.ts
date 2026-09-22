@@ -6,12 +6,12 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ControlPlaneError, type FlagsState } from "@invariant/client";
+import { ControlPlaneError, type FlagsState } from "@invariant-app/client";
 import {
   createRuntime,
   type RuntimeFlags,
   UnsupportedContractError,
-} from "@invariant/runtime";
+} from "@invariant-app/runtime";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { combineFlags, type RemoteFlagsSource, remoteFlags } from "./remote.ts";
 

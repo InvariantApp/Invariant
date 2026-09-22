@@ -7,10 +7,10 @@
  * the compiler survives a 700 KB document with a hundred and seventy schemas.
  */
 
-import { predictDocument } from "@invariant/compiler";
-import { loadContract } from "@invariant/contract";
-import { breakingEntries, describeEntry, diffDocuments } from "@invariant/diff";
-import { HybridJudge, JevJudge, propose, RulesJudge } from "@invariant/proposer";
+import { predictDocument } from "@invariant-app/compiler";
+import { loadContract } from "@invariant-app/contract";
+import { breakingEntries, describeEntry, diffDocuments } from "@invariant-app/diff";
+import { HybridJudge, JevJudge, propose, RulesJudge } from "@invariant-app/proposer";
 
 const [oldPath, newPath] = process.argv.slice(2);
 if (!oldPath || !newPath) throw new Error("usage: probe.mts <old.json> <new.json>");

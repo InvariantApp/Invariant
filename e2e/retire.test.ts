@@ -11,8 +11,8 @@
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { check, loadConfig, renderComment, renderReport } from "@invariant/cli";
-import { oasdiffAvailable } from "@invariant/diff";
+import { check, loadConfig, renderComment, renderReport } from "@invariant-app/cli";
+import { oasdiffAvailable } from "@invariant-app/diff";
 import { afterEach, describe, expect, it } from "vitest";
 import { REPO_ROOT, type RunningProvider, startProvider } from "./harness.ts";
 

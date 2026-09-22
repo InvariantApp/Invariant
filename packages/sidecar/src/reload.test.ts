@@ -5,7 +5,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createRuntime } from "@invariant/runtime";
+import { createRuntime } from "@invariant-app/runtime";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createProxy } from "./proxy.ts";
 import { reloadable } from "./reload.ts";

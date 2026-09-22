@@ -12,7 +12,7 @@
  * contract cannot send a value that contract never named, so a fold applies to
  * responses and never to requests.
  */
-import type { Change, ConvertOp } from "@invariant/ir";
+import type { Change, ConvertOp } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import { derive } from "./derive.ts";
 import { instrsFor } from "./project.ts";

@@ -2,8 +2,8 @@ import {
   createRuntime,
   type InvariantRuntime,
   type UsageEvent,
-} from "@invariant/runtime";
-import { adapt, wrapFetch } from "@invariant/runtime-hono";
+} from "@invariant-app/runtime";
+import { adapt, wrapFetch } from "@invariant-app/runtime-hono";
 import { Hono } from "hono";
 import { acmeAuth } from "./auth.ts";
 import { buildHead } from "./builds/head.ts";

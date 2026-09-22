@@ -1,10 +1,14 @@
-import { loadContract, loadPendingChanges, loadReleaseStep } from "@invariant/contract";
+import {
+  loadContract,
+  loadPendingChanges,
+  loadReleaseStep,
+} from "@invariant-app/contract";
 import {
   breakingEntries,
   describeEntry,
   diffDocuments,
   oasdiffAvailable,
-} from "@invariant/diff";
+} from "@invariant-app/diff";
 import { describe, expect, it } from "vitest";
 import { predictDocument } from "./predict.ts";
 

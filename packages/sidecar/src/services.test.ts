@@ -6,7 +6,7 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createRuntime } from "@invariant/runtime";
+import { createRuntime } from "@invariant-app/runtime";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ConfigError, parseConfig, type SidecarConfig } from "./config.ts";
 import { createProxy } from "./proxy.ts";
@@ -15,7 +15,7 @@ import { servicesFor } from "./services.ts";
 const OLD = "2026-01-01";
 const PROGRAM = {
   irVersion: 2,
-  compiledBy: "@invariant/compiler@0.1.0",
+  compiledBy: "@invariant-app/compiler@0.1.0",
   minRuntime: "0.1.0",
   api: "payments",
   currentLabel: "2026-09-20",
@@ -199,7 +199,7 @@ describe("the proxy connected to its control plane", () => {
     const beat = plane.received.find((entry) => entry.path === "/v1/heartbeat");
     expect(beat?.body).toMatchObject({
       runtime: { binding: "proxy" },
-      program: { compiledBy: "@invariant/compiler@0.1.0", minRuntime: "0.1.0" },
+      program: { compiledBy: "@invariant-app/compiler@0.1.0", minRuntime: "0.1.0" },
     });
     const lines = (await readFile(join(dir, "usage.jsonl"), "utf8")).trim().split("\n");
     expect(lines.map((line) => JSON.parse(line).kind).sort()).toEqual([

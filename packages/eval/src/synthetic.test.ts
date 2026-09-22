@@ -2,8 +2,8 @@
  * Made-up answers have to be answers a provider could have given, or the
  * "with decisions" number measures the answers rather than the reach.
  */
-import type { Change } from "@invariant/ir";
-import { CHOOSE_ONE, type FieldShape, foldDecisions } from "@invariant/proposer";
+import type { Change } from "@invariant-app/ir";
+import { CHOOSE_ONE, type FieldShape, foldDecisions } from "@invariant-app/proposer";
 import { describe, expect, it } from "vitest";
 import { syntheticAnswer } from "./synthetic.ts";
 

@@ -7,7 +7,7 @@
  * binary the platform package installed. The steps are the ones the
  * quickstart gives:
  *
- *   npm install @invariant/cli        (from the registry)
+ *   npm install @invariant-app/cli        (from the registry)
  *   invariant init                    must end in a passing first check
  *   (a pull request breaks the API)
  *   invariant check                   must block, naming what broke
@@ -77,7 +77,7 @@ async function installed(cwd: string, env: NodeJS.ProcessEnv): Promise<string> {
   ]);
   // The installed manifest's bin, and whether what it names exists, because a
   // bin npm could not link is skipped without a word.
-  const cli = join(cwd, "node_modules", "@invariant", "cli");
+  const cli = join(cwd, "node_modules", "@invariant-app", "cli");
   const manifest = await readFile(join(cli, "package.json"), "utf8").then(
     (text) => JSON.parse(text) as { bin?: Record<string, string> },
     () => ({ bin: undefined }),
@@ -92,8 +92,8 @@ async function installed(cwd: string, env: NodeJS.ProcessEnv): Promise<string> {
   ]);
   return (
     `npm ls:\n${listing.stdout}\nnode_modules/.bin: ${bins.join(", ")}\n` +
-    `@invariant/cli bin: ${targets.join(", ") || "none"}\n` +
-    `installed @invariant/cli/dist: ${dist.join(", ")}\n` +
+    `@invariant-app/cli bin: ${targets.join(", ") || "none"}\n` +
+    `installed @invariant-app/cli/dist: ${dist.join(", ")}\n` +
     `built packages/cli/dist: ${built.join(", ")}`
   );
 }
@@ -116,7 +116,7 @@ try {
       "  npmjs:",
       "    url: https://registry.npmjs.org/",
       "packages:",
-      "  '@invariant/*':",
+      "  '@invariant-app/*':",
       "    access: $all",
       "    publish: $all",
       "  '**':",
@@ -225,18 +225,18 @@ try {
   };
   delete env["OASDIFF_BIN"];
 
-  await sh("npm", ["install", "--no-audit", "--no-fund", "@invariant/cli"], {
+  await sh("npm", ["install", "--no-audit", "--no-fund", "@invariant-app/cli"], {
     cwd: project,
     env,
   });
-  step("installed @invariant/cli from the registry");
+  step("installed @invariant-app/cli from the registry");
 
   // Exactly as the quickstart says. The scoped name matters: the unscoped
   // `invariant` on npm is an unrelated assertion library, which is where a
   // bare `npx invariant` goes whenever the local bin is not found.
   const first = await sh(
     "npx",
-    ["@invariant/cli", "init", "--no-ci", "--label", "2026-09-01"],
+    ["@invariant-app/cli", "init", "--no-ci", "--label", "2026-09-01"],
     { cwd: project, env, allowFailure: true },
   );
   if (first.code !== 0 || !first.stdout.includes("First check: PASS")) {

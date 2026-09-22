@@ -3,7 +3,7 @@
  * /v1/invoices/upcoming, which stripe-node calls as
  * `invoices.retrieveUpcoming`.
  */
-import type { Change } from "@invariant/ir";
+import type { Change } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import { migrate } from "./index.ts";
 import { buildPlan } from "./plan.ts";

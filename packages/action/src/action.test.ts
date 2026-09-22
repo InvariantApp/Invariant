@@ -3,7 +3,7 @@
  * pull request that breaks something, the files GitHub provides, and a
  * recorded GitHub API.
  *
- * The action it replaces called `npx @invariant/cli`, which could not have
+ * The action it replaces called `npx @invariant-app/cli`, which could not have
  * run, and installed a Go toolchain first. What is proved here is what a
  * provider sees: the verdict, the comment, the annotations on the file that
  * caused it, and a fork's read-only token not turning a verdict into an error.
@@ -12,8 +12,8 @@ import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { COMMENT_MARKER, init } from "@invariant/cli";
-import { oasdiffAvailable, oasdiffBinary } from "@invariant/diff";
+import { COMMENT_MARKER, init } from "@invariant-app/cli";
+import { oasdiffAvailable, oasdiffBinary } from "@invariant-app/diff";
 import { afterEach, describe, expect, it } from "vitest";
 import { type Env, runAction } from "./index.ts";
 

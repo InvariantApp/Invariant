@@ -9,7 +9,7 @@
  * same thing makes the correction a no-op instead of a conflict, and the
  * regression tests say whether it did.
  */
-import { isJsonObject, type JsonObject, type JsonValue } from "@invariant/ir";
+import { isJsonObject, type JsonObject, type JsonValue } from "@invariant-app/ir";
 
 const METHODS = ["get", "put", "post", "delete", "options", "head", "patch"] as const;
 

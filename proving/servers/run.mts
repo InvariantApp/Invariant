@@ -30,7 +30,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { promisify } from "node:util";
-import { loadContract } from "@invariant/contract";
+import { loadContract } from "@invariant-app/contract";
 import { ROOT } from "../corpus/manifest.mts";
 import { draftProgram, NEW, OLD } from "../draft.mts";
 

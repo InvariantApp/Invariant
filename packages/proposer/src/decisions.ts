@@ -10,7 +10,7 @@
  * draft is complete except for the answer, which is left as the placeholder
  * the gate refuses.
  */
-import { CHOOSE_ONE, type Change, type Op, type Scope } from "@invariant/ir";
+import { CHOOSE_ONE, type Change, type Op, type Scope } from "@invariant-app/ir";
 import type { FieldShape } from "./candidates.ts";
 import { type FoldDecision, vocabularyChange } from "./vocabulary.ts";
 

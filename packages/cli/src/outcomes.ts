@@ -16,8 +16,8 @@
  * production was unhealthy would be actively harmful.
  */
 import { readFile } from "node:fs/promises";
-import { isJsonObject } from "@invariant/ir";
-import { type Evidence, inputsDigest } from "@invariant/verifier";
+import { isJsonObject } from "@invariant-app/ir";
+import { type Evidence, inputsDigest } from "@invariant-app/verifier";
 
 /** One adapted request, response or outbound payload, as the runtime reported it. */
 export interface OutcomeRecord {

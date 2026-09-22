@@ -15,7 +15,7 @@
  * That pair explains more than it did. Unexplained breakage counts against a
  * pair only where it grew by more than the breakage the run can now see.
  */
-import type { PairResult } from "@invariant/eval";
+import type { PairResult } from "@invariant-app/eval";
 
 export interface Comparison {
   regressions: string[];

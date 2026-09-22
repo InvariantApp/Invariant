@@ -1,4 +1,4 @@
-# @invariant/verifier
+# @invariant-app/verifier
 
 The evidence layers: lens-law property tests, chain equivalence, the base-versus-head differential check, and conformance of the running build to its own specification.
 

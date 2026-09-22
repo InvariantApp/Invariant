@@ -2,7 +2,7 @@
  * The envelope vectors, run against this engine, and the list of headers no
  * program may touch, held equal to the one the compiler refuses by.
  */
-import { DENIED_HEADERS } from "@invariant/ir";
+import { DENIED_HEADERS } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import { ENVELOPE_VECTORS, type EnvelopeVector } from "./envelope-vectors.ts";
 import { createRuntime } from "./index.ts";

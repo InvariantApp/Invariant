@@ -6,8 +6,8 @@
  * is refused loudly rather than returned with a flag a caller might not read.
  */
 import { generateKeyPairSync } from "node:crypto";
-import type { Change, CompiledProgram } from "@invariant/ir";
-import type { Evidence } from "@invariant/verifier";
+import type { Change, CompiledProgram } from "@invariant-app/ir";
+import type { Evidence } from "@invariant-app/verifier";
 import { describe, expect, it } from "vitest";
 import {
   type BuildInput,
@@ -189,7 +189,7 @@ describe("the evolution bundle", () => {
     // release, and the registry must not refuse it for that.
     const original = buildBundle(input()).bundle;
     const rebuilt = buildBundle(
-      input({ program: { ...PROGRAM, compiledBy: "@invariant/compiler@9.9.9" } }),
+      input({ program: { ...PROGRAM, compiledBy: "@invariant-app/compiler@9.9.9" } }),
     ).bundle;
     expect(reproduces(original, rebuilt).same).toBe(true);
 

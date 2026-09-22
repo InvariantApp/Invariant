@@ -6,9 +6,9 @@
  * are written down, because the belief is what stops anyone building the layer
  * that would actually catch it.
  */
-import { predictDocument } from "@invariant/compiler";
-import type { OpenApiDocument } from "@invariant/contract";
-import type { Change } from "@invariant/ir";
+import { predictDocument } from "@invariant-app/compiler";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import type { Change } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import { checkLaws } from "./laws.ts";
 

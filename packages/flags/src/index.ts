@@ -19,7 +19,7 @@
  * bound has passed rather than held for the life of the process.
  */
 import { readFileSync, statSync } from "node:fs";
-import type { RuntimeFlags } from "@invariant/runtime";
+import type { RuntimeFlags } from "@invariant-app/runtime";
 
 import { parseFlags } from "./parse.ts";
 

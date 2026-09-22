@@ -11,7 +11,7 @@
  * judge's high-confidence answers are no better than its low-confidence ones,
  * then a confidence threshold is decoration.
  */
-import type { JudgeResult } from "@invariant/proposer";
+import type { JudgeResult } from "@invariant-app/proposer";
 import type { EvalCase } from "./corpus.ts";
 
 export interface Outcome {

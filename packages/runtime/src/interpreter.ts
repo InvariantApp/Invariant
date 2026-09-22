@@ -10,7 +10,7 @@
  * never hand back a body in the wrong shape, so every refusal raises rather
  * than skipping the instruction.
  */
-import { compareDecimal, DecimalError, shiftDecimal } from "@invariant/decimal";
+import { compareDecimal, DecimalError, shiftDecimal } from "@invariant-app/decimal";
 import {
   CodecRefusal,
   convertCase,

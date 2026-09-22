@@ -5,7 +5,7 @@
  * ran when it did not, and bury the reason a release is blocked underneath the
  * evidence that everything else was fine.
  */
-import { oasdiffAvailable } from "@invariant/diff";
+import { oasdiffAvailable } from "@invariant-app/diff";
 import { describe, expect, it } from "vitest";
 import { check } from "./check.ts";
 import { COMMENT_MARKER, renderComment } from "./comment.ts";

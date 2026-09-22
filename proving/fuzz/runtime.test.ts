@@ -23,8 +23,8 @@ import {
   matchTemplate,
   ProgramError,
   TransformError,
-} from "@invariant/runtime";
-import { createProxy } from "@invariant/sidecar";
+} from "@invariant-app/runtime";
+import { createProxy } from "@invariant-app/sidecar";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 

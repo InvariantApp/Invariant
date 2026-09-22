@@ -1,5 +1,5 @@
 {
-  "name": "@invariant/migrate-ts",
+  "name": "@invariant-app/migrate-ts",
   "version": "0.1.0",
   "description": "Type-aware indexing and deterministic codemods for TypeScript consumers",
   "license": "Apache-2.0",
@@ -37,11 +37,11 @@
     }
   },
   "dependencies": {
-    "@invariant/ir": "workspace:*",
+    "@invariant-app/ir": "workspace:*",
     "ts-morph": "^28.0.0",
-    "@invariant/decimal": "workspace:*"
+    "@invariant-app/decimal": "workspace:*"
   },
   "devDependencies": {
-    "@invariant/contract": "workspace:*"
+    "@invariant-app/contract": "workspace:*"
   }
 }

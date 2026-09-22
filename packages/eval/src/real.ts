@@ -15,8 +15,8 @@
  * Every stage is wrapped, because a harness that stops at the first unreadable
  * document measures nothing except how far it got.
  */
-import { predictDocument } from "@invariant/compiler";
-import { loadContract } from "@invariant/contract";
+import { predictDocument } from "@invariant-app/compiler";
+import { loadContract } from "@invariant-app/contract";
 import {
   breakingEntries,
   catalogueEntry,
@@ -24,9 +24,9 @@ import {
   type DiffMode,
   diffDocuments,
   diffOutcome,
-} from "@invariant/diff";
-import type { Change } from "@invariant/ir";
-import { type Judge, propose } from "@invariant/proposer";
+} from "@invariant-app/diff";
+import type { Change } from "@invariant-app/ir";
+import { type Judge, propose } from "@invariant-app/proposer";
 import { syntheticAnswer } from "./synthetic.ts";
 
 /** How far a pair got before something went wrong. */

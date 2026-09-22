@@ -11,7 +11,7 @@ import {
   type OutcomeEvent,
   TimeBudgetError,
   TransformError,
-} from "@invariant/runtime";
+} from "@invariant-app/runtime";
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { adapt, wrapFetch } from "./index.ts";

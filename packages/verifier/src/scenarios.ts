@@ -12,7 +12,7 @@
  */
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { isJsonObject, type JsonValue } from "@invariant/ir";
+import { isJsonObject, type JsonValue } from "@invariant-app/ir";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 export class ScenarioError extends Error {

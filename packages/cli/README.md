@@ -1,4 +1,4 @@
-# @invariant/cli
+# @invariant-app/cli
 
 The `invariant` command: `check`, `propose`, `compile`, `release`, `verify` and `retire`, run in a provider's own CI.
 

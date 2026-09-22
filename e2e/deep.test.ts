@@ -11,9 +11,13 @@
  * answer to the second is the one that goes in a release.
  */
 import { join } from "node:path";
-import { type ContractStep, predictDocument } from "@invariant/compiler";
-import { loadContract, loadPendingChanges, loadReleaseStep } from "@invariant/contract";
-import { checkChainEquivalence, checkLaws } from "@invariant/verifier";
+import { type ContractStep, predictDocument } from "@invariant-app/compiler";
+import {
+  loadContract,
+  loadPendingChanges,
+  loadReleaseStep,
+} from "@invariant-app/contract";
+import { checkChainEquivalence, checkLaws } from "@invariant-app/verifier";
 import { describe, expect, it } from "vitest";
 import { REPO_ROOT } from "./harness.ts";
 

@@ -1,5 +1,5 @@
 {
-  "name": "@invariant/runtime-node",
+  "name": "@invariant-app/runtime-node",
   "version": "0.1.0",
   "description": "The runtime in any Node server: Express, Koa, Fastify, NestJS, Next.js or plain node:http, through one request listener or Connect middleware",
   "license": "Apache-2.0",
@@ -37,7 +37,7 @@
     }
   },
   "dependencies": {
-    "@invariant/runtime": "workspace:*"
+    "@invariant-app/runtime": "workspace:*"
   },
   "devDependencies": {
     "@fixtures/nest10": "workspace:*",

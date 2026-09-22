@@ -3,10 +3,10 @@
  * end to end: Changes compiled against both contracts, and an old caller's GET
  * reaching the provider as the POST it now expects.
  */
-import { chainProgram, predictDocument } from "@invariant/compiler";
-import type { OpenApiDocument } from "@invariant/contract";
-import { parseChange } from "@invariant/ir";
-import { createRuntime } from "@invariant/runtime";
+import { chainProgram, predictDocument } from "@invariant-app/compiler";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { parseChange } from "@invariant-app/ir";
+import { createRuntime } from "@invariant-app/runtime";
 import { describe, expect, it } from "vitest";
 import { createProxy } from "./proxy.ts";
 

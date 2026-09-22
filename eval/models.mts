@@ -7,7 +7,7 @@
  * recording evaluations here, and later in the hosted service.
  */
 import type Anthropic from "@anthropic-ai/sdk";
-import { type MessagesClient, S2_MODEL } from "@invariant/proposer";
+import { type MessagesClient, S2_MODEL } from "@invariant-app/proposer";
 
 /** Anthropic's client, seen through the one method the judge uses. */
 export function anthropicMessages(client: Anthropic): MessagesClient {

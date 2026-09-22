@@ -7,8 +7,12 @@
  * fixture ever stops satisfying its own laws, this fails before the demo does.
  */
 import { join } from "node:path";
-import { predictDocument } from "@invariant/compiler";
-import { loadContract, loadPendingChanges, loadReleaseStep } from "@invariant/contract";
+import { predictDocument } from "@invariant-app/compiler";
+import {
+  loadContract,
+  loadPendingChanges,
+  loadReleaseStep,
+} from "@invariant-app/contract";
 import { describe, expect, it } from "vitest";
 import { checkLaws } from "./laws.ts";
 

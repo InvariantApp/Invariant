@@ -4,7 +4,7 @@
  * document says, and an operation left out, with why, rather than sent with
  * something made up that proves nothing.
  */
-import type { OpenApiDocument } from "@invariant/contract";
+import type { OpenApiDocument } from "@invariant-app/contract";
 import { describe, expect, it } from "vitest";
 import { exampleOf, scenariosFromDocument } from "./generate.ts";
 import { parseScenario, scenarioYaml } from "./scenarios.ts";

@@ -138,7 +138,7 @@ async function main(): Promise<void> {
   }
   if (command === "reclassify") {
     const { TypeSafeClient } = await import("@typesafe-ai/sdk");
-    const { JEV_MODEL } = await import("@invariant/proposer");
+    const { JEV_MODEL } = await import("@invariant-app/proposer");
     const client = new TypeSafeClient() as unknown as Parameters<typeof classify>[2];
     const sites = cachedSites();
     // A case's sites together, as the replay asks them, so each batch shares

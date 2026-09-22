@@ -8,8 +8,8 @@
  * count is of seconds or milliseconds, the note says which way the draft
  * went and why.
  */
-import type { Codec, StringCase, TimeFormat } from "@invariant/ir";
-import { convertCase } from "@invariant/runtime";
+import type { Codec, StringCase, TimeFormat } from "@invariant-app/ir";
+import { convertCase } from "@invariant-app/runtime";
 import type { FieldShape } from "./candidates.ts";
 
 /** What the recognisers read, which a body field and a parameter both have. */

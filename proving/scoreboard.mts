@@ -12,9 +12,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { parseDocumentText } from "@invariant/contract";
-import { catalogueEntry, isUnclassified } from "@invariant/diff";
-import type { PairResult as CorpusResult } from "@invariant/eval";
+import { parseDocumentText } from "@invariant-app/contract";
+import { catalogueEntry, isUnclassified } from "@invariant-app/diff";
+import type { PairResult as CorpusResult } from "@invariant-app/eval";
 import type { BUDGET, ChainCost } from "./chains/cost.ts";
 import { ROOT } from "./corpus/manifest.mts";
 import type { BUDGET as OVERHEAD_BUDGET, OverheadResult } from "./overhead/overhead.ts";

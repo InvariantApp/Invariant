@@ -3,7 +3,7 @@
  * instructions, a body as a caller sends it, and the body that has to come
  * out, or the change that has to refuse it.
  */
-import type { FormProgram, Instr } from "@invariant/ir";
+import type { FormProgram, Instr } from "@invariant-app/ir";
 
 export interface FormVector {
   name: string;

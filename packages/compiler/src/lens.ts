@@ -6,7 +6,7 @@
  * schemas that contain themselves, and the verifier's lens, so all three run
  * the same instructions for the same op.
  */
-import type { Guard, Site } from "@invariant/contract";
+import type { Guard, Site } from "@invariant-app/contract";
 import {
   type Change,
   type Codec,
@@ -17,7 +17,7 @@ import {
   type Instr,
   parsePointer,
   type WidenOp,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 
 export function prefixed(prefix: string, path: string): string {
   return formatPointer([...parsePointer(prefix), ...parsePointer(path)]);

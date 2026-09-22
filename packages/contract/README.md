@@ -1,4 +1,4 @@
-# @invariant/contract
+# @invariant-app/contract
 
 Loads OpenAPI 3.x documents, canonicalises and digests them, resolves `$ref` and `allOf`, and finds every place a schema reaches the wire.
 

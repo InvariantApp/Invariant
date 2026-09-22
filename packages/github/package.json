@@ -1,5 +1,5 @@
 {
-  "name": "@invariant/github",
+  "name": "@invariant-app/github",
   "version": "0.1.0",
   "description": "Delivers migrations as pull requests: webhook verification, sponsored links, and provenance bodies",
   "license": "Apache-2.0",
@@ -37,8 +37,8 @@
     }
   },
   "dependencies": {
-    "@invariant/bundle": "workspace:*",
-    "@invariant/ir": "workspace:*",
-    "@invariant/migrate-ts": "workspace:*"
+    "@invariant-app/bundle": "workspace:*",
+    "@invariant-app/ir": "workspace:*",
+    "@invariant-app/migrate-ts": "workspace:*"
   }
 }

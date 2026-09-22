@@ -7,7 +7,7 @@
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { ERROR_CODES } from "@invariant/runtime";
+import { ERROR_CODES } from "@invariant-app/runtime";
 import { describe, expect, it } from "vitest";
 import { parseConfig } from "../packages/sidecar/src/config.ts";
 

@@ -22,7 +22,7 @@
  * Identifiers and timestamps fall out of that automatically, and so does
  * anything else the provider happens to generate, without a list to maintain.
  */
-import { isJsonObject, type JsonValue } from "@invariant/ir";
+import { isJsonObject, type JsonValue } from "@invariant-app/ir";
 import { type Evidence, inputsDigest } from "./evidence.ts";
 import { type Scenario, substitute, type Unordered } from "./scenarios.ts";
 

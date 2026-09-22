@@ -7,8 +7,8 @@
  * of the whole thing lives.
  */
 import { createHmac } from "node:crypto";
-import type { EvolutionBundle } from "@invariant/bundle";
-import type { ManualSite } from "@invariant/migrate-ts";
+import type { EvolutionBundle } from "@invariant-app/bundle";
+import type { ManualSite } from "@invariant-app/migrate-ts";
 import { describe, expect, it } from "vitest";
 import { LinkError, mintLink, REFUSED_PERMISSIONS, redeemLink } from "./link.ts";
 import {

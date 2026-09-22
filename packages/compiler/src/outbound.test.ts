@@ -3,9 +3,9 @@
  * to a subscriber on an old contract the way a response is served to a
  * caller: compiled from the same Changes, run by the same instructions.
  */
-import { findSchemaSites, type OpenApiDocument } from "@invariant/contract";
-import { type Change, parseChange } from "@invariant/ir";
-import { createRuntime, UnsupportedContractError } from "@invariant/runtime";
+import { findSchemaSites, type OpenApiDocument } from "@invariant-app/contract";
+import { type Change, parseChange } from "@invariant-app/ir";
+import { createRuntime, UnsupportedContractError } from "@invariant-app/runtime";
 import { describe, expect, it } from "vitest";
 import { chainProgram } from "./chain.ts";
 import { predictDocument } from "./predict.ts";

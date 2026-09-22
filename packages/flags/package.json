@@ -1,5 +1,5 @@
 {
-  "name": "@invariant/flags",
+  "name": "@invariant-app/flags",
   "version": "0.1.0",
   "description": "Reads kill-switch flags from a file or the environment, with last-known-good semantics",
   "license": "Apache-2.0",
@@ -37,7 +37,7 @@
     }
   },
   "dependencies": {
-    "@invariant/runtime": "workspace:*",
-    "@invariant/client": "workspace:*"
+    "@invariant-app/runtime": "workspace:*",
+    "@invariant-app/client": "workspace:*"
   }
 }

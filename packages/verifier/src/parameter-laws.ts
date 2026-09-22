@@ -19,8 +19,8 @@ import {
   parametersOf,
   projectStep,
   routeMappings,
-} from "@invariant/compiler";
-import type { OpenApiDocument } from "@invariant/contract";
+} from "@invariant-app/compiler";
+import type { OpenApiDocument } from "@invariant-app/contract";
 import {
   type Change,
   isDataOp,
@@ -29,13 +29,13 @@ import {
   type JsonValue,
   type ParamCodec,
   siteKey,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 import {
   createRuntime,
   type ParameterValues,
   readParameters,
   writeParameters,
-} from "@invariant/runtime";
+} from "@invariant-app/runtime";
 import fc from "fast-check";
 import { valueArbitrary } from "./arbitrary.ts";
 import { type Evidence, inputsDigest } from "./evidence.ts";

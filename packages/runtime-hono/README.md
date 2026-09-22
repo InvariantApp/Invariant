@@ -1,4 +1,4 @@
-# @invariant/runtime-hono
+# @invariant-app/runtime-hono
 
 Mounts the runtime in a Hono application: `wrapFetch` before routing, `adapt()` after authentication.
 

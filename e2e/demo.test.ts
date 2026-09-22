@@ -17,8 +17,8 @@ import {
   loadConfig,
   readLedger,
   renderRetirement,
-} from "@invariant/cli";
-import type { UsageEvent } from "@invariant/runtime";
+} from "@invariant-app/cli";
+import type { UsageEvent } from "@invariant-app/runtime";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   type ConsumerId,

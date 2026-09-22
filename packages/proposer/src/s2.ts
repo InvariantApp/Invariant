@@ -17,7 +17,7 @@
  * a recorded client in tests.
  */
 import { createHash } from "node:crypto";
-import type { JsonValue } from "@invariant/ir";
+import type { JsonValue } from "@invariant-app/ir";
 import type { FieldShape } from "./candidates.ts";
 import { EMBEDDED_TEXT_RULE } from "./jev.ts";
 import type { AlignmentQuestion, Judge, JudgeResult } from "./judge.ts";

@@ -1,5 +1,5 @@
 {
-  "name": "@invariant/sidecar",
+  "name": "@invariant-app/sidecar",
   "version": "0.1.0",
   "description": "A standalone reverse proxy running the Invariant runtime in front of an API written in any language",
   "license": "Apache-2.0",
@@ -43,14 +43,14 @@
     }
   },
   "dependencies": {
-    "@invariant/client": "workspace:*",
-    "@invariant/flags": "workspace:*",
-    "@invariant/runtime": "workspace:*",
-    "@invariant/telemetry": "workspace:*"
+    "@invariant-app/client": "workspace:*",
+    "@invariant-app/flags": "workspace:*",
+    "@invariant-app/runtime": "workspace:*",
+    "@invariant-app/telemetry": "workspace:*"
   },
   "devDependencies": {
-    "@invariant/compiler": "workspace:*",
-    "@invariant/contract": "workspace:*",
-    "@invariant/ir": "workspace:*"
+    "@invariant-app/compiler": "workspace:*",
+    "@invariant-app/contract": "workspace:*",
+    "@invariant-app/ir": "workspace:*"
   }
 }

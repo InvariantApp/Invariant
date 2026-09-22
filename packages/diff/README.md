@@ -1,4 +1,4 @@
-# @invariant/diff
+# @invariant-app/diff
 
 Wraps the pinned oasdiff release and classifies its findings. Includes the startup check that refuses a known non-deterministic release.
 

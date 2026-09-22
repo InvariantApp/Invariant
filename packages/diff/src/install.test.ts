@@ -14,7 +14,7 @@ const bytes = Buffer.from("a release asset");
 const hash = createHash("sha256").update(bytes).digest("hex");
 
 const binary = (sha256: string): PlatformBinary => ({
-  package: "@invariant/oasdiff-test",
+  package: "@invariant-app/oasdiff-test",
   targets: ["test-x64"],
   os: ["test"],
   cpu: ["x64"],

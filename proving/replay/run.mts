@@ -39,7 +39,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
-import { buildPlan, migrate, type SymbolMap } from "@invariant/migrate-ts";
+import { buildPlan, migrate, type SymbolMap } from "@invariant-app/migrate-ts";
 import { ts } from "ts-morph";
 import { ROOT } from "../corpus/manifest.mts";
 import {
@@ -752,7 +752,7 @@ async function main(): Promise<void> {
     if (!process.env["TYPESAFE_API_KEY"])
       throw new Error("--classify needs TYPESAFE_API_KEY");
     const { TypeSafeClient } = await import("@typesafe-ai/sdk");
-    const { JEV_MODEL } = await import("@invariant/proposer");
+    const { JEV_MODEL } = await import("@invariant-app/proposer");
     classifier = {
       client: new TypeSafeClient() as unknown as Parameters<typeof classify>[2],
       model: JEV_MODEL,

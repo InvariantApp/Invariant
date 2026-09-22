@@ -31,15 +31,15 @@
  * differential check is the layer that catches it, and the test suite here says
  * so rather than implying otherwise.
  */
-import { derive, schemaLens } from "@invariant/compiler";
-import type { OpenApiDocument } from "@invariant/contract";
+import { derive, schemaLens } from "@invariant-app/compiler";
+import type { OpenApiDocument } from "@invariant-app/contract";
 import {
   type Change,
   type Instr,
   isSchemaScope,
   type JsonValue,
   parsePointer,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 import fc from "fast-check";
 import { schemaArbitrary } from "./arbitrary.ts";
 import { type Evidence, inputsDigest } from "./evidence.ts";

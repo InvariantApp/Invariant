@@ -7,8 +7,8 @@
  * operation of the new contract, which no answer from the provider could put
  * right.
  */
-import type { OpenApiDocument } from "@invariant/contract";
-import { parseChange } from "@invariant/ir";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { parseChange } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import { projectStep } from "./project.ts";
 

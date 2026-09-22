@@ -19,8 +19,8 @@ import {
 } from "node:fs";
 import { createServer } from "node:http";
 import { join } from "node:path";
-import { createRuntime } from "@invariant/runtime";
-import { adaptListener } from "@invariant/runtime-node";
+import { createRuntime } from "@invariant-app/runtime";
+import { adaptListener } from "@invariant-app/runtime-node";
 
 const SOURCE = join(import.meta.dirname, "app");
 

@@ -58,7 +58,7 @@ PR-only tools cannot replicate this because they sit downstream of the provider 
 - **Project Cambria (Ink & Switch)** independently arrived at a bidirectional lens op set (`rename, convert, add, remove, hoist, plunge, wrap, head, map, in`) and proved "one lens definition -> runtime conversion + types + schema". It was a research prototype, hand-authored, with no verification story. Invariant's Change IR is a deliberately smaller lens set plus what Cambria lacked: automatic proposal, closure against real specs, property and differential verification, and a second compile target (source codemods).
 - **Stripe's stated reason for never auto-upgrading accounts** is that it cannot observe which fields a consumer reads. Invariant gets that exact datum two ways: per-change adapter counters at runtime and type-checker reference counts from connected repos.
 - **OpenAPI Overlay 1.1** is a document patch format (JSONPath target + update/remove/copy, no rename, zero-match targets silently succeed). It cannot carry bidirectional value semantics. Decision: not used as the IR. An Overlay export of the spec delta is a trivial later add-on.
-- **Nobody ships a signed API-change artifact.** We use DSSE with an in-toto Statement whose predicate type is `https://invariant.dev/evolution-bundle/v1`, so existing attestation tooling can verify it.
+- **Nobody ships a signed API-change artifact.** We use DSSE with an in-toto Statement whose predicate type is `https://github.com/InvariantApp/Invariant/blob/main/docs/evolution-bundle-v1.md`, so existing attestation tooling can verify it.
 
 Lessons adopted from prior art: keep the "each step sees the world as it was when written" invariant (our per-step ops are compiled against that step's two contracts only), version error bodies explicitly (Cadwyn is the only system that does), make shape transforms reusable across channels (Keygen reuses them for webhooks, which is our first post-MVP target), and keep the number of Changes low through review (Stripe's API review gate is our PR-merge gate).
 
@@ -79,7 +79,7 @@ flowchart TB
     COMP["Compiler (pure, deterministic)<br/>type-check + closure check + program projection"]
     VER["Verifier<br/>lens laws + differential base-vs-head"]
     APP["Provider app (canonical current API)"]
-    RT["@invariant/runtime middleware<br/>after auth, in-process<br/>loads compiled programs from the build"]
+    RT["@invariant-app/runtime middleware<br/>after auth, in-process<br/>loads compiled programs from the build"]
     PR --> CLI --> DIFF --> COMP --> VER
     VER -->|"PASS/WARN/BLOCK check + PR comment"| PR
     COMP -->|"invariant/compiled/*.json in build"| RT
@@ -228,7 +228,7 @@ rollout: { retire_after: null, behavior_flags: [] }
 
 Number rule: RFC 8785 canonicalization re-serializes numbers the ECMAScript way, so the IR allows only safe integers as JSON numbers. Every decimal literal (defaults, restore constants) is encoded as a tagged string (`{ "$decimal": "0.50" }`). Canonicalization is applied to artifacts only, never to API payloads.
 
-Envelope: DSSE wrapping an in-toto Statement (predicate type `https://invariant.dev/evolution-bundle/v1`), signed with Ed25519 (`node:crypto`) over the RFC 8785 canonical JSON. The digest of the payload is the bundle id. Builds are reproducible: same specs + same Change files => same digest, which the registry verifies on publish.
+Envelope: DSSE wrapping an in-toto Statement (predicate type `https://github.com/InvariantApp/Invariant/blob/main/docs/evolution-bundle-v1.md`), signed with Ed25519 (`node:crypto`) over the RFC 8785 canonical JSON. The digest of the payload is the bundle id. Builds are reproducible: same specs + same Change files => same digest, which the registry verifies on publish.
 
 ---
 
@@ -2241,7 +2241,7 @@ drafting with the model judges whose keys live only in the service, consumers,
 integrations and migrations, scoped tokens, publisher keys whose revocation
 quarantines what they signed, and an unauthenticated read of published
 bundles for consumers with no account. The token decides the API on every
-route; nothing a caller sends can name another. `@invariant/client` is
+route; nothing a caller sends can name another. `@invariant-app/client` is
 generated from it and has no dependencies, since a runtime's telemetry will
 use it. Its tests call every operation against the proving ground's contract
 mock, judged by the independent validator, so the client and the document
@@ -2256,7 +2256,7 @@ time when the service first deploys.
 The runtime reported every applied Change and every adapted request and
 response through two callbacks, and nothing was connected to them, so E9 and
 the retirement signal had nothing to read in any real deployment.
-`@invariant/telemetry` is what they connect to (M4.4). It folds events into
+`@invariant-app/telemetry` is what they connect to (M4.4). It folds events into
 hourly counters keyed by hashed consumer, contract, Change and hour, so its
 cost follows the number of distinct keys rather than the number of requests,
 and past a bound it counts what it drops instead of growing. A consumer's key

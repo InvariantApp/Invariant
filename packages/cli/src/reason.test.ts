@@ -9,7 +9,7 @@
  * a provider whose OpenAPI is generated it is the likeliest first thing this
  * tool will ever tell them.
  */
-import type { Evidence } from "@invariant/verifier";
+import type { Evidence } from "@invariant-app/verifier";
 import { describe, expect, it } from "vitest";
 import { type CheckReport, renderReport } from "./check.ts";
 

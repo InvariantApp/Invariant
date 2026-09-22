@@ -7,9 +7,9 @@
  * Change is scoped to that schema and addresses its root: the value itself,
  * wherever a field holds it.
  */
-import type { OpenApiDocument } from "@invariant/contract";
-import { propose, RulesJudge } from "@invariant/proposer";
-import { createRuntime } from "@invariant/runtime";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { propose, RulesJudge } from "@invariant-app/proposer";
+import { createRuntime } from "@invariant-app/runtime";
 import { describe, expect, it } from "vitest";
 import { chainProgram } from "./chain.ts";
 import { predictDocument } from "./predict.ts";

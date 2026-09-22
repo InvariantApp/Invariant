@@ -20,8 +20,8 @@ import { existsSync } from "node:fs";
 import { mkdir, open, readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
-import { loadContract, operationsOf, standaloneText } from "@invariant/contract";
-import { actionRef, BRAND, isJsonObject, type JsonValue } from "@invariant/ir";
+import { loadContract, operationsOf, standaloneText } from "@invariant-app/contract";
+import { actionRef, BRAND, isJsonObject, type JsonValue } from "@invariant-app/ir";
 
 const run = promisify(execFile);
 const runShell = promisify(exec);

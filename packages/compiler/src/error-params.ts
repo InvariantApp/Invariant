@@ -15,7 +15,7 @@ import {
   findSchemaSites,
   type OpenApiDocument,
   operationsOf,
-} from "@invariant/contract";
+} from "@invariant-app/contract";
 import {
   type Change,
   formatPointer,
@@ -24,7 +24,7 @@ import {
   type JsonValue,
   type Pointer,
   parsePointer,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 
 export const ERROR_PARAM_EXTENSION = "x-invariant-error-param";
 

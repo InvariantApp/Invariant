@@ -28,14 +28,14 @@ import {
   type OpenApiDocument,
   refsWithin,
   resolveRef,
-} from "@invariant/contract";
+} from "@invariant-app/contract";
 import {
   type Change,
   type Instr,
   isDataOp,
   isSchemaScope,
   type JsonValue,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 import { backwardInstrs, forwardInstrs, guarded, type VariantGuards } from "./lens.ts";
 import type { ProjectionIssue } from "./project.ts";
 

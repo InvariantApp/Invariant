@@ -4,7 +4,7 @@
  *
  *   node --import tsx proving/overhead/proxy.mts <upstream>
  */
-import { createRuntime } from "@invariant/runtime";
+import { createRuntime } from "@invariant-app/runtime";
 import { createProxy } from "../../packages/sidecar/src/proxy.ts";
 import { serve } from "../../packages/sidecar/src/server.ts";
 import { PROGRAM } from "./program.ts";

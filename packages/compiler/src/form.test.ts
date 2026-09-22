@@ -6,9 +6,9 @@
  * a form exactly as it serves JSON, and a value typed from the schema, so a
  * scale sees `49.99` as a number.
  */
-import type { OpenApiDocument } from "@invariant/contract";
-import { type Change, parseChange } from "@invariant/ir";
-import { createRuntime } from "@invariant/runtime";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { type Change, parseChange } from "@invariant-app/ir";
+import { createRuntime } from "@invariant-app/runtime";
 import { describe, expect, it } from "vitest";
 import { chainProgram } from "./chain.ts";
 import { traceBack } from "./form.ts";

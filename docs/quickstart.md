@@ -14,7 +14,7 @@ document, at two points in time.
 In the repository that holds your OpenAPI document:
 
 ```console
-$ npx @invariant/cli init
+$ npx @invariant-app/cli init
 ```
 
 It finds the document, or runs the command that generates it if you pass
@@ -201,7 +201,7 @@ Neither host's job token may write a comment, so give it a token of your own:
 invariant:
   image: node:24
   rules: [{ if: $CI_PIPELINE_SOURCE == "merge_request_event" }]
-  script: npx @invariant/cli check --full --comment
+  script: npx @invariant-app/cli check --full --comment
 ```
 
 ```yaml
@@ -211,7 +211,7 @@ pipelines:
     "**":
       - step:
           image: node:24
-          script: [npx @invariant/cli check --full --comment]
+          script: [npx @invariant-app/cli check --full --comment]
 ```
 
 A comment that cannot be written is said so in the log. It never changes the
@@ -279,7 +279,7 @@ ops:
 Then your own handler branches:
 
 ```ts
-import { before } from "@invariant/runtime-hono";
+import { before } from "@invariant-app/runtime-hono";
 
 app.post("/v1/contacts", async (c) => {
   const body = await c.req.json();
@@ -310,8 +310,8 @@ can eventually tell you the branch is dead and you can delete it.
 ## 4. Put the adapter in your service
 
 ```ts
-import { createRuntime } from "@invariant/runtime";
-import { adapt, wrapFetch } from "@invariant/runtime-hono";
+import { createRuntime } from "@invariant-app/runtime";
+import { adapt, wrapFetch } from "@invariant-app/runtime-hono";
 import program from "./invariant/compiled/program.json" with { type: "json" };
 
 const inv = createRuntime({
@@ -377,7 +377,7 @@ Two mechanisms, for two different emergencies.
 ```
 
 ```ts
-import { flagsFrom } from "@invariant/flags";
+import { flagsFrom } from "@invariant-app/flags";
 const flags = flagsFrom({ path: "/etc/invariant/flags.json" });
 createRuntime({ program, identity, flags: flags.read });
 ```

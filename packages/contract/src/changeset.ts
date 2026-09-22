@@ -7,7 +7,7 @@
  */
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { type Change, isJsonObject, parseChange } from "@invariant/ir";
+import { type Change, isJsonObject, parseChange } from "@invariant-app/ir";
 import { parse as parseYaml } from "yaml";
 
 export class ChangesetError extends Error {

@@ -6,7 +6,7 @@
  * program that converts a path parameter is refused where it is mounted,
  * because Hono binds path parameters before any middleware runs.
  */
-import { createRuntime } from "@invariant/runtime";
+import { createRuntime } from "@invariant-app/runtime";
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { adapt, wrapFetch } from "./index.ts";

@@ -11,7 +11,7 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { promisify } from "node:util";
-import { type IdentityStrategy, isJsonObject, type JsonValue } from "@invariant/ir";
+import { type IdentityStrategy, isJsonObject, type JsonValue } from "@invariant-app/ir";
 import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
 import { parse as parseYaml } from "yaml";
 import SCHEMA from "../invariant.schema.json" with { type: "json" };

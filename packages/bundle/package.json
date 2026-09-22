@@ -1,5 +1,5 @@
 {
-  "name": "@invariant/bundle",
+  "name": "@invariant-app/bundle",
   "version": "0.1.0",
   "description": "The signed release envelope: changes, contract digests, evidence and compiled digests, content addressed and reproducible",
   "license": "Apache-2.0",
@@ -37,8 +37,8 @@
     }
   },
   "dependencies": {
-    "@invariant/contract": "workspace:*",
-    "@invariant/ir": "workspace:*",
-    "@invariant/verifier": "workspace:*"
+    "@invariant-app/contract": "workspace:*",
+    "@invariant-app/ir": "workspace:*",
+    "@invariant-app/verifier": "workspace:*"
   }
 }

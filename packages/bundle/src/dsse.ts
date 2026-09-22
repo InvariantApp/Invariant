@@ -21,7 +21,7 @@ import {
   sign as nodeSign,
   verify as nodeVerify,
 } from "node:crypto";
-import { BRAND } from "@invariant/ir";
+import { BRAND } from "@invariant-app/ir";
 
 export const PAYLOAD_TYPE = "application/vnd.in-toto+json";
 export const PREDICATE_TYPE = BRAND.predicateType;

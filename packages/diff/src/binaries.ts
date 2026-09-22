@@ -32,7 +32,7 @@ const bare = OASDIFF_VERSION.replace(/^v/, "");
 
 export const PLATFORM_BINARIES: readonly PlatformBinary[] = [
   {
-    package: "@invariant/oasdiff-linux-x64",
+    package: "@invariant-app/oasdiff-linux-x64",
     targets: ["linux-x64"],
     os: ["linux"],
     cpu: ["x64"],
@@ -41,7 +41,7 @@ export const PLATFORM_BINARIES: readonly PlatformBinary[] = [
     executable: "oasdiff",
   },
   {
-    package: "@invariant/oasdiff-linux-arm64",
+    package: "@invariant-app/oasdiff-linux-arm64",
     targets: ["linux-arm64"],
     os: ["linux"],
     cpu: ["arm64"],
@@ -51,7 +51,7 @@ export const PLATFORM_BINARIES: readonly PlatformBinary[] = [
   },
   {
     // Upstream publishes one universal binary for both Mac architectures.
-    package: "@invariant/oasdiff-darwin",
+    package: "@invariant-app/oasdiff-darwin",
     targets: ["darwin-x64", "darwin-arm64"],
     os: ["darwin"],
     cpu: ["x64", "arm64"],
@@ -60,7 +60,7 @@ export const PLATFORM_BINARIES: readonly PlatformBinary[] = [
     executable: "oasdiff",
   },
   {
-    package: "@invariant/oasdiff-win32-x64",
+    package: "@invariant-app/oasdiff-win32-x64",
     targets: ["win32-x64"],
     os: ["win32"],
     cpu: ["x64"],
@@ -69,7 +69,7 @@ export const PLATFORM_BINARIES: readonly PlatformBinary[] = [
     executable: "oasdiff.exe",
   },
   {
-    package: "@invariant/oasdiff-win32-arm64",
+    package: "@invariant-app/oasdiff-win32-arm64",
     targets: ["win32-arm64"],
     os: ["win32"],
     cpu: ["arm64"],

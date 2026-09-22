@@ -1,4 +1,4 @@
-# @invariant/proposer
+# @invariant-app/proposer
 
 Drafts Change files for whatever a release leaves unexplained, with deterministic rules first and a model only for the judgements rules cannot make.
 

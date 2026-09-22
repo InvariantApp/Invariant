@@ -12,7 +12,7 @@
  * caller and there is no general way to take a full name apart. This is what a
  * provider does instead, and it has to work.
  */
-import { createRuntime } from "@invariant/runtime";
+import { createRuntime } from "@invariant-app/runtime";
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
 import { adapt, before, contractOf, wrapFetch } from "./index.ts";

@@ -1,4 +1,4 @@
-import { isIntegerText, numberToDecimalText, shiftDecimal } from "@invariant/decimal";
+import { isIntegerText, numberToDecimalText, shiftDecimal } from "@invariant-app/decimal";
 
 /**
  * Rewrites a literal amount into minor units, exactly.

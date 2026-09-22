@@ -9,17 +9,25 @@
  */
 import { join } from "node:path";
 import { ACME_BUILDS, AcmeStore, createAcmeApp } from "@fixtures/provider-acme";
-import { loadConfig } from "@invariant/cli";
-import { type ContractStep, chainProgram, predictDocument } from "@invariant/compiler";
-import { loadContract, loadPendingChanges, loadReleaseStep } from "@invariant/contract";
-import { breakingEntries, diffDocuments } from "@invariant/diff";
-import type { Change } from "@invariant/ir";
+import { loadConfig } from "@invariant-app/cli";
+import {
+  type ContractStep,
+  chainProgram,
+  predictDocument,
+} from "@invariant-app/compiler";
+import {
+  loadContract,
+  loadPendingChanges,
+  loadReleaseStep,
+} from "@invariant-app/contract";
+import { breakingEntries, diffDocuments } from "@invariant-app/diff";
+import type { Change } from "@invariant-app/ir";
 import {
   checkDifferential,
   type Launcher,
   loadScenarios,
   type Scenario,
-} from "@invariant/verifier";
+} from "@invariant-app/verifier";
 import { beforeAll, describe, expect, it } from "vitest";
 
 const FIXTURE = join(import.meta.dirname, "../fixtures/provider-acme");

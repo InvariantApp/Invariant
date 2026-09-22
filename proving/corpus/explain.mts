@@ -9,10 +9,10 @@
  * by, with the proposer's unresolved notes for the schemas they touch.
  */
 
-import { predictDocument } from "@invariant/compiler";
-import { loadContract } from "@invariant/contract";
-import { breakingEntries, diffDocuments } from "@invariant/diff";
-import { propose, RulesJudge } from "@invariant/proposer";
+import { predictDocument } from "@invariant-app/compiler";
+import { loadContract } from "@invariant-app/contract";
+import { breakingEntries, diffDocuments } from "@invariant-app/diff";
+import { propose, RulesJudge } from "@invariant-app/proposer";
 import { materialize, readManifest } from "./manifest.mts";
 
 const option = (name: string) => {

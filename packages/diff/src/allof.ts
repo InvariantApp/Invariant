@@ -9,7 +9,7 @@
  * JSON Schema allows, since a default is an annotation and not a constraint.
  * Okta, Mistral and PagerDuty do it, and every one of their pairs was lost.
  *
- * `resolveSchema` in `@invariant/contract` keeps the first statement of such
+ * `resolveSchema` in `@invariant-app/contract` keeps the first statement of such
  * a keyword, reading the keywords beside an `allOf` before its branches, so
  * the differ is given the same: the first part that states it keeps it, and
  * later ones that state something else do not. Lists of
@@ -20,8 +20,8 @@
  * schema shared elsewhere is never changed for its other uses. Only the
  * document handed to the differ changes, never the contract.
  */
-import type { OpenApiDocument } from "@invariant/contract";
-import { isJsonObject, type JsonObject, type JsonValue } from "@invariant/ir";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { isJsonObject, type JsonObject, type JsonValue } from "@invariant-app/ir";
 
 /** The keywords the differ refuses to merge when branches disagree. */
 const MUST_AGREE = ["default", "type"] as const;

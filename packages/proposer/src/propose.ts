@@ -10,7 +10,7 @@
  * which; whether that is a rename, a unit change or an enum remapping, and
  * what the scale factor is, comes from the declared shapes.
  */
-import { schemaDirections } from "@invariant/contract";
+import { schemaDirections } from "@invariant-app/contract";
 import {
   type Change,
   type JsonValue,
@@ -18,7 +18,7 @@ import {
   type Op,
   type ScalarType,
   type Scope,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 import { type FieldShape, type SchemaDelta, schemaDeltas } from "./candidates.ts";
 import { caseCodec, listCodec, timeCodec } from "./codecs.ts";
 import type { Decision, ValueDecision } from "./decisions.ts";

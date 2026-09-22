@@ -19,7 +19,7 @@ import {
   PLATFORM_BINARIES,
   RELEASE_BASE,
   upstreamChecksums,
-} from "@invariant/diff";
+} from "@invariant-app/diff";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const host = binaryFor();
@@ -29,7 +29,7 @@ const wanted = process.argv.includes("--host")
 
 const checksums = await upstreamChecksums();
 for (const binary of wanted) {
-  const dir = join(ROOT, "packages", binary.package.replace("@invariant/", ""));
+  const dir = join(ROOT, "packages", binary.package.replace("@invariant-app/", ""));
   const installed = await installBinary(binary, join(dir, "bin"), checksums);
   // Upstream's licence sits at the package root, where npm looks for it.
   await writeFile(join(dir, "LICENSE"), await readFile(installed.license));

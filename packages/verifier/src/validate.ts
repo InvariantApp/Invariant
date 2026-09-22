@@ -12,8 +12,8 @@
  * silently passing something nobody validated is the failure this whole layer
  * exists to prevent.
  */
-import { deref, type OpenApiDocument } from "@invariant/contract";
-import { formatPointer, isJsonObject, type JsonValue } from "@invariant/ir";
+import { deref, type OpenApiDocument } from "@invariant-app/contract";
+import { formatPointer, isJsonObject, type JsonValue } from "@invariant-app/ir";
 
 export interface Violation {
   /** Where in the value, as a JSON Pointer. */

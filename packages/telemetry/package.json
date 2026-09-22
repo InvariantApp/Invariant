@@ -1,5 +1,5 @@
 {
-  "name": "@invariant/telemetry",
+  "name": "@invariant-app/telemetry",
   "version": "0.1.0",
   "description": "Takes a runtime's counters out of the process: to the control plane, a rotating file, or an OpenTelemetry meter",
   "license": "Apache-2.0",
@@ -37,14 +37,14 @@
     }
   },
   "dependencies": {
-    "@invariant/client": "workspace:*"
+    "@invariant-app/client": "workspace:*"
   },
   "devDependencies": {
-    "@invariant/cli": "workspace:*",
-    "@invariant/contract": "workspace:*",
-    "@invariant/runtime": "workspace:*"
+    "@invariant-app/cli": "workspace:*",
+    "@invariant-app/contract": "workspace:*",
+    "@invariant-app/runtime": "workspace:*"
   },
   "peerDependencies": {
-    "@invariant/runtime": "workspace:^"
+    "@invariant-app/runtime": "workspace:^"
   }
 }

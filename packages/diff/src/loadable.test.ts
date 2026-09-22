@@ -2,7 +2,7 @@
  * Documents real providers publish that the differ would not read, each in
  * its smallest form, compared through the differ the way the gate does.
  */
-import { type OpenApiDocument, resolveSchema } from "@invariant/contract";
+import { type OpenApiDocument, resolveSchema } from "@invariant-app/contract";
 import { describe, expect, it } from "vitest";
 import { agreeingAllOf } from "./allof.ts";
 import { wholeSchemaRefs } from "./deep-refs.ts";

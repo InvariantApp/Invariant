@@ -1,4 +1,4 @@
-import type { OpenApiDocument } from "@invariant/contract";
+import type { OpenApiDocument } from "@invariant-app/contract";
 import { describe, expect, it } from "vitest";
 import { basePathOf } from "./chain.ts";
 

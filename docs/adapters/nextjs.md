@@ -5,15 +5,15 @@ Through a custom server, the runtime wraps Next's request handler, so it sees ev
 ## Serve old contracts
 
 ```sh
-npm install @invariant/runtime @invariant/runtime-node
+npm install @invariant-app/runtime @invariant-app/runtime-node
 invariant compile   # writes invariant/compiled/program.json
 ```
 
 ```ts
 import { createServer } from "node:http";
 import next from "next";
-import { createRuntime } from "@invariant/runtime";
-import { adaptListener } from "@invariant/runtime-node";
+import { createRuntime } from "@invariant-app/runtime";
+import { adaptListener } from "@invariant-app/runtime-node";
 import program from "./invariant/compiled/program.json" with { type: "json" };
 
 const app = next({ dev: false });
@@ -33,8 +33,8 @@ never makes a request wait. From the hosted service, polled in the background
 and kept on disk so a switch flipped during an incident survives a restart:
 
 ```ts
-import { createClient } from "@invariant/client";
-import { remoteFlags } from "@invariant/flags";
+import { createClient } from "@invariant-app/client";
+import { remoteFlags } from "@invariant-app/flags";
 
 const token = process.env.INVARIANT_TOKEN;
 if (!token) throw new Error("INVARIANT_TOKEN is not set");
@@ -55,7 +55,7 @@ hashes each consumer's key before it leaves the process:
 ```ts
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { controlPlaneSink, createTelemetry, startHeartbeat } from "@invariant/telemetry";
+import { controlPlaneSink, createTelemetry, startHeartbeat } from "@invariant-app/telemetry";
 
 // The program's own digest, so the dashboard shows which build each instance runs.
 const programText = readFileSync("invariant/compiled/program.json", "utf8");

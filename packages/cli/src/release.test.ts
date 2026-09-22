@@ -8,13 +8,13 @@
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { generateSigningKey, openBundle } from "@invariant/bundle";
+import { generateSigningKey, openBundle } from "@invariant-app/bundle";
 import {
   listReleasedLabels,
   loadPendingChanges,
   loadReleaseStep,
-} from "@invariant/contract";
-import { oasdiffAvailable } from "@invariant/diff";
+} from "@invariant-app/contract";
+import { oasdiffAvailable } from "@invariant-app/diff";
 import { afterEach, describe, expect, it } from "vitest";
 import { check, renderReport } from "./check.ts";
 import { loadConfig } from "./config.ts";

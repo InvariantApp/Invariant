@@ -17,7 +17,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { EvolutionBundle } from "@invariant/bundle";
+import type { EvolutionBundle } from "@invariant-app/bundle";
 import { describe, expect, it } from "vitest";
 import { appApi, installationToken } from "./app.ts";
 import { apiFromFetch, DeliveryError, deliverMigration } from "./deliver.ts";

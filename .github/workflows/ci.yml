@@ -88,7 +88,7 @@ jobs:
         run: node --import tsx scripts/fetch-oasdiff.mts --host
 
       - name: Check the gate finds the shipped oasdiff
-        run: node --import tsx -e 'import("@invariant/diff").then(async (m) => { await m.assertUsableOasdiff(); console.log(m.oasdiffBinary()); })'
+        run: node --import tsx -e 'import("@invariant-app/diff").then(async (m) => { await m.assertUsableOasdiff(); console.log(m.oasdiffBinary()); })'
 
       - name: Lint
         run: pnpm lint
@@ -122,7 +122,7 @@ jobs:
       # is what providers execute. It has to be exactly what the source builds.
       - name: Check the action bundle is current
         run: |
-          pnpm --filter @invariant/action bundle
+          pnpm --filter @invariant-app/action bundle
           git diff --exit-code -- packages/action/bundle
 
       # The proxy image, built and run the way a provider should run it, in

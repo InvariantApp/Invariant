@@ -3,14 +3,14 @@
  * set does not fully explain the structural diff, the release must not pass.
  * These tests remove and corrupt Changes and require that it notices.
  */
-import { loadContract, loadPendingChanges } from "@invariant/contract";
+import { loadContract, loadPendingChanges } from "@invariant-app/contract";
 import {
   breakingEntries,
   describeEntry,
   diffDocuments,
   oasdiffAvailable,
-} from "@invariant/diff";
-import type { Change, ConvertOp, MoveOp } from "@invariant/ir";
+} from "@invariant-app/diff";
+import type { Change, ConvertOp, MoveOp } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import { predictDocument } from "./predict.ts";
 

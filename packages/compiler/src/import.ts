@@ -10,8 +10,8 @@
  * already define it. A component the prediction does define is left as it is,
  * because a difference there is a change of its own, for closure to judge.
  */
-import { type OpenApiDocument, resolveRef } from "@invariant/contract";
-import { isJsonObject, type JsonObject, type JsonValue } from "@invariant/ir";
+import { type OpenApiDocument, resolveRef } from "@invariant-app/contract";
+import { isJsonObject, type JsonObject, type JsonValue } from "@invariant-app/ir";
 
 const LOCAL = /^#\/components\/([^/]+)\/([^/]+)$/;
 

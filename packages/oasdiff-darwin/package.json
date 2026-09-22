@@ -1,5 +1,5 @@
 {
-  "name": "@invariant/oasdiff-darwin",
+  "name": "@invariant-app/oasdiff-darwin",
   "version": "0.1.0",
   "description": "The oasdiff release binary for darwin, repackaged unmodified for the Invariant release gate.",
   "license": "Apache-2.0",

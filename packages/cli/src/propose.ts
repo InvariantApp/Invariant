@@ -8,9 +8,9 @@
  */
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { findInterference } from "@invariant/compiler";
-import { loadContract, loadPendingChanges } from "@invariant/contract";
-import type { Change } from "@invariant/ir";
+import { findInterference } from "@invariant-app/compiler";
+import { loadContract, loadPendingChanges } from "@invariant-app/contract";
+import type { Change } from "@invariant-app/ir";
 import {
   CHOOSE_ONE,
   type Decision,
@@ -25,7 +25,7 @@ import {
   RulesJudge,
   type Unresolved,
   type ValueDecision,
-} from "@invariant/proposer";
+} from "@invariant-app/proposer";
 import { stringify as stringifyYaml } from "yaml";
 import type { InvariantConfig } from "./config.ts";
 

@@ -1,4 +1,4 @@
-import type { RuntimeFlags } from "@invariant/runtime";
+import type { RuntimeFlags } from "@invariant-app/runtime";
 
 /** Flags from their JSON text, or nothing when the text is not an object. Throws on invalid JSON. */
 export function parseFlags(text: string): RuntimeFlags | undefined {

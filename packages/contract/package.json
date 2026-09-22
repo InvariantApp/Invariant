@@ -1,5 +1,5 @@
 {
-  "name": "@invariant/contract",
+  "name": "@invariant-app/contract",
   "version": "0.1.0",
   "description": "Loading, normalizing, digesting and indexing OpenAPI contracts",
   "license": "Apache-2.0",
@@ -37,7 +37,7 @@
     }
   },
   "dependencies": {
-    "@invariant/ir": "workspace:*",
+    "@invariant-app/ir": "workspace:*",
     "@scalar/openapi-upgrader": "0.2.16",
     "js-yaml": "4.3.2",
     "yaml": "^2.8.2"

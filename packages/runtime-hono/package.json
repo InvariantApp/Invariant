@@ -1,5 +1,5 @@
 {
-  "name": "@invariant/runtime-hono",
+  "name": "@invariant-app/runtime-hono",
   "version": "0.1.0",
   "description": "Hono bindings for the Invariant compatibility runtime",
   "license": "Apache-2.0",
@@ -37,7 +37,7 @@
     }
   },
   "dependencies": {
-    "@invariant/runtime": "workspace:*"
+    "@invariant-app/runtime": "workspace:*"
   },
   "peerDependencies": {
     "hono": "^4.6.0"

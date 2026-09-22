@@ -1,5 +1,5 @@
 {
-  "name": "@invariant/compiler",
+  "name": "@invariant-app/compiler",
   "version": "0.1.0",
   "description": "Type-checks Changes, proves closure against the new contract, and projects compiled programs",
   "license": "Apache-2.0",
@@ -37,10 +37,10 @@
     }
   },
   "dependencies": {
-    "@invariant/contract": "workspace:*",
-    "@invariant/diff": "workspace:*",
-    "@invariant/ir": "workspace:*",
-    "@invariant/decimal": "workspace:*",
-    "@invariant/runtime": "workspace:*"
+    "@invariant-app/contract": "workspace:*",
+    "@invariant-app/diff": "workspace:*",
+    "@invariant-app/ir": "workspace:*",
+    "@invariant-app/decimal": "workspace:*",
+    "@invariant-app/runtime": "workspace:*"
   }
 }

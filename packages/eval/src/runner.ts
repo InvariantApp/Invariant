@@ -13,7 +13,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AlignmentQuestion, Judge, JudgeResult } from "@invariant/proposer";
+import type { AlignmentQuestion, Judge, JudgeResult } from "@invariant-app/proposer";
 import { type EvalCase, questionOf } from "./corpus.ts";
 
 export interface RunOptions {

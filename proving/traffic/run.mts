@@ -33,12 +33,12 @@ import {
   loadContract,
   type OpenApiDocument,
   requestBodyMedia,
-} from "@invariant/contract";
-import type { PairResult } from "@invariant/eval";
-import type { Change, JsonValue } from "@invariant/ir";
-import { createRuntime } from "@invariant/runtime";
-import { createProxy } from "@invariant/sidecar";
-import { valueArbitrary } from "@invariant/verifier";
+} from "@invariant-app/contract";
+import type { PairResult } from "@invariant-app/eval";
+import type { Change, JsonValue } from "@invariant-app/ir";
+import { createRuntime } from "@invariant-app/runtime";
+import { createProxy } from "@invariant-app/sidecar";
+import { valueArbitrary } from "@invariant-app/verifier";
 import fc from "fast-check";
 import qs from "qs";
 import {

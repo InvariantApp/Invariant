@@ -16,16 +16,16 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ACME_PROGRAM } from "@fixtures/provider-acme";
-import { loadConfig } from "@invariant/cli";
-import { type ContractStep, chainProgram } from "@invariant/compiler";
+import { loadConfig } from "@invariant-app/cli";
+import { type ContractStep, chainProgram } from "@invariant-app/compiler";
 import {
   digestOf,
   loadContract,
   loadPendingChanges,
   loadReleaseStep,
-} from "@invariant/contract";
-import { flagsFrom } from "@invariant/flags";
-import type { JsonValue } from "@invariant/ir";
+} from "@invariant-app/contract";
+import { flagsFrom } from "@invariant-app/flags";
+import type { JsonValue } from "@invariant-app/ir";
 import { afterEach, describe, expect, it } from "vitest";
 import { REPO_ROOT, type RunningProvider, startProvider } from "./harness.ts";
 

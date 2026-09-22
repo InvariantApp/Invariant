@@ -6,9 +6,9 @@
  * schema to scope a Change to. A response scope names the operation and the
  * status instead.
  */
-import type { OpenApiDocument } from "@invariant/contract";
-import { parseChange } from "@invariant/ir";
-import { createRuntime } from "@invariant/runtime";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { parseChange } from "@invariant-app/ir";
+import { createRuntime } from "@invariant-app/runtime";
 import { describe, expect, it } from "vitest";
 import { chainProgram } from "./chain.ts";
 import { predictDocument } from "./predict.ts";

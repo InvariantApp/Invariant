@@ -7,8 +7,8 @@
  * does not emit these, E9 is a file format and nothing else.
  */
 
-import { type OutcomeRecord, outcomeEvidence } from "@invariant/cli";
-import type { OutcomeEvent } from "@invariant/runtime";
+import { type OutcomeRecord, outcomeEvidence } from "@invariant-app/cli";
+import type { OutcomeEvent } from "@invariant-app/runtime";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ACME_PROGRAM, createAcmeApp } from "./index.ts";
 

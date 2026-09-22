@@ -7,9 +7,9 @@
  * when it also renames the card's `type`, the way back has to recognise the
  * card by the name it now has.
  */
-import type { OpenApiDocument } from "@invariant/contract";
-import { parseChange } from "@invariant/ir";
-import { createRuntime } from "@invariant/runtime";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { parseChange } from "@invariant-app/ir";
+import { createRuntime } from "@invariant-app/runtime";
 import { describe, expect, it } from "vitest";
 import { chainProgram } from "./chain.ts";
 import { predictDocument } from "./predict.ts";

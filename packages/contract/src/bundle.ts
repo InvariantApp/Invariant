@@ -22,7 +22,7 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, relative, resolve } from "node:path";
-import { isJsonObject, type JsonObject, type JsonValue } from "@invariant/ir";
+import { isJsonObject, type JsonObject, type JsonValue } from "@invariant-app/ir";
 import { stringify as stringifyYaml } from "yaml";
 import { DocumentTooLargeError, parseDocumentText } from "./parse.ts";
 

@@ -8,9 +8,9 @@
  * for it, and the old union already allows the object's id, which is exactly
  * what Stripe sends for a field the caller did not expand.
  */
-import type { OpenApiDocument } from "@invariant/contract";
-import { parseChange } from "@invariant/ir";
-import { createRuntime } from "@invariant/runtime";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { parseChange } from "@invariant-app/ir";
+import { createRuntime } from "@invariant-app/runtime";
 import { describe, expect, it } from "vitest";
 import { chainProgram } from "./chain.ts";
 import { derive } from "./derive.ts";

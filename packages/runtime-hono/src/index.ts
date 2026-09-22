@@ -21,7 +21,7 @@ import {
   requestFailure,
   type ShapedError,
   UnsupportedContractError,
-} from "@invariant/runtime";
+} from "@invariant-app/runtime";
 import type { Context, MiddlewareHandler, Next } from "hono";
 
 /** Where `adapt` leaves the contract it resolved, for handlers to branch on. */

@@ -4,7 +4,7 @@
  * They were parsed and never read, so a provider who wrote `block` got `warn`.
  * Each case here is a setting doing what its name says.
  */
-import type { Change } from "@invariant/ir";
+import type { Change } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import type { GateLevel, InvariantConfig } from "./config.ts";
 import { applyGatePolicy } from "./policy.ts";

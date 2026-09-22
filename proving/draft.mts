@@ -5,11 +5,15 @@
  * serves the old contract with. Shared by every rig that puts traffic through
  * an adapter, so that they all measure the same thing.
  */
-import { chainProgram, type ProjectionIssue, predictDocument } from "@invariant/compiler";
-import type { OpenApiDocument } from "@invariant/contract";
-import { breakingEntries, diffDocuments } from "@invariant/diff";
-import type { Change } from "@invariant/ir";
-import { propose, RulesJudge } from "@invariant/proposer";
+import {
+  chainProgram,
+  type ProjectionIssue,
+  predictDocument,
+} from "@invariant-app/compiler";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { breakingEntries, diffDocuments } from "@invariant-app/diff";
+import type { Change } from "@invariant-app/ir";
+import { propose, RulesJudge } from "@invariant-app/proposer";
 
 /** The label the old contract is compiled under, and the one callers name. */
 export const OLD = "old";

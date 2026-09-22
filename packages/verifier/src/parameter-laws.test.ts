@@ -2,9 +2,9 @@
  * The laws, on parameter-scoped Changes: what an old caller may send has to
  * reach the provider as something the new contract accepts.
  */
-import { predictDocument } from "@invariant/compiler";
-import type { OpenApiDocument } from "@invariant/contract";
-import { type Change, parseChange } from "@invariant/ir";
+import { predictDocument } from "@invariant-app/compiler";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { type Change, parseChange } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import { checkLaws } from "./laws.ts";
 

@@ -7,9 +7,9 @@
  * In one process that is the run gone, and on a small machine it is the
  * machine gone. In its own process it is one line saying so.
  */
-import { analysePair } from "@invariant/eval";
-import type { AlignmentQuestion, Judge, JudgeResult } from "@invariant/proposer";
-import { HybridJudge, JevJudge, RulesJudge } from "@invariant/proposer";
+import { analysePair } from "@invariant-app/eval";
+import type { AlignmentQuestion, Judge, JudgeResult } from "@invariant-app/proposer";
+import { HybridJudge, JevJudge, RulesJudge } from "@invariant-app/proposer";
 
 /**
  * Counts what would be asked and answers nothing.

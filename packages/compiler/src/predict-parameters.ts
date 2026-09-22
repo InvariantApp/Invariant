@@ -17,7 +17,7 @@ import {
   operationsOf,
   resolveRef,
   resolveSchema,
-} from "@invariant/contract";
+} from "@invariant-app/contract";
 import {
   type DataOp,
   HTTP_METHODS,
@@ -28,7 +28,7 @@ import {
   type ParameterLocation,
   type ParameterScope,
   parsePointer,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 import { importReferences } from "./import.ts";
 import { PATH_PARAMETER_REFUSAL, servesPathParameter } from "./lens.ts";
 import {

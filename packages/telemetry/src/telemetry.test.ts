@@ -5,10 +5,14 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { readOutcomes } from "@invariant/cli";
-import { createClient } from "@invariant/client";
-import { loadContract } from "@invariant/contract";
-import { createRuntime, type OutcomeEvent, type UsageEvent } from "@invariant/runtime";
+import { readOutcomes } from "@invariant-app/cli";
+import { createClient } from "@invariant-app/client";
+import { loadContract } from "@invariant-app/contract";
+import {
+  createRuntime,
+  type OutcomeEvent,
+  type UsageEvent,
+} from "@invariant-app/runtime";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { type ContractMock, createContractMock } from "../../../proving/traffic/mock.mts";
 import {

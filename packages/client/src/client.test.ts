@@ -9,7 +9,7 @@
  */
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { loadContract, operationsOf } from "@invariant/contract";
+import { loadContract, operationsOf } from "@invariant-app/contract";
 import openapiTS, { astToString } from "openapi-typescript";
 import { beforeAll, describe, expect, it } from "vitest";
 import { parse } from "yaml";
@@ -73,7 +73,7 @@ const CALLS: Record<string, (client: ControlPlaneClient) => Promise<unknown>> = 
     c.heartbeat({
       instance: "instance-0001",
       runtime: { version: "0.1.0", binding: "hono" },
-      program: { digest: DIGEST, compiledBy: "@invariant/compiler@0.1.0" },
+      program: { digest: DIGEST, compiledBy: "@invariant-app/compiler@0.1.0" },
       flags: { source: "remote", etag: '"abc"' },
       startedAt: HOUR,
     }),
@@ -142,7 +142,7 @@ describe("the contract", () => {
   });
 
   it("is what the client's types were generated from", async () => {
-    // Regenerate with `pnpm --filter @invariant/client generate`.
+    // Regenerate with `pnpm --filter @invariant-app/client generate`.
     const generated = astToString(await openapiTS(new URL(`file://${DOCUMENT}`)));
     const committed = await readFile(join(ROOT, "src/schema.ts"), "utf8");
     expect(committed).toBe(

@@ -8,7 +8,7 @@
  * The failure cases are held to the same standard as the working ones, because
  * this sits in the path of every request a provider serves.
  */
-import { createRuntime, FOLDED_HEADER } from "@invariant/runtime";
+import { createRuntime, FOLDED_HEADER } from "@invariant-app/runtime";
 import { describe, expect, it } from "vitest";
 import { createProxy, targetFor } from "./proxy.ts";
 

@@ -12,8 +12,8 @@
  * the wrong reason. `enum` fixes the vocabulary, so a value map can be tested
  * against exactly the values it claims to cover.
  */
-import { deref, type OpenApiDocument, resolveSchema } from "@invariant/contract";
-import { isJsonObject, type JsonValue } from "@invariant/ir";
+import { deref, type OpenApiDocument, resolveSchema } from "@invariant-app/contract";
+import { isJsonObject, type JsonValue } from "@invariant-app/ir";
 import fc from "fast-check";
 import { validateSchema } from "./validate.ts";
 

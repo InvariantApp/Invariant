@@ -12,9 +12,9 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
-import { digestOf, loadContract, loadPendingChanges } from "@invariant/contract";
-import { assertUsableOasdiff, OASDIFF_VERSION, oasdiffBinary } from "@invariant/diff";
-import { BRAND, type JsonValue, withoutProvenance } from "@invariant/ir";
+import { digestOf, loadContract, loadPendingChanges } from "@invariant-app/contract";
+import { assertUsableOasdiff, OASDIFF_VERSION, oasdiffBinary } from "@invariant-app/diff";
+import { BRAND, type JsonValue, withoutProvenance } from "@invariant-app/ir";
 import { check } from "./check.ts";
 import type { InvariantConfig } from "./config.ts";
 

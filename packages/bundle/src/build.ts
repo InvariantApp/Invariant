@@ -16,14 +16,14 @@
  * compare" impossible and leave the signature as the only thing anyone could
  * check.
  */
-import { canonicalize, digestOf } from "@invariant/contract";
+import { canonicalize, digestOf } from "@invariant-app/contract";
 import {
   type Change,
   type CompiledProgram,
   type JsonValue,
   withoutProvenance,
-} from "@invariant/ir";
-import type { Evidence } from "@invariant/verifier";
+} from "@invariant-app/ir";
+import type { Evidence } from "@invariant-app/verifier";
 import { type DsseEnvelope, PREDICATE_TYPE, sign, verify } from "./dsse.ts";
 
 export const BUNDLE_VERSION = 1;

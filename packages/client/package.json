@@ -1,5 +1,5 @@
 {
-  "name": "@invariant/client",
+  "name": "@invariant-app/client",
   "version": "0.1.0",
   "description": "The control plane's contract, and a typed client for it with no dependencies",
   "license": "Apache-2.0",
@@ -41,7 +41,7 @@
     }
   },
   "devDependencies": {
-    "@invariant/contract": "workspace:*",
+    "@invariant-app/contract": "workspace:*",
     "openapi-typescript": "7.13.0",
     "yaml": "^2.8.2"
   }

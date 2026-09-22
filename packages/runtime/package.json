@@ -1,5 +1,5 @@
 {
-  "name": "@invariant/runtime",
+  "name": "@invariant-app/runtime",
   "version": "0.1.0",
   "description": "The compatibility interpreter and provider middleware. Deterministic, dependency-free, no model inference.",
   "license": "Apache-2.0",
@@ -37,9 +37,9 @@
     }
   },
   "dependencies": {
-    "@invariant/decimal": "workspace:*"
+    "@invariant-app/decimal": "workspace:*"
   },
   "devDependencies": {
-    "@invariant/ir": "workspace:*"
+    "@invariant-app/ir": "workspace:*"
   }
 }

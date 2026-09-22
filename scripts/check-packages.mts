@@ -21,7 +21,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { binaryFor, PLATFORM_BINARIES } from "@invariant/diff";
+import { binaryFor, PLATFORM_BINARIES } from "@invariant-app/diff";
 import { publint } from "publint";
 import { formatMessage } from "publint/utils";
 
@@ -30,8 +30,8 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 /** Imports each package may make at run time beyond its declared dependencies. */
 const RUNTIME_ONLY = new Map([
-  ["@invariant/runtime", new Set(["@invariant/decimal"])],
-  ["@invariant/decimal", new Set<string>()],
+  ["@invariant-app/runtime", new Set(["@invariant-app/decimal"])],
+  ["@invariant-app/decimal", new Set<string>()],
 ]);
 
 interface Manifest {

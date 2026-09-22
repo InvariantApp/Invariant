@@ -7,7 +7,7 @@
  * that has to refuse it. `decode` means the program itself must be refused
  * before any request is seen.
  */
-import type { EnvelopeProgram, FormProgram } from "@invariant/ir";
+import type { EnvelopeProgram, FormProgram } from "@invariant-app/ir";
 
 export interface EnvelopeVector {
   name: string;

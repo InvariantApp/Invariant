@@ -7,8 +7,8 @@
  * body steps placed under `/@body`, and a path parameter named the way the
  * final template names it.
  */
-import type { OpenApiDocument } from "@invariant/contract";
-import { type Change, parseChange } from "@invariant/ir";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { type Change, parseChange } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import { chainProgram, expandChains } from "./chain.ts";
 

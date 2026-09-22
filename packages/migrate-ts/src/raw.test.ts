@@ -1,4 +1,4 @@
-import { parseChange } from "@invariant/ir";
+import { parseChange } from "@invariant-app/ir";
 import { Project } from "ts-morph";
 import { describe, expect, it } from "vitest";
 import type { MigrationPlan } from "./plan.ts";

@@ -13,9 +13,9 @@
  * produce a valid response makes that sample prove nothing, and has to be
  * counted rather than quietly passed.
  */
-import type { OpenApiDocument } from "@invariant/contract";
-import type { JsonValue } from "@invariant/ir";
-import { valueArbitrary } from "@invariant/verifier";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import type { JsonValue } from "@invariant-app/ir";
+import { valueArbitrary } from "@invariant-app/verifier";
 import fc from "fast-check";
 import qs from "qs";
 import { Oracle, type OracleViolation } from "./oracle.mts";

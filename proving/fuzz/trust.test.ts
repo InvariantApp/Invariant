@@ -16,7 +16,7 @@ import {
   openBundle,
   SignatureError,
   signBundle,
-} from "@invariant/bundle";
+} from "@invariant-app/bundle";
 import {
   LinkError,
   memoryDeliveryLog,
@@ -25,7 +25,7 @@ import {
   signPayload,
   verifyWebhook,
   WebhookError,
-} from "@invariant/github";
+} from "@invariant-app/github";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 

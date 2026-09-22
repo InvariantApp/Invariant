@@ -16,7 +16,7 @@ import { mkdtemp } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import type { Target } from "@invariant/verifier";
+import type { Target } from "@invariant-app/verifier";
 import type { BuildConfig, BuildSource } from "./config.ts";
 
 /**

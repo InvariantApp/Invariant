@@ -6,12 +6,12 @@
  * property test written against a separate "test interpreter" would only prove
  * things about the test interpreter, which is the mistake this avoids.
  */
-import type { Instr } from "@invariant/ir";
+import type { Instr } from "@invariant-app/ir";
 import {
   createRuntime,
   type DecodedSite,
   type InvariantRuntime,
-} from "@invariant/runtime";
+} from "@invariant-app/runtime";
 
 const METHOD = "post";
 const PATH = "/verify";

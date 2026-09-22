@@ -8,7 +8,7 @@
  * names. Both used to happen: no response said it varied on the contract
  * header, and an adapted body went out under the handler's own tag.
  */
-import { createRuntime } from "@invariant/runtime";
+import { createRuntime } from "@invariant-app/runtime";
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { adapt, wrapFetch } from "./index.ts";

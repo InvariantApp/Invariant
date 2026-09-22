@@ -14,7 +14,7 @@
  */
 import { type ChildProcess, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { createRuntime, FOLDED_HEADER } from "@invariant/runtime";
+import { createRuntime, FOLDED_HEADER } from "@invariant-app/runtime";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createProxy } from "./proxy.ts";
 import { type Listening, serve } from "./server.ts";

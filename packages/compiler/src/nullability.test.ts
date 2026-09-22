@@ -6,8 +6,8 @@
  * change nobody made. The program has to fill in only on the side that needs
  * it, and never overwrite a value the other side was entitled to send.
  */
-import type { OpenApiDocument } from "@invariant/contract";
-import { type Change, type JsonObject, parseChange } from "@invariant/ir";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { type Change, type JsonObject, parseChange } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import { derive } from "./derive.ts";
 import { predictDocument } from "./predict.ts";

@@ -7,9 +7,9 @@
  * requests and responses through the runtime, including the ones it has to
  * refuse.
  */
-import type { OpenApiDocument } from "@invariant/contract";
-import { type Change, parseChange } from "@invariant/ir";
-import { createRuntime, TransformError } from "@invariant/runtime";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { type Change, parseChange } from "@invariant-app/ir";
+import { createRuntime, TransformError } from "@invariant-app/runtime";
 import { describe, expect, it } from "vitest";
 import { chainProgram } from "./chain.ts";
 import { derive } from "./derive.ts";

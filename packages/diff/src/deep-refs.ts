@@ -13,8 +13,8 @@
  * of a pair, so a change inside the target is reported once, where it was
  * made, as it would have been. Only the document handed to the differ changes.
  */
-import type { OpenApiDocument } from "@invariant/contract";
-import { isJsonObject, type JsonObject, type JsonValue } from "@invariant/ir";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { isJsonObject, type JsonObject, type JsonValue } from "@invariant-app/ir";
 
 /** How many segments a reference to a whole component has: components, kind, name. */
 const WHOLE = 3;

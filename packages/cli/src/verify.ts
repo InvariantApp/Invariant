@@ -12,8 +12,8 @@
  */
 
 import { join } from "node:path";
-import { type ContractStep, predictDocument } from "@invariant/compiler";
-import { loadContract, type OpenApiDocument } from "@invariant/contract";
+import { type ContractStep, predictDocument } from "@invariant-app/compiler";
+import { loadContract, type OpenApiDocument } from "@invariant-app/contract";
 import {
   CURRENT_CONTRACT_ALIAS,
   checkChainEquivalence,
@@ -25,7 +25,7 @@ import {
   loadScenarios,
   type Scenario,
   scenariosFromDocument,
-} from "@invariant/verifier";
+} from "@invariant-app/verifier";
 import type { InvariantConfig } from "./config.ts";
 import { launchBuild } from "./launch.ts";
 

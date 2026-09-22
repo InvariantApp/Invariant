@@ -2,7 +2,7 @@
  * The independent oracle: is this body what the contract says?
  *
  * Rig C's verdicts come from here, so it deliberately shares nothing with the
- * code under test. It does not use `@invariant/contract`'s resolver or the
+ * code under test. It does not use `@invariant-app/contract`'s resolver or the
  * verifier's validator; it uses Ajv, which follows `$ref` and merges `allOf` by
  * its own reading of JSON Schema. If the product and this oracle disagree about
  * what a schema means, a traffic run fails and says so, which is the point. A

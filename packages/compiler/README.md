@@ -1,4 +1,4 @@
-# @invariant/compiler
+# @invariant-app/compiler
 
 Proves that declared Changes explain a release (the closure check) and compiles them into the program the runtime executes.
 

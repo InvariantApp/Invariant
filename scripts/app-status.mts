@@ -12,7 +12,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { apiFromFetch, appJwt } from "@invariant/github";
+import { apiFromFetch, appJwt } from "@invariant-app/github";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const CREDENTIALS = join(ROOT, ".secrets/github-app.json");

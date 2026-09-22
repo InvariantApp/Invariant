@@ -14,10 +14,10 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { chainProgram, predictDocument } from "@invariant/compiler";
-import type { OpenApiDocument } from "@invariant/contract";
-import { type Change, parseChange } from "@invariant/ir";
-import { createRuntime } from "@invariant/runtime";
+import { chainProgram, predictDocument } from "@invariant-app/compiler";
+import type { OpenApiDocument } from "@invariant-app/contract";
+import { type Change, parseChange } from "@invariant-app/ir";
+import { createRuntime } from "@invariant-app/runtime";
 import { describe, expect, it } from "vitest";
 
 type Json = Record<string, unknown>;

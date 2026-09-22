@@ -8,7 +8,7 @@
  */
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import type { IdentityStrategy } from "@invariant/runtime";
+import type { IdentityStrategy } from "@invariant-app/runtime";
 
 export interface SidecarConfig {
   /** The compiled program, from `invariant compile`. */

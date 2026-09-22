@@ -7,8 +7,12 @@
  * would not have shown up on a one-step chain at all.
  */
 import { join } from "node:path";
-import type { ContractStep } from "@invariant/compiler";
-import { loadContract, loadPendingChanges, loadReleaseStep } from "@invariant/contract";
+import type { ContractStep } from "@invariant-app/compiler";
+import {
+  loadContract,
+  loadPendingChanges,
+  loadReleaseStep,
+} from "@invariant-app/contract";
 import { describe, expect, it } from "vitest";
 import { checkChainEquivalence } from "./equivalence.ts";
 

@@ -10,7 +10,7 @@ import {
   resolveSchema,
   type Site,
   schemaDirections,
-} from "@invariant/contract";
+} from "@invariant-app/contract";
 import {
   CHOOSE_ONE,
   type Change,
@@ -26,7 +26,7 @@ import {
   type RouteOp,
   type Scope,
   undecidedOps,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 import { importReferences } from "./import.ts";
 import { applyParameterScope } from "./predict-parameters.ts";
 import { applyResponseScope } from "./predict-responses.ts";

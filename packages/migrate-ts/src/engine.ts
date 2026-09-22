@@ -17,7 +17,7 @@
  * than rewritten on a guess. A migration that quietly gets one call site wrong
  * is worse than one that says which call site it could not do.
  */
-import type { AddOp, Codec, DataOp, DefaultOp } from "@invariant/ir";
+import type { AddOp, Codec, DataOp, DefaultOp } from "@invariant-app/ir";
 import {
   Node,
   type Project,

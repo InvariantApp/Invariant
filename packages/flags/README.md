@@ -1,4 +1,4 @@
-# @invariant/flags
+# @invariant-app/flags
 
 The kill switch: turn compatibility off for everything, one contract, or one Change, from a file or an environment variable, without a deploy.
 

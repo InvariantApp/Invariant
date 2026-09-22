@@ -12,8 +12,8 @@
  * `block` got `warn`. That is worse than having no setting, because it looks
  * like a decision was made.
  */
-import { derive, missingAcknowledgement } from "@invariant/compiler";
-import type { Change } from "@invariant/ir";
+import { derive, missingAcknowledgement } from "@invariant-app/compiler";
+import type { Change } from "@invariant-app/ir";
 import type { GateLevel, InvariantConfig } from "./config.ts";
 import { DEFAULT_WINDOW_DAYS } from "./retire.ts";
 import type { UsageRecord } from "./usage.ts";

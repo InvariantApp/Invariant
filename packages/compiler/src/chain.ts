@@ -11,7 +11,7 @@
  * contracts either side of it, and the forward pass replays them in the order
  * they happened while the backward pass undoes them in the reverse order.
  */
-import { type OpenApiDocument, operationsOf } from "@invariant/contract";
+import { type OpenApiDocument, operationsOf } from "@invariant-app/contract";
 import type {
   Change,
   CompiledProgram,
@@ -22,7 +22,7 @@ import type {
   ParamCodec,
   RouteRule,
   SiteProgram,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 import {
   BRAND,
   formatPointer,
@@ -32,7 +32,7 @@ import {
   PROGRAM_VERSION,
   parsePointer,
   siteKey,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 import { mergeForms } from "./form.ts";
 import { mapEndpoint, type RouteMapping, routeMappings } from "./predict.ts";
 import {

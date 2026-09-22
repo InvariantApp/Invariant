@@ -21,7 +21,7 @@
  *   INVARIANT_GH_TOKEN=... INVARIANT_GH_REPO=owner/name \
  *     pnpm vitest run packages/github/src/live.test.ts
  */
-import type { EvolutionBundle } from "@invariant/bundle";
+import type { EvolutionBundle } from "@invariant-app/bundle";
 import { describe, expect, it } from "vitest";
 import { apiFromFetch, deliverMigration, promoteIfReady } from "./deliver.ts";
 import type { MigrationSummary } from "./pr.ts";

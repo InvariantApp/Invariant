@@ -7,7 +7,7 @@
  * refusals. An engine that rounds where this one rejects would pass a test
  * suite written against its own behaviour and fail these.
  */
-import { Instr } from "@invariant/ir";
+import { Instr } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import { createRuntime } from "./index.ts";
 import { CONFORMANCE_VECTORS, type Vector } from "./vectors.ts";

@@ -16,7 +16,7 @@ import {
   operationsOf,
   resolveRef,
   resolveSchema,
-} from "@invariant/contract";
+} from "@invariant-app/contract";
 import {
   ENVELOPE_PARTS,
   formatPointer,
@@ -26,7 +26,7 @@ import {
   type ParamCodec,
   type ParameterLocation,
   parsePointer,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 
 const SCALARS = new Set(["string", "integer", "number", "boolean"]);
 

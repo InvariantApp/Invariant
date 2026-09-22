@@ -26,7 +26,7 @@
  *   read one way in one version and another way in the next.
  */
 import { extname } from "node:path";
-import { isJsonObject, type JsonValue } from "@invariant/ir";
+import { isJsonObject, type JsonValue } from "@invariant-app/ir";
 import { CORE_SCHEMA, load as loadYaml } from "js-yaml";
 import { isMap, isScalar, isSeq, type Node, parseDocument } from "yaml";
 

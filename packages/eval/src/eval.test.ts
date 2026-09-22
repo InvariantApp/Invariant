@@ -5,7 +5,7 @@
  * and a regression here is a real change in a judge rather than the weather.
  * Re-record with `pnpm eval:record` when a question set changes.
  */
-import { JevJudge, RulesJudge } from "@invariant/proposer";
+import { JevJudge, RulesJudge } from "@invariant-app/proposer";
 import { describe, expect, it } from "vitest";
 import { loadCorpus } from "./corpus.ts";
 import { calibration, outcomesOf, ownership, summarize } from "./metrics.ts";

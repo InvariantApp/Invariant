@@ -8,7 +8,7 @@
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { oasdiffAvailable } from "@invariant/diff";
+import { oasdiffAvailable } from "@invariant-app/diff";
 import { afterEach, describe, expect, it } from "vitest";
 import { check, renderReport } from "./check.ts";
 import { loadConfig } from "./config.ts";

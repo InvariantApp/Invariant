@@ -6,8 +6,12 @@
  * specification has to reproduce the new one. Anything left over is a change
  * nobody explained.
  */
-import { jsonKindOf, type OpenApiDocument, resolveSchema } from "@invariant/contract";
-import { compareDecimal, numberToDecimalText, shiftDecimal } from "@invariant/decimal";
+import { jsonKindOf, type OpenApiDocument, resolveSchema } from "@invariant-app/contract";
+import {
+  compareDecimal,
+  numberToDecimalText,
+  shiftDecimal,
+} from "@invariant-app/decimal";
 import {
   type Codec,
   isJsonObject,
@@ -19,8 +23,8 @@ import {
   type StringCase,
   type TimeFormat,
   vocabularyGrows,
-} from "@invariant/ir";
-import { CodecRefusal, convertCase, convertTime } from "@invariant/runtime";
+} from "@invariant-app/ir";
+import { CodecRefusal, convertCase, convertTime } from "@invariant-app/runtime";
 
 export class SchemaOpError extends Error {
   constructor(message: string) {

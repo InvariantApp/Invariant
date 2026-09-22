@@ -8,7 +8,7 @@
     ".": "./serve.mjs"
   },
   "dependencies": {
-    "@invariant/runtime": "workspace:*",
-    "@invariant/runtime-node": "workspace:*"
+    "@invariant-app/runtime": "workspace:*",
+    "@invariant-app/runtime-node": "workspace:*"
   }
 }

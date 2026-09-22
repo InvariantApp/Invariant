@@ -17,7 +17,7 @@ import {
   responseSchemas,
   type Site,
   variantGuard,
-} from "@invariant/contract";
+} from "@invariant-app/contract";
 import {
   type Change,
   type ContractProgram,
@@ -36,7 +36,7 @@ import {
   type SiteProgram,
   siteKey,
   type WidenOp,
-} from "@invariant/ir";
+} from "@invariant-app/ir";
 import { derive } from "./derive.ts";
 import { errorParamTargets, paramRenames } from "./error-params.ts";
 import { formProgramFor, takesForm } from "./form.ts";

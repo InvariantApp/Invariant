@@ -22,7 +22,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
-import { createRuntime, type InvariantRuntime } from "@invariant/runtime";
+import { createRuntime, type InvariantRuntime } from "@invariant-app/runtime";
 import express from "express";
 import express4 from "express4";
 import Fastify from "fastify";

@@ -1,7 +1,7 @@
 /**
  * Parameters, through the proxy, to an upstream that records what it got.
  */
-import { createRuntime } from "@invariant/runtime";
+import { createRuntime } from "@invariant-app/runtime";
 import { describe, expect, it } from "vitest";
 import { createProxy } from "./proxy.ts";
 

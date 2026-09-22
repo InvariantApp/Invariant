@@ -1,4 +1,4 @@
-import type { PairResult } from "@invariant/eval";
+import type { PairResult } from "@invariant-app/eval";
 import { describe, expect, it } from "vitest";
 import { compareRuns } from "./regressions.mts";
 

@@ -11,7 +11,7 @@
  * which is the point.
  */
 import { createHash } from "node:crypto";
-import type { EvolutionBundle } from "@invariant/bundle";
+import type { EvolutionBundle } from "@invariant-app/bundle";
 import { describe, expect, it } from "vitest";
 import {
   DeliveryError,

@@ -9,9 +9,9 @@ import { existsSync } from "node:fs";
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
-import { ControlPlaneError } from "@invariant/client";
-import { loadContract } from "@invariant/contract";
-import { scenariosFromDocument, scenarioYaml } from "@invariant/verifier";
+import { ControlPlaneError } from "@invariant-app/client";
+import { loadContract } from "@invariant-app/contract";
+import { scenariosFromDocument, scenarioYaml } from "@invariant-app/verifier";
 import { check, renderReport, reportJson } from "./check.ts";
 import { renderComment } from "./comment.ts";
 import { loadConfig } from "./config.ts";
