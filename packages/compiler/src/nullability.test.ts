@@ -355,3 +355,35 @@ describe("a field added with a shape that refers to schemas only the new contrac
     expect(Object.keys(schemas).sort()).toEqual(["Student", "Thing", "ThingCreate"]);
   });
 });
+
+describe("a nullable enum that lists null, renamed a value", () => {
+  it("is mapped and predicted with null still listed, as the runtime passes it through", () => {
+    // Plaid's `StudentRepaymentPlan.type`: `interest-only` became `interest only`.
+    const plan = (values: (string | null)[]) =>
+      thing(
+        {
+          id: { type: "string" },
+          type: { type: "string", nullable: true, enum: values },
+        },
+        ["id"],
+      );
+    const document = contract("3.0.3", {
+      ThingCreate: thing({ name: { type: "string" } }, []),
+      Thing: plan(["standard", "interest-only", null]),
+    });
+    const rename = change("Thing", {
+      op: "convert",
+      path: "/type",
+      codec: {
+        kind: "enumMap",
+        pairs: [
+          ["standard", "standard"],
+          ["interest-only", "interest only"],
+        ],
+      },
+    });
+    expect((predicted(document, [rename]) as JsonObject)["Thing"]).toEqual(
+      plan(["standard", "interest only", null]),
+    );
+  });
+});

@@ -316,6 +316,9 @@ function applyEnumMap(
     throw new SchemaOpError("enumMap applies only to a schema with an enum");
   }
   out["enum"] = values.map((value) => {
+    // Null listed in a nullable enum is not a value the map names: the
+    // runtime passes a null through untouched, so the prediction keeps it.
+    if (value === null) return null;
     if (typeof value !== "string") {
       throw new SchemaOpError(
         `enumMap applies only to string enums, found ${typeof value}`,
@@ -330,10 +333,10 @@ function applyEnumMap(
   // A folded value exists in the new contract and not the old one, so the
   // predicted document has to grow it or the closure check reports the
   // addition as an unexplained delta, which is the very thing being explained.
-  const already = new Set(out["enum"] as string[]);
+  const already = new Set(out["enum"] as (string | null)[]);
   for (const [value] of fold) {
     if (!already.has(value)) {
-      (out["enum"] as string[]).push(value);
+      (out["enum"] as (string | null)[]).push(value);
       already.add(value);
     }
   }

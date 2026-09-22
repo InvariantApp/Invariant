@@ -10,41 +10,43 @@ or a corpus written for it.
 ## Did the pipeline survive
 
 - 1553 version pairs
-- 1462 ran every stage (94.1%)
-- 73 stopped after `load`
-- 18 stopped after `budget`
-- median 455 ms per pair
+- 1456 ran every stage (93.8%)
+- 57 stopped after `load`
+- 40 stopped after `budget`
+- median 717 ms per pair
 
 ### What stopped them
 
 | Count | Error |
 |---|---|
+| 28 | `OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopped. Comparison cost is driven by how the documents compose their schemas rather than by how far apart the two versions are.` |
 | 19 | `ContractError: #/components/schemas/EmbeddingResponse/allOf/1/properties/data/items is a list of schemas, where OpenAPI takes one. A list there is JSON Schema's positional tuple, which neither Swagger 2.0 nor OpenAPI 3.0 has. If each value may be one of several shapes, write that as anyOf.` |
-| 12 | `Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's budget.` |
 | 12 | `ContractError: #/components/schemas/objs_channel/properties/latest/items is a list of schemas, where OpenAPI takes one. A list there is JSON Schema's positional tuple, which neither Swagger 2.0 nor OpenAPI 3.0 has. If each value may be one of several shapes, write that as anyOf.` |
 | 10 | `OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff exited with 104.
 Error` |
+| 8 | `Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's budget.` |
 | 7 | `ContractError: `#/components/schemas/custom_attributes` is referenced but not defined, from 4 places including #/components/schemas/conversation_list_item/properties/custom_attributes. The document has to define everything it points at before it can be compared.` |
-| 5 | `OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff exited with 102.
+| 2 | `OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff exited with 102.
 Error` |
-| 3 | `YAMLParseError: Missing closing 'quote at line 2080, column 1` |
 | 2 | `ContractError: `#/components/schemas/Address` is referenced but not defined, from 3 places including #/components/schemas/Individual/properties/residentialAddress. The document has to define everything it points at before it can be compared.` |
 | 2 | `ContractError: `#/components/schemas/BankAccountInfo` is referenced but not defined, from 2 places including #/components/schemas/TransferInstrument/properties/bankAccount. The document has to define everything it points at before it can be compared.` |
-| 2 | `Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's budget.` |
-| 2 | `YAMLParseError: Missing closing 'quote at line 1732, column 1` |
-| 2 | `YAMLParseError: Missing closing 'quote at line 1796, column 1` |
-| 2 | `YAMLParseError: Map keys must be unique at line 55483, column 5` |
-| 1 | `Stopped after 180000 ms, in `decide` (62s there). The difference between these two versions is larger than one pair's budget.` |
-| 1 | `Stopped after 180000 ms, in `decide` (65s there). The difference between these two versions is larger than one pair's budget.` |
+| 2 | `Stopped after 180000 ms, in `diff` (178s there). The difference between these two versions is larger than one pair's budget.` |
+| 1 | `Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's budget.` |
+| 1 | `UnstableDiffError: The differ returned 1448 entries twice for the same two documents, but not the same ones, so its answer here is not reproducible and no count from it means anything. This is a defect in oasdiff (v1.33.0-rc.1) rather than in the documents` |
+| 1 | `OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopped. Comparison cost is driven by how the documents compose their schemas rather than by how far apart the two versions are.
+
+/orgs/{org}/attestations/{attestation_id} and /orgs/{org}/attestation` |
+| 1 | `UnstableDiffError: The differ returned 5600 entries twice for the same two documents, but not the same ones, so its answer here is not reproducible and no count from it means anything. This is a defect in oasdiff (v1.33.0-rc.1) rather than in the documents` |
+| 1 | `ContractError: /home/akirt/Invariant/.cache/corpus/77e2ebc28fc4e06678e23a79a3193b4719300c1652dc559598c7792de501c49f.json refers to /home/akirt/Invariant/common/schemas/common_user_prefs_schema.json, which cannot be read` |
 
 ## What real API changes look like
 
-Of the 1553 pairs, 994 were purely additive:
+Of the 1553 pairs, 989 were purely additive:
 the new version broke nothing. That is itself worth knowing, because it is
 the case this system should stay out of the way of.
 
-A raw diff of the rest finds 82654 breaking deltas.
-Lining the endpoints up first finds 82992.
+A raw diff of the rest finds 80427 breaking deltas.
+Lining the endpoints up first finds 80765.
 
 **338 of those are only visible after lining up.** Most real APIs
 put the version in the URL, so bumping it moves every endpoint at once. A diff
@@ -55,31 +57,31 @@ not otherwise have been told about.
 
 | Breaking change | Times | Pairs |
 |---|---|---|
-| `response-property-enum-value-added` | 35651 | 130 |
-| `response-property-enum-value-removed` | 23766 | 42 |
-| `response-required-property-added` | 5195 | 72 |
-| `response-property-one-of-added` | 2548 | 38 |
-| `response-property-became-optional` | 2525 | 37 |
-| `response-required-property-removed` | 2336 | 28 |
-| `response-property-type-changed` | 1757 | 47 |
+| `response-property-enum-value-added` | 52162 | 132 |
+| `response-property-enum-value-removed` | 5916 | 45 |
+| `response-required-property-added` | 5218 | 74 |
+| `response-property-became-optional` | 2746 | 42 |
+| `response-property-one-of-added` | 2553 | 39 |
+| `response-property-type-changed` | 1789 | 50 |
 | `api-path-removed-without-deprecation` | 1568 | 56 |
-| `response-body-type-changed` | 922 | 7 |
+| `response-body-type-changed` | 926 | 8 |
 | `response-property-pattern-removed` | 644 | 4 |
-| `request-property-removed` | 620 | 53 |
+| `request-property-enum-value-removed` | 630 | 67 |
+| `request-property-removed` | 611 | 55 |
 | `response-property-max-length-unset` | 586 | 7 |
-| `response-property-min-length-unset` | 574 | 6 |
+| `response-property-min-length-unset` | 583 | 7 |
 | `request-parameter-enum-value-removed` | 479 | 14 |
 | `api-security-removed` | 381 | 6 |
 | `request-property-pattern-added` | 371 | 10 |
+| `response-required-property-removed` | 297 | 27 |
 | `response-property-max-increased` | 292 | 2 |
-| `request-property-enum-value-removed` | 260 | 65 |
+| `request-property-const-added` | 264 | 1 |
 | `response-property-max-length-increased` | 245 | 6 |
-| `request-property-type-changed` | 200 | 25 |
-| `request-property-became-required` | 163 | 26 |
+| `request-property-type-changed` | 203 | 26 |
+| `request-property-became-required` | 197 | 29 |
+| `response-property-any-of-added` | 151 | 15 |
 | `request-parameter-removed` | 149 | 23 |
-| `response-property-became-nullable` | 140 | 18 |
-| `request-parameter-property-enum-value-removed` | 128 | 3 |
-| `request-property-max-length-set` | 112 | 13 |
+| `response-property-became-nullable` | 141 | 19 |
 
 ## Who the providers are
 
@@ -97,42 +99,68 @@ place, which is what this system is actually for.
 | adyen.com | 304 | 299 | 0 | 2279 | 1978 | 129 |
 | twilio.com | 270 | 270 | 0 | 1145 | 742 | 92 |
 | xero.com | 90 | 81 | 0 | 9 | 9 | 0 |
-| kubernetes.io | 81 | 78 | 0 | 1593 | 285 | 16 |
-| datadoghq.com | 78 | 75 | 3 | 327 | 281 | 18 |
+| kubernetes.io | 81 | 81 | 0 | 1813 | 505 | 16 |
+| datadoghq.com | 78 | 59 | 19 | 320 | 295 | 16 |
 | paypal.com | 68 | 67 | 0 | 9382 | 4963 | 752 |
 | intercom.com | 42 | 35 | 0 | 56 | 33 | 14 |
 | asana.com | 39 | 39 | 0 | 616 | 613 | 3 |
 | grafana.com | 39 | 39 | 0 | 28 | 11 | 23 |
 | langfuse.com | 39 | 39 | 0 | 339 | 108 | 23 |
-| mistral.ai | 39 | 9 | 0 | 10 | 0 | 10 |
+| mistral.ai | 39 | 20 | 0 | 1390 | 1342 | 27 |
 | pagerduty.com | 39 | 39 | 0 | 163 | 134 | 35 |
-| qdrant.tech | 39 | 39 | 0 | 122 | 116 | 11 |
+| qdrant.tech | 39 | 38 | 1 | 122 | 116 | 11 |
 | resend.com | 39 | 39 | 0 | 137 | 20 | 63 |
 | sentry.io | 39 | 39 | 0 | 44 | 41 | 3 |
 | spotify.com | 39 | 39 | 0 | 68 | 42 | 10 |
 | supabase.com | 39 | 39 | 0 | 1243 | 802 | 235 |
 | discord.com | 36 | 36 | 0 | 1922 | 1613 | 23 |
 | figma.com | 34 | 33 | 0 | 7882 | 5942 | 34 |
-| okta.com | 25 | 22 | 0 | 353 | 300 | 45 |
+| okta.com | 25 | 24 | 0 | 595 | 475 | 54 |
 | docker.com | 19 | 19 | 0 | 14 | 14 | 2 |
 | gitea.com | 17 | 17 | 0 | 1 | 0 | 1 |
 | googleapis.com | 17 | 16 | 0 | 403 | 32 | 375 |
 | amazonaws.com | 15 | 15 | 0 | 1876 | 1280 | 555 |
 | slack.com | 13 | 0 | 0 | 0 | 0 | 0 |
 | elastic.co | 9 | 0 | 9 | 0 | 0 | 0 |
-| github.com | 8 | 8 | 0 | 964 | 43 | 849 |
-| box.com | 7 | 7 | 0 | 7 | 7 | 0 |
+| github.com | 8 | 7 | 1 | 964 | 43 | 849 |
+| box.com | 7 | 5 | 2 | 6 | 6 | 0 |
 | openai.com | 7 | 7 | 0 | 8 | 8 | 0 |
-| plaid.com | 7 | 7 | 0 | 5610 | 5581 | 16 |
-| stripe.com | 7 | 3 | 4 | 40854 | 20427 | 37 |
+| plaid.com | 7 | 7 | 0 | 5610 | 5577 | 17 |
+| stripe.com | 7 | 2 | 5 | 36793 | 36793 | 2 |
 | meilisearch.com | 4 | 4 | 0 | 5245 | 5158 | 135 |
-| cloudflare.com | 3 | 1 | 2 | 225 | 240 | 22 |
+| cloudflare.com | 3 | 0 | 3 | 225 | 225 | 22 |
 | apicurio.local | 1 | 1 | 0 | 46 | 12 | 41 |
 | chaingateway.io | 1 | 1 | 0 | 21 | 0 | 21 |
 
+## Pairs compared at reduced fidelity
+
+10 pairs could not be compared in full. Their counts below
+are upper bounds rather than measurements, and they are listed here so no
+number from them is read as though it were measured the same way as the
+rest.
+
+The full changelog could not be computed for these, so a breaking-only
+comparison was used instead. For the largest it also had to stop merging
+`allOf` before comparing, which no longer collapses composition and so
+reports a superset. Every comparison of one pair uses the same rung, or
+the residual and the total would not be subtractable.
+
+| API | Step | Rung | Aligned breaking |
+|---|---|---|---|
+| datadoghq.com:v2/openapi | 2026-09-15 97438d2 to 2026-09-15 f460cfb | `breaking` | 0 |
+| datadoghq.com:v2/openapi | 2026-09-15 cf4727b to 2026-09-15 97438d2 | `breaking` | 0 |
+| datadoghq.com:v2/openapi | 2026-09-15 f460cfb to 2026-09-15 f2ac79d | `breaking` | 0 |
+| datadoghq.com:v2/openapi | 2026-09-15 f2ac79d to 2026-09-15 1777673 | `breaking` | 7 |
+| datadoghq.com:v2/openapi | 2026-09-04 29a1519 to 2026-09-04 54a843f | `breaking` | 0 |
+| datadoghq.com:v2/openapi | 2026-09-10 cbbe507 to 2026-09-10 134c6a0 | `breaking-unflattened` | 0 |
+| datadoghq.com:v2/openapi | 2026-09-10 134c6a0 to 2026-09-10 d9eb52a | `breaking-unflattened` | 0 |
+| datadoghq.com:v2/openapi | 2026-09-10 d9eb52a to 2026-09-10 7cea4a4 | `breaking-unflattened` | 4 |
+| datadoghq.com:v2/openapi | 2026-09-14 3c08df3 to 2026-09-14 2c10194 | `breaking` | 8 |
+| datadoghq.com:v2/openapi | 2026-09-15 e66a620 to 2026-09-15 694d502 | `breaking` | 0 |
+
 ## Pairs that cost more than they were given
 
-18 of 1553 pairs were stopped rather than finished.
+40 of 1553 pairs were stopped rather than finished.
 
 This is a real limit, not a crash. The differ's cost tracks the size of
 the difference rather than the size of the documents: two 13 MB GitHub
@@ -147,28 +175,30 @@ says which bound it hit.
 
 | API | Step | Why |
 |---|---|---|
-| cloudflare.com:openapi | 2026-09-21 8cb1993 to 2026-09-21 0da700f | Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's bud |
-| cloudflare.com:openapi | 2026-09-21 0da700f to 2026-09-21 ce5342d | Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's bud |
-| datadoghq.com:v2/openapi | 2026-09-09 dacc44a to 2026-09-09 933deb0 | Stopped after 180000 ms, in `decide` (62s there). The difference between these two versions is larger than one pair's bu |
-| datadoghq.com:v2/openapi | 2026-09-09 53c9756 to 2026-09-09 c6b756d | Stopped after 180000 ms, in `decide` (65s there). The difference between these two versions is larger than one pair's bu |
-| datadoghq.com:v2/openapi | 2026-09-14 3c08df3 to 2026-09-14 2c10194 | Stopped after 180000 ms, in `decide` (63s there). The difference between these two versions is larger than one pair's bu |
-| elastic.co:elasticsearch-openapi | 2026-08-31 d57b93c to 2026-08-31 564993a | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
-| elastic.co:elasticsearch-openapi | 2026-08-31 564993a to 2026-09-02 18df28e | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
-| elastic.co:elasticsearch-openapi | 2026-09-02 18df28e to 2026-09-02 d8c8cc1 | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
-| elastic.co:elasticsearch-openapi | 2026-09-02 d8c8cc1 to 2026-09-03 107d4cb | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
-| elastic.co:elasticsearch-openapi | 2026-09-03 107d4cb to 2026-09-04 c698d01 | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
-| elastic.co:elasticsearch-openapi | 2026-09-04 c698d01 to 2026-09-08 20dda3e | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
-| elastic.co:elasticsearch-openapi | 2026-09-08 20dda3e to 2026-09-14 921bdef | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
-| elastic.co:elasticsearch-openapi | 2026-09-14 921bdef to 2026-09-17 74ebc3f | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
-| elastic.co:elasticsearch-openapi | 2026-09-17 74ebc3f to 2026-09-18 ad270ce | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
-| stripe.com:spec3 | 2026-04-20 d771243 to 2026-05-23 6a1ea0a | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
-| stripe.com:spec3 | 2026-05-23 fbd0091 to 2026-06-23 f4ac6d9 | Stopped after 180000 ms, in `closure` (7s there). The difference between these two versions is larger than one pair's bu |
-| stripe.com:spec3 | 2026-07-01 d5d11f6 to 2026-07-29 af5309c | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
-| stripe.com:spec3 | 2026-07-29 af5309c to 2026-08-26 30d3391 | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
+| box.com:openapi | 2026-07-23 ba17773 to 2026-07-23 f28eec5 | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
+| box.com:openapi | 2026-07-23 f28eec5 to 2026-07-28 1056514 | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
+| cloudflare.com:openapi | 2026-09-21 8cb1993 to 2026-09-21 0da700f | Stopped after 180000 ms, in `diff` (178s there). The difference between these two versions is larger than one pair's bud |
+| cloudflare.com:openapi | 2026-09-21 0da700f to 2026-09-21 ce5342d | Stopped after 180000 ms, in `diff` (178s there). The difference between these two versions is larger than one pair's bud |
+| cloudflare.com:openapi | 2026-09-21 ce5342d to 2026-09-21 a01729c | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
+| datadoghq.com:v2/openapi | 2026-09-15 1777673 to 2026-09-16 5cf22a4 | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
+| datadoghq.com:v2/openapi | 2026-09-16 5cf22a4 to 2026-09-16 410c1cb | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
+| datadoghq.com:v2/openapi | 2026-09-16 410c1cb to 2026-09-16 a459b29 | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
+| datadoghq.com:v2/openapi | 2026-09-16 a459b29 to 2026-09-17 1a5dd22 | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
+| datadoghq.com:v2/openapi | 2026-09-17 1a5dd22 to 2026-09-17 533a830 | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
+| datadoghq.com:v2/openapi | 2026-09-17 533a830 to 2026-09-17 78d47fa | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
+| datadoghq.com:v2/openapi | 2026-09-04 0b8955a to 2026-09-04 29a1519 | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
+| datadoghq.com:v2/openapi | 2026-09-08 4e3ee89 to 2026-09-09 3814970 | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
+| datadoghq.com:v2/openapi | 2026-09-09 3814970 to 2026-09-09 dacc44a | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
+| datadoghq.com:v2/openapi | 2026-09-09 dacc44a to 2026-09-09 933deb0 | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
+| datadoghq.com:v2/openapi | 2026-09-09 245f63c to 2026-09-09 53c9756 | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
+| datadoghq.com:v2/openapi | 2026-09-09 c6b756d to 2026-09-10 cbbe507 | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
+| datadoghq.com:v2/openapi | 2026-09-10 7cea4a4 to 2026-09-11 0b1801b | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
+| datadoghq.com:v2/openapi | 2026-09-11 0b1801b to 2026-09-11 83b42ae | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
+| datadoghq.com:v2/openapi | 2026-09-11 83b42ae to 2026-09-11 6dc9b43 | OasdiffError: /home/akirt/Invariant/packages/oasdiff-linux-x64/bin/oasdiff did not finish within 300000 ms and was stopp |
 
 ## Changes waiting on one decision
 
-1384 response fields across 170 pairs gained a value
+1398 response fields across 176 pairs gained a value
 their old contract never named. That is the largest category of real
 breaking change there is, and it was described here as inexpressible until
 it turned out not to be: `enumMap` takes a `fold` saying which existing
@@ -182,8 +212,8 @@ the values available to fold onto. The release stays blocked until somebody
 fills it in, which is the right place for the cost to sit: the provider
 makes the change and the caller pays for it.
 
-The ratio is the useful number: 35457 breaking deltas of this kind
-come from 1384 fields, about 26
+The ratio is the useful number: 51951 breaking deltas of this kind
+come from 1398 fields, about 37
 to one. A schema field that a hundred operations reference produces a
 hundred deltas and still only needs deciding once, so a count of deltas
 badly overstates how much work this is. Stripe is the extreme: 61,517
@@ -191,7 +221,7 @@ breaking deltas of this kind across 15 fields.
 
 ## What we could not explain
 
-3593 Changes were drafted, by deterministic rules alone, with no model asked anything.
+3583 Changes were drafted, by deterministic rules alone, with no model asked anything.
 
 The table below is the to-do list, and it is ordered by how often real
 companies actually do each thing. Three categories in it are already
@@ -199,68 +229,68 @@ reachable with ops that exist and are simply not wired up.
 
 | Unexplained | Times | Pairs | What it would take |
 |---|---|---|---|
-| `response-property-enum-value-added` | 35457 | 126 | a new value a client switching exhaustively would not know. Expressible: `enumMap` takes a `fold`, which says which existing value an old caller should be shown instead. Which value that is cannot be read off the documents, so it needs one sentence from the provider, and it is declared lossy because the caller cannot tell the new case apart. **Reachable, needs a decision.** |
-| `response-property-enum-value-removed` | 3502 | 26 | a value a client may still be storing. `enumMap` can express it once someone says what it became, which is exactly the question the model is asked. |
-| `response-property-one-of-added` | 2515 | 34 | A response field can now hold a kind of object old callers do not know. A `widen` shows it to them as its id where the field already allowed an id, or leaves it out or sends null where it could be; that is a declared loss you acknowledge. |
-| `response-required-property-removed` | 2382 | 29 | a required response field gone. `remove` with a restore value expresses it; again the value is not in the document. |
-| `response-property-became-optional` | 1228 | 29 | a field a caller relied on may now be absent. Expressible only by supplying a value, which is a judgement. |
-| `response-body-type-changed` | 922 | 7 | a response schema replaced wholesale, often with an empty one. Not expressible and probably should not be: it is a rewrite, not a rename. |
-| `response-property-type-changed` | 652 | 34 | a response field whose declared type moved. `cast` covers the scalar cases once someone says the two are the same field, which is the alignment question. |
-| `response-required-property-added` | 538 | 28 | a new required field in a response. `add` expresses it, given a value for callers who predate it, which is not in the document. |
-| `request-property-removed` | 493 | 36 | a field dropped from a request. `remove` expresses it; the rules judge abstains on removals by design, so this needs the model or a person. |
+| `response-property-enum-value-added` | 51951 | 128 | a new value a client switching exhaustively would not know. Expressible: `enumMap` takes a `fold`, which says which existing value an old caller should be shown instead. Which value that is cannot be read off the documents, so it needs one sentence from the provider, and it is declared lossy because the caller cannot tell the new case apart. **Reachable, needs a decision.** |
+| `response-property-enum-value-removed` | 3986 | 28 | a value a client may still be storing. `enumMap` can express it once someone says what it became, which is exactly the question the model is asked. |
+| `response-required-property-added` | 2600 | 32 | a new required field in a response. `add` expresses it, given a value for callers who predate it, which is not in the document. |
+| `response-property-one-of-added` | 2511 | 33 | A response field can now hold a kind of object old callers do not know. A `widen` shows it to them as its id where the field already allowed an id, or leaves it out or sends null where it could be; that is a declared loss you acknowledge. |
+| `response-property-became-optional` | 1449 | 34 | a field a caller relied on may now be absent. Expressible only by supplying a value, which is a judgement. |
+| `response-body-type-changed` | 926 | 8 | a response schema replaced wholesale, often with an empty one. Not expressible and probably should not be: it is a rewrite, not a rename. |
+| `response-property-type-changed` | 687 | 38 | a response field whose declared type moved. `cast` covers the scalar cases once someone says the two are the same field, which is the alignment question. |
+| `request-property-enum-value-removed` | 587 | 62 | A request field no longer accepts some values old callers send. An enum map translates them into values it does accept, which you decide. |
+| `request-property-removed` | 501 | 39 | a field dropped from a request. `remove` expresses it; the rules judge abstains on removals by design, so this needs the model or a person. |
 | `api-security-removed` | 381 | 6 | Authentication changed. An adapter must never alter who is allowed to call what, so old callers have to update their credentials; tell them directly. |
 | `request-property-pattern-added` | 363 | 10 | A request field now refuses values the old contract allowed. Rewriting a caller's value into a different one would change what they asked for. No translation can hide this from an old caller. Declare it as a `behavior` flag and branch on it in your own code, or keep the old behaviour for old contracts. |
-| `request-property-enum-value-removed` | 217 | 60 | A request field no longer accepts some values old callers send. An enum map translates them into values it does accept, which you decide. |
-| `request-property-type-changed` | 199 | 24 | `cast` covers the scalar cases. Anything structural is out of scope on purpose. |
-| `request-property-became-required` | 163 | 26 | a caller who omitted it will now be refused. `add` with a default expresses it. |
+| `response-required-property-removed` | 323 | 28 | a required response field gone. `remove` with a restore value expresses it; again the value is not in the document. |
+| `request-property-const-added` | 264 | 1 | A request field now has a rule old callers' values may not satisfy. No translation can hide this from an old caller. Declare it as a `behavior` flag and branch on it in your own code, or keep the old behaviour for old contracts. |
+| `request-property-type-changed` | 200 | 24 | `cast` covers the scalar cases. Anything structural is out of scope on purpose. |
+| `request-property-became-required` | 197 | 29 | a caller who omitted it will now be refused. `add` with a default expresses it. |
 | `response-property-max-length-unset` | 146 | 7 | A response field may now hold values outside the bounds old callers were promised. Nothing should rewrite them, so a `relax` records the new bound and passes values through as the API produced them; that is a declared loss you acknowledge, since a caller that validates strictly may reject them. |
+| `response-property-any-of-added` | 136 | 14 | A response field can now hold a kind of object old callers do not know. A `widen` shows it to them as its id where the field already allowed an id, or leaves it out or sends null where it could be; that is a declared loss you acknowledge. |
 | `response-property-max-length-increased` | 133 | 3 | A response field may now hold values outside the bounds old callers were promised. Nothing should rewrite them, so a `relax` records the new bound and passes values through as the API produced them; that is a declared loss you acknowledge, since a caller that validates strictly may reject them. |
-| `request-parameter-property-enum-value-removed` | 128 | 3 | as above, one level in. **Not yet servable.** |
+| `request-parameter-property-enum-value-removed` | 129 | 4 | as above, one level in. **Not yet servable.** |
 | `response-property-min-length-unset` | 128 | 6 | A response field may now hold values outside the bounds old callers were promised. Nothing should rewrite them, so a `relax` records the new bound and passes values through as the API produced them; that is a declared loss you acknowledge, since a caller that validates strictly may reject them. |
-| `request-property-max-length-set` | 111 | 13 | A request field now refuses values the old contract allowed. Rewriting a caller's value into a different one would change what they asked for. No translation can hide this from an old caller. Declare it as a `behavior` flag and branch on it in your own code, or keep the old behaviour for old contracts. |
-| `response-property-became-nullable` | 93 | 9 | A response field may now be null. Where old callers could already be sent it left out, a `dropNull` sends it that way; where they were always given a value, a `default` fills one in that you decide. |
 
 Counted once per place, which is how the launch gate is judged:
 
 | Unexplained | Places | Pairs | Class |
 |---|---|---|---|
-| `response-property-enum-value-added` | 5725 | 126 | needs-decision |
-| `response-required-property-removed` | 567 | 29 | needs-decision |
+| `response-property-enum-value-added` | 5309 | 125 | needs-decision |
+| `response-property-enum-value-removed` | 511 | 27 | needs-decision |
+| `response-property-became-optional` | 410 | 33 | needs-decision |
 | `api-security-removed` | 381 | 6 | behavior-only |
-| `response-property-became-optional` | 366 | 29 | needs-decision |
-| `request-property-removed` | 286 | 36 | adaptable |
-| `response-property-enum-value-removed` | 243 | 26 | needs-decision |
+| `request-property-enum-value-removed` | 303 | 62 | needs-decision |
+| `request-property-removed` | 284 | 36 | adaptable |
+| `response-property-type-changed` | 182 | 37 | needs-decision |
 | `request-property-pattern-added` | 172 | 10 | behavior-only |
-| `response-property-type-changed` | 170 | 34 | needs-decision |
-| `request-property-enum-value-removed` | 158 | 60 | needs-decision |
-| `response-property-one-of-added` | 148 | 34 | needs-decision |
-| `response-body-type-changed` | 137 | 7 | needs-decision |
-| `request-parameter-property-enum-value-removed` | 128 | 3 | needs-decision |
-| `response-required-property-added` | 119 | 28 | adaptable |
+| `response-property-one-of-added` | 144 | 32 | needs-decision |
+| `response-body-type-changed` | 140 | 7 | needs-decision |
+| `request-parameter-property-enum-value-removed` | 129 | 4 | needs-decision |
 | `request-property-type-changed` | 105 | 24 | needs-decision |
+| `request-property-became-required` | 100 | 28 | needs-decision |
 | `request-parameter-pattern-added` | 91 | 8 | behavior-only |
-| `request-property-became-required` | 85 | 26 | needs-decision |
+| `response-required-property-removed` | 78 | 25 | needs-decision |
 | `request-parameter-type-changed` | 75 | 10 | needs-decision |
+| `response-property-any-of-added` | 74 | 12 | needs-decision |
+| `response-required-property-added` | 64 | 28 | adaptable |
 | `request-parameter-max-decreased` | 61 | 10 | behavior-only |
-| `new-required-request-property` | 58 | 27 | needs-decision |
-| `api-security-scope-added` | 54 | 17 | behavior-only |
+| `new-required-request-property` | 56 | 25 | needs-decision |
 
 ## The hardest pairs
 
 | API | Versions | Raw | Aligned | Unexplained | Drafted |
 |---|---|---|---|---|---|
-| stripe.com:spec3 | 2026-06-23 f4ac6d9 to 2026-07-01 7061322 | 20403 | 20403 | 18363 | 2 |
-| plaid.com:2020-09-14 | 2026-06-25 050cfa0 to 2026-07-22 8a493a5 | 4312 | 4312 | 4301 | 4 |
+| stripe.com:spec3 | 2026-06-23 f4ac6d9 to 2026-07-01 7061322 | 20403 | 20403 | 20403 | 2 |
+| stripe.com:spec3 | 2026-05-23 fbd0091 to 2026-06-23 f4ac6d9 | 16390 | 16390 | 16390 | 0 |
+| plaid.com:2020-09-14 | 2026-06-25 050cfa0 to 2026-07-22 8a493a5 | 4312 | 4312 | 4297 | 5 |
 | figma.com:openapi | 2024-09-11 f0788ef to 2024-10-02 28286dd | 2640 | 2640 | 2640 | 0 |
 | meilisearch.com:open-api | 2025-04-16 d2fbc80 to 2025-06-16 a2bd213 | 2441 | 2441 | 2441 | 0 |
 | meilisearch.com:open-api | 2025-01-13 a7ce1c2 to 2025-02-19 89725c2 | 2420 | 2438 | 2426 | 4 |
-| stripe.com:spec3 | 2026-07-01 7061322 to 2026-07-01 d5d11f6 | 20451 | 20451 | 2064 | 35 |
 | figma.com:openapi | 2024-05-29 18b0297 to 2024-06-06 e38f552 | 1760 | 1760 | 1760 | 0 |
 | discord.com:openapi | 2026-05-23 09c232e to 2026-06-05 cdbd53a | 1553 | 1553 | 1491 | 11 |
 | figma.com:openapi | 2023-12-14 cfd62bc to 2024-02-02 0d77b9d | 1286 | 1286 | 1273 | 9 |
 | paypal.com:checkout_orders_v2 | 2024-02-02 fb6f126 to 2025-07-16 a54ed77 | 1739 | 1739 | 1218 | 26 |
 | paypal.com:checkout_orders_v2 | 2025-07-16 a54ed77 to 2026-04-07 9f0f528 | 2953 | 2953 | 1102 | 146 |
+| mistral.ai:openapi | 2026-02-04 94ba490 to 2026-03-04 ddaca1c | 939 | 939 | 933 | 2 |
 | amazonaws.com:clouddirectory | 2016-05-10 to 2017-01-11 | 600 | 600 | 581 | 5 |
 | adyen.com:AccountService-v6 | 2022-10-06 49d15b1 to 2023-03-22 68a6f20 | 579 | 579 | 579 | 0 |
 | paypal.com:billing_subscriptions_v1 | 2023-12-20 fce6edc to 2024-02-02 fb6f126 | 1252 | 1252 | 546 | 17 |
-| paypal.com:payments_payment_v2 | 2025-07-16 a54ed77 to 2026-04-07 81921a5 | 628 | 628 | 498 | 49 |
