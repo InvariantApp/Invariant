@@ -11,10 +11,72 @@
  * So that guard is off, and the expanded size is measured exactly instead:
  * each shared node is counted once and its size reused, which is linear in
  * the size of the text however large the expansion would be.
+ *
+ * Providers publish YAML that strict YAML 1.2 refuses and every tool they use
+ * reads, and a document nobody can load gates nothing. Two such departures are
+ * read, each only where it loses nothing:
+ *
+ * - a key defined twice in one mapping, when both definitions are the same
+ *   text, as Okta's specification defines three path parameters twice. Two
+ *   different definitions are refused, since keeping either would be a guess.
+ * - text the `yaml` library refuses, read again with js-yaml, which Swagger UI
+ *   and most OpenAPI tooling use: Mistral's specification closes a multi-line
+ *   quoted example at the first column. Both read YAML 1.2's core schema, and a
+ *   document the first reads is never read by the second, so no document can
+ *   read one way in one version and another way in the next.
  */
 import { extname } from "node:path";
 import { isJsonObject, type JsonValue } from "@invariant/ir";
-import { parse as parseYaml } from "yaml";
+import { CORE_SCHEMA, load as loadYaml } from "js-yaml";
+import { isMap, isScalar, isSeq, type Node, parseDocument } from "yaml";
+
+export class DuplicateKeyError extends Error {
+  constructor(key: string, line: number) {
+    super(
+      `\`${key}\` is defined twice in the same mapping, differently (the second at line ${line}). ` +
+        "YAML allows a key once; keeping either definition would be a guess about which is meant.",
+    );
+    this.name = "DuplicateKeyError";
+  }
+}
+
+/** Every key defined twice in one mapping, refused unless its definitions are the same text. */
+function checkDuplicates(node: unknown, lineOf: (offset: number) => number): void {
+  if (isMap(node)) {
+    const seen = new Map<string, string>();
+    for (const pair of node.items) {
+      const key = isScalar(pair.key) ? String(pair.key.value) : String(pair.key);
+      const text = String(pair.value ?? "");
+      const earlier = seen.get(key);
+      if (earlier !== undefined && earlier !== text) {
+        const offset = (pair.key as Node | null)?.range?.[0] ?? 0;
+        throw new DuplicateKeyError(key, lineOf(offset));
+      }
+      seen.set(key, text);
+      checkDuplicates(pair.value, lineOf);
+    }
+  } else if (isSeq(node)) {
+    for (const item of node.items) checkDuplicates(item, lineOf);
+  }
+}
+
+function readYaml(text: string): JsonValue {
+  const document = parseDocument(text, { uniqueKeys: false });
+  const [error] = document.errors;
+  if (error) {
+    try {
+      return loadYaml(text, { schema: CORE_SCHEMA }) as JsonValue;
+    } catch {
+      // Neither reads it: the first reader's message is the more precise.
+      throw error;
+    }
+  }
+  checkDuplicates(
+    document.contents,
+    (offset) => text.slice(0, offset).split("\n").length,
+  );
+  return document.toJS({ maxAliasCount: -1 }) as JsonValue;
+}
 
 /**
  * The most values a document may hold once every alias is written out, which
@@ -59,7 +121,7 @@ export function expandedSize(value: JsonValue, limit = MAX_EXPANDED_VALUES): num
 /** A document from its text, by the file's extension: `.json` is JSON, anything else YAML. */
 export function parseDocumentText(path: string, text: string): JsonValue {
   if (extname(path).toLowerCase() === ".json") return JSON.parse(text) as JsonValue;
-  const value = parseYaml(text, { maxAliasCount: -1 }) as JsonValue;
+  const value = readYaml(text);
   if (!isJsonObject(value) && !Array.isArray(value)) return value;
   const size = expandedSize(value);
   if (size > MAX_EXPANDED_VALUES) throw new DocumentTooLargeError(size);

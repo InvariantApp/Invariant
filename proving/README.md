@@ -137,8 +137,17 @@ engine reads the consumer's source against it. Nothing from the repository is
 executed. The humans' result and the engine's are both read as the regions
 changed from the base, and each human region is identical (the engine wrote
 the same lines, whatever the indentation), differs (left for a person to judge
-equivalent or wrong), or missed; what the engine changed where no human did is
-counted as extra.
+equivalent or wrong), flagged (the engine wrote nothing there and sent a
+person to it, which L8 counts as handled, apart from an edit), or missed. What
+the engine changed where no human did is counted as extra edits, and what it
+flagged where no human changed anything as extra flags: a reviewer's time.
+
+For Stripe the engine is told what a provider's release would tell it
+(`replay/stripe.mts`): each stripe-node release names the stripe/openapi
+release it was built from, the proposer drafts the Changes between the two
+specifications with the rules judge alone, a removed field no judge paired is
+a declared loss, and the symbol map (schemas to types, operations to methods)
+is read from the old SDK's own declarations and resource files.
 
 Most of what humans edit on a major bump is the SDK's own interface changing,
 not the API's contract: typing, import paths, renamed classes. L8 counts only

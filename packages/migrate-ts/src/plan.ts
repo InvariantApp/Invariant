@@ -12,8 +12,13 @@ import type { Change, DataOp } from "@invariant/ir";
 export interface SymbolMap {
   /** The package the consumer depends on today. */
   package: string;
-  /** The package built for the current contract. */
-  upgradeTo: { package: string; version: string };
+  /**
+   * The package built for the current contract, and, where they differ from
+   * the schemas' own names, what it calls each schema's type. An SDK that
+   * keeps its type names across the upgrade, as stripe-node does, lists them
+   * unchanged, so none is renamed.
+   */
+  upgradeTo: { package: string; version: string; types?: Record<string, string> };
   /** Schema name in the consumer's contract to the type the SDK exports for it. */
   types: Record<string, string>;
   /**
@@ -22,6 +27,12 @@ export interface SymbolMap {
    * namespaces, the property, and the label the upgraded package speaks.
    */
   pin?: { type: string; property: string; label: string };
+  /**
+   * The SDK method that calls each operation, keyed `method path` as the
+   * contract spells it (`get /v1/invoices/upcoming`), so a retired operation
+   * can be found wherever the consumer calls it.
+   */
+  operations?: Record<string, { type: string; method: string }>;
   /** Resource accessor paths that moved, for example charges.create to payments.create. */
   accessors: { from: string[]; to: string[] }[];
   /**
@@ -66,6 +77,12 @@ export interface TargetSymbol {
   changeId: string;
   /** The schema the Change scoped to, for provenance. */
   schema: string;
+  /**
+   * For a field inside the type rather than on it: the path from the type to
+   * the object that holds it, `*` for a list's items, as Stripe's
+   * `automatic_tax.liability` is inside a checkout session.
+   */
+  within?: string[];
 }
 
 export interface MigrationPlan {
@@ -74,6 +91,8 @@ export interface MigrationPlan {
   /** Type names that were renamed between contracts. */
   typeRenames: { from: string; to: string; changeId: string }[];
   accessorRenames: { from: string[]; to: string[]; changeId: string }[];
+  /** Operations the provider retired, each with what callers should use instead when it says. */
+  retired: { key: string; changeId: string; guidance?: string }[];
   changes: Change[];
 }
 
@@ -97,6 +116,7 @@ function leafOf(pointer: string): string | undefined {
 export function buildPlan(changes: readonly Change[], symbols: SymbolMap): MigrationPlan {
   const targets: TargetSymbol[] = [];
   const accessorRenames: { from: string[]; to: string[]; changeId: string }[] = [];
+  const retired: MigrationPlan["retired"] = [];
   /** Where a field ends up, back to what the consumer's SDK still calls it. */
   const origins = new Map<string, string>();
 
@@ -108,10 +128,17 @@ export function buildPlan(changes: readonly Change[], symbols: SymbolMap): Migra
         }
         continue;
       }
-      // Neither speaks about a field, so neither has a source edit. A retired
-      // endpoint is reported to the consumer in the pull request body instead,
-      // because there is nothing to rewrite it into.
-      if (op.op === "behavior" || op.op === "retire") continue;
+      // A retired operation has nothing to rewrite into: every call to it is
+      // shown to a person, with the provider's guidance where it gave some.
+      if (op.op === "retire") {
+        retired.push({
+          key: `${op.endpoint.method.toLowerCase()} ${op.endpoint.path}`,
+          changeId: change.id,
+          ...(op.guidance ? { guidance: op.guidance } : {}),
+        });
+        continue;
+      }
+      if (op.op === "behavior") continue;
 
       for (const scope of change.scopes ?? []) {
         if (!("schema" in scope)) continue;
@@ -124,7 +151,28 @@ export function buildPlan(changes: readonly Change[], symbols: SymbolMap): Migra
         // calls it by its original name, which is what has to be looked up.
         const pointer = op.op === "move" ? op.from : op.path;
         const current = leafOf(pointer);
-        if (current === undefined) continue;
+        if (current === undefined) {
+          // A field gained or lost inside the type is found by walking to the
+          // object that holds it. Anything that moves a value between levels
+          // needs more than finding it, and is left to its own edit.
+          const segments = pointer.split("/").filter((segment) => segment !== "");
+          const leaf = segments.at(-1);
+          if (
+            (op.op === "add" || op.op === "remove") &&
+            leaf !== undefined &&
+            leaf !== "*"
+          ) {
+            targets.push({
+              typeName,
+              property: leaf,
+              op,
+              changeId: change.id,
+              schema: schemaName,
+              within: segments.slice(0, -1),
+            });
+          }
+          continue;
+        }
         const property = origins.get(`${schemaName}.${current}`) ?? current;
 
         if (op.op === "move") {
@@ -151,6 +199,7 @@ export function buildPlan(changes: readonly Change[], symbols: SymbolMap): Migra
     targets,
     typeRenames: [],
     accessorRenames: uniqueAccessors,
+    retired,
     changes: [...changes],
   };
 }

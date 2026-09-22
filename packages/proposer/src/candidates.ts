@@ -34,6 +34,11 @@ export interface FieldShape {
   type: string | undefined;
   format: string | undefined;
   enumValues: string[] | undefined;
+  /**
+   * The enum lists null beside its text values, which is how an OpenAPI 3.0
+   * field that is `nullable` says null is one of the values it may hold.
+   */
+  enumNull?: true;
   description: string | undefined;
   required: boolean;
   nullable: boolean;
@@ -142,6 +147,33 @@ const escapePointer = (segment: string) =>
  */
 const inline = (raw: JsonValue): boolean => !JSON.stringify(raw).includes('"$ref"');
 
+const isNullBranch = (branch: JsonValue): boolean =>
+  isJsonObject(branch) && branch["type"] === "null" && Object.keys(branch).length === 1;
+
+/**
+ * A field that may also be null, written as a union of its value and null, as
+ * Mistral's `tools` became `anyOf: [array, null]`: the field is its value.
+ * Read as a union instead, its list items looked removed, and a `remove` was
+ * drafted for items the compiler could not find. A branch that names another
+ * schema stays as it is, since that schema is compared under its own name.
+ */
+function throughNull(document: OpenApiDocument, value: JsonObject): JsonObject {
+  for (const key of ["anyOf", "oneOf"] as const) {
+    const branches = value[key];
+    if (!Array.isArray(branches) || !branches.some(isNullBranch)) continue;
+    const others = branches.filter((branch) => !isNullBranch(branch));
+    const [only] = others;
+    if (others.length !== 1 || !isJsonObject(only) || typeof only["$ref"] === "string") {
+      return value;
+    }
+    const resolved = resolveSchema(document, only);
+    if (!isJsonObject(resolved)) return value;
+    const { [key]: _union, ...rest } = value;
+    return { ...resolved, ...rest };
+  }
+  return value;
+}
+
 function fieldsOf(
   document: OpenApiDocument,
   schema: JsonValue,
@@ -166,7 +198,8 @@ function fieldsOf(
 
   return Object.entries(properties).flatMap(([name, raw]) => {
     const child = resolveSchema(document, raw);
-    const value: JsonObject = isJsonObject(child) ? child : {};
+    const outer: JsonObject = isJsonObject(child) ? child : {};
+    const value = throughNull(document, outer);
     const declared = value["type"];
     const types = Array.isArray(declared)
       ? declared.filter((t): t is string => typeof t === "string")
@@ -181,12 +214,16 @@ function fieldsOf(
     // at its root, once for every place it is used; read again through each
     // field that refers to it, one change was asked about twice.
     const elsewhere = !inline(raw) && Array.isArray(declaredEnum);
+    // Null listed among text values is the field saying it may be null, as
+    // OpenAPI 3.0 asks a `nullable` enum to; the vocabulary is still text.
     const enumValues =
       !elsewhere &&
       Array.isArray(declaredEnum) &&
-      (declaredEnum as JsonValue[]).every((v) => typeof v === "string")
-        ? (declaredEnum as string[])
+      (declaredEnum as JsonValue[]).every((v) => typeof v === "string" || v === null)
+        ? (declaredEnum as JsonValue[]).filter((v): v is string => typeof v === "string")
         : undefined;
+    const enumNull =
+      enumValues !== undefined && (declaredEnum as JsonValue[]).includes(null);
 
     const here = {
       name: prefix.name === "" ? name : `${prefix.name}.${name}`,
@@ -198,6 +235,7 @@ function fieldsOf(
       type: types.filter((t) => t !== "null")[0],
       format: typeof value["format"] === "string" ? value["format"] : undefined,
       enumValues,
+      ...(enumNull ? { enumNull: true as const } : {}),
       description:
         typeof value["description"] === "string" ? value["description"] : undefined,
       required: required.has(name),
@@ -209,10 +247,11 @@ function fieldsOf(
       nullable:
         types.includes("null") ||
         value["nullable"] === true ||
+        enumNull ||
         ["anyOf", "oneOf"].some(
           (key) =>
-            Array.isArray(value[key]) &&
-            (value[key] as JsonValue[]).some(
+            Array.isArray(outer[key]) &&
+            (outer[key] as JsonValue[]).some(
               (branch) => isJsonObject(branch) && branch["type"] === "null",
             ),
         ),
@@ -371,6 +410,7 @@ function shapeOf(
         type,
         format: typeof resolved["format"] === "string" ? resolved["format"] : undefined,
         enumValues: values.filter((value): value is string => typeof value === "string"),
+        ...(values.includes(null) ? { enumNull: true as const } : {}),
         description:
           typeof resolved["description"] === "string"
             ? resolved["description"]
@@ -396,7 +436,7 @@ function shapeDiffers(a: FieldShape, b: FieldShape): boolean {
     return true;
   const left = a.enumValues?.join("|");
   const right = b.enumValues?.join("|");
-  if (left !== right) return true;
+  if (left !== right || a.enumNull !== b.enumNull) return true;
   if (a.variants?.join("|") !== b.variants?.join("|")) return true;
   return JSON.stringify(a.bounds ?? {}) !== JSON.stringify(b.bounds ?? {});
 }

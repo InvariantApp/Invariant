@@ -18,25 +18,35 @@
  * the code.
  */
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   type ChoiceResponse,
   choice,
   type JsonValue,
+  type NoulResponse,
+  noul,
   type Question,
 } from "@typesafe-ai/sdk";
 import { ROOT } from "../corpus/manifest.mts";
 import type { Region } from "./score.mts";
 
-export type SiteClass = "contract" | "sdk" | "unrelated";
+/**
+ * `contested`: the two questions asked of a site Jev was unsure about
+ * disagreed. Counted apart, in neither direction.
+ */
+export type SiteClass = "contract" | "sdk" | "unrelated" | "contested";
 
 export interface ClassRecord {
   class: SiteClass;
   confidence: number;
+  /** The model that classed it, or `rule:<name>` where the text alone decides. */
   model: string;
 }
+
+/** Below this, Jev's Choice is checked by a second, independently worded question. */
+export const SURE = 0.8;
 
 const CLASSES = join(ROOT, "proving/replay/classes.json");
 /** Sites asked about in one request: one case's, sharing what was upgraded. */
@@ -65,6 +75,38 @@ export function siteKey(site: Site): string {
   return `${site.caseId}|${site.file}|${site.region.oldStart}|${digest}`;
 }
 
+const SITE_CACHE = join(ROOT, ".cache/replay/sites");
+
+/**
+ * A site's lines, kept on this machine only, so it can be read and classed
+ * again without fetching its repository. Only the lines a reader or the judge
+ * is shown are kept; the lines before them are counted, so the site reads back
+ * at the same place and keys the same.
+ */
+export async function cacheSite(site: Site, dir = SITE_CACHE): Promise<void> {
+  const skip = Math.max(0, site.region.oldStart - CONTEXT);
+  await mkdir(dir, { recursive: true });
+  await writeFile(
+    join(dir, `${createHash("sha256").update(siteKey(site)).digest("hex")}.json`),
+    JSON.stringify({
+      site: { ...site, base: site.base.slice(skip, site.region.oldEnd + CONTEXT) },
+      skip,
+    }),
+  );
+}
+
+/** Every cached site, as it was scored. */
+export function cachedSites(dir = SITE_CACHE): Site[] {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).map((name) => {
+    const { site, skip } = JSON.parse(readFileSync(join(dir, name), "utf8")) as {
+      site: Site;
+      skip: number;
+    };
+    return { ...site, base: [...Array<string>(skip).fill(""), ...site.base] };
+  });
+}
+
 export function readClasses(): Record<string, ClassRecord> {
   return existsSync(CLASSES)
     ? (JSON.parse(readFileSync(CLASSES, "utf8")) as Record<string, ClassRecord>)
@@ -76,6 +118,52 @@ export async function writeClasses(classes: Record<string, ClassRecord>): Promis
     Object.entries(classes).sort(([a], [b]) => a.localeCompare(b)),
   );
   await writeFile(CLASSES, `${JSON.stringify(sorted, null, 2)}\n`, "utf8");
+}
+
+const squash = (lines: readonly string[]) => lines.join("\n").replace(/\s+/g, "");
+const COMMENT = /^\s*(\/\/|#|\/\*|\*|\*\/)/;
+const SUPPRESSION =
+  /\s*(#\s*type:\s*ignore(\[[^\]]*\])?|\/\/\s*@ts-(expect-error|ignore)\b.*|\/\*\s*@ts-(expect-error|ignore)\b.*?\*\/)\s*$/;
+const TIMEOUT =
+  /(\{\s*timeout:\s*[\d_ *]+\s*\},?\s*|timeout:\s*[\d_ *]+,?\s*|\btimeout\b\s*=\s*[\d_ *]+,?\s*)/g;
+
+/**
+ * The class of a site whose text alone settles it, and the rule that did. Only
+ * what no reader could class otherwise: layout, comments, a test runner's
+ * timeout, a type checker told to look away. Everything else is a judgment.
+ */
+export function ruleClass(site: Site): { class: SiteClass; rule: string } | undefined {
+  const removed = site.base.slice(site.region.oldStart, site.region.oldEnd);
+  const added = site.region.lines;
+  if (removed.length === 0 && added.every((line) => line.trim() === "")) {
+    return { class: "unrelated", rule: "whitespace" };
+  }
+  if (squash(removed) === squash(added))
+    return { class: "unrelated", rule: "whitespace" };
+  const meaningful = (lines: readonly string[]) =>
+    lines.filter((line) => line.trim() !== "" && !COMMENT.test(line));
+  if (meaningful(removed).length === 0 && meaningful(added).length === 0) {
+    return { class: "unrelated", rule: "comments" };
+  }
+  const unsuppressed = (lines: readonly string[]) =>
+    lines
+      .map((line) => line.replace(SUPPRESSION, ""))
+      .filter((line) => line.trim() !== "");
+  if (
+    squash(unsuppressed(removed)) === squash(unsuppressed(added)) &&
+    added.some((line) => SUPPRESSION.test(line))
+  ) {
+    return { class: "sdk", rule: "type-suppression" };
+  }
+  const untimed = (lines: readonly string[]) =>
+    lines.map((line) => line.replace(TIMEOUT, ""));
+  if (
+    squash(untimed(removed)) === squash(untimed(added)) &&
+    [...removed, ...added].some((line) => /\btimeout\b/.test(line))
+  ) {
+    return { class: "unrelated", rule: "test-timeout" };
+  }
+  return undefined;
 }
 
 /** One site as the state holds it: the edit, and the lines around it. */
@@ -115,6 +203,23 @@ export function siteQuestion(index: number) {
   );
 }
 
+/**
+ * The second question, for a site Jev was unsure of: the same judgment from
+ * the other side, as a yes or no, so its answer does not lean on the first
+ * one's wording.
+ */
+export function counterQuestion(index: number) {
+  return noul({
+    instructions: `Would the edit in \`sites[${index}]\` still have been needed if the web API behind \`sdk\` had kept every request and response exactly as it was, and only the SDK's own code, types or packaging had changed?`,
+    criteria: {
+      true: "Yes: the edit adapts to the SDK itself, or to nothing about the upgrade at all.",
+      false:
+        "No: the edit follows from something the API itself now sends, accepts or is called at.",
+    },
+    about_the_text: EMBEDDED_TEXT,
+  });
+}
+
 /** The part of the TypeSafe client this needs. */
 export interface SystemOne {
   systemOne(request: {
@@ -134,12 +239,19 @@ export async function classify(
   client: SystemOne,
   model: string,
 ): Promise<number> {
+  let asked = 0;
+  for (const site of sites) {
+    const key = siteKey(site);
+    if (classes[key]) continue;
+    const ruled = ruleClass(site);
+    if (ruled)
+      classes[key] = { class: ruled.class, confidence: 1, model: `rule:${ruled.rule}` };
+  }
   const open = sites.filter(
     (site, at) =>
       !classes[siteKey(site)] &&
       sites.findIndex((other) => siteKey(other) === siteKey(site)) === at,
   );
-  let asked = 0;
   for (let start = 0; start < open.length; start += BATCH) {
     const batch = open.slice(start, start + BATCH);
     const first = batch[0] as Site;
@@ -155,17 +267,41 @@ export async function classify(
         batch.map((_, index) => [`site_${index}`, siteQuestion(index)]),
       ),
     });
+    const unsure: { site: Site; index: number; picked: SiteClass; confidence: number }[] =
+      [];
     batch.forEach((site, index) => {
       const answer = response.answers[`site_${index}`] as ChoiceResponse | undefined;
       const picked = answer?.choice;
       if (picked !== "contract" && picked !== "sdk" && picked !== "unrelated") return;
-      classes[siteKey(site)] = {
-        class: picked,
-        confidence: answer?.probabilities?.[picked] ?? answer?.confidence ?? 0,
-        model: response.model,
-      };
+      const confidence = answer?.probabilities?.[picked] ?? answer?.confidence ?? 0;
+      classes[siteKey(site)] = { class: picked, confidence, model: response.model };
+      if (confidence < SURE) unsure.push({ site, index, picked, confidence });
       asked += 1;
     });
+    if (unsure.length === 0) continue;
+    const check = await client.systemOne({
+      model,
+      state: {
+        sdk: first.package,
+        from_version: first.from || "unknown",
+        to_version: first.to,
+        sites: batch.map(siteState),
+      },
+      questions: Object.fromEntries(
+        unsure.map(({ index }) => [`check_${index}`, counterQuestion(index)]),
+      ),
+    });
+    for (const { site, index, picked, confidence } of unsure) {
+      const answer = check.answers[`check_${index}`] as NoulResponse | undefined;
+      if (answer?.noul === undefined) continue;
+      // Yes means not a contract change. Only a clear answer either way can
+      // confirm the first; one near even confirms nothing.
+      const yes = answer.noul >= 0.7 ? true : answer.noul <= 0.3 ? false : undefined;
+      const agrees = yes !== undefined && yes === (picked !== "contract");
+      classes[siteKey(site)] = agrees
+        ? { class: picked, confidence, model: `${check.model}+check` }
+        : { class: "contested", confidence, model: `${check.model}+check` };
+    }
   }
   return asked;
 }

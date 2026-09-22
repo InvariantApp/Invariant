@@ -15,3 +15,11 @@ export const fromEnvironment = new Pay("sk_test", {
 
 // Not the SDK's option, though it has the same name.
 export const unrelated = { apiVersion: "2023-10-16" };
+
+// The pin in the consumer's own configuration, passed on by property.
+const config = { pay: { apiVersion: "2023-10-16" as const, timeout: 5 } };
+export const fromConfiguration = new Pay("sk_test", { apiVersion: config.pay.apiVersion });
+
+// Destructured from the configuration and passed as a shorthand property.
+const { apiVersion } = config.pay;
+export const fromDestructuring = new Pay("sk_test", { apiVersion });

@@ -22,7 +22,8 @@
  *
  * Usage:
  *   node --env-file-if-exists=.env --import tsx proving/replay/run.mts [--package stripe]
- *     [--case owner/repo#1] [--limit 10] [--keep] [--classify] [--again]
+ *     [--ecosystem npm|pypi|go] [--case owner/repo#1] [--limit 10] [--keep] [--classify]
+ *     [--again]
  *
  * Cases already in the results are skipped, so a run resumes where the last
  * one stopped; `--again` replays them too.
@@ -39,9 +40,11 @@ import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { buildPlan, migrate, type SymbolMap } from "@invariant/migrate-ts";
+import { ts } from "ts-morph";
 import { ROOT } from "../corpus/manifest.mts";
 import {
   type ClassRecord,
+  cacheSite,
   classify,
   readClasses,
   type Site,
@@ -57,21 +60,31 @@ import {
   score,
 } from "./score.mts";
 import { type Language, languageOf } from "./sites.mts";
+import { type ContractPlan, stripePlan } from "./stripe.mts";
 
 const run = promisify(execFile);
 const CACHE = join(ROOT, ".cache/replay");
 const RESULTS = join(ROOT, "proving/replay/results.json");
 const SOURCE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
+/** What counts as source in each ecosystem, for the humans' sites. */
+const SOURCES: Record<ReplayCase["ecosystem"], RegExp> = {
+  npm: SOURCE,
+  pypi: /\.py$/,
+  go: /\.go$/,
+};
 const SKIPPED_DIRS = /(^|\/)(node_modules|dist|build|out|coverage|\.next|vendor)\//;
-/** The most files read for one case: enough for any package root, not a whole monorepo. */
-const MAX_FILES = 4_000;
+/** The most source files restored for one case; the engine reads only those that import the SDK. */
+const MAX_FILES = 20_000;
 
 export interface ReplayResult extends Score {
   id: string;
   language: Language;
   package: string;
-  /** What the engine was told: the SDK's pin, or nothing recorded for this package. */
-  engine: "pin" | "none";
+  /**
+   * What the engine was told: the SDK's pin and the Changes between the two
+   * contracts, the pin alone, or nothing recorded for this package.
+   */
+  engine: "contract" | "pin" | "none";
   /** Human sites: regions of source the humans changed. */
   sites: number;
   /**
@@ -88,8 +101,11 @@ export interface ScopedScore {
   sites: number;
   identical: number;
   differs: number;
+  flagged: number;
   missed: number;
   unclassified: number;
+  /** Sites the two questions disagreed about, counted as neither. */
+  contested?: number;
 }
 
 /** What an SDK records about itself, read from the installed package. */
@@ -101,26 +117,48 @@ interface SdkStamp {
   label: string;
 }
 
+/** How to read a stamp from an installed SDK, and where its contracts are. */
+interface StampReader {
+  (dir: string): SdkStamp | undefined;
+  /** The Changes between two releases' contracts, and what the SDK calls each schema. */
+  contract?: (
+    from: string,
+    to: string,
+    sdk: string,
+    namespaced: boolean,
+  ) => Promise<ContractPlan>;
+}
+
 /** How to read a stamp from each SDK that has one. */
-const STAMPS: Record<string, (dir: string) => SdkStamp | undefined> = {
-  stripe: (dir) => {
-    const apiVersion = findFile(dir, /^apiVersion\.js$/);
-    const label =
-      apiVersion &&
-      /ApiVersion = ['"]([^'"]+)['"]/.exec(readFileSync(apiVersion, "utf8"))?.[1];
-    if (!label) return undefined;
-    // Up to 21 the options sit in `namespace Stripe` inside `declare module
-    // "stripe"`; from 22 they are a top-level export of the compiled source.
-    const namespaced = existsSync(join(dir, "types/lib.d.ts"))
-      ? /interface StripeConfig/.test(readFileSync(join(dir, "types/lib.d.ts"), "utf8"))
-      : false;
-    return {
-      pinType: namespaced ? "Stripe.StripeConfig" : "StripeConfig",
-      pinProperty: "apiVersion",
-      label,
-    };
-  },
+const STAMPS: Record<string, StampReader> = {
+  stripe: Object.assign(
+    (dir: string): SdkStamp | undefined => {
+      const apiVersion = findFile(dir, /^apiVersion\.js$/);
+      const label =
+        apiVersion &&
+        /ApiVersion = ['"]([^'"]+)['"]/.exec(readFileSync(apiVersion, "utf8"))?.[1];
+      if (!label) return undefined;
+      // Up to 21 the options sit in `namespace Stripe` inside `declare module
+      // "stripe"`; from 22 they are a top-level export of the compiled source.
+      const namespaced = existsSync(join(dir, "types/lib.d.ts"))
+        ? /interface StripeConfig/.test(readFileSync(join(dir, "types/lib.d.ts"), "utf8"))
+        : false;
+      return {
+        pinType: namespaced ? "Stripe.StripeConfig" : "StripeConfig",
+        pinProperty: "apiVersion",
+        label,
+      };
+    },
+    { contract: stripePlan },
+  ),
 };
+
+/** The exact version of an installed package. */
+function versionOf(dir: string): string {
+  return (
+    JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as { version: string }
+  ).version;
+}
 
 function findFile(dir: string, name: RegExp, depth = 0): string | undefined {
   if (depth > 3) return undefined;
@@ -211,6 +249,32 @@ export function importing(
         return false;
       }
     });
+}
+
+/**
+ * How a monorepo's imports of its own packages resolve, from its root
+ * tsconfig: the `baseUrl` and `paths` that map `@decipad/backend-config` to
+ * `libs/backend-config/src/index.ts`. Read as data with TypeScript's own
+ * reader, which allows the comments tsconfig files have; nothing it extends is
+ * followed, since that may be a package nobody installed.
+ */
+export async function pathsOf(
+  repo: string,
+  commit: string,
+): Promise<{ baseUrl: string; paths: Record<string, string[]> } | undefined> {
+  for (const name of ["tsconfig.base.json", "tsconfig.json"]) {
+    const text = await textAt(repo, commit, name);
+    if (!text) continue;
+    const { config } = ts.parseConfigFileTextToJson(name, text) as {
+      config?: {
+        compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> };
+      };
+    };
+    const options = config?.compilerOptions;
+    if (!options?.paths) continue;
+    return { baseUrl: join(repo, options.baseUrl ?? "."), paths: options.paths };
+  }
+  return undefined;
 }
 
 /** A file's text at a commit, or none where the commit does not have it. */
@@ -367,7 +431,14 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
     id: entry.id,
     language,
     package: entry.package,
-    engine: STAMPS[entry.package] ? "pin" : "none",
+    engine:
+      entry.ecosystem !== "npm"
+        ? "none"
+        : STAMPS[entry.package]?.contract
+          ? "contract"
+          : STAMPS[entry.package]
+            ? "pin"
+            : "none",
   };
   const work = join(CACHE, "work", entry.id.replace(/[^\w.-]+/g, "_"));
   const repo = join(work, "repo");
@@ -411,7 +482,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       );
     }
 
-    const files = entry.files.filter((file) => SOURCE.test(file));
+    const files = entry.files.filter((file) => SOURCES[entry.ecosystem].test(file));
     const before = new Map<string, string>();
     const human = new Map<string, Region[]>();
     for (const file of files) {
@@ -427,8 +498,12 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
     }
     const sites = [...human.values()].reduce((sum, regions) => sum + regions.length, 0);
 
-    const stamp = STAMPS[entry.package];
+    // The engine reads TypeScript and JavaScript; elsewhere only the humans'
+    // sites are read and classed, which is the denominator a pack is judged on.
+    const stamp = entry.ecosystem === "npm" ? STAMPS[entry.package] : undefined;
     const engineText = new Map<string, string>();
+    /** Base lines, per file, the engine reported to a person rather than edited. */
+    const flagged = new Map<string, (readonly [number, number])[]>();
     if (stamp) {
       // Each file's blob id comes with the tree, before any blob is fetched.
       const blobs = new Map<string, string>();
@@ -438,13 +513,13 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       }
       const paths = [...blobs.keys()];
       const roots = packageRoots(paths, files);
+      // Every source file, so an import across a monorepo has something to
+      // resolve to; only the ones that import the SDK, and what they import,
+      // are read by the engine.
       const readable = paths
         .filter(
           (path) =>
-            SOURCE.test(path) &&
-            !SKIPPED_DIRS.test(path) &&
-            !path.endsWith(".d.ts") &&
-            roots.some((root) => root === "." || path.startsWith(`${root}/`)),
+            SOURCE.test(path) && !SKIPPED_DIRS.test(path) && !path.endsWith(".d.ts"),
         )
         .slice(0, MAX_FILES);
       const manifestOf = (root: string) =>
@@ -496,22 +571,47 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
 
       await mkdir(join(repo, "node_modules"), { recursive: true });
       await symlink(oldSdk, join(repo, "node_modules", entry.package), "dir");
+      // What changed in the contract between the two releases, where the SDK
+      // says which contracts they speak.
+      const contract = stamp.contract
+        ? await stamp.contract(
+            versionOf(oldSdk),
+            versionOf(newSdk),
+            oldSdk,
+            old.pinType.includes("."),
+          )
+        : undefined;
       const symbols: SymbolMap = {
         package: entry.package,
-        upgradeTo: { package: entry.package, version: entry.to },
-        types: {},
+        upgradeTo: {
+          package: entry.package,
+          version: entry.to,
+          // The SDK keeps its type names across the upgrade.
+          ...(contract ? { types: contract.types } : {}),
+        },
+        types: contract?.types ?? {},
+        ...(contract ? { operations: contract.operations } : {}),
         accessors: [],
         pin: { type: old.pinType, property: old.pinProperty, label: next.label },
       };
+      const resolution = await pathsOf(repo, entry.base);
       const result = await migrate({
         repoDir: `${repo}/`,
         generated: [oldSdk],
         sources: importing(repo, readable, entry.package),
-        plan: buildPlan([], symbols),
+        ...(resolution ? { resolution } : {}),
+        plan: buildPlan(contract?.changes ?? [], symbols),
       });
+      for (const site of result.manual) {
+        const file = site.file.slice(repo.length + 1);
+        const text = before.get(file) ?? readFileSync(site.file, "utf8");
+        const lineAt = (offset: number) => text.slice(0, offset).split("\n").length - 1;
+        const range = [lineAt(site.offset), lineAt(site.end ?? site.offset) + 1] as const;
+        flagged.set(file, [...(flagged.get(file) ?? []), range]);
+      }
       if (keep) {
         process.stdout.write(
-          `${JSON.stringify({ symbols, read: readable.length, edits: result.edits.map((edit) => `${edit.file}:${edit.start} ${edit.reason}`), manual: result.manual.map((site) => `${site.file}:${site.line} ${site.reason}`) }, null, 2)}\n`,
+          `${JSON.stringify({ versions: [versionOf(oldSdk), versionOf(newSdk)], contract: contract && { drafted: contract.drafted, removed: contract.removed, types: Object.keys(contract.types).length, subscription: contract.changes.filter((change) => change.id.includes("subscription")).map((change) => change.id) }, pin: symbols.pin, read: readable.length, edits: result.edits.map((edit) => `${edit.file}:${edit.start} ${edit.reason}`), manual: result.manual.map((site) => `${site.file}:${site.line} ${site.reason}`) }, null, 2)}\n`,
         );
       }
       for (const [path, text] of result.files) {
@@ -519,11 +619,19 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       }
     }
 
-    const total: Score = { identical: 0, differs: 0, missed: 0, extra: 0 };
+    const total: Score = {
+      identical: 0,
+      differs: 0,
+      flagged: 0,
+      missed: 0,
+      extra: 0,
+      extraFlags: 0,
+    };
     const scope: ScopedScore = {
       sites: 0,
       identical: 0,
       differs: 0,
+      flagged: 0,
       missed: 0,
       unclassified: 0,
     };
@@ -535,11 +643,13 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         ? changedRegions(lines, (engineText.get(file) as string).split("\n"))
         : [];
       const regions = human.get(file) ?? [];
-      const result = score(lines, regions, engine);
+      const result = score(lines, regions, engine, flagged.get(file) ?? []);
       total.identical += result.identical;
       total.differs += result.differs;
+      total.flagged += result.flagged;
       total.missed += result.missed;
       total.extra += result.extra;
+      total.extraFlags = (total.extraFlags ?? 0) + (result.extraFlags ?? 0);
       regions.forEach((region, at) => {
         scored.push({
           site: {
@@ -555,6 +665,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         });
       });
     }
+    for (const { site } of scored) await cacheSite(site);
     if (options.classifier) {
       try {
         await classify(
@@ -572,10 +683,27 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         delete options.classifier;
       }
     }
+    if (keep) {
+      // What the engine missed among the contract sites, to read beside the diff.
+      for (const { site, outcome } of scored) {
+        if (outcome !== "missed" || options.classes[siteKey(site)]?.class !== "contract")
+          continue;
+        const removed =
+          site.base.slice(site.region.oldStart, site.region.oldEnd)[0] ?? "";
+        const added = site.region.lines[0] ?? "";
+        process.stdout.write(
+          `missed ${site.file}:${site.region.oldStart + 1}\n  - ${removed.trim().slice(0, 110)}\n  + ${added.trim().slice(0, 110)}\n`,
+        );
+      }
+    }
     for (const { site, outcome } of scored) {
       const record = options.classes[siteKey(site)];
       if (!record) {
         scope.unclassified += 1;
+        continue;
+      }
+      if (record.class === "contested") {
+        scope.contested = (scope.contested ?? 0) + 1;
         continue;
       }
       if (record.class !== "contract") continue;
@@ -589,6 +717,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       sites: 0,
       identical: 0,
       differs: 0,
+      flagged: 0,
       missed: 0,
       extra: 0,
       error:
@@ -615,6 +744,7 @@ async function main(): Promise<void> {
   };
   const only = option("package");
   const single = option("case");
+  const ecosystem = option("ecosystem");
   const classes = readClasses();
   // Sites are classed by Jev, only when asked and with a key.
   let classifier: ReplayOptions["classifier"];
@@ -639,7 +769,7 @@ async function main(): Promise<void> {
   const cases = index.cases
     .filter(
       (entry) =>
-        entry.ecosystem === "npm" &&
+        (!ecosystem || entry.ecosystem === ecosystem) &&
         (!only || entry.package === only) &&
         (!single || entry.id === single),
     )
@@ -655,7 +785,7 @@ async function main(): Promise<void> {
     await writeClasses(classes);
     results.set(entry.id, result);
     process.stdout.write(
-      `${entry.id} ${entry.package}: ${result.error ?? `${result.identical}/${result.sites} identical, ${result.differs} differ, ${result.missed} missed, ${result.extra} extra`}\n`,
+      `${entry.id} ${entry.package}: ${result.error ?? `${result.identical}/${result.sites} identical, ${result.differs} differ, ${result.flagged} flagged, ${result.missed} missed; ${result.extra} extra edits, ${result.extraFlags ?? 0} extra flags`}\n`,
     );
     await writeFile(
       RESULTS,

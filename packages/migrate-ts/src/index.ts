@@ -20,6 +20,7 @@ import {
 } from "./engine.ts";
 import { bumpPins } from "./pins.ts";
 import { buildPlan, type MigrationPlan, type SymbolMap } from "./plan.ts";
+import { flagRetired } from "./retired.ts";
 
 export * from "./edits.ts";
 export type { EditScope, ManualSite } from "./engine.ts";
@@ -55,6 +56,11 @@ export interface MigrateOptions {
    */
   tsConfigFilePath?: string;
   sources?: readonly string[];
+  /**
+   * With `sources`: how the consumer's own imports resolve without an install,
+   * as a monorepo's root tsconfig maps `@acme/config` to its source.
+   */
+  resolution?: { baseUrl: string; paths: Record<string, string[]> };
   plan: MigrationPlan;
   /** Write the result to disk. Off by default, so a dry run stays a dry run. */
   write?: boolean;
@@ -117,7 +123,10 @@ function renameTypes(
 ): void {
   const { generated } = scope;
   for (const [schema, typeName] of Object.entries(plan.symbols.types)) {
-    if (schema === typeName) continue;
+    // What the upgraded package calls it; by default the schema's own name,
+    // as a generator that names types after schemas does.
+    const renamed = plan.symbols.upgradeTo.types?.[schema] ?? schema;
+    if (renamed === typeName) continue;
     for (const source of project.getSourceFiles()) {
       if (!generated.some((entry) => source.getFilePath().startsWith(entry))) continue;
       const declaration = declarationsIn(source, typeName);
@@ -128,10 +137,10 @@ function renameTypes(
           file: node.getSourceFile().getFilePath(),
           start: node.getStart(),
           end: node.getEnd(),
-          replacement: schema,
+          replacement: renamed,
           changeId: "sdk-upgrade",
           author: "codemod",
-          reason: `${typeName} is now ${schema}`,
+          reason: `${typeName} is now ${renamed}`,
         });
       }
     }
@@ -249,6 +258,9 @@ function projectFor(options: MigrateOptions): Project {
       skipLibCheck: true,
       strict: true,
       target: ts.ScriptTarget.ES2022,
+      ...(options.resolution
+        ? { baseUrl: options.resolution.baseUrl, paths: options.resolution.paths }
+        : {}),
     },
   });
   // One at a time, not as globs: a glob skips any directory whose name starts
@@ -322,6 +334,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
   renameAccessors(project, options.plan, scope, result);
   renameTypes(project, options.plan, scope, result);
   bumpPins(project, options.plan.symbols, scope, result);
+  flagRetired(project, options.plan, scope, result);
 
   const files = new Map<string, string>();
   for (const [file, edits] of groupByFile(result.edits)) {

@@ -43,6 +43,15 @@ describe("an API version pin", () => {
     expect(text).toContain(`apiVersion: "2024-04-10" as Pay.LatestApiVersion`);
   });
 
+  it("is moved in the consumer's configuration, where a property passes it on", async () => {
+    const { text } = await pinned("2024-04-10");
+    expect(text).toContain(`apiVersion: "2024-04-10" as const, timeout: 5`);
+    expect(text).toContain(`{ apiVersion: config.pay.apiVersion }`);
+    // Passed on destructured and as a shorthand, it is the same one literal.
+    expect(text).toContain(`const { apiVersion } = config.pay;`);
+    expect(text).toContain(`new Pay("sk_test", { apiVersion })`);
+  });
+
   it("is shown to a person where the source does not hold it", async () => {
     const { result } = await pinned("2024-04-10");
     expect(result.manual).toEqual([
@@ -79,11 +88,9 @@ describe("an API version pin", () => {
 
   it("leaves every import alone where the package keeps its name", async () => {
     const { result } = await pinned("2024-04-10");
-    expect(result.edits.map((edit) => edit.reason)).toEqual([
-      "speaks 2024-04-10, the contract the upgrade is built for",
-      "speaks 2024-04-10, the contract the upgrade is built for",
-      "speaks 2024-04-10, the contract the upgrade is built for",
-    ]);
+    expect(result.edits.map((edit) => edit.reason)).toEqual(
+      Array(4).fill("speaks 2024-04-10, the contract the upgrade is built for"),
+    );
   });
 
   it("is read where the checkout sits under a directory whose name starts with a dot", async () => {
@@ -109,6 +116,24 @@ describe("an API version pin", () => {
     } finally {
       await rm(dotted, { recursive: true, force: true });
     }
+  });
+
+  it("is moved in plain JavaScript too, where the SDK's types reach it through require", async () => {
+    const result = await migrate({
+      repoDir: CONSUMER,
+      generated: [`${CONSUMER}sdk/`],
+      sources: [`${CONSUMER}src/legacy.js`],
+      plan: buildPlan([], {
+        package: "paysdk",
+        upgradeTo: { package: "paysdk", version: "2.0.0" },
+        types: {},
+        accessors: [],
+        pin: { type: "Pay.PayConfig", property: "apiVersion", label: "2024-04-10" },
+      }),
+    });
+    expect(result.files.get(`${CONSUMER}src/legacy.js`)).toContain(
+      `new Pay("sk_test", { apiVersion: '2024-04-10' })`,
+    );
   });
 
   it("is left as it is when it already names the label", async () => {

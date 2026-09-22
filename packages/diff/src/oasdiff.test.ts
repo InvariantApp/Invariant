@@ -4,7 +4,12 @@ import { join } from "node:path";
 import type { OpenApiDocument } from "@invariant/contract";
 import type { JsonObject, JsonValue } from "@invariant/ir";
 import { afterEach, describe, expect, it } from "vitest";
-import { diffDocuments, diffOutcome, oasdiffAvailable } from "./oasdiff.ts";
+import {
+  diffDocuments,
+  diffOutcome,
+  oasdiffAvailable,
+  UnstableDiffError,
+} from "./oasdiff.ts";
 import {
   additiveEntries,
   BREAKING_INFO_IDS,
@@ -370,5 +375,16 @@ printf ']'
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("an unstable diff", () => {
+  it("says what differed, where the two runs gave the same number of entries", () => {
+    expect(new UnstableDiffError(5600, 5600).message).toMatch(
+      /returned 5600 entries twice for the same two documents, but not the same ones/,
+    );
+    expect(new UnstableDiffError(18990, 38442).message).toMatch(
+      /returned 18990 entries and then 38442/,
+    );
   });
 });

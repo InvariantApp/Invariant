@@ -1,8 +1,9 @@
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { importing, lockedVersion } from "./run.mts";
+import { importing, lockedVersion, pathsOf } from "./run.mts";
 
 describe("the version a commit installed", () => {
   it("is read from npm's, pnpm's and yarn's lockfiles", () => {
@@ -91,5 +92,34 @@ describe("the files the engine reads", () => {
         path.slice(repo.length + 1),
       ),
     ).toEqual(["a.ts", "b.js", "c.ts"]);
+  });
+});
+
+describe("how a monorepo's own imports resolve", () => {
+  it("is read from its root tsconfig at the commit, comments and all", async () => {
+    const repo = mkdtempSync(join(tmpdir(), "paths-"));
+    const git = (...args: string[]) =>
+      execFileSync("git", ["-C", repo, ...args], { stdio: "pipe" })
+        .toString()
+        .trim();
+    git("init", "-q");
+    writeFileSync(
+      join(repo, "tsconfig.json"),
+      [
+        "{",
+        "  // nx writes comments here",
+        '  "compilerOptions": {',
+        '    "baseUrl": ".",',
+        '    "paths": { "@acme/config": ["libs/config/src/index.ts"] },',
+        "  },",
+        "}",
+      ].join("\n"),
+    );
+    git("add", ".");
+    git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "base");
+    expect(await pathsOf(repo, git("rev-parse", "HEAD"))).toEqual({
+      baseUrl: repo,
+      paths: { "@acme/config": ["libs/config/src/index.ts"] },
+    });
   });
 });

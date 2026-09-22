@@ -10,7 +10,7 @@ import { agreeingAllOf } from "./allof.ts";
 import { binaryFor } from "./binaries.ts";
 import { wholeSchemaRefs } from "./deep-refs.ts";
 import { BREAKING_INFO_IDS } from "./policy.ts";
-import { OASDIFF_INSTALL, unusableVersion } from "./version.ts";
+import { OASDIFF_INSTALL, OASDIFF_VERSION, unusableVersion } from "./version.ts";
 
 const run = promisify(execFile);
 
@@ -187,11 +187,14 @@ export class UnstableDiffError extends Error {
 
   constructor(first: number, second: number) {
     super(
-      `The differ returned ${first} entries and then ${second} for the same two ` +
-        "documents, so its answer here is not reproducible and no count from it " +
-        "means anything. This is a defect in oasdiff 1.32.1 rather than in the " +
-        "documents: three runs of one Stripe comparison returned 18,990, 38,442 " +
-        "and 23,838 entries, and no run's findings were a subset of another's.",
+      `${
+        first === second
+          ? `The differ returned ${first} entries twice for the same two documents, but not the same ones`
+          : `The differ returned ${first} entries and then ${second} for the same two documents`
+      }, so its answer here is not reproducible and no count from it means anything. ` +
+        `This is a defect in oasdiff (${OASDIFF_VERSION}) rather than in the documents: ` +
+        "three runs of one Stripe comparison once returned 18,990, 38,442 and 23,838 " +
+        "entries, and no run's findings were a subset of another's.",
     );
     this.first = first;
     this.second = second;

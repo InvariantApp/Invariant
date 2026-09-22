@@ -823,6 +823,18 @@ export function setNullable(
     const branches = schema[key];
     if (!Array.isArray(branches)) continue;
     const rest = branches.filter((branch) => !isNullSchema(branch));
+    const [only] = rest;
+    // A value or null, once null is gone, is written as the value itself, as
+    // Mistral's `tools` went from a list or null to a list. A branch naming
+    // another schema stays a union of one, since that is how writers spell a
+    // reference with siblings.
+    if (!nullable && rest.length === 1 && isJsonObject(only) && !("$ref" in only)) {
+      delete schema[key];
+      for (const [name, value] of Object.entries(only)) {
+        if (!(name in schema)) schema[name] = value;
+      }
+      return;
+    }
     schema[key] = nullable ? [...rest, { type: "null" }] : rest;
     return;
   }

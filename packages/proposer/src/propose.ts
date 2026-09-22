@@ -984,7 +984,15 @@ export function narrowOps(
 ): { ops: Op[]; notes: string[] } {
   const before = old.enumValues;
   const after = next.enumValues;
-  if (!sides.response || sides.request || !after?.length || old.type !== next.type) {
+  // An enum that still lists null cannot be restated by `relax`, whose values
+  // are text, numbers and booleans; that field is left for a person.
+  if (
+    !sides.response ||
+    sides.request ||
+    !after?.length ||
+    old.type !== next.type ||
+    next.enumNull
+  ) {
     return { ops: [], notes: [] };
   }
   // A field that held any text and now names the values it holds, as PayPal's
@@ -1009,7 +1017,9 @@ export function narrowOps(
   if (!before?.length || after.some((value) => !before.includes(value))) {
     return { ops: [], notes: [] };
   }
-  const gone = before.filter((value) => !after.includes(value));
+  const gone: (string | null)[] = before.filter((value) => !after.includes(value));
+  // Null listed in the old enum and not the new: the field is never null any more.
+  if (old.enumNull && !next.enumNull) gone.push(null);
   if (gone.length === 0) return { ops: [], notes: [] };
   return {
     ops: [{ op: "relax", path: next.pointer, set: { enum: after } }],

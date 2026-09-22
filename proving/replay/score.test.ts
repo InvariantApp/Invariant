@@ -38,8 +38,10 @@ describe("the engine against the humans", () => {
     expect(score(base, human, changedRegions(base, pinned))).toEqual({
       identical: 1,
       differs: 0,
+      flagged: 0,
       missed: 1,
       extra: 0,
+      extraFlags: 0,
       outcomes: ["identical", "missed"],
     });
   });
@@ -54,9 +56,28 @@ describe("the engine against the humans", () => {
     expect(score(base, human, engine)).toEqual({
       identical: 0,
       differs: 1,
+      flagged: 0,
       missed: 1,
       extra: 1,
+      extraFlags: 0,
       outcomes: ["differs", "missed"],
     });
+  });
+
+  it("is flagged where it wrote nothing but sent a person to the line", () => {
+    // `p.coupon` is gone; the engine cannot say what replaces it and says so.
+    expect(score(base, human, changedRegions(base, pinned), [[4, 5]])).toMatchObject({
+      identical: 1,
+      flagged: 1,
+      missed: 0,
+      outcomes: ["identical", "flagged"],
+    });
+  });
+
+  it("is flagged where the site sits anywhere inside what the engine flagged", () => {
+    // The engine flagged the whole options object; the human edited one line of it.
+    expect(score(base, human, [], [[1, 4]]).outcomes).toEqual(["flagged", "missed"]);
+    // A flag where nobody changed anything is counted against it.
+    expect(score(base, human, [], [[0, 1]]).extraFlags).toBe(1);
   });
 });

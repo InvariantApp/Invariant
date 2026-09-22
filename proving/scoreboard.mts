@@ -18,6 +18,8 @@ import type { PairResult as CorpusResult } from "@invariant/eval";
 import type { BUDGET, ChainCost } from "./chains/cost.ts";
 import { ROOT } from "./corpus/manifest.mts";
 import type { BUDGET as OVERHEAD_BUDGET, OverheadResult } from "./overhead/overhead.ts";
+import { type AuditFile, agreement } from "./replay/audit.mts";
+import type { SiteClass } from "./replay/classify.mts";
 import type { ReplayIndex } from "./replay/mine.mts";
 import type { ReplayResult } from "./replay/run.mts";
 import type { PairResult as ServerResult } from "./servers/run.mts";
@@ -61,6 +63,8 @@ export function scoreboard(inputs: {
   servers: ServerResult[] | undefined;
   replay: ReplayIndex | undefined;
   replayed?: ReplayResult[] | undefined;
+  audit?: AuditFile | undefined;
+  classes?: Record<string, { class: SiteClass }> | undefined;
   fuzz: string | undefined;
   chains?: (ChainCost & { budget: typeof BUDGET }) | undefined;
   overhead?: (OverheadResult & { budget: typeof OVERHEAD_BUDGET }) | undefined;
@@ -260,14 +264,18 @@ export function scoreboard(inputs: {
               const sites = sum((entry) => entry.sites);
               const inScope = sum((entry) => entry.inScope?.sites ?? 0);
               const identical = sum((entry) => entry.inScope?.identical ?? 0);
+              const flagged = sum((entry) => entry.inScope?.flagged ?? 0);
               const differs = sum((entry) => entry.inScope?.differs ?? 0);
+              const extraFlags = sum((entry) => entry.extraFlags ?? 0);
               const unclassified = sum(
                 (entry) => entry.inScope?.unclassified ?? entry.sites,
               );
-              return `${language} ${mine.length} cases: of ${sites} human sites, ${inScope} follow from a contract change, ${identical} of them identical (${percent(identical, inScope)}) and ${differs} to adjudicate; ${unclassified} not yet classed`;
+              const contested = sum((entry) => entry.inScope?.contested ?? 0);
+              return `${language} ${mine.length} cases: of ${sites} human sites, ${inScope} follow from a contract change; ${identical + flagged} handled (${percent(identical + flagged, inScope)}: ${identical} identical, ${flagged} flagged for a person), ${differs} to adjudicate; ${extraFlags} flags where no human changed anything; ${contested} contested and ${unclassified} not yet classed, counted as neither`;
             })
             .join("; ")}. ` +
-          `${failed.length} could not be replayed. Sites are classed by Jev, not yet audited by hand.`),
+          `${failed.length} could not be replayed. ` +
+          auditLine(inputs.audit, inputs.classes)),
     evidence: "proving/replay/results.json (run.mts), index.json",
   });
 
@@ -339,6 +347,21 @@ export function scoreboard(inputs: {
     overheadLine(inputs.overhead),
   );
   return lines;
+}
+
+/** How the site classes L8 rests on were checked, and how well they held up. */
+function auditLine(
+  audit: AuditFile | undefined,
+  classes: Record<string, { class: SiteClass }> | undefined,
+): string {
+  const base =
+    "Sites are classed by rule where the text alone decides, otherwise by Jev, with a second question where it was unsure.";
+  if (!audit || !classes) return `${base} The classes are not yet audited.`;
+  const result = agreement(classes, audit);
+  const per = Object.entries(result.byClass)
+    .map(([name, bucket]) => `${name} ${bucket.agreed}/${bucket.labelled}`)
+    .join(", ");
+  return `${base} On a fixed sample read by ${audit.reader}, ${result.agreed} of ${result.labelled} agree (${percent(result.agreed, result.labelled)}; ${per}).`;
 }
 
 /** What `eval/ownership.yaml` records of each judge, as far as L4b reads it. */
@@ -498,6 +521,8 @@ if (process.argv[1]?.endsWith("scoreboard.mts")) {
     servers,
     replay: read<ReplayIndex>("proving/replay/index.json"),
     replayed: read<ReplayResult[]>("proving/replay/results.json"),
+    audit: read<AuditFile>("proving/replay/audit.json"),
+    classes: read<Record<string, { class: SiteClass }>>("proving/replay/classes.json"),
     fuzz: process.env["FUZZ_RESULT"],
     chains: read<ChainCost & { budget: typeof BUDGET }>("proving/chains/results.json"),
     vectors: read<VectorCounts>("conformance/vectors.json"),

@@ -133,12 +133,19 @@ function shortestEdit(before: readonly string[], after: readonly string[]): Regi
 export interface Score {
   identical: number;
   differs: number;
+  flagged: number;
   missed: number;
   /** Engine regions that overlap no human one. */
   extra: number;
+  /** Places the engine flagged where no human changed anything: a reviewer's time spent for nothing. */
+  extraFlags?: number;
 }
 
-export type Outcome = "identical" | "differs" | "missed";
+/**
+ * `flagged`: the engine wrote nothing there and reported the place to a
+ * person instead, which L8 counts as handled, apart from an edit.
+ */
+export type Outcome = "identical" | "differs" | "flagged" | "missed";
 
 /** Whitespace is layout, and a formatter the repository runs would settle it. */
 const normal = (lines: readonly string[]) =>
@@ -160,10 +167,16 @@ export function score(
   base: readonly string[],
   human: readonly Region[],
   engine: readonly Region[],
+  /**
+   * Base lines (0-based, end exclusive) the engine reported to a person rather
+   * than edited: the extent of what it flagged, such as a whole object literal.
+   */
+  flaggedRanges: readonly (readonly [number, number])[] = [],
 ): Score & { outcomes: Outcome[] } {
   const result: Score & { outcomes: Outcome[] } = {
     identical: 0,
     differs: 0,
+    flagged: 0,
     missed: 0,
     extra: 0,
     outcomes: [],
@@ -172,8 +185,12 @@ export function score(
   for (const site of human) {
     const covering = engine.filter((region) => overlaps(site, region));
     if (covering.length === 0) {
-      result.missed += 1;
-      result.outcomes.push("missed");
+      const end = Math.max(site.oldEnd, site.oldStart + 1);
+      const flagged = flaggedRanges.some(
+        ([from, to]) => from < end && site.oldStart < Math.max(to, from + 1),
+      );
+      result[flagged ? "flagged" : "missed"] += 1;
+      result.outcomes.push(flagged ? "flagged" : "missed");
       continue;
     }
     for (const region of covering) used.add(region);
@@ -188,6 +205,14 @@ export function score(
     result.outcomes.push(same ? "identical" : "differs");
   }
   result.extra = engine.filter((region) => !used.has(region)).length;
+  result.extraFlags = flaggedRanges.filter(
+    ([from, to]) =>
+      !human.some(
+        (site) =>
+          from < Math.max(site.oldEnd, site.oldStart + 1) &&
+          site.oldStart < Math.max(to, from + 1),
+      ),
+  ).length;
   return result;
 }
 

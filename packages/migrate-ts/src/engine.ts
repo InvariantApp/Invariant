@@ -23,6 +23,7 @@ import {
   type Project,
   type PropertySignature,
   SyntaxKind,
+  type Type,
   type TypeElementTypes,
 } from "ts-morph";
 import type { Edit, Replacement } from "./edits.ts";
@@ -45,6 +46,8 @@ export interface ManualSite {
    * worse than one that points nowhere.
    */
   offset: number;
+  /** Where the flagged node ends, also before any edit, so a reviewer sees its extent. */
+  end?: number;
 }
 
 export interface EngineResult {
@@ -87,6 +90,7 @@ export function manualFrom(node: Node, changeId: string, reason: string): Manual
     reason,
     snippet: (node.getParent() ?? node).getText().slice(0, 120),
     offset: node.getStart(),
+    end: node.getEnd(),
   };
 }
 
@@ -193,7 +197,9 @@ function compose(
       composed.unsupported = `${op.path} is now written as ${recoding(op.codec)}, which this engine does not rewrite yet`;
       continue;
     }
-    if (op.op === "remove") composed.unsupported = "the field no longer exists";
+    if (op.op === "remove") {
+      composed.unsupported = `\`${segmentsOf(op.path).join(".")}\` is no longer in the contract, and nothing was declared in its place`;
+    }
     if (op.op === "add") continue;
   }
 
@@ -644,8 +650,10 @@ export function membersOf(
  * A declaration's name with the namespaces around it, leaving out an ambient
  * module's quoted name, which is the package and not part of the type's name.
  */
-function qualifiedName(declaration: Node & { getName(): string }): string {
-  const names = [declaration.getName()];
+export function qualifiedName(
+  declaration: Node & { getName(): string | undefined },
+): string {
+  const names = [declaration.getName() ?? ""];
   for (const ancestor of declaration.getAncestors()) {
     if (!Node.isModuleDeclaration(ancestor)) continue;
     const name = ancestor.getName();
@@ -653,6 +661,39 @@ function qualifiedName(declaration: Node & { getName(): string }): string {
     names.unshift(name);
   }
   return names.join(".");
+}
+
+/**
+ * The members of the object at `within` inside a type: each step is a
+ * property, its type taken from the checker with null left out, and `*` a
+ * list's items. Undefined where any step is not one object type.
+ */
+export function nestedMembers(
+  project: Project,
+  typeName: string,
+  within: readonly string[],
+  scope: EditScope,
+): TypeElementTypes[] | undefined {
+  let members = membersOf(project, typeName, scope);
+  let type: Type | undefined;
+  for (const segment of within) {
+    if (segment === "*") {
+      const items = type?.getArrayElementType();
+      if (!items) return undefined;
+      type = items.getNonNullableType();
+    } else {
+      const property = propertyOf(members, segment);
+      if (!property) return undefined;
+      type = property.getType().getNonNullableType();
+    }
+    // A list's own members are the array's; the next step, `*`, reads its items.
+    const declaration = type.getSymbol()?.getDeclarations()[0];
+    members =
+      Node.isInterfaceDeclaration(declaration) || Node.isTypeLiteral(declaration)
+        ? declaration.getMembers()
+        : undefined;
+  }
+  return members;
 }
 
 function literalMembers(node: Node | undefined): TypeElementTypes[] {
@@ -686,8 +727,12 @@ export function runEngine(
 ): EngineResult {
   const result: EngineResult = { edits: [], manual: [], helpersUsed: new Map() };
 
-  const propertyIn = (typeName: string, property: string) =>
-    propertyOf(membersOf(project, typeName, scope), property);
+  const membersFor = (target: TargetSymbol) =>
+    target.within
+      ? nestedMembers(project, target.typeName, target.within, scope)
+      : membersOf(project, target.typeName, scope);
+  const propertyIn = (target: TargetSymbol) =>
+    propertyOf(membersFor(target), target.property);
 
   // One group per field, so every op that touches it composes into one edit.
   const groups = new Map<string, TargetSymbol[]>();
@@ -696,13 +741,13 @@ export function runEngine(
     // written into the literals below, and one that may now be missing or
     // null is left to the type checker, which knows every place it is read.
     if (["add", "default", "dropNull"].includes(target.op.op)) continue;
-    const key = `${target.typeName}.${target.property}`;
+    const key = [target.typeName, ...(target.within ?? []), target.property].join(".");
     groups.set(key, [...(groups.get(key) ?? []), target]);
   }
 
   for (const targets of groups.values()) {
     const first = targets[0] as TargetSymbol;
-    const declaration = propertyIn(first.typeName, first.property);
+    const declaration = propertyIn(first);
     if (!declaration) continue;
 
     const composed = compose(targets, plan.symbols.helpers);
@@ -737,10 +782,12 @@ export function runEngine(
       }
 
       // A field whose only change was its vocabulary keeps its name and place.
+      // A removed one keeps them too, and is exactly what a person must see.
       if (
         composed.path.length === 1 &&
         composed.path[0] === first.property &&
-        !composed.wrapRead
+        !composed.wrapRead &&
+        !composed.unsupported
       ) {
         continue;
       }
@@ -752,10 +799,11 @@ export function runEngine(
   // object literals that write the type are found through its other properties.
   for (const target of plan.targets) {
     if (!suppliesField(target.op)) continue;
-    const head = segmentsOf(target.op.path)[0] as string;
+    // The field itself, inside whatever object `within` leads to.
+    const head = target.property;
 
     {
-      const members = membersOf(project, target.typeName, scope);
+      const members = membersFor(target);
       if (!members) continue;
 
       const literals = new Set<Node>();
@@ -786,6 +834,21 @@ export function runEngine(
           );
         if (already) continue;
 
+        // A draft writes null where no value is ever sent: the field exists
+        // only in responses. A literal of that type is then the consumer's own
+        // stand-in for a response, such as a test fixture, and what it should
+        // hold is theirs to say; null would be a guess, and for a list a
+        // wrong one.
+        if (target.op.value === null) {
+          result.manual.push(
+            manualFrom(
+              literal,
+              target.changeId,
+              `this object stands for a response that now has \`${head}\`; add the value it should hold`,
+            ),
+          );
+          continue;
+        }
         const anchor = literal.getProperties()[0];
         const brace = literal.getFirstChildByKind(SyntaxKind.OpenBraceToken);
         if (!anchor || !brace) continue;

@@ -187,6 +187,16 @@ describe("a request field that may no longer be null", () => {
         { anyOf: [{ $ref: "#/components/schemas/Thing" }, { type: "null" }] },
         { anyOf: [{ $ref: "#/components/schemas/Thing" }] },
       ],
+      // Mistral's `tools`: a list or null became a list, written as the list
+      // itself, so the prediction is the list and not a union of one.
+      [
+        "3.1.0",
+        {
+          title: "Tools",
+          anyOf: [{ type: "array", items: { type: "string" } }, { type: "null" }],
+        },
+        { title: "Tools", type: "array", items: { type: "string" } },
+      ],
     ] as const) {
       const document = contract(version, {
         ThingCreate: thing({ note: before as Schema }, []),

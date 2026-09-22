@@ -12,6 +12,7 @@
       "!**/*.tsbuildinfo",
       "!fixtures/consumer-b-types-v2/src/acme-types.ts",
       "!fixtures/consumer-pinned/src/clients.ts",
+      "!fixtures/consumer-pinned/src/legacy.js",
       "!conformance/vectors.json",
       "!proving/**/results*.json",
       "!proving/corpus/manifest.json",

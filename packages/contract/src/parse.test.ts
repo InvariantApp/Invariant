@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { DocumentTooLargeError, expandedSize, parseDocumentText } from "./parse.ts";
+import {
+  DocumentTooLargeError,
+  DuplicateKeyError,
+  expandedSize,
+  parseDocumentText,
+} from "./parse.ts";
 
 describe("reading YAML with aliases", () => {
   it("takes one anchor reused hundreds of times, as Langfuse's specification does", () => {
@@ -39,5 +44,48 @@ describe("reading YAML with aliases", () => {
     // The object, its number, and its list with the list's two numbers.
     expect(expandedSize(shared)).toBe(5);
     expect(expandedSize([shared, shared, shared])).toBe(1 + 3 * 5);
+  });
+
+  it("reads a key defined twice when both definitions are the same (Okta's path parameters)", () => {
+    const text = [
+      "components:",
+      "  parameters:",
+      "    pathId:",
+      "      name: id",
+      "      in: path",
+      "    pathId:",
+      "      name: id",
+      "      in: path",
+    ].join("\n");
+    expect(parseDocumentText("openapi.yaml", text)).toEqual({
+      components: { parameters: { pathId: { name: "id", in: "path" } } },
+    });
+  });
+
+  it("refuses a key defined twice differently, and says where", () => {
+    const text = ["a:", "  type: string", "a:", "  type: integer"].join("\n");
+    expect(() => parseDocumentText("openapi.yaml", text)).toThrow(DuplicateKeyError);
+    expect(() => parseDocumentText("openapi.yaml", text)).toThrow(/`a`.*line 3/);
+  });
+
+  it("reads a quoted example closed at the first column, as Mistral publishes one", () => {
+    const text = [
+      "paths:",
+      "  /v1/ocr:",
+      "    post:",
+      "      description: 'First line",
+      "",
+      "        second line",
+      "",
+      "'",
+      "      operationId: ocr",
+    ].join("\n");
+    expect(parseDocumentText("openapi.yaml", text)).toEqual({
+      paths: {
+        "/v1/ocr": {
+          post: { description: "First line\nsecond line\n", operationId: "ocr" },
+        },
+      },
+    });
   });
 });

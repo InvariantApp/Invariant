@@ -104,8 +104,27 @@ export function renderPullRequestBody(summary: MigrationSummary): string {
         `${plural(summary.manual.length, "site")} were left alone, with the reason:`,
         "",
       );
+      // One line per file and reason: a field read in ninety places of one
+      // test file is one thing to look at, and listed ninety times it buries
+      // everything else.
+      const groups = new Map<string, { file: string; reason: string; lines: number[] }>();
       for (const site of summary.manual) {
-        lines.push(`- \`${site.file}:${site.line}\` - ${site.reason}`);
+        const key = `${site.file}\u0000${site.reason}`;
+        const group = groups.get(key) ?? {
+          file: site.file,
+          reason: site.reason,
+          lines: [],
+        };
+        group.lines.push(site.line);
+        groups.set(key, group);
+      }
+      for (const group of groups.values()) {
+        const at = [...new Set(group.lines)].sort((a, b) => a - b);
+        const where =
+          at.length === 1
+            ? `\`${group.file}:${at[0]}\``
+            : `\`${group.file}\` lines ${at.join(", ")}`;
+        lines.push(`- ${where} - ${group.reason}`);
       }
       lines.push("");
     }

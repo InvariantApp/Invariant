@@ -907,6 +907,58 @@ describe("a vocabulary that only lost values", () => {
     expect(draft?.notes.join()).not.toMatch(/Pair them up/);
   });
 
+  it("is a declared loss when null is what went, from a nullable enum that listed it", async () => {
+    // Supabase's `ApiKeyResponse.type`: OpenAPI 3.0 lists null in a nullable
+    // enum, and a release stopped listing it.
+    const typed = (values: (string | null)[]) => ({
+      ...base,
+      Thing: object(
+        {
+          id: { type: "string" },
+          type: { type: "string", nullable: true, enum: values },
+        },
+        ["id"],
+      ),
+    });
+    const outcome = await propose(
+      contract(typed(["legacy", "secret", null])),
+      contract(typed(["legacy", "secret"])),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.unresolved).toEqual([]);
+    const draft = outcome.proposals.find((proposal) =>
+      proposal.change.ops.some((op) => op.op === "relax"),
+    );
+    expect(draft?.change.ops).toEqual([
+      { op: "relax", path: "/type", set: { enum: ["legacy", "secret"] } },
+    ]);
+    expect(draft?.notes.join()).toMatch(/never `null` any more.*declared loss/);
+  });
+
+  it("is left for a person when the enum still lists null, which `relax` cannot restate", async () => {
+    const typed = (values: (string | null)[]) => ({
+      ...base,
+      Thing: object(
+        {
+          id: { type: "string" },
+          type: { type: "string", nullable: true, enum: values },
+        },
+        ["id"],
+      ),
+    });
+    const outcome = await propose(
+      contract(typed(["legacy", "secret", null])),
+      contract(typed(["legacy", null])),
+      { judge: new RulesJudge() },
+    );
+    expect(
+      outcome.proposals.some((proposal) =>
+        proposal.change.ops.some((op) => op.op === "relax"),
+      ),
+    ).toBe(false);
+    expect(outcome.unresolved.map((entry) => entry.field)).toContain("type");
+  });
+
   it("is a question where old callers send it, since they send the value that went", async () => {
     const outcome = await propose(
       contract(withState(["enabled", "deleted"], true)),
@@ -964,5 +1016,28 @@ describe("a vocabulary that only lost values", () => {
     ]);
     expect(draft?.notes.join()).toMatch(/text the old contract already allowed/);
     expect(outcome.unresolved).toEqual([]);
+  });
+});
+
+describe("a list that became nullable through a union with null", () => {
+  it("is the same list, so nothing about its items is drafted as removed (Mistral's tools)", async () => {
+    const tools = (schema: Schema) => ({
+      ...base,
+      ThingCreate: object({ name: { type: "string" }, tools: schema }),
+    });
+    const list = {
+      type: "array",
+      items: object({ type: { type: "string" }, name: { type: "string" } }),
+    };
+    const outcome = await propose(
+      contract(tools(list)),
+      contract(tools({ anyOf: [list, { type: "null" }] })),
+      { judge: new RulesJudge() },
+    );
+    expect(
+      outcome.proposals
+        .flatMap((proposal) => proposal.change.ops)
+        .filter((op) => op.op === "remove"),
+    ).toEqual([]);
   });
 });

@@ -357,6 +357,25 @@ describe("the pull request a consumer reads", () => {
     expect(body).toContain("1 hunk written by a model");
   });
 
+  it("lists the sites left alone once per file and reason, with every line", () => {
+    const body = renderPullRequestBody(
+      summary({
+        manual: [
+          { ...MANUAL, line: 71 },
+          MANUAL,
+          { ...MANUAL, line: 12, reason: "`discount` is no longer in the contract" },
+          { ...MANUAL, line: 54 },
+        ],
+      }),
+    );
+    expect(body).toContain(
+      "- `src/checkout.test.ts` lines 54, 71 - this reads amount through an optional chain",
+    );
+    expect(body).toContain(
+      "- `src/checkout.test.ts:12` - `discount` is no longer in the contract",
+    );
+  });
+
   it("says the consumer's tests were not run here", () => {
     expect(renderPullRequestBody(summary())).toContain("Your tests were not run");
   });

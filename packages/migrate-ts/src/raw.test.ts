@@ -60,6 +60,7 @@ describe("a value whose encoding changed", () => {
         targets: [],
         typeRenames: [],
         accessorRenames: [],
+        retired: [],
         changes: [change],
       } as MigrationPlan,
       { repoDir: "/repo", generated: [] },
