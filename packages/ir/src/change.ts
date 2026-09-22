@@ -233,11 +233,11 @@ export const AddOp = Type.Object(
 );
 
 export const RemoveOp = Type.Object(
-  { op: Type.Literal("remove"), path: Pointer, restore: Type.Unknown() },
+  { op: Type.Literal("remove"), path: Pointer, restore: Type.Optional(Type.Unknown()) },
   {
     additionalProperties: false,
     description:
-      "A field the target contract dropped. Forward deletes it; backward restores `restore`.",
+      "A field the target contract dropped. Forward deletes it; backward restores `restore`. Without `restore`, backward leaves it out, which is only right where old callers were never promised it: a request field, or a response field their contract made optional.",
   },
 );
 

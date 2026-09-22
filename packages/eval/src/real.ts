@@ -125,6 +125,8 @@ export interface PairResult {
   unexplainedDecidedKinds?: Record<string, number>;
   /** Why the decided comparison did not happen, when it did not. */
   decidedError?: string;
+  /** With `keepResidual`: what is still breaking once every decision is answered. */
+  residualDecided?: readonly DiffEntry[];
   /** How long each stage took, in milliseconds, in the order they ran. */
   stageMs?: Record<string, number>;
   /**
@@ -243,6 +245,11 @@ export interface AnalyseOptions {
    * went.
    */
   onStage?: (stage: string, ms: number) => void;
+  /**
+   * Keep the entries still breaking once every decision is answered, for
+   * reading one pair closely. Off in the corpus run, where only counts are kept.
+   */
+  keepResidual?: boolean;
 }
 
 /**
@@ -465,6 +472,7 @@ export async function analysePair(
       ...closed,
       breakingAfterDecided: closed.breakingAfter,
       unexplainedDecidedKinds: closed.unexplainedKinds,
+      ...(options.keepResidual ? { residualDecided: residual.value } : {}),
       places: {
         ...places,
         decided: places.after,
@@ -498,6 +506,7 @@ export async function analysePair(
           ...closed,
           breakingAfterDecided: decided.value.length,
           unexplainedDecidedKinds: tally(decided.value),
+          ...(options.keepResidual ? { residualDecided: decided.value } : {}),
           places: {
             ...places,
             decided: placesIn(decided.value),

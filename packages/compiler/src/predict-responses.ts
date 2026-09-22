@@ -34,6 +34,7 @@ import {
   schemaMove,
   schemaRelax,
   schemaRemove,
+  schemaRequiredAt,
   schemaSetNullable,
   schemaSetRequired,
   schemaWiden,
@@ -158,6 +159,14 @@ export function applyResponseScope(
           schemaConvert(document, root, op.path, op.codec);
           break;
         case "remove":
+          // A response is where old callers were promised it or not: where
+          // they were, leaving it out breaks them, and only a value put back
+          // serves them.
+          if (op.restore === undefined && schemaRequiredAt(document, root, op.path)) {
+            throw new SchemaOpError(
+              `${op.path} has no restore, but old callers' ${scope.response} responses always carried it: say what they are given in its place`,
+            );
+          }
           schemaRemove(document, root, op.path);
           break;
         case "add": {

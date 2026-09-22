@@ -471,12 +471,130 @@ function shapeDiffers(a: FieldShape, b: FieldShape): boolean {
   return JSON.stringify(a.bounds ?? {}) !== JSON.stringify(b.bounds ?? {});
 }
 
+/** What an old schema is compared with: a schema of the new contract, named or written in place. */
+interface Counterpart {
+  /** Its name, or where it is written when it has none. */
+  name: string;
+  schema: JsonValue;
+}
+
+const SCHEMA_REF = "#/components/schemas/";
+
+function schemaName(ref: string): string | undefined {
+  return ref.startsWith(SCHEMA_REF)
+    ? ref.slice(SCHEMA_REF.length).replaceAll("~1", "/").replaceAll("~0", "~")
+    : undefined;
+}
+
+/**
+ * The schema written at a field's pointer, as the field is read: `*` is a
+ * list's items, `{}` a map's values.
+ */
+function schemaAt(
+  document: OpenApiDocument,
+  schema: JsonValue,
+  pointer: string,
+): JsonValue | undefined {
+  let node: JsonValue | undefined = schema;
+  for (const raw of pointer.split("/").slice(1)) {
+    const segment = raw.replaceAll("~1", "/").replaceAll("~0", "~");
+    const resolved = throughNull(document, resolvedObject(document, node ?? null));
+    node =
+      segment === "*"
+        ? resolved["items"]
+        : segment === "{}"
+          ? resolved["additionalProperties"]
+          : isJsonObject(resolved["properties"])
+            ? resolved["properties"][segment]
+            : undefined;
+    if (node === undefined) return undefined;
+  }
+  return node;
+}
+
+/** Where each schema refers to a named one, and the name it refers to. */
+function referencesIn(
+  document: OpenApiDocument,
+  schemas: Record<string, JsonValue>,
+): Map<string, Map<string, string>> {
+  const references = new Map<string, Map<string, string>>();
+  for (const [name, schema] of Object.entries(schemas)) {
+    const here = new Map<string, string>();
+    for (const field of fieldsOf(document, schema)) {
+      const target = field.ref === undefined ? undefined : schemaName(field.ref);
+      if (target) here.set(field.pointer, target);
+      const item =
+        field.items?.ref === undefined ? undefined : schemaName(field.items.ref);
+      if (item) here.set(`${field.pointer}/*`, item);
+    }
+    if (here.size > 0) references.set(name, here);
+  }
+  return references;
+}
+
+/**
+ * Schemas renamed, or written out in place, where they were used, matched by
+ * where they are used.
+ *
+ * PayPal dropped its named `address_portable` schema in one release and wrote
+ * the same object out in place wherever the payer's address, a shipping
+ * address and the rest had referred to it. No operation names it, so a match
+ * by operation never found it, and every field the address lost was reported
+ * with nothing to explain it. A schema referred to from a property of a
+ * schema already matched is compared with whatever that property holds in the
+ * new contract: the schema it names, provided that name is new (one the old
+ * contract also has is a different schema the property was pointed at), or
+ * the object written there in its place. Matching repeats until nothing more
+ * is found, so a rename two levels down is found through the one above it.
+ */
+function matchThroughReferences(
+  oldContract: OpenApiDocument,
+  newContract: OpenApiDocument,
+  oldSchemas: Record<string, JsonValue>,
+  newSchemas: Record<string, JsonValue>,
+  counterparts: Map<string, Counterpart>,
+): void {
+  if (Object.keys(oldSchemas).every((name) => counterparts.has(name))) return;
+  const oldReferences = referencesIn(oldContract, oldSchemas);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const [parent, references] of oldReferences) {
+      const counterpart = counterparts.get(parent);
+      if (!counterpart) continue;
+      for (const [pointer, child] of references) {
+        if (counterparts.has(child)) continue;
+        const there = schemaAt(newContract, counterpart.schema, pointer);
+        if (!isJsonObject(there)) continue;
+        const ref = there["$ref"];
+        if (typeof ref === "string") {
+          const renamed = schemaName(ref);
+          if (renamed === undefined || renamed in oldSchemas || !(renamed in newSchemas))
+            continue;
+          counterparts.set(child, {
+            name: renamed,
+            schema: newSchemas[renamed] as JsonValue,
+          });
+        } else {
+          const written = throughNull(newContract, resolvedObject(newContract, there));
+          if (!isJsonObject(written["properties"])) continue;
+          counterparts.set(child, {
+            name: `${counterpart.name}${pointer}`,
+            schema: there,
+          });
+        }
+        grew = true;
+      }
+    }
+  }
+}
+
 /**
  * Compares the two contracts schema by schema.
  *
  * Schemas are matched by name. A renamed schema is matched by the operation it
- * serves instead, so a rename does not read as one schema vanishing and an
- * unrelated one appearing.
+ * serves instead, or by the property of a matched schema that refers to it,
+ * so a rename does not read as one schema vanishing and an unrelated one
+ * appearing.
  */
 export function schemaDeltas(
   oldContract: OpenApiDocument,
@@ -497,30 +615,36 @@ export function schemaDeltas(
 
   const deltas: SchemaDelta[] = [];
 
-  for (const name of Object.keys(oldSchemas).sort()) {
-    let counterpart = name in newSchemas ? name : undefined;
-
-    if (!counterpart) {
-      for (const use of oldUses.get(name) ?? []) {
-        const [operationId, ...rest] = use.split(" ");
-        const mapped = operationRenames.get(operationId as string) ?? operationId;
-        const found = newByUse.get([mapped, ...rest].join(" "));
-        if (found) {
-          counterpart = found;
-          break;
-        }
+  const counterparts = new Map<string, Counterpart>();
+  for (const name of Object.keys(oldSchemas)) {
+    if (name in newSchemas) {
+      counterparts.set(name, { name, schema: newSchemas[name] as JsonValue });
+      continue;
+    }
+    for (const use of oldUses.get(name) ?? []) {
+      const [operationId, ...rest] = use.split(" ");
+      const mapped = operationRenames.get(operationId as string) ?? operationId;
+      const found = newByUse.get([mapped, ...rest].join(" "));
+      if (found) {
+        counterparts.set(name, { name: found, schema: newSchemas[found] as JsonValue });
+        break;
       }
     }
+  }
+  matchThroughReferences(oldContract, newContract, oldSchemas, newSchemas, counterparts);
+
+  for (const name of Object.keys(oldSchemas).sort()) {
+    const counterpart = counterparts.get(name);
     if (!counterpart) continue;
 
     const compared = compare(
       shapeOf(oldContract, oldSchemas[name] as JsonValue, name),
-      shapeOf(newContract, newSchemas[counterpart] as JsonValue, name),
+      shapeOf(newContract, counterpart.schema, name),
     );
     if (!compared) continue;
     deltas.push({
       schema: name,
-      newSchema: counterpart,
+      newSchema: counterpart.name,
       ...compared,
       operations: oldUses.get(name) ?? [],
     });

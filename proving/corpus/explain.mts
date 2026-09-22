@@ -1,83 +1,67 @@
 /**
- * What is left unexplained on one pair, entry by entry, for reading.
+ * What is still unexplained once every decision is answered, place by place,
+ * for reading closely: the corpus run keeps only counts.
  *
- *   node --import tsx proving/corpus/explain.mts --provider paypal.com [--api A] [--from LABEL]
- *     [--index 0] [--id response-property-type-changed] [--limit 20]
+ *   node --import tsx proving/corpus/explain.mts --provider stripe.com [--limit 3] [--kind <id>]
  *
- * Runs the same stages as the corpus run, rules judge only, and prints the
- * breaking entries the predicted document still differs from the real one
- * by, with the proposer's unresolved notes for the schemas they touch.
+ * Pairs run one at a time in this process, so keep --limit small on large
+ * providers and run it under `capped`.
  */
-
-import { predictDocument } from "@invariant-app/compiler";
-import { loadContract } from "@invariant-app/contract";
-import { breakingEntries, diffDocuments } from "@invariant-app/diff";
-import { propose, RulesJudge } from "@invariant-app/proposer";
+import { analysePair, placeOf } from "@invariant-app/eval";
+import { RulesJudge } from "@invariant-app/proposer";
 import { materialize, readManifest } from "./manifest.mts";
 
 const option = (name: string) => {
-  const index = process.argv.indexOf(`--${name}`);
-  return index === -1 ? undefined : process.argv[index + 1];
+  const at = process.argv.indexOf(`--${name}`);
+  return at === -1 ? undefined : process.argv[at + 1];
 };
 const provider = option("provider");
 const api = option("api");
-const fromLabel = option("from");
-const index = Number(option("index") ?? 0);
-const id = option("id");
-const limit = Number(option("limit") ?? 20);
-/** Prints the drafts whose text mentions this, to see what was proposed for a field. */
-const grep = option("grep");
+const kind = option("kind");
+const limit = Number(option("limit") ?? 5);
+const skip = Number(option("skip") ?? 0);
 
 const manifest = await readManifest();
-const pairs = manifest.pairs.filter(
-  (pair) =>
-    (provider === undefined || pair.provider === provider) &&
-    (api === undefined || pair.api === api) &&
-    (fromLabel === undefined || pair.from.label === fromLabel),
-);
-const pair = pairs[index];
-if (!pair) throw new Error(`no pair ${index} for ${provider ?? "any provider"}`);
-console.log(`${pair.api}: ${pair.from.label} -> ${pair.to.label}`);
+const pairs = manifest.pairs
+  .filter(
+    (pair) =>
+      (provider === undefined || pair.provider === provider) &&
+      (api === undefined || pair.api === api),
+  )
+  .slice(skip, skip + limit);
 
-const from = (await loadContract(await materialize(pair.from), pair.from.label)).document;
-const to = (await loadContract(await materialize(pair.to), pair.to.label)).document;
-const drafted = await propose(from, to, { judge: new RulesJudge() });
-const changes = drafted.proposals.map((proposal) => proposal.change);
-const predicted = predictDocument(from, to, changes);
-const residual = breakingEntries(await diffDocuments(predicted.document, to)).filter(
-  (entry) => id === undefined || entry.id === id,
-);
-console.log(
-  `${changes.length} drafts, ${predicted.issues.length} issues, ${residual.length} left${id ? ` of ${id}` : ""}`,
-);
-for (const entry of residual.slice(0, limit)) {
-  console.log(`- ${entry.id} ${entry.operation} ${entry.path}\n    ${entry.text}`);
-}
-if (predicted.issues.length > 0) {
-  console.log("issues:");
-  for (const issue of predicted.issues.slice(0, 10))
-    console.log(`  ${issue.changeId}: ${issue.message}`);
-}
-if (grep !== undefined) {
-  console.log(`drafts mentioning ${grep}:`);
-  for (const change of changes
-    .filter((change) => JSON.stringify(change).includes(grep))
-    .slice(0, limit)) {
-    console.log(
-      `  ${change.id} ${JSON.stringify(change.scopes)} ${JSON.stringify(change.ops)}`,
-    );
+const byKind = new Map<string, Map<string, number>>();
+for (const pair of pairs) {
+  const result = await analysePair(
+    {
+      api: pair.api,
+      fromVersion: pair.from.label,
+      toVersion: pair.to.label,
+      fromPath: await materialize(pair.from),
+      toPath: await materialize(pair.to),
+    },
+    { judge: new RulesJudge(), keepResidual: true, timeoutMs: 180_000 },
+  );
+  process.stdout.write(
+    `${pair.api} ${pair.from.label} -> ${pair.to.label}: ${result.reached}, ` +
+      `${result.places?.aligned ?? "?"} places, ${result.places?.decided ?? "?"} left after decisions` +
+      `${result.decidedError ? ` (decided: ${result.decidedError})` : ""}\n`,
+  );
+  const seen = new Set<string>();
+  for (const entry of result.residualDecided ?? []) {
+    if (kind !== undefined && entry.id !== kind) continue;
+    const place = placeOf(entry);
+    if (seen.has(place)) continue;
+    seen.add(place);
+    const places = byKind.get(entry.id) ?? new Map<string, number>();
+    places.set(place, (places.get(place) ?? 0) + 1);
+    byKind.set(entry.id, places);
   }
 }
-console.log("unresolved:");
-for (const entry of drafted.unresolved.slice(0, limit))
-  console.log(`  ${entry.schema}.${entry.field}: ${entry.reason}`);
-// A decision is not a failure: it is a question only the provider can answer,
-// and what is left above closes once it is answered.
-console.log(`decisions (${drafted.decisions.length}):`);
-for (const decision of drafted.decisions.slice(0, limit)) {
-  const what =
-    decision.kind === "vocabulary"
-      ? `gained ${decision.gained.join(", ")}${decision.lost.length > 0 ? `, lost ${decision.lost.join(", ")}` : ""}`
-      : decision.summary;
-  console.log(`  ${decision.kind} ${decision.schema}.${decision.field}: ${what}`);
+
+for (const [id, places] of [...byKind].sort((a, b) => b[1].size - a[1].size)) {
+  process.stdout.write(`\n## ${id}: ${places.size} places\n`);
+  for (const place of [...places.keys()].slice(0, 8)) {
+    process.stdout.write(`  ${place.split("\n").slice(1).join(" | ")}\n`);
+  }
 }

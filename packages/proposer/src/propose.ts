@@ -31,7 +31,7 @@ import {
   retireChange,
   retiredEndpoints,
 } from "./endpoints.ts";
-import type { Judge, JudgeId } from "./judge.ts";
+import type { AlignmentQuestion, Judge, JudgeId } from "./judge.ts";
 import { questionsFor } from "./judge.ts";
 import { describePrefixMove, detectPrefixMove, prefixChange } from "./prefix.ts";
 import { stemOf, UNIT_SUFFIXES } from "./rules.ts";
@@ -481,10 +481,16 @@ export async function propose(
 
   const results = await options.judge.align(questions);
   const proposals: Proposal[] = [...altered.proposals];
+  const deltaOf = new Map(deltas.map((delta) => [delta.schema, delta]));
 
   questions.forEach((question, index) => {
     const result = results[index];
     if (!result || result.answer.abstained || result.answer.successor === null) {
+      // Whether it was renamed stays an open question. If it was dropped, the
+      // Change is known, and it is drafted beside the question.
+      const dropped = droppedDraft(question, deltaOf.get(question.schema), oldContract);
+      if (dropped?.decision) valueDecisions.push(dropped.decision);
+      if (dropped?.proposal) proposals.push(dropped.proposal);
       unresolved.push({
         schema: question.schema,
         field: question.removed.name,
@@ -734,42 +740,103 @@ function removals(
     if (delta.added.length > 0 || delta.removed.length === 0) continue;
     const sides = sidesOfDelta(oldContract, delta);
     for (const field of delta.removed) {
-      if (sides.response) {
-        if (field.required) {
-          decisions.push({
-            kind: "value",
-            id: fieldSlug(delta.schema, field.name, "removed"),
-            schema: delta.schema,
-            ...(delta.scope ? { scope: delta.scope } : {}),
-            field: field.name,
-            pointer: field.pointer,
-            op: { op: "remove" },
-            shape: field,
-            summary: `\`${field.name}\` was removed from ${delta.schema}.`,
-            why: `Old callers were always given \`${field.name}\`, and nothing in the new contract replaces it. What they should be given in its place is not in the specification.`,
-          });
-        }
+      if (sides.response && field.required) {
+        decisions.push({
+          kind: "value",
+          id: fieldSlug(delta.schema, field.name, "removed"),
+          schema: delta.schema,
+          ...(delta.scope ? { scope: delta.scope } : {}),
+          field: field.name,
+          pointer: field.pointer,
+          op: { op: "remove" },
+          shape: field,
+          summary: `\`${field.name}\` was removed from ${delta.schema}.`,
+          why: `Old callers were always given \`${field.name}\`, and nothing in the new contract replaces it. What they should be given in its place is not in the specification.`,
+        });
         continue;
       }
+      // Old callers' responses never promised it, so it is only a request
+      // that has to change, and there is nothing to put back.
+      if (!sides.request) continue;
       proposals.push({
         change: {
           irVersion: 1,
           id: fieldSlug(delta.schema, field.name, "removed"),
           summary: `\`${field.name}\` was removed from ${delta.schema}.`,
           scopes: [scopeOf(delta)],
-          ops: [{ op: "remove", path: field.pointer, restore: null }],
+          ops: [{ op: "remove", path: field.pointer }],
           provenance: { proposed_by: { judge: "rules", confidence: 1 } },
         },
         judge: "rules",
         confidence: 1,
         attention: "normal",
         notes: [
-          `nothing was added to ${delta.schema} to replace it, and it appears only in requests, so old callers' requests drop it`,
+          sides.response
+            ? `nothing was added to ${delta.schema} to replace it, so old callers' requests drop it, and their responses were never promised it`
+            : `nothing was added to ${delta.schema} to replace it, and it appears only in requests, so old callers' requests drop it`,
         ],
       });
     }
   }
   return { proposals, unresolved, decisions };
+}
+
+/**
+ * A field a judge could not pair with anything, drafted as the Change it is
+ * if it was dropped rather than renamed. Which it was stays an open question
+ * beside the draft.
+ *
+ * In a response old callers were always given, what they are given in its
+ * place is a decision. Otherwise only their requests change: they drop it,
+ * and a person confirms that is what happened, so the draft asks for
+ * explicit review. A field only responses carried, and never promised,
+ * needs nothing.
+ */
+function droppedDraft(
+  question: AlignmentQuestion,
+  delta: SchemaDelta | undefined,
+  oldContract: Parameters<typeof schemaDeltas>[0],
+): { decision?: ValueDecision; proposal?: Proposal } | undefined {
+  if (!delta) return undefined;
+  const field = question.removed;
+  const sides = sidesOfDelta(oldContract, delta);
+  const others = question.candidates.map((candidate) => `\`${candidate.name}\``);
+  const unpaired = `no judge would say it became ${others.join(" or ") || "anything"}`;
+  if (sides.response && field.required) {
+    return {
+      decision: {
+        kind: "value",
+        id: fieldSlug(delta.schema, field.name, "removed"),
+        schema: delta.schema,
+        ...(delta.scope ? { scope: delta.scope } : {}),
+        field: field.name,
+        pointer: field.pointer,
+        op: { op: "remove" },
+        shape: field,
+        summary: `\`${field.name}\` was removed from ${delta.schema}.`,
+        why: `\`${field.name}\` is gone and ${unpaired}. If it was dropped, old callers were always given it, and what they should be given in its place is not in the specification.`,
+      },
+    };
+  }
+  if (!sides.request) return undefined;
+  return {
+    proposal: {
+      change: {
+        irVersion: 1,
+        id: fieldSlug(delta.schema, field.name, "removed"),
+        summary: `\`${field.name}\` was removed from ${delta.schema}.`,
+        scopes: [scopeOf(delta)],
+        ops: [{ op: "remove", path: field.pointer }],
+        provenance: { proposed_by: { judge: "rules", confidence: 1 } },
+      },
+      judge: "rules",
+      confidence: 1,
+      attention: "explicit",
+      notes: [
+        `drafted as dropped from old callers' requests because ${unpaired}. If it was renamed, write the move instead.`,
+      ],
+    },
+  };
 }
 
 /**

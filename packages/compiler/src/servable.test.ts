@@ -837,7 +837,11 @@ function unserved(change: Change, program: unknown): string[] {
       ? direction === (op.toward === "new" ? "request" : "response")
       : op.op === "widen"
         ? direction === "response"
-        : op.op !== "relax";
+        : // A field dropped with nothing to put back is only taken out of
+          // requests; old callers' responses were never promised it.
+          op.op === "remove" && op.restore === undefined
+          ? direction === "request"
+          : op.op !== "relax";
   };
   const dataOps = change.ops.filter(isDataOp);
   const parameterScoped = (change.scopes ?? []).some((scope) => "location" in scope);

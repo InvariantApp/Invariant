@@ -129,9 +129,7 @@ describe("a removed field with nothing added in its place", () => {
     const change = outcome.proposals.find((proposal) =>
       proposal.change.id.includes("legacy"),
     );
-    expect(change?.change.ops).toEqual([
-      { op: "remove", path: "/legacy", restore: null },
-    ]);
+    expect(change?.change.ops).toEqual([{ op: "remove", path: "/legacy" }]);
   });
 
   it("is left to a person where old callers were always given it", async () => {
@@ -139,6 +137,35 @@ describe("a removed field with nothing added in its place", () => {
     expect(
       outcome.proposals.some((proposal) => proposal.change.id.includes("thing_id")),
     ).toBe(false);
+    const decision = outcome.decisions.find((entry) => entry.field === "id");
+    expect(decision && decisionChange(decision).ops).toEqual([
+      { op: "remove", path: "/id", restore: CHOOSE_ONE },
+    ]);
+  });
+});
+
+describe("a removed field beside fields that were added", () => {
+  // PayPal's orders API dropped `payer.address.address_details` in the release
+  // that added other address fields. Whether one became another is the
+  // judge's question; when no judge will say, the drop is still drafted, for
+  // a person to confirm, rather than nothing at all.
+  it("is drafted as dropped from requests, for explicit review, and still asked about", async () => {
+    const outcome = await drafts({
+      ThingCreate: object({ name: { type: "string" }, colour: { type: "string" } }),
+    });
+    const draft = outcome.proposals.find((proposal) =>
+      proposal.change.id.includes("legacy"),
+    );
+    expect(draft?.change.ops).toEqual([{ op: "remove", path: "/legacy" }]);
+    expect(draft?.attention).toBe("explicit");
+    // Still an open question: it may be `colour`, renamed.
+    expect(outcome.unresolved.map((entry) => entry.field)).toContain("legacy");
+  });
+
+  it("is a decision where old callers' responses always carried it", async () => {
+    const outcome = await drafts({
+      Thing: object({ colour: { type: "string" } }, ["colour"]),
+    });
     const decision = outcome.decisions.find((entry) => entry.field === "id");
     expect(decision && decisionChange(decision).ops).toEqual([
       { op: "remove", path: "/id", restore: CHOOSE_ONE },
@@ -269,9 +296,7 @@ describe("nested fields", () => {
     const change = outcome.proposals.find((proposal) =>
       proposal.change.ops.some((op) => op.op === "remove"),
     );
-    expect(change?.change.ops).toEqual([
-      { op: "remove", path: "/shipping/legacy_code", restore: null },
-    ]);
+    expect(change?.change.ops).toEqual([{ op: "remove", path: "/shipping/legacy_code" }]);
   });
 
   it("are renamed where they sit, inside a list's items too", async () => {

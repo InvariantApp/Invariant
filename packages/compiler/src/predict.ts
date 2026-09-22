@@ -366,9 +366,45 @@ export function predictDocument(
             case "convert":
               schemaConvert(document, schema, op.path, op.codec);
               break;
-            case "remove":
+            case "remove": {
+              // Already gone through a part this schema shares: a schema
+              // built from another by `allOf` loses what that one lost, and
+              // both Changes say so. The old contract had it, so this is not
+              // a Change naming a field that never was.
+              const segments = parsePointer(op.path);
+              const oldSchema = (
+                (oldContract["components"] as JsonObject | undefined)?.["schemas"] as
+                  | JsonObject
+                  | undefined
+              )?.[name];
+              if (
+                navigate(document, schema, segments) === undefined &&
+                oldSchema !== undefined &&
+                navigate(oldContract, oldSchema, segments) !== undefined
+              ) {
+                break;
+              }
+              // Leaving it out of responses breaks an old caller who was
+              // promised it; only a value put back serves them.
+              if (
+                op.restore === undefined &&
+                oldSchema !== undefined &&
+                schemaDirections(oldContract, scope.schema).response &&
+                schemaRequiredAt(
+                  oldContract,
+                  structuredClone(oldSchema) as JsonObject,
+                  op.path,
+                )
+              ) {
+                issues.push({
+                  changeId: change.id,
+                  message: `remove ${op.path} has no restore, but old callers' responses always carried it: say what they are given in its place`,
+                });
+                break;
+              }
               schemaRemove(document, schema, op.path);
               break;
+            }
             case "add": {
               const site = oldSites[0];
               // By position first, so a renamed schema still lines up; then

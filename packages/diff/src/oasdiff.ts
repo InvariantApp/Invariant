@@ -9,6 +9,7 @@ import { ambiguousPaths, type OpenApiDocument } from "@invariant-app/contract";
 import { agreeingAllOf } from "./allof.ts";
 import { binaryFor } from "./binaries.ts";
 import { wholeSchemaRefs } from "./deep-refs.ts";
+import { equivalentForms } from "./equivalent-forms.ts";
 import { BREAKING_INFO_IDS } from "./policy.ts";
 import { OASDIFF_INSTALL, OASDIFF_VERSION, unusableVersion } from "./version.ts";
 
@@ -413,7 +414,7 @@ export async function diffOutcome(
     // References into the middle of a schema stop the differ loading the
     // second document of a pair at all, flattened or not.
     const readable = (document: OpenApiDocument) => {
-      const whole = wholeSchemaRefs(document);
+      const whole = wholeSchemaRefs(equivalentForms(document));
       return flatten ? agreeingAllOf(whole) : whole;
     };
     await Promise.all([

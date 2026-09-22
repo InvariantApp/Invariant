@@ -56,7 +56,7 @@ than a judgement call.
 | `move {from, to}` | relocate a value between pointers | the inverse move |
 | `convert {path, codec}` | apply the codec forward | apply it backward |
 | `add {path, value}` | insert `value` when the field is absent | delete the field |
-| `remove {path, restore}` | delete the field | set it to `restore` |
+| `remove {path, restore?}` | delete the field | set it to `restore`; without one, nothing |
 | `default {path, value, when, toward}` | toward the new contract, fill a missing or null value | toward the old contract, fill a missing or null value |
 | `dropNull {path, toward}` | toward the new contract, delete a null | toward the old contract, delete a null |
 | `widen {path, variant, show}` | nothing | show a union's new kind of object as its id, left out, or null |
@@ -64,6 +64,12 @@ than a judgement call.
 | `route {from, to}` | rewrite method and path | nothing; responses are keyed by the resolved operation |
 | `retire {endpoint}` | refuse with the provider's guidance | nothing |
 | `behavior {flag, covers?}` | nothing | nothing |
+
+`remove` without a `restore` leaves the field out of old callers' responses,
+which is only right where they were never promised it: a field only requests
+carry, or one their contract made optional. The compiler refuses it on a
+response field their contract required, because only a value put back serves
+them there.
 
 `relax` states how a value's bounds moved: a maximum raised, a pattern or
 format dropped, and, on a response, values an enum no longer holds. Nothing is

@@ -291,6 +291,8 @@ export function backwardInstrs(
       // The old contract never had this field, so it must not appear.
       return [{ k: "del", path: prefixed(prefix, op.path), c: changeId }];
     case "remove":
+      // Nothing to put back: old callers were never promised it.
+      if (op.restore === undefined) return [];
       return [
         {
           k: "set",

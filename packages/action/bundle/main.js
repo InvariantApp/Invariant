@@ -3138,10 +3138,10 @@ const AddOp = Type$1.Object({
 const RemoveOp = Type$1.Object({
 	op: Type$1.Literal("remove"),
 	path: Pointer$1,
-	restore: Type$1.Unknown()
+	restore: Type$1.Optional(Type$1.Unknown())
 }, {
 	additionalProperties: false,
-	description: "A field the target contract dropped. Forward deletes it; backward restores `restore`."
+	description: "A field the target contract dropped. Forward deletes it; backward restores `restore`. Without `restore`, backward leaves it out, which is only right where old callers were never promised it: a request field, or a response field their contract made optional."
 });
 const DefaultOp = Type$1.Object({
 	op: Type$1.Literal("default"),
@@ -16779,13 +16779,15 @@ function backwardInstrs(op, prefix, changeId, variants = NO_VARIANTS) {
 			path: prefixed(prefix, op.path),
 			c: changeId
 		}];
-		case "remove": return [{
-			k: "set",
-			path: prefixed(prefix, op.path),
-			value: op.restore,
-			ifAbsent: false,
-			c: changeId
-		}];
+		case "remove":
+			if (op.restore === void 0) return [];
+			return [{
+				k: "set",
+				path: prefixed(prefix, op.path),
+				value: op.restore,
+				ifAbsent: false,
+				c: changeId
+			}];
 		case "default": return op.toward === "old" ? [fill(op, prefix, changeId)] : [];
 		case "dropNull": return op.toward === "old" ? [dropNull(op, prefix, changeId)] : [];
 		case "relax": return [];
@@ -16893,7 +16895,7 @@ function movedTo(change, field) {
 * wire, read from its declaration: the old contract's for decoding what an old
 * caller sends, the current one's for encoding what the provider receives.
 */
-const SCALARS$1 = /* @__PURE__ */ new Set([
+const SCALARS$2 = /* @__PURE__ */ new Set([
 	"string",
 	"integer",
 	"number",
@@ -17010,7 +17012,7 @@ function codecOf(document, parameter) {
 	if (type === "array" && isJsonObject(schema)) {
 		const item = resolveSchema(document, schema["items"] ?? {});
 		const itemType = isJsonObject(item) ? item["type"] : void 0;
-		if (typeof itemType === "string" && SCALARS$1.has(itemType)) items = itemType;
+		if (typeof itemType === "string" && SCALARS$2.has(itemType)) items = itemType;
 	}
 	return {
 		in: location,
@@ -18904,7 +18906,7 @@ function decodeIdentity(raw) {
 		}
 	});
 }
-const SCALARS = /* @__PURE__ */ new Set([
+const SCALARS$1 = /* @__PURE__ */ new Set([
 	"string",
 	"integer",
 	"number",
@@ -19143,7 +19145,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 				"c"
 			], where);
 			const to = string$1(value["to"], `${where}.to`);
-			if (!SCALARS.has(to)) throw new ProgramError(`${where}.to is not a scalar type`);
+			if (!SCALARS$1.has(to)) throw new ProgramError(`${where}.to is not a scalar type`);
 			return {
 				k: "cast",
 				path: segmentsOf$1(string$1(value["path"], `${where}.path`), `${where}.path`),
@@ -19407,7 +19409,7 @@ function decodeCodec(raw, where) {
 	if (type === "object" && explode && style === "form") throw new ProgramError(`${where} is an exploded form object, which is not served`);
 	if (style === "deepObject" && type !== "object") throw new ProgramError(`${where} is a deepObject that is not an object`);
 	const items = value["items"];
-	if (items !== void 0 && (type !== "array" || !SCALARS.has(items))) throw new ProgramError(`${where}.items must be a scalar type, on an array`);
+	if (items !== void 0 && (type !== "array" || !SCALARS$1.has(items))) throw new ProgramError(`${where}.items must be a scalar type, on an array`);
 	return {
 		in: location,
 		name,
@@ -21543,6 +21545,7 @@ function applyResponseScope(document, oldContract, newContract, routes, scope, o
 				schemaConvert(document, root, op.path, op.codec);
 				break;
 			case "remove":
+				if (op.restore === void 0 && schemaRequiredAt(document, root, op.path)) throw new SchemaOpError(`${op.path} has no restore, but old callers' ${scope.response} responses always carried it: say what they are given in its place`);
 				schemaRemove(document, root, op.path);
 				break;
 			case "add": {
@@ -21768,9 +21771,20 @@ function predictDocument(oldContract, newContract, changes) {
 					case "convert":
 						schemaConvert(document, schema, op.path, op.codec);
 						break;
-					case "remove":
+					case "remove": {
+						const segments = parsePointer(op.path);
+						const oldSchema = (oldContract["components"]?.["schemas"])?.[name];
+						if (navigate(document, schema, segments) === void 0 && oldSchema !== void 0 && navigate(oldContract, oldSchema, segments) !== void 0) break;
+						if (op.restore === void 0 && oldSchema !== void 0 && schemaDirections(oldContract, scope.schema).response && schemaRequiredAt(oldContract, structuredClone(oldSchema), op.path)) {
+							issues.push({
+								changeId: change.id,
+								message: `remove ${op.path} has no restore, but old callers' responses always carried it: say what they are given in its place`
+							});
+							break;
+						}
 						schemaRemove(document, schema, op.path);
 						break;
+					}
 					case "add": {
 						const site = oldSites[0];
 						const resolved = (site ? shapeFromNewContract(newContract, routes, site, op.path) : void 0) ?? shapeByName(newContract, name, op.path);
@@ -23984,6 +23998,97 @@ function wholeSchemaRefs(input) {
 	return document;
 }
 //#endregion
+//#region ../diff/src/equivalent-forms.ts
+/** Keywords whose value is data, not a schema: nothing under them is rewritten. */
+const DATA = /* @__PURE__ */ new Set([
+	"example",
+	"examples",
+	"default",
+	"enum",
+	"const",
+	"x-examples"
+]);
+/** Keywords whose value maps names to schemas: the map itself is not a schema. */
+const MAPS = /* @__PURE__ */ new Set([
+	"properties",
+	"patternProperties",
+	"schemas",
+	"definitions",
+	"$defs",
+	"dependentSchemas"
+]);
+/** Keywords that make a schema more than a single value. */
+const STRUCTURE = [
+	"$ref",
+	"properties",
+	"patternProperties",
+	"additionalProperties",
+	"items",
+	"prefixItems",
+	"allOf",
+	"anyOf",
+	"oneOf",
+	"not",
+	"if",
+	"then",
+	"else",
+	"discriminator"
+];
+const SCALARS = /* @__PURE__ */ new Set([
+	"string",
+	"integer",
+	"number",
+	"boolean",
+	"null"
+]);
+const SCHEMA_REF = "#/components/schemas/";
+function isScalarSchema(schema) {
+	if (STRUCTURE.some((keyword) => keyword in schema)) return false;
+	const type = schema["type"];
+	const types = Array.isArray(type) ? type : type === void 0 ? [] : [type];
+	if (types.length === 0) return Array.isArray(schema["enum"]) || "const" in schema;
+	return types.every((entry) => typeof entry === "string" && SCALARS.has(entry));
+}
+/** `const: x` as `enum: [x]`, in place. */
+function constAsEnum(schema) {
+	if (!("const" in schema) || "enum" in schema) return;
+	schema["enum"] = [schema["const"]];
+	delete schema["const"];
+}
+function equivalentForms(document) {
+	const copy = structuredClone(document);
+	const components = isJsonObject(copy["components"]) ? copy["components"] : void 0;
+	const schemas = components && isJsonObject(components["schemas"]) ? components["schemas"] : {};
+	const inlinable = /* @__PURE__ */ new Map();
+	for (const [name, schema] of Object.entries(schemas)) {
+		if (!isJsonObject(schema) || !isScalarSchema(schema)) continue;
+		const form = structuredClone(schema);
+		constAsEnum(form);
+		delete form["title"];
+		const pointer = name.replaceAll("~", "~0").replaceAll("/", "~1");
+		inlinable.set(`${SCHEMA_REF}${pointer}`, form);
+		inlinable.set(`${SCHEMA_REF}${encodeURIComponent(pointer)}`, form);
+	}
+	const visit = (node, isMap) => {
+		if (Array.isArray(node)) return node.map((entry) => visit(entry, false));
+		if (!isJsonObject(node)) return node;
+		if (!isMap) {
+			const ref = node["$ref"];
+			if (typeof ref === "string" && Object.keys(node).length === 1) {
+				const target = inlinable.get(ref);
+				if (target) return structuredClone(target);
+			}
+			constAsEnum(node);
+		}
+		for (const [key, value] of Object.entries(node)) {
+			if (!isMap && (DATA.has(key) || key.startsWith("x-"))) continue;
+			node[key] = visit(value, !isMap && MAPS.has(key));
+		}
+		return node;
+	};
+	return visit(copy, false);
+}
+//#endregion
 //#region ../diff/src/oasdiff.ts
 const run$2 = promisify(execFile);
 var OasdiffError = class extends Error {
@@ -24180,7 +24285,7 @@ async function diffOutcome(base, revision, options = {}) {
 		const requested = options.mode ?? "changelog";
 		const flatten = options.flattenAllOf !== false;
 		const readable = (document) => {
-			const whole = wholeSchemaRefs(document);
+			const whole = wholeSchemaRefs(equivalentForms(document));
 			return flatten ? agreeingAllOf(whole) : whole;
 		};
 		await Promise.all([writeFile(baseFile, JSON.stringify(readable(base))), writeFile(revisionFile, JSON.stringify(readable(revision)))]);
