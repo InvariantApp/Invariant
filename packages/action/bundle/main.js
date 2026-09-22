@@ -12880,8 +12880,82 @@ function responsesFromRequestBodies(input) {
 	}
 	return document;
 }
+/** Keywords a branch of a union of constants may carry beside its one value. */
+const CONSTANT_BRANCH_KEYS = /* @__PURE__ */ new Set([
+	"type",
+	"enum",
+	"const",
+	"description",
+	"title"
+]);
+/** Keywords that may sit beside such a union without changing what it means. */
+const CONSTANT_UNION_SIBLINGS = /* @__PURE__ */ new Set([
+	"oneOf",
+	"anyOf",
+	"description",
+	"title",
+	"default",
+	"example",
+	"examples",
+	"deprecated",
+	"readOnly",
+	"writeOnly"
+]);
+/**
+* A union of constants, written as the enum it is.
+*
+* Generators document an enum's values by writing each as its own branch:
+* Qdrant's `Memory` was `oneOf` three strings, `cold`, `cached` and `pinned`,
+* each with a description, and the next release wrote the same three as one
+* `enum`. The two mean the same thing, and the differ does not see it: it
+* reported `cached` as a value added in every one of the 222 places the schema
+* is used. Only unions whose every branch is one or more values of the same
+* scalar type are taken, so nothing is rewritten that means anything else.
+* The input is not changed; a copy is, and only when there is something to
+* change.
+*/
+function constantUnionsAsEnums(input) {
+	let changed = false;
+	const visit = (value) => {
+		if (Array.isArray(value)) return value.map(visit);
+		if (!isJsonObject(value)) return value;
+		const out = {};
+		for (const [key, entry] of Object.entries(value)) out[key] = visit(entry);
+		for (const union of ["oneOf", "anyOf"]) {
+			const branches = out[union];
+			if (!Array.isArray(branches) || branches.length < 2) continue;
+			if (Object.keys(out).some((key) => !CONSTANT_UNION_SIBLINGS.has(key))) continue;
+			if (out["oneOf"] !== void 0 && out["anyOf"] !== void 0) continue;
+			let type;
+			const values = [];
+			if (!branches.every((branch) => {
+				if (!isJsonObject(branch)) return false;
+				if (Object.keys(branch).some((key) => !CONSTANT_BRANCH_KEYS.has(key))) return false;
+				if (![
+					"string",
+					"integer",
+					"number",
+					"boolean"
+				].includes(branch["type"])) return false;
+				if (type !== void 0 && branch["type"] !== type) return false;
+				type = branch["type"];
+				const own = Array.isArray(branch["enum"]) ? branch["enum"] : branch["const"] !== void 0 ? [branch["const"]] : void 0;
+				if (!own || own.length === 0 || own.some((entry) => typeof entry === "object")) return false;
+				values.push(...own);
+				return true;
+			}) || new Set(values.map((entry) => JSON.stringify(entry))).size !== values.length) continue;
+			delete out[union];
+			out["type"] = type;
+			out["enum"] = values;
+			changed = true;
+		}
+		return out;
+	};
+	const rewritten = visit(input);
+	return changed ? rewritten : input;
+}
 function normalizeDocument(input) {
-	const document = responsesFromRequestBodies(isSwagger2(input) ? upgradeSwagger(input) : input);
+	const document = constantUnionsAsEnums(responsesFromRequestBodies(isSwagger2(input) ? upgradeSwagger(input) : input));
 	assertRefsResolve(document);
 	assertSchemasWellFormed(document);
 	const version = document["openapi"];
@@ -15201,8 +15275,8 @@ function applyMove(root, instr, limits) {
 	}
 	return moved;
 }
-function applyScale(root, instr, limits) {
-	const slots = resolveSlots(root, instr.path, limits.maxMatches);
+function applyScale(root, instr, limits, here) {
+	const slots = slotsAt(root, instr.path, limits, here);
 	let scaled = 0;
 	for (const slot of slots) {
 		const value = readSlot$1(slot);
@@ -15220,9 +15294,9 @@ function applyScale(root, instr, limits) {
 	}
 	return scaled;
 }
-function applyEnum(root, instr, limits, folded) {
+function applyEnum(root, instr, limits, here, folded) {
 	const folds = instr.folded === void 0 ? void 0 : new Set(instr.folded);
-	const slots = resolveSlots(root, instr.path, limits.maxMatches);
+	const slots = slotsAt(root, instr.path, limits, here);
 	let mapped = 0;
 	for (const slot of slots) {
 		const value = readSlot$1(slot);
@@ -15265,10 +15339,10 @@ const LEAVE_OUT = Symbol("leave out");
 * null passes through, as it does for every codec: a nullable field stays
 * nullable on both sides.
 */
-function applyEach(root, instr, limits, convert) {
+function applyEach(root, instr, limits, here, convert) {
 	let done = 0;
 	const removals = [];
-	for (const slot of resolveSlots(root, instr.path, limits.maxMatches)) {
+	for (const slot of slotsAt(root, instr.path, limits, here)) {
 		const value = readSlot$1(slot);
 		if (value === null) continue;
 		let converted;
@@ -15291,8 +15365,8 @@ function unwrapped(value, first) {
 	if (value.length !== 1) throw new CodecRefusal(`the list holds ${value.length} items, and only one can be shown`);
 	return value[0];
 }
-function applyCast$1(root, instr, limits) {
-	const slots = resolveSlots(root, instr.path, limits.maxMatches);
+function applyCast$1(root, instr, limits, here) {
+	const slots = slotsAt(root, instr.path, limits, here);
 	let cast = 0;
 	for (const slot of slots) {
 		const value = readSlot$1(slot);
@@ -15375,6 +15449,19 @@ function execute(root, program, limits = DEFAULT_LIMITS) {
 	}
 	return result;
 }
+/**
+* The places an instruction's path names. An empty path names the value a
+* `within` descended to, which a value such as a nullable enum can be: the
+* instruction rewrites it where it is held.
+*/
+function slotsAt(root, path, limits, here) {
+	if (path.length === 0) return here ? [here.slot] : [];
+	return resolveSlots(root, path, limits.maxMatches);
+}
+/** The value a block runs on, as it reads now, after what earlier instructions wrote. */
+function current(root, here) {
+	return here ? readSlot$1(here.slot) : root;
+}
 function hereFor(instr, here) {
 	if (!here) throw new TransformError(instr.c, "An instruction cannot replace a whole body");
 	return here;
@@ -15399,25 +15486,25 @@ function step(root, instr, limits, result, calls, here) {
 			countApplied(result, instr.c, applyMove(root, instr, limits));
 			break;
 		case "scale":
-			countApplied(result, instr.c, applyScale(root, instr, limits));
+			countApplied(result, instr.c, applyScale(root, instr, limits, here));
 			break;
 		case "enum":
-			countApplied(result, instr.c, applyEnum(root, instr, limits, result.folded));
+			countApplied(result, instr.c, applyEnum(root, instr, limits, here, result.folded));
 			break;
 		case "cast":
-			countApplied(result, instr.c, applyCast$1(root, instr, limits));
+			countApplied(result, instr.c, applyCast$1(root, instr, limits, here));
 			break;
 		case "time":
-			countApplied(result, instr.c, applyEach(root, instr, limits, (value) => convertTime(value, instr.from, instr.to, instr.truncate === true)));
+			countApplied(result, instr.c, applyEach(root, instr, limits, here, (value) => convertTime(value, instr.from, instr.to, instr.truncate === true)));
 			break;
 		case "case":
-			countApplied(result, instr.c, applyEach(root, instr, limits, (value) => convertCase(value, instr.from, instr.to)));
+			countApplied(result, instr.c, applyEach(root, instr, limits, here, (value) => convertCase(value, instr.from, instr.to)));
 			break;
 		case "wrap":
-			countApplied(result, instr.c, applyEach(root, instr, limits, (value) => [value]));
+			countApplied(result, instr.c, applyEach(root, instr, limits, here, (value) => [value]));
 			break;
 		case "unwrap":
-			countApplied(result, instr.c, applyEach(root, instr, limits, (value) => unwrapped(value, instr.first === true)));
+			countApplied(result, instr.c, applyEach(root, instr, limits, here, (value) => unwrapped(value, instr.first === true)));
 			break;
 		case "set":
 			if (instr.path.length === 0) {
@@ -15438,23 +15525,19 @@ function step(root, instr, limits, result, calls, here) {
 			break;
 		case "within": {
 			if (instr.path.length === 0) {
-				if (typeof root === "object" && root !== null && !JSON.isRawJSON(root)) run(root, instr.block);
+				if (here || typeof root === "object" && root !== null && !JSON.isRawJSON(root)) run(root, instr.block);
 				break;
 			}
 			const removals = [];
-			for (const slot of resolveSlots(root, instr.path, limits.maxMatches)) {
-				const node = readSlot$1(slot);
-				if (typeof node !== "object" || node === null || JSON.isRawJSON(node)) continue;
-				run(node, instr.block, calls, {
-					slot,
-					removals
-				});
-			}
+			for (const slot of resolveSlots(root, instr.path, limits.maxMatches)) run(readSlot$1(slot), instr.block, calls, {
+				slot,
+				removals
+			});
 			for (const slot of removals.reverse()) deleteSlot$1(slot);
 			break;
 		}
 		case "switch": {
-			const value = instr.path.length === 0 ? root : readOne(root, instr.path, limits.maxMatches);
+			const value = instr.path.length === 0 ? current(root, here) : readOne(root, instr.path, limits.maxMatches);
 			const key = typeof value === "string" ? value : typeof value === "boolean" ? String(value) : isNumberLike(value) ? numberTextOf(value) : void 0;
 			run(root, (key === void 0 ? void 0 : instr.cases.get(key)) ?? []);
 			break;
@@ -15464,7 +15547,7 @@ function step(root, instr, limits, result, calls, here) {
 			run(root, instr.block);
 			break;
 		case "is": {
-			const value = instr.path.length === 0 ? root : readOne(root, instr.path, limits.maxMatches);
+			const value = instr.path.length === 0 ? current(root, here) : readOne(root, instr.path, limits.maxMatches);
 			if (value !== void 0 && kindOf$1(value) === instr.type) run(root, instr.block);
 			break;
 		}
@@ -18383,6 +18466,14 @@ function applyCodecToSchema(schema, codec) {
 */
 function schemaConvert(document, root, path, codec) {
 	const segments = parsePointer(path);
+	if (segments.length === 0) {
+		if (codec.kind === "wrapArray") throw new SchemaOpError("Cannot wrap the scope itself in a list; wrap a field of it");
+		const own = ownRoot(document, root);
+		const converted = applyCodecToSchema(resolveSchema(document, own), codec);
+		for (const key of Object.keys(own)) delete own[key];
+		Object.assign(own, isJsonObject(converted) ? converted : {});
+		return;
+	}
 	const slot = readSlot(document, root, segments);
 	writeSlot(document, root, segments, codec.kind === "wrapArray" ? applyWrapArray(isJsonObject(slot.schema) ? slot.schema : {}) : applyCodecToSchema(resolveSchema(document, slot.schema), codec), slot.required);
 }
@@ -36799,13 +36890,30 @@ function escapeProperty(text) {
 	return escapeData(text).replaceAll(":", "%3A").replaceAll(",", "%2C");
 }
 /**
-* Annotations on the specification file, so the reason a pull request is
-* blocked appears in the diff view beside the file that caused it.
+* The line an operation's path is declared on, for a delta described as
+* `<check> at <METHOD> <path>: ...`, so its annotation sits beside the
+* operation in the diff rather than at the top of the file. JSON and YAML
+* both write a path as a key at the start of its line.
 */
-function annotations(report, spec) {
-	const at = (level, title, message) => `::${level} file=${escapeProperty(spec)},title=${escapeProperty(title)}::${escapeData(message)}`;
+function lineOfOperation(specText, entry) {
+	const path = /^\S+ at \S+ (\S+):/.exec(entry)?.[1];
+	if (!path) return void 0;
+	const keys = [
+		`"${path}":`,
+		`'${path}':`,
+		`${path}:`
+	];
+	const index = specText.split("\n").findIndex((line) => keys.some((key) => line.trimStart().startsWith(key)));
+	return index === -1 ? void 0 : index + 1;
+}
+/**
+* Annotations on the specification file, so the reason a pull request is
+* blocked appears in the diff view beside the operation that caused it.
+*/
+function annotations(report, spec, specText) {
+	const at = (level, title, message, line) => `::${level} file=${escapeProperty(spec)}${line === void 0 ? "" : `,line=${line}`},title=${escapeProperty(title)}::${escapeData(message)}`;
 	return [
-		...report.steps.flatMap((step) => step.unexplained.map((entry) => at("error", "Breaking change nothing explains", entry))),
+		...report.steps.flatMap((step) => step.unexplained.map((entry) => at("error", "Breaking change nothing explains", entry, lineOfOperation(specText, entry)))),
 		...report.unservable.map((entry) => at("error", "Change the adapter cannot serve", entry)),
 		...report.policy.map((entry) => at("error", "Refused by invariant.yaml", entry)),
 		...report.problems.map((entry) => at("error", "Verification found a problem", entry)),
@@ -36820,7 +36928,8 @@ async function runAction(env, options = {}) {
 	const config = await loadConfig(resolve(workspace, input(env, "config", "invariant.yaml")));
 	const report = await check(config, { full: input(env, "full", "false") === "true" });
 	const comment = renderComment(report);
-	for (const line of annotations(report, relative(workspace, config.currentSpec))) log(line);
+	const specText = await readFile(config.currentSpec, "utf8").catch(() => "");
+	for (const line of annotations(report, relative(workspace, config.currentSpec), specText)) log(line);
 	const outputFile = env["RUNNER_TEMP"] ? join(env["RUNNER_TEMP"], "invariant-report.md") : join(workspace, "invariant-report.md");
 	await mkdir(resolve(outputFile, ".."), { recursive: true });
 	await writeFile(outputFile, comment, "utf8");

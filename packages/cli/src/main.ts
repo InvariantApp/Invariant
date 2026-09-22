@@ -19,6 +19,7 @@ import { type InitOptions, init, renderInit } from "./init.ts";
 import { renderProposals, runPropose } from "./propose.ts";
 import { rebuildAt, release, renderRelease, verifyRelease } from "./release.ts";
 import { assessRetirement, renderRetirement, retireContracts } from "./retire.ts";
+import { upsertReviewComment } from "./review.ts";
 import { readLedger } from "./usage.ts";
 import { watchChecks } from "./watch.ts";
 
@@ -58,6 +59,8 @@ Options
   --usage <path>    check, retire: the usage ledger the runtime's counters wrote
   --format <f>      check: markdown for a pull request comment, json for a machine
   --watch           check: check again whenever a file under the configuration changes
+  --comment         check: write the report on the GitLab merge request or
+                    Bitbucket pull request this pipeline is for
   --write           propose: write the drafts into invariant/changes
   --offline         propose: deterministic rules only, no model calls
   --context <text>  propose: notes about this release, weighed as evidence
@@ -136,6 +139,18 @@ async function main(argv: string[]): Promise<number> {
             ? reportJson(report)
             : `${renderReport(report)}\n`,
       );
+      if (argv.includes("--comment")) {
+        // Never changes the verdict: a comment that could not be written is
+        // said so, and the exit code still decides.
+        const outcome = await upsertReviewComment(renderComment(report));
+        process.stderr.write(
+          outcome.host === undefined
+            ? `no comment written: ${outcome.reason}\n`
+            : outcome.comment === "not-permitted"
+              ? `no comment written: the ${outcome.host} token may not write on this review\n`
+              : `${outcome.comment} the ${outcome.host} comment\n`,
+        );
+      }
       return report.result === "block" ? 1 : 0;
     };
     if (!argv.includes("--watch")) return once();

@@ -70,7 +70,11 @@ async function brokenPullRequest(): Promise<{ workspace: string; env: Env }> {
     document.components.schemas.Payment.required.filter(
       (name: string) => name !== "currency",
     );
-  await writeFile(join(workspace, "api/openapi.json"), JSON.stringify(document), "utf8");
+  await writeFile(
+    join(workspace, "api/openapi.json"),
+    JSON.stringify(document, null, 2),
+    "utf8",
+  );
 
   const event = join(runner, "event.json");
   await writeFile(event, JSON.stringify({ pull_request: { number: 42 } }), "utf8");
@@ -95,7 +99,7 @@ async function brokenPullRequest(): Promise<{ workspace: string; env: Env }> {
 
 describe.skipIf(!hasOasdiff)("the GitHub Action", () => {
   it("blocks the pull request and says why, in every place a reviewer looks", async () => {
-    const { env } = await brokenPullRequest();
+    const { env, workspace } = await brokenPullRequest();
     const { send, calls } = github([]);
     const lines: string[] = [];
 
@@ -113,10 +117,17 @@ describe.skipIf(!hasOasdiff)("the GitHub Action", () => {
     expect(body).toContain("## Not safe to merge");
     expect(body).toContain("currency");
 
-    // Beside the file that caused it, in the pull request's diff view.
-    expect(lines.some((line) => line.startsWith("::error file=api/openapi.json,"))).toBe(
-      true,
+    // Beside the operation that caused it, in the pull request's diff view.
+    const written = await readFile(join(workspace, "api/openapi.json"), "utf8");
+    const annotated = lines.filter((line) =>
+      line.startsWith("::error file=api/openapi.json,"),
     );
+    expect(annotated.length).toBeGreaterThan(0);
+    for (const line of annotated.filter((entry) => entry.includes("line="))) {
+      const at = Number(/line=(\d+)/.exec(line)?.[1]);
+      expect(written.split("\n")[at - 1]).toMatch(/^\s*"\/v1\//);
+    }
+    expect(annotated.some((line) => line.includes("line="))).toBe(true);
 
     expect(await readFile(env["GITHUB_OUTPUT"] as string, "utf8")).toContain(
       "result=block",

@@ -136,16 +136,42 @@ function escapeProperty(text: string): string {
 }
 
 /**
- * Annotations on the specification file, so the reason a pull request is
- * blocked appears in the diff view beside the file that caused it.
+ * The line an operation's path is declared on, for a delta described as
+ * `<check> at <METHOD> <path>: ...`, so its annotation sits beside the
+ * operation in the diff rather than at the top of the file. JSON and YAML
+ * both write a path as a key at the start of its line.
  */
-function annotations(report: CheckReport, spec: string): string[] {
-  const at = (level: "error" | "warning", title: string, message: string): string =>
-    `::${level} file=${escapeProperty(spec)},title=${escapeProperty(title)}::${escapeData(message)}`;
+export function lineOfOperation(specText: string, entry: string): number | undefined {
+  const path = /^\S+ at \S+ (\S+):/.exec(entry)?.[1];
+  if (!path) return undefined;
+  const keys = [`"${path}":`, `'${path}':`, `${path}:`];
+  const index = specText
+    .split("\n")
+    .findIndex((line) => keys.some((key) => line.trimStart().startsWith(key)));
+  return index === -1 ? undefined : index + 1;
+}
+
+/**
+ * Annotations on the specification file, so the reason a pull request is
+ * blocked appears in the diff view beside the operation that caused it.
+ */
+function annotations(report: CheckReport, spec: string, specText: string): string[] {
+  const at = (
+    level: "error" | "warning",
+    title: string,
+    message: string,
+    line?: number,
+  ): string =>
+    `::${level} file=${escapeProperty(spec)}${line === undefined ? "" : `,line=${line}`},title=${escapeProperty(title)}::${escapeData(message)}`;
   return [
     ...report.steps.flatMap((step) =>
       step.unexplained.map((entry) =>
-        at("error", "Breaking change nothing explains", entry),
+        at(
+          "error",
+          "Breaking change nothing explains",
+          entry,
+          lineOfOperation(specText, entry),
+        ),
       ),
     ),
     ...report.unservable.map((entry) =>
@@ -175,7 +201,12 @@ export async function runAction(
   });
   const comment = renderComment(report);
 
-  for (const line of annotations(report, relative(workspace, config.currentSpec)))
+  const specText = await readFile(config.currentSpec, "utf8").catch(() => "");
+  for (const line of annotations(
+    report,
+    relative(workspace, config.currentSpec),
+    specText,
+  ))
     log(line);
 
   const outputFile = env["RUNNER_TEMP"]

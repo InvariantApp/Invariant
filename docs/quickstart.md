@@ -192,6 +192,31 @@ behaviour changed under an unchanged shape.
 
 Locally, the same thing is `invariant check --full`.
 
+On GitLab or Bitbucket, run the CLI in the pipeline and add `--comment`. It
+writes the same report on the merge request, once, and edits it on every push.
+Neither host's job token may write a comment, so give it a token of your own:
+
+```yaml
+# .gitlab-ci.yml, with a project access token (api scope) in INVARIANT_GITLAB_TOKEN
+invariant:
+  image: node:24
+  rules: [{ if: $CI_PIPELINE_SOURCE == "merge_request_event" }]
+  script: npx @invariant/cli check --full --comment
+```
+
+```yaml
+# bitbucket-pipelines.yml, with a repository access token in INVARIANT_BITBUCKET_TOKEN
+pipelines:
+  pull-requests:
+    "**":
+      - step:
+          image: node:24
+          script: [npx @invariant/cli check --full --comment]
+```
+
+A comment that cannot be written is said so in the log. It never changes the
+verdict, which is the job's exit code.
+
 ---
 
 ## 3. Write the Change, or let it be drafted
