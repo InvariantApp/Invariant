@@ -35,7 +35,6 @@
     "@arethetypeswrong/cli": "0.18.5",
     "@biomejs/biome": "2.5.14",
     "@changesets/cli": "3.0.3",
-    "@electric-sql/pglite": "^0.5.8",
     "@fixtures/provider-acme": "workspace:*",
     "@hono/node-server": "^2.1.1",
     "@invariant/bundle": "workspace:*",

@@ -29,7 +29,9 @@ import Fastify from "fastify";
 import Fastify4 from "fastify4";
 import Koa from "koa";
 import "reflect-metadata";
-import * as Nest from "@nestjs/common";
+import * as Nest10 from "@fixtures/nest10";
+import * as Nest11 from "@fixtures/nest11";
+import * as NestCommon from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { adaptListener, adaptMiddleware, type Listener } from "./index.ts";
@@ -137,6 +139,69 @@ const listen = async (server: Server) => {
   return server;
 };
 
+/**
+ * A Nest application on the suite's routes, for whichever major version the
+ * modules passed in are.
+ */
+async function nestWith(
+  Nest: typeof NestCommon,
+  Factory: typeof NestFactory,
+  runtime: InvariantRuntime,
+): Promise<Server> {
+  // Nest's decorators applied as the functions they are, so the suite does
+  // not depend on how the compiler handles decorator syntax.
+  class Payments {
+    create(
+      body: Record<string, unknown>,
+      response: { status: (code: number) => unknown },
+    ) {
+      const out = HANDLERS.create(body);
+      response.status(out.status);
+      return out.body;
+    }
+    read(
+      ifNoneMatch: string | undefined,
+      response: {
+        status: (code: number) => {
+          set: (
+            name: string,
+            value: string,
+          ) => { end: () => void; json: (body: unknown) => void };
+        };
+      },
+    ) {
+      const out = HANDLERS.read(ifNoneMatch);
+      const reply = response.status(out.status).set("etag", out.etag);
+      if (out.status === 304) reply.end();
+      else reply.json(out.body);
+    }
+    csv(response: { type: (type: string) => { send: (body: string) => void } }) {
+      response.type("text/csv").send(HANDLERS.csv());
+    }
+  }
+  const method = (name: keyof Payments) =>
+    Object.getOwnPropertyDescriptor(Payments.prototype, name) as PropertyDescriptor;
+  Nest.Controller("v1")(Payments);
+  Nest.Post("payments")(Payments.prototype, "create", method("create"));
+  Nest.Body()(Payments.prototype, "create", 0);
+  Nest.Res({ passthrough: true })(Payments.prototype, "create", 1);
+  Nest.Get("payments/:id")(Payments.prototype, "read", method("read"));
+  Nest.Headers("if-none-match")(Payments.prototype, "read", 0);
+  Nest.Res()(Payments.prototype, "read", 1);
+  Nest.Get("export")(Payments.prototype, "csv", method("csv"));
+  Nest.Res()(Payments.prototype, "csv", 0);
+  class AppModule {}
+  Nest.Module({ controllers: [Payments] })(AppModule);
+
+  const app = await Factory.create(AppModule, { logger: false });
+  (
+    app.getHttpAdapter().getInstance() as { set: (key: string, value: unknown) => void }
+  ).set("etag", false);
+  await app.init();
+  const listener = app.getHttpAdapter().getInstance() as Listener;
+  return listen(createServer(adaptListener(listener, { runtime })));
+}
+
 const FRAMEWORKS: Record<string, Build> = {
   "node:http": async (runtime) => {
     const app: Listener = (request, response) => {
@@ -215,60 +280,19 @@ const FRAMEWORKS: Record<string, Build> = {
     });
     return listen(createServer(adaptListener(app as unknown as Listener, { runtime })));
   },
-  "nestjs 12": async (runtime) => {
-    // Nest's decorators applied as the functions they are, so the suite does
-    // not depend on how the compiler handles decorator syntax.
-    class Payments {
-      create(
-        body: Record<string, unknown>,
-        response: { status: (code: number) => unknown },
-      ) {
-        const out = HANDLERS.create(body);
-        response.status(out.status);
-        return out.body;
-      }
-      read(
-        ifNoneMatch: string | undefined,
-        response: {
-          status: (code: number) => {
-            set: (
-              name: string,
-              value: string,
-            ) => { end: () => void; json: (body: unknown) => void };
-          };
-        },
-      ) {
-        const out = HANDLERS.read(ifNoneMatch);
-        const reply = response.status(out.status).set("etag", out.etag);
-        if (out.status === 304) reply.end();
-        else reply.json(out.body);
-      }
-      csv(response: { type: (type: string) => { send: (body: string) => void } }) {
-        response.type("text/csv").send(HANDLERS.csv());
-      }
-    }
-    const method = (name: keyof Payments) =>
-      Object.getOwnPropertyDescriptor(Payments.prototype, name) as PropertyDescriptor;
-    Nest.Controller("v1")(Payments);
-    Nest.Post("payments")(Payments.prototype, "create", method("create"));
-    Nest.Body()(Payments.prototype, "create", 0);
-    Nest.Res({ passthrough: true })(Payments.prototype, "create", 1);
-    Nest.Get("payments/:id")(Payments.prototype, "read", method("read"));
-    Nest.Headers("if-none-match")(Payments.prototype, "read", 0);
-    Nest.Res()(Payments.prototype, "read", 1);
-    Nest.Get("export")(Payments.prototype, "csv", method("csv"));
-    Nest.Res()(Payments.prototype, "csv", 0);
-    class AppModule {}
-    Nest.Module({ controllers: [Payments] })(AppModule);
-
-    const app = await NestFactory.create(AppModule, { logger: false });
-    (
-      app.getHttpAdapter().getInstance() as { set: (key: string, value: unknown) => void }
-    ).set("etag", false);
-    await app.init();
-    const listener = app.getHttpAdapter().getInstance() as Listener;
-    return listen(createServer(adaptListener(listener, { runtime })));
-  },
+  "nestjs 12": (runtime) => nestWith(NestCommon, NestFactory, runtime),
+  "nestjs 11": (runtime) =>
+    nestWith(
+      Nest11.Nest as unknown as typeof NestCommon,
+      Nest11.NestFactory as unknown as typeof NestFactory,
+      runtime,
+    ),
+  "nestjs 10": (runtime) =>
+    nestWith(
+      Nest10.Nest as unknown as typeof NestCommon,
+      Nest10.NestFactory as unknown as typeof NestFactory,
+      runtime,
+    ),
   koa: async (runtime) => {
     const app = new Koa();
     app.use(async (ctx) => {
@@ -299,6 +323,54 @@ const FRAMEWORKS: Record<string, Build> = {
 };
 
 /**
+ * A server in a process of its own, on the suite's program: it announces
+ * `listening <url>` on its stdout once it can be called.
+ */
+async function serverProcess(
+  command: string,
+  args: readonly string[],
+  cwd?: string,
+): Promise<Served> {
+  const child = spawn(command, args, {
+    ...(cwd ? { cwd } : {}),
+    stdio: ["ignore", "pipe", "inherit"],
+  });
+  const base = await new Promise<string>((resolve, reject) => {
+    child.once("exit", (code) => reject(new Error(`${command} exited with ${code}`)));
+    createInterface({ input: child.stdout }).on("line", (line) => {
+      if (line.startsWith("listening ")) resolve(line.slice("listening ".length));
+    });
+  });
+  return {
+    base,
+    close: () =>
+      new Promise<void>((resolve) => {
+        child.once("exit", () => resolve());
+        child.kill();
+      }),
+  };
+}
+
+const programFile = () => {
+  const path = join(mkdtempSync(join(tmpdir(), "invariant-program-")), "program.json");
+  writeFileSync(path, JSON.stringify(PROGRAM));
+  return path;
+};
+
+/**
+ * Next.js 14, 15 and 16 through a custom server, each as its own package so
+ * each version's React resolves beside it, and each in its own process,
+ * since two versions of Next.js patch the same globals. The routes are one
+ * shared app (fixtures/next-app), built per version when they change.
+ */
+for (const version of [14, 15, 16]) {
+  FRAMEWORKS[`next.js ${version}`] = () => {
+    const dir = join(import.meta.dirname, `../../../fixtures/next${version}`);
+    return serverProcess(process.execPath, [join(dir, "serve.mjs"), programFile()], dir);
+  };
+}
+
+/**
  * The Go engine's net/http middleware (launch gate L10b), in front of the same
  * routes written in Go, run as its own process on the same program. Held to
  * this suite rather than a copy of it, so the two cannot drift apart.
@@ -309,31 +381,11 @@ if (hasGo) {
   FRAMEWORKS["go net/http"] = async () => {
     const dir = mkdtempSync(join(tmpdir(), "invariant-go-"));
     const binary = join(dir, "conformance-server");
-    const program = join(dir, "program.json");
     execFileSync("go", ["build", "-o", binary, "./cmd/conformance-server"], {
       cwd: GO_ENGINE,
       stdio: "inherit",
     });
-    writeFileSync(program, JSON.stringify(PROGRAM));
-    const child = spawn(binary, ["-program", program], {
-      stdio: ["ignore", "pipe", "inherit"],
-    });
-    const base = await new Promise<string>((resolve, reject) => {
-      child.once("exit", (code) =>
-        reject(new Error(`the Go server exited with ${code}`)),
-      );
-      createInterface({ input: child.stdout }).once("line", (line) =>
-        resolve(line.replace(/^listening /, "")),
-      );
-    });
-    return {
-      base,
-      close: () =>
-        new Promise<void>((resolve) => {
-          child.once("exit", () => resolve());
-          child.kill();
-        }),
-    };
+    return serverProcess(binary, ["-program", programFile()]);
   };
 } else if (process.env["INVARIANT_REQUIRE_GO"]) {
   throw new Error("INVARIANT_REQUIRE_GO is set and there is no Go toolchain on PATH");
@@ -353,7 +405,8 @@ for (const [name, build] of Object.entries(FRAMEWORKS)) {
               close: () => new Promise<void>((resolve) => server.close(() => resolve())),
             };
       base = served.base;
-    }, 120_000);
+      // A first run builds each Next.js app, which takes a while.
+    }, 300_000);
     afterAll(() => served.close());
 
     const pay = (body: unknown, version?: string) =>

@@ -513,8 +513,11 @@ packages/migrate-ts   editing customer code safely
 packages/github       delivering pull requests
 packages/flags        the off switch
 packages/cli          the invariant command, run in the company's own CI
-apps/control-plane    the hosted service
+packages/client       the hosted service's published contract, and a client for it
 ```
+
+The hosted service itself is a separate repository that consumes these
+packages the way a customer would.
 
 ## Running it
 

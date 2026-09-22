@@ -1,0 +1,13 @@
+{
+  "name": "@fixtures/next14",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Next.js 14 for the adapter suite: the shared routes, built and served with this version",
+  "dependencies": {
+    "@fixtures/next-app": "workspace:*",
+    "next": "14.2.35",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}

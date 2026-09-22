@@ -1,0 +1,14 @@
+{
+  "name": "@fixtures/next-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The adapter suite's routes as a Next.js app, and the custom server that puts the runtime in front of it, shared by every Next.js version the suite runs",
+  "exports": {
+    ".": "./serve.mjs"
+  },
+  "dependencies": {
+    "@invariant/runtime": "workspace:*",
+    "@invariant/runtime-node": "workspace:*"
+  }
+}

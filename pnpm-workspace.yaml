@@ -4,6 +4,7 @@ packages:
   - fixtures/*
 
 allowBuilds:
+  '@nestjs/core': false
   esbuild: true
 
 minimumReleaseAgeExclude:

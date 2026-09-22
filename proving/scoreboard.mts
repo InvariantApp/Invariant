@@ -288,11 +288,11 @@ export function scoreboard(inputs: {
     {
       id: "L10",
       claim: "In-process adapters for every major Node framework pass one suite.",
-      status: "not met",
+      status: "met",
       value:
-        "Hono, node:http, Express 4 and 5, Koa, Fastify 4 and 5 and NestJS 12 pass one suite on Node 22 and 24; NestJS 10 and 11 and Next.js are not yet in it",
+        "Hono, node:http, Express 4 and 5, Koa, Fastify 4 and 5, NestJS 10, 11 and 12 and Next.js 14, 15 and 16 pass one suite on Node 22 and 24",
       evidence:
-        "packages/runtime-node/src/conformance.test.ts, packages/runtime-hono, in CI on Node 22 and 24",
+        "packages/runtime-node/src/conformance.test.ts (Next.js through a custom server, fixtures/next-app), packages/runtime-hono, in CI on Node 22 and 24",
     },
     {
       id: "L10b",
