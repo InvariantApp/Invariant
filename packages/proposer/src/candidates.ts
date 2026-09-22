@@ -563,20 +563,83 @@ function pointedElsewhere(
  * became rather than reported as gone.
  */
 function compareReading(
+  oldContract: OpenApiDocument,
   newContract: OpenApiDocument,
+  oldSchemas: Record<string, JsonValue>,
   newSchemas: Record<string, JsonValue>,
   before: FieldShape[],
   after: FieldShape[],
 ): ReturnType<typeof compare> {
-  const compared = compare(before, after);
+  // A field pointed at another schema is read on both sides, so what differs
+  // between the two is compared rather than passing unnoticed.
+  const repointed = repointedFields(
+    oldContract,
+    newContract,
+    oldSchemas,
+    newSchemas,
+    before,
+    after,
+  );
+  const left = [...before, ...repointed.before];
+  const right = [...after, ...repointed.after];
+  const compared = compare(left, right);
   if (!compared || compared.removed.length === 0) return compared;
   const inlined = referencesInPlace(
     newContract,
-    after,
+    right,
     compared.removed.map((field) => field.pointer),
     newSchemas,
   );
-  return inlined.length > 0 ? compare(before, [...after, ...inlined]) : compared;
+  return inlined.length > 0 ? compare(left, [...right, ...inlined]) : compared;
+}
+
+/**
+ * The fields under a field that points at a different schema than it did.
+ *
+ * Datadog's `last_revision` went from `CustomRuleRevision` to
+ * `CustomRuleRevisionInput`, and both schemas stayed: each is compared with
+ * itself, under its own name, and nothing compared what a rule's revision
+ * became, so seven fields it gained and two it lost had nothing to explain
+ * them. A name that is gone is a rename, matched by where it is used, and is
+ * not read here. Only a schema whose fields the walk reads to the same depth
+ * as it reads an object written in place.
+ */
+function repointedFields(
+  oldContract: OpenApiDocument,
+  newContract: OpenApiDocument,
+  oldSchemas: Record<string, JsonValue>,
+  newSchemas: Record<string, JsonValue>,
+  before: readonly FieldShape[],
+  after: readonly FieldShape[],
+): { before: FieldShape[]; after: FieldShape[] } {
+  const newAt = new Map(after.map((field) => [field.pointer, field]));
+  const found = { before: [] as FieldShape[], after: [] as FieldShape[] };
+  for (const field of before) {
+    for (const [ref, pointer, name] of [
+      [field.ref, field.pointer, field.name],
+      [field.items?.ref, `${field.pointer}/*`, `${field.name}.*`],
+    ] as [string | undefined, string, string][]) {
+      const was = ref === undefined ? undefined : schemaName(ref);
+      if (was === undefined || !(was in newSchemas)) continue;
+      const there = newAt.get(field.pointer);
+      const now = schemaName(
+        (pointer.endsWith("/*") ? there?.items?.ref : there?.ref) ?? "",
+      );
+      if (now === undefined || now === was || !(now in newSchemas)) continue;
+      const depth = pointer
+        .split("/")
+        .filter(
+          (segment) => segment !== "" && segment !== "*" && segment !== "{}",
+        ).length;
+      if (depth > NESTING) continue;
+      const at = { name, pointer };
+      found.before.push(
+        ...fieldsOf(oldContract, oldSchemas[was] as JsonValue, at, depth),
+      );
+      found.after.push(...fieldsOf(newContract, newSchemas[now] as JsonValue, at, depth));
+    }
+  }
+  return found;
 }
 
 /**
@@ -982,7 +1045,9 @@ export function schemaDeltas(
     if (!counterpart) continue;
 
     const compared = compareReading(
+      oldContract,
       newContract,
+      oldSchemas,
       newSchemas,
       shapeOf(oldContract, oldSchemas[name] as JsonValue, name),
       shapeOf(newContract, counterpart.schema, name),
@@ -1029,7 +1094,9 @@ export function schemaDeltas(
     const after = requestBodySchema(newContract, counterpart.operation);
     if (after === undefined) continue;
     const compared = compareReading(
+      oldContract,
       newContract,
+      oldSchemas,
       newSchemas,
       fieldsOf(oldContract, body),
       fieldsOf(newContract, after),
@@ -1076,7 +1143,9 @@ export function schemaDeltas(
         continue;
       }
       const compared = compareReading(
+        oldContract,
         newContract,
+        oldSchemas,
         newSchemas,
         fieldsOf(oldContract, schema),
         fieldsOf(newContract, next),

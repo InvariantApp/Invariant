@@ -537,6 +537,51 @@ describe("objects written in place that became references", () => {
   });
 });
 
+describe("a field that points at a different schema", () => {
+  // Datadog's `last_revision` went from CustomRuleRevision to
+  // CustomRuleRevisionInput, and both schemas stayed.
+  it("is compared with the one it points at now", async () => {
+    const revision = (fields: Record<string, Schema>, required: string[]) =>
+      object(fields, required);
+    const holder = (name: string) =>
+      object({
+        id: { type: "string" },
+        last_revision: { $ref: `#/components/schemas/${name}` },
+      });
+    const outcome = await propose(
+      contract({
+        ...base,
+        Revision: revision({ type: { type: "string" } }, ["type"]),
+        RevisionInput: revision({ checksum: { type: "string" } }, ["checksum"]),
+        Thing: holder("Revision"),
+      }),
+      contract({
+        ...base,
+        Revision: revision({ type: { type: "string" } }, ["type"]),
+        RevisionInput: revision({ checksum: { type: "string" } }, ["checksum"]),
+        Thing: holder("RevisionInput"),
+      }),
+      { judge: new RulesJudge() },
+    );
+    const ops = [
+      ...outcome.proposals.map((p) => p.change),
+      ...outcome.decisions.map(decisionChange),
+    ]
+      .filter((change) => JSON.stringify(change.scopes).includes("/Thing"))
+      .flatMap((change) => change.ops);
+    expect(ops).toContainEqual({
+      op: "add",
+      path: "/last_revision/checksum",
+      value: null,
+    });
+    expect(ops).toContainEqual({
+      op: "remove",
+      path: "/last_revision/type",
+      restore: CHOOSE_ONE,
+    });
+  });
+});
+
 describe("a response that now names a different schema", () => {
   // Plaid pointed three consent operations at `FDXError` and left the rest of
   // the API on the `PlaidError` they had all shared.
