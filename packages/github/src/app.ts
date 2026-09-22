@@ -151,6 +151,15 @@ export function appManifest(options: {
   url: string;
   redirectUrl: string;
   webhookUrl?: string;
+  /**
+   * Where GitHub sends someone who just installed the app. The person is
+   * asked to authorize the app as themselves on the way, so the page there
+   * can prove which installations they can reach rather than trusting the
+   * installation id in its address, which anyone can edit.
+   */
+  setupUrl?: string;
+  /** Further addresses GitHub may return a person to, such as a sign-in callback. */
+  callbackUrls?: readonly string[];
 }): Record<string, unknown> {
   return {
     name: options.name,
@@ -172,6 +181,14 @@ export function appManifest(options: {
     ...(options.webhookUrl
       ? { hook_attributes: { url: options.webhookUrl, active: true } }
       : { hook_attributes: { active: false } }),
+    ...(options.setupUrl
+      ? {
+          setup_url: options.setupUrl,
+          setup_on_update: true,
+          request_oauth_on_install: true,
+          callback_urls: [options.setupUrl, ...(options.callbackUrls ?? [])],
+        }
+      : {}),
   };
 }
 

@@ -28,6 +28,8 @@ export interface RegisterOptions {
   homepage: string;
   /** Where GitHub should deliver webhooks, if anywhere yet. */
   webhookUrl?: string;
+  /** Where someone who installs the app is sent to finish connecting, if anywhere yet. */
+  setupUrl?: string;
   port?: number;
   /** Give up rather than listening forever. */
   timeoutMs?: number;
@@ -99,6 +101,7 @@ export function registerApp(options: RegisterOptions): Registration {
     url: options.homepage,
     redirectUrl: `${origin}/created`,
     ...(options.webhookUrl ? { webhookUrl: options.webhookUrl } : {}),
+    ...(options.setupUrl ? { setupUrl: options.setupUrl } : {}),
   });
 
   const target = options.organization

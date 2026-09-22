@@ -20836,6 +20836,7 @@ function applyEnumMap(schema, pairs, fold = []) {
 	const values = out["enum"];
 	if (!Array.isArray(values)) throw new SchemaOpError("enumMap applies only to a schema with an enum");
 	out["enum"] = values.map((value) => {
+		if (value === null) return null;
 		if (typeof value !== "string") throw new SchemaOpError(`enumMap applies only to string enums, found ${typeof value}`);
 		const mapped = forward.get(value);
 		if (mapped === void 0) throw new SchemaOpError(`enumMap does not cover the existing value "${value}"`);

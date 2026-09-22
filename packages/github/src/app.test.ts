@@ -175,4 +175,23 @@ describe("what the app asks a consumer to grant", () => {
       active: true,
     });
   });
+
+  it("asks whoever installs it to authorize as themselves, on the way to the setup page", () => {
+    expect(manifest["setup_url"]).toBeUndefined();
+    const withSetup = appManifest({
+      name: "Invariant Updater",
+      url: "https://invariant.dev",
+      redirectUrl: "http://localhost:7801/created",
+      setupUrl: "https://cloud.invariant.dev/github/setup",
+      callbackUrls: ["https://cloud.invariant.dev/auth/callback/github"],
+    });
+    expect(withSetup).toMatchObject({
+      setup_url: "https://cloud.invariant.dev/github/setup",
+      request_oauth_on_install: true,
+      callback_urls: [
+        "https://cloud.invariant.dev/github/setup",
+        "https://cloud.invariant.dev/auth/callback/github",
+      ],
+    });
+  });
 });
