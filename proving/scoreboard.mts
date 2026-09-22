@@ -17,12 +17,14 @@ import { catalogueEntry, isUnclassified } from "@invariant-app/diff";
 import type { PairResult as CorpusResult } from "@invariant-app/eval";
 import type { BUDGET, ChainCost } from "./chains/cost.ts";
 import { ROOT } from "./corpus/manifest.mts";
+import { type JourneySummary, met as journeyMet } from "./journey/summary.ts";
 import type { BUDGET as OVERHEAD_BUDGET, OverheadResult } from "./overhead/overhead.ts";
 import { type AuditFile, agreement } from "./replay/audit.mts";
 import type { SiteClass } from "./replay/classify.mts";
 import type { ReplayIndex } from "./replay/mine.mts";
 import type { ReplayResult } from "./replay/run.mts";
 import type { PairResult as ServerResult } from "./servers/run.mts";
+import type { SkewResult } from "./skew/run.mts";
 import type { TrafficResult } from "./traffic/run.mts";
 
 type Status = "met" | "not met" | "not measured";
@@ -70,6 +72,8 @@ export function scoreboard(inputs: {
   overhead?: (OverheadResult & { budget: typeof OVERHEAD_BUDGET }) | undefined;
   vectors?: VectorCounts | undefined;
   ownership?: Ownership | undefined;
+  journey?: JourneySummary | undefined;
+  skew?: SkewResult | undefined;
 }): Line[] {
   const lines: Line[] = [];
   const unmeasured = (id: string, claim: string, why: string): Line => ({
@@ -280,11 +284,7 @@ export function scoreboard(inputs: {
   });
 
   lines.push(
-    unmeasured(
-      "L9",
-      "npx init to a blocking check on a scratch pull request, p95 under 10 minutes on Linux, macOS and Windows.",
-      "The install test passes on all three from a local registry on every commit; the timed walk from real npm needs the first publish.",
-    ),
+    journeyLine(inputs.journey),
     {
       id: "L10",
       claim: "In-process adapters for every major Node framework pass one suite.",
@@ -339,17 +339,7 @@ export function scoreboard(inputs: {
         "every CLI command and option, invariant.yaml setting (from its schema), runtime error code, adapter and rung, and breaking-change check the pinned differ knows has its page; every link resolves; every TypeScript sample compiles against the packages it uses, every Go sample against the engine, and the proxy's configuration samples are accepted by the proxy",
       evidence: "docs/docs.test.ts and fixtures/docs-samples, on every commit",
     },
-    {
-      id: "L17",
-      claim: "Older runtimes either run newer programs or refuse with a typed error.",
-      status: "not met",
-      value:
-        "every program states its format, compiler and oldest runtime, and a runtime " +
-        "refuses one it is too old for before reading any of it. Proven against " +
-        "programs made to look newer; the arm that installs the previous published " +
-        "runtime starts with the first release",
-      evidence: "packages/runtime/src/skew.test.ts, on every commit",
-    },
+    skewLine(inputs.skew),
     chainLine(inputs.chains),
     overheadLine(inputs.overhead),
   );
@@ -465,6 +455,69 @@ function overheadLine(
   };
 }
 
+function journeyLine(journey: JourneySummary | undefined): Line {
+  const claim =
+    "npx init to a blocking check on a scratch pull request, p95 under 10 minutes on Linux, macOS and Windows.";
+  if (!journey) {
+    return {
+      id: "L9",
+      claim,
+      status: "not measured",
+      value: "",
+      evidence:
+        "proving/journey/, nightly once the scratch provider's credentials are set",
+    };
+  }
+  const minutes = (seconds: number | null) =>
+    seconds === null ? "no runs" : `p95 ${(seconds / 60).toFixed(1)} min`;
+  const names: Record<string, string> = {
+    linux: "Linux",
+    darwin: "macOS",
+    win32: "Windows",
+  };
+  return {
+    id: "L9",
+    claim,
+    status: journeyMet(journey) ? "met" : "not met",
+    value: Object.entries(journey.systems)
+      .map(
+        ([os, system]) =>
+          `${names[os] ?? os}: ${system.blocked} of ${system.runs} runs blocked, ${minutes(system.p95Seconds)}`,
+      )
+      .join("; ")
+      .concat(
+        `; needs ${journey.runsNeeded} runs each under ${journey.budgetSeconds / 60} min`,
+      ),
+    evidence: "proving/journey/results.json, from real npm to a real pull request",
+  };
+}
+
+function skewLine(skew: SkewResult | undefined): Line {
+  const claim = "Older runtimes either run newer programs or refuse with a typed error.";
+  const always =
+    "every program states its format, compiler and oldest runtime, and a runtime refuses one it is too old for before reading any of it";
+  if (!skew) {
+    return {
+      id: "L17",
+      claim,
+      status: "not met",
+      value: `${always}; the published runtime has not been run against this commit's programs`,
+      evidence: "packages/runtime/src/skew.test.ts; proving/skew/",
+    };
+  }
+  const clean = skew.different.length === 0 && skew.untyped.length === 0;
+  return {
+    id: "L17",
+    claim,
+    status: clean ? "met" : "not met",
+    value:
+      `${always}. The published runtime ${skew.published}, given ${skew.cases} programs from ` +
+      `${skew.compiledBy}: ${skew.same} give the same answer, ${skew.refusedAtLoad} refused at load ` +
+      `with a typed error, ${skew.different.length} answer differently, ${skew.untyped.length} fail untyped`,
+    evidence: "proving/skew/results.json and packages/runtime/src/skew.test.ts",
+  };
+}
+
 function chainLine(chains: (ChainCost & { budget: typeof BUDGET }) | undefined): Line {
   const claim = "A 50-step chain over a Stripe-sized spec within stated budgets.";
   if (!chains) {
@@ -542,6 +595,8 @@ if (process.argv[1]?.endsWith("scoreboard.mts")) {
     overhead: read<OverheadResult & { budget: typeof OVERHEAD_BUDGET }>(
       "proving/overhead/results.json",
     ),
+    journey: read<JourneySummary>("proving/journey/results.json"),
+    skew: read<SkewResult>("proving/skew/results.json"),
   });
   const page = render(lines);
   await writeFile(join(ROOT, "proving/SCOREBOARD.md"), page, "utf8");

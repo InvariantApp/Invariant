@@ -241,8 +241,54 @@ jobs:
           git pull --rebase
           git push
 
+  # L9: from nothing to a pull request whose check blocks a breaking change,
+  # timed, ten times on each operating system a provider works on. The
+  # scratch provider is a public repository the Invariant GitHub App can push
+  # to; its token is the only secret here, and nothing third-party runs.
+  journey:
+    name: journey (L9, ${{ matrix.os }}, run ${{ matrix.run }})
+    if: vars.JOURNEY_ENABLED == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        run: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ secrets.JOURNEY_APP_ID }}
+          private-key: ${{ secrets.JOURNEY_APP_KEY }}
+          owner: InvariantApp
+          repositories: l9-provider
+
+      - name: The journey
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          JOURNEY_INDEX: ${{ matrix.run }}
+        # Node runs the driver as it is: it uses nothing but Node.
+        run: node proving/journey/run.mts --out journey-${{ matrix.os }}-${{ matrix.run }}.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: journey-${{ matrix.os }}-${{ matrix.run }}
+          path: journey-${{ matrix.os }}-${{ matrix.run }}.json
+          if-no-files-found: ignore
+
   report:
-    needs: [corpus, traffic, swagger, servers, fuzz]
+    needs: [corpus, traffic, swagger, servers, fuzz, journey]
     # Every rig's result is gathered even when one of them failed, so the
     # scoreboard says which; nothing is recorded unless all of them passed.
     if: always()
@@ -283,6 +329,17 @@ jobs:
           path: servers-results
           merge-multiple: true
 
+      - uses: actions/download-artifact@v4
+        if: vars.JOURNEY_ENABLED == 'true'
+        with:
+          pattern: journey-*
+          path: journey-results
+          merge-multiple: true
+
+      - name: Summarize the journeys
+        if: vars.JOURNEY_ENABLED == 'true'
+        run: node --import tsx proving/journey/report.mts journey-results/*.json
+
       - name: Merge the corpus shards into one report
         id: corpus
         run: node --import tsx proving/corpus/run.mts --report corpus-*.json
@@ -290,6 +347,11 @@ jobs:
       - name: Merge the real-server projects into one report
         if: always()
         run: node --import tsx proving/servers/run.mts --report servers-results/*.json
+
+      # L17: the runtime on npm, given this commit's programs.
+      - name: The published runtime against this commit's programs
+        if: always()
+        run: node --import tsx proving/skew/run.mts
 
       - name: The scoreboard
         if: always()
@@ -308,6 +370,8 @@ jobs:
             proving/servers/REPORT.md
             proving/servers/results.json
             proving/swagger/REPORT.md
+            proving/journey/results.json
+            proving/skew/results.json
 
       # Recorded in the repository, so a number quoted anywhere can be traced
       # to the run that produced it. Nothing is committed when nothing changed.
@@ -316,7 +380,7 @@ jobs:
         run: |
           git config user.name "invariant-proving"
           git config user.email "proving@users.noreply.github.com"
-          git add proving/SCOREBOARD.md proving/corpus proving/traffic proving/servers proving/swagger
+          git add proving/SCOREBOARD.md proving/corpus proving/traffic proving/servers proving/swagger proving/journey proving/skew
           git diff --cached --quiet || git commit -m "Record the nightly proving run"
           git pull --rebase
           git push
