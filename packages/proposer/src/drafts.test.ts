@@ -1783,6 +1783,31 @@ describe("fields that moved together through a wrapper", () => {
     }
   });
 
+  it("is not a wrapper where the name now belongs to another schema (PayPal)", async () => {
+    // The item a caller sent became the item a response reports, which holds
+    // what was sent under `payout_item` beside what the service added.
+    const sent = {
+      amount: { type: "string" },
+      receiver: { type: "string" },
+      note: { type: "string" },
+    };
+    const outcome = await propose(
+      contract({ ...base, Thing: object(sent) }),
+      contract({
+        ...base,
+        Thing: object({
+          payout_item_id: { type: "string" },
+          transaction_status: { type: "string" },
+          payout_item: object(sent),
+        }),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(
+      outcome.proposals.filter((proposal) => proposal.change.id.endsWith("_nested")),
+    ).toEqual([]);
+  });
+
   it("is a move for each field when a wrapper was introduced", async () => {
     const outcome = await propose(
       contract({
