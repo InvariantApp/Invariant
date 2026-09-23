@@ -6224,6 +6224,26 @@
     "confidence": 1,
     "model": "rule:module-version"
   },
+  "elastic/terraform-provider-elasticstack#2368|generated/kbapi/kibana.gen.go|29301|c2a3c7c6b2a5da7c": {
+    "class": "contract",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "elastic/terraform-provider-elasticstack#2368|generated/kbapi/transform_schema_test.go|591|8c9044a37ad14fb6": {
+    "class": "contract",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "elastic/terraform-provider-elasticstack#2368|generated/kbapi/transform_schema.go|1135|99716bac9c2ef49d": {
+    "class": "contract",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "elastic/terraform-provider-elasticstack#2368|generated/kbapi/transform_schema.go|602|98e00f894b751051": {
+    "class": "contract",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
   "elastic/terraform-provider-elasticstack#2368|scripts/auto-approve/evaluator_test.go|23|e1180d1d2524d8f4": {
     "class": "sdk",
     "confidence": 1,
