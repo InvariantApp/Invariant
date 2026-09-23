@@ -671,7 +671,9 @@ Repo: `InvariantApp/Invariant` (private), pnpm workspace monorepo, TypeScript ev
   bundle/        # buildBundle, DSSE sign/verify, reproducibility check
   proposer/      # Judge interface, rules/jev/s2 judges, candidate enumeration, pipeline, thresholds
   eval/          # corpus loader, runner, metrics, reports, ownership verdicts
+  migrate-core/  # what every language pack shares: migration plan, byte-range edits, sites shown to a person
   migrate-ts/    # SDK symbol map, reference index, codemods per op x role, verify, provenance
+  migrate-py/    # Python pack: wheels only, pyright references, tree-sitter roles, codemods, pyright diagnostics delta
   github/        # App auth, webhooks, PR creation (Git Data API), draft->ready promotion
   cli/           # `invariant` : init, check, propose, compile, verify, release, link, eval capture
 /apps

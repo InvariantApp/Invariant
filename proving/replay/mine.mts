@@ -16,7 +16,7 @@
  *
  * Usage:
  *   GITHUB_TOKEN=... node --import tsx proving/replay/mine.mts [--months 24] [--limit 200]
- *     [--package stripe]
+ *     [--package stripe] [--ecosystem pypi] [--per-package 60] [--minutes 40]
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -143,6 +143,12 @@ const TARGETS: Target[] = [
     "spotipy",
     "supabase",
     "xero-python",
+    // Corpus providers whose Python SDKs were not searched at first:
+    // Cloudflare's 3.0 and 4.0 regenerated the whole client from its spec.
+    "cloudflare",
+    "grafana-client",
+    "paypal-server-sdk",
+    "python-intercom",
   ].map((name) => sdk(name, "pypi")),
   ...[
     "@adyen/api-library",
@@ -191,6 +197,14 @@ const MANIFESTS: Record<Ecosystem, RegExp> = {
   npm: /(^|\/)(package\.json|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|npm-shrinkwrap\.json)$/,
   pypi: /(^|\/)(requirements[^/]*\.txt|pyproject\.toml|poetry\.lock|Pipfile(\.lock)?|setup\.(py|cfg)|uv\.lock)$/,
   go: /(^|\/)(go\.mod|go\.sum)$/,
+};
+
+/** A repository's main language on GitHub, for each ecosystem's search. */
+const LANGUAGE: Record<Ecosystem, string | undefined> = {
+  // TypeScript and JavaScript repositories both bump npm packages.
+  npm: undefined,
+  pypi: "python",
+  go: "go",
 };
 
 const SOURCES: Record<Ecosystem, RegExp> = {
@@ -363,6 +377,7 @@ async function mine(): Promise<void> {
   // year, and left uncapped it crowded out every SDK in another language.
   const perPackage = Number(option("per-package") ?? 60);
   const only = option("package");
+  const ecosystem = option("ecosystem") as Ecosystem | undefined;
   // Stops in time to write what it found, whatever else happens.
   const deadline = Date.now() + Number(option("minutes") ?? 40) * 60_000;
 
@@ -374,9 +389,20 @@ async function mine(): Promise<void> {
   let stopped = "";
   try {
     search: for (const target of TARGETS.filter(
-      (entry) => !only || entry.package === only,
+      (entry) =>
+        (!only || entry.package === only) &&
+        (!ecosystem || entry.ecosystems.includes(ecosystem)),
+    ).map((entry) =>
+      // `stripe` is a package on npm and on PyPI; asked for one ecosystem, a
+      // bump is classed only into that one.
+      ecosystem ? { ...entry, ecosystems: [ecosystem] } : entry,
     )) {
-      let mine = index.cases.filter((entry) => entry.package === target.package).length;
+      // The cap is per package in each ecosystem: stripe-node's cases once
+      // used up stripe-python's share, and Python had eight.
+      let mine = index.cases.filter(
+        (entry) =>
+          entry.package === target.package && target.ecosystems.includes(entry.ecosystem),
+      ).length;
       windows: for (const window of months(monthCount)) {
         for (const phrase of target.titles) {
           if (added >= limit) break search;
@@ -385,7 +411,12 @@ async function mine(): Promise<void> {
             stopped = "out of time";
             break search;
           }
-          const query = `"${phrase}" in:title is:pr is:merged created:${window.from}..${window.to}`;
+          // Asked for one ecosystem, only repositories in its language are
+          // searched: most `Bump stripe from` pull requests are stripe-node
+          // bumps, and reading each one's files to find that out took the
+          // whole hour's rate limit for eight Python cases.
+          const language = ecosystem ? LANGUAGE[ecosystem] : undefined;
+          const query = `"${phrase}" in:title is:pr is:merged created:${window.from}..${window.to}${language ? ` language:${language}` : ""}`;
           const found = await github<{ items: SearchItem[] }>(
             `/search/issues?per_page=100&q=${encodeURIComponent(query)}`,
           );

@@ -23,13 +23,25 @@
  * Usage:
  *   node --env-file-if-exists=.env --import tsx proving/replay/run.mts [--package stripe]
  *     [--ecosystem npm|pypi|go] [--case owner/repo#1] [--limit 10] [--keep] [--classify]
- *     [--again]
+ *     [--again] [--shard 0/4] [--results shard-0.json]
+ *   node --import tsx proving/replay/run.mts --merge shard-*.json
+ *   node --env-file-if-exists=.env --import tsx proving/replay/run.mts --rescore
+ *     [--ecosystem pypi] [--classify]
  *
  * Cases already in the results are skipped, so a run resumes where the last
  * one stopped; `--again` replays them too.
  *
  * `--classify` asks Jev which sites follow from a contract change
  * (`classify.mts`), for sites not already classed.
+ *
+ * A CI run replays with no key, in shards, each to its own results file;
+ * `--merge` lays them over the recorded results. The sites it cached, with
+ * how the engine did on each, are then classed and scored again here with
+ * `--rescore`, which replays nothing.
+ *
+ * PyPI cases go through the Python pack (`@invariant-app/migrate-py`): the
+ * SDK's wheels are unpacked, never built, and pyright reads the files that
+ * import it against the old release and checks them against the new one.
  *
  * `--keep` leaves each case's checkout in place and prints what the engine
  * was told and did, for reading a miss.
@@ -39,11 +51,15 @@ import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
+import type { Change } from "@invariant-app/ir";
+import type { ManualSite } from "@invariant-app/migrate-core";
+import { installWheel, migrate as migratePython } from "@invariant-app/migrate-py";
 import { buildPlan, migrate, type SymbolMap } from "@invariant-app/migrate-ts";
 import { ts } from "ts-morph";
 import { ROOT } from "../corpus/manifest.mts";
 import {
   type ClassRecord,
+  cachedOutcomes,
   cacheSite,
   classify,
   readClasses,
@@ -52,6 +68,13 @@ import {
   writeClasses,
 } from "./classify.mts";
 import type { ReplayCase, ReplayIndex } from "./mine.mts";
+import {
+  importingPython,
+  PYTHON_PINS,
+  pinnedPython,
+  stripePythonVersion,
+  topLevelModules,
+} from "./python.mts";
 import {
   changedRegions,
   type Outcome,
@@ -83,8 +106,12 @@ export interface ReplayResult extends Score {
   /**
    * What the engine was told: the SDK's pin and the Changes between the two
    * contracts, the pin alone, or nothing recorded for this package.
+   * `verify`: nothing about the contract, but both releases, so the engine
+   * reported where the consumer stops type-checking across the upgrade.
    */
-  engine: "contract" | "pin" | "none";
+  engine: "contract" | "pin" | "verify" | "none";
+  /** The releases replayed across, where they were found. */
+  versions?: [string, string];
   /** Human sites: regions of source the humans changed. */
   sites: number;
   /**
@@ -432,13 +459,17 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
     language,
     package: entry.package,
     engine:
-      entry.ecosystem !== "npm"
-        ? "none"
-        : STAMPS[entry.package]?.contract
+      entry.ecosystem === "pypi"
+        ? PYTHON_CONTRACTS[entry.package]
           ? "contract"
-          : STAMPS[entry.package]
-            ? "pin"
-            : "none",
+          : "verify"
+        : entry.ecosystem !== "npm"
+          ? "none"
+          : STAMPS[entry.package]?.contract
+            ? "contract"
+            : STAMPS[entry.package]
+              ? "pin"
+              : "none",
   };
   const work = join(CACHE, "work", entry.id.replace(/[^\w.-]+/g, "_"));
   const repo = join(work, "repo");
@@ -498,12 +529,19 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
     }
     const sites = [...human.values()].reduce((sum, regions) => sum + regions.length, 0);
 
-    // The engine reads TypeScript and JavaScript; elsewhere only the humans'
-    // sites are read and classed, which is the denominator a pack is judged on.
+    // The TypeScript engine reads TypeScript and JavaScript, the Python pack
+    // Python; elsewhere only the humans' sites are read and classed, which is
+    // the denominator a pack is judged on.
     const stamp = entry.ecosystem === "npm" ? STAMPS[entry.package] : undefined;
     const engineText = new Map<string, string>();
     /** Base lines, per file, the engine reported to a person rather than edited. */
     const flagged = new Map<string, (readonly [number, number])[]>();
+    if (entry.ecosystem === "pypi") {
+      const python = await replayPython(entry, repo, work, before, keep);
+      for (const [file, ranges] of python.flagged) flagged.set(file, ranges);
+      for (const [file, text] of python.files) engineText.set(file, text);
+      base.versions = python.versions;
+    }
     if (stamp) {
       // Each file's blob id comes with the tree, before any blob is fetched.
       const blobs = new Map<string, string>();
@@ -627,14 +665,6 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       extra: 0,
       extraFlags: 0,
     };
-    const scope: ScopedScore = {
-      sites: 0,
-      identical: 0,
-      differs: 0,
-      flagged: 0,
-      missed: 0,
-      unclassified: 0,
-    };
     const scored: { site: Site; outcome: Outcome }[] = [];
     for (const file of new Set([...human.keys(), ...engineText.keys()])) {
       const text = before.get(file) ?? (await textAt(repo, entry.base, file));
@@ -665,7 +695,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         });
       });
     }
-    for (const { site } of scored) await cacheSite(site);
+    for (const { site, outcome } of scored) await cacheSite(site, undefined, outcome);
     if (options.classifier) {
       try {
         await classify(
@@ -696,21 +726,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         );
       }
     }
-    for (const { site, outcome } of scored) {
-      const record = options.classes[siteKey(site)];
-      if (!record) {
-        scope.unclassified += 1;
-        continue;
-      }
-      if (record.class === "contested") {
-        scope.contested = (scope.contested ?? 0) + 1;
-        continue;
-      }
-      if (record.class !== "contract") continue;
-      scope.sites += 1;
-      scope[outcome] += 1;
-    }
-    return { ...base, sites, ...total, inScope: scope };
+    return { ...base, sites, ...total, inScope: scopeOf(scored, options.classes) };
   } catch (error) {
     return {
       ...base,
@@ -726,6 +742,218 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
   } finally {
     if (!keep) await rm(work, { recursive: true, force: true });
   }
+}
+
+/** A case's sites that follow from a contract change, by how the engine did on each. */
+export function scopeOf(
+  scored: readonly { site: Site; outcome: Outcome }[],
+  classes: Record<string, ClassRecord>,
+): ScopedScore {
+  const scope: ScopedScore = {
+    sites: 0,
+    identical: 0,
+    differs: 0,
+    flagged: 0,
+    missed: 0,
+    unclassified: 0,
+  };
+  for (const { site, outcome } of scored) {
+    const record = classes[siteKey(site)];
+    if (!record) {
+      scope.unclassified += 1;
+      continue;
+    }
+    if (record.class === "contested") {
+      scope.contested = (scope.contested ?? 0) + 1;
+      continue;
+    }
+    if (record.class !== "contract") continue;
+    scope.sites += 1;
+    scope[outcome] += 1;
+  }
+  return scope;
+}
+
+/**
+ * The PyPI packages whose contracts the pack is told about. Every other SDK
+ * is replayed with no Changes: the engine is still checked against both
+ * releases, and reports where the consumer stops type-checking.
+ */
+const PYTHON_CONTRACTS: Record<string, true> = { stripe: true };
+
+/** Directories in a Python repository that hold someone else's code or none. */
+const PYTHON_SKIPPED =
+  /(^|\/)(\.?venv[^/]*|env|site-packages|__pycache__|\.tox|\.nox|\.eggs|migrations)\//;
+
+/** Base lines each manual site covers, per file, as the score reads them. */
+function flaggedLines(
+  manual: readonly ManualSite[],
+  repo: string,
+  before: Map<string, string>,
+): Map<string, (readonly [number, number])[]> {
+  const flagged = new Map<string, (readonly [number, number])[]>();
+  for (const site of manual) {
+    const file = site.file.slice(repo.length + 1);
+    const text = before.get(file) ?? readFileSync(site.file, "utf8");
+    const lineAt = (offset: number) => text.slice(0, offset).split("\n").length - 1;
+    const range = [lineAt(site.offset), lineAt(site.end ?? site.offset) + 1] as const;
+    flagged.set(file, [...(flagged.get(file) ?? []), range]);
+  }
+  return flagged;
+}
+
+/**
+ * A PyPI case through the Python pack: the repository's Python restored at
+ * the base, both releases unpacked from their wheels, the files that import
+ * the SDK read against the old one and checked against the new one.
+ */
+async function replayPython(
+  entry: ReplayCase,
+  repo: string,
+  work: string,
+  before: Map<string, string>,
+  keep: boolean,
+): Promise<{
+  flagged: Map<string, (readonly [number, number])[]>;
+  files: Map<string, string>;
+  versions: [string, string];
+}> {
+  const tree = async (commit: string) => {
+    const blobs = new Map<string, string>();
+    for (const line of (await git(repo, "ls-tree", "-r", commit)).split("\n")) {
+      const match = /^\d+ blob ([0-9a-f]+)\t(.+)$/.exec(line);
+      if (match) blobs.set(match[2] as string, match[1] as string);
+    }
+    return blobs;
+  };
+  const blobs = await tree(entry.base);
+  const readable = [...blobs.keys()]
+    .filter(
+      (path) =>
+        path.endsWith(".py") && !SKIPPED_DIRS.test(path) && !PYTHON_SKIPPED.test(path),
+    )
+    .slice(0, MAX_FILES);
+  await writeFile(join(work, "paths"), readable.join("\n"));
+  await prefetch(
+    repo,
+    readable.flatMap((path) => {
+      const blob = blobs.get(path);
+      return blob ? [blob] : [];
+    }),
+  );
+  if (readable.length > 0) {
+    await git(
+      repo,
+      "restore",
+      `--source=${entry.base}`,
+      "--worktree",
+      `--pathspec-from-file=${join(work, "paths")}`,
+    );
+  }
+
+  const pinsAt = async (commit: string, paths: Iterable<string>) => {
+    const found: { path: string; text: string }[] = [];
+    for (const path of [...paths]
+      .filter((each) => PYTHON_PINS.test(each) && !SKIPPED_DIRS.test(each))
+      .slice(0, 60)) {
+      const text = await textAt(repo, commit, path);
+      if (text) found.push({ path, text });
+    }
+    return found;
+  };
+  const from =
+    pinnedPython(await pinsAt(entry.base, blobs.keys()), entry.package, entry.from) ||
+    entry.from;
+  if (!from) throw new Error("the base does not say which version it used");
+  const to =
+    pinnedPython(
+      await pinsAt(entry.head, (await tree(entry.head)).keys()),
+      entry.package,
+      entry.to,
+    ) || entry.to;
+  const cache = join(CACHE, "pypi");
+  const old = await installWheel(entry.package, from, cache);
+  const next = await installWheel(entry.package, to, cache);
+
+  let changes: Change[] = [];
+  let types: Record<string, string> = {};
+  let pin: SymbolMap["pin"];
+  let contract: ContractPlan | undefined;
+  if (PYTHON_CONTRACTS[entry.package] && entry.package === "stripe") {
+    const label = stripePythonVersion(next.site);
+    const was = stripePythonVersion(old.site);
+    // stripe-python before 8 records no version of its own, and speaks
+    // whatever the account is pinned to; there is nothing to compare.
+    if (label && was && label !== was) {
+      contract = await stripePlan(
+        old.version,
+        next.version,
+        old.site,
+        false,
+        "stripe-python",
+      );
+      changes = contract.changes;
+      types = contract.types;
+    }
+    if (label) {
+      pin = {
+        type: "stripe",
+        property: "api_version",
+        label,
+        ...(was ? { from: was } : {}),
+        keywords: ["stripe_version"],
+      };
+    }
+  }
+  const symbols: SymbolMap = {
+    package: entry.package,
+    upgradeTo: { package: entry.package, version: next.version, types },
+    types,
+    accessors: [],
+    ...(pin ? { pin } : {}),
+  };
+  const sources = importingPython(repo, readable, topLevelModules(old.site));
+  const result = await migratePython({
+    repoDir: repo,
+    sources,
+    packages: [old.site],
+    upgraded: [next.site],
+    plan: buildPlan(changes, symbols),
+  });
+  if (keep) {
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          versions: [old.version, next.version],
+          contract: contract && {
+            drafted: contract.drafted,
+            removed: contract.removed,
+            types: Object.keys(contract.types).length,
+          },
+          targets: result.targets,
+          pin,
+          read: readable.length,
+          sources: sources.length,
+          edits: result.edits.map(
+            (edit) => `${edit.file.slice(repo.length + 1)}:${edit.start} ${edit.reason}`,
+          ),
+          manual: result.manual.map(
+            (site) =>
+              `${site.file.slice(repo.length + 1)}:${site.line} ${site.reason.slice(0, 160)}`,
+          ),
+        },
+        null,
+        2,
+      )}\n`,
+    );
+  }
+  const files = new Map<string, string>();
+  for (const [path, text] of result.files) files.set(path.slice(repo.length + 1), text);
+  return {
+    flagged: flaggedLines(result.manual, repo, before),
+    files,
+    versions: [old.version, next.version],
+  };
 }
 
 function readManifest(repo: string, root: string): string {
@@ -762,10 +990,34 @@ async function main(): Promise<void> {
   const index = JSON.parse(
     readFileSync(join(ROOT, "proving/replay/index.json"), "utf8"),
   ) as ReplayIndex;
-  const previous: ReplayResult[] = existsSync(RESULTS)
-    ? (JSON.parse(readFileSync(RESULTS, "utf8")) as ReplayResult[])
-    : [];
-  const results = new Map(previous.map((entry) => [entry.id, entry]));
+  const path = option("results") ?? RESULTS;
+  const readResults = (file: string): ReplayResult[] =>
+    existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as ReplayResult[]) : [];
+  const results = new Map(readResults(path).map((entry) => [entry.id, entry]));
+  const save = () =>
+    writeFile(
+      path,
+      `${JSON.stringify(
+        [...results.values()].sort((a, b) => a.id.localeCompare(b.id)),
+        null,
+        2,
+      )}\n`,
+    );
+
+  // Shards of a CI run, each replayed apart, laid over the recorded results.
+  if (args.includes("--merge")) {
+    for (const file of args.slice(args.indexOf("--merge") + 1)) {
+      if (file.startsWith("--")) break;
+      for (const entry of readResults(file)) results.set(entry.id, entry);
+    }
+    await save();
+    return;
+  }
+
+  const [shard, shards] = (option("shard") ?? "0/1").split("/").map(Number) as [
+    number,
+    number,
+  ];
   const cases = index.cases
     .filter(
       (entry) =>
@@ -773,7 +1025,42 @@ async function main(): Promise<void> {
         (!only || entry.package === only) &&
         (!single || entry.id === single),
     )
+    .filter((_, at) => at % shards === shard)
     .slice(0, limit);
+
+  // Scores again from the sites a replay cached, with the classes as they
+  // are now: a CI run replays without a key, and its sites are classed here.
+  if (args.includes("--rescore")) {
+    const wanted = new Set(cases.map((entry) => entry.id));
+    const byCase = new Map<string, { site: Site; outcome: Outcome }[]>();
+    for (const { site, outcome } of cachedOutcomes()) {
+      if (!outcome || !wanted.has(site.caseId)) continue;
+      byCase.set(site.caseId, [...(byCase.get(site.caseId) ?? []), { site, outcome }]);
+    }
+    for (const [id, scored] of byCase) {
+      const result = results.get(id);
+      if (!result || result.error !== undefined) continue;
+      if (scored.length !== result.sites) {
+        process.stderr.write(
+          `${id}: ${scored.length} cached sites for ${result.sites}; replay it again\n`,
+        );
+        continue;
+      }
+      if (classifier) {
+        await classify(
+          scored.map((each) => each.site),
+          classes,
+          classifier.client,
+          classifier.model,
+        );
+        await writeClasses(classes);
+      }
+      result.inScope = scopeOf(scored, classes);
+    }
+    await save();
+    return;
+  }
+
   for (const entry of cases) {
     // A run picks up where the last one stopped, unless asked to start over.
     if (results.has(entry.id) && !args.includes("--again")) continue;
@@ -787,14 +1074,7 @@ async function main(): Promise<void> {
     process.stdout.write(
       `${entry.id} ${entry.package}: ${result.error ?? `${result.identical}/${result.sites} identical, ${result.differs} differ, ${result.flagged} flagged, ${result.missed} missed; ${result.extra} extra edits, ${result.extraFlags ?? 0} extra flags`}\n`,
     );
-    await writeFile(
-      RESULTS,
-      `${JSON.stringify(
-        [...results.values()].sort((a, b) => a.id.localeCompare(b.id)),
-        null,
-        2,
-      )}\n`,
-    );
+    await save();
   }
 }
 

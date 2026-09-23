@@ -5,9 +5,9 @@
  * place the consumer reads it is shown to a person, and nothing is edited.
  */
 import type { Change } from "@invariant-app/ir";
+import { buildPlan } from "@invariant-app/migrate-core";
 import { describe, expect, it } from "vitest";
 import { migrate } from "./index.ts";
-import { buildPlan } from "./plan.ts";
 
 const ROOT = new URL("../../../", import.meta.url).pathname;
 const CONSUMER = `${ROOT}fixtures/consumer-pinned/`;

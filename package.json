@@ -46,6 +46,8 @@
     "@invariant-app/flags": "workspace:*",
     "@invariant-app/github": "workspace:*",
     "@invariant-app/ir": "workspace:*",
+    "@invariant-app/migrate-core": "workspace:*",
+    "@invariant-app/migrate-py": "workspace:*",
     "@invariant-app/migrate-ts": "workspace:*",
     "@invariant-app/proposer": "workspace:*",
     "@invariant-app/runtime": "workspace:*",

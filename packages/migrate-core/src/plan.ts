@@ -25,8 +25,20 @@ export interface SymbolMap {
    * Where the consumer names the contract it speaks, as stripe-node's
    * `apiVersion`: the options type that declares it, qualified by its
    * namespaces, the property, and the label the upgraded package speaks.
+   *
+   * In Python the type is a module and the property one of its attributes,
+   * as stripe-python's `stripe.api_version`, and the same version can also
+   * be passed per client or per request by keyword (`stripe_version=`).
+   * `from` is the label the consumer's current release speaks, so a pin
+   * that only ever followed the SDK can be told from one chosen on purpose.
    */
-  pin?: { type: string; property: string; label: string };
+  pin?: {
+    type: string;
+    property: string;
+    label: string;
+    from?: string;
+    keywords?: string[];
+  };
   /**
    * The SDK method that calls each operation, keyed `method path` as the
    * contract spells it (`get /v1/invoices/upcoming`), so a retired operation

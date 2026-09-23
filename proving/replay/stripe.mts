@@ -27,23 +27,29 @@ import { ROOT } from "../corpus/manifest.mts";
 const SPECS = join(ROOT, ".cache/replay/specs");
 const TAGS = join(SPECS, "stripe-openapi-tags.json");
 
-/** The stripe/openapi release a stripe-node release was built from. */
-async function openapiRelease(version: string): Promise<string> {
+/** Which of Stripe's SDKs a release number belongs to. */
+export type StripeSdk = "stripe-node" | "stripe-python";
+
+/**
+ * The stripe/openapi release an SDK release was built from. stripe-python
+ * records it the same way as stripe-node, at every tag since 2.x.
+ */
+async function openapiRelease(version: string, sdk: StripeSdk): Promise<string> {
   const known: Record<string, string> = existsSync(TAGS)
     ? (JSON.parse(readFileSync(TAGS, "utf8")) as Record<string, string>)
     : {};
-  const cached = known[version];
+  // stripe-node's releases were recorded first, under their bare numbers.
+  const key = sdk === "stripe-node" ? version : `${sdk}@${version}`;
+  const cached = known[key];
   if (cached) return cached;
   const response = await fetch(
-    `https://raw.githubusercontent.com/stripe/stripe-node/v${version}/OPENAPI_VERSION`,
+    `https://raw.githubusercontent.com/stripe/${sdk}/v${version}/OPENAPI_VERSION`,
   );
   if (!response.ok) {
-    throw new Error(
-      `stripe-node ${version} records no OpenAPI release (${response.status})`,
-    );
+    throw new Error(`${sdk} ${version} records no OpenAPI release (${response.status})`);
   }
   const release = (await response.text()).trim();
-  known[version] = release;
+  known[key] = release;
   await mkdir(SPECS, { recursive: true });
   await writeFile(TAGS, `${JSON.stringify(known, null, 2)}\n`);
   return release;
@@ -145,16 +151,49 @@ export interface ContractPlan {
   removed: number;
 }
 
-/** The Changes and types for an upgrade from stripe-node `from` to `to`. */
+/**
+ * Every class a stripe-python release declares at the top of a module, by
+ * its name: `Subscription` in `stripe/_subscription.py`, `Session` in
+ * `stripe/checkout/_session.py`.
+ */
+function declaredClasses(dir: string, found = new Set<string>(), depth = 0): Set<string> {
+  if (depth > 4) return found;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) declaredClasses(path, found, depth + 1);
+    else if (entry.isFile() && entry.name.endsWith(".py")) {
+      for (const match of readFileSync(path, "utf8").matchAll(/^class (\w+)\b/gm)) {
+        found.add(match[1] as string);
+      }
+    }
+  }
+  return found;
+}
+
+/**
+ * What stripe-python calls a schema's class: namespaces are modules and keep
+ * their names, so `checkout.session` is `stripe.checkout.Session` and
+ * `subscription_item` is `stripe.SubscriptionItem`.
+ */
+const pythonTypeOf = (schema: string) => {
+  const parts = schema.split(".");
+  return ["stripe", ...parts.slice(0, -1), pascal(parts.at(-1) ?? "")].join(".");
+};
+
+/**
+ * The Changes and types for an upgrade from `from` to `to` of stripe-node, or
+ * of stripe-python, whose `sdk` is the unpacked wheel's `site-packages`.
+ */
 export async function stripePlan(
   from: string,
   to: string,
   sdk: string,
   namespaced: boolean,
+  flavour: StripeSdk = "stripe-node",
 ): Promise<ContractPlan> {
   // One after the other: each records what it found in the same file.
-  const oldRelease = await openapiRelease(from);
-  const newRelease = await openapiRelease(to);
+  const oldRelease = await openapiRelease(from, flavour);
+  const newRelease = await openapiRelease(to, flavour);
   const [before, after] = await Promise.all([
     specification(oldRelease),
     specification(newRelease),
@@ -173,7 +212,6 @@ export async function stripePlan(
       ],
     }));
 
-  const declared = declaredInterfaces(sdk);
   const schemas = Object.keys(
     (
       (before as Record<string, unknown>)["components"] as
@@ -182,6 +220,23 @@ export async function stripePlan(
     )?.schemas ?? {},
   );
   const types: Record<string, string> = {};
+  if (flavour === "stripe-python") {
+    const classes = declaredClasses(join(sdk, "stripe"));
+    for (const schema of schemas) {
+      const name = pythonTypeOf(schema);
+      if (classes.has(name.split(".").at(-1) ?? name)) types[schema] = name;
+    }
+    return {
+      changes: [...outcome.proposals.map((proposal) => proposal.change), ...removals],
+      types,
+      // Retired operations are found through stripe-node's resource files;
+      // stripe-python's are not read yet, and nothing is reported for them.
+      operations: {},
+      drafted: outcome.proposals.length,
+      removed: removals.length,
+    };
+  }
+  const declared = declaredInterfaces(sdk);
   for (const schema of schemas) {
     const name = typeNameOf(schema);
     // The interface itself is declared by its last name, inside its namespaces.

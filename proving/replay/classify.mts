@@ -30,7 +30,7 @@ import {
   type Question,
 } from "@typesafe-ai/sdk";
 import { ROOT } from "../corpus/manifest.mts";
-import type { Region } from "./score.mts";
+import type { Outcome, Region } from "./score.mts";
 
 /**
  * `contested`: the two questions asked of a site Jev was unsure about
@@ -83,7 +83,16 @@ const SITE_CACHE = join(ROOT, ".cache/replay/sites");
  * is shown are kept; the lines before them are counted, so the site reads back
  * at the same place and keys the same.
  */
-export async function cacheSite(site: Site, dir = SITE_CACHE): Promise<void> {
+export async function cacheSite(
+  site: Site,
+  dir = SITE_CACHE,
+  /**
+   * How the engine did there. Kept beside the lines so a replay run where no
+   * classifier could be asked (a CI job holds no key) can be scored again
+   * once its sites are classed, without replaying anything.
+   */
+  outcome?: Outcome,
+): Promise<void> {
   const skip = Math.max(0, site.region.oldStart - CONTEXT);
   await mkdir(dir, { recursive: true });
   await writeFile(
@@ -91,20 +100,30 @@ export async function cacheSite(site: Site, dir = SITE_CACHE): Promise<void> {
     JSON.stringify({
       site: { ...site, base: site.base.slice(skip, site.region.oldEnd + CONTEXT) },
       skip,
+      ...(outcome ? { outcome } : {}),
     }),
   );
 }
 
-/** Every cached site, as it was scored. */
-export function cachedSites(dir = SITE_CACHE): Site[] {
+/** Every cached site, as it was scored, with the outcome where one was kept. */
+export function cachedOutcomes(dir = SITE_CACHE): { site: Site; outcome?: Outcome }[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir).map((name) => {
-    const { site, skip } = JSON.parse(readFileSync(join(dir, name), "utf8")) as {
+    const { site, skip, outcome } = JSON.parse(readFileSync(join(dir, name), "utf8")) as {
       site: Site;
       skip: number;
+      outcome?: Outcome;
     };
-    return { ...site, base: [...Array<string>(skip).fill(""), ...site.base] };
+    return {
+      site: { ...site, base: [...Array<string>(skip).fill(""), ...site.base] },
+      ...(outcome ? { outcome } : {}),
+    };
   });
+}
+
+/** Every cached site, as it was scored. */
+export function cachedSites(dir = SITE_CACHE): Site[] {
+  return cachedOutcomes(dir).map((entry) => entry.site);
 }
 
 export function readClasses(): Record<string, ClassRecord> {

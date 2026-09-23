@@ -10,6 +10,8 @@
  * own stubs of the method, as `sinon.stub(client.subscriptions, "del")`, are
  * references too and are reported the same way.
  */
+
+import type { MigrationPlan } from "@invariant-app/migrate-core";
 import { Node, type Project, SyntaxKind } from "ts-morph";
 import {
   type EditScope,
@@ -18,7 +20,6 @@ import {
   manualFrom,
   qualifiedName,
 } from "./engine.ts";
-import type { MigrationPlan } from "./plan.ts";
 
 /** Every declaration of `method` on the class or interface the SDK names `typeName`. */
 function methodDeclarations(
