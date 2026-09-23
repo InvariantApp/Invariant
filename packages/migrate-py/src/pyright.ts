@@ -102,6 +102,12 @@ export class Pyright {
           autoSearchPaths: false,
           useLibraryCodeForTypes: true,
           indexing: false,
+          // An API that starts sending a new value is a change a caller has
+          // to handle, and a `match` over a field typed as the old values is
+          // where it shows: polar mapped Stripe's dispute statuses with one,
+          // and "prevented" arrived. Off by default in pyright; an error here,
+          // so the release that adds the value makes the match incomplete.
+          diagnosticSeverityOverrides: { reportMatchNotExhaustive: "error" },
         },
       },
     };

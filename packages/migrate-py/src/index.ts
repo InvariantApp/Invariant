@@ -33,7 +33,7 @@ import {
 import { bumpPins } from "./pins.ts";
 import { type Diagnostic, Pyright } from "./pyright.ts";
 import { PyrightReferences } from "./references.ts";
-import type { Tree } from "./syntax.ts";
+import { enclosing, type Tree } from "./syntax.ts";
 
 export { compose, manualAt, Sources } from "./engine.ts";
 export { byteColumnToCharacter, LineIndex } from "./offsets.ts";
@@ -212,8 +212,25 @@ export function broken(
     );
     // A reviewer is shown the whole statement: the checker points at one
     // argument of a call that spans lines, and the fix is to the call.
-    const extent = tree ? shownExtent(tree, original, start, end) : { start, end };
-    const reason = `this no longer type-checks against the upgraded SDK: ${diagnostic.message.split("\n")[0]}`;
+    // A match that no longer handles every value is fixed by a new case,
+    // anywhere in it, so the whole match is what a reviewer is shown.
+    const match =
+      tree && (diagnostic.code ?? diagnostic.rule) === "reportMatchNotExhaustive"
+        ? enclosing(tree, start, "match_statement")
+        : undefined;
+    const extent = match
+      ? { start: match.startIndex, end: match.endIndex }
+      : tree
+        ? shownExtent(tree, original, start, end)
+        : { start, end };
+    // The checker's first two lines: what is wrong, and with what (the
+    // value a match no longer handles, the type an argument no longer fits).
+    const said = diagnostic.message
+      .split("\n")
+      .slice(0, 2)
+      .map((line) => line.trim())
+      .join(" ");
+    const reason = `this no longer type-checks against the upgraded SDK: ${said}`;
     if (
       sites.some(
         (site) =>

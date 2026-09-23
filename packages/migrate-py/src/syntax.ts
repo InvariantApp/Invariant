@@ -198,6 +198,13 @@ export function statementAround(
   return { start, end };
 }
 
+/** The nearest node of `type` around `offset`, if there is one. */
+export function enclosing(tree: Tree, offset: number, type: string): Node | undefined {
+  let node: Node | null = tree.rootNode.descendantForIndex(offset, offset);
+  while (node && node.type !== type) node = node.parent;
+  return node ?? undefined;
+}
+
 /** Every node below `root` of one of `types`, in source order. */
 export function descendantsOfType(root: Node, types: readonly string[]): Node[] {
   return root.descendantsOfType([...types]).filter((node): node is Node => node !== null);

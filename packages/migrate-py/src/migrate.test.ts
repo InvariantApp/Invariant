@@ -13,6 +13,7 @@ import { migrate, originalOffset } from "./index.ts";
  */
 const SDK_OLD = {
   "acme/__init__.py": [
+    "from acme._subscription import Invoice as Invoice",
     "from acme._subscription import Subscription as Subscription",
     "",
     'api_version: str = "2024-01-01"',
@@ -26,7 +27,7 @@ const SDK_OLD = {
     "",
   ].join("\n"),
   "acme/_subscription.py": [
-    "from typing import List, Optional",
+    "from typing import List, Literal, Optional",
     "",
     "",
     "class Subscription:",
@@ -39,9 +40,19 @@ const SDK_OLD = {
     "    current_period_end: int",
     "    cancel_at: Optional[int]",
     '    items: List["Subscription.Item"]',
+    '    latest_invoice: Optional["Invoice"]',
+    '    tier: Literal["gold", "silver"]',
     "",
     "    @classmethod",
     '    def retrieve(cls, id: str) -> "Subscription": ...',
+    "",
+    "    @classmethod",
+    '    def create(cls, customer: str, expand: Optional[List[str]] = None) -> "Subscription": ...',
+    "",
+    "",
+    "class Invoice:",
+    "    id: str",
+    "    payment_intent: Optional[str]",
     "",
   ].join("\n"),
 };
@@ -53,7 +64,8 @@ const SDK_NEW = {
     .replace("\n\ndef legacy() -> None: ...\n", "\n"),
   "acme/_subscription.py": SDK_OLD["acme/_subscription.py"]
     .replace("    current_period_end: int\n", "")
-    .replace("cancel_at:", "cancels_at:"),
+    .replace("cancel_at:", "cancels_at:")
+    .replace('Literal["gold", "silver"]', 'Literal["gold", "silver", "bronze"]'),
 };
 
 const CONSUMER = [
@@ -84,6 +96,15 @@ const CONSUMER = [
   "",
   'client = acme.Client("key", acme_version="2024-01-01")',
   "acme.legacy()",
+  'acme.Subscription.create("cus_1", expand=["latest_invoice.payment_intent"])',
+  "",
+  "",
+  "def label(sub: acme.Subscription) -> str:",
+  "    match sub.tier:",
+  '        case "gold":',
+  '            return "G"',
+  '        case "silver":',
+  '            return "S"',
   "",
 ].join("\n");
 
@@ -115,6 +136,13 @@ const changes: Change[] = [
       },
     ],
   },
+  {
+    irVersion: 1,
+    id: "chg_payment_intent",
+    summary: "`payment_intent` is no longer in `invoice`.",
+    scopes: [{ schema: "#/components/schemas/invoice" }],
+    ops: [{ op: "remove", path: "/payment_intent", restore: null }],
+  },
 ] as Change[];
 
 let root: string;
@@ -143,7 +171,7 @@ describe("a Python migration", () => {
     const plan = buildPlan(changes, {
       package: "acme",
       upgradeTo: { package: "acme", version: "2.0.0" },
-      types: { subscription: "acme.Subscription" },
+      types: { subscription: "acme.Subscription", invoice: "acme.Invoice" },
       accessors: [],
       pin: {
         type: "acme",
@@ -161,7 +189,16 @@ describe("a Python migration", () => {
       plan,
     });
 
-    expect(result.targets).toEqual({ resolved: 3, unresolved: 0 });
+    expect(result.targets).toEqual({ resolved: 4, unresolved: 0 });
+    // A removed field named in an expansion, reached through the type the
+    // call returns.
+    expect(
+      result.manual.some(
+        (site) =>
+          site.line === 28 &&
+          site.reason.startsWith("this expands `latest_invoice.payment_intent`"),
+      ),
+    ).toBe(true);
     const migrated = result.files.get(app) ?? "";
     expect(migrated).toContain('acme.api_version = "2025-01-01"');
     expect(migrated).toContain('if sub.status == "overdue":');
@@ -185,6 +222,16 @@ describe("a Python migration", () => {
         (site) => site.line === 27 && /no longer type-checks.*legacy/.test(site.reason),
       ),
     ).toBe(true);
+    // A value the new release adds makes a match over the old ones incomplete,
+    // and the whole match is shown, since the fix is a new case in it.
+    const match = result.manual.find((site) => /bronze/.test(site.reason));
+    expect(match && [match.line, match.snippet, (match.end ?? 0) - match.offset]).toEqual(
+      [
+        32,
+        "match sub.tier:",
+        CONSUMER.slice(CONSUMER.indexOf("match sub.tier")).trimEnd().length,
+      ],
+    );
     // The removed field's read breaks too; it is already reported above, and
     // the renamed field's edit left nothing behind.
     expect(result.manual.some((site) => site.line === 9)).toBe(false);

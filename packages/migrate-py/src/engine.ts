@@ -28,6 +28,7 @@ import {
   isSpan,
   type ReferenceProvider,
   type Span,
+  sameDeclaration,
 } from "./references.ts";
 import {
   descendantsOfType,
@@ -329,6 +330,8 @@ export async function runTargets(
 ): Promise<{ resolved: number; unresolved: number }> {
   let resolved = 0;
   let unresolved = 0;
+  /** Read once, the first time a field that moved or went needs them. */
+  let expansions: Expansion[] | undefined;
   for (const targets of groupTargets(plan)) {
     const first = targets[0] as TargetSymbol;
     const declaration = await references.declarationOf(first.typeName, [
@@ -351,9 +354,133 @@ export async function runTargets(
     // What the checker could not type is found by name, and only reported.
     if (composed.unsupported || composed.path.join(".") !== first.property) {
       await flagByName(references, sources, first, declaration, composed, typed, result);
+      expansions ??= await expansionsIn(references, sources, first.typeName);
+      for (const expansion of expansions) {
+        for (const [at, reached] of expansion.reaches.entries()) {
+          if (!reached || !sameDeclaration(reached, declaration)) continue;
+          const extent = shownExtent(
+            expansion.node.tree,
+            expansion.text,
+            expansion.node.startIndex,
+            expansion.node.endIndex,
+          );
+          result.manual.push(
+            manualAt(
+              expansion.file,
+              expansion.text,
+              extent.start,
+              extent.end,
+              composed.changeIds[0] ?? "",
+              `this expands \`${expansion.path.slice(0, at + 1).join(".")}\`; ${composed.unsupported ?? composed.reasons.join("; ")}`,
+            ),
+          );
+          break;
+        }
+      }
     }
   }
   return { resolved, unresolved };
+}
+
+/**
+ * A path the consumer asks the API to expand, as stripe-python takes them:
+ * `expand=["latest_invoice.payment_intent"]` on a call returning a
+ * `Subscription`, and where each step of it is declared. A field the API
+ * removed is as gone from an expansion as from a read, and the string is
+ * no reference a type checker follows, so each step is resolved from the
+ * type the call returns.
+ */
+interface Expansion {
+  file: string;
+  text: string;
+  node: Node;
+  path: string[];
+  /** The declaration each step of the path reaches, where it resolves. */
+  reaches: (Declaration | undefined)[];
+}
+
+async function expansionsIn(
+  references: ReferenceProvider,
+  sources: Sources,
+  typeName: string,
+): Promise<Expansion[]> {
+  const module = typeName.split(".")[0] as string;
+  const found: Expansion[] = [];
+  for (const [file, text] of sources.texts) {
+    if (!text.includes("expand")) continue;
+    const tree = await sources.tree(file);
+    if (!tree) continue;
+    for (const call of descendantsOfType(tree.rootNode, ["call"])) {
+      const lists = (call.childForFieldName("arguments")?.namedChildren ?? []).flatMap(
+        (argument) => {
+          if (argument?.type === "keyword_argument") {
+            return argument.childForFieldName("name")?.text === "expand"
+              ? [argument.childForFieldName("value")]
+              : argument.childForFieldName("name")?.text === "params"
+                ? expandIn(argument.childForFieldName("value"))
+                : [];
+          }
+          return expandIn(argument);
+        },
+      );
+      const strings = lists.flatMap((list) =>
+        list && ["list", "tuple"].includes(list.type)
+          ? list.namedChildren.filter((item): item is Node => item?.type === "string")
+          : [],
+      );
+      if (strings.length === 0) continue;
+      const resource = await returnedType(references, file, call, module);
+      if (!resource) continue;
+      for (const node of strings) {
+        const value = stringValue(node);
+        if (!value) continue;
+        // `data.` expands a list's items, which are what the call returns.
+        const path = value
+          .split(".")
+          .filter((segment, at) => !(at === 0 && segment === "data"));
+        const reaches: (Declaration | undefined)[] = [];
+        for (let at = 0; at < path.length; at += 1) {
+          reaches.push(await references.declarationOf(resource, path.slice(0, at + 1)));
+        }
+        found.push({ file, text, node, path, reaches });
+      }
+    }
+  }
+  return found;
+}
+
+/** The `"expand"` entry of a params dictionary written in the call. */
+function expandIn(node: Node | null | undefined): (Node | null)[] {
+  if (node?.type !== "dictionary") return [];
+  return node.namedChildren
+    .filter((pair): pair is Node => pair?.type === "pair")
+    .filter((pair) => stringValue(pair.childForFieldName("key")) === "expand")
+    .map((pair) => pair.childForFieldName("value"));
+}
+
+/**
+ * What a call to the SDK returns, as a name the SDK's module exports:
+ * `Subscription` for `stripe.Subscription.create(...)` and for a client's
+ * `subscriptions.create(...)`, read from the signature the checker shows.
+ */
+async function returnedType(
+  references: ReferenceProvider,
+  file: string,
+  call: Node,
+  module: string,
+): Promise<string | undefined> {
+  const callee = call.childForFieldName("function");
+  const name =
+    callee?.type === "attribute" ? callee.childForFieldName("attribute") : callee;
+  if (!name) return undefined;
+  const hover = await references.typeAt(file, name.startIndex);
+  const signature = hover?.split("\n\n")[0] ?? "";
+  const returned = /->\s*(.+?)\s*$/s.exec(signature)?.[1];
+  if (!returned) return undefined;
+  const inner =
+    /^(?:ListObject|SearchResultObject)\[(.+)\]$/.exec(returned)?.[1] ?? returned;
+  const bare = inner.replace(/["']/g, "").trim();
+  return /^[A-Za-z_]\w*$/.test(bare) ? `${module}.${bare}` : undefined;
 }
 
 async function siteAt(sources: Sources, span: Span): Promise<Site | undefined> {
