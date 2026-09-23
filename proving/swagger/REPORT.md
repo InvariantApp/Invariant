@@ -5,7 +5,7 @@ converted by the upgrader every load uses and by `swagger2openapi`, and the two
 results compared by the differ the gate uses. A difference means the two
 converters disagree about the provider's API, and one of them is wrong.
 
-52 documents; 38 with no open difference; 0 could not be compared; 14 refused by the loader as invalid, with the reason.
+56 documents; 42 with no open difference; 0 could not be compared; 14 refused by the loader as invalid, with the reason.
 
 | Provider | Document | Open | Settled |
 |---|---|---|---|
@@ -61,6 +61,10 @@ converters disagree about the provider's API, and one of them is wrong.
 | slack.com | 2020-03-13 9d979d9 | refused: #/components/schemas/objs_channel/properties/latest/items is a list of schemas, where OpenAPI takes one. A list there is | |
 | slack.com | 2020-04-03 3f1e8b4 | refused: #/components/schemas/objs_channel/properties/latest/items is a list of schemas, where OpenAPI takes one. A list there is | |
 | slack.com | 2020-10-06 dfea73e | refused: #/components/schemas/objs_channel/properties/latest/items is a list of schemas, where OpenAPI takes one. A list there is | |
+| kubernetes.io | 2026-09-15 9562e9c | 0 | 0 |
+| kubernetes.io | 2026-09-17 2a9e93b | 0 | 0 |
+| kubernetes.io | 2026-09-17 746eaf9 | 0 | 0 |
+| kubernetes.io | 2026-09-18 1712e02 | 0 | 0 |
 
 ## Differences by kind
 
