@@ -322,6 +322,12 @@
         }
       },
       "releases": {
+        "v1.23.7": {
+          "commit": "97171be1b4acb262c0ae8eadeb0c6b56e4463324",
+          "digest": "sha256:e39a5a7eb0b2aca06169b6d7a0fde1d4b00f86eb3dd5d9167232b4752bad7281",
+          "suite": "ef237cd0c0b333a5f8dd1dadbe1f9f0e1aaf1812",
+          "suiteRef": "refs/tags/gitea/v0.22.0"
+        },
         "v1.24.2": {
           "commit": "acd4e10990e63f0f81ecb0252b8f5c044cb6df0e",
           "digest": "sha256:8e2e3f40c5ff3fee920c6d0faac0db9cca2183d80ff23965d1022434d37e7910",
@@ -333,7 +339,7 @@
           "digest": "sha256:17d18218be2dad1f8ed402a4f906989505c90ab8b66ee9befcecfb5d470133e7"
         }
       },
-      "pairs": [["v1.24.2", "v1.25.4"]]
+      "pairs": [["v1.23.7", "v1.24.2"], ["v1.24.2", "v1.25.4"]]
     },
     {
       "name": "immich",
