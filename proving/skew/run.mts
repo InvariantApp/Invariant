@@ -18,7 +18,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { BRAND, minRuntimeFor } from "@invariant-app/ir";
+import { BRAND, minRuntimeFor, NEXT } from "@invariant-app/ir";
 import * as current from "@invariant-app/runtime";
 
 const ROOT = join(import.meta.dirname, "../..");
@@ -86,6 +86,24 @@ function nameOf(error: unknown): string {
   return TYPED.has(name) ? `refused: ${name}` : `threw: ${String(error)}`;
 }
 
+/**
+ * The oldest runtime a published compiler would say a program needs.
+ *
+ * A feature not yet released is stamped here as the release after this one,
+ * `-next`, and every runtime accepts that of the release it is, so that this
+ * repository's own runtime runs what its own compiler emits. A published
+ * runtime of this release is the same version and would accept it too, which
+ * says nothing about skew: the compiler that ships the feature has it written
+ * as the release it shipped in, which the published runtime refuses. Runtime
+ * 0.3.0 was handed a `move` beneath its own place stamped `0.3.1-next`, ran
+ * it and failed, where a program from compiler 0.3.1 would have been refused.
+ */
+function released(program: unknown): string {
+  const stamped = minRuntimeFor(program as Parameters<typeof minRuntimeFor>[0]);
+  const suffix = `-${NEXT}`;
+  return stamped.endsWith(suffix) ? stamped.slice(0, -suffix.length) : stamped;
+}
+
 /** The same shape the fuzzers use: one site running a vector's instructions. */
 function vectorCases(compiledBy: string): Case[] {
   const { vectors } = JSON.parse(
@@ -119,14 +137,10 @@ function vectorCases(compiledBy: string): Case[] {
     };
     return {
       name: `vector: ${vector.name}`,
-      // Stamped as the compiler stamps a program that runs these
+      // Stamped as a published compiler stamps a program that runs these
       // instructions: one that needs a feature the published runtime predates
       // says so, and is refused at load rather than run.
-      program: {
-        ...program,
-        compiledBy,
-        minRuntime: minRuntimeFor(program as Parameters<typeof minRuntimeFor>[0]),
-      },
+      program: { ...program, compiledBy, minRuntime: released(program) },
       contract: "old",
       method: "POST",
       path: "/skew",
