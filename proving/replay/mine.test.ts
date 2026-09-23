@@ -80,6 +80,8 @@ describe("a major bump", () => {
     expect(isMajor("0.3.1", "0.4.0")).toBe(true);
     expect(isMajor("", "14")).toBe(true);
     expect(isMajor("", "14.2.1")).toBe(false);
+    // A downgrade crosses a major too, and is no migration to a new release.
+    expect(isMajor("24.2.0", "21.7.0")).toBe(false);
   });
 });
 

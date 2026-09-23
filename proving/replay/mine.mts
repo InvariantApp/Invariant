@@ -361,7 +361,15 @@ export function isMajor(from: string, to: string): boolean {
   // Renovate does not say where it came from; the target alone is kept, and
   // the base commit's manifest says the rest when the case is replayed.
   if (from === "") return /^v?\d+(\.0)*$/.test(to) || to.endsWith(".0.0");
-  return major(from) !== major(to);
+  // Only forward: Yelp/paasta moved kubernetes from 24 back to 21, which is
+  // a different major and no migration to a breaking release.
+  const parts = (version: string) =>
+    version.split(".").map((part) => Number.parseInt(part, 10) || 0);
+  const [a, b] = [parts(from), parts(to)];
+  const forward =
+    (a[0] ?? 0) < (b[0] ?? 0) ||
+    ((a[0] ?? 0) === (b[0] ?? 0) && (a[1] ?? 0) < (b[1] ?? 0));
+  return forward && major(from) !== major(to);
 }
 
 export function classify(
