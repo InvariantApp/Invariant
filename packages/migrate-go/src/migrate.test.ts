@@ -139,6 +139,7 @@ describe.skipIf(!hasGo)("migrating a Go consumer", () => {
       "sdk-upgrade",
       "sdk-upgrade",
       "sdk-upgrade",
+      "sdk-upgrade",
     ]);
   });
 
@@ -187,6 +188,19 @@ describe.skipIf(!hasGo)("migrating a Go consumer", () => {
     expect(sites.find((site) => site.from === 17)?.reason).toContain(
       "IssuesService.EditComment is now UpdateComment",
     );
+  });
+
+  it("shows a generated file with anything to change in it as one to regenerate", () => {
+    const mock = `${CONSUMER}/mock_comments.go`;
+    const text = readFileSync(mock, "utf8");
+    expect(
+      result.manual.filter((site) => site.file === mock && site.end === text.length),
+    ).toEqual([
+      expect.objectContaining({
+        offset: 0,
+        reason: expect.stringContaining("regenerate it"),
+      }),
+    ]);
   });
 
   it("finds nothing else broken, and leaves the consumer's files as they were", () => {

@@ -7886,7 +7886,7 @@
     "id": "roberteggl/github-deployment-bridge#8",
     "language": "go",
     "package": "github.com/google/go-github",
-    "engine": "none",
+    "engine": "verify",
     "sites": 10,
     "identical": 0,
     "differs": 0,
@@ -7900,7 +7900,22 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "contested": 1
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 9
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
+      }
     }
   },
   {
@@ -10438,21 +10453,46 @@
     "id": "thegeeklab/wp-github-comment#427",
     "language": "go",
     "package": "github.com/google/go-github",
-    "engine": "none",
+    "engine": "contract",
+    "versions": [
+      "v90.0.0",
+      "v92.0.0"
+    ],
     "sites": 63,
-    "identical": 0,
+    "identical": 4,
     "differs": 0,
-    "flagged": 0,
-    "missed": 63,
+    "flagged": 7,
+    "missed": 52,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 2,
     "inScope": {
       "sites": 0,
       "identical": 0,
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "contested": 8
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 4,
+        "differs": 0,
+        "flagged": 7,
+        "missed": 39
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 5
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 8
+      }
     }
   },
   {
@@ -10850,12 +10890,16 @@
     "id": "vertti/ci-snitch#116",
     "language": "go",
     "package": "github.com/google/go-github",
-    "engine": "none",
+    "engine": "contract",
+    "versions": [
+      "v86.0.0",
+      "v87.0.0"
+    ],
     "sites": 6,
-    "identical": 0,
+    "identical": 2,
     "differs": 0,
-    "flagged": 0,
-    "missed": 6,
+    "flagged": 3,
+    "missed": 1,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -10864,7 +10908,22 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "contested": 2
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 2,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 1
+      }
     }
   },
   {

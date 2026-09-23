@@ -260,7 +260,10 @@ export async function migrate(options: GoMigrateOptions): Promise<GoMigrationRes
       );
     });
   }
-  result.manual = unique(result.manual);
+  result.manual = unique([
+    ...result.manual,
+    ...(await regenerated(result.manual, textOf)),
+  ]);
 
   if (options.write) {
     await Promise.all([...files].map(([file, text]) => writeFile(file, text, "utf8")));
@@ -422,6 +425,43 @@ async function spanSite(
     offset,
     end,
   };
+}
+
+/**
+ * Go's mark of a generated file, which the convention says comes before the
+ * package clause (https://go.dev/s/generatedcode).
+ */
+const GENERATED = /^\/\/ Code generated .* DO NOT EDIT\.$/m;
+
+/**
+ * The whole of every generated file a site landed in. Nobody edits a mock
+ * line by line: thegeeklab/wp-github-comment regenerated mockery's
+ * MockIssueService when go-github 92 replaced EditComment, and the diff ran
+ * through the whole file. So a generated file with anything to change in it
+ * is shown as one thing to regenerate, not as the lines the check reached.
+ */
+async function regenerated(
+  sites: readonly ManualSite[],
+  textOf: (file: string) => Promise<string>,
+): Promise<ManualSite[]> {
+  const found: ManualSite[] = [];
+  for (const file of new Set(sites.map((site) => site.file))) {
+    const text = await textOf(file);
+    const header = text.slice(0, Math.max(0, text.search(/^package\s/m)));
+    if (!GENERATED.test(header)) continue;
+    const first = sites.find((site) => site.file === file) as ManualSite;
+    found.push({
+      file,
+      line: 1,
+      column: 1,
+      changeId: first.changeId,
+      reason: `generated code (${GENERATED.exec(header)?.[0].slice(3)}): regenerate it once the rest of this migration is made, rather than editing it`,
+      snippet: text.slice(0, 120),
+      offset: 0,
+      end: text.length,
+    });
+  }
+  return found;
 }
 
 function unique(sites: readonly ManualSite[]): ManualSite[] {
