@@ -1,0 +1,15 @@
+# Written by hand, as Qdrant's maintainers would: 1.19's document drops two
+# forms a points batch's vectors could take. An old caller sending one may be
+# refused, which no op can prevent, so it is acknowledged, not served.
+irVersion: 1
+id: chg_batch_vector_forms
+summary: "A points batch no longer lists two of the forms its vectors could take."
+scopes: []
+ops:
+  - op: behavior
+    flag: batch_vector_forms
+    covers:
+      - "request-property-any-of-removed at PUT /collections/{collection_name}/points: removed `subschema #3, subschema #4` from the `anyOf[#/components/schemas/PointsBatch]/batch/vectors` request property `anyOf` list"
+      - "request-property-any-of-removed at POST /collections/{collection_name}/points/batch: removed `subschema #3, subschema #4` from the `operations/items/anyOf[#/components/schemas/UpsertOperation]/upsert/anyOf[#/components/schemas/PointsBatch]/batch/vectors` request property `anyOf` list"
+assertions:
+  side_effects_unchanged: true

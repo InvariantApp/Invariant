@@ -196,11 +196,11 @@ describe("unions on the way to a schema", () => {
       }) as never,
       "#/components/schemas/Card",
     );
+    // Nothing but null beside it, so the place needs no guard at all: an
+    // instruction finds nothing to act on in a null.
     expect(scan.unsupported).toEqual([]);
-    expect(scan.sites[0]).toMatchObject({
-      prefix: "/local",
-      guards: [{ at: "/local", type: "object" }],
-    });
+    expect(scan.sites[0]?.prefix).toBe("/local");
+    expect(scan.sites[0]?.guards ?? []).toEqual([]);
   });
 
   it("tells null from a choice whose every branch is an object (Meilisearch's task network)", () => {
@@ -230,10 +230,7 @@ describe("unions on the way to a schema", () => {
       "#/components/schemas/Card",
     );
     expect(scan.unsupported).toEqual([]);
-    expect(scan.sites[0]?.guards).toEqual([
-      { at: "/network", type: "object" },
-      { at: "/network", has: "remote" },
-    ]);
+    expect(scan.sites[0]?.guards).toEqual([{ at: "/network", has: "remote" }]);
   });
 
   it("still refuses a branch that is nullable and says what else it may be", () => {

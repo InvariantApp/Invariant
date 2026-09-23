@@ -299,6 +299,21 @@ export function jsonKindOf(
   return undefined;
 }
 
+/** Whether every branch of a union but the one at `index` holds only null. */
+function onlyNullBeside(
+  document: OpenApiDocument,
+  branches: readonly JsonValue[],
+  index: number,
+): boolean {
+  return (
+    branches.length > 1 &&
+    jsonKindOf(document, branches[index] as JsonValue) !== "null" &&
+    branches.every(
+      (branch, at) => at === index || jsonKindOf(document, branch) === "null",
+    )
+  );
+}
+
 /**
  * How the branch at `index` of a union is told apart from the rest, or
  * nothing when it cannot be. In order: the kind of JSON value it is, where no
@@ -495,6 +510,14 @@ function walk(ctx: WalkContext, schema: JsonValue, segments: string[]): void {
       for (const message of inner.unsupported) note(ctx, message);
       if (inner.found.length === 0) return;
       const at = formatPointer(segments);
+      // Beside nothing but null, the branch needs no guard: an instruction
+      // finds nothing to act on in a null, and every codec passes one through.
+      // Qdrant's telemetry nests an Option<T> inside an Option<T> so often
+      // that a guard for each ran past the depth a program may nest to.
+      if (key !== "not" && onlyNullBeside(ctx.document, branches, index)) {
+        ctx.found.push(...inner.found);
+        return;
+      }
       const guard =
         key === "not" ? undefined : guardFor(ctx.document, schema, branches, index, at);
       if (!guard) {
@@ -829,6 +852,10 @@ export function refsWithin(
         const inner = visit(branch, segments);
         if (inner.length === 0) return;
         const at = formatPointer(segments);
+        if (key !== "not" && onlyNullBeside(document, branches, index)) {
+          found.push(...inner);
+          return;
+        }
         const guard =
           key === "not" ? undefined : guardFor(document, schema, branches, index, at);
         if (!guard) {

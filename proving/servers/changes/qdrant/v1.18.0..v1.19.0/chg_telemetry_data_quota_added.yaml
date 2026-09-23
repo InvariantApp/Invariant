@@ -1,0 +1,17 @@
+# Written by hand, as Qdrant's maintainers would: 1.19 reports quota usage at
+# the top of telemetry, which no caller of 1.18 was shown. It is optional, so
+# nothing drafts it, but an old caller that reads telemetry's parts as a set
+# (Qdrant's own telemetry test does) sees one it never had. Taking it out of
+# old callers' responses shows them telemetry as 1.18 described it.
+irVersion: 1
+id: chg_telemetry_data_quota_added
+summary: "`quota` is new on TelemetryData."
+scopes:
+  - schema: "#/components/schemas/TelemetryData"
+ops:
+  - op: add
+    path: /quota
+    value: null
+assertions:
+  loss_acknowledged: true
+  side_effects_unchanged: true

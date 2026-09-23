@@ -94,6 +94,18 @@ describe("a named vocabulary", () => {
       method: "post",
       fallback_method: "get",
     });
+    // Beside null the place carries no guard, and a null passes as it came.
+    const unset = runtime.transformResponse(
+      site,
+      200,
+      JSON.stringify({ id: "ad_1", method: "POST", fallback_method: null }),
+      { contract: "old", operation: "getAddress" },
+    );
+    expect(JSON.parse(unset)).toEqual({
+      id: "ad_1",
+      method: "post",
+      fallback_method: null,
+    });
   });
 
   it("that only lost values is relaxed at its root, and a field holding it is not read as any text", async () => {
