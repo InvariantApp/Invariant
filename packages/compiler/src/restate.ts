@@ -7,7 +7,12 @@
  * proved schema against schema by the shared containment check, and the
  * Change is refused, naming where and why, wherever either cannot be shown.
  */
-import { covers, keepsNames, type OpenApiDocument } from "@invariant-app/contract";
+import {
+  covers,
+  keepsNames,
+  type OpenApiDocument,
+  referencesAlike,
+} from "@invariant-app/contract";
 import type { JsonValue } from "@invariant-app/ir";
 import { SchemaOpError } from "./schema.ts";
 
@@ -21,8 +26,29 @@ export function proveRestated(
   after: Stated,
   directions: { request: boolean; response: boolean },
   place: string,
+  /**
+   * Both statements as they are written, references kept. Names are compared
+   * on these, so a schema that holds itself is cut off at the same place on
+   * both sides, and the references are what the written place will name.
+   */
+  written: { before: JsonValue; after: JsonValue } = {
+    before: before.schema,
+    after: after.schema,
+  },
 ): void {
-  const named = keepsNames(before, after);
+  const alike = referencesAlike(before.document, {
+    document: after.document,
+    schema: written.after,
+  });
+  if (!alike.covered) {
+    throw new SchemaOpError(
+      `${place} is not the same values restated: it refers to ${alike.at}, and ${alike.reason}`,
+    );
+  }
+  const named = keepsNames(
+    { document: before.document, schema: written.before },
+    { document: after.document, schema: written.after },
+  );
   if (!named.covered) {
     throw new SchemaOpError(
       `${place} is not the same values restated: ${named.at} ${named.reason}`,
