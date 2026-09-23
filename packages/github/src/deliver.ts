@@ -143,6 +143,7 @@ interface PullRequest {
  */
 export async function deliverMigration(options: DeliverOptions): Promise<DeliveryResult> {
   const { api, repo, baseBranch, headBranch, files, summary } = options;
+  for (const file of files) assertRepositoryPath(file.path);
 
   const base = await api.request<Ref>(
     "GET",
@@ -230,6 +231,35 @@ export async function deliverMigration(options: DeliverOptions): Promise<Deliver
     commit: head,
     draft: true,
   };
+}
+
+/**
+ * Refuses a path that is not plainly a file in the repository.
+ *
+ * Checked before the first call to GitHub, so a refused delivery writes
+ * nothing at all. The paths come from a migration run over a consumer's
+ * repository and a symbol map the provider published, and GitHub's trees API
+ * is not the place to find out what `../`, an absolute path or a write into
+ * `.git` would have done.
+ */
+function assertRepositoryPath(path: string): void {
+  const segments = path.split("/");
+  const refused =
+    path === "" ||
+    path.includes("\\") ||
+    path.includes("\0") ||
+    segments.some(
+      (segment) =>
+        segment === "" ||
+        segment === "." ||
+        segment === ".." ||
+        segment.toLowerCase() === ".git",
+    );
+  if (refused) {
+    throw new DeliveryError(
+      `${JSON.stringify(path)} is not a path inside a repository, so nothing was delivered`,
+    );
+  }
 }
 
 async function headRef(

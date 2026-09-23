@@ -294,6 +294,7 @@ export function createProxy(options: ProxyOptions): FetchHandler {
  * choose a different host, which turns a proxy into an open relay.
  */
 export function targetFor(upstream: URL, path: string, search: string): URL | undefined {
+  if (hidesTraversal(path)) return undefined;
   const target = new URL(upstream.href);
   const base = upstream.pathname.replace(/\/+$/, "");
   target.pathname = `${base}${path.startsWith("/") ? path : `/${path}`}`;
@@ -307,6 +308,31 @@ export function targetFor(upstream: URL, path: string, search: string): URL | un
     return undefined;
   }
   return target;
+}
+
+/**
+ * Whether a path holds a step up that only decoding reveals.
+ *
+ * The URL parser already resolves `..` and `%2e%2e` written as segments of
+ * their own, so those never get here. `..%2f` does, and so does `..%5c`,
+ * because to a URL an escaped slash is part of a segment's name. Plenty of
+ * servers decode it before they route, and to them `/api/..%2fadmin` is
+ * `/admin`: outside the base path this proxy fronts, reached through it. No
+ * API names a resource that way, so such a path is refused as leaving the
+ * API. Found by the threat-model tests.
+ */
+export function hidesTraversal(path: string): boolean {
+  for (const segment of path.split("/")) {
+    if (!segment.includes("%")) continue;
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(segment);
+    } catch {
+      continue;
+    }
+    if (decoded.split(/[/\\]/).some((part) => part === "." || part === "..")) return true;
+  }
+  return false;
 }
 
 /** A copy without hop-by-hop headers, or any the Connection header names. */

@@ -336,6 +336,15 @@ export async function rebuildAt(
   configPath: string,
   bundle: EvolutionBundle,
 ): Promise<EvolutionBundle> {
+  // The commit is handed to git as an argument, and it comes from the bundle.
+  // A signature says who wrote it, which after a key is stolen is not the
+  // same as saying it is safe to pass to git: `--orphan=x` is read as an
+  // option, not a commit. Only a commit id is taken.
+  if (!/^[0-9a-f]{7,64}$/i.test(bundle.source.commit)) {
+    throw new ReleaseError(
+      `this bundle names ${JSON.stringify(bundle.source.commit)} as its commit, which is not a commit id, so it cannot be rebuilt`,
+    );
+  }
   const worktree = await mkdtemp(join(tmpdir(), "invariant-rebuild-"));
   try {
     await git(repository, [

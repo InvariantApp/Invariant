@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { chmodSync, existsSync, statSync } from "node:fs";
-import { appendFile, chmod, copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { basename, dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
+import { appendFile, chmod, copyFile, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { exec, execFile, spawn, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -14246,7 +14246,7 @@ function at$1(value, pointer, where) {
 	let node = value;
 	for (const segment of pointer.split("/").slice(1)) {
 		const key = pointerKey(segment);
-		node = Array.isArray(node) ? node[Number(key)] : isJsonObject(node) ? node[key] : void 0;
+		node = Array.isArray(node) ? node[Number(key)] : isJsonObject(node) && Object.hasOwn(node, key) ? node[key] : void 0;
 		if (node === void 0) throw new BundleError(`${where} points at nothing`);
 	}
 	return node;
@@ -14260,6 +14260,11 @@ function repositoryOf(path) {
 		if (parent === dir) return dirname(resolve(path));
 		dir = parent;
 	}
+}
+/** Whether `path` is `root` or lies somewhere beneath it. */
+function within$1(root, path) {
+	const inside = relative(root, path);
+	return inside !== ".." && !inside.startsWith(`..${sep}`) && !isAbsolute(inside);
 }
 /** Whether a document refers to anything outside itself. */
 function refersOutside(value) {
@@ -14280,13 +14285,15 @@ async function bundleDocument(path, options = {}) {
 	const load = async (file, from) => {
 		const cached = files.get(file);
 		if (cached !== void 0) return cached;
-		const inside = relative(root, file);
-		if (inside.startsWith("..") || isAbsolute(inside)) throw new BundleError(`${from} refers to ${file}, outside the repository at ${root}. A specification may only refer to files beside it.`);
+		const outsideAt = `${from} refers to ${file}, outside the repository at ${root}. A specification may only refer to files beside it.`;
+		if (!within$1(root, file)) throw new BundleError(outsideAt);
 		if (files.size >= MAX_FILES) throw new BundleError(`${entry} refers to more than ${MAX_FILES} files`);
 		let text;
 		try {
+			if (file !== entry && !within$1(await realpath(root), await realpath(file))) throw new BundleError(outsideAt);
 			text = await readFile(file, "utf8");
-		} catch {
+		} catch (error) {
+			if (error instanceof BundleError) throw error;
 			throw new BundleError(`${from} refers to ${file}, which cannot be read`);
 		}
 		const value = parseText(file, text);
@@ -14300,7 +14307,7 @@ async function bundleDocument(path, options = {}) {
 	const named = {};
 	/** Where each target was placed, by `file#pointer`. */
 	const placed = /* @__PURE__ */ new Map();
-	const taken = new Set(Object.keys((swagger ? document["definitions"] : isJsonObject(document["components"]) ? document["components"]["schemas"] : void 0) ?? {}));
+	const taken = /* @__PURE__ */ new Set([...Object.keys((swagger ? document["definitions"] : isJsonObject(document["components"]) ? document["components"]["schemas"] : void 0) ?? {}), "__proto__"]);
 	const home = swagger ? "#/definitions/" : "#/components/schemas/";
 	const targetOf = (ref, file) => {
 		if (/^[a-z][a-z0-9+.-]*:/i.test(ref)) throw new BundleError(`${file} refers to ${ref}. References are resolved from files, never fetched.`);
@@ -15726,7 +15733,7 @@ function resolveRef(document, ref) {
 		}
 		let next;
 		if (Array.isArray(current)) next = /^(0|[1-9]\d*)$/.test(key) ? current[Number(key)] : void 0;
-		else if (isJsonObject(current)) next = current[key];
+		else if (isJsonObject(current) && Object.hasOwn(current, key)) next = current[key];
 		if (next === void 0) return void 0;
 		current = next;
 	}
@@ -16528,10 +16535,25 @@ const JSON_KINDS$1 = [
 * schema can be shared by every place it sits.
 */
 const MAX_WALK_STEPS = 2e6;
+/**
+* How many places one search lists before the schema is served by blocks
+* instead.
+*
+* The step budget bounds how long a search takes, not how much it finds, and
+* without recursion nothing else stopped it. A document of a few kilobytes,
+* each level holding two references to the next, puts a schema at 2^depth
+* places: sixteen levels listed 65,536 of them and the compiler died of a
+* stack overflow, and fourteen wrote a 6.8 MB program for a one-field rename,
+* doubling with each level. Found by the threat-model tests. Past this many
+* places the program is as large as the schemas rather than the paths, which
+* is what the blocks are for.
+*/
+const MAX_PLACES = 1e4;
 /** How many reasons a search keeps; the rest are counted, not listed. */
 const MAX_NOTES = 100;
 const freshBudget = () => ({
 	steps: 0,
+	places: 0,
 	exhausted: false,
 	dropped: 0
 });
@@ -16766,6 +16788,12 @@ function walk$2(ctx, schema, segments) {
 	const ref = schema["$ref"];
 	if (typeof ref === "string") {
 		if (ref === ctx.target) {
+			ctx.budget.places += 1;
+			if (ctx.budget.places > MAX_PLACES) {
+				ctx.budget.exhausted = true;
+				note(ctx, `the schema sits in more than ${MAX_PLACES} places, too many to place a transform on each`);
+				return;
+			}
 			ctx.found.push({
 				prefix: formatPointer(segments),
 				guards: []
@@ -18757,6 +18785,7 @@ function execute(root, program, limits = DEFAULT_LIMITS) {
 	};
 	for (const instr of program) try {
 		step(root, instr, bounded, result, 0, void 0);
+		if (bounded.deadline !== void 0 && performance.now() > bounded.deadline) throw new TimeExceeded();
 	} catch (error) {
 		if (error instanceof FanOutExceeded) throw new MatchLimitError(instr.c, error.limit);
 		if (error instanceof TimeExceeded) throw new TimeBudgetError(instr.c, limits.timeBudgetMs ?? 0);
@@ -22519,6 +22548,42 @@ function applyResponseScope(document, oldContract, newContract, routes, scope, o
 /**
 * Replaying declared Changes over the old contract to predict the new one.
 */
+/**
+* Keys no program may name, the runtime's own list. It refuses a program that
+* names one at load, since a pointer through `__proto__` or `constructor`
+* reaches the shared prototype of every object in the process.
+*/
+const UNADDRESSABLE = /* @__PURE__ */ new Set([
+	"__proto__",
+	"constructor",
+	"prototype"
+]);
+/**
+* A Change that names one of those keys, refused here rather than compiled
+* into a program the runtime will not load. `prototype` compiled without a
+* word and the program failed only when a provider deployed it. Found by the
+* threat-model tests.
+*/
+function unaddressableKeys(changes) {
+	const issues = [];
+	for (const change of changes) change.ops.forEach((op, index) => {
+		for (const field of [
+			"path",
+			"from",
+			"to"
+		]) {
+			const pointer = op[field];
+			if (typeof pointer !== "string" || !pointer.startsWith("/")) continue;
+			const named = pointer.slice(1).split("/").map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~")).find((segment) => UNADDRESSABLE.has(segment));
+			if (named === void 0) continue;
+			issues.push({
+				changeId: change.id,
+				message: `op ${index + 1} (${op.op}) names "${named}" in ${pointer}, which no program may address: every object shares it`
+			});
+		}
+	});
+	return issues;
+}
 function routeMappings(changes) {
 	const out = [];
 	for (const change of changes) for (const op of change.ops) if (op.op === "route") out.push({
@@ -22682,7 +22747,7 @@ function shapeByName(newDocument, name, path) {
 */
 function predictDocument(oldContract, newContract, changes) {
 	const document = structuredClone(oldContract);
-	const issues = [];
+	const issues = [...unaddressableKeys(changes)];
 	const routes = routeMappings(changes);
 	for (const change of changes) for (const index of undecidedOps(change)) {
 		const op = change.ops[index];
@@ -23297,7 +23362,7 @@ function accumulatorFor(sites, key) {
 * is where the request will have arrived by the time the program runs.
 */
 function projectStep(label, oldContract, changes, newContract) {
-	const issues = [...findInterference(changes)];
+	const issues = [...unaddressableKeys(changes), ...findInterference(changes)];
 	const routes = routeMappings(changes);
 	const sites = /* @__PURE__ */ new Map();
 	const routeRules = routes.map((route) => ({

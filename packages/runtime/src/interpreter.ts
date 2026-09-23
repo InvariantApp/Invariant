@@ -544,6 +544,14 @@ export function execute(
   for (const instr of program) {
     try {
       step(root, instr, bounded, result, 0, undefined);
+      // Read after every instruction as well as every so many steps. One
+      // instruction can move ten thousand places, and a program shorter than
+      // the step interval never read the clock at all: sixty moves over nine
+      // thousand items ran for more than a second against a five millisecond
+      // budget. Found by the threat-model tests.
+      if (bounded.deadline !== undefined && performance.now() > bounded.deadline) {
+        throw new TimeExceeded();
+      }
     } catch (error) {
       if (error instanceof FanOutExceeded)
         throw new MatchLimitError(instr.c, error.limit);

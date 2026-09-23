@@ -280,10 +280,14 @@ export class RulesJudge implements Judge {
       return { ...abstention("rules"), latencyMs: performance.now() - started };
     }
 
-    const scores: Record<string, number> = {};
-    for (const candidate of question.candidates) {
-      scores[candidate.name] = scorePair(question.removed, candidate).score;
-    }
+    // From entries, so a field named `__proto__` is scored rather than
+    // assigned over the object's prototype.
+    const scores: Record<string, number> = Object.fromEntries(
+      question.candidates.map((candidate) => [
+        candidate.name,
+        scorePair(question.removed, candidate).score,
+      ]),
+    );
 
     const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
     const best = ranked[0];

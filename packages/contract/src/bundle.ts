@@ -20,8 +20,16 @@
  * reference at all.
  */
 import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
-import { basename, dirname, extname, isAbsolute, relative, resolve } from "node:path";
+import { readFile, realpath } from "node:fs/promises";
+import {
+  basename,
+  dirname,
+  extname,
+  isAbsolute,
+  relative,
+  resolve,
+  sep,
+} from "node:path";
 import { isJsonObject, type JsonObject, type JsonValue } from "@invariant-app/ir";
 import { stringify as stringifyYaml } from "yaml";
 import { DocumentTooLargeError, parseDocumentText } from "./parse.ts";
@@ -66,7 +74,7 @@ function at(value: JsonValue, pointer: string, where: string): JsonValue {
     const key = pointerKey(segment);
     node = Array.isArray(node)
       ? node[Number(key)]
-      : isJsonObject(node)
+      : isJsonObject(node) && Object.hasOwn(node, key)
         ? node[key]
         : undefined;
     if (node === undefined) throw new BundleError(`${where} points at nothing`);
@@ -83,6 +91,12 @@ export function repositoryOf(path: string): string {
     if (parent === dir) return dirname(resolve(path));
     dir = parent;
   }
+}
+
+/** Whether `path` is `root` or lies somewhere beneath it. */
+function within(root: string, path: string): boolean {
+  const inside = relative(root, path);
+  return inside !== ".." && !inside.startsWith(`..${sep}`) && !isAbsolute(inside);
 }
 
 /** Whether a document refers to anything outside itself. */
@@ -109,19 +123,24 @@ export async function bundleDocument(
   const load = async (file: string, from: string): Promise<JsonValue> => {
     const cached = files.get(file);
     if (cached !== undefined) return cached;
-    const inside = relative(root, file);
-    if (inside.startsWith("..") || isAbsolute(inside)) {
-      throw new BundleError(
-        `${from} refers to ${file}, outside the repository at ${root}. A specification may only refer to files beside it.`,
-      );
-    }
+    const outsideAt = `${from} refers to ${file}, outside the repository at ${root}. A specification may only refer to files beside it.`;
+    if (!within(root, file)) throw new BundleError(outsideAt);
     if (files.size >= MAX_FILES) {
       throw new BundleError(`${entry} refers to more than ${MAX_FILES} files`);
     }
     let text: string;
     try {
+      // Where the file really is, not where its name says: a link committed
+      // beside the specification can point anywhere on the machine, and
+      // following one to `/proc/self/environ` would put a CI job's secrets
+      // into the document. The entry is exempt, since the provider chose it
+      // rather than the document. Found by the threat-model tests.
+      if (file !== entry && !within(await realpath(root), await realpath(file))) {
+        throw new BundleError(outsideAt);
+      }
       text = await readFile(file, "utf8");
-    } catch {
+    } catch (error) {
+      if (error instanceof BundleError) throw error;
       throw new BundleError(`${from} refers to ${file}, which cannot be read`);
     }
     const value = parseText(file, text);
@@ -138,15 +157,19 @@ export async function bundleDocument(
   const named: JsonObject = {};
   /** Where each target was placed, by `file#pointer`. */
   const placed = new Map<string, string>();
-  const taken = new Set<string>(
-    Object.keys(
+  const taken = new Set<string>([
+    ...Object.keys(
       (swagger
         ? document["definitions"]
         : isJsonObject(document["components"])
           ? document["components"]["schemas"]
           : undefined) ?? {},
     ),
-  );
+    // Never a name a schema is placed under: assigned, it would replace the
+    // prototype of the map holding it rather than add an entry, and the
+    // schema would be gone.
+    "__proto__",
+  ]);
   const home = swagger ? "#/definitions/" : "#/components/schemas/";
 
   const targetOf = (ref: string, file: string): Target => {

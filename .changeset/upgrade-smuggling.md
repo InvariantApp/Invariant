@@ -1,0 +1,5 @@
+---
+"@invariant-app/sidecar": patch
+---
+
+A request asking to `Upgrade` no longer lets a caller reach the provider past the proxy. The proxy piped the caller's connection to the provider's as soon as it had forwarded the handshake, so where the provider answered an ordinary route without switching protocols and kept the connection open, as most servers that are not Node's do, whatever the caller sent next arrived there as a request of its own: outside the base path, unadapted, with any `x-invariant-` header it liked. The handshake is now sent on a connection of its own, nothing the caller sends reaches the provider until it answers `101`, and any other answer is relayed and the connection closed. A request to switch to HTTP/2 in cleartext is answered as if it had not asked, since a provider that accepted would take HTTP/2 frames naming any path. A path whose segment decodes to a step up, such as `/api/..%2fadmin`, is refused as leaving the API, and a `Host` no URL can hold is answered 400 rather than 500.
