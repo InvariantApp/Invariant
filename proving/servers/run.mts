@@ -74,6 +74,8 @@ interface Release {
   digest: string;
   /** The commit of the suite's own repository that belongs to this release, when the suite lives elsewhere. */
   suite?: string;
+  /** The tag of that commit, for a host that will not fetch a commit by itself. */
+  suiteRef?: string;
   /** The SHA-256 of the document attached to the release, for a project that publishes it that way. */
   specSha256?: string;
 }
@@ -151,8 +153,13 @@ const option = (name: string): string | undefined => {
 
 const CACHE = join(ROOT, ".cache/servers");
 const RECORDED = join(ROOT, "proving/servers/changes");
-const SERVER_PORT = 16_333;
-const PROXY_PORT = 16_340;
+/**
+ * Where the suite calls, in every arm: the server itself in arms a and b, the
+ * proxy in arm c, with the server behind it. A suite, or a server configured
+ * with its own address, sees the same URL whichever arm it is in.
+ */
+const SUITE_PORT = 16_333;
+const BEHIND_PORT = 16_334;
 
 function log(message: string): void {
   process.stdout.write(`${message}\n`);
@@ -182,6 +189,7 @@ async function checkout(
   commit: string,
   sparse: string[],
   dir: string,
+  ref?: string,
 ): Promise<string> {
   if (existsSync(join(dir, ".git"))) {
     const head = (await sh("git", ["rev-parse", "HEAD"], { cwd: dir })).trim();
@@ -199,7 +207,9 @@ async function checkout(
   if (sparse.length > 0) {
     await git("sparse-checkout", "set", "--no-cone", ...sparse.map((path) => `/${path}`));
   }
-  await git("fetch", "-q", "--depth", "1", "--filter=blob:none", "origin", commit);
+  // By the commit where the host serves one, or by the tag that names it
+  // where it only serves refs; either way the commit is checked below.
+  await git("fetch", "-q", "--depth", "1", "--filter=blob:none", "origin", ref ?? commit);
   await git("checkout", "-q", "FETCH_HEAD");
   const head = (await git("rev-parse", "HEAD")).trim();
   if (head !== commit) throw new Error(`${repo} checked out ${head}, not ${commit}`);
@@ -264,6 +274,7 @@ async function suiteOf(
     commit,
     project.suite.sparse,
     join(CACHE, project.name, tag, "suite"),
+    project.suite.repo ? release.suiteRef : undefined,
   );
   const dir = join(src, project.suite.dir);
   const work = join(CACHE, project.name, tag);
@@ -317,12 +328,13 @@ function composeArgs(project: Project): string[] {
 }
 
 /**
- * A fresh server for one arm, answering on SERVER_PORT, set up as its
- * manifest says. Returns what the setup captured, with `{url}`.
+ * A fresh server for one arm, answering on `port`, set up as its manifest
+ * says. Returns what the setup captured, with the server's own `{url}`.
  */
 async function startServer(
   project: Project,
   tag: string,
+  port: number,
 ): Promise<Record<string, string>> {
   const release = releaseOf(project, tag);
   const image = `${project.image}@${release.digest}`;
@@ -333,7 +345,7 @@ async function startServer(
       env: {
         ...process.env,
         IMAGE: image,
-        PORT: String(SERVER_PORT),
+        PORT: String(port),
         CONTAINER: container,
       },
     });
@@ -348,12 +360,12 @@ async function startServer(
       "--name",
       container,
       "-p",
-      `127.0.0.1:${SERVER_PORT}:${project.server.port}`,
+      `127.0.0.1:${port}:${project.server.port}`,
       ...env,
       image,
     ]);
   }
-  const url = `http://127.0.0.1:${SERVER_PORT}`;
+  const url = `http://127.0.0.1:${port}`;
   const vars: Record<string, string> = { url, container };
   try {
     await waitFor(
@@ -425,7 +437,7 @@ async function startProxy(
     JSON.stringify({
       program: programPath,
       upstream,
-      listen: { port: PROXY_PORT, host: "127.0.0.1" },
+      listen: { port: SUITE_PORT, host: "127.0.0.1" },
       identity: [{ kind: "default", label }],
       maxBodyBytes: 32 * 1024 * 1024,
     }),
@@ -436,7 +448,7 @@ async function startProxy(
     ["--import", "tsx", join(ROOT, "packages/sidecar/src/cli.ts"), configPath],
     { stdio: ["ignore", "ignore", "inherit"] },
   );
-  await waitFor(`http://127.0.0.1:${PROXY_PORT}/__invariant/health`, "the proxy", 30_000);
+  await waitFor(`http://127.0.0.1:${SUITE_PORT}/__invariant/health`, "the proxy", 30_000);
   return proxy;
 }
 
@@ -603,11 +615,11 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
     );
     let proxy: ChildProcess | undefined;
     try {
-      const vars = await startServer(project, tag);
+      const vars = await startServer(project, tag, through ? BEHIND_PORT : SUITE_PORT);
       await dumpSpec(project, tag, vars);
       if (through) {
         proxy = await startProxy(through.program, from, vars["url"] ?? "", work);
-        vars["url"] = `http://127.0.0.1:${PROXY_PORT}`;
+        vars["url"] = `http://127.0.0.1:${SUITE_PORT}`;
       }
       return await runSuite(
         project,

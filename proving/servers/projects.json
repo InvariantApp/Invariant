@@ -204,7 +204,106 @@
         }
       },
       "pairs": [["v1.53.2", "v1.54.0"]]
+    },
+    {
+      "name": "gitea",
+      "language": "Go",
+      "repo": "go-gitea/gitea",
+      "image": "gitea/gitea",
+      "server": {
+        "port": 3000,
+        "ready": "/api/v1/version",
+        "readySeconds": 300,
+        "env": {
+          "GITEA__security__INSTALL_LOCK": "true",
+          "GITEA__security__PASSWORD_COMPLEXITY": "off",
+          "GITEA__security__MIN_PASSWORD_LENGTH": "6",
+          "GITEA__database__DB_TYPE": "sqlite3",
+          "GITEA__server__ROOT_URL": "http://gitea:3000/",
+          "GITEA__service__DISABLE_REGISTRATION": "false"
+        },
+        "setup": [
+          {
+            "run": [
+              "docker",
+              "exec",
+              "-u",
+              "git",
+              "{container}",
+              "gitea",
+              "admin",
+              "user",
+              "create",
+              "--username=test01",
+              "--password=test01",
+              "--email=test01@gitea.io",
+              "--admin=true",
+              "--must-change-password=false",
+              "--access-token"
+            ]
+          }
+        ]
+      },
+      "spec": {
+        "served": "/swagger.v1.json"
+      },
+      "suite": {
+        "repo": "https://gitea.com/gitea/go-sdk.git",
+        "sparse": [],
+        "dir": "gitea",
+        "install": [["go", "mod", "download"]],
+        "run": [
+          "go",
+          "run",
+          "gotest.tools/gotestsum@v1.13.0",
+          "--junitfile",
+          "{report}",
+          "--",
+          "-count=1",
+          "."
+        ],
+        "select": ["-run", "{select}"],
+        "env": {
+          "GITEA_SDK_TEST_URL": "{url}",
+          "GITEA_SDK_TEST_USERNAME": "test01",
+          "GITEA_SDK_TEST_PASSWORD": "test01"
+        }
+      },
+      "releases": {
+        "v1.24.2": {
+          "commit": "acd4e10990e63f0f81ecb0252b8f5c044cb6df0e",
+          "digest": "sha256:8e2e3f40c5ff3fee920c6d0faac0db9cca2183d80ff23965d1022434d37e7910",
+          "suite": "060554f46291abccac23a24f5e9bb264f962e21d",
+          "suiteRef": "refs/tags/gitea/v0.22.1"
+        },
+        "v1.25.4": {
+          "commit": "369830bada2fd8826a5135cb2fc66660a9bef708",
+          "digest": "sha256:17d18218be2dad1f8ed402a4f906989505c90ab8b66ee9befcecfb5d470133e7"
+        }
+      },
+      "pairs": [["v1.24.2", "v1.25.4"]]
     }
   ],
-  "skipped": []
+  "skipped": [
+    {
+      "name": "jellyfin",
+      "language": "C#",
+      "reason": "Specifications are published for every release and 10.11 -> 12.0 really breaks (routes removed, SessionInfo.NowPlayingQueueFullItems gone), but no suite of a 10.11 release exercises it: jellyfin-sdk-typescript v0.13.0's five live tests touch no changed operation, the Kotlin, C# and Python SDKs have only mocked tests, and the server's own integration tests run in-process against test-only controllers."
+    },
+    {
+      "name": "keycloak",
+      "language": "Java",
+      "reason": "Every ERR-level delta between consecutive published admin API specifications (24.0.5 to 26.7.4) is a documentation fix (a status the server already returned, a renamed path parameter, a schema renamed to its existing wire name); the real breaks (identity providers leaving the realm representation, locked-out users reporting enabled, brief organization members) are behavioral and absent from the specification."
+    },
+    {
+      "name": "directus",
+      "language": "TypeScript",
+      "reason": "No release pair has a structural REST break that its own suite both exercises and passes on the old release: the 11.0 policies change is behavioral and crashes the blackbox seeds before any REST call, 11.0 to 11.4 fail arm a (upstream patched the suite in 11.4.1), and the later breaks (/webhooks, /utils/hash removed, /server/health auth, inactive collections) are unexercised or behavioral."
+    },
+    {
+      "name": "forgejo",
+      "language": "Go",
+      "reason": "No live-instance suite fails because of an ERR-level delta: the Forgejo specification barely changes on the wire from 7 to 16. The one exercised break found (9.0 refusing a token with no scopes, which fails forgejo-sdk v1.2.0's TestUserApp) is absent from the specification, whose CreateAccessTokenOption is identical in 8.0.3 and 9.0.3."
+    }
+  ]
 }

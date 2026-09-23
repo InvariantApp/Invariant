@@ -18,9 +18,10 @@ on:
         default: ""
 
 # Full runs queue behind one another. A run of rig D alone is its own queue
-# per branch, so trying a project out never displaces a full run.
+# per branch and set of projects, so trying a project out never displaces
+# a full run or another project's.
 concurrency:
-  group: ${{ inputs.rigs == 'servers' && format('proving-servers-{0}', github.ref) || 'proving' }}
+  group: ${{ inputs.rigs == 'servers' && format('proving-servers-{0}-{1}', github.ref, inputs.servers) || 'proving' }}
   cancel-in-progress: false
 
 jobs:
@@ -198,6 +199,9 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      # The gate that compiles each release's program diffs with it.
+      - run: node --import tsx scripts/fetch-oasdiff.mts --host
 
       - uses: astral-sh/setup-uv@v6
 
