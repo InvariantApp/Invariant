@@ -27,7 +27,7 @@ import {
   type Scope,
   undecidedOps,
 } from "@invariant-app/ir";
-import { importReferences, importRestated } from "./import.ts";
+import { importReferences } from "./import.ts";
 import { applyParameterScope } from "./predict-parameters.ts";
 import { applyResponseScope } from "./predict-responses.ts";
 import { proveRestated } from "./restate.ts";
@@ -517,12 +517,6 @@ export function predictDocument(
               if (before === undefined) {
                 throw new Error(`the old contract has no ${op.path} on ${name}`);
               }
-              proveRestated(
-                { document, schema: before },
-                { document: newContract, schema: next.shape },
-                schemaDirections(oldContract, scope.schema),
-                op.path || name,
-              );
               // Written as the new contract writes it, found by name where it
               // can be, and otherwise as it was proved. Plaid's account
               // identity is built from a base with `allOf` and declares the
@@ -539,12 +533,18 @@ export function predictDocument(
               if (!isJsonObject(statement)) {
                 throw new Error(`the new contract's ${op.path || name} is not a schema`);
               }
-              schemaRestate(
-                document,
-                schema,
-                op.path,
-                importRestated(document, newContract, statement),
+              proveRestated(
+                { document, schema: before },
+                { document: newContract, schema: next.shape },
+                schemaDirections(oldContract, scope.schema),
+                op.path || name,
+                {
+                  before: writtenAt(document, schema, parsePointer(op.path)) ?? before,
+                  after: statement,
+                },
               );
+              importReferences(document, newContract, statement);
+              schemaRestate(document, schema, op.path, statement);
               break;
             }
             case "widen": {

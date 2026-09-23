@@ -19,7 +19,9 @@ import {
   covers,
   keepsNames,
   type OpenApiDocument,
+  referencesAlike,
   schemaDirections,
+  unannotated,
 } from "@invariant-app/contract";
 import {
   type Change,
@@ -80,6 +82,7 @@ export function restatements(
       const old = { document: oldContract, schema: was };
       const next = { document: newContract, schema: now };
       return (
+        referencesAlike(oldContract, next).covered &&
         keepsNames(old, next).covered &&
         (!sides.response || covers(old, next).covered) &&
         (!sides.request || covers(next, old).covered)
@@ -174,41 +177,6 @@ function choicesIn(
     choicesIn(child, `${pointer}/${key}`, found, depth + 1);
   }
   return found;
-}
-
-/** Words about a schema that say nothing about its values. */
-const ANNOTATIONS = new Set([
-  "description",
-  "title",
-  "example",
-  "examples",
-  "deprecated",
-  "externalDocs",
-  "$comment",
-]);
-
-/**
- * A schema with what only describes it taken out. Amazon reworded the
- * description beside each reference in a health check's `allOf`, and each
- * field read as a choice written differently, restated to no purpose.
- */
-function unannotated(value: JsonValue): JsonValue {
-  if (Array.isArray(value)) return value.map(unannotated);
-  if (!isJsonObject(value)) return value;
-  return Object.fromEntries(
-    Object.entries(value)
-      .filter(([key]) => !ANNOTATIONS.has(key) && !key.startsWith("x-"))
-      .map(([key, child]) => [
-        key,
-        // A map of properties is keyed by names, and a property may well be
-        // called `description`; only the schemas under the names are read.
-        key === "properties" && isJsonObject(child)
-          ? Object.fromEntries(
-              Object.entries(child).map(([name, schema]) => [name, unannotated(schema)]),
-            )
-          : unannotated(child),
-      ]),
-  );
 }
 
 /** What a schema written in place holds, by the segment that reaches it. */

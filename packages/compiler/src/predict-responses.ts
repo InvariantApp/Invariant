@@ -24,7 +24,7 @@ import {
   parsePointer,
   type ResponseScope,
 } from "@invariant-app/ir";
-import { importReferences, importRestated } from "./import.ts";
+import { importReferences } from "./import.ts";
 import { operationById } from "./parameters.ts";
 import {
   mapEndpoint,
@@ -254,12 +254,8 @@ export function applyResponseScope(
           // As the new contract writes it, never merged here: the differ
           // reconciles a composition its own way (see `writtenAt`).
           const statement = topOf(newContract, next.shape);
-          schemaRestate(
-            document,
-            root,
-            op.path,
-            importRestated(document, newContract, statement),
-          );
+          importReferences(document, newContract, statement);
+          schemaRestate(document, root, op.path, statement);
           break;
         }
         case "relax":

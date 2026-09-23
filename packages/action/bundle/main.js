@@ -16035,6 +16035,52 @@ function keepsNames(before, after) {
 	for (const name of namesIn(before.document, before.schema)) if (!kept.has(name)) return missed(name, "the new schema no longer names it, so a value under it would be lost");
 	return COVERED;
 }
+/**
+* Whether every named schema a restated place refers to, the old contract
+* either lacks or states the same way.
+*
+* A restatement is proved against the new contract, references and all, and
+* written with the new contract's names. Where the old contract already has a
+* schema of that name and says something else in it, the written place would
+* refer to that old statement, which is not what was proved: Plaid's account
+* identity came to be built from a base whose balances may be null, and
+* written into the old contract it found a base where they never are. Words
+* that only describe a schema are not compared.
+*/
+function referencesAlike(old, next) {
+	const reached = /* @__PURE__ */ new Set();
+	const pending = [next.schema];
+	while (pending.length > 0) {
+		const value = pending.pop();
+		if (Array.isArray(value)) {
+			pending.push(...value);
+			continue;
+		}
+		if (!isJsonObject(value)) continue;
+		const ref = value["$ref"];
+		if (typeof ref === "string" && !reached.has(ref)) {
+			reached.add(ref);
+			const target = resolveRef(next.document, ref);
+			if (target !== void 0) {
+				const before = resolveRef(old, ref);
+				if (before !== void 0 && JSON.stringify(unannotated(before)) !== JSON.stringify(unannotated(target))) return missed(ref, "the old contract states it differently, so the place would refer to that");
+				pending.push(target);
+			}
+		}
+		pending.push(...Object.values(value));
+	}
+	return COVERED;
+}
+/**
+* A schema with what only describes it taken out, for comparing what it
+* allows. A map of properties is keyed by names, and a property may well be
+* called `description`; only the schemas under the names are read.
+*/
+function unannotated(value) {
+	if (Array.isArray(value)) return value.map(unannotated);
+	if (!isJsonObject(value)) return value;
+	return Object.fromEntries(Object.entries(value).filter(([key]) => !ANNOTATIONS$1.has(key) && !key.startsWith("x-")).map(([key, child]) => [key, key === "properties" && isJsonObject(child) ? Object.fromEntries(Object.entries(child).map(([name, schema]) => [name, unannotated(schema)])) : unannotated(child)]));
+}
 /** How deep `keepsNames` reads. */
 const NAME_DEPTH = 12;
 function namesIn(document, schema) {
@@ -17955,13 +18001,20 @@ function responseFailure(errors, error) {
 * to 0, and Infinity is written back as `null`, so a transform on such a body
 * would change what the caller sent without a word. Found by fuzzing.
 *
-* A number with fewer than 100 digits in a row and an exponent of at most two
-* digits lies within 1e±198, well inside a double's range, so anything this
-* does not match is safe on the fast path. What it does match, including the
-* odd string holding a hundred digits, pays for an exact parse and loses
-* nothing.
+* Nor does a double hold every integer: past 2^53, which has sixteen digits,
+* it rounds. Qdrant's own suite sends a search `limit` of u64::MAX,
+* 18446744073709551615, which came out of the proxy as 18446744073709552000,
+* no longer a u64, and the search was refused. The provider's handler is not
+* always a JavaScript one that would round it anyway. So sixteen digits in a
+* row, anywhere in the body, also pays for an exact parse.
+*
+* A number with fewer than sixteen digits in a row and an exponent of at most
+* two digits is exact as a double and lies well inside its range, so anything
+* this does not match is safe on the fast path. What it does match, including
+* a sixteen-digit string such as a card number, pays for an exact parse and
+* loses nothing.
 */
-const BEYOND_DOUBLE = /[\d.][eE][+-]?\d{3}|\d{100}/;
+const BEYOND_DOUBLE = /[\d.][eE][+-]?\d{3}|\d{16}/;
 /** Whether a JSON text nests deeper than the limit, found in one pass without parsing. */
 function tooDeep(text, limit) {
 	if (text.length <= limit) return false;
@@ -21934,8 +21987,22 @@ function setNullable(document, schema, nullable, label) {
 * proved schema against schema by the shared containment check, and the
 * Change is refused, naming where and why, wherever either cannot be shown.
 */
-function proveRestated(before, after, directions, place) {
-	const named = keepsNames(before, after);
+function proveRestated(before, after, directions, place, written = {
+	before: before.schema,
+	after: after.schema
+}) {
+	const alike = referencesAlike(before.document, {
+		document: after.document,
+		schema: written.after
+	});
+	if (!alike.covered) throw new SchemaOpError(`${place} is not the same values restated: it refers to ${alike.at}, and ${alike.reason}`);
+	const named = keepsNames({
+		document: before.document,
+		schema: written.before
+	}, {
+		document: after.document,
+		schema: written.after
+	});
 	if (!named.covered) throw new SchemaOpError(`${place} is not the same values restated: ${named.at} ${named.reason}`);
 	if (directions.response) {
 		const answer = covers(before, after);
@@ -22424,7 +22491,7 @@ function applyResponseScope(document, oldContract, newContract, routes, scope, o
 					request: false,
 					response: true
 				}, `${scope.operation}'s ${scope.response} response${op.path ? ` at ${op.path}` : ""}`);
-				const statement = resolveSchema(newContract, next.shape);
+				const statement = topOf(newContract, next.shape);
 				importReferences(document, newContract, statement);
 				schemaRestate(document, root, op.path, statement);
 				break;
@@ -22533,6 +22600,32 @@ function navigate(document, schema, segments) {
 		if (next === void 0) return void 0;
 		current = resolveSchema(document, next);
 	}
+	return current;
+}
+/**
+* A schema at a place, as it is written: references followed, and nothing
+* merged. Undefined where the way there runs through a composition, which
+* only a resolved reading can walk.
+*/
+function writtenAt(document, schema, segments) {
+	let current = topOf(document, schema);
+	for (const segment of segments) {
+		if (!isJsonObject(current)) return void 0;
+		const properties = current["properties"];
+		const next = segment === "*" ? current["items"] : segment === "{}" ? current["additionalProperties"] : isJsonObject(properties) ? properties[segment] : void 0;
+		if (next === void 0) return void 0;
+		current = topOf(document, next);
+	}
+	return current;
+}
+/**
+* A schema taken as written at its top: a reference is followed to what it
+* names, since a schema restated as a reference to its own name would state
+* nothing at all.
+*/
+function topOf(document, schema) {
+	let current = schema;
+	for (let hops = 0; isJsonObject(current) && typeof current["$ref"] === "string" && hops < 16; hops += 1) current = resolveRef(document, current["$ref"]) ?? null;
 	return current;
 }
 function sitesForScope(document, scope) {
@@ -22679,16 +22772,18 @@ function predictDocument(oldContract, newContract, changes) {
 						if (!next) throw new Error(`the new contract has no ${op.path || name} to restate it as`);
 						const before = navigate(document, schema, parsePointer(op.path));
 						if (before === void 0) throw new Error(`the old contract has no ${op.path} on ${name}`);
+						const statement = writtenAt(newContract, { $ref: `#/components/schemas/${name}` }, parsePointer(op.path)) ?? topOf(newContract, next.shape);
+						if (!isJsonObject(statement)) throw new Error(`the new contract's ${op.path || name} is not a schema`);
 						proveRestated({
 							document,
 							schema: before
 						}, {
 							document: newContract,
 							schema: next.shape
-						}, schemaDirections(oldContract, scope.schema), op.path || name);
-						let statement = next.shape;
-						for (let hops = 0; isJsonObject(statement) && typeof statement["$ref"] === "string" && hops < 16; hops += 1) statement = resolveRef(newContract, statement["$ref"]) ?? null;
-						if (!isJsonObject(statement)) throw new Error(`the new contract's ${op.path || name} is not a schema`);
+						}, schemaDirections(oldContract, scope.schema), op.path || name, {
+							before: writtenAt(document, schema, parsePointer(op.path)) ?? before,
+							after: statement
+						});
 						importReferences(document, newContract, statement);
 						schemaRestate(document, schema, op.path, statement);
 						break;

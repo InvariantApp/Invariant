@@ -272,7 +272,7 @@ describe("a field renamed", () => {
 });
 
 describe("a restatement that refers to a schema the old contract states differently", () => {
-  it("means what was proved, and leaves the old schema to its other uses (Plaid)", () => {
+  it("is refused, since written in it would mean the old schema (Plaid)", () => {
     // The identity wrote its balance out in place, nullable; the new identity
     // is built from a base whose balance refers to a named balance that
     // became nullable, and the old named balance, used elsewhere, still says
@@ -307,20 +307,11 @@ describe("a restatement that refers to a schema the old contract states differen
     const after = contract(
       schemas({ allOf: [{ $ref: "#/components/schemas/Base" }] }, balance(true)),
     );
+    // Written into the old contract, the new identity's base would find the
+    // old balance, which is not what was proved: refused, naming it.
     const prediction = predictDocument(before, after, [restate("Identity")]);
-    expect(prediction.issues).toEqual([]);
-    const predicted = schemasOf(prediction.document);
-    // Written as the new contract writes it, through a base that leads to
-    // the new balance, both under names of their own.
-    expect(predicted["Identity"]).toEqual({
-      allOf: [{ $ref: "#/components/schemas/Base_restated" }],
-    });
-    expect(predicted["Base_restated"]).toEqual({
-      type: "object",
-      properties: { balances: { $ref: "#/components/schemas/Balance_restated" } },
-    });
-    expect(predicted["Base"]).toEqual(schemasOf(before)["Base"]);
-    expect(predicted["Balance_restated"]).toEqual(balance(true));
-    expect(predicted["Balance"]).toEqual(balance(false));
+    expect(prediction.issues.map((issue) => issue.message).join()).toContain(
+      "it refers to #/components/schemas/Balance, and the old contract states it differently",
+    );
   });
 });
