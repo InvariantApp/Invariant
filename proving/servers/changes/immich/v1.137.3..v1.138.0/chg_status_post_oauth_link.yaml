@@ -1,0 +1,21 @@
+# Drafted by rules, 100% confident.
+#
+# This is a proposal, not a decision. Read it, fix what is wrong, and merge
+# it; merging is what records that you confirmed it. The release gate will
+# still check that these ops explain the whole breaking diff.
+#
+#   - an old caller is answered 201 wherever the operation now answers 200, with no body where its contract promised none; check that 201 is what your server answered before
+irVersion: 1
+id: chg_status_post_oauth_link
+summary: POST /oauth/link answers 200 where it answered 201.
+ops:
+  - op: status
+    endpoint:
+      method: post
+      path: /oauth/link
+    from: "201"
+    to: "200"
+provenance:
+  proposed_by:
+    judge: rules
+    confidence: 1

@@ -1,0 +1,25 @@
+# Written by hand, as Meilisearch's maintainers would: the same regrouping
+# in the list of rules, which writes each rule out in place rather than naming
+# DynamicSearchRule.
+irVersion: 1
+id: chg_search_rule_list_actions_by_kind
+summary: "Each listed rule's actions are grouped by kind, and the list of pins it had is its `pin` list."
+scopes:
+  - schema: "#/components/schemas/PaginationView_DynamicSearchRule"
+ops:
+  - op: move
+    from: /results/*/actions
+    to: /results/*/actions/pin
+  - op: default
+    path: /results/*/actions/pin
+    value: []
+    when: absent
+    toward: old
+  - op: default
+    path: /results/*/actions
+    value: {}
+    when: absent
+    toward: old
+assertions:
+  side_effects_unchanged: true
+  loss_acknowledged: true

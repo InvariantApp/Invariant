@@ -1,0 +1,21 @@
+# Written by hand, as Immich's maintainers would: 1.138 grants two new
+# permissions, `server.versionCheck` and `adminAuth.unlinkAll`. They are not
+# other permissions under new names, so an old caller is not shown them as
+# ones it knows; the list of an API key's permissions it is sent leaves out
+# the ones its contract never named.
+irVersion: 1
+id: chg_permission_permission_vocabulary
+summary: "An API key's permissions can name two that old callers never saw."
+scopes:
+  - schema: "#/components/schemas/APIKeyResponseDto"
+ops:
+  - op: convert
+    path: /permissions
+    codec:
+      kind: dropValues
+      values:
+        - server.versionCheck
+        - adminAuth.unlinkAll
+assertions:
+  side_effects_unchanged: true
+  loss_acknowledged: true

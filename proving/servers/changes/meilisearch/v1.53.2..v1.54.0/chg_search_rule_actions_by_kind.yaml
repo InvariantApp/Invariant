@@ -1,0 +1,27 @@
+# Written by hand, as Meilisearch's maintainers would: the list of a rule's
+# actions became an object with a list per kind of action. Every action a
+# 1.53 rule could hold was a pin, so the list it had is the rule's `pin` list;
+# a rule the new server answers without pins, or without actions at all, is
+# shown to an old caller with none.
+irVersion: 1
+id: chg_search_rule_actions_by_kind
+summary: "A dynamic search rule's actions are grouped by kind, and the list of pins it had is its `pin` list."
+scopes:
+  - schema: "#/components/schemas/DynamicSearchRule"
+ops:
+  - op: move
+    from: /actions
+    to: /actions/pin
+  - op: default
+    path: /actions/pin
+    value: []
+    when: absent
+    toward: old
+  - op: default
+    path: /actions
+    value: {}
+    when: absent
+    toward: old
+assertions:
+  side_effects_unchanged: true
+  loss_acknowledged: true

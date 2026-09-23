@@ -1,0 +1,14 @@
+# Written by hand, as Meilisearch's maintainers would: the actions an old
+# caller sends to create or update a rule are all pins, so the list it sends
+# is the rule's `pin` list.
+irVersion: 1
+id: chg_search_rule_update_actions_by_kind
+summary: "The actions a rule is updated with are grouped by kind, and the list of pins an old caller sends is its `pin` list."
+scopes:
+  - schema: "#/components/schemas/DynamicSearchRuleUpdateRequest"
+ops:
+  - op: move
+    from: /actions
+    to: /actions/pin
+assertions:
+  side_effects_unchanged: true

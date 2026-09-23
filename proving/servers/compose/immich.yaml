@@ -1,0 +1,51 @@
+# Immich as its own end-to-end suite runs it (e2e/docker-compose.yml), from the
+# released image rather than one built from source: the server, its database
+# and its cache, with machine learning off. The suite reaches the database
+# itself, on 127.0.0.1:5435 with the credentials it names in its own source,
+# and uploads the pictures in its test-assets submodule, which the server
+# reads under /test-assets. Every container is thrown away with its volumes
+# after each arm.
+services:
+  immich-server:
+    image: ${IMAGE}
+    container_name: ${CONTAINER}
+    depends_on:
+      redis:
+        condition: service_started
+      database:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${PORT}:2285"
+    environment:
+      DB_HOSTNAME: database
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${IMMICH_DB_PASSWORD}
+      DB_DATABASE_NAME: immich
+      IMMICH_MACHINE_LEARNING_ENABLED: "false"
+      IMMICH_TELEMETRY_INCLUDE: all
+      IMMICH_ENV: testing
+      IMMICH_PORT: "2285"
+      IMMICH_IGNORE_MOUNT_CHECK_ERRORS: "true"
+    volumes:
+      - ${SUITE}/test-assets:/test-assets
+    extra_hosts:
+      - "auth-server:host-gateway"
+
+  redis:
+    image: redis:6.2-alpine@sha256:7fe72c486b910f6b1a9769c937dad5d63648ddee82e056f47417542dd40825bb
+
+  database:
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.3.0@sha256:0e763a2383d56f90364fcd72767ac41400cd30d2627f407f7e7960c9f1923c21
+    command: -c fsync=off -c shared_preload_libraries=vchord.so -c config_file=/var/lib/postgresql/data/postgresql.conf
+    environment:
+      POSTGRES_PASSWORD: ${IMMICH_DB_PASSWORD}
+      POSTGRES_USER: postgres
+      POSTGRES_DB: immich
+    ports:
+      - "127.0.0.1:5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d immich"]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
