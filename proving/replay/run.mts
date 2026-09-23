@@ -746,10 +746,11 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
           : {}),
       };
       const resolution = await pathsOf(repo, entry.base);
+      const sources = importing(repo, readable, entry.package);
       const result = await migrate({
         repoDir: `${repo}/`,
         generated: [oldSdk],
-        sources: importing(repo, readable, entry.package),
+        sources,
         ...(resolution ? { resolution } : {}),
         plan: buildPlan(contract?.changes ?? [], symbols),
         current: { package: entry.package, from: oldRelease.prefix },
@@ -763,9 +764,9 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         const range = [lineAt(site.offset), lineAt(site.end ?? site.offset) + 1] as const;
         flagged.set(file, [...(flagged.get(file) ?? []), range]);
       }
-      if (keep) {
+      if (keep || options.verbose) {
         process.stdout.write(
-          `${JSON.stringify({ versions: [versionOf(oldSdk), versionOf(newSdk)], contract: contract && { drafted: contract.drafted, removed: contract.removed, types: Object.keys(contract.types).length, subscription: contract.changes.filter((change) => change.id.includes("subscription")).map((change) => change.id) }, pin: symbols.pin, read: readable.length, edits: result.edits.map((edit) => `${edit.file}:${edit.start} ${edit.reason}`), manual: result.manual.map((site) => `${site.file}:${site.line} ${site.reason}`) }, null, 2)}\n`,
+          `${JSON.stringify({ versions: [versionOf(oldSdk), versionOf(newSdk)], sources: sources.length, contract: contract && { drafted: contract.drafted, removed: contract.removed, types: Object.keys(contract.types).length, subscription: contract.changes.filter((change) => change.id.includes("subscription")).map((change) => change.id) }, pin: symbols.pin, read: readable.length, edits: result.edits.map((edit) => `${edit.file}:${edit.start} ${edit.reason}`), manual: result.manual.map((site) => `${site.file}:${site.line} ${site.reason}`) }, null, 2)}\n`,
         );
       }
       for (const [path, text] of result.files) {
@@ -832,7 +833,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         delete options.classifier;
       }
     }
-    if (keep) {
+    if (keep || options.verbose) {
       // What the engine missed among the contract sites, to read beside the diff.
       for (const { site, outcome } of scored) {
         if (outcome !== "missed" || options.classes[siteKey(site)]?.class !== "contract")
