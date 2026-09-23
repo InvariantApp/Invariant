@@ -237,9 +237,9 @@ describe("the API version a consumer pins", () => {
     );
     // The consumer's own function that takes the same keyword is not the SDK's.
     expect(result.files.has(join(repo, "client.py"))).toBe(false);
-    expect(result.manual.map((site) => [site.file.slice(repo.length + 1), site.line])).toEqual([
-      ["settings.py", 2],
-    ]);
+    expect(
+      result.manual.map((site) => [site.file.slice(repo.length + 1), site.line]),
+    ).toEqual([["settings.py", 2]]);
   }, 60_000);
 });
 
