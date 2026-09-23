@@ -1,0 +1,17 @@
+# Written by hand, as NetBox's maintainers would (netbox-community/netbox
+# 3.6.0, "device_role" renamed to "role" on devices): what an old caller
+# sends as `device_role` is the device's role, which 3.6 reads, and requires,
+# as `role`. The drafted removal would have dropped it, and 3.6 would then
+# have refused the device for having no role.
+irVersion: 1
+id: chg_device_with_config_context_request_device_role_renamed
+summary: "`device_role` is `role` on DeviceWithConfigContextRequest."
+scopes:
+  - schema: "#/components/schemas/DeviceWithConfigContextRequest"
+ops:
+  - op: move
+    from: /device_role
+    to: /role
+assertions:
+  same_concept: true
+  side_effects_unchanged: true

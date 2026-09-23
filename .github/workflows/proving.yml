@@ -217,7 +217,11 @@ jobs:
           go-version: stable
           cache: false
 
+      # NetBox's documents run to several megabytes, which the differ takes
+      # longer than its default five minutes over on a runner.
       - name: Three arms per release pair
+        env:
+          OASDIFF_TIMEOUT_MS: "2400000"
         run: pnpm proving:servers --project ${{ matrix.project }} --pair ${{ matrix.pair }}
 
       - uses: actions/upload-artifact@v4
