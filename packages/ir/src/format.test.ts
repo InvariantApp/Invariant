@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  NEXT,
-  nextRelease,
   compareVersions,
   FEATURE_SINCE,
   featuresOf,
   minRuntimeFor,
+  NEXT,
+  nextRelease,
   PRODUCT_VERSION,
   PROGRAM_VERSION,
 } from "./format.ts";
