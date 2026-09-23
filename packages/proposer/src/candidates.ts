@@ -1529,7 +1529,7 @@ function repointedFields(
       // wrapper held.
       if (
         was in newSchemas
-          ? JSON.stringify(oldSchemas[was]) !== JSON.stringify(newSchemas[was])
+          ? !sameFields(oldContract, newContract, was, oldSchemas, newSchemas)
           : !unmatched.has(was)
       )
         continue;
@@ -1550,6 +1550,28 @@ function repointedFields(
     }
   }
   return found;
+}
+
+/**
+ * Whether a named schema holds the same fields in both contracts, however it
+ * is written: PayPal's network transaction reference came to be built with
+ * `allOf` from a new `network_transaction`, and said nothing new.
+ */
+function sameFields(
+  oldContract: OpenApiDocument,
+  newContract: OpenApiDocument,
+  name: string,
+  oldSchemas: Record<string, JsonValue>,
+  newSchemas: Record<string, JsonValue>,
+): boolean {
+  const before = oldSchemas[name] as JsonValue;
+  const after = newSchemas[name] as JsonValue;
+  if (JSON.stringify(before) === JSON.stringify(after)) return true;
+  if (kindChange(oldContract, newContract, before, after, name)) return false;
+  return (
+    compare(shapeOf(oldContract, before, name), shapeOf(newContract, after, name)) ===
+    undefined
+  );
 }
 
 /**

@@ -705,6 +705,37 @@ describe("a field that points at a different schema", () => {
       restore: CHOOSE_ONE,
     });
   });
+
+  // PayPal's authorizations pointed at `network_transaction_reference`, which
+  // came to be written as `allOf` a new `network_transaction` with `id`
+  // still required, and pointed at `network_transaction` itself, where `id`
+  // is not required. The schema it left says the same, however written.
+  it("is compared where the schema it left holds the same fields, written another way", async () => {
+    const reference = (id: string) => ({ $ref: `#/components/schemas/${id}` });
+    const fields = { id: { type: "string" }, date: { type: "string" } };
+    const holder = (name: string) =>
+      object({ id: { type: "string" }, reference: reference(name) }, ["id"]);
+    const outcome = await propose(
+      contract({
+        ...base,
+        Reference: object(fields, ["id"]),
+        Thing: holder("Reference"),
+      }),
+      contract({
+        ...base,
+        Transaction: object(fields),
+        Reference: { allOf: [reference("Transaction")], required: ["id"] },
+        Thing: holder("Transaction"),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.decisions).toEqual([
+      expect.objectContaining({
+        pointer: "/reference/id",
+        op: { op: "default", when: "absent", toward: "old" },
+      }),
+    ]);
+  });
 });
 
 describe("a named list of a choice that did not change", () => {
