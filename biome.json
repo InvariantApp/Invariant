@@ -19,7 +19,9 @@
       "!proving/replay/index.json",
       "!proving/replay/sites.json",
       "!packages/action/bundle",
-      "!packages/client/src/schema.ts"
+      "!packages/client/src/schema.ts",
+      "!site/src/pages",
+      "!site/public"
     ]
   },
   "formatter": {

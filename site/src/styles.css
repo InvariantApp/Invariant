@@ -1,0 +1,11 @@
+/* The documentation's own colour, so the site and the front page agree. */
+:root {
+  --sl-color-accent-low: #1c2947;
+  --sl-color-accent: #2f5bd7;
+  --sl-color-accent-high: #c7d4f7;
+}
+:root[data-theme="light"] {
+  --sl-color-accent-low: #d7e0fa;
+  --sl-color-accent: #2f5bd7;
+  --sl-color-accent-high: #16264f;
+}

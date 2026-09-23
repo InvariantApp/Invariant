@@ -1,0 +1,20 @@
+{
+  "name": "invariant-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "node --import tsx scripts/sync-docs.mts",
+    "dev": "pnpm sync && astro dev",
+    "build": "pnpm sync && astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.36.0",
+    "astro": "^5.15.0",
+    "sharp": "^0.34.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.0",
+    "typescript": "^5.9.0"
+  }
+}

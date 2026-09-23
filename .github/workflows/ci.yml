@@ -188,3 +188,38 @@ jobs:
 
       - name: Install from a registry and use it from nothing
         run: node --import tsx scripts/install-test.mts
+
+  # The documentation site renders `docs/` and the scoreboard; it has its own
+  # dependencies and its own lockfile, so nothing here reaches the packages a
+  # provider installs.
+  site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - run: npm ci
+        working-directory: site
+
+      - run: npm run build
+        working-directory: site
+
+      - name: Every page the sidebar names was built
+        working-directory: site
+        run: |
+          for page in index quickstart evidence security reference/cli \
+            reference/configuration reference/breaking-changes reference/errors \
+            adapters/hono adapters/express adapters/fastify adapters/koa \
+            adapters/nestjs adapters/nextjs adapters/node-http adapters/go \
+            adapters/proxy migrations ir-spec evolution-bundle-v1; do
+            test -f "dist/$page/index.html" || test -f "dist/$page.html" || {
+              echo "missing $page"; exit 1; }
+          done

@@ -1,0 +1,325 @@
+---
+/**
+ * The front page: what this is, in the order a provider asks it.
+ *
+ * Every number on this page comes from the proving ground rather than from
+ * marketing, and the evidence page says how each was measured. Where a number
+ * is not met yet, the evidence page says that too.
+ */
+const ladder = [
+  ["1. Tell me what I am about to break", "nothing", "On any pull request, exactly what will break for the callers you already have, by endpoint and by field"],
+  ["2. Put it in CI", "a CI step", "The same, on every pull request, as a check that fails"],
+  ["3. Write the changes down", "text files in your repository", "The check can tell a deliberate break from an accident"],
+  ["4. Add the translator", "a dependency, two lines", "Old callers keep working, unchanged"],
+  ["5. Release properly", "a signing key", "A signed, reproducible record of every change"],
+  ["6. Turn old versions off", "a usage counter", "Evidence for when it is safe"],
+];
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invariant - change your API without breaking anyone</title>
+    <meta
+      name="description"
+      content="Invariant reads what your API release changes, blocks what it cannot serve, keeps old callers working, and sends your customers the edit."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <header class="bar">
+      <a class="brand" href="/">Invariant</a>
+      <nav>
+        <a href="/quickstart">Docs</a>
+        <a href="/evidence">Evidence</a>
+        <a href="#pricing">Pricing</a>
+        <a href="https://github.com/InvariantApp/Invariant">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1>Change your API without breaking anyone.</h1>
+        <p class="lead">
+          Invariant reads what your release changes, refuses what it cannot serve, keeps
+          every old caller working exactly as before, and sends each of your customers
+          the edit as a pull request.
+        </p>
+        <div class="actions">
+          <a class="primary" href="/quickstart">Start with the check</a>
+          <a class="secondary" href="/evidence">See the evidence</a>
+        </div>
+        <p class="note">
+          The first rung installs nothing and touches nothing. It runs in your own CI and
+          tells you what your next release breaks.
+        </p>
+      </section>
+
+      <section>
+        <h2>The problem is not that APIs change</h2>
+        <p>
+          It is that the cost lands on people who did not make the decision. A provider
+          changes a field, and every integration built on it stops working at a moment
+          nobody chose. The usual answers are to freeze the API, to write a migration
+          guide that nothing can check or run, or to spend years building a versioning
+          system in-house, which is what Stripe, Intercom and Keygen each did.
+        </p>
+        <p>
+          Invariant is that third option as a product, and one thing none of them have:
+          it also sends the change to your customers, already made.
+        </p>
+      </section>
+
+      <section>
+        <h2>How it works</h2>
+        <ol class="steps">
+          <li>
+            <h3>You change your API and open a pull request, as normal.</h3>
+            <p>
+              Invariant compares the two descriptions, works out what moved, and drafts a
+              small file naming each change. You read it and correct it; nothing is
+              assumed.
+            </p>
+          </li>
+          <li>
+            <h3>The release is blocked until what you wrote down explains everything.</h3>
+            <p>
+              The changes are applied to the old description, and the result is compared
+              with the new one. Anything left over is a change nobody wrote down, and the
+              gate stops there. This one check is what makes the rest trustworthy.
+            </p>
+          </li>
+          <li>
+            <h3>From that one file, two things are produced that cannot disagree.</h3>
+            <p>
+              A translator that runs inside your own service, so old callers keep working;
+              and an automatic code edit for each customer who connected a repository,
+              delivered as a draft pull request with an explanation of who confirmed it.
+            </p>
+          </li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>Nobody installs someone else's code in their request path on a promise</h2>
+        <p>
+          So you do not have to. Adoption is a ladder, and every rung is worth having on
+          its own. The only rung that touches live traffic is the fourth.
+        </p>
+        <table>
+          <thead>
+            <tr><th>Step</th><th>What you install</th><th>What you get</th></tr>
+          </thead>
+          <tbody>
+            {ladder.map(([step, install, gain]) => (
+              <tr>
+                <td>{step}</td>
+                <td><code>{install}</code></td>
+                <td>{gain}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section id="pricing">
+        <h2>Pricing</h2>
+        <div class="plans">
+          <div class="plan">
+            <h3>Free</h3>
+            <p class="price">$0</p>
+            <p>
+              The check and the CI gate, on as many APIs and as many releases as you like,
+              for ever. This is the whole first three rungs of the ladder.
+            </p>
+          </div>
+          <div class="plan">
+            <h3>Team</h3>
+            <p class="price">Metered</p>
+            <p>
+              Everything above, plus the translator, signed releases, usage by contract
+              and consumer, and migration pull requests. Metered on old contracts served
+              and consumers migrated, so it costs nothing while nothing is old.
+            </p>
+          </div>
+          <div class="plan">
+            <h3>Enterprise</h3>
+            <p class="price">Annual</p>
+            <p>
+              Single sign-on, SCIM, audit export, region pinning and a self-hosted
+              install. Invoiced annually.
+            </p>
+          </div>
+        </div>
+        <p class="note">
+          A caller that can never be migrated, such as a mobile app already in someone's
+          pocket, can be pinned and is not billed as an old contract.
+        </p>
+      </section>
+
+      <section>
+        <h2>What it does not do</h2>
+        <p>
+          GraphQL, gRPC, batch and RPC endpoints, and file uploads on an adapted endpoint
+          are out of scope, and say so rather than half working. gRPC-JSON transcoding is
+          in scope, because it is JSON. Everything else that is not built yet is listed on
+          the <a href="/evidence">evidence page</a>, with what measures it.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        Apache-2.0. Everything that runs in your CI or your request path is open source
+        and on npm; the hosted service is what is sold.
+      </p>
+      <nav>
+        <a href="/quickstart">Docs</a>
+        <a href="/evidence">Evidence</a>
+        <a href="/security">Security</a>
+        <a href="https://github.com/InvariantApp/Invariant">GitHub</a>
+      </nav>
+    </footer>
+
+    <style>
+      :root {
+        --ink: #14161a;
+        --muted: #5b626e;
+        --line: #e4e7ec;
+        --paper: #ffffff;
+        --sunken: #f7f8fa;
+        --accent: #2f5bd7;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ink: #eceef2;
+          --muted: #9aa2b1;
+          --line: #262a33;
+          --paper: #101319;
+          --sunken: #171b22;
+          --accent: #8ba7f5;
+        }
+      }
+      * { box-sizing: border-box; }
+      html { -webkit-text-size-adjust: 100%; }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      a { color: var(--accent); }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.875em;
+      }
+      .bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--line);
+      }
+      .brand {
+        font-weight: 650;
+        letter-spacing: -0.01em;
+        color: var(--ink);
+        text-decoration: none;
+      }
+      .bar nav, footer nav { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+      .bar nav a, footer nav a { font-size: 0.9375rem; text-decoration: none; }
+      .bar nav a:hover, footer nav a:hover { text-decoration: underline; }
+      main { max-width: 56rem; margin: 0 auto; padding: 0 1.25rem 4rem; }
+      section { padding: 3rem 0; border-bottom: 1px solid var(--line); }
+      section:last-of-type { border-bottom: 0; }
+      .hero { padding-top: 4.5rem; }
+      h1 {
+        font-size: clamp(2rem, 5.5vw, 3.25rem);
+        line-height: 1.1;
+        letter-spacing: -0.025em;
+        margin: 0 0 1rem;
+      }
+      h2 {
+        font-size: clamp(1.375rem, 3vw, 1.75rem);
+        letter-spacing: -0.015em;
+        margin: 0 0 1rem;
+      }
+      h3 { font-size: 1.0625rem; margin: 0 0 0.375rem; }
+      p { margin: 0 0 1rem; max-width: 46rem; }
+      .lead { font-size: 1.1875rem; color: var(--muted); }
+      .note { color: var(--muted); font-size: 0.9375rem; }
+      .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1.75rem 0 1rem; }
+      .actions a {
+        display: inline-flex;
+        align-items: center;
+        height: 2.75rem;
+        padding: 0 1.125rem;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        font-weight: 550;
+      }
+      .primary { background: var(--accent); color: #fff; }
+      .secondary { border: 1px solid var(--line); color: var(--ink); }
+      .steps { margin: 0; padding: 0; list-style: none; counter-reset: step; }
+      .steps li {
+        position: relative;
+        padding: 0 0 0 2.75rem;
+        margin: 0 0 1.75rem;
+        counter-increment: step;
+      }
+      .steps li::before {
+        content: counter(step);
+        position: absolute;
+        left: 0;
+        top: 0.0625rem;
+        width: 1.875rem;
+        height: 1.875rem;
+        border-radius: 999px;
+        background: var(--sunken);
+        border: 1px solid var(--line);
+        display: grid;
+        place-items: center;
+        font-size: 0.875rem;
+        color: var(--muted);
+      }
+      table { width: 100%; border-collapse: collapse; font-size: 0.9375rem; }
+      th, td {
+        text-align: left;
+        padding: 0.625rem 1rem 0.625rem 0;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th { font-size: 0.8125rem; color: var(--muted); font-weight: 550; }
+      .plans {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+      }
+      .plan {
+        border: 1px solid var(--line);
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        background: var(--sunken);
+        display: flex;
+        flex-direction: column;
+      }
+      .plan p:last-child { margin-bottom: 0; }
+      .price { font-size: 1.5rem; font-weight: 650; letter-spacing: -0.02em; }
+      footer {
+        border-top: 1px solid var(--line);
+        padding: 2rem 1.25rem 3rem;
+        color: var(--muted);
+        font-size: 0.9375rem;
+      }
+      footer p { max-width: 46rem; margin: 0 auto 1rem; }
+      footer nav { max-width: 46rem; margin: 0 auto; }
+      @media (max-width: 40rem) {
+        section { padding: 2.25rem 0; }
+        .hero { padding-top: 2.5rem; }
+      }
+    </style>
+  </body>
+</html>
