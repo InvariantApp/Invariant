@@ -722,8 +722,8 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
   let c: ArmResult;
   let changes = 0;
   try {
-    // Timed, because on NetBox's documents the differ alone once outlasted
-    // the job, and a gate that says nothing for two hours looks hung.
+    // Timed, because on NetBox's documents the gate once outlasted the job,
+    // generating values for its laws forever, and said nothing while it did.
     log("  the gate: checking the release's Changes");
     const started = Date.now();
     const checked = await gateFor(project, from, to);
