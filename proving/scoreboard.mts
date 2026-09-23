@@ -23,7 +23,11 @@ import { type AuditFile, agreement } from "./replay/audit.mts";
 import type { SiteClass } from "./replay/classify.mts";
 import type { ReplayIndex } from "./replay/mine.mts";
 import type { ReplayResult } from "./replay/run.mts";
-import { type PairResult as ServerResult, tally } from "./servers/pairs.ts";
+import {
+  type PairResult as ServerResult,
+  headline as serversHeadline,
+  tally,
+} from "./servers/pairs.ts";
 import type { SkewResult } from "./skew/run.mts";
 import type { TrafficResult } from "./traffic/run.mts";
 
@@ -240,11 +244,7 @@ export function scoreboard(inputs: {
             counted.regressions === 0
           ? "met"
           : "not met",
-    value:
-      `${counted.proven.length} projects proven in ${counted.languages.length} languages` +
-      `${counted.proven.length > 0 ? ` (${counted.proven.join(", ")})` : ""}; ` +
-      `${counted.servedPairs} of ${counted.breaking} breaking release pairs served in full, ` +
-      `${counted.served} of ${counted.broken} broken tests, ${counted.regressions} regressions`,
+    value: serversHeadline(counted),
     evidence: "proving/servers/results.json",
   });
 

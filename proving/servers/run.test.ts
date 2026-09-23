@@ -165,7 +165,9 @@ describe("what the pairs prove", () => {
       ],
       [{ name: "keycloak", language: "Java", reason: "no suite runs black-box" }],
     );
-    expect(text).toContain("0 projects proven in 0 languages; 0 of 1 breaking");
+    expect(text).toContain(
+      "0 projects proven in 0 languages; 0 of 1 breaking release pair served in full, 0 of 1 broken test, 0 regressions.",
+    );
     expect(text).toContain("| keycloak | Java | no suite runs black-box |");
     expect(text).toContain("- `t2`: KeyError: 'name'");
   });

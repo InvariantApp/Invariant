@@ -814,7 +814,7 @@ if (process.argv[1]?.endsWith("run.mts") && reportInputs) {
     "utf8",
   );
   log(
-    `${merged.length} release pairs from ${reportInputs.length} projects, report written`,
+    `${merged.length} release pairs from ${new Set(merged.map((pair) => pair.project)).size} projects, report written`,
   );
 } else if (process.argv[1]?.endsWith("run.mts")) {
   const manifest = await readManifest();
