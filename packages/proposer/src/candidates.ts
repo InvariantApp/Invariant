@@ -562,6 +562,64 @@ function pointedElsewhere(
  * one wrote an object in place, so the object is compared with what it
  * became rather than reported as gone.
  */
+/**
+ * A schema that states nothing at all: `{}` allows every value, so the old
+ * description of it is one of the things it allows.
+ */
+function saysNothing(document: OpenApiDocument, schema: JsonValue): boolean {
+  const resolved = resolveSchema(document, schema);
+  if (!isJsonObject(resolved)) return false;
+  return Object.keys(resolved).every((key) => DESCRIBES_NOTHING.has(key));
+}
+
+/** Keywords that say nothing about the value: documentation and examples. */
+const DESCRIBES_NOTHING = new Set([
+  "description",
+  "title",
+  "example",
+  "examples",
+  "deprecated",
+  "externalDocs",
+  "readOnly",
+  "writeOnly",
+]);
+
+/**
+ * What a body that stopped describing itself leaves an old caller: the
+ * promise, not the values.
+ *
+ * Amazon replaced each of CloudDirectory's error schemas with `{}` between
+ * two versions. An empty schema allows everything the old one did, so nothing
+ * was removed and nothing became optional; what an old caller loses is being
+ * told what it will be sent, which is a loss to declare, drafted here as the
+ * type the schema no longer states.
+ */
+function stoppedDescribing(
+  oldContract: OpenApiDocument,
+  schema: JsonValue,
+  name: string,
+): ReturnType<typeof compare> {
+  const resolved = resolveSchema(oldContract, schema);
+  const declared = isJsonObject(resolved) ? resolved["type"] : undefined;
+  const types = Array.isArray(declared) ? declared : [declared];
+  const type = types.find((entry) => entry !== "null" && entry !== undefined);
+  if (typeof type !== "string") return undefined;
+  const root = {
+    name,
+    pointer: "",
+    format: undefined,
+    enumValues: undefined,
+    description: undefined,
+    required: true,
+    nullable: false,
+  };
+  return {
+    removed: [],
+    added: [],
+    altered: [{ old: { ...root, type }, new: { ...root, type: undefined } }],
+  };
+}
+
 function compareReading(
   oldContract: OpenApiDocument,
   newContract: OpenApiDocument,
@@ -569,7 +627,9 @@ function compareReading(
   newSchemas: Record<string, JsonValue>,
   before: FieldShape[],
   after: FieldShape[],
+  roots: { name: string; old: JsonValue; new: JsonValue },
 ): ReturnType<typeof compare> {
+  const { name, old: oldRoot, new: newRoot } = roots;
   // A field pointed at another schema is read on both sides, so what differs
   // between the two is compared rather than passing unnoticed.
   const repointed = repointedFields(
@@ -582,6 +642,9 @@ function compareReading(
   );
   const left = [...before, ...repointed.before];
   const right = [...after, ...repointed.after];
+  if (saysNothing(newContract, newRoot) && !saysNothing(oldContract, oldRoot)) {
+    return stoppedDescribing(oldContract, oldRoot, name);
+  }
   const compared = compare(left, right);
   if (!compared || compared.removed.length === 0) return compared;
   const inlined = referencesInPlace(
@@ -1059,6 +1122,7 @@ export function schemaDeltas(
       newSchemas,
       shapeOf(oldContract, oldSchemas[name] as JsonValue, name),
       shapeOf(newContract, counterpart.schema, name),
+      { name, old: oldSchemas[name] as JsonValue, new: counterpart.schema },
     );
     if (!compared) continue;
     deltas.push({
@@ -1108,6 +1172,7 @@ export function schemaDeltas(
       newSchemas,
       fieldsOf(oldContract, body),
       fieldsOf(newContract, after),
+      { name: `${operation.operationId} request body`, old: body, new: after },
     );
     if (!compared) continue;
     deltas.push({
@@ -1157,6 +1222,7 @@ export function schemaDeltas(
         newSchemas,
         fieldsOf(oldContract, schema),
         fieldsOf(newContract, next),
+        { name: `${operation.operationId} ${status} response`, old: schema, new: next },
       );
       if (!compared) continue;
       deltas.push({

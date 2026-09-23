@@ -582,6 +582,28 @@ describe("a field that points at a different schema", () => {
   });
 });
 
+describe("a schema that stopped describing itself", () => {
+  // Amazon replaced CloudDirectory's error schemas with `{}` between two
+  // versions: an empty schema allows everything the old one did.
+  it("is a declared loss, not every field removed", async () => {
+    const outcome = await propose(
+      contract({
+        ...base,
+        Thing: object({ id: { type: "string" }, note: { type: "string" } }, ["id"]),
+      }),
+      contract({ ...base, Thing: {} }),
+      { judge: new RulesJudge() },
+    );
+    const ops = [
+      ...outcome.proposals.map((p) => p.change),
+      ...outcome.decisions.map(decisionChange),
+    ]
+      .filter((change) => JSON.stringify(change.scopes).includes("/Thing"))
+      .flatMap((change) => change.ops);
+    expect(ops).toEqual([{ op: "relax", path: "", set: { type: null } }]);
+  });
+});
+
 describe("a response that now names a different schema", () => {
   // Plaid pointed three consent operations at `FDXError` and left the rest of
   // the API on the `PlaidError` they had all shared.
