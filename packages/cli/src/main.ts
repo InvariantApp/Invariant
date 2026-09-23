@@ -79,6 +79,8 @@ Options
   --full            check: also start the real builds and compare them
   --outcomes <path> check: what the deployed runtime reported, for E9
   --usage <path>    check, retire: the usage ledger the runtime's counters wrote
+  --impact          check: ask the service how many callers are still on each
+                    old contract, and say so in the report
   --format <f>      check: markdown for a pull request comment, json for a machine
   --watch           check: check again whenever a file under the configuration changes
   --comment         check: write the report on the GitLab merge request or
@@ -156,6 +158,7 @@ async function main(argv: string[]): Promise<number> {
         full: argv.includes("--full"),
         ...(outcomes === undefined ? {} : { outcomes }),
         ...(usage === undefined ? {} : { usage }),
+        ...(argv.includes("--impact") ? { impact: true } : {}),
       });
       process.stdout.write(
         format === "markdown"

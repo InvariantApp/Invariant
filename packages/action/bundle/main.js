@@ -38876,6 +38876,358 @@ function applyGatePolicy(config, steps, usage, now) {
 	return outcome;
 }
 //#endregion
+//#region ../client/src/index.ts
+/** The contract this client was written against, sent as `Invariant-Version`. */
+const CONTRACT_VERSION = "2026-09-21";
+/**
+* A call the control plane refused, or one that never reached it.
+*
+* `status` is 0 when there was no answer at all, which is the case a runtime
+* has to shrug off: the service being unreachable is not an incident for the
+* provider's own traffic.
+*/
+var ControlPlaneError = class extends Error {
+	status;
+	code;
+	requestId;
+	/** Seconds to wait before trying again, when the service said. */
+	retryAfter;
+	constructor(message, details) {
+		super(message, details.cause === void 0 ? void 0 : { cause: details.cause });
+		this.name = "ControlPlaneError";
+		this.status = details.status;
+		this.code = details.code;
+		this.requestId = details.requestId;
+		this.retryAfter = details.retryAfter;
+	}
+};
+/** A path segment, escaped, with the `:` a digest carries left readable as RFC 3986 allows. */
+const segment = (value) => encodeURIComponent(value).replaceAll("%3A", ":");
+function createClient(options) {
+	const base = options.baseUrl.replace(/\/+$/, "");
+	const send = options.fetch ?? fetch;
+	const timeoutMs = options.timeoutMs ?? 1e4;
+	async function call(request) {
+		const url = new URL(`${base}${request.path}`);
+		for (const [key, value] of Object.entries(request.query ?? {})) if (value !== void 0) url.searchParams.set(key, String(value));
+		const headers = new Headers({
+			accept: "application/json",
+			"invariant-version": CONTRACT_VERSION
+		});
+		if (options.token !== void 0) headers.set("authorization", `Bearer ${options.token}`);
+		for (const [key, value] of Object.entries(request.headers ?? {})) if (value !== void 0) headers.set(key, value);
+		if (request.body !== void 0) headers.set("content-type", "application/json");
+		let response;
+		try {
+			response = await send(url, {
+				method: request.method,
+				headers,
+				...request.body === void 0 ? {} : { body: JSON.stringify(request.body) },
+				signal: AbortSignal.timeout(timeoutMs)
+			});
+		} catch (cause) {
+			throw new ControlPlaneError(`The control plane at ${base} could not be reached: ${cause instanceof Error ? cause.message : String(cause)}`, {
+				status: 0,
+				code: "unreachable",
+				cause
+			});
+		}
+		const text = await response.text();
+		let body;
+		if (text !== "") try {
+			body = JSON.parse(text);
+		} catch {
+			body = void 0;
+		}
+		if (request.ok.includes(response.status)) return {
+			status: response.status,
+			headers: response.headers,
+			body
+		};
+		const error = typeof body === "object" && body !== null && "error" in body ? body.error : void 0;
+		const retry = Number(response.headers.get("retry-after"));
+		throw new ControlPlaneError(typeof error?.message === "string" ? error.message : `The control plane answered ${response.status} to ${request.method} ${request.path}.`, {
+			status: response.status,
+			code: typeof error?.code === "string" ? error.code : "unexpected",
+			requestId: typeof error?.requestId === "string" ? error.requestId : void 0,
+			retryAfter: Number.isFinite(retry) && retry > 0 ? retry : void 0
+		});
+	}
+	const page = (at) => ({
+		cursor: at?.cursor,
+		limit: at?.limit
+	});
+	return {
+		async publishBundle(envelope, at = {}) {
+			return (await call({
+				method: "POST",
+				path: "/v1/bundles",
+				headers: { "idempotency-key": at.idempotencyKey },
+				body: envelope,
+				ok: [200, 201]
+			})).body;
+		},
+		async listBundles(at) {
+			return (await call({
+				method: "GET",
+				path: "/v1/bundles",
+				query: page(at),
+				ok: [200]
+			})).body;
+		},
+		async getBundle(digest) {
+			return (await call({
+				method: "GET",
+				path: `/v1/bundles/${segment(digest)}`,
+				ok: [200]
+			})).body;
+		},
+		async ingest(batch, at = {}) {
+			return (await call({
+				method: "POST",
+				path: "/v1/ingest",
+				headers: { "idempotency-key": at.idempotencyKey },
+				body: batch,
+				ok: [200]
+			})).body;
+		},
+		async heartbeat(beat) {
+			await call({
+				method: "POST",
+				path: "/v1/heartbeat",
+				body: beat,
+				ok: [204]
+			});
+		},
+		/**
+		* The flags, unless they are the ones already held. A runtime polls with
+		* the tag of what it has, and the usual answer is that nothing changed.
+		*/
+		async getFlags(held) {
+			const answer = await call({
+				method: "GET",
+				path: "/v1/flags",
+				headers: { "if-none-match": held },
+				ok: [200, 304]
+			});
+			if (answer.status === 304) return { changed: false };
+			const etag = answer.headers.get("etag");
+			if (etag === null) throw new ControlPlaneError("The flags came back without an ETag.", {
+				status: answer.status,
+				code: "unexpected"
+			});
+			return {
+				changed: true,
+				etag,
+				state: answer.body
+			};
+		},
+		/** Change the flags last read as `ifMatch`, saying why. */
+		async setFlags(change, ifMatch) {
+			const answer = await call({
+				method: "PUT",
+				path: "/v1/flags",
+				headers: { "if-match": ifMatch },
+				body: change,
+				ok: [200]
+			});
+			return {
+				etag: answer.headers.get("etag") ?? "",
+				state: answer.body
+			};
+		},
+		async listFlagChanges(at) {
+			return (await call({
+				method: "GET",
+				path: "/v1/flags/history",
+				query: page(at),
+				ok: [200]
+			})).body;
+		},
+		async listContracts() {
+			return (await call({
+				method: "GET",
+				path: "/v1/contracts",
+				ok: [200]
+			})).body.contracts;
+		},
+		async getContract(label) {
+			return (await call({
+				method: "GET",
+				path: `/v1/contracts/${segment(label)}`,
+				ok: [200]
+			})).body;
+		},
+		async getImpact(at = {}) {
+			return (await call({
+				method: "GET",
+				path: "/v1/impact",
+				query: { days: at.days },
+				ok: [200]
+			})).body;
+		},
+		async propose(request) {
+			return (await call({
+				method: "POST",
+				path: "/v1/propose",
+				body: request,
+				ok: [200]
+			})).body;
+		},
+		async listConsumers(at) {
+			return (await call({
+				method: "GET",
+				path: "/v1/consumers",
+				query: {
+					...page(at),
+					contract: at?.contract
+				},
+				ok: [200]
+			})).body;
+		},
+		async createLink(consumer, at = {}) {
+			return (await call({
+				method: "POST",
+				path: "/v1/links",
+				headers: { "idempotency-key": at.idempotencyKey },
+				body: {
+					consumer,
+					...at.expiresInDays === void 0 ? {} : { expiresInDays: at.expiresInDays }
+				},
+				ok: [201]
+			})).body;
+		},
+		async listIntegrations(at) {
+			return (await call({
+				method: "GET",
+				path: "/v1/integrations",
+				query: page(at),
+				ok: [200]
+			})).body;
+		},
+		/** How an SDK names what the contract describes, replacing any map its package had. */
+		async putSdk(map) {
+			return (await call({
+				method: "PUT",
+				path: "/v1/sdks",
+				body: map,
+				ok: [200]
+			})).body;
+		},
+		async listSdks() {
+			return (await call({
+				method: "GET",
+				path: "/v1/sdks",
+				ok: [200]
+			})).body;
+		},
+		async listMigrations(at) {
+			return (await call({
+				method: "GET",
+				path: "/v1/migrations",
+				query: {
+					...page(at),
+					status: at?.status
+				},
+				ok: [200]
+			})).body;
+		},
+		async listTokens() {
+			return (await call({
+				method: "GET",
+				path: "/v1/tokens",
+				ok: [200]
+			})).body.tokens;
+		},
+		async createToken(request, at = {}) {
+			return (await call({
+				method: "POST",
+				path: "/v1/tokens",
+				headers: { "idempotency-key": at.idempotencyKey },
+				body: request,
+				ok: [201]
+			})).body;
+		},
+		async revokeToken(id) {
+			await call({
+				method: "DELETE",
+				path: `/v1/tokens/${segment(id)}`,
+				ok: [204]
+			});
+		},
+		async listKeys() {
+			return (await call({
+				method: "GET",
+				path: "/v1/keys",
+				ok: [200]
+			})).body.keys;
+		},
+		async addKey(request, at = {}) {
+			return (await call({
+				method: "POST",
+				path: "/v1/keys",
+				headers: { "idempotency-key": at.idempotencyKey },
+				body: request,
+				ok: [201]
+			})).body;
+		},
+		async revokeKey(keyid, reason) {
+			return (await call({
+				method: "POST",
+				path: `/v1/keys/${segment(keyid)}/revoke`,
+				body: { reason },
+				ok: [200]
+			})).body;
+		},
+		async listPublicBundles(api, at) {
+			return (await call({
+				method: "GET",
+				path: `/public/v1/apis/${segment(api)}/bundles`,
+				query: page(at),
+				ok: [200]
+			})).body;
+		},
+		async getPublicBundle(api, digest) {
+			return (await call({
+				method: "GET",
+				path: `/public/v1/apis/${segment(api)}/bundles/${segment(digest)}`,
+				ok: [200]
+			})).body;
+		},
+		async health() {
+			return (await call({
+				method: "GET",
+				path: "/health",
+				ok: [200]
+			})).body;
+		}
+	};
+}
+//#endregion
+//#region ../cli/src/service.ts
+/** The hosted service, unless INVARIANT_URL names another (a self-hosted one, say). */
+const DEFAULT_SERVICE_URL = BRAND.service;
+var ServiceError = class extends Error {
+	constructor(message) {
+		super(message);
+		this.name = "ServiceError";
+	}
+};
+/** The client for the service, from the environment a CI job has. */
+function clientFromEnv(env, fetchImpl) {
+	const token = env["INVARIANT_TOKEN"];
+	if (!token) throw new ServiceError("INVARIANT_TOKEN is not set. Issue a token in the dashboard (Tokens, with the publish scope for publishing, read for status) and store it as a CI secret.");
+	const url = env["INVARIANT_URL"] || DEFAULT_SERVICE_URL;
+	return {
+		url,
+		client: createClient({
+			baseUrl: url,
+			token,
+			...fetchImpl ? { fetch: fetchImpl } : {}
+		})
+	};
+}
+//#endregion
 //#region ../cli/src/usage.ts
 /** Folds a stream of records into one row per consumer, contract and change. */
 function aggregate(records) {
@@ -39506,6 +39858,13 @@ async function check(config, options = {}) {
 		if (accounted > 0) warnings.push(`${accounted} breaking ${accounted === 1 ? "delta is" : "deltas are"} acknowledged by a behavior Change on ${step.parent} -> ${step.label}. Nothing transforms them. Old callers get the new behaviour unless your own code branches on the flag, and only your tests can show that it does.`);
 		for (const change of step.changes) if (change.assertions?.side_effects_unchanged !== true) warnings.push(`${change.id} does not state whether side effects are unchanged. Add side_effects_unchanged to its assertions.`);
 	}
+	let impact;
+	if (options.impact === true) try {
+		const { client } = clientFromEnv(process.env);
+		impact = await client.getImpact({ days: 30 });
+	} catch (error) {
+		warnings.push(`the service could not say who is still on an old contract: ${error instanceof Error ? error.message : String(error)}`);
+	}
 	const usage = await usageFor(config, options.usage);
 	const policy = applyGatePolicy(config, steps.map((step, index) => ({
 		changes: step.changes,
@@ -39552,6 +39911,7 @@ async function check(config, options = {}) {
 		acknowledged: verified.acknowledged,
 		unservable,
 		policy: policy.blocks,
+		...impact === void 0 ? {} : { impact },
 		result: blocked ? "block" : warnings.length > 0 ? "warn" : "pass"
 	};
 }
@@ -39601,12 +39961,53 @@ const COMMENT_MARKER = "<!-- invariant:release-check -->";
 function escapePipes(text) {
 	return text.replaceAll("|", "\\|");
 }
+/**
+* What this release does to the people on the old contract, which is the
+* question a percentage never answers.
+*
+* Every declared Change ends in one of three places: served, so their code
+* carries on; served with something declared lost, so it carries on and they
+* are told what is approximate; or not served at all, which is provider code
+* or nothing. A reviewer deciding whether to merge is deciding about the
+* third group, and it is written out rather than left to be worked out from
+* the evidence below.
+*/
+function callersNotice(step, impact) {
+	const derived = step.changes.map((change) => ({
+		change,
+		...derive(change)
+	}));
+	const served = derived.filter((entry) => entry.runtime === "exact");
+	const lossy = derived.filter((entry) => entry.runtime === "declared-lossy");
+	const unserved = derived.filter((entry) => entry.runtime === "none");
+	const count = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+	const lines = [
+		"### What callers on the old contract will notice",
+		"",
+		`- ${count(served.length, "change")} they will not notice: the adapter serves the old shape.`
+	];
+	if (lossy.length > 0) lines.push(`- ${count(lossy.length, "change")} they carry on through, with something this release declares lost.`);
+	if (unserved.length > 0) lines.push(`- ${count(unserved.length, "change")} nothing can serve. Old callers meet the new behaviour.`);
+	const carrying = impact?.contracts.filter((contract) => contract.consumers > 0) ?? [];
+	if ((lossy.length > 0 || unserved.length > 0) && carrying.length > 0) {
+		const consumers = carrying.reduce((sum, contract) => sum + contract.consumers, 0);
+		lines.push("", `Still out there, over the last ${impact?.days ?? 30} days: ${count(consumers, "consumer")} on ${count(carrying.length, "old contract")} (${carrying.map((contract) => `\`${contract.label}\`: ${contract.consumers}`).join(", ")}).`);
+	}
+	lines.push("");
+	for (const entry of [...lossy, ...unserved]) {
+		const what = entry.runtime === "none" ? "not served" : "declared loss";
+		lines.push(`- \`${entry.change.id}\` (${what}): ${entry.reasons[0] ?? entry.change.summary}`);
+	}
+	if (lossy.length > 0 || unserved.length > 0) lines.push("");
+	return lines;
+}
 function renderComment(report) {
 	const lines = [COMMENT_MARKER, ""];
 	const verdict = report.result;
 	const pending = report.steps[report.steps.length - 1];
 	lines.push(`## ${HEADINGS[verdict]}`, "");
 	if (pending) lines.push(`Contract \`${pending.from}\` to \`${pending.to}\` on **${report.api}**: ${pending.changes.length} declared ${pending.changes.length === 1 ? "change" : "changes"}, ${pending.additive} other compatible ${pending.additive === 1 ? "delta" : "deltas"}.`, "");
+	if (pending && pending.changes.length > 0) lines.push(...callersNotice(pending, report.impact));
 	const unexplained = report.steps.flatMap((step) => step.unexplained);
 	if (unexplained.length > 0) {
 		lines.push(`### ${unexplained.length} breaking ${unexplained.length === 1 ? "delta" : "deltas"} nothing accounts for`, "", "The old contract cannot be served until each of these has a Change that", "explains it. `invariant propose` will draft what it can.", "");

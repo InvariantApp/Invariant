@@ -12,6 +12,7 @@
 
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import type { Impact } from "@invariant-app/client";
 import {
   type ContractStep,
   chainProgram,
@@ -37,6 +38,7 @@ import { type Evidence, inputsDigest } from "@invariant-app/verifier";
 import type { InvariantConfig } from "./config.ts";
 import { outcomeEvidence, readOutcomes } from "./outcomes.ts";
 import { applyGatePolicy } from "./policy.ts";
+import { clientFromEnv } from "./service.ts";
 import { readLedger, type UsageRecord } from "./usage.ts";
 import { type VerifyOptions, verify } from "./verify.ts";
 
@@ -97,6 +99,12 @@ export interface CheckReport {
   unservable: string[];
   /** What the gate settings in invariant.yaml refuse. */
   policy: string[];
+  /**
+   * What the service's counters say each old contract still carries, when the
+   * check was asked for it and could reach the service. Absent means it was
+   * not asked for or could not be reached, never that nobody is out there.
+   */
+  impact?: Impact | undefined;
   result: GateResult;
 }
 
@@ -277,6 +285,22 @@ export async function check(
     }
   }
 
+  // Asked for, and never fatal: a service that cannot be reached leaves the
+  // report saying nothing about who is out there, which is what it knows.
+  let impact: Impact | undefined;
+  if (options.impact === true) {
+    try {
+      const { client } = clientFromEnv(process.env);
+      impact = await client.getImpact({ days: 30 });
+    } catch (error) {
+      warnings.push(
+        `the service could not say who is still on an old contract: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
   const usage = await usageFor(config, options.usage);
   const policy = applyGatePolicy(
     config,
@@ -363,6 +387,7 @@ export async function check(
     acknowledged: verified.acknowledged,
     unservable,
     policy: policy.blocks,
+    ...(impact === undefined ? {} : { impact }),
     result: blocked ? "block" : warnings.length > 0 ? "warn" : "pass",
   };
 }

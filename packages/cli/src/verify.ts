@@ -46,6 +46,12 @@ export interface VerifyOptions {
    * `invariant/usage.jsonl` when that file exists.
    */
   usage?: string;
+  /**
+   * Ask the service how much traffic each old contract still carries, so the
+   * report says who a change nothing can serve would reach. Off unless asked
+   * for: a check must run in a repository with no token and no network.
+   */
+  impact?: boolean;
 }
 
 export interface VerifyReport {

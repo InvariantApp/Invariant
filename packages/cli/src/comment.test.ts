@@ -7,7 +7,7 @@
  */
 import { oasdiffAvailable } from "@invariant-app/diff";
 import { describe, expect, it } from "vitest";
-import { check } from "./check.ts";
+import { type CheckReport, check } from "./check.ts";
 import { COMMENT_MARKER, renderComment } from "./comment.ts";
 import { loadConfig } from "./config.ts";
 
@@ -103,5 +103,99 @@ describe.skipIf(!hasOasdiff)("the pull request comment", () => {
 
     const comment = renderComment(withPipe);
     expect(comment).toContain("paid \\| failed \\| processing");
+  });
+});
+
+describe("what callers will notice", () => {
+  const changed = (id: string, ops: unknown[]) =>
+    ({
+      irVersion: 1,
+      id,
+      summary: `${id} changed something`,
+      scopes: [{ schema: "#/components/schemas/Thing" }],
+      ops,
+    }) as never;
+
+  const reportWith = (changes: unknown[]): CheckReport =>
+    ({
+      api: "acme",
+      current: { label: "2026-09-20", digest: "sha256:abc" },
+      steps: [
+        {
+          from: "2026-01-15",
+          to: "2026-09-20",
+          changes,
+          unexplained: [],
+          issues: [],
+          stale: [],
+          accounted: 0,
+          additive: 0,
+        },
+      ],
+      program: undefined,
+      warnings: [],
+      evidence: [],
+      problems: [],
+      acknowledged: [],
+      unservable: [],
+      policy: [],
+      result: "pass",
+    }) as unknown as CheckReport;
+
+  it("separates what is served, what is lost, and what nothing can serve", () => {
+    const comment = renderComment(
+      reportWith([
+        changed("chg_moved", [{ op: "move", from: "/a", to: "/b" }]),
+        changed("chg_relaxed", [{ op: "relax", path: "/price", set: { maximum: null } }]),
+        changed("chg_behaviour", [{ op: "behavior", flag: "stricter_limits" }]),
+      ]),
+    );
+    expect(comment).toContain("1 change they will not notice");
+    expect(comment).toContain("1 change they carry on through");
+    expect(comment).toContain("1 change nothing can serve");
+    // The ones worth reading are named; the one that just works is not.
+    expect(comment).toContain("`chg_relaxed` (declared loss)");
+    expect(comment).toContain("`chg_behaviour` (not served)");
+    expect(comment).not.toContain("`chg_moved` (");
+  });
+
+  it("names how many callers are still out there, where the service counted them", () => {
+    const report = reportWith([
+      changed("chg_behaviour", [{ op: "behavior", flag: "stricter_limits" }]),
+    ]);
+    const comment = renderComment({
+      ...report,
+      impact: {
+        days: 30,
+        contracts: [
+          {
+            label: "2026-01-15",
+            consumers: 4,
+            requests: 900,
+            changes: [],
+            retirable: false,
+          },
+          {
+            label: "2025-06-01",
+            consumers: 0,
+            requests: 0,
+            changes: [],
+            retirable: true,
+          },
+        ],
+      },
+    } as CheckReport);
+    expect(comment).toContain("4 consumers on 1 old contract");
+    expect(comment).toContain("`2026-01-15`: 4");
+    // A contract nobody is on is not worth a reviewer's attention.
+    expect(comment).not.toContain("2025-06-01");
+  });
+
+  it("says only the good news where everything is served", () => {
+    const comment = renderComment(
+      reportWith([changed("chg_moved", [{ op: "move", from: "/a", to: "/b" }])]),
+    );
+    expect(comment).toContain("1 change they will not notice");
+    expect(comment).not.toContain("nothing can serve");
   });
 });

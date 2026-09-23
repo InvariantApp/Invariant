@@ -10,6 +10,7 @@
  * that passed, because a reader who cannot tell the difference between "this
  * held" and "this never ran" has not been told anything.
  */
+import { derive } from "@invariant-app/compiler";
 import { catalogueEntry, kindsOf } from "@invariant-app/diff";
 import type { EvidenceKind } from "@invariant-app/verifier";
 import type { CheckReport } from "./check.ts";
@@ -53,6 +54,65 @@ function escapePipes(text: string): string {
   return text.replaceAll("|", "\\|");
 }
 
+/**
+ * What this release does to the people on the old contract, which is the
+ * question a percentage never answers.
+ *
+ * Every declared Change ends in one of three places: served, so their code
+ * carries on; served with something declared lost, so it carries on and they
+ * are told what is approximate; or not served at all, which is provider code
+ * or nothing. A reviewer deciding whether to merge is deciding about the
+ * third group, and it is written out rather than left to be worked out from
+ * the evidence below.
+ */
+function callersNotice(
+  step: CheckReport["steps"][number],
+  impact: CheckReport["impact"],
+): string[] {
+  const derived = step.changes.map((change) => ({ change, ...derive(change) }));
+  const served = derived.filter((entry) => entry.runtime === "exact");
+  const lossy = derived.filter((entry) => entry.runtime === "declared-lossy");
+  const unserved = derived.filter((entry) => entry.runtime === "none");
+  const count = (n: number, one: string, many = `${one}s`) =>
+    `${n} ${n === 1 ? one : many}`;
+  const lines = [
+    "### What callers on the old contract will notice",
+    "",
+    `- ${count(served.length, "change")} they will not notice: the adapter serves the old shape.`,
+  ];
+  if (lossy.length > 0) {
+    lines.push(
+      `- ${count(lossy.length, "change")} they carry on through, with something this release declares lost.`,
+    );
+  }
+  if (unserved.length > 0) {
+    lines.push(
+      `- ${count(unserved.length, "change")} nothing can serve. Old callers meet the new behaviour.`,
+    );
+  }
+  // Who that is, where the service has counted them. A number of consumers
+  // is what makes the third line above a decision rather than a statistic.
+  const carrying = impact?.contracts.filter((contract) => contract.consumers > 0) ?? [];
+  if ((lossy.length > 0 || unserved.length > 0) && carrying.length > 0) {
+    const consumers = carrying.reduce((sum, contract) => sum + contract.consumers, 0);
+    lines.push(
+      "",
+      `Still out there, over the last ${impact?.days ?? 30} days: ` +
+        `${count(consumers, "consumer")} on ${count(carrying.length, "old contract")}` +
+        ` (${carrying.map((contract) => `\`${contract.label}\`: ${contract.consumers}`).join(", ")}).`,
+    );
+  }
+  lines.push("");
+  for (const entry of [...lossy, ...unserved]) {
+    const what = entry.runtime === "none" ? "not served" : "declared loss";
+    lines.push(
+      `- \`${entry.change.id}\` (${what}): ${entry.reasons[0] ?? entry.change.summary}`,
+    );
+  }
+  if (lossy.length > 0 || unserved.length > 0) lines.push("");
+  return lines;
+}
+
 export function renderComment(report: CheckReport): string {
   const lines: string[] = [COMMENT_MARKER, ""];
   const verdict = report.result as GateVerdict;
@@ -67,6 +127,10 @@ export function renderComment(report: CheckReport): string {
         `, ${pending.additive} other compatible ${pending.additive === 1 ? "delta" : "deltas"}.`,
       "",
     );
+  }
+
+  if (pending && pending.changes.length > 0) {
+    lines.push(...callersNotice(pending, report.impact));
   }
 
   const unexplained = report.steps.flatMap((step) => step.unexplained);

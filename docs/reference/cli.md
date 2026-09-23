@@ -34,6 +34,11 @@ non-zero when the release gate blocks.
 | `--outcomes <path>` | What the deployed runtime reported, as evidence. |
 | `--usage <path>` | The usage ledger the runtime's counters wrote. |
 
+With `--impact`, the check asks the service how many callers are still on each
+old contract and says so in its report, so a change nothing can serve is read
+next to the number of people it would reach. It needs `INVARIANT_TOKEN`, and a
+service that cannot be reached is said so rather than counted as nobody.
+
 ## `invariant propose`
 
 Drafts Change files for whatever this release has not explained. Drafts are
