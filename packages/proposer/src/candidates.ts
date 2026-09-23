@@ -1337,6 +1337,51 @@ function splitByDirection(
  * so a rename does not read as one schema vanishing and an unrelated one
  * appearing.
  */
+/** The kind of value a schema declares, where it declares one plainly. */
+function declaredKind(document: OpenApiDocument, schema: JsonValue): string | undefined {
+  const resolved = resolveSchema(document, schema);
+  if (!isJsonObject(resolved)) return undefined;
+  if (["oneOf", "anyOf", "allOf"].some((key) => resolved[key] !== undefined)) {
+    return undefined;
+  }
+  const declared = resolved["type"];
+  const types = (Array.isArray(declared) ? declared : [declared]).filter(
+    (entry) => entry !== "null" && entry !== undefined,
+  );
+  if (types.length > 1) return undefined;
+  const [type] = types;
+  if (typeof type === "string") return type === "integer" ? "number" : type;
+  return isJsonObject(resolved["properties"]) ? "object" : undefined;
+}
+
+/**
+ * The schema's own value, compared as a whole, where an object with fields
+ * became a list or a single value, or the other way round.
+ */
+function kindChange(
+  oldContract: OpenApiDocument,
+  newContract: OpenApiDocument,
+  before: JsonValue,
+  after: JsonValue,
+  name: string,
+): { old: FieldShape; new: FieldShape } | undefined {
+  const from = declaredKind(oldContract, before);
+  const to = declaredKind(newContract, after);
+  if (from === undefined || to === undefined || from === to) return undefined;
+  if (from !== "object" && to !== "object") return undefined;
+  const root: FieldShape = {
+    name,
+    pointer: "",
+    type: undefined,
+    format: undefined,
+    enumValues: undefined,
+    description: undefined,
+    required: true,
+    nullable: false,
+  };
+  return { old: { ...root, type: from }, new: { ...root, type: to } };
+}
+
 export function schemaDeltas(
   oldContract: OpenApiDocument,
   newContract: OpenApiDocument,
@@ -1377,6 +1422,31 @@ export function schemaDeltas(
   for (const name of Object.keys(oldSchemas).sort()) {
     const counterpart = counterparts.get(name);
     if (!counterpart) continue;
+
+    // An object that became a list or a single value did not lose its
+    // fields one by one: the schema is another kind of value now, which is a
+    // reshaping for a person to write. Meilisearch 1.54 documents
+    // `AttributePatterns` as the list of strings it always was, where 1.53
+    // documented an object holding one, and drafting `patterns` as removed
+    // from requests had closure call a reshaping explained.
+    const reshaped = kindChange(
+      oldContract,
+      newContract,
+      oldSchemas[name] as JsonValue,
+      counterpart.schema,
+      name,
+    );
+    if (reshaped) {
+      deltas.push({
+        schema: name,
+        newSchema: counterpart.name,
+        removed: [],
+        added: [],
+        altered: [reshaped],
+        operations: oldUses.get(name) ?? [],
+      });
+      continue;
+    }
 
     const compared = compareReading(
       oldContract,

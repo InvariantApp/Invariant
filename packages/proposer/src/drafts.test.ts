@@ -1650,6 +1650,41 @@ describe("a named schema that became nullable through a union with null", () => 
   });
 });
 
+describe("a named object that became a list", () => {
+  it("is a reshaping to write by hand, not its fields dropped (Meilisearch's AttributePatterns)", async () => {
+    // Meilisearch 1.54 documents `AttributePatterns` as the list of strings
+    // it always was on the wire, where 1.53 documented an object holding
+    // one. Drafted as `patterns` removed from requests, closure called a
+    // reshaping explained, and an old caller's patterns would have been
+    // dropped wherever the object was really sent.
+    const patterns = (schema: Schema) => ({
+      ...base,
+      Patterns: schema,
+      ThingCreate: object({
+        name: { type: "string" },
+        facets: { $ref: "#/components/schemas/Patterns" },
+      }),
+    });
+    const outcome = await propose(
+      contract(
+        patterns(
+          object({ patterns: { type: "array", items: { type: "string" } } }, [
+            "patterns",
+          ]),
+        ),
+      ),
+      contract(patterns({ type: "array", items: { type: "string" } })),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.proposals.map((proposal) => proposal.change.ops)).toEqual([]);
+    expect(
+      outcome.unresolved.map((entry) => `${entry.schema}: ${entry.reason}`),
+    ).toContain(
+      "Patterns: the type changed from object to array, which no codec expresses. This is a reshaping rather than a re-encoding.",
+    );
+  });
+});
+
 describe("a list whose items became a choice", () => {
   // Asana's portfolio items, Twilio's compliance list and Langfuse's
   // evaluation-rule filters all did this between two versions: the items went
