@@ -43,7 +43,8 @@ export interface GoReference extends GoSymbol {
   /** Where a call's parts are, where the role is `call`. */
   call?: {
     open: number;
-    args: { start: number; end: number; untyped?: boolean }[];
+    /** `untyped` is the default type of an argument that is an untyped constant. */
+    args: { start: number; end: number; untyped?: string }[];
     typeArgs?: [number, number];
   };
 }
@@ -296,6 +297,13 @@ export async function migrate(options: GoMigrateOptions): Promise<GoMigrationRes
  * where that would leave nothing else using the SDK's import, which would no
  * longer compile, and which only a person should decide to remove.
  */
+/** Whether two basic types are the same, whichever of their names each uses. */
+function sameBasic(a: string, b: string): boolean {
+  const alias = (name: string) =>
+    name === "rune" ? "int32" : name === "byte" ? "uint8" : name;
+  return alias(a) === alias(b);
+}
+
 export async function inlineCalls(
   references: readonly GoReference[],
   plan: GoMigrationPlan,
@@ -341,16 +349,26 @@ export async function inlineCalls(
       });
       if (inline.to) {
         if (call.typeArgs) continue;
-        const explicit =
-          call.args.some((argument) => argument.untyped) &&
-          (inline.typeArgs?.length ?? 0) > 0;
-        if (explicit && !(inline.typeArgs ?? []).every((each) => universe.test(each)))
+        const typeArgs = inline.typeArgs ?? [];
+        // One type argument, as `Ptr[T]` has, is what every untyped argument
+        // would infer unless its own default type says otherwise: `Int(1)`
+        // is `Ptr(1)`, and `Int64(1)` is `Ptr[int64](1)`.
+        const explicit = call.args.some(
+          (argument) =>
+            argument.untyped !== undefined &&
+            (typeArgs.length !== 1 ||
+              !sameBasic(argument.untyped, typeArgs[0] as string)),
+        );
+        if (
+          explicit &&
+          (typeArgs.length === 0 || !typeArgs.every((each) => universe.test(each)))
+        )
           continue;
         edits.push(
           edit(
             reference.start,
             reference.end,
-            explicit ? `${inline.to}[${(inline.typeArgs ?? []).join(", ")}]` : inline.to,
+            explicit ? `${inline.to}[${typeArgs.join(", ")}]` : inline.to,
           ),
         );
         continue;

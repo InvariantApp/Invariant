@@ -94,3 +94,10 @@ func String(v string) *string { return Ptr(v) }
 //
 //go:fix inline
 func Int64(v int64) *int64 { return Ptr(v) }
+
+// Int returns a pointer to v.
+//
+// Deprecated: use Ptr instead.
+//
+//go:fix inline
+func Int(v int) *int { return Ptr(v) }

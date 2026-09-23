@@ -135,10 +135,10 @@ describe.skipIf(!hasGo)("migrating a Go consumer", () => {
     // The literal's `Name` is EncryptedSecret's, which is never sent: untouched.
     expect(text).toContain('Name:  "TOKEN",');
     // One Change's rename; the rest are the SDK's: four imports moved, two
-    // renames, and two calls inlined.
+    // renames, and three calls inlined.
     expect(result.edits.map((edit) => edit.changeId).sort()).toEqual([
       "chg_secret_name",
-      ...Array<string>(8).fill("sdk-upgrade"),
+      ...Array<string>(9).fill("sdk-upgrade"),
     ]);
   });
 
@@ -149,6 +149,8 @@ describe.skipIf(!hasGo)("migrating a Go consumer", () => {
     // An untyped constant would make `Ptr(1)` a *int; the body's own type
     // argument is spelled out.
     expect(text).toContain("return sdk.Ptr[int64](1)");
+    // Where the constant's own type is the type argument, inference says it.
+    expect(text).toContain("return sdk.Ptr(2)");
     expect(linesOf(result, pointers)).toEqual([]);
   });
 
@@ -178,7 +180,7 @@ describe.skipIf(!hasGo)("migrating a Go consumer", () => {
         spanEnd: argStart + argument.length + 1,
         call: {
           open,
-          args: [{ start: argStart, end: argStart + argument.length, untyped: true }],
+          args: [{ start: argStart, end: argStart + argument.length, untyped: "int" }],
           ...(typeArgs ? { typeArgs } : {}),
         },
       };

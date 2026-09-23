@@ -11,3 +11,8 @@ func Label(name string) *sdk.IssueComment {
 func First() *int64 {
 	return sdk.Int64(1)
 }
+
+// Pages is how many pages there are.
+func Pages() *int {
+	return sdk.Int(2)
+}

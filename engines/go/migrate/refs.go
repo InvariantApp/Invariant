@@ -46,37 +46,83 @@ type CallShape struct {
 	TypeArgs *[2]int `json:"typeArgs,omitempty"`
 }
 
-// CallArg is one argument, and whether it is an untyped constant, whose type
-// the call's parameter decides.
+// CallArg is one argument and, where it is an untyped constant, whose type
+// the call's parameter decides, the type it would take on its own.
 type CallArg struct {
-	Start   int  `json:"start"`
-	End     int  `json:"end"`
-	Untyped bool `json:"untyped,omitempty"`
+	Start   int    `json:"start"`
+	End     int    `json:"end"`
+	Untyped string `json:"untyped,omitempty"`
 }
 
-// untypedConstant says whether an expression is an untyped constant as
-// written: a literal, an untyped named constant, or arithmetic on those. The
-// type checker records such an argument with the type its parameter gave it,
-// so the syntax is what says a call chose its type.
-func untypedConstant(info *types.Info, expression ast.Expr) bool {
+// untypedDefault is the type an untyped constant takes where nothing gives
+// it one (`int` for `1`, `string` for `"a"`), or "" where the expression is
+// not an untyped constant as written: a literal, an untyped named constant,
+// or arithmetic on those. The type checker records such an argument with the
+// type its parameter gave it, so the syntax is what says a call chose its
+// type.
+func untypedDefault(info *types.Info, expression ast.Expr) string {
+	// Go's untyped constant kinds, in the order a mixed expression takes the
+	// later one.
+	order := map[string]int{"int": 1, "rune": 2, "float64": 3, "complex128": 4}
 	switch expression := expression.(type) {
 	case *ast.BasicLit:
-		return true
+		switch expression.Kind {
+		case token.INT:
+			return "int"
+		case token.FLOAT:
+			return "float64"
+		case token.IMAG:
+			return "complex128"
+		case token.CHAR:
+			return "rune"
+		case token.STRING:
+			return "string"
+		}
 	case *ast.ParenExpr:
-		return untypedConstant(info, expression.X)
+		return untypedDefault(info, expression.X)
 	case *ast.UnaryExpr:
-		return untypedConstant(info, expression.X)
+		if expression.Op == token.NOT {
+			return orEmpty(untypedDefault(info, expression.X), "bool")
+		}
+		return untypedDefault(info, expression.X)
 	case *ast.BinaryExpr:
-		return untypedConstant(info, expression.X) && untypedConstant(info, expression.Y)
+		left, right := untypedDefault(info, expression.X), untypedDefault(info, expression.Y)
+		if left == "" || right == "" {
+			return ""
+		}
+		switch expression.Op {
+		case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ, token.LAND, token.LOR:
+			return "bool"
+		case token.SHL, token.SHR:
+			return left
+		}
+		if order[right] > order[left] {
+			return right
+		}
+		return left
 	case *ast.Ident:
 		constant, ok := info.Uses[expression].(*types.Const)
 		if !ok {
-			return false
+			return ""
 		}
 		basic, ok := constant.Type().(*types.Basic)
-		return ok && basic.Info()&types.IsUntyped != 0
+		if !ok || basic.Info()&types.IsUntyped == 0 {
+			return ""
+		}
+		name := types.Default(basic).String()
+		if name == "int32" {
+			return "rune"
+		}
+		return name
 	}
-	return false
+	return ""
+}
+
+func orEmpty(value, otherwise string) string {
+	if value == "" {
+		return ""
+	}
+	return otherwise
 }
 
 func shapeOf(info *types.Info, call *ast.CallExpr, offset func(token.Pos) int) *CallShape {
@@ -85,7 +131,7 @@ func shapeOf(info *types.Info, call *ast.CallExpr, offset func(token.Pos) int) *
 		shape.Args = append(shape.Args, CallArg{
 			Start:   offset(argument.Pos()),
 			End:     offset(argument.End()),
-			Untyped: untypedConstant(info, argument),
+			Untyped: untypedDefault(info, argument),
 		})
 	}
 	fun := call.Fun

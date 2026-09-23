@@ -79,3 +79,6 @@ func String(v string) *string { return &v }
 
 // Int64 returns a pointer to v.
 func Int64(v int64) *int64 { return &v }
+
+// Int returns a pointer to v.
+func Int(v int) *int { return &v }

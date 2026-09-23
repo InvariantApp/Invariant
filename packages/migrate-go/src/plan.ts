@@ -224,10 +224,13 @@ export function buildGoPlan(
   // The SDK's own word that a function is only a name for something else:
   // go-github 84 marks `String(v)` as `Ptr(v)`, and 92 marks `Ptr(v)` as
   // `new(v)`. A function the consumer calls today, marked so in the release
-  // it moves to.
+  // it moves to, and deprecated by this upgrade rather than an earlier one:
+  // an old call to something deprecated long ago still compiles, and most
+  // people moving between later releases leave it as it is, so rewriting it
+  // on their behalf is an edit nobody asked for.
   const existing = new Set(
     before
-      .filter((object) => object.kind === "func")
+      .filter((object) => object.kind === "func" && !object.deprecated)
       .map((object) => `${object.package}\u0000${object.key}`),
   );
   const inlines: GoInline[] = after.flatMap((object) =>
