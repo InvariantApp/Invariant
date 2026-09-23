@@ -309,9 +309,509 @@
     "confidence": 0.99,
     "model": "jev-1.13.0"
   },
+  "Alishahryar1/free-claude-code#1504|src/free_claude_code/providers/openai_chat/provider.py|11|44b29702229869de": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|src/free_claude_code/providers/openai_chat/provider.py|159|0d767e8419dceb92": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|src/free_claude_code/providers/openai_chat/provider.py|161|0e8baed71bbe541b": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|src/free_claude_code/providers/openai_chat/provider.py|163|1ddf8635eecf747c": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|src/free_claude_code/providers/openai_chat/provider.py|175|6ed04a2b9d3079f3": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|src/free_claude_code/providers/openai_chat/provider.py|9|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/support.py|4|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/support.py|56|272c6f8c6ddb620c": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/support.py|60|ad54c4a401fd71e9": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/support.py|69|11b79142f40be24d": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_chutes.py|226|f006a2e9afe227b7": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_chutes.py|228|272c6f8c6ddb620c": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_chutes.py|230|8df3d088af664f63": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_chutes.py|237|11b79142f40be24d": {
+    "class": "unrelated",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_chutes.py|4|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_cline_pass.py|345|f006a2e9afe227b7": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_cline_pass.py|347|272c6f8c6ddb620c": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_cline_pass.py|349|ad54c4a401fd71e9": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_cline_pass.py|363|987fd1548dda144d": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_cline_pass.py|396|f006a2e9afe227b7": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_cline_pass.py|398|272c6f8c6ddb620c": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_cline_pass.py|400|9adfed6350d4227c": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_cline_pass.py|402|379e4f98992f2021": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_cline_pass.py|48|5288a78c30db143b": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_cline_pass.py|56|3f51bd0b46b03d98": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_cline_pass.py|7|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_failure_policy.py|253|a302d0f7a24b1e45": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_failure_policy.py|29|0e339add16bc4abe": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_failure_policy.py|41|10cf392da9015ef0": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_failure_policy.py|415|5bc1c89ba2e062b8": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_failure_policy.py|417|79973e0e3c00d954": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_failure_policy.py|6|897aba74c03b8261": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_featherless.py|391|f006a2e9afe227b7": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_featherless.py|393|272c6f8c6ddb620c": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_featherless.py|396|ad54c4a401fd71e9": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_featherless.py|410|11b79142f40be24d": {
+    "class": "unrelated",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_featherless.py|5|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_groq_reasoning.py|139|78cc4d9678dd52c9": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_groq_reasoning.py|6|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_mistral.py|7|bc760216e41359e0": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_nebius.py|190|f006a2e9afe227b7": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_nebius.py|192|272c6f8c6ddb620c": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_nebius.py|194|ad54c4a401fd71e9": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_nebius.py|211|11b79142f40be24d": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_nebius.py|5|952f08b7614ddaa5": {
+    "class": "contested",
+    "confidence": 0.58,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_nvidia_nim_degraded_retry.py|4|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_nvidia_nim_degraded_retry.py|59|c54f2eb0a4370d05": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_nvidia_nim_degraded_retry.py|62|392d0f8a2eae33d4": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_nvidia_nim_degraded_retry.py|82|c54f2eb0a4370d05": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_nvidia_nim_degraded_retry.py|85|6771976577acb74d": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_nvidia_nim.py|5|bc760216e41359e0": {
+    "class": "sdk",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_openai_chat_usage.py|8|bc760216e41359e0": {
+    "class": "contested",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_openai_compat_5xx_retry.py|7|bc760216e41359e0": {
+    "class": "contested",
+    "confidence": 0.5700000000000001,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_provider_transport_logging.py|5|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_provider_transport_logging.py|55|1255b492a5b23800": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_provider_transport_logging.py|57|8b9c5e3a81ec3fdf": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_qwencloud_coding.py|196|f006a2e9afe227b7": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_qwencloud_coding.py|198|272c6f8c6ddb620c": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_qwencloud_coding.py|200|ad54c4a401fd71e9": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_qwencloud_coding.py|226|11b79142f40be24d": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_qwencloud_coding.py|4|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_qwencloud.py|168|f006a2e9afe227b7": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_qwencloud.py|170|272c6f8c6ddb620c": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_qwencloud.py|172|ad54c4a401fd71e9": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_qwencloud.py|198|11b79142f40be24d": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_qwencloud.py|5|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_stream_recovery.py|19|46f15566542aacbf": {
+    "class": "sdk",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_stream_recovery.py|3|897aba74c03b8261": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_stream_recovery.py|82|ee15680ebf320d99": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_stream_recovery.py|86|5740fba56e147102": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_streaming_errors.py|1281|68019decba6445d5": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_streaming_errors.py|1286|5740fba56e147102": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_streaming_errors.py|588|7fb94950a4ea5e4d": {
+    "class": "contested",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_streaming_errors.py|590|f9d8feee9a280e98": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_streaming_errors.py|629|7fb94950a4ea5e4d": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_streaming_errors.py|631|f9d8feee9a280e98": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_streaming_errors.py|7|897aba74c03b8261": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_together.py|195|f006a2e9afe227b7": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_together.py|197|272c6f8c6ddb620c": {
+    "class": "sdk",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_together.py|199|ad54c4a401fd71e9": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_together.py|216|11b79142f40be24d": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_together.py|6|897aba74c03b8261": {
+    "class": "sdk",
+    "confidence": 0.8099999999999999,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_xai.py|191|f006a2e9afe227b7": {
+    "class": "unrelated",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_xai.py|193|272c6f8c6ddb620c": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_xai.py|195|ad54c4a401fd71e9": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_xai.py|205|11b79142f40be24d": {
+    "class": "contested",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+check"
+  },
+  "Alishahryar1/free-claude-code#1504|tests/providers/test_xai.py|6|897aba74c03b8261": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
   "ALRubinger/aileron#857|internal/source/github/connector.go|13|1fb252a6e8be2f20": {
     "class": "sdk",
     "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "ansys/review-bot#120|src/review/bot/misc.py|26|7691c54c96450e84": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "ansys/review-bot#120|src/review/bot/misc.py|56|ca425b0a7cacb794": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "ansys/review-bot#120|src/review/bot/misc.py|58|f454faca6328d75c": {
+    "class": "sdk",
+    "confidence": 0.9400000000000001,
+    "model": "jev-1.13.0"
+  },
+  "ansys/review-bot#120|src/review/bot/misc.py|6|bb0b45c7f95441eb": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "ansys/review-bot#120|src/review/bot/misc.py|8|3ea60535b4b3da39": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "ansys/review-bot#120|src/review/bot/open_ai_interface.py|11|80a4087b261e45d1": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "ansys/review-bot#120|src/review/bot/open_ai_interface.py|168|b8f058fea3da2abd": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "ansys/review-bot#120|src/review/bot/open_ai_interface.py|173|f0110d78339581e4": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "ansys/review-bot#120|src/review/bot/open_ai_interface.py|201|76f16088f2d11567": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "ansys/review-bot#120|src/review/bot/open_ai_interface.py|227|b8f058fea3da2abd": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "ansys/review-bot#120|src/review/bot/open_ai_interface.py|232|f0110d78339581e4": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "ansys/review-bot#120|src/review/bot/open_ai_interface.py|261|76f16088f2d11567": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "ansys/review-bot#120|src/review/bot/open_ai_interface.py|5|62db3caa72924e53": {
+    "class": "sdk",
+    "confidence": 0.95,
     "model": "jev-1.13.0"
   },
   "appstrate/appstrate#1301|packages/module-ee/src/stripe/client.ts|10|fd871c886c6702e5": {
@@ -523,6 +1023,91 @@
     "class": "sdk",
     "confidence": 0.98,
     "model": "jev-1.13.0"
+  },
+  "bedrock-python/mattermind#27|src/mattermind/agent/loop.py|10|b4f80a46dbc9766f": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "bedrock-python/mattermind#27|src/mattermind/agent/loop.py|12|44b29702229869de": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "bedrock-python/mattermind#27|src/mattermind/agent/loop.py|49|14dd98c4d1767f34": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "bedrock-python/mattermind#27|src/mattermind/cli/app.py|13|44b29702229869de": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "bedrock-python/mattermind#27|src/mattermind/cli/app.py|603|e91d572ac02335ac": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "bedrock-python/mattermind#27|src/mattermind/cli/app.py|9|b4f80a46dbc9766f": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "bedrock-python/mattermind#27|tests/unit/test_cli.py|252|3b87cc92f644169b": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "bedrock-python/mattermind#27|tests/unit/test_cli.py|261|869dfb4d9bc50b0c": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "bedrock-python/mattermind#27|tests/unit/test_cli.py|262|1bf1aadc24427528": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "bedrock-python/mattermind#27|tests/unit/test_cli.py|264|183ea08f6897d6d9": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "bedrock-python/mattermind#27|tests/unit/test_cli.py|273|aba7b00a7faf1a18": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "bedrock-python/mattermind#27|tests/unit/test_cli.py|282|677e312ed0819b44": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "bedrock-python/mattermind#27|tests/unit/test_cli.py|291|14e013f126c36bfe": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "bedrock-python/mattermind#27|tests/unit/test_cli.py|300|abf37491f3b2048f": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "bedrock-python/mattermind#27|tests/unit/test_cli.py|4|90cf5dc60eb843c9": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "bedrock-python/mattermind#27|tests/unit/test_cli.py|6|34a4236328ed8f5e": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "bedrock-python/mattermind#27|tests/unit/test_cli.py|8|897aba74c03b8261": {
+    "class": "unrelated",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
   },
   "bitwise-media-group/patchy#212|internal/controller/integration/project_test.go|14|2796955cad015a7f": {
     "class": "sdk",
@@ -1744,6 +2329,51 @@
     "confidence": 0.99,
     "model": "jev-1.13.0"
   },
+  "Couchers-org/couchers#9659|app/backend/src/couchers/servicers/donations.py|135|c14696b00ce85d04": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "Couchers-org/couchers#9659|app/backend/src/couchers/servicers/donations.py|145|c676d49a244c160e": {
+    "class": "contested",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "Couchers-org/couchers#9659|app/backend/src/couchers/servicers/donations.py|153|7f15f75974d72f34": {
+    "class": "contested",
+    "confidence": 0.49,
+    "model": "jev-1.13.0+check"
+  },
+  "Couchers-org/couchers#9659|app/backend/src/couchers/servicers/donations.py|206|902bc29c6f15880c": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "Couchers-org/couchers#9659|app/backend/src/tests/test_donations.py|0|adee98f3db42891b": {
+    "class": "sdk",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+check"
+  },
+  "Couchers-org/couchers#9659|app/backend/src/tests/test_donations.py|1|b3b7ed395e2bb7b5": {
+    "class": "contested",
+    "confidence": 0.58,
+    "model": "jev-1.13.0+check"
+  },
+  "Couchers-org/couchers#9659|app/backend/src/tests/test_donations.py|537|c9ccddf35f9784ea": {
+    "class": "contested",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "Couchers-org/couchers#9659|app/backend/src/tests/test_donations.py|538|92b9bc8da5cac9e8": {
+    "class": "contested",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "Cray-HPE/canu#215|setup.py|158|9c02cd73105323d0": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+check"
+  },
   "Cyb3r-Jak3/cloudflare-utils#361|cmd/cloudflare-utils/sync-list.go|14|e1180d1d2524d8f4": {
     "class": "sdk",
     "confidence": 1,
@@ -1942,6 +2572,251 @@
   "devsy-org/devsy#883|pkg/selfupdate/source.go|9|2796955cad015a7f": {
     "class": "sdk",
     "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/models.py|3738|a0c25c32af0657d8": {
+    "class": "sdk",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/models.py|3757|cab10af64303e2b6": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/models.py|3768|0e063174de5198c5": {
+    "class": "sdk",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/models.py|3773|43bc59e82074bce8": {
+    "class": "contested",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/models.py|3798|5791440e882d4740": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/models.py|3825|44f11338673379ce": {
+    "class": "contested",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/generator.py|207|9ad62fea1f0c8a75": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/generator.py|228|135c0f1433e2e516": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay_with_api.py|117|f4ef5ee0d5d55948": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay_with_api.py|119|ade3b7ca3419b88f": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay_with_api.py|120|f16258cd80bc2dff": {
+    "class": "contested",
+    "confidence": 0.46,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay_with_api.py|124|5935049c249322bf": {
+    "class": "contested",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay_with_api.py|128|f4ef5ee0d5d55948": {
+    "class": "contested",
+    "confidence": 0.39999999999999997,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay_with_api.py|131|c67d840be3d45526": {
+    "class": "contested",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay_with_api.py|135|16dd942d5a887a22": {
+    "class": "contested",
+    "confidence": 0.46,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay_with_api.py|24|43fe625e8447b6ab": {
+    "class": "sdk",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay_with_api.py|54|53bd524fa6ebd439": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay.py|118|7aa897ed9b6239fc": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay.py|141|7b4f5de9bc7bf061": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay.py|159|7aa897ed9b6239fc": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay.py|24|d1fd541d56d2e044": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay.py|29|cf8de8ba6ade1b91": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay.py|5|519a91dcada5912a": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay.py|55|47176322ee9cb82c": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay.py|95|95c21b7e57614d19": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_models.py|26|d1fd541d56d2e044": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_models.py|297|7548c4e44ed42040": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_models.py|308|0c52e29869cdd75d": {
+    "class": "contested",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_models.py|324|507812c120d63c7c": {
+    "class": "sdk",
+    "confidence": 0.9400000000000001,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_models.py|331|95c21b7e57614d19": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_models.py|38|cf8de8ba6ade1b91": {
+    "class": "sdk",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_stripe_payment_method_with_api.py|117|c9ff756316da850d": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_stripe_payment_method_with_api.py|166|0cb81a15a2e62345": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_stripe_payment_method_with_api.py|171|dbad8f2ac21d49f2": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_stripe_payment_method_with_api.py|206|b9bcce3de3078eb3": {
+    "class": "contested",
+    "confidence": 0.43,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_stripe_payment_method_with_api.py|40|6a8828c06f496f40": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_stripe_payment_method_with_api.py|46|6a8828c06f496f40": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_stripe_payment_method_with_api.py|59|de9a4b1e69f692c8": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_stripe_payment_method_with_api.py|69|6a8828c06f496f40": {
+    "class": "sdk",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_stripe_payment_method_with_api.py|75|e24790f001f9a898": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_stripe_payment_method_with_api.py|80|6a8828c06f496f40": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_stripe_payment_method_with_api.py|82|6e8357d4c7115a82": {
+    "class": "contested",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/utils.py|56|172466a92d1f1cee": {
+    "class": "contested",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/utils.py|9|1c448f9f2411feb4": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/utils/stripe.py|14|2e1bb5fe7b32f31c": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+check"
+  },
+  "dimagi/commcare-hq#33775|corehq/apps/accounting/utils/stripe.py|34|027353b02ed64bd7": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#35635|corehq/apps/accounting/tests/test_autopay.py|6|8fe422705f61a097": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#35635|corehq/apps/accounting/tests/test_stripe_payment.py|5|8fe422705f61a097": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "dimagi/commcare-hq#35635|corehq/warnings.py|67|4fe5c26265d82969": {
+    "class": "sdk",
+    "confidence": 0.9,
     "model": "jev-1.13.0"
   },
   "dimagi/commcare-hq#37038|corehq/apps/accounting/models.py|3597|5e0866f0ffa32294": {
@@ -2485,6 +3360,301 @@
     "model": "jev-1.13.0"
   },
   "EngineeringKiosk/awesome-software-engineering-games#64|app/cmd/collectGameData.go|16|2a25c8230d1a5f66": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/audio_api/transcribe/adapter.py|113|1a3efa59cb0be7ca": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/audio_api/transcribe/adapter.py|117|a17714206231975a": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/audio_api/transcribe/adapter.py|12|9f641b5748ac716e": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/audio_api/transcribe/adapter.py|136|4db3f7f315af961f": {
+    "class": "sdk",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/audio_api/transcribe/adapter.py|48|5423e3529c76cbf4": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/audio_api/transcribe/adapter.py|52|d6b594e7b91dd7f6": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/audio_api/transcribe/adapter.py|60|b20ed8c0f373b1be": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/audio_api/transcribe/adapter.py|64|fce43d4f3342586a": {
+    "class": "contested",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/audio_api/transcribe/adapter.py|66|a487032cb26782a0": {
+    "class": "sdk",
+    "confidence": 0.76,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/audio_api/transcribe/adapter.py|8|3c11279a86d539f6": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/image_generation/gpt_image.py|2|06fa56c65c33bf6d": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/image_generation/gpt_image.py|72|d4c436d2dd8be7b5": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/image_generation/model.py|24|58ac00cffd5af1d8": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/image_generation/model.py|5|c7f7ebf35056cff1": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/adapter.py|11|55057f89d0726840": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/adapter.py|124|23158e081b8dfd88": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/adapter.py|128|f7b00e7eb87dc2b5": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/adapter.py|135|470a546b25f5cda7": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/adapter.py|140|e87b62408f84255d": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/adapter.py|152|acb8ecaf235ed8e0": {
+    "class": "sdk",
+    "confidence": 0.9400000000000001,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/adapter.py|155|3369278d6cf7bb9d": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/adapter.py|6|f9d01bdd4bffbdd6": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/converter.py|11|aa826c8e7313bbcf": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/converter.py|112|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/converter.py|113|7673ab8849f99c43": {
+    "class": "contested",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/converter.py|197|1ee917600d6aa1d0": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/converter.py|276|296acb05a4ec2587": {
+    "class": "sdk",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/converter.py|28|365fdbcf5674d9e4": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/converter.py|29|8a601f332fac6d85": {
+    "class": "sdk",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/converter.py|30|dde955a006eb28fc": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/converter.py|31|068224bd0f630ee3": {
+    "class": "sdk",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/converter.py|331|5a8873f68904ed91": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/converter.py|44|f2e4737bccbd1f20": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/event_handler.py|30|d03e69f750262503": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/event_handler.py|326|49d86219fe43e695": {
+    "class": "sdk",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/event_handler.py|328|eefb10caf158cb97": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/event_handler.py|332|744dc7011fbbc311": {
+    "class": "sdk",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/event_handler.py|391|6b1b6c4b1c973823": {
+    "class": "contested",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/event_handler.py|55|b3f48c9f9e2f672e": {
+    "class": "sdk",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/event_handler.py|63|bd634507df9a1d59": {
+    "class": "contested",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/event_handler.py|72|3cea8a47bc5a2cd1": {
+    "class": "sdk",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/event_handler.py|75|598449ccda60cb29": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/event_handler.py|78|4bd2fc1d9affa9d2": {
+    "class": "sdk",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/responses/event_handler.py|81|b8ec72b1c634b116": {
+    "class": "sdk",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|tests/integration_tests/chat_completion/test_case.py|33|ef83b63d999d322c": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|tests/integration_tests/chat_completion/test_case.py|37|7e3499664f76e6e5": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|tests/integration_tests/chat_completion/test_case.py|39|79602df9d75e2c0e": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|tests/integration_tests/chat_completion/test_case.py|43|18bddb5f067991a4": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|tests/integration_tests/chat_completion/test_case.py|5|06fa56c65c33bf6d": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|tests/integration_tests/chat_completion/test_case.py|77|b99a0a58b945a5af": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|tests/utils/openai.py|15|7c5ed26b3dfdcdd4": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|tests/utils/openai.py|17|df0baff99cc7e674": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|tests/utils/openai.py|202|59ca038ea1b61f66": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|tests/utils/openai.py|217|869fe3287e7d0973": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|tests/utils/openai.py|238|23daf6f6eba7fc73": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|tests/utils/openai.py|240|b7416fdc92e48f85": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|tests/utils/openai.py|302|c8f28dd05271fe99": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-openai#389|tests/utils/openai.py|311|dd6dd72c456540b0": {
+    "class": "sdk",
+    "confidence": 0.58,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-openai#389|tests/utils/openai.py|7|01d4f1cc7206f523": {
     "class": "sdk",
     "confidence": 0.99,
     "model": "jev-1.13.0"
@@ -4274,6 +5444,81 @@
     "confidence": 0.44,
     "model": "jev-1.13.0"
   },
+  "Jamyn/dispatch#196|tests/plugins/dispatch_openai/conftest.py|24|4beca5a0c0f1015d": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "Jamyn/dispatch#196|tests/plugins/dispatch_openai/conftest.py|8|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "Jamyn/dispatch#196|tests/plugins/dispatch_openai/fake_openai.py|100|e58c4192c3cd97a7": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "Jamyn/dispatch#196|tests/plugins/dispatch_openai/fake_openai.py|108|19027b454e27cc4c": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "Jamyn/dispatch#196|tests/plugins/dispatch_openai/fake_openai.py|147|b2703e57bc97c2ca": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "Jamyn/dispatch#196|tests/plugins/dispatch_openai/fake_openai.py|17|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "Jamyn/dispatch#196|tests/plugins/dispatch_openai/fake_openai.py|2|8c6f1465d35f4249": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "Jamyn/dispatch#196|tests/plugins/dispatch_openai/fake_openai.py|62|e58c4192c3cd97a7": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "Jamyn/dispatch#196|tests/plugins/dispatch_openai/fake_openai.py|69|e58c4192c3cd97a7": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "Jamyn/dispatch#196|tests/plugins/dispatch_openai/fake_openai.py|75|e58c4192c3cd97a7": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "Jamyn/dispatch#196|tests/plugins/dispatch_openai/fake_openai.py|81|e58c4192c3cd97a7": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "Jamyn/dispatch#196|tests/plugins/dispatch_openai/fake_openai.py|89|e58c4192c3cd97a7": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "Jamyn/dispatch#196|tests/plugins/dispatch_openai/fake_openai.py|9|fae09c880303f5ee": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "Jamyn/dispatch#196|tests/plugins/dispatch_openai/test_openai_discovery.py|0|5c8991e637d008ab": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "Jamyn/dispatch#21|tests/plugins/test_openai_plugin.py|0|3f1d6792566544ea": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
   "jduepmeier/binary-package-manager#124|github.go|13|e1180d1d2524d8f4": {
     "class": "sdk",
     "confidence": 1,
@@ -4409,6 +5654,16 @@
     "confidence": 0.78,
     "model": "jev-1.13.0"
   },
+  "johnhughes3/LegalForecastBench#836|legalforecast/multiharness/openai_responses.py|25|47dbeff3f607d8f5": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "johnhughes3/LegalForecastBench#836|tests/test_multiharness_external_adapters.py|210|3b883fcb04ad6dae": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
   "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/balanceService.ts|1|b30cea85f5d9f594": {
     "class": "sdk",
     "confidence": 1,
@@ -4514,6 +5769,11 @@
     "confidence": 1,
     "model": "jev-1.13.0"
   },
+  "jshwi/jss#1054|app/views/order.py|33|43ef54c0d358d767": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "rule:type-suppression"
+  },
   "jshwi/jss#1096|app/views/order.py|33|43ef54c0d358d767": {
     "class": "sdk",
     "confidence": 0.91,
@@ -4532,6 +5792,16 @@
   "jshwi/jss#1186|tests/_test.py|2254|bee216b1cf10ee42": {
     "class": "sdk",
     "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "jshwi/jss#1249|app/views/order.py|21|52fe129772d1fe73": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "jshwi/jss#1249|tests/_test.py|2254|bee216b1cf10ee42": {
+    "class": "sdk",
+    "confidence": 0.97,
     "model": "jev-1.13.0"
   },
   "jshwi/jss#1314|app/views/order.py|20|52fe129772d1fe73": {
@@ -5244,6 +6514,26 @@
     "confidence": 1,
     "model": "jev-1.13.0"
   },
+  "lagowski/dap#878|tests/smoke/test_provider_quota.py|105|208f43ab4dba4d5c": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "lagowski/dap#878|tests/smoke/test_provider_quota.py|13|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "learning-unlimited/ESP-Website#5803|esp/esp/program/modules/handlers/creditcardmodule_stripe.py|290|1d156c23574ebef4": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "learning-unlimited/ESP-Website#5803|esp/esp/program/modules/handlers/creditcardmodule_stripe.py|334|31a7170df9b1c240": {
+    "class": "contested",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
   "liatrio/liatrio-otel-collector#823|receiver/githubactionsreceiver/trace_attributes.go|10|3bae08b7dd1de4b0": {
     "class": "sdk",
     "confidence": 0.99,
@@ -5393,6 +6683,51 @@
     "class": "sdk",
     "confidence": 0.86,
     "model": "jev-1.13.0"
+  },
+  "lihor-hub/news-dashboard#1407|backend/tests/test_a2a.py|13|897aba74c03b8261": {
+    "class": "sdk",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "lihor-hub/news-dashboard#1407|backend/tests/test_a2a.py|57|c9ce280d8d8aabb9": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "lihor-hub/news-dashboard#1407|backend/tests/test_a2a.py|59|8cd54909f417feff": {
+    "class": "contested",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+check"
+  },
+  "lihor-hub/news-dashboard#1407|backend/tests/test_ai_client.py|242|7ca4671d4337c0e0": {
+    "class": "unrelated",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "lihor-hub/news-dashboard#1407|backend/tests/test_ai_client.py|271|78edf97e86cb4350": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "lihor-hub/news-dashboard#1407|backend/tests/test_embeddings.py|11|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.49,
+    "model": "jev-1.13.0+check"
+  },
+  "lihor-hub/news-dashboard#1407|backend/tests/test_embeddings.py|30|d21810c3094543b1": {
+    "class": "unrelated",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "lihor-hub/news-dashboard#1407|backend/tests/test_mcp.py|11|897aba74c03b8261": {
+    "class": "contested",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+check"
+  },
+  "lihor-hub/news-dashboard#1407|backend/tests/test_mcp.py|2878|d524e6ec717a7140": {
+    "class": "sdk",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+check"
   },
   "linklaterscreateiq/reviewer-roulette#9|scripts/proxy-check.mjs|0|891c268de15f5967": {
     "class": "sdk",
@@ -5549,6 +6884,411 @@
     "confidence": 0.99,
     "model": "jev-1.13.0"
   },
+  "Lucs1590/strava-to-trainingpeaks#168|setup.py|30|c38ca9c652dc6020": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "Lucs1590/strava-to-trainingpeaks#302|setup.py|32|8174ebcd9de6453f": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/choices.py|74|d77b3a80fc2f4e9b": {
+    "class": "contested",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/migrations/0008_profile_product_profile_state_alter_project_type.py|0|ca014d80002540a9": {
+    "class": "sdk",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/models.py|38|3d443e4efe790fc2": {
+    "class": "sdk",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/models.py|47|867dc9d613aaaa3a": {
+    "class": "sdk",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/models.py|60|c40596da3af971db": {
+    "class": "sdk",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/models.py|70|46f702d4371289a7": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/models.py|73|b82cdfa7b62a4fc6": {
+    "class": "unrelated",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/models.py|9|39816ab0f50316b7": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/models.py|93|6c8f7316f051281c": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/utils.py|0|dd7d72982b6f23e0": {
+    "class": "sdk",
+    "confidence": 0.58,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/utils.py|32|f64b91459766db7d": {
+    "class": "contested",
+    "confidence": 0.49,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/utils.py|4|e00d525f0749ddef": {
+    "class": "contested",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/views.py|104|b370821837c89c6e": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/views.py|15|905abda4217accd4": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/views.py|18|594197221275d398": {
+    "class": "contested",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/views.py|76|032e200c7224e9cb": {
+    "class": "unrelated",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/views.py|94|ddc011aed16369fc": {
+    "class": "contested",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/views.py|98|6f7af63d2d9443cb": {
+    "class": "contested",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/webhooks.py|0|44e90a4e87c097f4": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "LVTD-LLC/TuxSEO#15|core/webhooks.py|11|09e02dd5ed1c9464": {
+    "class": "unrelated",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/webhooks.py|144|d89d6b3e32565293": {
+    "class": "contested",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/webhooks.py|17|385ffb2287a1d240": {
+    "class": "contested",
+    "confidence": 0.42,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/webhooks.py|19|f6f3fbb98a3efdae": {
+    "class": "unrelated",
+    "confidence": 0.49,
+    "model": "jev-1.13.0+check"
+  },
+  "LVTD-LLC/TuxSEO#15|core/webhooks.py|35|4b4215ff7f725385": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "LVTD-LLC/TuxSEO#15|core/webhooks.py|37|d908add59af2e837": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "LVTD-LLC/TuxSEO#15|core/webhooks.py|9|01811160316a79fb": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "LVTD-LLC/TuxSEO#15|core/webhooks.py|95|1043bbb20c3746f1": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "LVTD-LLC/TuxSEO#15|core/webhooks.py|97|470ab7a52f83c2ab": {
+    "class": "unrelated",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|10|7c82e4f050c02e12": {
+    "class": "sdk",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|1001|bf0d1b5c41342511": {
+    "class": "contested",
+    "confidence": 0.43,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|101|5643fae2929c3e9a": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|1011|131925439de105ac": {
+    "class": "contested",
+    "confidence": 0.47,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|103|171d68a4f98d524e": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|1032|6013e9482cbc2af1": {
+    "class": "contested",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|1047|757f1a36db54d280": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|1107|dc192bb32134c270": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|1123|824ad229a425e8d7": {
+    "class": "sdk",
+    "confidence": 0.44,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|1130|12691f6317dba918": {
+    "class": "sdk",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|1137|d7852078d2078852": {
+    "class": "contested",
+    "confidence": 0.43,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|1150|c2c7705d3d069416": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|1158|8380cea0db494ecf": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|1166|d4312c6010a15414": {
+    "class": "sdk",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|1182|345a4b9b8f20ad5c": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|139|d50eb2095d54bdbe": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|14|7fb6fb46da8badc5": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|150|6af04033f3a68d07": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|160|31dd57e61179900b": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|181|e3354f522085abd8": {
+    "class": "contested",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|189|f68ce3beb98df818": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|191|dcd176a0e2263186": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|207|bbd033d229e2750b": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|211|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|260|352a8cc4f48694a9": {
+    "class": "contract",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|370|9d9440a8aafb5098": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|374|9f0f562e43c534d0": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|391|93b07f2db554b8f1": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|464|58991f5f391485a0": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|507|9502ba36fc2ee1c0": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|537|03424466fac9dded": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|557|772f73074ac7aca5": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|576|625a6714c9c77648": {
+    "class": "contested",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|582|57c14d4619318de6": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|585|854cc82392e93f03": {
+    "class": "unrelated",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|629|4d6418e0464efa0e": {
+    "class": "unrelated",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|640|e1aea8dc28d0c248": {
+    "class": "unrelated",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|643|2a37cd693407c08d": {
+    "class": "unrelated",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|660|276992855e7dd3c0": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|691|cbb5e2f0830312e5": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|710|eeb49b7d64bcdf65": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|882|a5514181047a89a1": {
+    "class": "contested",
+    "confidence": 0.42,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|888|0eeb497c1d5a36a8": {
+    "class": "contested",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|959|3bf0bc1889c36569": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|964|f53dac98fa944c4f": {
+    "class": "contested",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|968|aad3ecc186d17804": {
+    "class": "contested",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|978|5277d34caffecc08": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|98|f599277ec9ed5c24": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|985|91e36494954ed814": {
+    "class": "contested",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+check"
+  },
+  "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|997|15a0306c6f6b49d4": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+check"
+  },
+  "MaibornWolff/hybrid-cloud-operator-library#4|setup.py|16|36ec348db36d72b0": {
+    "class": "sdk",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+check"
+  },
   "MaibornWolff/hybrid-cloud-operator-library#6|setup.py|16|74424c15fb46083e": {
     "class": "sdk",
     "confidence": 0.71,
@@ -5637,6 +7377,31 @@
   "mdn/yari#9888|scripts/ai-help.ts|77|8721fc06a1013497": {
     "class": "sdk",
     "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "microsoft/PyRIT#2426|pyrit/prompt_target/openai/openai_video_target.py|263|1fcdefb85d0fc4b4": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "microsoft/PyRIT#2426|pyrit/prompt_target/openai/openai_video_target.py|285|1fcdefb85d0fc4b4": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "microsoft/PyRIT#2426|pyrit/prompt_target/openai/openai_video_target.py|339|187ae24273f45e41": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "microsoft/PyRIT#2426|pyrit/prompt_target/openai/openai_video_target.py|343|31763c9848850221": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "microsoft/PyRIT#2426|pyrit/prompt_target/openai/openai_video_target.py|393|76842a406ef11a26": {
+    "class": "sdk",
+    "confidence": 0.9,
     "model": "jev-1.13.0"
   },
   "monkescience/yeet#120|internal/commands/helpers.go|14|d90eb09d8503f330": {
@@ -6444,6 +8209,266 @@
     "confidence": 0.98,
     "model": "jev-1.13.0"
   },
+  "ogx-ai/ogx#3847|llama_stack/apis/conversations/conversations.py|152|e3ec76a2f9da1ec4": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "ogx-ai/ogx#3847|llama_stack/apis/conversations/conversations.py|252|064b7cb1aeeee1d6": {
+    "class": "contested",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "ogx-ai/ogx#3847|llama_stack/apis/conversations/conversations.py|255|ca4769466cee9fb7": {
+    "class": "contested",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+check"
+  },
+  "ogx-ai/ogx#3847|llama_stack/apis/conversations/conversations.py|6|f70a47df64ad39db": {
+    "class": "contested",
+    "confidence": 0.49,
+    "model": "jev-1.13.0+check"
+  },
+  "ogx-ai/ogx#3847|llama_stack/apis/conversations/conversations.py|8|870d2df2bbc5916b": {
+    "class": "contested",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "ogx-ai/ogx#3847|llama_stack/core/conversations/conversations.py|10|8f4b72dd24615ea5": {
+    "class": "contested",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+check"
+  },
+  "ogx-ai/ogx#3847|llama_stack/core/conversations/conversations.py|18|86671c9348b20152": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "ogx-ai/ogx#3847|llama_stack/core/conversations/conversations.py|249|3d3a9b5d051b3678": {
+    "class": "contested",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+check"
+  },
+  "ogx-ai/ogx#3847|llama_stack/core/conversations/conversations.py|260|5c80e978e69c2165": {
+    "class": "contested",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "ogx-ai/ogx#3847|llama_stack/core/conversations/conversations.py|265|a98378e1ef957fd5": {
+    "class": "contested",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "ogx-ai/ogx#3847|llama_stack/core/conversations/conversations.py|8|63771c99cd084188": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "ogx-ai/ogx#3847|llama_stack/providers/inline/agents/meta_reference/responses/openai_responses.py|133|9895a306e9eec7ff": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "ogx-ai/ogx#3847|tests/unit/conversations/test_conversations.py|122|a911ab4030c484bb": {
+    "class": "contested",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+check"
+  },
+  "ogx-ai/ogx#3847|tests/unit/conversations/test_conversations.py|84|a911ab4030c484bb": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "ogx-ai/ogx#3847|tests/unit/providers/agents/meta_reference/test_openai_responses_conversations.py|162|7048746fcf95d2b3": {
+    "class": "contested",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+check"
+  },
+  "ogx-ai/ogx#3847|tests/unit/providers/agents/meta_reference/test_openai_responses_conversations.py|229|a6243be8a074bafb": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "ogx-ai/ogx#3847|tests/unit/providers/agents/meta_reference/test_openai_responses_conversations.py|64|a6243be8a074bafb": {
+    "class": "contested",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/forms.py|50|bbb819e58c49430f": {
+    "class": "contested",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/forms.py|73|56e3719796fbf441": {
+    "class": "unrelated",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "okfde/froide-payment#22|froide_payment/models.py|15|4b46f3f5f363ec22": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/models.py|416|1bcfc2f3bce2f367": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/models.py|602|cc9075c4d84b6e96": {
+    "class": "contested",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/models.py|99|073578c40b3196d4": {
+    "class": "contested",
+    "confidence": 0.39,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|18|ae85641832273108": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|307|7bd133cb0fe26f44": {
+    "class": "contested",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|312|786cc5af3f339a53": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|396|d1efd453fd984168": {
+    "class": "contested",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|398|c9864ccb7385b142": {
+    "class": "contested",
+    "confidence": 0.46,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|405|ce1a4ebb49ad46d1": {
+    "class": "contested",
+    "confidence": 0.46,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|421|1004cfedc35a7a6a": {
+    "class": "contested",
+    "confidence": 0.47000000000000003,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|424|6ef2e2d69d70255b": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|475|d9fb50be162b193b": {
+    "class": "contested",
+    "confidence": 0.35,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|477|95621552345d1595": {
+    "class": "unrelated",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|480|3a83774a2c268e35": {
+    "class": "contested",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|484|c1c3bb15b08c0d85": {
+    "class": "contested",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|489|86847c9dd6ff20de": {
+    "class": "contested",
+    "confidence": 0.41,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|491|75b6aa9d42bc3590": {
+    "class": "contested",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|497|21a7e13c8f157340": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|502|3529693d5f1dcd91": {
+    "class": "contested",
+    "confidence": 0.49,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|505|eec47abf453574cb": {
+    "class": "contested",
+    "confidence": 0.49,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|517|0715f1f23d6b12c4": {
+    "class": "sdk",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|524|65cb0be9d5486eab": {
+    "class": "contested",
+    "confidence": 0.42,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|532|a0bf3205b75d0c5a": {
+    "class": "contested",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|534|bfe61e01e07857f9": {
+    "class": "contested",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|540|f23aeccb36720d5c": {
+    "class": "contested",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/provider/stripe.py|541|0e5d4c5cd7c0cb89": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "okfde/froide-payment#22|froide_payment/templatetags/froide_payment.py|1|dc962bae6cd31b5c": {
+    "class": "unrelated",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "okfde/froide-payment#22|froide_payment/templatetags/froide_payment.py|16|b86bb063d2c2e52b": {
+    "class": "contested",
+    "confidence": 0.41,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/templatetags/froide_payment.py|2|ea0e54afbe8c7929": {
+    "class": "unrelated",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "okfde/froide-payment#22|froide_payment/templatetags/froide_payment.py|3|1f5ce9a7e2f01e1a": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/utils.py|12|551ae420e4e995d0": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "okfde/froide-payment#22|froide_payment/utils.py|243|28ee585384aa2555": {
+    "class": "contested",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+check"
+  },
   "open-telemetry/opentelemetry-collector-contrib#46597|receiver/githubreceiver/internal/scraper/githubscraper/github_scraper_test.go|12|712b1c83cd1f33ae": {
     "class": "sdk",
     "confidence": 0.99,
@@ -7219,6 +9244,846 @@
     "confidence": 0.99,
     "model": "jev-1.13.0"
   },
+  "polarsource/polar#1732|server/polar/account/service.py|117|23def43321cb2fb8": {
+    "class": "contested",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/account/service.py|211|ff1246205b158a53": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/endpoints.py|107|b6baa9273f523ddd": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/endpoints.py|2|1427408c4f1ac513": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/endpoints.py|73|ab502dbbc460cbd0": {
+    "class": "contested",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|0|5f955a72779fe685": {
+    "class": "contested",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|126|1d945d3929618c21": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|134|3714faa0ea95d8ee": {
+    "class": "sdk",
+    "confidence": 0.6900000000000001,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|152|a66059508e06eee6": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|171|6a10d37b6ac161d2": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|183|9a56b21db5e2b8d9": {
+    "class": "contested",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|207|6f6db30273473754": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|232|685a0555fdcfc8fb": {
+    "class": "contested",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|236|1bd3e9555081d148": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|26|5f1f3cc6ea2dd499": {
+    "class": "contested",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|271|a87e34ce44c58ff8": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|314|aea5922fdef58e45": {
+    "class": "contested",
+    "confidence": 0.39,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|345|62f68842ca847637": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|354|3162212706e96b39": {
+    "class": "sdk",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|361|62f68842ca847637": {
+    "class": "sdk",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|39|1dfdb1a8f3cdc2c8": {
+    "class": "sdk",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|408|06d92cdc3f346c0c": {
+    "class": "sdk",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|413|68938f55336d71dd": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|436|ffd4ef824612f1ef": {
+    "class": "contested",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|460|bd1345e8c796d273": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|468|78980236fdfaee85": {
+    "class": "sdk",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|491|4a05cbac4a9df439": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|494|3f355c8e983bb36d": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|503|3eba653b6dffd6f3": {
+    "class": "sdk",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|510|3d5fa07671a4d6e4": {
+    "class": "sdk",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|513|ceeef9475e9cb060": {
+    "class": "sdk",
+    "confidence": 0.47,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|515|c7007aeab1ef3ce3": {
+    "class": "sdk",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|533|3d5fa07671a4d6e4": {
+    "class": "sdk",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|536|a70d7f50db434c5f": {
+    "class": "contested",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|538|0b65348d754978f2": {
+    "class": "contested",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|541|a8ccd011c4eb9b98": {
+    "class": "contested",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/service.py|8|ee4eb129ca358027": {
+    "class": "contested",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/integrations/stripe/utils.py|0|69750e4396a26818": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#1732|server/polar/payment_method/schemas.py|18|1915dba90b5d9006": {
+    "class": "sdk",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/schemas.py|256|0d42cb9c71a0f162": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscribe_session.py|140|09689afb116ccd47": {
+    "class": "contested",
+    "confidence": 0.42,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscribe_session.py|144|66fcfc8ffb083a0d": {
+    "class": "contested",
+    "confidence": 0.43,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscribe_session.py|4|24ca7d61cf03e938": {
+    "class": "contested",
+    "confidence": 0.46,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription_tier.py|13|296d861000c5c97d": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription_tier.py|193|6d168c97f66adb16": {
+    "class": "contested",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription_tier.py|246|d8cf59b3708d8936": {
+    "class": "contested",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|17|296d861000c5c97d": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|243|0009b5c25c76d435": {
+    "class": "contested",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|252|610803f1ccec5b59": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|258|1d618b60db9e96d3": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|266|069f2baf2c3e3382": {
+    "class": "contested",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|290|0be1c8712ac933ef": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|294|d4a6182b92157a84": {
+    "class": "contested",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|296|631d90f675315372": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|328|70db3770159b07aa": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|333|9f1ee0404f8f427d": {
+    "class": "contested",
+    "confidence": 0.37,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|342|1d4bb8c2e4cb1b5f": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|343|8646e74608a6da81": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|346|029f2bcc5c2b5164": {
+    "class": "contested",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|350|795b1651b56350da": {
+    "class": "contested",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|364|59a5cccd28fb6caf": {
+    "class": "sdk",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|367|d0afa3ca54dddc5f": {
+    "class": "contested",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|372|af899f27d2ddedf0": {
+    "class": "contested",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/polar/subscription/service/subscription.py|5|0a8854df6064d38c": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#1732|server/tests/account/test_endpoints.py|261|ac986b9bc2f78aa3": {
+    "class": "contested",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/pledge/test_service.py|311|8b28dc79ff9a37f9": {
+    "class": "contested",
+    "confidence": 0.49,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/pledge/test_service.py|358|8b28dc79ff9a37f9": {
+    "class": "sdk",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/pledge/test_service.py|417|8b28dc79ff9a37f9": {
+    "class": "contested",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/pledge/test_service.py|464|8b28dc79ff9a37f9": {
+    "class": "sdk",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/pledge/test_service.py|47|3b4f312d5cef4364": {
+    "class": "contested",
+    "confidence": 0.41,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/reward/test_service.py|86|8b28dc79ff9a37f9": {
+    "class": "contested",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/service/test_subscribe_session.py|0|ee848230b5800b2d": {
+    "class": "contested",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/service/test_subscribe_session.py|110|71d47471af97848f": {
+    "class": "contract",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#1732|server/tests/subscription/service/test_subscribe_session.py|149|71d47471af97848f": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/service/test_subscribe_session.py|193|71d47471af97848f": {
+    "class": "contested",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/service/test_subscribe_session.py|236|71d47471af97848f": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/service/test_subscribe_session.py|289|71d47471af97848f": {
+    "class": "contested",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/service/test_subscribe_session.py|317|6c83d517e4a9be4c": {
+    "class": "contested",
+    "confidence": 0.4,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/service/test_subscribe_session.py|325|71d47471af97848f": {
+    "class": "contested",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/service/test_subscribe_session.py|7|4b02333a89ead221": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/service/test_subscription_tier.py|328|6e385cf45c961109": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/service/test_subscription_tier.py|394|6e385cf45c961109": {
+    "class": "sdk",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/service/test_subscription_tier.py|467|6e385cf45c961109": {
+    "class": "contested",
+    "confidence": 0.58,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/service/test_subscription_tier.py|563|9fdecf9fecd564d2": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/service/test_subscription_tier.py|598|9fdecf9fecd564d2": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/service/test_subscription.py|151|f4fed57fd166c20a": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/service/test_subscription.py|176|f4fed57fd166c20a": {
+    "class": "contested",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/service/test_subscription.py|230|069f2baf2c3e3382": {
+    "class": "sdk",
+    "confidence": 0.58,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/test_endpoints.py|1023|71d47471af97848f": {
+    "class": "contested",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/test_endpoints.py|1051|71d47471af97848f": {
+    "class": "sdk",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/test_endpoints.py|311|6e385cf45c961109": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/test_endpoints.py|339|6e385cf45c961109": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/test_endpoints.py|959|71d47471af97848f": {
+    "class": "sdk",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#1732|server/tests/subscription/test_endpoints.py|991|71d47471af97848f": {
+    "class": "contested",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#3130|server/polar/account/service.py|186|c0b4633235cc724d": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#3130|server/polar/account/service.py|6|de084e84064b3646": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#3130|server/polar/integrations/stripe/endpoints.py|1|cce12c35fd89141e": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#3130|server/polar/integrations/stripe/endpoints.py|54|700e53931b00b57d": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#3130|server/polar/integrations/stripe/endpoints.py|59|0d2c8f590139c614": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#3130|server/polar/integrations/stripe/service.py|21|432d3f72f02e9448": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#3130|server/polar/integrations/stripe/service.py|23|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "polarsource/polar#3130|server/polar/integrations/stripe/service.py|5|0a68fa301a63e876": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#3130|server/polar/integrations/stripe/service.py|507|301410ddee9c5935": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#3130|server/polar/integrations/stripe/utils.py|0|3b9a4df43e217d3f": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#3130|server/polar/integrations/stripe/utils.py|7|0c287bf449ca0c71": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#3130|server/polar/pledge/payment_intent_service.py|4|3cb7b96583237584": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#3130|server/polar/pledge/payment_intent_service.py|86|716186dcfaa10da7": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/checkout/service.py|1096|2a94fdd785738323": {
+    "class": "contested",
+    "confidence": 0.46,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/checkout/service.py|1108|419311b42f776a1c": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/checkout/service.py|1131|bcf99eb556d934ff": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/checkout/service.py|115|8cfe09232683dd3b": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/checkout/service.py|2404|2a56b9612282733c": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/checkout/service.py|2418|edf75606c7ff8619": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/checkout/service.py|48|16ede43ceaa5e9f0": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/config.py|140|31480834100a0598": {
+    "class": "contested",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/customer_portal/service/customer.py|1|4ab23c04791054a5": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/customer_portal/service/customer.py|142|f72ea196242a56be": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/customer_portal/service/customer.py|168|80fe2329a0867e99": {
+    "class": "sdk",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/customer_portal/service/customer.py|28|68b701fcd0e7eff3": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/customer_portal/service/customer.py|29|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "polarsource/polar#9275|server/polar/customer_portal/service/customer.py|93|95aa964a84123e05": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/customer_portal/service/customer.py|97|c3c3c198494244d5": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/payment.py|110|e11c974cd9c9f58c": {
+    "class": "contested",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/payment.py|7|df981848092a5848": {
+    "class": "contested",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/schemas.py|0|455bb485f4f2cedf": {
+    "class": "sdk",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/service.py|13|330b3dc509a4e1b1": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/service.py|141|466127dc374693ae": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/service.py|161|b20708fc55fa3d21": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/service.py|17|1429f05e444e454c": {
+    "class": "contested",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/service.py|185|fa4b4254c7281b63": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/service.py|279|603ab43578d1cc55": {
+    "class": "contested",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/service.py|293|171dae22dc5f36c7": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/service.py|303|723bf005353c384f": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/service.py|308|54714dd8928b4009": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/service.py|315|47116f2a35c8cb20": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/service.py|326|5d58ca79b8786588": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/service.py|381|94bd55adc03617fb": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/service.py|423|a3fa9552486f32c5": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/service.py|52|f552deb1838d8d74": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/service.py|8|8f4934129ec552e0": {
+    "class": "sdk",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/tasks.py|13|982ed5301d07f709": {
+    "class": "sdk",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/tasks.py|19|dc47e6afa4abe1ab": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/tasks.py|31|d54971fe97b11e26": {
+    "class": "sdk",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/integrations/stripe/tasks.py|77|c52cca0d7942449f": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/models/dispute.py|45|391377ac4068c602": {
+    "class": "contract",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/models/dispute.py|61|b0897f05beea552a": {
+    "class": "contract",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/pledge/service.py|156|06bf1c61dbdc277a": {
+    "class": "contested",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/pledge/service.py|18|458c63c6ebfdcbda": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/tax/tax_id.py|13|bd53ffa60aa44fba": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/tax/tax_id.py|22|2da37767941f9c69": {
+    "class": "sdk",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/tax/tax_id.py|23|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "polarsource/polar#9275|server/polar/tax/tax_id.py|3|88f447eb42cdce01": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/tax/tax_id.py|359|04c418f123e1ee8f": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/polar/transaction/service/payment.py|0|9df5e7c30c8fcfb3": {
+    "class": "sdk",
+    "confidence": 0.6900000000000001,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/polar/transaction/service/payment.py|71|573d68c1b5718b41": {
+    "class": "contested",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/scripts/order_item_migration.py|0|49b67837544b5fde": {
+    "class": "unrelated",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "polarsource/polar#9275|server/scripts/payments_import.py|0|a3221b5a63fc88b9": {
+    "class": "contested",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/scripts/pledge_invoice_payment_fix.py|0|04c2fb7460e8c739": {
+    "class": "contested",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/scripts/tax_rates_import.py|0|4e507ee15a5bfdd6": {
+    "class": "sdk",
+    "confidence": 0.46,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/tests/checkout/test_service.py|4048|bab25d5ed5773f89": {
+    "class": "sdk",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/tests/checkout/test_service.py|41|16ede43ceaa5e9f0": {
+    "class": "sdk",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/tests/checkout/test_service.py|4114|bab25d5ed5773f89": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/tests/checkout/test_service.py|4170|bab25d5ed5773f89": {
+    "class": "sdk",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/tests/fixtures/stripe.py|4|16ede43ceaa5e9f0": {
+    "class": "sdk",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/tests/fixtures/stripe.py|73|e93e3d5c729dd72d": {
+    "class": "sdk",
+    "confidence": 0.42,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/tests/transaction/service/test_payment.py|125|36a826125c377e11": {
+    "class": "sdk",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/tests/transaction/service/test_payment.py|160|36a826125c377e11": {
+    "class": "contested",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+check"
+  },
+  "polarsource/polar#9275|server/tests/transaction/service/test_payment.py|5|16ede43ceaa5e9f0": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
   "primerhq/primer#207|tests/llm_adapters/test_openrouter_adapter_cov.py|14|d84c11800982bfe2": {
     "class": "sdk",
     "confidence": 0.89,
@@ -7312,6 +10177,41 @@
   "primerhq/primer#207|tests/llm_adapters/test_openrouter_adapter_cov.py|94|af5cf90991dbddea": {
     "class": "sdk",
     "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "projectsyn/commodore#859|commodore/dependency_syncer.py|220|b4e05e7b6e8b7dd9": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "projectsyn/commodore#859|commodore/dependency_syncer.py|224|0b2fa82aa26edb3f": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "projectsyn/commodore#859|commodore/dependency_syncer.py|47|8ec4bc68b4c4e8ad": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "projectsyn/commodore#859|tests/test_dependency_sync.py|169|08fe50db54177c12": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "projectsyn/commodore#859|tests/test_dependency_sync.py|251|8ec4bc68b4c4e8ad": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "projectsyn/commodore#859|tests/test_dependency_sync.py|289|8ec4bc68b4c4e8ad": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "projectsyn/commodore#859|tests/test_dependency_sync.py|326|8ec4bc68b4c4e8ad": {
+    "class": "sdk",
+    "confidence": 0.99,
     "model": "jev-1.13.0"
   },
   "promhippie/github_exporter#679|pkg/action/server.go|15|e1180d1d2524d8f4": {
@@ -7747,6 +10647,16 @@
   "promptfoo/promptfoo#4250|test/providers/openai/util.test.ts|14|9b43e924326a08cd": {
     "class": "sdk",
     "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "punt-labs/vox#431|src/punt_vox/logging_config.py|52|683966817927d9d2": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "punt-labs/vox#431|tests/test_logging_config.py|243|0af58cd3e4f076b9": {
+    "class": "sdk",
+    "confidence": 0.91,
     "model": "jev-1.13.0"
   },
   "raiyanyahya/freshenv#216|setup.py|43|e589f526703965dc": {
@@ -8789,6 +11699,171 @@
     "confidence": 0.92,
     "model": "jev-1.13.0"
   },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/api/v1/billing_routes.py|152|8997703a3d607b24": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/services/stripe_service.py|116|7dbece39a100684f": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/services/stripe_service.py|121|4c4c5abb31daf7e3": {
+    "class": "contract",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/services/stripe_service.py|156|4f93c64d3241b6a7": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/services/stripe_service.py|160|2decd2ce834df092": {
+    "class": "contract",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/services/stripe_service.py|167|9e64e2cb6dc4b7ce": {
+    "class": "contested",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/services/stripe_service.py|168|5581c1d19dbe4a39": {
+    "class": "contract",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/services/stripe_service.py|171|5b56786d445d146e": {
+    "class": "contested",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+check"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/services/stripe_service.py|182|7256de8f7499fbba": {
+    "class": "contested",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/services/stripe_service.py|185|7dbece39a100684f": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/services/stripe_service.py|224|7dbece39a100684f": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/services/stripe_service.py|24|93c5d7c84487f4cf": {
+    "class": "sdk",
+    "confidence": 0.8099999999999999,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/services/stripe_service.py|25|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/services/stripe_service.py|268|7dbece39a100684f": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/tests/integration/test_billing_subscribe_smoke.py|0|f541987bc31a3653": {
+    "class": "contract",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/tests/services/test_stripe_service.py|140|279a5d71aa872c79": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/tests/services/test_stripe_service.py|228|d893e7c0e13f9766": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/tests/services/test_stripe_service.py|296|5ff757fec9424a4a": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/tests/services/test_stripe_service.py|391|5f2fad4dcf3daf47": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/tests/services/test_stripe_service.py|644|9c1026737c41ab81": {
+    "class": "contested",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|tests/e2e/test_stripe_e2e.py|289|5a2058ddbd79c288": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|tests/e2e/test_stripe_e2e.py|294|45d273e2151571ab": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|tests/e2e/test_stripe_e2e.py|582|554c88fc9c002e23": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|tests/e2e/test_stripe_e2e.py|586|45d273e2151571ab": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|tests/e2e/test_stripe_e2e.py|601|554c88fc9c002e23": {
+    "class": "contested",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|tests/e2e/test_stripe_e2e.py|605|45d273e2151571ab": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|tests/e2e/test_stripe_e2e.py|620|554c88fc9c002e23": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|tests/e2e/test_stripe_e2e.py|624|45d273e2151571ab": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|tests/e2e/test_stripe_e2e.py|639|554c88fc9c002e23": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|tests/e2e/test_stripe_e2e.py|643|45d273e2151571ab": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|tests/e2e/test_stripe_e2e.py|658|edec2a9c64966d5d": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|tests/e2e/test_stripe_e2e.py|662|44c6a3b2a2f4af64": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "SabaTech-dev/QA-FRAMEWORK#230|tests/unit/billing/test_stripe_migration_contract.py|0|229425b17b789d56": {
+    "class": "contract",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
   "sandeepraju/sulley#4|setup.py|19|1e56aea7e3d6c1b3": {
     "class": "sdk",
     "confidence": 0.67,
@@ -8889,6 +11964,16 @@
     "confidence": 0.99,
     "model": "jev-1.13.0"
   },
+  "siro103/OpSyne#2|tests/test_adapter_agent.py|9|43f7bb463e7d3236": {
+    "class": "unrelated",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+check"
+  },
+  "siro103/OpSyne#2|tests/test_investigation.py|11|43f7bb463e7d3236": {
+    "class": "unrelated",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
   "smallketchup82/rezero-summarizer#17|main.py|139|aaa1e16c0b04cbc8": {
     "class": "sdk",
     "confidence": 0.95,
@@ -8938,6 +12023,61 @@
     "class": "sdk",
     "confidence": 1,
     "model": "jev-1.13.0"
+  },
+  "Soju06/codex-lb#1807|tests/e2e/test_openai_sdk_compat.py|313|0394aaed1434c3eb": {
+    "class": "contested",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "Soju06/codex-lb#1807|tests/e2e/test_openai_sdk_compat.py|315|8626d07b1f023c07": {
+    "class": "unrelated",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+check"
+  },
+  "Soju06/codex-lb#1807|tests/e2e/test_openai_sdk_compat.py|316|7a9f1bc351586846": {
+    "class": "contested",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+check"
+  },
+  "Soju06/codex-lb#1807|tests/e2e/test_openai_sdk_compat.py|319|f28a11f57d276b76": {
+    "class": "unrelated",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+check"
+  },
+  "Soju06/codex-lb#1807|tests/e2e/test_v1_responses_openai_sdk.py|329|c9dcfa73fdc7c8ab": {
+    "class": "unrelated",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+check"
+  },
+  "Soju06/codex-lb#1807|tests/e2e/test_v1_responses_openai_sdk.py|331|5cefdeecd682104a": {
+    "class": "unrelated",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+check"
+  },
+  "Soju06/codex-lb#1807|tests/e2e/test_v1_responses_openai_sdk.py|334|8e2473a1faa6784b": {
+    "class": "unrelated",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "Soju06/codex-lb#1807|tests/integration/test_openai_client_compat.py|129|150abba557b3cc75": {
+    "class": "unrelated",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+check"
+  },
+  "Soju06/codex-lb#1807|tests/integration/test_openai_client_compat.py|54|150abba557b3cc75": {
+    "class": "unrelated",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "Soju06/codex-lb#1807|tests/integration/test_openai_client_compat.py|6|897aba74c03b8261": {
+    "class": "contested",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "Soju06/codex-lb#1807|tests/integration/test_openai_client_compat.py|93|776ce292a45c7c3a": {
+    "class": "unrelated",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
   },
   "stacklok/frizbee#397|pkg/replacer/actions/actions.go|28|e1180d1d2524d8f4": {
     "class": "sdk",
@@ -10737,6 +13877,141 @@
   "thegeeklab/wp-github-comment#427|github/mocks/mock_IssueService.go|95|57a82c02cb8ec221": {
     "class": "sdk",
     "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "theodore86/github-rate-limits-exporter#316|github_rate_limits_exporter/github.py|152|07109fb8ea5b17b9": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "theodore86/github-rate-limits-exporter#316|github_rate_limits_exporter/github.py|154|d0d642222d3553da": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "theodore86/github-rate-limits-exporter#316|github_rate_limits_exporter/github.py|162|ed99efa3d8b0fa64": {
+    "class": "sdk",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+check"
+  },
+  "theodore86/github-rate-limits-exporter#316|github_rate_limits_exporter/github.py|164|d97e1732d86b7a52": {
+    "class": "unrelated",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "theodore86/github-rate-limits-exporter#316|github_rate_limits_exporter/github.py|193|0985211a64ff04ac": {
+    "class": "contested",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "theodore86/github-rate-limits-exporter#316|github_rate_limits_exporter/utils.py|134|e09d4e94225d8838": {
+    "class": "unrelated",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/conftest.py|153|38195d6baab5e551": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/test_cli.py|12|1c638ac17f0866bd": {
+    "class": "unrelated",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/test_cli.py|79|6faea65bca73c900": {
+    "class": "unrelated",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/test_collector.py|21|bfcc7d062dd93787": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/test_collector.py|23|9ec9ecc972f9c88d": {
+    "class": "contested",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/test_collector.py|25|3c97db57396deea9": {
+    "class": "unrelated",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/test_collector.py|39|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/test_collector.py|68|c484b76b6be9d3e8": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/test_collector.py|78|9b4c12f838dbaf85": {
+    "class": "unrelated",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+check"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/test_collector.py|80|2916de2d7d30aa95": {
+    "class": "unrelated",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+check"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/test_collector.py|91|86ac0f32c340ca43": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/test_github.py|128|e6cb8b0d961dd042": {
+    "class": "sdk",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+check"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/test_github.py|167|84bcd35c3be1b5b3": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/test_github.py|193|e5e992f388da9436": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/test_github.py|2|9cad79fac3c4f657": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/test_utils.py|63|61560949ec51c092": {
+    "class": "unrelated",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/test_utils.py|95|4ed5d4c00eece775": {
+    "class": "unrelated",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+check"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/utils.py|1|0275a6cbfeda4ef8": {
+    "class": "sdk",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+check"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/utils.py|10|1a9dc6dd49905177": {
+    "class": "unrelated",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+check"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/utils.py|13|de8e7ea061895af7": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "theodore86/github-rate-limits-exporter#316|tests/utils.py|3|55019de503bcd0de": {
+    "class": "sdk",
+    "confidence": 0.88,
     "model": "jev-1.13.0"
   },
   "theopenlane/core#1314|cmd/catalog/main_test.go|19|f205f5cca0a0bc18": {
@@ -13704,6 +16979,66 @@
     "confidence": 0.99,
     "model": "jev-1.13.0"
   },
+  "wndhydrnt/rcmt#408|rcmt/database/__init__.py|4|9cad79fac3c4f657": {
+    "class": "unrelated",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "wndhydrnt/rcmt#408|rcmt/database/__init__.py|40|62be142d2bfdd207": {
+    "class": "unrelated",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "wndhydrnt/rcmt#408|rcmt/database/__init__.py|43|8234882d3a4e557a": {
+    "class": "unrelated",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "wndhydrnt/rcmt#408|rcmt/database/migrations/versions/b3117b16eb76_add_model_extension.py|26|b97b3d764c5aecca": {
+    "class": "unrelated",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "wndhydrnt/rcmt#408|rcmt/rcmt.py|298|0d6b6560057d7c25": {
+    "class": "unrelated",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "wndhydrnt/rcmt#408|rcmt/rcmt.py|340|37f9be26729279a0": {
+    "class": "unrelated",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "wndhydrnt/rcmt#408|rcmt/rcmt.py|49|6a4a5d3621b0b86e": {
+    "class": "unrelated",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "wndhydrnt/rcmt#408|rcmt/source/gitlab.py|192|72a5c0a94920a9c6": {
+    "class": "unrelated",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "wndhydrnt/rcmt#408|tests/source/test_gitlab.py|289|c95b3d82318cb5f3": {
+    "class": "unrelated",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "wndhydrnt/rcmt#408|tests/test_rcmt.py|13|dab77dd450ebf736": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+check"
+  },
+  "wndhydrnt/rcmt#408|tests/test_rcmt.py|171|67da0928da5cee75": {
+    "class": "unrelated",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "wndhydrnt/rcmt#408|tests/test_rcmt.py|739|db523c22e69d5e93": {
+    "class": "unrelated",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
   "woodpecker-ci/woodpecker#6140|server/forge/github/convert_test.go|20|7b55624142b3a195": {
     "class": "sdk",
     "confidence": 1,
@@ -14028,6 +17363,51 @@
     "class": "sdk",
     "confidence": 1,
     "model": "jev-1.13.0"
+  },
+  "XiyaoWang0519/agent-call#74|app/openai_client.py|11|d4b712b045e6fb39": {
+    "class": "sdk",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+check"
+  },
+  "XiyaoWang0519/agent-call#74|app/openai_client.py|15|7fff035161ae4153": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "XiyaoWang0519/agent-call#74|app/openai_client.py|19|bb1a3b3718891df4": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "XiyaoWang0519/agent-call#74|app/openai_client.py|2|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "XiyaoWang0519/agent-call#74|app/openai_client.py|21|040bafa2d60da3da": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "XiyaoWang0519/agent-call#74|app/openai_client.py|24|11394c305de3f469": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "XiyaoWang0519/agent-call#74|tests/test_http_clients.py|128|305c8ba640c54738": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "XiyaoWang0519/agent-call#74|tests/test_http_clients.py|75|305c8ba640c54738": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "XiyaoWang0519/agent-call#74|tests/test_http_clients.py|98|fe23596f2e62f635": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
   },
   "your-ko/link-validator#473|pkg/github/client.go|5|e1180d1d2524d8f4": {
     "class": "sdk",

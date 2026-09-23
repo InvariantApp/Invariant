@@ -119,7 +119,11 @@ export function resolveVersion(
 ): string | undefined {
   const spec = wanted.trim().replace(/^[=v]+/, "");
   if (releases.includes(spec)) return spec;
-  const prefix = spec.replace(/(\.[x*])+$/, "").replace(/\.0+$/, "");
+  // `5.4.*` and a `5.4.` cut short of its wildcard both mean the newest 5.4.
+  const prefix = spec
+    .replace(/(\.[x*])+$/, "")
+    .replace(/\.+$/, "")
+    .replace(/\.0+$/, "");
   const finals = releases.filter((release) => /^\d+(\.\d+)*$/.test(release));
   const matching = finals.filter(
     (release) => release === prefix || release.startsWith(`${prefix}.`),

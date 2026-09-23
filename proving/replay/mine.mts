@@ -335,6 +335,8 @@ export function bumpInPatches(
         `^\\s*(?:require\\s+)?${escaped}(?:/v\\d+)?\\s+v(\\d[^\\s]*)`,
       ).exec(text);
       if (!version && go) version = go[1];
+      // `stripe>=5.4.*` reads as `5.4.`; the wildcard is not part of it.
+      version = version?.replace(/\.+$/, "");
       if (!version) continue;
       if (sign === "-") from ??= version;
       else to ??= version;
