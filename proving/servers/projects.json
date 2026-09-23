@@ -356,6 +356,21 @@
       "name": "forgejo",
       "language": "Go",
       "reason": "No live-instance suite fails because of an ERR-level delta: the Forgejo specification barely changes on the wire from 7 to 16. The one exercised break found (9.0 refusing a token with no scopes, which fails forgejo-sdk v1.2.0's TestUserApp) is absent from the specification, whose CreateAccessTokenOption is identical in 8.0.3 and 9.0.3."
+    },
+    {
+      "name": "immich",
+      "language": "TypeScript",
+      "reason": "The one pair whose break its own e2e suite exercises, 1.137.3 -> 1.138.0, changes only success statuses (200 to 204 on four operations the suite checks, with empty bodies both sides). The catalogue classes a success status removed as behavior-only and the IR has no op that answers an old caller with another status, so no Change could serve it; every other exercised break (1.113 stacks, 3.0 error envelope) is behavioral."
+    },
+    {
+      "name": "appwrite",
+      "language": "PHP",
+      "reason": "1.9.0 -> 1.9.5 renames webhook fields and moves a route, which the ops serve, but two of the tests it breaks are behavioral (the signature key is no longer returned on GET, and a filter names the old field inside a query string), so the pair cannot be served in full. Its suite also runs only from a development image built from source, against the fixed host http://appwrite/v1. Not wired yet."
+    },
+    {
+      "name": "openmetadata",
+      "language": "Java",
+      "reason": "1.4.8 -> 1.5.0 renames owner to owners and makes it a list, which move and wrapArray serve, but the Python SDK that is the suite refuses on connect any server whose minor version differs from its own, so arm c cannot run without falsifying the version the server reports."
     }
   ]
 }

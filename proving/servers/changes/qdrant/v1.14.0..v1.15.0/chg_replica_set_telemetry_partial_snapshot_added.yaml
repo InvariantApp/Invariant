@@ -1,0 +1,18 @@
+# Written by hand, as Qdrant's maintainers would: 1.15 reports each replica
+# set's partial snapshot state, which no caller of 1.14 was shown. It is
+# optional, so nothing drafts it, but an old caller that reads a shard's
+# fields as a set (Qdrant's own telemetry test does) sees one it never had.
+# Taking it out of old callers' responses shows them the shard as 1.14
+# described it.
+irVersion: 1
+id: chg_replica_set_telemetry_partial_snapshot_added
+summary: "`partial_snapshot` is new on ReplicaSetTelemetry."
+scopes:
+  - schema: "#/components/schemas/ReplicaSetTelemetry"
+ops:
+  - op: add
+    path: /partial_snapshot
+    value: null
+assertions:
+  loss_acknowledged: true
+  side_effects_unchanged: true
