@@ -598,7 +598,13 @@ async function drafted(
   const altered = alteredProposals(deltas, oldContract);
   const added = additions(deltas, oldContract);
   const gone = removals(deltas, oldContract);
-  const valueDecisions = [...altered.decisions, ...added.decisions, ...gone.decisions];
+  const regrouped = regroupedProposals(deltas, oldContract);
+  const valueDecisions = [
+    ...altered.decisions,
+    ...added.decisions,
+    ...gone.decisions,
+    ...regrouped.decisions,
+  ];
   altered.proposals.unshift(
     ...moved,
     ...methodChanges,
@@ -606,7 +612,7 @@ async function drafted(
     ...parameters,
     ...renamedOperations,
     ...statuses,
-    ...regroupedProposals(deltas),
+    ...regrouped.proposals,
     ...added.proposals,
     ...gone.proposals,
   );
@@ -815,9 +821,15 @@ const fieldSlug = (schema: string, field: string, what: string) =>
  * moved, a vocabulary or a format, is drafted with its move, as it is for a
  * rename.
  */
-function regroupedProposals(deltas: readonly SchemaDelta[]): Proposal[] {
+function regroupedProposals(
+  deltas: readonly SchemaDelta[],
+  oldContract: Parameters<typeof schemaDeltas>[0],
+): { proposals: Proposal[]; decisions: ValueDecision[] } {
   const proposals: Proposal[] = [];
+  const decisions: ValueDecision[] = [];
   for (const delta of deltas) {
+    const sides =
+      (delta.regrouped ?? []).length > 0 ? sidesOfDelta(oldContract, delta) : NEITHER;
     const byWrapper = new Map<string, NonNullable<SchemaDelta["regrouped"]>>();
     for (const pair of delta.regrouped ?? []) {
       const key = `${pair.kind} ${pair.wrapper}`;
@@ -838,6 +850,29 @@ function regroupedProposals(deltas: readonly SchemaDelta[]): Proposal[] {
         ops.push(...drafted.ops);
         // The first note is the move itself, said once above for all of them.
         notes.push(...drafted.notes.slice(1));
+        // Whether it may be left out or null moved with it, at its new place:
+        // Datadog's revision attributes came up a level, and its `cve` came
+        // up optional where old callers were always given it.
+        const presence = presenceOps(pair.old, pair.new, sides);
+        ops.push(...presence.ops);
+        notes.push(...presence.notes);
+        for (const question of presence.questions) {
+          decisions.push({
+            kind: "value",
+            id: fieldSlug(delta.schema, pair.new.name, `default_${question.op.toward}`),
+            schema: delta.schema,
+            ...(delta.scope ? { scope: delta.scope } : {}),
+            field: pair.new.name,
+            pointer: pair.new.pointer,
+            op: question.op,
+            shape: question.shape,
+            summary:
+              question.op.toward === "old"
+                ? `\`${pair.new.name}\` on ${delta.schema} may now be missing or null for callers who were always given it.`
+                : `\`${pair.new.name}\` on ${delta.schema} needs a value from callers who could leave it out.`,
+            why: question.why,
+          });
+        }
       }
       const guessed = ops.some(
         (op) =>
@@ -865,7 +900,7 @@ function regroupedProposals(deltas: readonly SchemaDelta[]): Proposal[] {
       });
     }
   }
-  return proposals;
+  return { proposals, decisions };
 }
 
 /**

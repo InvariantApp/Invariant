@@ -2052,6 +2052,49 @@ describe("fields that moved together through a wrapper", () => {
     }
   });
 
+  it("asks what old callers are shown where a field that moved may now be missing (Datadog)", async () => {
+    // The revision's attributes came up a level, and `cve`, always given to
+    // old callers inside `attributes`, came up optional.
+    const outcome = await propose(
+      contract({
+        ...base,
+        Thing: object(
+          {
+            id: { type: "string" },
+            revision: object({
+              type: { type: "string", enum: ["custom_rule_revision"] },
+              attributes: object({ code: { type: "string" }, cve: { type: "string" } }, [
+                "code",
+                "cve",
+              ]),
+            }),
+          },
+          ["id"],
+        ),
+      }),
+      contract({
+        ...base,
+        Thing: object(
+          {
+            id: { type: "string" },
+            revision: object({ code: { type: "string" }, cve: { type: "string" } }, [
+              "code",
+            ]),
+          },
+          ["id"],
+        ),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.decisions).toEqual([
+      expect.objectContaining({
+        kind: "value",
+        pointer: "/revision/cve",
+        op: { op: "default", when: "absent", toward: "old" },
+      }),
+    ]);
+  });
+
   it("reads a wrapper that is a named schema to find what moved through it (Datadog)", async () => {
     // As Datadog wrote it: the revision pointed at a resource schema whose
     // `attributes` is a schema of its own, and now points at one listing
