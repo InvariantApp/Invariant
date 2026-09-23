@@ -35,7 +35,8 @@ import type { Outcome, Region } from "./score.mts";
 
 /**
  * `contested`: the two questions asked of a site Jev was unsure about
- * disagreed. Counted apart, in neither direction.
+ * disagreed, and the third, where it was asked, was unsure too. Counted
+ * apart, in neither direction.
  */
 export type SiteClass = "contract" | "sdk" | "unrelated" | "contested";
 
@@ -309,6 +310,30 @@ export function counterQuestion(index: number) {
   });
 }
 
+/**
+ * The third question, for a site the first two disagreed about: the judgment
+ * put as the test that separates the classes, whether a client that called
+ * the web API directly, with no SDK, would have needed the edit too. Only a
+ * sure answer settles the site; any other leaves it contested.
+ */
+export function settleQuestion(index: number) {
+  return choice(
+    {
+      question: `Suppose the code in \`sites[${index}]\` had called the web API behind \`sdk\` directly over HTTP, with no SDK, and the upgrade from \`from_version\` to \`to_version\` had happened to that API. Would the edit (its \`removed_lines\` becoming its \`added_lines\`) still have been needed?`,
+      decide_from:
+        "What the removed and added lines change, read in their place, and whether that is something sent to or received from the web API, or only the SDK's own classes, methods, attribute names, types, errors or packaging, or neither. The consumer's own endpoints, tests of its own API and its own models are not the web API behind the SDK.",
+      about_the_text: EMBEDDED_TEXT,
+    },
+    {
+      contract:
+        "Yes: the edit changes what is sent to or read from the SDK's web API because that API changed, and a client calling it over HTTP would have needed it too.",
+      sdk: "No: only code written against the SDK needed it, because the SDK's classes, methods, attribute names, types, errors or packaging changed while the requests and responses stayed the same.",
+      unrelated:
+        "Neither: the edit does not follow from the upgrade at all, such as a refactor, a test of the consumer's own code or API, or formatting.",
+    },
+  );
+}
+
 /** The part of the TypeSafe client this needs. */
 export interface SystemOne {
   systemOne(request: {
@@ -353,6 +378,11 @@ export interface ClassifyOptions {
   recheck?: boolean;
   /** How long to wait before asking again when the service is busy, growing each time. */
   retryWait?: number;
+  /**
+   * Also ask the third question of each contested site not yet asked it,
+   * and settle the site where the answer is sure.
+   */
+  settle?: boolean;
 }
 
 interface Unsure {
@@ -434,7 +464,58 @@ export async function classify(
       options.retryWait,
     );
   }
+  if (options.settle) {
+    const contested = distinct.filter((site) => {
+      const known = classes[siteKey(site)];
+      return known?.class === "contested" && !known.model.endsWith("+settle");
+    });
+    for (const batch of batches(contested)) {
+      await settle(batch, classes, client, model, options.retryWait);
+    }
+  }
   return asked;
+}
+
+/**
+ * The third question, for sites the first two disagreed about. A sure answer
+ * settles the site, labelled as settled so; anything else keeps it contested,
+ * and marked as asked, so it is not asked again.
+ */
+async function settle(
+  sites: readonly Site[],
+  classes: Record<string, ClassRecord>,
+  client: SystemOne,
+  model: string,
+  wait?: number,
+): Promise<void> {
+  const first = sites[0];
+  if (!first) return;
+  const response = await ask(
+    client,
+    {
+      model,
+      state: {
+        sdk: first.package,
+        from_version: first.from || "unknown",
+        to_version: first.to,
+        sites: sites.map(siteState),
+      },
+      questions: Object.fromEntries(
+        sites.map((_, index) => [`settle_${index}`, settleQuestion(index)]),
+      ),
+    },
+    wait,
+  );
+  sites.forEach((site, index) => {
+    const answer = response.answers[`settle_${index}`] as ChoiceResponse | undefined;
+    const picked = answer?.choice;
+    if (picked !== "contract" && picked !== "sdk" && picked !== "unrelated") return;
+    const confidence = answer?.probabilities?.[picked] ?? answer?.confidence ?? 0;
+    classes[siteKey(site)] =
+      confidence >= SURE
+        ? { class: picked, confidence, model: `${response.model}+settle` }
+        : { class: "contested", confidence, model: `${response.model}+settle` };
+  });
 }
 
 /**

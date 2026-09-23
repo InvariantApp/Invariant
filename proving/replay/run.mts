@@ -25,11 +25,11 @@
  * Usage:
  *   node --env-file-if-exists=.env --import tsx proving/replay/run.mts [--package stripe]
  *     [--ecosystem npm|pypi|go] [--case owner/repo#1] [--limit 10] [--keep] [--classify]
- *     [--recheck] [--again] [--shard 0/4] [--results shard-0.json] [--verbose]
+ *     [--recheck] [--settle] [--again] [--shard 0/4] [--results shard-0.json] [--verbose]
  *     [--minutes 200]
  *   node --import tsx proving/replay/run.mts --merge shard-*.json
  *   node --env-file-if-exists=.env --import tsx proving/replay/run.mts --rescore
- *     [--ecosystem pypi] [--classify] [--recheck]
+ *     [--ecosystem pypi] [--classify] [--recheck] [--settle]
  *
  * Cases already in the results are skipped, so a run resumes where the last
  * one stopped; `--again` replays them too.
@@ -52,8 +52,9 @@
  * checked against the new one.
  *
  * `--recheck` with `--classify` also settles classes recorded before the
- * rules and the second question existed; `--minutes` stops starting cases in
- * time for what was replayed to be kept.
+ * rules and the second question existed; `--settle` asks the third question
+ * of each site the first two disagreed about (`classify.mts`); `--minutes`
+ * stops starting cases in time for what was replayed to be kept.
  *
  * `--keep` leaves each case's checkout in place and prints what the engine
  * was told and did, for reading a miss; `--verbose` prints the same and keeps
@@ -518,6 +519,8 @@ interface ReplayOptions {
   classifier?: { client: Parameters<typeof classify>[2]; model: string };
   /** Settle classes recorded before the rules and the second question existed. */
   recheck?: boolean;
+  /** Ask the third question of sites the first two disagreed about. */
+  settle?: boolean;
 }
 
 async function replay(entry: ReplayCase, options: ReplayOptions): Promise<ReplayResult> {
@@ -818,7 +821,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
           options.classes,
           options.classifier.client,
           options.classifier.model,
-          { recheck: options.recheck ?? false },
+          { recheck: options.recheck ?? false, settle: options.settle ?? false },
         );
       } catch (error) {
         // The case is still scored; what could not be classed counts as
@@ -1213,7 +1216,7 @@ async function main(): Promise<void> {
             classes,
             classifier.client,
             classifier.model,
-            { recheck: args.includes("--recheck") },
+            { recheck: args.includes("--recheck"), settle: args.includes("--settle") },
           );
         } catch (error) {
           // What could not be classed stays unclassified, and is counted so.
@@ -1244,6 +1247,7 @@ async function main(): Promise<void> {
       keep: args.includes("--keep"),
       verbose: args.includes("--verbose"),
       recheck: args.includes("--recheck"),
+      settle: args.includes("--settle"),
       classes,
       ...(classifier ? { classifier } : {}),
     });
