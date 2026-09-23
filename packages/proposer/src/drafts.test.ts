@@ -139,6 +139,58 @@ describe("a new required field", () => {
   });
 });
 
+describe("a new required field beside a field that went", () => {
+  // Datadog's custom rule gained a required `id` beside a revision `type` it
+  // lost. Whether one became the other is the judge's question; once no
+  // judge names `id` for anything, it is new, and asked about as any is.
+  const answering = (successor: string | null): Judge => ({
+    id: "rules",
+    fingerprint: `stub:${successor}`,
+    align: (questions) =>
+      Promise.resolve(
+        questions.map(() => ({
+          answer: {
+            successor,
+            confidence: 0.1,
+            scores: {},
+            stated: false,
+            abstained: successor === null,
+          },
+          judge: "rules" as const,
+          model: undefined,
+          latencyMs: 0,
+          inputTokens: 0,
+          costUsd: 0,
+        })),
+      ),
+  });
+  const beside = (judge: Judge) =>
+    propose(
+      contract(base),
+      contract({
+        ...base,
+        ThingCreate: object({ name: { type: "string" }, tier: { type: "string" } }, [
+          "tier",
+        ]),
+      }),
+      { judge },
+    );
+
+  it("is asked about once no judge names it", async () => {
+    const outcome = await beside(answering(null));
+    expect(outcome.decisions).toContainEqual(
+      expect.objectContaining({ kind: "value", field: "tier", op: { op: "add" } }),
+    );
+    expect(outcome.unresolved.map((entry) => entry.field)).not.toContain("tier");
+  });
+
+  it("stays an open question where a judge guessed it was the one that went", async () => {
+    const outcome = await beside(answering("tier"));
+    expect(outcome.decisions.map((entry) => entry.field)).not.toContain("tier");
+    expect(outcome.unresolved.map((entry) => entry.field)).toContain("tier");
+  });
+});
+
 describe("a removed field with nothing added in its place", () => {
   it("is dropped from old callers' requests where the schema is only ever a request", async () => {
     const outcome = await drafts({ ThingCreate: object({ name: { type: "string" } }) });

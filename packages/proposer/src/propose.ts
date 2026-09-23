@@ -627,6 +627,7 @@ async function drafted(
     questionsFor(delta, options.context),
   );
   if (questions.length === 0) {
+    unresolved.push(...added.deferred.map(({ entry }) => entry));
     return {
       proposals: altered.proposals,
       unresolved,
@@ -646,6 +647,23 @@ async function drafted(
   const results = await options.judge.align(questions);
   const proposals: Proposal[] = [...altered.proposals];
   const deltaOf = new Map(deltas.map((delta) => [delta.schema, delta]));
+
+  // A field new and required beside fields that went is one of them renamed
+  // only if the judge said so, or guessed so: Datadog's custom rule gained a
+  // required `id` beside a revision `type` it lost, and with no judge naming
+  // `id` for anything, it is new, and asked about as any new field is.
+  const named = new Set(
+    questions.flatMap((question, index) => {
+      const successor = results[index]?.answer.successor;
+      return typeof successor === "string"
+        ? [`${question.schema}\u0000${successor}`]
+        : [];
+    }),
+  );
+  for (const { entry, decision } of added.deferred) {
+    if (named.has(`${entry.schema}\u0000${entry.field}`)) unresolved.push(entry);
+    else valueDecisions.push(decision);
+  }
 
   questions.forEach((question, index) => {
     const result = results[index];
@@ -915,10 +933,11 @@ function regroupedProposals(
 function additions(
   deltas: readonly SchemaDelta[],
   oldContract: Parameters<typeof schemaDeltas>[0],
-): Drafted {
+): Drafted & { deferred: { entry: Unresolved; decision: ValueDecision }[] } {
   const proposals: Proposal[] = [];
   const unresolved: Unresolved[] = [];
   const decisions: ValueDecision[] = [];
+  const deferred: { entry: Unresolved; decision: ValueDecision }[] = [];
   for (const delta of deltas) {
     const required = delta.added.filter((field) => field.required);
     if (required.length === 0) continue;
@@ -929,28 +948,33 @@ function additions(
       if (value === undefined) {
         const why =
           "newly required, and the value a caller who predates it should get is not in the specification";
+        const decision: ValueDecision = {
+          kind: "value",
+          id: fieldSlug(delta.schema, field.name, "added"),
+          schema: delta.schema,
+          ...(delta.scope ? { scope: delta.scope } : {}),
+          field: field.name,
+          pointer: field.pointer,
+          op: { op: "add" },
+          shape: field,
+          summary: `\`${field.name}\` is new and required on ${delta.schema}.`,
+          why: `\`${field.name}\` is new and required in requests, and the value sent for a caller who predates it is not in the specification.`,
+        };
         if (delta.removed.length > 0) {
           // Beside fields that went, it may be one of them renamed, which is
-          // the judge's question and not a value to choose.
-          unresolved.push({
-            schema: delta.schema,
-            field: field.name,
-            reason: why,
-            side: "added",
+          // the judge's question and not a value to choose. Asked once the
+          // judge has said, and only if it named this field for none.
+          deferred.push({
+            entry: {
+              schema: delta.schema,
+              field: field.name,
+              reason: why,
+              side: "added",
+            },
+            decision,
           });
         } else {
-          decisions.push({
-            kind: "value",
-            id: fieldSlug(delta.schema, field.name, "added"),
-            schema: delta.schema,
-            ...(delta.scope ? { scope: delta.scope } : {}),
-            field: field.name,
-            pointer: field.pointer,
-            op: { op: "add" },
-            shape: field,
-            summary: `\`${field.name}\` is new and required on ${delta.schema}.`,
-            why: `\`${field.name}\` is new and required in requests, and the value sent for a caller who predates it is not in the specification.`,
-          });
+          decisions.push(decision);
         }
         continue;
       }
@@ -974,7 +998,7 @@ function additions(
       });
     }
   }
-  return { proposals, unresolved, decisions };
+  return { proposals, unresolved, decisions, deferred };
 }
 
 /**
