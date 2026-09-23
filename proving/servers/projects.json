@@ -4,6 +4,7 @@
     {
       "name": "qdrant",
       "language": "Rust",
+      "notes": "Every consecutive minor release from 1.12, the first whose suite pins its dependencies in a lock file (tests/poetry.lock); 1.10 and 1.11 install theirs unpinned from a shell script.",
       "repo": "qdrant/qdrant",
       "image": "qdrant/qdrant",
       "server": {
@@ -61,14 +62,6 @@
         }
       },
       "releases": {
-        "v1.10.0": {
-          "commit": "851f03bbf6644116da56f6bc7b0baa04274e8057",
-          "digest": "sha256:2e8646f963a64a21b3e3f851719e17668644d1ed386285064c2548a52d16ede8"
-        },
-        "v1.11.0": {
-          "commit": "6336395685187dffdcd786e1b3f6f5233541195a",
-          "digest": "sha256:cc802bd2841ec2026725e19619075982311ce4d7182dc8c03a0c8e6817bb9170"
-        },
         "v1.12.0": {
           "commit": "a0d2eccac0c179116214e7cb3583359c80d41998",
           "digest": "sha256:dd037bc4175c162e23b87c8f584bff72fba65a49e2ff4540ae7e9ac76ed3fd73"
@@ -103,8 +96,6 @@
         }
       },
       "pairs": [
-        ["v1.10.0", "v1.11.0"],
-        ["v1.11.0", "v1.12.0"],
         ["v1.12.0", "v1.13.0"],
         ["v1.13.0", "v1.14.0"],
         ["v1.14.0", "v1.15.0"],

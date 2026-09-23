@@ -599,13 +599,39 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
   const work = join(CACHE, project.name, `${from}..${to}`);
   await mkdir(work, { recursive: true });
 
-  log(`${project.name} ${from} -> ${to}: installing the old release's suite`);
-  const suite = await suiteOf(project, from);
-
   const failed = (error: unknown): ArmResult => ({
     outcomes: {},
     error: error instanceof Error ? error.message : String(error),
   });
+
+  log(`${project.name} ${from} -> ${to}: installing the old release's suite`);
+  let suite: { dir: string; env: string };
+  try {
+    suite = await suiteOf(project, from);
+  } catch (error) {
+    // Reported as a pair that could not run, beside the ones that could.
+    const none = failed(`the suite could not be installed: ${failed(error).error}`);
+    return {
+      project: project.name,
+      language: project.language,
+      from,
+      to,
+      changes: 0,
+      gate: {
+        changesFrom: "drafted",
+        drafted: 0,
+        result: "block",
+        unexplained: [],
+        unservable: ["not checked, since the suite could not be installed"],
+        accounted: 0,
+      },
+      arms: { a: none, b: none, c: none },
+      valid: 0,
+      broken: [],
+      served: [],
+      regressions: [],
+    };
+  }
 
   const arm = async (
     label: string,
