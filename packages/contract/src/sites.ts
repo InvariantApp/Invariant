@@ -261,9 +261,11 @@ function closedValues(
 export function jsonKindOf(
   document: OpenApiDocument,
   schema: JsonValue,
+  /** The choices already being read, so one that holds itself ends. */
+  within: ReadonlySet<JsonValue> = new Set(),
 ): JsonKind | undefined {
   const resolved = resolveSchema(document, schema);
-  if (!isJsonObject(resolved)) return undefined;
+  if (!isJsonObject(resolved) || within.has(resolved)) return undefined;
   if (resolved["nullable"] === true) {
     // A branch that says nothing but that it may be null is how schemars and
     // utoipa write Option<T> in OpenAPI 3.0, beside the branch for T: Qdrant's
@@ -283,6 +285,17 @@ export function jsonKindOf(
   if (type !== undefined) return undefined;
   if (isJsonObject(resolved["properties"])) return "object";
   if (resolved["items"] !== undefined) return "array";
+  // A choice is the kind its branches all are: Meilisearch's task `network`
+  // is null or one of three objects, and the objects are told from null by
+  // being objects before anything tells them from each other.
+  for (const key of ["oneOf", "anyOf"]) {
+    const branches = resolved[key];
+    if (!Array.isArray(branches) || branches.length === 0) continue;
+    const inside = new Set([...within, resolved]);
+    const kinds = new Set(branches.map((branch) => jsonKindOf(document, branch, inside)));
+    const [only] = kinds;
+    return kinds.size === 1 ? only : undefined;
+  }
   return undefined;
 }
 

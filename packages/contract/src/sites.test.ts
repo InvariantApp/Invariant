@@ -203,6 +203,39 @@ describe("unions on the way to a schema", () => {
     });
   });
 
+  it("tells null from a choice whose every branch is an object (Meilisearch's task network)", () => {
+    // A task's `network` is null or one of three objects, the second of
+    // which holds the error codes Meilisearch 1.54 added one to.
+    const scan = findSchemaSites(
+      document({
+        type: "object",
+        properties: {
+          network: {
+            oneOf: [
+              { type: "null" },
+              {
+                oneOf: [
+                  { type: "object", required: ["origin"], properties: { origin: {} } },
+                  {
+                    type: "object",
+                    required: ["remote"],
+                    properties: { remote: ref("Card") },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      }) as never,
+      "#/components/schemas/Card",
+    );
+    expect(scan.unsupported).toEqual([]);
+    expect(scan.sites[0]?.guards).toEqual([
+      { at: "/network", type: "object" },
+      { at: "/network", has: "remote" },
+    ]);
+  });
+
   it("still refuses a branch that is nullable and says what else it may be", () => {
     const scan = findSchemaSites(
       document({
