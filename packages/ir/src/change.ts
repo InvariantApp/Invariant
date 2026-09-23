@@ -171,8 +171,8 @@ export const UnwrapSingleCodec = Type.Object(
 );
 
 /**
- * Values an old caller may put in a list that the new contract no longer
- * accepts, taken out of it on the way in.
+ * Values a list's items may hold on one side and not the other, left out of
+ * the list on its way to the side whose contract does not name them.
  *
  * Asana stopped offering a hundred and twenty-six of the fields a caller
  * could ask a portfolio's items to include, and an old caller asking for
@@ -180,12 +180,22 @@ export const UnwrapSingleCodec = Type.Object(
  * so nothing can serve them; what can be served is everything else the
  * caller asked for, which is the request with those values left out.
  *
+ * The other way round, Discord's applications listed `event_webhooks_types`
+ * as a list of no values at all, and a later release as twelve kinds of
+ * event. An old caller was told the list is always empty, and has no value of
+ * its own to be shown any of them as, so the list it is sent leaves them out.
+ *
+ * One list of values serves both, since each is named by one side only: a
+ * value the old contract held and the new one does not accept is never sent
+ * by the API, and a value only the new one holds is never sent by an old
+ * caller. The compiler reads which is which from the old contract's list.
+ *
  * Applied to a list, never to a single value: a single value that is gone
  * has no request left without it, and is an `enumMap` to a value that
- * remains, which a person decides. Forward only, since a list an old caller
- * is sent is the new contract's to fill. Always lossy, because the caller
- * asked for something it will not get; the compiler derives
- * `declared-lossy` from it and the gate asks for that in writing.
+ * remains, which a person decides; a single new value is a fold. Always
+ * lossy, because the caller asked for something it will not get, or is not
+ * told something the API sent; the compiler derives `declared-lossy` from it
+ * and the gate asks for that in writing.
  */
 export const DropValuesCodec = Type.Object(
   {

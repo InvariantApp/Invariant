@@ -2364,3 +2364,214 @@ describe("restatements", () => {
     expect(restatementsIn(outcome)).toEqual([]);
   });
 });
+
+describe("a response vocabulary that opened, moved or grew from nothing", () => {
+  const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
+  const connectors = { type: "string", enum: ["web_search", "code_interpreter"] };
+  const opsOf = (outcome: Awaited<ReturnType<typeof propose>>) =>
+    outcome.proposals.flatMap((proposal) => proposal.change.ops);
+
+  // Mistral's tool `name` went from one of its built-in connectors to one of
+  // them or any other name, which the differ read as values removed and a
+  // union added.
+  it("declares a choice of the values it named and any text as the vocabulary opening", async () => {
+    const outcome = await propose(
+      contract({
+        ...base,
+        Connectors: connectors,
+        Thing: object({ id: { type: "string" }, name: ref("Connectors") }, ["id"]),
+      }),
+      contract({
+        ...base,
+        Connectors: connectors,
+        Thing: object(
+          {
+            id: { type: "string" },
+            name: { anyOf: [ref("Connectors"), { type: "string" }] },
+          },
+          ["id"],
+        ),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(opsOf(outcome)).toEqual([
+      { op: "relax", path: "/name", set: { enum: null } },
+      { op: "restate", path: "/name" },
+    ]);
+    expect(outcome.unresolved).toEqual([]);
+    expect(outcome.decisions).toEqual([]);
+  });
+
+  it("does not read a choice between kinds of text as any text", async () => {
+    const outcome = await propose(
+      contract({
+        ...base,
+        Connectors: connectors,
+        Thing: object({ id: { type: "string" }, name: ref("Connectors") }, ["id"]),
+      }),
+      contract({
+        ...base,
+        Connectors: connectors,
+        Thing: object(
+          {
+            id: { type: "string" },
+            name: { anyOf: [ref("Connectors"), { type: "string", format: "uri" }] },
+          },
+          ["id"],
+        ),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(opsOf(outcome)).not.toContainEqual(
+      expect.objectContaining({ op: "relax", set: { enum: null } }),
+    );
+  });
+
+  // Apicurio's `ArtifactType` named eleven kinds of artifact, then any text.
+  it("declares a named vocabulary that stopped listing its values once, at the schema", async () => {
+    const thing = object({ id: { type: "string" }, type: ref("ArtifactType") }, ["id"]);
+    const outcome = await propose(
+      contract({
+        ...base,
+        ArtifactType: { type: "string", enum: ["AVRO", "JSON"] },
+        Thing: thing,
+      }),
+      contract({ ...base, ArtifactType: { type: "string" }, Thing: thing }),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.proposals.map((proposal) => proposal.change)).toEqual([
+      expect.objectContaining({
+        scopes: [{ schema: "#/components/schemas/ArtifactType" }],
+        ops: [{ op: "relax", path: "", set: { enum: null } }],
+      }),
+    ]);
+    expect(outcome.unresolved).toEqual([]);
+  });
+
+  // Okta's custom role `type` listed `CUSTOM` alone, and came to refer to
+  // `RoleType`, which names every role there is.
+  it("asks about the values a field gained by referring to a named vocabulary", async () => {
+    const roles = { type: "string", enum: ["CUSTOM", "ORG_ADMIN", "APP_ADMIN"] };
+    const outcome = await propose(
+      contract({
+        ...base,
+        RoleType: roles,
+        Thing: object(
+          { id: { type: "string" }, type: { type: "string", enum: ["CUSTOM"] } },
+          ["id"],
+        ),
+      }),
+      contract({
+        ...base,
+        RoleType: roles,
+        Thing: object({ id: { type: "string" }, type: ref("RoleType") }, ["id"]),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.decisions).toEqual([
+      expect.objectContaining({
+        kind: "vocabulary",
+        schema: "Thing",
+        pointer: "/type",
+        gained: ["ORG_ADMIN", "APP_ADMIN"],
+        choices: ["CUSTOM"],
+      }),
+    ]);
+    expect(outcome.unresolved).toEqual([]);
+  });
+
+  it("leaves a field that stopped referring to a vocabulary that changed to that vocabulary's own Change", async () => {
+    // Its own Change runs wherever the old contract used it, this field
+    // included, so a second one here would translate the value twice.
+    const outcome = await propose(
+      contract({
+        ...base,
+        RuleType: { type: "string", enum: ["SIGN_ON", "RESOURCE_ACCESS", "OLD"] },
+        Thing: object({ id: { type: "string" }, type: ref("RuleType") }, ["id"]),
+      }),
+      contract({
+        ...base,
+        RuleType: { type: "string", enum: ["SIGN_ON", "RESOURCE_ACCESS", "NEW"] },
+        Thing: object(
+          { id: { type: "string" }, type: { type: "string", enum: ["RESOURCE_ACCESS"] } },
+          ["id"],
+        ),
+      }),
+      { judge: new RulesJudge() },
+    );
+    const places = [
+      ...outcome.decisions.map((decision) => decision.schema),
+      ...outcome.proposals.flatMap((proposal) =>
+        (proposal.change.scopes ?? []).map((scope) => JSON.stringify(scope)),
+      ),
+    ];
+    expect(places.join()).not.toMatch(/Thing/);
+  });
+
+  // Discord's `event_webhooks_types` listed no values beside `allOf` a schema
+  // of every event there is, then twelve.
+  const eventTypes = (values: string[]) => ({
+    type: "array",
+    uniqueItems: true,
+    items: { type: "string", enum: values, allOf: [ref("ActionTypes")] },
+  });
+  const actionTypes = {
+    type: "string",
+    oneOf: [{ const: "ENTITLEMENT_CREATE" }, { const: "LOBBY_MESSAGE_CREATE" }],
+  };
+
+  it("leaves out of a response list the values it gained where it named none", async () => {
+    const outcome = await propose(
+      contract({
+        ...base,
+        ActionTypes: actionTypes,
+        Thing: object({ id: { type: "string" }, events: eventTypes([]) }, ["id"]),
+      }),
+      contract({
+        ...base,
+        ActionTypes: actionTypes,
+        Thing: object(
+          {
+            id: { type: "string" },
+            events: eventTypes(["ENTITLEMENT_CREATE", "LOBBY_MESSAGE_CREATE"]),
+          },
+          ["id"],
+        ),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(opsOf(outcome)).toEqual([
+      {
+        op: "convert",
+        path: "/events",
+        codec: {
+          kind: "dropValues",
+          values: ["ENTITLEMENT_CREATE", "LOBBY_MESSAGE_CREATE"],
+        },
+      },
+    ]);
+    expect(outcome.decisions).toEqual([]);
+    expect(outcome.unresolved).toEqual([]);
+  });
+
+  it("asks nothing where only old callers send a list that gained values", async () => {
+    const outcome = await propose(
+      contract({
+        ...base,
+        ActionTypes: actionTypes,
+        ThingCreate: object({ name: { type: "string" }, events: eventTypes([]) }),
+      }),
+      contract({
+        ...base,
+        ActionTypes: actionTypes,
+        ThingCreate: object({
+          name: { type: "string" },
+          events: eventTypes(["ENTITLEMENT_CREATE"]),
+        }),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(opsOf(outcome)).toEqual([]);
+    expect(outcome.unresolved).toEqual([]);
+  });
+});

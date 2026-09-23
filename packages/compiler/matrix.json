@@ -113,8 +113,6 @@
     "relax request": "A bound says which values are allowed; nothing is rewritten. A request bound that narrowed is refused at prediction, since old callers would be turned away.",
     "relax response": "The value passes through as the API produced it; the loss is that an old caller may see a value its contract ruled out, which the provider acknowledges.",
     "relax outbound": "As for a response: the payload's value passes through as the API produced it.",
-    "convert dropValues response": "A list an old caller is sent is the new contract's to fill, and holds none of the values it no longer has; nothing is taken out on the way back.",
-    "convert dropValues outbound": "As for a response: a payload's list is the new contract's to fill.",
     "restate request": "The contract says the same values another way; nothing is rewritten, and the compiler refuses it unless every value an old caller sends is one the new contract accepts.",
     "restate response": "The contract says the same values another way; nothing is rewritten, and the compiler refuses it unless every value the API now answers with is one the old contract allowed.",
     "restate outbound": "As for a response: the compiler refuses it unless every payload the provider now sends is one the old contract allowed."

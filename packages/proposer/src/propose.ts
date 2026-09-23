@@ -1080,6 +1080,59 @@ function droppedFromList(pair: {
   };
 }
 
+/**
+ * A list old callers are sent whose items named no values and now name some,
+ * as the op that leaves those values out of it on the way back.
+ *
+ * Discord's applications listed `event_webhooks_types` as a list of no
+ * values at all, and a later release as twelve kinds of event. An old caller
+ * was told the list is always empty and has no value of its own to be shown
+ * any of the twelve as, so the list it is sent leaves them out, a loss the
+ * provider acknowledges. Where the old list named values, which one a new
+ * value is shown as is a decision, asked as a fold.
+ */
+function droppedFromResponseList(
+  pair: { old: FieldShape; new: FieldShape },
+  sides: { request: boolean; response: boolean },
+): { ops: Op[]; notes: string[] } | undefined {
+  if (!sides.response || !pair.old.pointer.endsWith("/*")) return undefined;
+  const from = pair.old.enumValues;
+  const to = pair.new.enumValues;
+  if (from === undefined || from.length > 0 || !to?.length) return undefined;
+  return {
+    ops: [
+      {
+        op: "convert",
+        path: pair.old.pointer.slice(0, -2),
+        codec: { kind: "dropValues", values: to },
+      },
+    ],
+    notes: [
+      `the list named no values and now names ${to.length}; old callers were told it is always empty, so ${to.length === 1 ? "it is" : "they are"} left out of what they are sent, a declared loss to acknowledge`,
+    ],
+  };
+}
+
+/**
+ * Whether a field only old callers send only gained values: every value they
+ * send is still accepted, so it breaks nobody and asks nothing.
+ */
+function onlyGrewForRequests(
+  pair: { old: FieldShape; new: FieldShape },
+  sides: { request: boolean; response: boolean },
+): boolean {
+  const from = pair.old.enumValues;
+  const to = pair.new.enumValues;
+  return (
+    sides.request &&
+    !sides.response &&
+    pair.old.type === pair.new.type &&
+    from !== undefined &&
+    to !== undefined &&
+    from.every((value) => to.includes(value))
+  );
+}
+
 function alteredProposals(
   deltas: readonly SchemaDelta[],
   oldContract: Parameters<typeof schemaDeltas>[0],
@@ -1094,7 +1147,9 @@ function alteredProposals(
       const narrowed = narrowOps(pair.old, pair.new, sides ?? NEITHER);
       // A list whose items stopped accepting values old callers may send:
       // those values are left out of the list, and the rest is served.
-      const listDrop = (sides ?? NEITHER).request ? droppedFromList(pair) : undefined;
+      const listDrop =
+        ((sides ?? NEITHER).request ? droppedFromList(pair) : undefined) ??
+        droppedFromResponseList(pair, sides ?? NEITHER);
       // A vocabulary that only shrank needs no pairing, and saying it does
       // would send a reviewer looking for a rename that never happened.
       const shape = listDrop
@@ -1115,7 +1170,8 @@ function alteredProposals(
         narrowed.ops.length === 0 &&
         !foldCovers(pair, sides ?? NEITHER) &&
         !onlyUnstated(pair.old, pair.new) &&
-        !retiredAsked
+        !retiredAsked &&
+        !onlyGrewForRequests(pair, sides ?? NEITHER)
       ) {
         unresolved.push({
           schema: delta.schema,
@@ -1158,6 +1214,18 @@ function alteredProposals(
         sides ?? NEITHER,
         relaxOps(pair.old, pair.new, sides ?? NEITHER),
       );
+      // A vocabulary that opened into a choice of text is written as that
+      // choice, which allows nothing the relaxed field does not, and the
+      // compiler proves it before it writes it.
+      if (
+        pair.new.anyText &&
+        relaxed.ops.some((op) => op.op === "relax" && op.set.enum === null)
+      ) {
+        relaxed.ops.push({ op: "restate", path: pair.new.pointer });
+        relaxed.notes.push(
+          `\`${pair.old.name}\` is now written as a choice between the values it named and any other text, which says no more than that it holds any text`,
+        );
+      }
       if (relaxed.unresolved) {
         unresolved.push({
           schema: delta.schema,

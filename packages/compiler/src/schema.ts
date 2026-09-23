@@ -315,6 +315,13 @@ function applyEnumMap(
 ): JsonObject {
   const out = clone(schema);
   const forward = new Map(pairs.map(([from, to]) => [from, to]));
+  // `const: x` is JSON Schema's other spelling of `enum: [x]`, and the map
+  // writes it as the list it becomes: Langfuse's evaluator messages had the
+  // one role `user`, and came to refer to a role that names three.
+  if (out["enum"] === undefined && out["const"] !== undefined) {
+    out["enum"] = [out["const"] as JsonValue];
+    delete out["const"];
+  }
   const values = out["enum"];
   if (!Array.isArray(values)) {
     throw new SchemaOpError("enumMap applies only to a schema with an enum");
@@ -562,10 +569,17 @@ function applyUnwrapSingle(schema: JsonObject): JsonObject {
 }
 
 /**
- * A list without the values `dropValues` takes out of it. The items' own
- * vocabulary is written in place in the list's statement, which is where the
- * values are now absent from; the named schema they may refer to is left
- * alone, since other places may still hold those values.
+ * The list as the new contract states it, from the values `dropValues` names.
+ * A value the old list held is one the new contract no longer accepts, and is
+ * taken out, as Asana's `opt_fields` lost `color`; one it never held is one
+ * the new contract's list may now hold, and is added, as Discord's webhook
+ * event types listed none and then twelve. Either way the value is left out
+ * of the list on its way to the side that does not name it.
+ *
+ * The vocabulary is written where the list's items write their own, beside
+ * whatever else they refer to, and otherwise in place of the named schema
+ * they refer to, which is left alone, since other places may still hold
+ * those values.
  */
 function applyDropValues(
   schema: JsonObject,
@@ -579,8 +593,11 @@ function applyDropValues(
       "dropValues applies only to a list whose items are described",
     );
   }
+  const own = isJsonObject(written) && Array.isArray(written["enum"]);
   const items =
-    document === undefined ? written : resolveSchema(document, written as JsonValue);
+    own || document === undefined
+      ? written
+      : resolveSchema(document, written as JsonValue);
   const listed = isJsonObject(items) ? items["enum"] : undefined;
   if (!isJsonObject(items) || !Array.isArray(listed)) {
     throw new SchemaOpError(
@@ -588,17 +605,10 @@ function applyDropValues(
     );
   }
   const gone = new Set(values);
-  const missing = values.filter((value) => !listed.includes(value));
-  if (missing.length > 0) {
-    throw new SchemaOpError(
-      `dropValues names ${missing.map((value) => `"${value}"`).join(", ")}, which the list never held`,
-    );
-  }
+  const kept = listed.filter((value) => typeof value !== "string" || !gone.has(value));
+  const arrived = values.filter((value) => !listed.includes(value));
   const out = clone(schema);
-  out["items"] = {
-    ...clone(items),
-    enum: listed.filter((value) => typeof value !== "string" || !gone.has(value)),
-  };
+  out["items"] = { ...clone(items), enum: [...kept, ...arrived] };
   return out;
 }
 

@@ -887,9 +887,7 @@ function unserved(change: Change, program: unknown): string[] {
         ? direction === "response"
         : // A field dropped with nothing to put back is only taken out of
           // requests; old callers' responses were never promised it.
-          (op.op === "remove" && op.restore === undefined) ||
-            // A list an old caller is sent is the new contract's to fill.
-            (op.op === "convert" && op.codec.kind === "dropValues")
+          op.op === "remove" && op.restore === undefined
           ? direction === "request"
           : op.op !== "relax" && op.op !== "restate";
   };
