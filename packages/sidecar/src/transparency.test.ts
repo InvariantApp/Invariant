@@ -145,6 +145,31 @@ describe("a request that names no host", () => {
   });
 });
 
+describe("a GET that carries a body", () => {
+  // Immich 1.137's suite sends one, asking for a tag with an API key. The
+  // proxy sends a GET on without a body, and passed the length of the one it
+  // left out, so the provider waited for bytes that never came.
+  it("reaches the provider without the length of a body it is not sent", async () => {
+    seen = [];
+    const { port } = new URL(proxy.url);
+    const head = await new Promise<string>((resolve, reject) => {
+      const socket = connect(Number(port), "127.0.0.1", () => {
+        socket.write(
+          "GET /version HTTP/1.1\r\nHost: gitea.example\r\nContent-Type: application/json\r\n" +
+            "Content-Length: 2\r\nConnection: close\r\n\r\n{}",
+        );
+      });
+      let text = "";
+      socket.setTimeout(5000, () => socket.destroy(new Error("no answer")));
+      socket.on("data", (chunk) => (text += chunk));
+      socket.on("end", () => resolve(text));
+      socket.on("error", reject);
+    });
+    expect(head.split("\r\n")[0]).toBe("HTTP/1.1 200 OK");
+    expect(seen[0]?.["content-length"]).toBeUndefined();
+  });
+});
+
 describe("the caller, through the proxy", () => {
   it("gets the body a 205 carries, as a current caller", async () => {
     const answer = await call("PUT", "/notifications", { host: "gitea.example" });
