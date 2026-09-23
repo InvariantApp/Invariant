@@ -92,6 +92,14 @@ const OLD = {
             in: "cookie",
             schema: { type: "array", items: { type: "string" } },
           },
+          ...(["query", "header", "cookie"] as const).map((location) => ({
+            name: location === "header" ? "X-Fields" : "fields",
+            in: location,
+            schema: {
+              type: "array",
+              items: { type: "string", enum: ["name", "color", "owner"] },
+            },
+          })),
           { name: "page", in: "cookie", schema: { type: "integer" } },
           {
             name: "order",
@@ -189,6 +197,10 @@ const OLD = {
           note: { type: "string" },
           gift: { type: "boolean" },
           tags: { type: "array", items: { type: "string" } },
+          flags: {
+            type: "array",
+            items: { type: "string", enum: ["gift", "rush", "fragile"] },
+          },
           shipping: {
             type: "object",
             properties: { city: { type: "string" }, zip: { type: "string" } },
@@ -207,6 +219,10 @@ const OLD = {
           note: { type: "string" },
           gift: { type: "boolean" },
           tags: { type: "array", items: { type: "string" } },
+          flags: {
+            type: "array",
+            items: { type: "string", enum: ["gift", "rush", "fragile"] },
+          },
           shipping: {
             type: "object",
             properties: { city: { type: "string" }, zip: { type: "string" } },
@@ -478,7 +494,15 @@ function fieldsOf(schema: Schema, prefix = "", required = true): Field[] {
  */
 const NAMES: Record<
   string,
-  { num: string; enum: string; list: string; renamed: string; added: string }
+  {
+    num: string;
+    enum: string;
+    list: string;
+    renamed: string;
+    added: string;
+    /** A list whose items list their values. */
+    fields: string;
+  }
 > = {
   query: {
     num: "limit",
@@ -486,6 +510,7 @@ const NAMES: Record<
     list: "ids",
     renamed: "page_size",
     added: "cursor",
+    fields: "fields",
   },
   header: {
     num: "X-Page-Size",
@@ -493,6 +518,7 @@ const NAMES: Record<
     list: "X-Ids",
     renamed: "X-Limit",
     added: "X-Cursor",
+    fields: "X-Fields",
   },
   cookie: {
     num: "page",
@@ -500,8 +526,16 @@ const NAMES: Record<
     list: "ids",
     renamed: "page_number",
     added: "session_hint",
+    fields: "fields",
   },
-  path: { num: "id", enum: "id", list: "id", renamed: "order_id", added: "extra" },
+  path: {
+    num: "id",
+    enum: "id",
+    list: "id",
+    renamed: "order_id",
+    added: "extra",
+    fields: "id",
+  },
 };
 
 /**
@@ -635,6 +669,13 @@ function fitToParameters(change: Change, location: string): Change | undefined {
           };
         }
         if (op.codec.kind === "unwrapSingle") return { ...op, path: `/${n.list}` };
+        if (op.codec.kind === "dropValues") {
+          return {
+            ...op,
+            path: `/${n.fields}`,
+            codec: { kind: "dropValues", values: ["color"] },
+          };
+        }
         return { ...op, path: `/${n.num}` };
       case "add":
         return { ...op, path: `/${n.added}` };
@@ -767,6 +808,13 @@ function fitTo(change: Change, name: string): fc.Arbitrary<Change | undefined> {
               : op,
           );
         }
+        if (codec.kind === "dropValues") {
+          return fc.constant({
+            ...op,
+            path: "/flags",
+            codec: { kind: "dropValues", values: ["rush"] },
+          });
+        }
         if (codec.kind === "wrapArray" || codec.kind === "unwrapSingle") {
           const list = codec.kind === "unwrapSingle";
           return pick(fields.filter((field) => (field.type === "array") === list)).map(
@@ -839,7 +887,9 @@ function unserved(change: Change, program: unknown): string[] {
         ? direction === "response"
         : // A field dropped with nothing to put back is only taken out of
           // requests; old callers' responses were never promised it.
-          op.op === "remove" && op.restore === undefined
+          (op.op === "remove" && op.restore === undefined) ||
+            // A list an old caller is sent is the new contract's to fill.
+            (op.op === "convert" && op.codec.kind === "dropValues")
           ? direction === "request"
           : op.op !== "relax" && op.op !== "restate";
   };
@@ -1064,6 +1114,7 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
       "convert stringCase",
       "convert wrapArray",
       "convert unwrapSingle",
+      "convert dropValues",
       "add",
       "remove",
       "default",
@@ -1154,6 +1205,11 @@ describe("L1: the op x location x direction matrix", () => {
     },
     relax: { op: "relax", path: "/count", set: { maximum: null } },
     restate: { op: "restate", path: "/note" },
+    "convert dropValues": {
+      op: "convert",
+      path: "/flags",
+      codec: { kind: "dropValues", values: ["rush"] },
+    },
   };
   /** The op as it would be written for a body used in this direction. */
   const bodyOp = (op: string, direction: string) =>
@@ -1212,6 +1268,12 @@ describe("L1: the op x location x direction matrix", () => {
         return { op: "convert", path: `/${n.num}`, codec: { kind: "wrapArray" } };
       case "convert unwrapSingle":
         return { op: "convert", path: `/${n.list}`, codec: { kind: "unwrapSingle" } };
+      case "convert dropValues":
+        return {
+          op: "convert",
+          path: `/${n.fields}`,
+          codec: { kind: "dropValues", values: ["color"] },
+        };
       case "add":
         return { op: "add", path: `/${n.added}`, value: "start" };
       case "remove":

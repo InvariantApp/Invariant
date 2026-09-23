@@ -38,13 +38,37 @@ export type ProgramFeature =
   | "identity";
 
 /**
+ * A feature added since the last release, which the next one will carry.
+ *
+ * Its version is not known until the release is cut, since Changesets decides
+ * it from what the release holds. `scripts/sync-versions.mts` replaces each
+ * `NEXT` below with that version when it is, so a published release never
+ * says it.
+ */
+export const NEXT = "next";
+
+/**
+ * What a program that uses a feature not yet released asks for: a pre-release
+ * of the patch after this one, which every published runtime refuses with the
+ * error that names a newer runtime, and which the next release, whatever it
+ * turns out to be, runs. `drop` was the first instruction added after 0.1.0
+ * shipped, and entered at a version, the release it would ship in could not
+ * yet be named and the one it was compiled by could not run it.
+ */
+export function nextRelease(version: string): string {
+  const [core = "0.0.0"] = version.split("-", 1);
+  const [major = 0, minor = 0, patch = 0] = core.split(".").map(Number);
+  return `${major}.${minor}.${patch + 1}-${NEXT}`;
+}
+
+/**
  * The first runtime release that runs each feature.
  *
- * A feature added after a release is entered at the version it will ship in,
- * which is always later than any runtime already published, so a runtime that
- * predates it refuses the program instead of misreading it. Typed as a record
- * over every instruction kind, so a new instruction does not compile until it
- * is entered here.
+ * A feature added after a release is entered as `NEXT` and becomes the version
+ * it shipped in when the release is cut, which is always later than any
+ * runtime already published, so a runtime that predates it refuses the
+ * program instead of misreading it. Typed as a record over every instruction
+ * kind, so a new instruction does not compile until it is entered here.
  */
 export const FEATURE_SINCE: Readonly<Record<ProgramFeature, string>> = {
   move: "0.1.0",
@@ -55,6 +79,7 @@ export const FEATURE_SINCE: Readonly<Record<ProgramFeature, string>> = {
   case: "0.1.0",
   wrap: "0.1.0",
   unwrap: "0.1.0",
+  drop: NEXT,
   set: "0.1.0",
   del: "0.1.0",
   within: "0.1.0",
@@ -142,7 +167,8 @@ export function minRuntimeFor(
 ): string {
   let oldest = "0.1.0";
   for (const feature of featuresOf(program)) {
-    const since = FEATURE_SINCE[feature];
+    const entered = FEATURE_SINCE[feature];
+    const since = entered === NEXT ? nextRelease(PRODUCT_VERSION) : entered;
     if (compareVersions(since, oldest) > 0) oldest = since;
   }
   return oldest;

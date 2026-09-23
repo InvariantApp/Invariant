@@ -559,7 +559,52 @@ function applyUnwrapSingle(schema: JsonObject): JsonObject {
   return out;
 }
 
-export function applyCodecToSchema(schema: JsonValue, codec: Codec): JsonValue {
+/**
+ * A list without the values `dropValues` takes out of it. The items' own
+ * vocabulary is written in place in the list's statement, which is where the
+ * values are now absent from; the named schema they may refer to is left
+ * alone, since other places may still hold those values.
+ */
+function applyDropValues(
+  schema: JsonObject,
+  values: readonly string[],
+  document: OpenApiDocument | undefined,
+): JsonObject {
+  const types = declaredTypes(schema);
+  const written = schema["items"];
+  if ((types.length > 0 && !types.includes("array")) || written === undefined) {
+    throw new SchemaOpError(
+      "dropValues applies only to a list whose items are described",
+    );
+  }
+  const items =
+    document === undefined ? written : resolveSchema(document, written as JsonValue);
+  const listed = isJsonObject(items) ? items["enum"] : undefined;
+  if (!isJsonObject(items) || !Array.isArray(listed)) {
+    throw new SchemaOpError(
+      "dropValues applies only to a list whose items list their values",
+    );
+  }
+  const gone = new Set(values);
+  const missing = values.filter((value) => !listed.includes(value));
+  if (missing.length > 0) {
+    throw new SchemaOpError(
+      `dropValues names ${missing.map((value) => `"${value}"`).join(", ")}, which the list never held`,
+    );
+  }
+  const out = clone(schema);
+  out["items"] = {
+    ...clone(items),
+    enum: listed.filter((value) => typeof value !== "string" || !gone.has(value)),
+  };
+  return out;
+}
+
+export function applyCodecToSchema(
+  schema: JsonValue,
+  codec: Codec,
+  document?: OpenApiDocument,
+): JsonValue {
   if (!isJsonObject(schema)) {
     throw new SchemaOpError("A codec needs a schema object to apply to");
   }
@@ -578,6 +623,8 @@ export function applyCodecToSchema(schema: JsonValue, codec: Codec): JsonValue {
       return applyWrapArray(schema);
     case "unwrapSingle":
       return applyUnwrapSingle(schema);
+    case "dropValues":
+      return applyDropValues(schema, codec.values, document);
   }
 }
 
@@ -601,7 +648,7 @@ export function schemaConvert(
       );
     }
     const own = ownRoot(document, root);
-    const converted = applyCodecToSchema(resolveSchema(document, own), codec);
+    const converted = applyCodecToSchema(resolveSchema(document, own), codec, document);
     for (const key of Object.keys(own)) delete own[key];
     Object.assign(own, isJsonObject(converted) ? converted : {});
     return;
@@ -611,7 +658,7 @@ export function schemaConvert(
   const converted =
     codec.kind === "wrapArray"
       ? applyWrapArray(isJsonObject(slot.schema) ? slot.schema : {})
-      : applyCodecToSchema(resolveSchema(document, slot.schema), codec);
+      : applyCodecToSchema(resolveSchema(document, slot.schema), codec, document);
   writeSlot(document, root, segments, converted, slot.required);
 }
 

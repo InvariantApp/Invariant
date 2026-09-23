@@ -273,6 +273,29 @@ describe("parameter drafts that need no decision", () => {
     expect(without.questions.map((question) => question.field)).toEqual(["tier"]);
   });
 
+  it("leaves out of a list what it no longer accepts, and asks where others arrived (Asana)", () => {
+    const fields = (values: string[]) => ({
+      name: "opt_fields",
+      in: "query",
+      schema: { type: "array", items: { type: "string", enum: values } },
+    });
+    const result = drafted(
+      [fields(["name", "color", "owner", "archived"])],
+      [fields(["name", "owner"])],
+    );
+    expect(opsOf(result)).toEqual([
+      {
+        op: "convert",
+        path: "/opt_fields",
+        codec: { kind: "dropValues", values: ["color", "archived"] },
+      },
+    ]);
+    // A value that went beside one that arrived may be the same one renamed.
+    const renamed = drafted([fields(["name", "colour"])], [fields(["name", "color"])]);
+    expect(opsOf(renamed)).toEqual([]);
+    expect(renamed.questions.map((question) => question.field)).toEqual(["opt_fields"]);
+  });
+
   it("casts a parameter whose type changed, and supplies a default where one became required", () => {
     const result = drafted(
       [{ name: "limit", in: "query", schema: { type: "string" } }],

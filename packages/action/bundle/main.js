@@ -3081,6 +3081,30 @@ const UnwrapSingleCodec = Type$1.Object({
 	kind: Type$1.Literal("unwrapSingle"),
 	pick: Type$1.Optional(ListPick)
 }, { additionalProperties: false });
+/**
+* Values an old caller may put in a list that the new contract no longer
+* accepts, taken out of it on the way in.
+*
+* Asana stopped offering a hundred and twenty-six of the fields a caller
+* could ask a portfolio's items to include, and an old caller asking for
+* `opt_fields=color` was refused outright. The fields are not coming back,
+* so nothing can serve them; what can be served is everything else the
+* caller asked for, which is the request with those values left out.
+*
+* Applied to a list, never to a single value: a single value that is gone
+* has no request left without it, and is an `enumMap` to a value that
+* remains, which a person decides. Forward only, since a list an old caller
+* is sent is the new contract's to fill. Always lossy, because the caller
+* asked for something it will not get; the compiler derives
+* `declared-lossy` from it and the gate asks for that in writing.
+*/
+const DropValuesCodec = Type$1.Object({
+	kind: Type$1.Literal("dropValues"),
+	values: Type$1.Array(Type$1.String(), {
+		minItems: 1,
+		uniqueItems: true
+	})
+}, { additionalProperties: false });
 const Codec = Type$1.Union([
 	Scale10Codec,
 	EnumMapCodec,
@@ -3088,7 +3112,8 @@ const Codec = Type$1.Union([
 	DateFormatCodec,
 	StringCaseCodec,
 	WrapArrayCodec,
-	UnwrapSingleCodec
+	UnwrapSingleCodec,
+	DropValuesCodec
 ]);
 /**
 * Every operation a path item can declare, in OpenAPI's own order.
@@ -3527,13 +3552,35 @@ function isDeniedHeader(name) {
 /** The product version this package was released as, which the compiler records. */
 const PRODUCT_VERSION = "0.1.0";
 /**
+* A feature added since the last release, which the next one will carry.
+*
+* Its version is not known until the release is cut, since Changesets decides
+* it from what the release holds. `scripts/sync-versions.mts` replaces each
+* `NEXT` below with that version when it is, so a published release never
+* says it.
+*/
+const NEXT = "next";
+/**
+* What a program that uses a feature not yet released asks for: a pre-release
+* of the patch after this one, which every published runtime refuses with the
+* error that names a newer runtime, and which the next release, whatever it
+* turns out to be, runs. `drop` was the first instruction added after 0.1.0
+* shipped, and entered at a version, the release it would ship in could not
+* yet be named and the one it was compiled by could not run it.
+*/
+function nextRelease$1(version) {
+	const [core = "0.0.0"] = version.split("-", 1);
+	const [major = 0, minor = 0, patch = 0] = core.split(".").map(Number);
+	return `${major}.${minor}.${patch + 1}-${NEXT}`;
+}
+/**
 * The first runtime release that runs each feature.
 *
-* A feature added after a release is entered at the version it will ship in,
-* which is always later than any runtime already published, so a runtime that
-* predates it refuses the program instead of misreading it. Typed as a record
-* over every instruction kind, so a new instruction does not compile until it
-* is entered here.
+* A feature added after a release is entered as `NEXT` and becomes the version
+* it shipped in when the release is cut, which is always later than any
+* runtime already published, so a runtime that predates it refuses the
+* program instead of misreading it. Typed as a record over every instruction
+* kind, so a new instruction does not compile until it is entered here.
 */
 const FEATURE_SINCE = {
 	move: "0.1.0",
@@ -3544,6 +3591,7 @@ const FEATURE_SINCE = {
 	case: "0.1.0",
 	wrap: "0.1.0",
 	unwrap: "0.1.0",
+	drop: NEXT,
 	set: "0.1.0",
 	del: "0.1.0",
 	within: "0.1.0",
@@ -3625,7 +3673,8 @@ function compareVersions$2(a, b) {
 function minRuntimeFor(program) {
 	let oldest = "0.1.0";
 	for (const feature of featuresOf(program)) {
-		const since = FEATURE_SINCE[feature];
+		const entered = FEATURE_SINCE[feature];
+		const since = entered === "next" ? nextRelease$1(PRODUCT_VERSION) : entered;
 		if (compareVersions$2(since, oldest) > 0) oldest = since;
 	}
 	return oldest;
@@ -3757,6 +3806,17 @@ const UnwrapInstr = Type$1.Object({
 	first: Type$1.Optional(Type$1.Literal(true)),
 	c: ChangeId
 }, { additionalProperties: false });
+/**
+* Takes the listed values out of the list at `path`: what an old caller asked
+* for that the new contract no longer accepts (Asana's `opt_fields`). A value
+* that is not a string is left alone; the list's other items keep their order.
+*/
+const DropInstr = Type$1.Object({
+	k: Type$1.Literal("drop"),
+	path: Pointer,
+	values: Type$1.Array(Type$1.String(), { minItems: 1 }),
+	c: ChangeId
+}, { additionalProperties: false });
 const SetInstr = Type$1.Object({
 	k: Type$1.Literal("set"),
 	path: Pointer,
@@ -3821,6 +3881,7 @@ const Instr = Type$1.Recursive((Self) => Type$1.Union([
 	CaseInstr,
 	WrapInstr,
 	UnwrapInstr,
+	DropInstr,
 	SetInstr,
 	DelInstr,
 	Type$1.Object({
@@ -17429,6 +17490,12 @@ function forwardInstrs(op, prefix, changeId) {
 				to: op.codec.to,
 				c: changeId
 			}];
+			case "dropValues": return [{
+				k: "drop",
+				path: prefixed(prefix, op.path),
+				values: op.codec.values,
+				c: changeId
+			}];
 			default: return [valueCodec(op.codec, prefixed(prefix, op.path), changeId, "forward")];
 		}
 		case "add": return [{
@@ -17550,6 +17617,7 @@ function backwardInstrs(op, prefix, changeId, variants = NO_VARIANTS) {
 				to: op.codec.from,
 				c: changeId
 			}];
+			case "dropValues": return [];
 			default: return [valueCodec(op.codec, prefixed(prefix, op.path), changeId, "backward")];
 		}
 		case "add": return [{
@@ -18709,6 +18777,15 @@ function unwrapped(value, first) {
 	if (value.length !== 1) throw new CodecRefusal(`the list holds ${value.length} items, and only one can be shown`);
 	return value[0];
 }
+/**
+* A list without the values the new contract no longer accepts, its other
+* items in their order. Asana stopped offering fields an old caller could ask
+* for in `opt_fields`, and asking for one refused the whole request.
+*/
+function withoutValues(value, values) {
+	if (!Array.isArray(value)) throw new CodecRefusal(`expected a list to take values out of, found ${typeof value}`);
+	return value.filter((item) => typeof item !== "string" || !values.has(item));
+}
 function applyCast$1(root, instr, limits, here) {
 	const slots = slotsAt(root, instr.path, limits, here);
 	let cast = 0;
@@ -18850,6 +18927,9 @@ function step(root, instr, limits, result, calls, here) {
 			break;
 		case "unwrap":
 			countApplied(result, instr.c, applyEach(root, instr, limits, here, (value) => unwrapped(value, instr.first === true)));
+			break;
+		case "drop":
+			countApplied(result, instr.c, applyEach(root, instr, limits, here, (value) => withoutValues(value, instr.values)));
 			break;
 		case "set":
 			if (instr.path.length === 0) {
@@ -20010,6 +20090,22 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 				...onlyTrue(value["first"], `${where}.first`) ? { first: true } : {},
 				c: changeId
 			};
+		case "drop": {
+			expectKeys(value, [
+				"k",
+				"path",
+				"values",
+				"c"
+			], where);
+			const values = value["values"];
+			if (!Array.isArray(values) || values.length === 0 || !values.every((entry) => typeof entry === "string")) throw new ProgramError(`${where}.values must be a list of strings`);
+			return {
+				k: "drop",
+				path: segmentsOf$2(string$1(value["path"], `${where}.path`), `${where}.path`),
+				values: new Set(values),
+				c: changeId
+			};
+		}
 		case "set": {
 			expectKeys(value, [
 				"k",
@@ -20396,7 +20492,13 @@ function checkVersion(value) {
 	const minRuntime = value["minRuntime"];
 	if (minRuntime === void 0) return;
 	if (typeof minRuntime !== "string" || !/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(minRuntime)) throw new ProgramError("program.minRuntime must be a version such as 1.2.3");
-	if (compareVersions$1(minRuntime, "0.1.0") > 0) throw new ProgramTooNewError(`runtime ${minRuntime}`, compiledBy);
+	if (compareVersions$1(minRuntime, "0.1.0") > 0 && minRuntime !== nextRelease("0.1.0")) throw new ProgramTooNewError(`runtime ${minRuntime}`, compiledBy);
+}
+/** The version a feature not yet released asks for, as `@invariant-app/ir` writes it. */
+function nextRelease(version) {
+	const [core = "0.0.0"] = version.split("-", 1);
+	const [major = 0, minor = 0, patch = 0] = core.split(".").map(Number);
+	return `${major}.${minor}.${patch + 1}-next`;
 }
 function decodeProgram(raw) {
 	const value = object$1(raw, "program");
@@ -21825,7 +21927,30 @@ function applyUnwrapSingle(schema) {
 	}
 	return out;
 }
-function applyCodecToSchema(schema, codec) {
+/**
+* A list without the values `dropValues` takes out of it. The items' own
+* vocabulary is written in place in the list's statement, which is where the
+* values are now absent from; the named schema they may refer to is left
+* alone, since other places may still hold those values.
+*/
+function applyDropValues(schema, values, document) {
+	const types = declaredTypes(schema);
+	const written = schema["items"];
+	if (types.length > 0 && !types.includes("array") || written === void 0) throw new SchemaOpError("dropValues applies only to a list whose items are described");
+	const items = document === void 0 ? written : resolveSchema(document, written);
+	const listed = isJsonObject(items) ? items["enum"] : void 0;
+	if (!isJsonObject(items) || !Array.isArray(listed)) throw new SchemaOpError("dropValues applies only to a list whose items list their values");
+	const gone = new Set(values);
+	const missing = values.filter((value) => !listed.includes(value));
+	if (missing.length > 0) throw new SchemaOpError(`dropValues names ${missing.map((value) => `"${value}"`).join(", ")}, which the list never held`);
+	const out = clone$1(schema);
+	out["items"] = {
+		...clone$1(items),
+		enum: listed.filter((value) => typeof value !== "string" || !gone.has(value))
+	};
+	return out;
+}
+function applyCodecToSchema(schema, codec, document) {
 	if (!isJsonObject(schema)) throw new SchemaOpError("A codec needs a schema object to apply to");
 	switch (codec.kind) {
 		case "scale10": return applyScale10(schema, codec.exponent);
@@ -21835,6 +21960,7 @@ function applyCodecToSchema(schema, codec) {
 		case "stringCase": return applyStringCase(schema, codec);
 		case "wrapArray": return applyWrapArray(schema);
 		case "unwrapSingle": return applyUnwrapSingle(schema);
+		case "dropValues": return applyDropValues(schema, codec.values, document);
 	}
 }
 /**
@@ -21846,13 +21972,13 @@ function schemaConvert(document, root, path, codec) {
 	if (segments.length === 0) {
 		if (codec.kind === "wrapArray") throw new SchemaOpError("Cannot wrap the scope itself in a list; wrap a field of it");
 		const own = ownRoot(document, root);
-		const converted = applyCodecToSchema(resolveSchema(document, own), codec);
+		const converted = applyCodecToSchema(resolveSchema(document, own), codec, document);
 		for (const key of Object.keys(own)) delete own[key];
 		Object.assign(own, isJsonObject(converted) ? converted : {});
 		return;
 	}
 	const slot = readSlot(document, root, segments);
-	writeSlot(document, root, segments, codec.kind === "wrapArray" ? applyWrapArray(isJsonObject(slot.schema) ? slot.schema : {}) : applyCodecToSchema(resolveSchema(document, slot.schema), codec), slot.required);
+	writeSlot(document, root, segments, codec.kind === "wrapArray" ? applyWrapArray(isJsonObject(slot.schema) ? slot.schema : {}) : applyCodecToSchema(resolveSchema(document, slot.schema), codec, document), slot.required);
 }
 /**
 * `widen`: the union at `path` gains `variant` as a branch. What old callers
@@ -22325,7 +22451,7 @@ function applyOne(document, newContract, located, scope, op) {
 	switch (op.op) {
 		case "convert": {
 			const parameter = existing(address.part, name);
-			parameter["schema"] = applyCodecToSchema(schemaOf(parameter), op.codec);
+			parameter["schema"] = applyCodecToSchema(schemaOf(parameter), op.codec, document);
 			return;
 		}
 		case "add": {
@@ -22927,6 +23053,11 @@ function derive(change) {
 				const toOld = op.codec.kind === "wrapArray";
 				reasons.push(toOld ? `${op.path} is now a list, so an old caller is shown its first item, nothing where it is empty, and never the rest` : `${op.path} is now one value, so the provider is sent the first item of an old caller's list and never the rest`);
 				(toOld ? lossy.backward : lossy.forward).push(op.path);
+			}
+			if (op.codec.kind === "dropValues") {
+				runtime = worse(runtime, "declared-lossy");
+				reasons.push(`${op.path} no longer accepts ${op.codec.values.length} value${op.codec.values.length === 1 ? "" : "s"} an old caller may send, which are left out of the list, so what they asked for with them is not given`);
+				lossy.forward.push(op.path);
 			}
 			if (op.codec.kind === "enumMap") {
 				if (op.codec.fold !== void 0 && op.codec.fold.length > 0) {
@@ -24486,7 +24617,7 @@ const RULES = [
 		class: "needs-decision",
 		op: "convert",
 		served: "yes",
-		sentence: "A parameter no longer accepts some values old callers send. An enum map translates them into values it does accept, which you decide."
+		sentence: "A parameter no longer accepts some values old callers send. Where it is a list, such as the fields a caller asks to be included, `dropValues` leaves those values out and serves the rest, a loss you acknowledge; where it is one value, an enum map translates it into one it does accept, which you decide."
 	}),
 	rule(/^request-(parameter|header-property)(-property)?-/, {
 		class: "needs-decision",
@@ -24544,7 +24675,7 @@ const RULES = [
 		class: "needs-decision",
 		op: "convert",
 		served: "yes",
-		sentence: "A request field no longer accepts some values old callers send. An enum map translates them into values it does accept, which you decide."
+		sentence: "A request field no longer accepts some values old callers send. Where it is a list, `dropValues` leaves those values out and sends the rest, a loss you acknowledge; where it is one value, an enum map translates it into one it does accept, which you decide."
 	}),
 	rule(/^request-(body|property)-(type-changed|list-of-types-narrowed)$/, {
 		class: "needs-decision",
