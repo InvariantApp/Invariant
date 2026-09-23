@@ -509,7 +509,10 @@ packages/verifier     round-trip tests, running both versions, and the rest
 packages/bundle       signed, reproducible release records
 packages/proposer     drafting changes; proposals only, never decisions
 packages/eval         measuring the drafting against the labelled cases
+packages/migrate-core what every language's migration shares: plan, edits, offsets, flagged sites
 packages/migrate-ts   editing customer code safely
+packages/migrate-py   the same for Python, through pyright
+packages/migrate-go   the same for Go, through a helper on go/types (engines/go/migrate)
 packages/github       delivering pull requests
 packages/flags        the off switch
 packages/cli          the invariant command, run in the company's own CI

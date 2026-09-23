@@ -73,6 +73,8 @@ step "release gate on the fixture (--full)" bash -c \
 if command -v go >/dev/null 2>&1; then
   step "Go engine passes the vectors" bash -c \
     'cd engines/go && test -z "$(gofmt -l .)" && go vet ./... && go test ./...'
+  step "Go migration helper is vetted" bash -c \
+    'cd engines/go/migrate && test -z "$(gofmt -l .)" && go vet ./... && go test -p 1 ./...'
 fi
 step "proxy overhead within its budget" \
   node --import tsx proving/overhead/measure.mts --check

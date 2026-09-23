@@ -10,5 +10,6 @@
 
 export * from "./describe.ts";
 export * from "./edits.ts";
+export * from "./offsets.ts";
 export * from "./plan.ts";
 export type { ManualSite } from "./sites.ts";

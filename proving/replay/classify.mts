@@ -21,6 +21,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import {
   type ChoiceResponse,
   choice,
@@ -145,6 +146,9 @@ const SUPPRESSION =
   /\s*(#\s*type:\s*ignore(\[[^\]]*\])?|\/\/\s*@ts-(expect-error|ignore)\b.*|\/\*\s*@ts-(expect-error|ignore)\b.*?\*\/)\s*$/;
 const TIMEOUT =
   /(\{\s*timeout:\s*[\d_ *]+\s*\},?\s*|timeout:\s*[\d_ *]+,?\s*|\btimeout\b\s*=\s*[\d_ *]+,?\s*)/g;
+/** A quoted import path with a major version in it, `"example.com/sdk/v2/sub"`. */
+const VERSIONED_IMPORT = /("[\w.-]+\.[\w-]+\/[^"\s]*?)\/v(\d+)((?:\/[^"\s]*)?")/;
+const MODULE_VERSION = new RegExp(VERSIONED_IMPORT.source, "g");
 
 /**
  * The class of a site whose text alone settles it, and the rule that did. Only
@@ -173,6 +177,18 @@ export function ruleClass(site: Site): { class: SiteClass; rule: string } | unde
     added.some((line) => SUPPRESSION.test(line))
   ) {
     return { class: "sdk", rule: "type-suppression" };
+  }
+  // `"github.com/google/go-github/v88/github"` becoming `.../v89/github`: a Go
+  // module's major version is part of its import path, so every file that
+  // imports the SDK changes on every major bump, whatever the API did.
+  const unversioned = (lines: readonly string[]) =>
+    lines.map((line) => line.replace(MODULE_VERSION, "$1/vN$3"));
+  if (
+    squash(unversioned(removed)) === squash(unversioned(added)) &&
+    squash(removed) !== squash(added) &&
+    [...removed, ...added].some((line) => VERSIONED_IMPORT.test(line))
+  ) {
+    return { class: "sdk", rule: "module-version" };
   }
   const untimed = (lines: readonly string[]) =>
     lines.map((line) => line.replace(TIMEOUT, ""));
@@ -289,75 +305,160 @@ export interface SystemOne {
   }>;
 }
 
+/**
+ * One request, waited out when the service says it is busy. Rechecking the
+ * Go sites ran into the rate limit a third of the way through, and the run
+ * stopped asking for the rest, leaving them unclassed for no reason of their
+ * own.
+ */
+async function ask(
+  client: SystemOne,
+  request: Parameters<SystemOne["systemOne"]>[0],
+  wait = 15_000,
+): ReturnType<SystemOne["systemOne"]> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await client.systemOne(request);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (attempt >= 5 || !/\b429\b|rate limit/i.test(message)) throw error;
+      await sleep(wait * attempt);
+    }
+  }
+}
+
+export interface ClassifyOptions {
+  /**
+   * Also settle sites classed before the rules and the second question
+   * existed: a rule decides the ones it covers, and an answer below `SURE`
+   * that was never checked is checked now, as it would be if it were asked
+   * today. Nothing a rule or a check already settled is asked again.
+   */
+  recheck?: boolean;
+  /** How long to wait before asking again when the service is busy, growing each time. */
+  retryWait?: number;
+}
+
+interface Unsure {
+  site: Site;
+  picked: SiteClass;
+  confidence: number;
+}
+
 /** Classes each site not yet classed, a case's sites at a time. */
 export async function classify(
   sites: readonly Site[],
   classes: Record<string, ClassRecord>,
   client: SystemOne,
   model: string,
+  options: ClassifyOptions = {},
 ): Promise<number> {
   let asked = 0;
-  for (const site of sites) {
-    const key = siteKey(site);
-    if (classes[key]) continue;
-    const ruled = ruleClass(site);
-    if (ruled)
-      classes[key] = { class: ruled.class, confidence: 1, model: `rule:${ruled.rule}` };
-  }
-  const open = sites.filter(
-    (site, at) =>
-      !classes[siteKey(site)] &&
-      sites.findIndex((other) => siteKey(other) === siteKey(site)) === at,
+  const distinct = sites.filter(
+    (site, at) => sites.findIndex((other) => siteKey(other) === siteKey(site)) === at,
   );
+  const rechecking: Unsure[] = [];
+  for (const site of distinct) {
+    const key = siteKey(site);
+    const known = classes[key];
+    if (
+      known &&
+      (!options.recheck ||
+        known.model.startsWith("rule:") ||
+        known.model.endsWith("+check") ||
+        known.class === "contested")
+    ) {
+      continue;
+    }
+    const ruled = ruleClass(site);
+    if (ruled) {
+      classes[key] = { class: ruled.class, confidence: 1, model: `rule:${ruled.rule}` };
+    } else if (known && known.confidence < SURE) {
+      rechecking.push({ site, picked: known.class, confidence: known.confidence });
+    }
+  }
+  const open = distinct.filter((site) => !classes[siteKey(site)]);
   for (const batch of batches(open)) {
     const first = batch[0] as Site;
-    const response = await client.systemOne({
-      model,
-      state: {
-        sdk: first.package,
-        from_version: first.from || "unknown",
-        to_version: first.to,
-        sites: batch.map(siteState),
+    const response = await ask(
+      client,
+      {
+        model,
+        state: {
+          sdk: first.package,
+          from_version: first.from || "unknown",
+          to_version: first.to,
+          sites: batch.map(siteState),
+        },
+        questions: Object.fromEntries(
+          batch.map((_, index) => [`site_${index}`, siteQuestion(index)]),
+        ),
       },
-      questions: Object.fromEntries(
-        batch.map((_, index) => [`site_${index}`, siteQuestion(index)]),
-      ),
-    });
-    const unsure: { site: Site; index: number; picked: SiteClass; confidence: number }[] =
-      [];
+      options.retryWait,
+    );
+    const unsure: Unsure[] = [];
     batch.forEach((site, index) => {
       const answer = response.answers[`site_${index}`] as ChoiceResponse | undefined;
       const picked = answer?.choice;
       if (picked !== "contract" && picked !== "sdk" && picked !== "unrelated") return;
       const confidence = answer?.probabilities?.[picked] ?? answer?.confidence ?? 0;
       classes[siteKey(site)] = { class: picked, confidence, model: response.model };
-      if (confidence < SURE) unsure.push({ site, index, picked, confidence });
+      if (confidence < SURE) unsure.push({ site, picked, confidence });
       asked += 1;
     });
-    if (unsure.length === 0) continue;
-    const check = await client.systemOne({
+    await confirm(unsure, classes, client, model, options.retryWait);
+  }
+  const bySite = new Map(rechecking.map((each) => [siteKey(each.site), each]));
+  for (const batch of batches(rechecking.map((each) => each.site))) {
+    await confirm(
+      batch.map((site) => bySite.get(siteKey(site)) as Unsure),
+      classes,
+      client,
       model,
-      state: {
-        sdk: first.package,
-        from_version: first.from || "unknown",
-        to_version: first.to,
-        sites: batch.map(siteState),
-      },
-      questions: Object.fromEntries(
-        unsure.map(({ index }) => [`check_${index}`, counterQuestion(index)]),
-      ),
-    });
-    for (const { site, index, picked, confidence } of unsure) {
-      const answer = check.answers[`check_${index}`] as NoulResponse | undefined;
-      if (answer?.noul === undefined) continue;
-      // Yes means not a contract change. Only a clear answer either way can
-      // confirm the first; one near even confirms nothing.
-      const yes = answer.noul >= 0.7 ? true : answer.noul <= 0.3 ? false : undefined;
-      const agrees = yes !== undefined && yes === (picked !== "contract");
-      classes[siteKey(site)] = agrees
-        ? { class: picked, confidence, model: `${check.model}+check` }
-        : { class: "contested", confidence, model: `${check.model}+check` };
-    }
+      options.retryWait,
+    );
   }
   return asked;
+}
+
+/**
+ * The second question, for the sites Jev was unsure of. A clear answer that
+ * agrees keeps the first; anything else marks the site contested.
+ */
+async function confirm(
+  unsure: readonly Unsure[],
+  classes: Record<string, ClassRecord>,
+  client: SystemOne,
+  model: string,
+  wait?: number,
+): Promise<void> {
+  const first = unsure[0];
+  if (!first) return;
+  const check = await ask(
+    client,
+    {
+      model,
+      state: {
+        sdk: first.site.package,
+        from_version: first.site.from || "unknown",
+        to_version: first.site.to,
+        sites: unsure.map(({ site }) => siteState(site)),
+      },
+      questions: Object.fromEntries(
+        unsure.map((_, index) => [`check_${index}`, counterQuestion(index)]),
+      ),
+    },
+    wait,
+  );
+  unsure.forEach(({ site, picked, confidence }, index) => {
+    const answer = check.answers[`check_${index}`] as NoulResponse | undefined;
+    if (answer?.noul === undefined) return;
+    // Yes means not a contract change. Only a clear answer either way can
+    // confirm the first; one near even confirms nothing.
+    const yes = answer.noul >= 0.7 ? true : answer.noul <= 0.3 ? false : undefined;
+    const agrees = yes !== undefined && yes === (picked !== "contract");
+    classes[siteKey(site)] = agrees
+      ? { class: picked, confidence, model: `${check.model}+check` }
+      : { class: "contested", confidence, model: `${check.model}+check` };
+  });
 }

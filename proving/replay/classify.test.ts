@@ -106,6 +106,22 @@ describe("classing a human site", () => {
         ),
       ),
     ).toEqual({ class: "sdk", rule: "type-suppression" });
+    expect(
+      ruleClass(
+        edit(
+          ['\t"github.com/google/go-github/v69/github"'],
+          ['\t"github.com/google/go-github/v89/github"'],
+        ),
+      ),
+    ).toEqual({ class: "sdk", rule: "module-version" });
+    expect(
+      ruleClass(
+        edit(
+          ['\tgithub "github.com/google/go-github/v88/github"'],
+          ['\tgh "github.com/google/go-github/v89/github"'],
+        ),
+      ),
+    ).toBeUndefined();
     // A real change beside a timeout, or a changed call, is left to the judge.
     expect(ruleClass(edit(["a.discount"], ["a.discounts[0]"]))).toBeUndefined();
     expect(
@@ -147,6 +163,82 @@ describe("classing a human site", () => {
       confidence: 0.6,
       model: "jev-1.13.0+check",
     });
+  });
+
+  it("checks, when asked, an unsure answer recorded before the check existed", async () => {
+    const bump = edit(
+      ['\t"github.com/google/go-github/v69/github"'],
+      ['\t"github.com/google/go-github/v89/github"'],
+    );
+    const sure = { ...site, file: "src/sure.ts" };
+    const checked = { ...site, file: "src/checked.ts" };
+    const classes: Record<string, ClassRecord> = {
+      [siteKey(site)]: { class: "contract", confidence: 0.55, model: "jev-1.13.0" },
+      [siteKey(bump)]: { class: "contract", confidence: 0.63, model: "jev-1.13.0" },
+      [siteKey(sure)]: { class: "contract", confidence: 0.9, model: "jev-1.13.0" },
+      [siteKey(checked)]: {
+        class: "contract",
+        confidence: 0.6,
+        model: "jev-1.13.0+check",
+      },
+    };
+    const requests: { questions: Record<string, unknown> }[] = [];
+    const client = {
+      systemOne: async (request: { questions: Record<string, unknown> }) => {
+        requests.push(request);
+        return {
+          model: "jev-1.13.0",
+          answers: Object.fromEntries(
+            Object.keys(request.questions).map((key) => [
+              key,
+              { type: "noul", noul: 0.9 },
+            ]),
+          ),
+        };
+      },
+    };
+    await classify([site, bump, sure], classes, client, "jev-1.13.0");
+    expect(requests).toHaveLength(0);
+    await classify([site, bump, sure, checked], classes, client, "jev-1.13.0", {
+      recheck: true,
+    });
+    expect(requests.map((request) => Object.keys(request.questions))).toEqual([
+      ["check_0"],
+    ]);
+    expect(classes[siteKey(site)]?.class).toBe("contested");
+    expect(classes[siteKey(bump)]).toEqual({
+      class: "sdk",
+      confidence: 1,
+      model: "rule:module-version",
+    });
+    expect(classes[siteKey(sure)]?.model).toBe("jev-1.13.0");
+    expect(classes[siteKey(checked)]?.model).toBe("jev-1.13.0+check");
+  });
+
+  it("waits out a busy service rather than leaving sites unclassed", async () => {
+    const classes: Record<string, ClassRecord> = {};
+    let calls = 0;
+    const client = {
+      systemOne: async (request: { questions: Record<string, unknown> }) => {
+        calls += 1;
+        if (calls === 1)
+          throw new Error("429 Rate limit exceeded. Please retry shortly.");
+        return {
+          model: "jev-1.13.0",
+          answers: Object.fromEntries(
+            Object.keys(request.questions).map((key) => [
+              key,
+              { type: "choice", choice: "sdk", probabilities: { sdk: 0.95 } },
+            ]),
+          ),
+        };
+      },
+    };
+    expect(await classify([site], classes, client, "jev-1.13.0", { retryWait: 1 })).toBe(
+      1,
+    );
+    expect(calls).toBe(2);
+    expect(classes[siteKey(site)]?.class).toBe("sdk");
   });
 
   it("reads a cached site back where it was, so it keys as it did", async () => {

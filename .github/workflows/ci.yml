@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # A branch can be checked before it has a pull request.
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -21,6 +23,19 @@ jobs:
           go-version-file: engines/go/go.mod
       - name: The Go engine passes the conformance vectors
         working-directory: engines/go
+        run: |
+          test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+          go vet ./...
+          go test ./...
+
+      # The migration pack's helper is a module of its own, so the runtime's
+      # module never depends on golang.org/x/tools.
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: engines/go/migrate/go.mod
+          cache-dependency-path: engines/go/migrate/go.sum
+      - name: The Go migration helper builds, vets and is formatted
+        working-directory: engines/go/migrate
         run: |
           test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
           go vet ./...
@@ -73,12 +88,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       # The Node adapter suite also runs against the Go engine's net/http
-      # middleware (launch gate L10b), so this job needs Go, and the suite is
-      # told to fail rather than skip it.
+      # middleware (launch gate L10b), and the Go migration pack's tests build
+      # its helper, so this job needs Go, at the newer of the two modules'
+      # versions, and the suites are told to fail rather than skip.
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
-          go-version-file: engines/go/go.mod
-          cache-dependency-path: engines/go/go.mod
+          go-version-file: engines/go/migrate/go.mod
+          cache-dependency-path: |
+            engines/go/go.mod
+            engines/go/migrate/go.sum
 
       # The release binary a provider actually gets, verified against upstream's
       # checksums and the hash committed in packages/diff/src/binaries.ts. CI

@@ -59,6 +59,9 @@ importers:
       '@invariant-app/migrate-core':
         specifier: workspace:*
         version: link:packages/migrate-core
+      '@invariant-app/migrate-go':
+        specifier: workspace:*
+        version: link:packages/migrate-go
       '@invariant-app/migrate-py':
         specifier: workspace:*
         version: link:packages/migrate-py
@@ -521,6 +524,15 @@ importers:
       '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
+
+  packages/migrate-go:
+    dependencies:
+      '@invariant-app/ir':
+        specifier: workspace:*
+        version: link:../ir
+      '@invariant-app/migrate-core':
+        specifier: workspace:*
+        version: link:../migrate-core
 
   packages/migrate-py:
     dependencies:
