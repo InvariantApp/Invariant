@@ -111,12 +111,16 @@ const MaxDepth = 256
 // ErrTooDeep is returned for a body nested past MaxDepth.
 var ErrTooDeep = fmt.Errorf("the body nests more than %d levels deep", MaxDepth)
 
-// beyondDouble says whether the text holds a number a double might not: an
-// exponent of three digits or more, or sixteen digits in a row, since a double
-// rounds integers past 2^53 (Qdrant sends a limit of u64::MAX). Such a body
-// keeps its numbers' original digits rather than reading them as doubles. It
-// means what the reference's /[\d.][eE][+-]?\d{3}|\d{16}/ means, scanned by
-// hand because Go's regular expressions take most of a parse to run it.
+// beyondDouble says whether the text holds a number that reading it as a
+// double, or writing the double back, would not keep as it was sent: sixteen
+// digits in a row, since a double rounds integers past 2^53 (Qdrant sends a
+// limit of u64::MAX); a fraction ending in zero, an exponent, or a negative
+// zero, since a double is written back the shortest way and `1.0` comes out
+// as `1` (Qdrant tells a multivector from other inputs by how its numbers are
+// written). Such a body keeps its numbers' original digits. It means what the
+// reference's /\d{16}|\.\d*0(?:[^\d]|$)|[\d.][eE]|-0(?:[^.\d]|$)/ means,
+// scanned by hand because Go's regular expressions take most of a parse to
+// run it.
 func beyondDouble(text []byte) bool {
 	digit := func(c byte) bool { return c >= '0' && c <= '9' }
 	run := 0
@@ -130,12 +134,25 @@ func beyondDouble(text []byte) bool {
 			continue
 		}
 		run = 0
-		if (c == 'e' || c == 'E') && index > 0 && (digit(text[index-1]) || text[index-1] == '.') {
-			at := index + 1
-			if at < len(text) && (text[at] == '+' || text[at] == '-') {
-				at++
+		switch c {
+		case '.':
+			end := index + 1
+			for end < len(text) && digit(text[end]) {
+				end++
 			}
-			if at+2 < len(text) && digit(text[at]) && digit(text[at+1]) && digit(text[at+2]) {
+			if end > index+1 && text[end-1] == '0' {
+				return true
+			}
+			if end < len(text) && (text[end] == 'e' || text[end] == 'E') {
+				return true
+			}
+		case 'e', 'E':
+			if index > 0 && digit(text[index-1]) {
+				return true
+			}
+		case '-':
+			if index+1 < len(text) && text[index+1] == '0' &&
+				(index+2 == len(text) || !(text[index+2] == '.' || digit(text[index+2]))) {
 				return true
 			}
 		}

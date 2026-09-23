@@ -29,7 +29,7 @@ func TestObjectKeyOrderIsJavaScripts(t *testing.T) {
 // The hand-written scan means what the reference's regular expression means,
 // on every string, not only on the ones a person thought of.
 func TestBeyondDoubleIsTheReferencePattern(t *testing.T) {
-	pattern := regexp.MustCompile(`[\d.][eE][+-]?\d{3}|\d{16}`)
+	pattern := regexp.MustCompile(`\d{16}|\.\d*0(?:[^\d]|$)|[\d.][eE]|-0(?:[^.\d]|$)`)
 	alphabet := []byte("0123456789.eE+-x\" ")
 	random := rand.New(rand.NewPCG(1, 2))
 	for range 20_000 {

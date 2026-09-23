@@ -373,9 +373,21 @@ describe("a number a double cannot hold", () => {
     ).toBe('{"limit":18446744073709551615,"vector":[0.1,0.2],"m":1}');
   });
 
-  it("still takes the fast path for a body with nothing out of range", () => {
-    expect(run('{"amount":1e99,"id":"file123"}', [], "double")).toBe(
-      '{"amount":1e+99,"id":"file123"}',
+  it("keeps how a number was written, where writing it back would change it (Qdrant)", () => {
+    // `1.0` written back from a double is `1`, and Qdrant tells a multivector
+    // from other inputs by how its numbers are written.
+    for (const body of [
+      '{"vector":[[1.0,2.0,3.0]]}',
+      '{"amount":1e99,"id":"file123"}',
+      '{"fee":-0,"ratio":2.50}',
+    ]) {
+      expect(run(body, [], "double")).toBe(body);
+    }
+  });
+
+  it("still takes the fast path for numbers written as a double writes them", () => {
+    expect(run('{"amount":12.5,"count":3,"id":"file123"}', [], "double")).toBe(
+      '{"amount":12.5,"count":3,"id":"file123"}',
     );
   });
 });
