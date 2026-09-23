@@ -1734,6 +1734,55 @@ describe("fields that moved together through a wrapper", () => {
     }
   });
 
+  it("reads a wrapper that is a named schema to find what moved through it (Datadog)", async () => {
+    // As Datadog wrote it: the revision pointed at a resource schema whose
+    // `attributes` is a schema of its own, and now points at one listing
+    // those fields flat. Both old schemas are still there, unchanged.
+    const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
+    const shared = {
+      ...base,
+      Revision: object({
+        type: { type: "string", enum: ["custom_rule_revision"] },
+        attributes: ref("RevisionAttributes"),
+      }),
+      RevisionAttributes: object({
+        code: { type: "string" },
+        name: { type: "string" },
+        language: { type: "string" },
+      }),
+    };
+    const outcome = await propose(
+      contract({
+        ...shared,
+        Thing: object({ id: { type: "string" }, revision: ref("Revision") }, ["id"]),
+      }),
+      contract({
+        ...shared,
+        RevisionInput: object({
+          code: { type: "string" },
+          name: { type: "string" },
+          language: { type: "string" },
+        }),
+        Thing: object({ id: { type: "string" }, revision: ref("RevisionInput") }, ["id"]),
+      }),
+      { judge: new RulesJudge() },
+    );
+    const regrouped = outcome.proposals.find((proposal) =>
+      proposal.change.id.endsWith("_hoisted"),
+    );
+    expect(regrouped?.change.ops).toEqual([
+      { op: "move", from: "/revision/attributes/code", to: "/revision/code" },
+      { op: "move", from: "/revision/attributes/name", to: "/revision/name" },
+      { op: "move", from: "/revision/attributes/language", to: "/revision/language" },
+    ]);
+    for (const path of ["/revision/code", "/revision/attributes"]) {
+      expect(
+        opsOn(outcome, path).filter((op) => op.op !== "move"),
+        path,
+      ).toEqual([]);
+    }
+  });
+
   it("is a move for each field when a wrapper was introduced", async () => {
     const outcome = await propose(
       contract({

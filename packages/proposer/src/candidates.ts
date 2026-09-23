@@ -822,15 +822,71 @@ function compareReading(
   if (saysNothing(newContract, newRoot) && !saysNothing(oldContract, oldRoot)) {
     return stoppedDescribing(oldContract, oldRoot, name);
   }
-  const compared = compare(left, right);
-  if (!compared || compared.removed.length === 0) return compared;
-  const inlined = referencesInPlace(
+  const first = compare(left, right);
+  const inlined =
+    first && first.removed.length > 0
+      ? referencesInPlace(
+          newContract,
+          right,
+          first.removed.map((field) => field.pointer),
+          newSchemas,
+        )
+      : [];
+  const read = inlined.length > 0 ? [...right, ...inlined] : right;
+  const compared = inlined.length > 0 ? compare(left, read) : first;
+  if (!compared) return compared;
+  const opened = wrappersOpened(
+    oldContract,
     newContract,
-    right,
-    compared.removed.map((field) => field.pointer),
+    oldSchemas,
     newSchemas,
+    compared,
   );
-  return inlined.length > 0 ? compare(left, [...right, ...inlined]) : compared;
+  if (opened.before.length === 0 && opened.after.length === 0) return compared;
+  const regrouped = compare([...left, ...opened.before], [...read, ...opened.after]);
+  return regrouped?.regrouped !== undefined ? regrouped : compared;
+}
+
+/**
+ * What a wrapper that went, or arrived, holds, where it is a named schema.
+ *
+ * Datadog's custom rule revision kept twenty fields in `attributes`, a
+ * reference to a schema of its own, and a later release listed those twenty
+ * directly on the revision. A named schema is compared under its own name,
+ * so the walk never lists what a referenced field holds, and the wrapper
+ * looked removed with nothing in it to pair with the fields that arrived.
+ * What it held is read here only to find fields that moved through it, and
+ * kept only where some did: otherwise it is still one wrapper removed.
+ */
+function wrappersOpened(
+  oldContract: OpenApiDocument,
+  newContract: OpenApiDocument,
+  oldSchemas: Record<string, JsonValue>,
+  newSchemas: Record<string, JsonValue>,
+  compared: NonNullable<ReturnType<typeof compare>>,
+): { before: FieldShape[]; after: FieldShape[] } {
+  const open = (
+    document: OpenApiDocument,
+    schemas: Record<string, JsonValue>,
+    fields: readonly FieldShape[],
+  ) =>
+    fields.flatMap((field) => {
+      const name = field.ref === undefined ? undefined : schemaName(field.ref);
+      if (name === undefined || !(name in schemas)) return [];
+      const depth = segmentsOfPointer(field.pointer).filter(
+        (segment) => !isWildcardSegment(segment),
+      ).length;
+      return fieldsOf(
+        document,
+        schemas[name] as JsonValue,
+        { name: field.name, pointer: field.pointer },
+        depth,
+      );
+    });
+  return {
+    before: open(oldContract, oldSchemas, compared.removed),
+    after: open(newContract, newSchemas, compared.added),
+  };
 }
 
 /**
