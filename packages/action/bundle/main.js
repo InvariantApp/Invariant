@@ -14323,7 +14323,7 @@ function repositoryOf(path) {
 	}
 }
 /** Whether `path` is `root` or lies somewhere beneath it. */
-function within$1(root, path) {
+function within$2(root, path) {
 	const inside = relative(root, path);
 	return inside !== ".." && !inside.startsWith(`..${sep}`) && !isAbsolute(inside);
 }
@@ -14347,11 +14347,11 @@ async function bundleDocument(path, options = {}) {
 		const cached = files.get(file);
 		if (cached !== void 0) return cached;
 		const outsideAt = `${from} refers to ${file}, outside the repository at ${root}. A specification may only refer to files beside it.`;
-		if (!within$1(root, file)) throw new BundleError(outsideAt);
+		if (!within$2(root, file)) throw new BundleError(outsideAt);
 		if (files.size >= MAX_FILES) throw new BundleError(`${entry} refers to more than ${MAX_FILES} files`);
 		let text;
 		try {
-			if (file !== entry && !within$1(await realpath(root), await realpath(file))) throw new BundleError(outsideAt);
+			if (file !== entry && !within$2(await realpath(root), await realpath(file))) throw new BundleError(outsideAt);
 			text = await readFile(file, "utf8");
 		} catch (error) {
 			if (error instanceof BundleError) throw error;
@@ -15268,6 +15268,31 @@ function bodyFromSharedParameter(converted, consumed, sourceItem, item) {
 		};
 	}
 }
+const SCHEMAS = "#/components/schemas/";
+/**
+* A response that names a definition, where 2.0 wants a response, is a
+* response whose body is that definition. Gitea answers its four runner
+* listings with `$ref: "#/definitions/ActionRunnersResponse"`; upgraded as
+* written, it named a schema where a response belongs, and the differ refused
+* the whole document. The description is the definition's own, which is what
+* go-swagger would have written had the reference been to a response.
+*/
+function responseNamingSchema(converted, source, sourceOperation, operation) {
+	const responses = operation["responses"];
+	if (!isJsonObject(responses)) return;
+	const components = converted["components"];
+	const schemas = isJsonObject(components) ? components["schemas"] : void 0;
+	const types = mediaTypes(sourceOperation["produces"]) ?? mediaTypes(source["produces"]) ?? ["application/json"];
+	for (const [status, response] of Object.entries(responses)) {
+		const ref = isJsonObject(response) ? response["$ref"] : void 0;
+		if (typeof ref !== "string" || !ref.startsWith(SCHEMAS)) continue;
+		const schema = isJsonObject(schemas) ? schemas[ref.slice(21)] : void 0;
+		responses[status] = {
+			description: isJsonObject(schema) && typeof schema["description"] === "string" ? schema["description"] : "",
+			content: Object.fromEntries(types.map((type) => [type, { schema: { $ref: ref } }]))
+		};
+	}
+}
 /** The upgrader's output, corrected against the 2.0 document it came from. Mutates `converted`. */
 function correctUpgrade(source, converted) {
 	const sourcePaths = source["paths"];
@@ -15280,6 +15305,7 @@ function correctUpgrade(source, converted) {
 				const sourceOperation = sourceItem[method];
 				const operation = item[method];
 				if (!isJsonObject(sourceOperation) || !isJsonObject(operation)) continue;
+				responseNamingSchema(converted, source, sourceOperation, operation);
 				responseMediaTypes(sourceOperation, operation);
 				requiredForm(parametersOf$2(sourceItem, sourceOperation), operation);
 			}
@@ -16019,7 +16045,7 @@ function mergeSchemas(document, left, right, depth) {
 */
 const COVERED = { covered: true };
 /** Keywords that describe a value without constraining it. */
-const ANNOTATIONS$1 = /* @__PURE__ */ new Set([
+const ANNOTATIONS$2 = /* @__PURE__ */ new Set([
 	"title",
 	"description",
 	"example",
@@ -16147,7 +16173,7 @@ function referencesAlike(old, next) {
 function unannotated(value) {
 	if (Array.isArray(value)) return value.map(unannotated);
 	if (!isJsonObject(value)) return value;
-	return Object.fromEntries(Object.entries(value).filter(([key]) => !ANNOTATIONS$1.has(key) && !key.startsWith("x-")).map(([key, child]) => [key, key === "properties" && isJsonObject(child) ? Object.fromEntries(Object.entries(child).map(([name, schema]) => [name, unannotated(schema)])) : unannotated(child)]));
+	return Object.fromEntries(Object.entries(value).filter(([key]) => !ANNOTATIONS$2.has(key) && !key.startsWith("x-")).map(([key, child]) => [key, key === "properties" && isJsonObject(child) ? Object.fromEntries(Object.entries(child).map(([name, schema]) => [name, unannotated(schema)])) : unannotated(child)]));
 }
 /** How deep `keepsNames` reads. */
 const NAME_DEPTH = 12;
@@ -16235,7 +16261,7 @@ var Prover = class {
 			}
 			return whole;
 		}
-		const unknown = Object.keys(o).find((keyword) => !ANNOTATIONS$1.has(keyword) && !UNDERSTOOD.has(keyword) && !keyword.startsWith("x-") && JSON.stringify(o[keyword]) !== JSON.stringify(i[keyword]));
+		const unknown = Object.keys(o).find((keyword) => !ANNOTATIONS$2.has(keyword) && !UNDERSTOOD.has(keyword) && !keyword.startsWith("x-") && JSON.stringify(o[keyword]) !== JSON.stringify(i[keyword]));
 		if (unknown) return missed(at, `\`${unknown}\` is not something this can compare`);
 		const outerTypes = typesOf$2(o);
 		const innerTypes = typesOf$2(i);
@@ -16529,7 +16555,7 @@ function branchesOf(schema) {
 function withSiblings(document, union, branch) {
 	const { oneOf: _one, anyOf: _any, discriminator, ...siblings } = union;
 	const parts = [];
-	if (Object.keys(siblings).some((key) => !ANNOTATIONS$1.has(key))) parts.push(siblings);
+	if (Object.keys(siblings).some((key) => !ANNOTATIONS$2.has(key))) parts.push(siblings);
 	const property = isJsonObject(discriminator) ? discriminator["propertyName"] : void 0;
 	if (typeof property === "string") parts.push({ required: [property] });
 	if (parts.length === 0) return branch;
@@ -16537,7 +16563,7 @@ function withSiblings(document, union, branch) {
 }
 /** Whether a schema constrains nothing at all. */
 function isOpen(schema) {
-	return Object.keys(schema).every((keyword) => ANNOTATIONS$1.has(keyword) || keyword.startsWith("x-"));
+	return Object.keys(schema).every((keyword) => ANNOTATIONS$2.has(keyword) || keyword.startsWith("x-"));
 }
 function resolved(document, schema) {
 	if (schema === true || schema === false) return schema;
@@ -16576,6 +16602,17 @@ const a = (type) => /^[aeiou]/.test(type) ? `an ${type}` : `a ${type}`;
 * inside `GET /v1/payments` 200. Walking `$ref` usage is what turns one
 * statement about a schema into the exact set of pointers to transform.
 */
+/** Keywords that describe a schema without constraining its values. */
+const ANNOTATIONS$1 = /* @__PURE__ */ new Set([
+	"title",
+	"description",
+	"example",
+	"examples",
+	"deprecated",
+	"readOnly",
+	"writeOnly",
+	"externalDocs"
+]);
 const JSON_KINDS$1 = [
 	"object",
 	"array",
@@ -16708,10 +16745,10 @@ function closedValues(document, branch, property) {
 * The one JSON kind every value of a schema has, where it says so. A schema
 * that may also be null, or that is written as several types, has none.
 */
-function jsonKindOf(document, schema) {
+function jsonKindOf(document, schema, within = /* @__PURE__ */ new Set()) {
 	const resolved = resolveSchema(document, schema);
-	if (!isJsonObject(resolved)) return void 0;
-	if (resolved["nullable"] === true) return void 0;
+	if (!isJsonObject(resolved) || within.has(resolved)) return void 0;
+	if (resolved["nullable"] === true) return Object.keys(resolved).filter((key) => !ANNOTATIONS$1.has(key)).length === 1 ? "null" : void 0;
 	const type = resolved["type"];
 	if (typeof type === "string") {
 		if (type === "integer") return "number";
@@ -16720,6 +16757,18 @@ function jsonKindOf(document, schema) {
 	if (type !== void 0) return void 0;
 	if (isJsonObject(resolved["properties"])) return "object";
 	if (resolved["items"] !== void 0) return "array";
+	for (const key of ["oneOf", "anyOf"]) {
+		const branches = resolved[key];
+		if (!Array.isArray(branches) || branches.length === 0) continue;
+		const inside = /* @__PURE__ */ new Set([...within, resolved]);
+		const kinds = new Set(branches.map((branch) => jsonKindOf(document, branch, inside)));
+		const [only] = kinds;
+		return kinds.size === 1 ? only : void 0;
+	}
+}
+/** Whether every branch of a union but the one at `index` holds only null. */
+function onlyNullBeside(document, branches, index) {
+	return branches.length > 1 && jsonKindOf(document, branches[index]) !== "null" && branches.every((branch, at) => at === index || jsonKindOf(document, branch) === "null");
 }
 /**
 * How the branch at `index` of a union is told apart from the rest, or
@@ -16887,6 +16936,10 @@ function walk$2(ctx, schema, segments) {
 			for (const message of inner.unsupported) note(ctx, message);
 			if (inner.found.length === 0) return;
 			const at = formatPointer(segments);
+			if (key !== "not" && onlyNullBeside(ctx.document, branches, index)) {
+				ctx.found.push(...inner.found);
+				return;
+			}
 			const guard = key === "not" ? void 0 : guardFor(ctx.document, schema, branches, index, at);
 			if (!guard) {
 				note(ctx, `${at || "/"} reaches the schema through ${key}, and nothing tells its branches apart`);
@@ -17125,6 +17178,10 @@ function refsWithin(document, root, keep) {
 				const inner = visit(branch, segments);
 				if (inner.length === 0) return;
 				const at = formatPointer(segments);
+				if (key !== "not" && onlyNullBeside(document, branches, index)) {
+					found.push(...inner);
+					return;
+				}
 				const guard = key === "not" ? void 0 : guardFor(document, schema, branches, index, at);
 				if (!guard) {
 					if (unsupported.length < MAX_NOTES) unsupported.push(`${at || "/"} reaches the schema through ${key}, and nothing tells its branches apart`);
@@ -19723,6 +19780,42 @@ function appendVary(headers, names) {
 	if (missing.length === 0) return;
 	headers.set("vary", [...current ? [current] : [], ...missing].join(", "));
 }
+/**
+* Statuses a `Response` may not be built with a body for. RFC 9110 gives 205
+* no content, and `fetch` enforces it, but servers answer with one anyway:
+* Gitea returns the notifications it marked read with its 205.
+*/
+const NULL_BODY_STATUSES = /* @__PURE__ */ new Set([
+	101,
+	103,
+	204,
+	205,
+	304
+]);
+/**
+* A response rebuilt around a status someone else chose, keeping the body
+* that came with it whatever the status. Every place the runtime or a binding
+* passes a provider's answer on goes through this, so none of them drops a
+* body the caller's contract promised. Where `Response` insists the status
+* has none, it is built at 200 and reports the status it was given, so
+* whatever writes it to the wire sends both; only what the provider itself
+* answered is ever built this way.
+*/
+function responseOf(body, status, headers) {
+	if (body === null || body === void 0 || !NULL_BODY_STATUSES.has(status)) return new Response(body, {
+		status,
+		headers
+	});
+	const response = new Response(body, {
+		status: 200,
+		headers
+	});
+	Object.defineProperty(response, "status", {
+		value: status,
+		enumerable: true
+	});
+	return response;
+}
 //#endregion
 //#region ../runtime/src/version.ts
 const VERSION = "0.1.0";
@@ -21282,10 +21375,7 @@ var InvariantRuntime = class {
 				headers
 			});
 		}
-		if (!site || !response.body || !this.respondsTo(site, response.status) || !isJsonMediaType(response.headers.get("content-type"))) return new Response(response.body, {
-			status: response.status,
-			headers
-		});
+		if (!site || !response.body || !this.respondsTo(site, response.status) || !isJsonMediaType(response.headers.get("content-type"))) return responseOf(response.body, response.status, headers);
 		try {
 			const original = await readBodyText(response, {
 				limit: this.#maxBodyBytes,
@@ -21295,10 +21385,7 @@ var InvariantRuntime = class {
 			const rebuilt = headersForText(headers, transformed.body, original.decoded);
 			if (transformed.body !== original.text) mark(rebuilt);
 			if (transformed.folded.length > 0) rebuilt.set(FOLDED_HEADER, transformed.folded.join(", "));
-			return new Response(transformed.body, {
-				status: response.status,
-				headers: rebuilt
-			});
+			return responseOf(transformed.body, response.status, rebuilt);
 		} catch (error) {
 			const shaped = responseFailure(options.errors ?? DEFAULT_ERROR_SHAPER, error);
 			if (!shaped) throw error;
@@ -23436,6 +23523,7 @@ function schemaLens(oldContract, changes, schemaRef, newContract) {
 		forward: [],
 		backward: []
 	};
+	const relaxed = [];
 	for (const change of changes) {
 		const dataOps = change.ops.filter(isDataOp);
 		if (dataOps.length === 0) continue;
@@ -23445,6 +23533,11 @@ function schemaLens(oldContract, changes, schemaRef, newContract) {
 		for (const scope of change.scopes ?? []) {
 			if (!isSchemaScope(scope)) continue;
 			const places = findSchemaWithin(oldContract, scope.schema, schemaRef).placements;
+			for (const op of dataOps) {
+				if (op.op !== "relax") continue;
+				for (const place of places) relaxed.push(prefixed(place.prefix, op.path));
+				if (places.length > 0 && !involved.includes(change)) involved.push(change);
+			}
 			if (shared.targets.has(scope.schema)) {
 				if (places.length > 0 && !involved.includes(change)) involved.push(change);
 				for (const place of places) {
@@ -23471,6 +23564,7 @@ function schemaLens(oldContract, changes, schemaRef, newContract) {
 		backward: [...shared.entry(root, "backward"), ...backward.reverse().flat()],
 		changes: involved,
 		lossy,
+		relaxed,
 		blocks: shared.blocks
 	};
 }
@@ -23640,6 +23734,10 @@ function sitesOf(change, oldContract, issues, shared) {
 		});
 		found.push(...scan.sites);
 	}
+	if (change.ops.some((op) => isDataOp(op) && op.op !== "relax" && (op.op === "move" ? op.from === "" || op.to === "" : op.path === ""))) for (const site of found.filter((each) => each.prefix === "")) issues.push({
+		changeId: change.id,
+		message: `${site.operationId} ${site.direction}${site.status ? ` ${site.status}` : ""}: the value is the whole body there, which the runtime cannot replace`
+	});
 	return found;
 }
 function collectForward(change, oldContract, newContract, routes, sites, issues, shared) {
@@ -37877,6 +37975,7 @@ function walk(document, raw, value, segments, out) {
 	if (!isJsonObject(resolved)) return;
 	const schema = resolved;
 	const pointer = formatPointer(segments) || "/";
+	if (value === null && schema["nullable"] === true) return;
 	const allOf = schema["allOf"];
 	if (Array.isArray(allOf)) for (const branch of allOf) walk(document, branch, value, segments, out);
 	const enumValues = schema["enum"];
@@ -38096,6 +38195,23 @@ function stringFor$1(schema) {
 		unit: "grapheme-ascii"
 	});
 }
+/** Whether a value is of a type the schema declares, as a validator reads `type` and `nullable`. */
+function fitsType(schema, value) {
+	const types = typesOf(schema);
+	if (types.length === 0) return true;
+	if (value === null) return types.includes("null") || schema["nullable"] === true;
+	return types.some((type) => {
+		switch (type) {
+			case "integer": return typeof value === "number" && Number.isInteger(value);
+			case "number": return typeof value === "number";
+			case "string": return typeof value === "string";
+			case "boolean": return typeof value === "boolean";
+			case "array": return Array.isArray(value);
+			case "object": return isJsonObject(value);
+			default: return false;
+		}
+	});
+}
 function integerFor(schema) {
 	const step = schema["multipleOf"];
 	const { min, max } = bounds(schema, true);
@@ -38103,9 +38219,11 @@ function integerFor(schema) {
 		min,
 		max
 	});
+	const low = Math.min(Math.max(Math.ceil(min), -Number.MAX_SAFE_INTEGER), Number.MAX_SAFE_INTEGER);
+	const high = Math.max(Math.min(Math.floor(max), Number.MAX_SAFE_INTEGER), low);
 	return fast_check_default.integer({
-		min: Math.ceil(min),
-		max: Math.floor(max)
+		min: low,
+		max: high
 	});
 }
 /**
@@ -38132,7 +38250,10 @@ function arbitraryFor(document, raw, depth) {
 	const constant = schema["const"];
 	if (constant !== void 0) return fast_check_default.constant(constant);
 	const enumValues = schema["enum"];
-	if (Array.isArray(enumValues) && enumValues.length > 0) return fast_check_default.constantFrom(...enumValues);
+	if (Array.isArray(enumValues) && enumValues.length > 0) {
+		const allowed = enumValues.filter((value) => fitsType(schema, value));
+		return fast_check_default.constantFrom(...allowed.length > 0 ? allowed : enumValues);
+	}
 	for (const key of ["oneOf", "anyOf"]) {
 		const branches = schema[key];
 		if (Array.isArray(branches) && branches.length > 0) {
@@ -38690,7 +38811,7 @@ function unescapeSegment(segment) {
 	return segment.replaceAll("~1", "/").replaceAll("~0", "~");
 }
 /** The value at a pointer inside one item, for sorting by. */
-function within(value, pointer) {
+function within$1(value, pointer) {
 	if (pointer === void 0 || pointer === "") return value;
 	let cursor = value;
 	for (const segment of pointer.split("/").slice(1).map(unescapeSegment)) if (Array.isArray(cursor)) cursor = cursor[Number(segment)] ?? null;
@@ -38713,7 +38834,7 @@ function inDeclaredOrder(observations, unordered) {
 			const visit = (node, at) => {
 				if (at === segments.length) {
 					if (!Array.isArray(node)) return node;
-					const key = (item) => canonical(within(item, entry.by));
+					const key = (item) => canonical(within$1(item, entry.by));
 					return [...node].sort((a, b) => key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0);
 				}
 				const segment = segments[at];
@@ -38923,8 +39044,36 @@ const LABEL$1 = "old";
 * naming `__proto__`, an unknown primitive, or an unbounded wildcard is
 * refused. That means the verifier can never test a program the runtime would
 * have rejected at load time.
+*
+* A value that is neither an object nor a list is run from inside a body, as
+* every site that carries one holds it: a named vocabulary such as Qdrant's
+* `UpdateStatus` is always some object's field. Run as a whole body, the
+* runtime has nothing to write it back into, and a fold the provider decided
+* looked as if it never ran.
 */
 function lensFor(forward, backward, blocks = {}) {
+	const whole = siteFor(forward, backward, blocks);
+	const inside = siteFor(forward.length > 0 ? [within(forward)] : [], backward.length > 0 ? [within(backward)] : [], blocks);
+	const context = {
+		contract: LABEL$1,
+		operation: "verify"
+	};
+	const held = (value) => value === null || typeof value !== "object";
+	const run = (value, transform) => held(value) ? JSON.parse(transform(inside, JSON.stringify({ [HOLDER]: value })))[HOLDER] : JSON.parse(transform(whole, JSON.stringify(value)));
+	return {
+		forward: (value) => run(value, ({ runtime, site }, body) => runtime.transformRequest(site, body, context)),
+		backward: (value) => run(value, ({ runtime, site }, body) => runtime.transformResponse(site, STATUS, body, context))
+	};
+}
+/** The field a value that is not a body is carried in. */
+const HOLDER = "value";
+const within = (block) => ({
+	k: "within",
+	path: `/${HOLDER}`,
+	block: [...block],
+	c: "verify"
+});
+function siteFor(forward, backward, blocks) {
 	const runtime = createRuntime({
 		program: {
 			irVersion: 2,
@@ -38949,13 +39098,9 @@ function lensFor(forward, backward, blocks = {}) {
 	});
 	const site = runtime.siteFor(LABEL$1, METHOD, PATH);
 	if (!site) throw new Error("the verifier built a program with no site in it");
-	const context = {
-		contract: LABEL$1,
-		operation: "verify"
-	};
 	return {
-		forward: (value) => JSON.parse(runtime.transformRequest(site, JSON.stringify(value), context)),
-		backward: (value) => JSON.parse(runtime.transformResponse(site, STATUS, JSON.stringify(value), context))
+		runtime,
+		site
 	};
 }
 //#endregion
@@ -39501,6 +39646,7 @@ function clean(sent) {
 /** Removes the pointers a declared loss is allowed to change, on both sides. */
 function withoutLossy(value, pointers) {
 	if (pointers.length === 0) return value;
+	if (pointers.includes("")) return void 0;
 	const copy = structuredClone(value);
 	const remove = (cursor, segments) => {
 		if (cursor === null || typeof cursor !== "object") return;
@@ -39541,6 +39687,19 @@ function sameJson(a, b) {
 }
 function describe(violations) {
 	return violations.slice(0, 5).map((entry) => `${entry.pointer}: ${entry.message}`).join("; ");
+}
+/**
+* The violations no `relax` declared: one at or beneath a place a relax lets
+* values through is the loss that Change names, since the relaxed bound is
+* exactly what the other contract still states.
+*/
+function undeclared(violations, relaxed) {
+	if (relaxed.length === 0) return [...violations];
+	const patterns = relaxed.map(parsePointer);
+	return violations.filter((violation) => {
+		const at = parsePointer(violation.pointer);
+		return !patterns.some((pattern) => pattern.length <= at.length && pattern.every((segment, index) => segment === at[index] || segment === "*" && /^\d+$/.test(at[index] ?? "") || segment === "{}"));
+	});
 }
 /**
 * Groups Changes by the schema they touch, rather than checking each alone.
@@ -39596,11 +39755,12 @@ function checkLaws(oldContract, predicted, changes, options = {}) {
 		const digest = inputsDigest(entry.changes, entry.scope, runs);
 		const found = [];
 		const label = ids.join(", ");
+		const travels = schemaDirections(oldContract, entry.scope);
 		try {
 			const lens = lensFor(entry.forward, entry.backward, entry.blocks);
-			const outbound = run$1(oldContract, entry.scope, runs, options.seed, (value) => {
+			const outbound = !travels.request ? [] : run$1(oldContract, entry.scope, runs, options.seed, (value) => {
 				const canonical = lens.forward(value);
-				const violations = validateAgainst(predicted, entry.scope, canonical);
+				const violations = undeclared(validateAgainst(predicted, entry.scope, canonical), entry.relaxed);
 				if (violations.length > 0) return `forward produced a value the new contract does not allow (${describe(violations)})`;
 				const returned = lens.backward(canonical);
 				if (!sameJson(withoutLossy(returned, entry.lossy.forward), withoutLossy(value, entry.lossy.forward))) return `undoing it did not return the original: ${JSON.stringify(returned)}`;
@@ -39611,9 +39771,9 @@ function checkLaws(oldContract, predicted, changes, options = {}) {
 				scope: entry.scope,
 				law: "forward round trip"
 			});
-			const inbound = run$1(predicted, entry.scope, runs, options.seed, (value) => {
+			const inbound = !travels.response ? [] : run$1(predicted, entry.scope, runs, options.seed, (value) => {
 				const old = lens.backward(value);
-				const violations = validateAgainst(oldContract, entry.scope, old);
+				const violations = undeclared(validateAgainst(oldContract, entry.scope, old), entry.relaxed);
 				if (violations.length > 0) return `backward produced a value the old contract does not allow (${describe(violations)})`;
 				const returned = lens.forward(old);
 				if (!sameJson(withoutLossy(returned, entry.lossy.backward), withoutLossy(value, entry.lossy.backward))) return `re-applying it did not return the original: ${JSON.stringify(returned)}`;
@@ -39641,7 +39801,7 @@ function checkLaws(oldContract, predicted, changes, options = {}) {
 			result: refused.length > 0 ? "fail" : "pass",
 			inputsDigest: digest,
 			tool: "fast-check",
-			summary: refused.length > 0 ? `the transform refused ${refused.length} ${refused.length === 1 ? "value" : "values"} the contract allows` : `no generated value of ${entry.scope} was refused, in either direction`,
+			summary: refused.length > 0 ? `the transform refused ${refused.length} ${refused.length === 1 ? "value" : "values"} the contract allows` : `no generated value of ${entry.scope} was refused, in ${travels.request && travels.response ? "either direction" : "the direction it travels"}`,
 			...refused.length > 0 ? { detail: refused.map((failure) => failure.detail) } : {}
 		});
 		evidence.push({
@@ -39650,7 +39810,7 @@ function checkLaws(oldContract, predicted, changes, options = {}) {
 			result: found.length > 0 ? "fail" : "pass",
 			inputsDigest: digest,
 			tool: "fast-check",
-			summary: found.length > 0 ? `${found.length} of the laws failed on ${entry.scope}` : `${label} round trip on ${runs} generated values of ${entry.scope}, in both directions`,
+			summary: found.length > 0 ? `${found.length} of the laws failed on ${entry.scope}` : `${label} round trip on ${runs} generated values of ${entry.scope}, ${travels.request && travels.response ? "in both directions" : travels.request ? "from the old contract to the new, the only way it travels" : travels.response ? "from the new contract to the old, the only way it travels" : "which no request or response carries"}`,
 			...found.length > 0 ? { detail: found.map((failure) => `${failure.law}: ${failure.detail}`) } : {}
 		});
 	}
