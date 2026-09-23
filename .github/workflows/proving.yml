@@ -218,10 +218,15 @@ jobs:
           cache: false
 
       # NetBox's documents run to several megabytes, which the differ takes
-      # longer than its default five minutes over on a runner.
+      # longer than its default five minutes over on a runner. Each of its
+      # three rungs gets this long, and the full changelog runs twice to
+      # confirm it, so forty minutes each once outlasted the job; fifteen
+      # still falls back in time. Each call is logged, to see which rung
+      # answered.
       - name: Three arms per release pair
         env:
-          OASDIFF_TIMEOUT_MS: "2400000"
+          OASDIFF_TIMEOUT_MS: "900000"
+          OASDIFF_DEBUG: "1"
         run: pnpm proving:servers --project ${{ matrix.project }} --pair ${{ matrix.pair }}
 
       - uses: actions/upload-artifact@v4

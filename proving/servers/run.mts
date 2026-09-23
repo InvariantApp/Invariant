@@ -722,7 +722,12 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
   let c: ArmResult;
   let changes = 0;
   try {
+    // Timed, because on NetBox's documents the differ alone once outlasted
+    // the job, and a gate that says nothing for two hours looks hung.
+    log("  the gate: checking the release's Changes");
+    const started = Date.now();
     const checked = await gateFor(project, from, to);
+    log(`  the gate took ${Math.round((Date.now() - started) / 1000)}s`);
     // The report a provider reads, kept beside the drafts it judged, so a
     // release too large to check on a laptop can still be answered from one.
     await writeFile(join(work, "gate.txt"), renderReport(checked.report), "utf8");
