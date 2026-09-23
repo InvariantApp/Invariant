@@ -79,21 +79,30 @@ export const sendUpstream = ((input: string | URL | Request, init: RequestInit =
 
   return new Promise<Response>((resolve, reject) => {
     const send = target.protocol === "https:" ? httpsRequest : httpRequest;
-    const call = send(target, { method, headers: outgoing, signal }, (answer) => {
-      const headers = new Headers();
-      const raw = answer.rawHeaders;
-      for (let index = 0; index < raw.length; index += 2) {
-        headers.append(raw[index] as string, raw[index + 1] as string);
-      }
-      const status = answer.statusCode ?? 502;
-      if (method === "HEAD" || EMPTY.has(status)) {
-        answer.resume();
-        resolve(responseOf(null, status, headers));
-        return;
-      }
-      const body = Readable.toWeb(decoded(answer, headers)) as ReadableStream<Uint8Array>;
-      resolve(responseOf(body, status, headers));
-    });
+    // An empty Host is HTTP/1.1's way of naming no host, which Node's client
+    // would fill in with the provider's address unless told not to.
+    const setHost = outgoing["host"] !== "";
+    const call = send(
+      target,
+      { method, headers: outgoing, signal, setHost },
+      (answer) => {
+        const headers = new Headers();
+        const raw = answer.rawHeaders;
+        for (let index = 0; index < raw.length; index += 2) {
+          headers.append(raw[index] as string, raw[index + 1] as string);
+        }
+        const status = answer.statusCode ?? 502;
+        if (method === "HEAD" || EMPTY.has(status)) {
+          answer.resume();
+          resolve(responseOf(null, status, headers));
+          return;
+        }
+        const body = Readable.toWeb(
+          decoded(answer, headers),
+        ) as ReadableStream<Uint8Array>;
+        resolve(responseOf(body, status, headers));
+      },
+    );
     // A timeout is reported as the reason the signal gave, as `fetch` does,
     // so the proxy tells a slow provider from an unreachable one.
     call.on("error", (error) => reject(signal?.aborted ? signal.reason : error));

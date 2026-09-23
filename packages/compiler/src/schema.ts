@@ -157,6 +157,26 @@ function parentFor(
   return { parent: current, last: segments[segments.length - 1] as string };
 }
 
+/**
+ * Whether a schema is an object that says nothing of what it holds: no
+ * properties declared, nothing composed, and any field allowed. Meilisearch
+ * 1.53 wrote a dynamic search rule's `action` that way, `{type: object}`, and
+ * a Change still has to be able to say where the position it always held
+ * went. Only such an object: a field missing from one that declares its
+ * properties is a pointer to nothing, and stays refused as one.
+ */
+function opaqueObject(schema: JsonObject): boolean {
+  const properties = schema["properties"];
+  return (
+    schema["type"] === "object" &&
+    (!isJsonObject(properties) || Object.keys(properties).length === 0) &&
+    schema["additionalProperties"] !== false &&
+    !["allOf", "anyOf", "oneOf", "$ref", "not", "enum", "const"].some(
+      (keyword) => schema[keyword] !== undefined,
+    )
+  );
+}
+
 function readSlot(
   document: OpenApiDocument,
   root: JsonObject,
@@ -168,6 +188,17 @@ function readSlot(
     ? parent[keyword]
     : (parent["properties"] as JsonObject | undefined)?.[last];
   if (schema === undefined) {
+    if (!keyword && opaqueObject(parent)) {
+      // What such an object holds under any name is whatever it allows of
+      // every field, and nothing requires it to be there.
+      const values = parent["additionalProperties"];
+      return {
+        parent,
+        last,
+        schema: isJsonObject(values) ? clone(values) : {},
+        required: false,
+      };
+    }
     throw new SchemaOpError(`Nothing to read at "${segments.join("/")}"`);
   }
   return { parent, last, schema, required: !keyword && isRequired(parent, last) };

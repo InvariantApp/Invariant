@@ -248,6 +248,76 @@ export function operationIdChanges(
   });
 }
 
+/** The exact success statuses an operation declares, each with whether it promises a body. */
+function successStatuses(
+  document: OpenApiDocument,
+  operation: JsonObject,
+): Map<string, boolean> {
+  const out = new Map<string, boolean>();
+  const responses = operation["responses"];
+  if (!isJsonObject(responses)) return out;
+  for (const [status, declared] of Object.entries(responses)) {
+    if (!/^2\d\d$/.test(status)) continue;
+    const response =
+      isJsonObject(declared) && typeof declared["$ref"] === "string"
+        ? resolveRef(document, declared["$ref"])
+        : declared;
+    const content = isJsonObject(response) ? response["content"] : undefined;
+    out.set(status, isJsonObject(content) && Object.keys(content).length > 0);
+  }
+  return out;
+}
+
+/**
+ * Operations that kept their place and stopped answering one success status,
+ * where the two documents settle which status took its place: the one the
+ * new document added, or, where it added none, the one success status it has
+ * left. Gitea 1.25 answers the creation of an Actions variable only `201`,
+ * where 1.24 listed `201` and `204` and answered `204`.
+ *
+ * Not drafted where the old status promised a body the new one does not
+ * carry, since nothing can stand in for it; the gate then asks for a
+ * `behavior` Change, as it always did.
+ */
+export function statusChanges(before: OpenApiDocument, after: OpenApiDocument): Change[] {
+  const next = new Map(
+    operationsOf(after)
+      .filter((operation) => !operation.webhook)
+      .map((operation) => [`${operation.method} ${operation.path}`, operation.operation]),
+  );
+  return operationsOf(before).flatMap((operation) => {
+    const now = next.get(`${operation.method} ${operation.path}`);
+    if (operation.webhook || now === undefined) return [];
+    const old = successStatuses(before, operation.operation);
+    const current = successStatuses(after, now);
+    const gone = [...old.keys()].filter((status) => !current.has(status));
+    const added = [...current.keys()].filter((status) => !old.has(status));
+    const replacement =
+      added.length === 1
+        ? added[0]
+        : added.length === 0 && current.size === 1
+          ? [...current.keys()][0]
+          : undefined;
+    const from = gone[0];
+    if (gone.length !== 1 || from === undefined || replacement === undefined) return [];
+    if (old.get(from) === true && current.get(replacement) !== true) return [];
+    const endpoint = { method: operation.method, path: operation.path };
+    const slug = `${operation.method}_${operation.path}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    return [
+      {
+        irVersion: 1 as const,
+        id: `chg_status_${slug}`.slice(0, 120),
+        summary: `${operation.method.toUpperCase()} ${operation.path} answers ${replacement} where it answered ${from}.`,
+        ops: [{ op: "status" as const, endpoint, from, to: replacement }],
+        provenance: { proposed_by: { judge: "rules" as const, confidence: 1 } },
+      },
+    ];
+  });
+}
+
 /** One Change per retired endpoint, because each is a separate decision. */
 export function retireChange(endpoint: RetiredEndpoint): Change {
   const slug = `${endpoint.method}_${endpoint.path}`

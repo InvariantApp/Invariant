@@ -235,6 +235,19 @@ export function derive(change: Change): Derived {
           `${op.path || "the value"} is stated differently and allows nothing new to old callers, so it passes through exactly`,
         );
         break;
+      case "status":
+        // An old caller is answered the status it was promised, with the body
+        // it was promised: none where its contract said none, and otherwise
+        // the body, served as every body is. Nothing it was promised is lost;
+        // what it is not shown, it was never told of. Its source still
+        // checks for the old status, which a person has to change.
+        source = source === "manual" ? source : "assisted";
+        reasons.push(
+          `${op.endpoint.method.toUpperCase()} ${op.endpoint.path} answers ${op.to} ` +
+            `where it answered ${op.from}, so an old caller is answered ${op.from}; ` +
+            "code that checks the status it is answered has to be changed by hand to migrate",
+        );
+        break;
       case "retire":
         runtime = "none";
         source = "manual";

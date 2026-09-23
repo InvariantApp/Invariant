@@ -395,14 +395,26 @@ func (r *run) move(root any, instr *Instr) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	// A value moved beneath its own place, as Meilisearch's list of a rule's
+	// actions became the pin list of an object in its place, leaves that place
+	// first, so the object can be built there.
+	beneath := len(instr.To) > len(instr.From)
+	for index := 0; beneath && index < len(instr.From); index++ {
+		beneath = instr.From[index] == instr.To[index]
+	}
 	moved := 0
 	for _, s := range slots {
 		value, _ := readSlot(s)
+		if beneath {
+			deleteSlot(s)
+		}
 		target, ok := createSlot(root, instr.To, s.captures)
 		if !ok {
 			return moved, transformError(instr, "Cannot place the value from %s at %s", joined(instr.From), joined(instr.To))
 		}
-		deleteSlot(s)
+		if !beneath {
+			deleteSlot(s)
+		}
 		writeSlot(target, value)
 		pruneEmptyAncestors(root, instr.From, s.captures)
 		moved++

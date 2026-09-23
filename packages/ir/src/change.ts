@@ -522,6 +522,46 @@ export const RetireOp = Type.Object(
   },
 );
 
+/** A success status as a response is keyed by it: an exact code, `201`. */
+const SuccessStatus = Type.String({ pattern: "^2\\d\\d$" });
+
+/**
+ * An operation that answers with another success status.
+ *
+ * Gitea 1.25 answers the creation of an Actions variable `201 Created` where
+ * 1.24 answered `204 No Content`, and Immich 1.138 answers four operations
+ * `204` where 1.137 answered `200` with no body. Nothing about the work
+ * changed, and an old caller that checks the status it was promised fails on
+ * every one of them.
+ *
+ * An old caller is answered `from` wherever the operation now answers `to`.
+ * What happens to the body is read from the two contracts, not declared: where
+ * the old contract promised no body with `from`, none is sent, whatever the
+ * provider sent with `to`; where it promised one and `to` carries one, the
+ * body is served as every body is, through the release's other Changes. Where
+ * it promised one and `to` carries none, nothing can stand in for it, and the
+ * compiler refuses the Change.
+ *
+ * Exact, because an old caller is answered as its contract promised and is
+ * shown nothing it was not: a body it was never promised is not shown at all.
+ */
+export const StatusOp = Type.Object(
+  {
+    op: Type.Literal("status"),
+    /** The operation, as the old contract names it. */
+    endpoint: Endpoint,
+    /** The success status the old contract promised. */
+    from: SuccessStatus,
+    /** The success status the operation answers with now. */
+    to: SuccessStatus,
+  },
+  {
+    additionalProperties: false,
+    description:
+      "An operation answers with another success status. Old callers are answered `from` where it now answers `to`, with no body where their contract promised none.",
+  },
+);
+
 export const BehaviorOp = Type.Object(
   {
     op: Type.Literal("behavior"),
@@ -559,6 +599,7 @@ export const Op = Type.Union([
   RestateOp,
   RouteOp,
   RetireOp,
+  StatusOp,
   BehaviorOp,
 ]);
 
@@ -693,6 +734,7 @@ export type RelaxOp = Static<typeof RelaxOp>;
 export type RestateOp = Static<typeof RestateOp>;
 export type RouteOp = Static<typeof RouteOp>;
 export type RetireOp = Static<typeof RetireOp>;
+export type StatusOp = Static<typeof StatusOp>;
 export type BehaviorOp = Static<typeof BehaviorOp>;
 export type Op = Static<typeof Op>;
 export type SchemaScope = Static<typeof SchemaScope>;

@@ -252,7 +252,7 @@
     {
       "name": "gitea",
       "language": "Go",
-      "notes": "go-sdk's TestPull panics against its own release, Gitea 1.24.2, in CI (pull_test.go:105 dereferences a pull request the mergeability check did not return), and a panic ends the test binary, so every test after it went unrun in arm a. It is skipped by name; it would fail arm a and be left out anyway.",
+      "notes": "go-sdk's TestPull panics against its own release, Gitea 1.24.2, in CI (pull_test.go:105 dereferences a pull request the mergeability check did not return), and a panic ends the test binary, so every test after it went unrun in arm a. It is skipped by name; it would fail arm a and be left out anyway. 1.23.7 -> 1.24.2, with go-sdk 0.22.0, the release that tested 1.23.7, was run (Actions run 35917620682) and broke nothing the suite exercises, so it is not kept.",
       "repo": "go-gitea/gitea",
       "image": "gitea/gitea",
       "server": {
@@ -334,6 +334,74 @@
         }
       },
       "pairs": [["v1.24.2", "v1.25.4"]]
+    },
+    {
+      "name": "immich",
+      "language": "TypeScript",
+      "notes": "The suite is Immich's own end-to-end API specs (e2e/src/api), which call 127.0.0.1:2285 and reach the database on 127.0.0.1:5435 themselves, so the server answers on the port the suite names and the proxy takes it in arm c. The CLI and immich-admin specs are left out: they run the release's command-line tools rather than calling the API.",
+      "repo": "immich-app/immich",
+      "image": "ghcr.io/immich-app/immich-server",
+      "server": {
+        "port": 2285,
+        "suitePort": 2285,
+        "ready": "/api/server/ping",
+        "readySeconds": 300,
+        "compose": "compose/immich.yaml",
+        "secrets": {
+          "IMMICH_DB_PASSWORD": {
+            "suite": "src/utils.ts",
+            "pattern": "postgres://postgres:([^@]+)@127\\.0\\.0\\.1:5435/immich"
+          }
+        }
+      },
+      "spec": {
+        "path": "open-api/immich-openapi-specs.json"
+      },
+      "suite": {
+        "sparse": [
+          "e2e",
+          "open-api/typescript-sdk",
+          "cli",
+          "open-api/immich-openapi-specs.json",
+          ".gitmodules"
+        ],
+        "submodules": ["e2e/test-assets"],
+        "dir": "e2e",
+        "install": [
+          [
+            "npm",
+            "ci",
+            "--prefix",
+            "../open-api/typescript-sdk",
+            "--no-audit",
+            "--no-fund"
+          ],
+          ["npm", "run", "build", "--prefix", "../open-api/typescript-sdk"],
+          ["npm", "ci", "--no-audit", "--no-fund"]
+        ],
+        "run": [
+          "npx",
+          "vitest",
+          "run",
+          "src/api",
+          "--reporter=default",
+          "--reporter=junit",
+          "--outputFile.junit={report}"
+        ],
+        "select": ["-t", "{select}"],
+        "env": {}
+      },
+      "releases": {
+        "v1.137.3": {
+          "commit": "007ba1d9efdc571c87ca1553dd28dbbfe7eeee2f",
+          "digest": "sha256:e517f806457057d44695152a0af2dfa094225a7d85eb37f518925e68864c658d"
+        },
+        "v1.138.0": {
+          "commit": "bede19a3ca48c2c0465c7fb80fdc8d36ec428aa0",
+          "digest": "sha256:12cee930e2cc211a95acae12ad780c0b2eecaea0479a06e255c73a4deb0b3efb"
+        }
+      },
+      "pairs": [["v1.137.3", "v1.138.0"]]
     }
   ],
   "skipped": [
@@ -356,11 +424,6 @@
       "name": "forgejo",
       "language": "Go",
       "reason": "No live-instance suite fails because of an ERR-level delta: the Forgejo specification barely changes on the wire from 7 to 16. The one exercised break found (9.0 refusing a token with no scopes, which fails forgejo-sdk v1.2.0's TestUserApp) is absent from the specification, whose CreateAccessTokenOption is identical in 8.0.3 and 9.0.3."
-    },
-    {
-      "name": "immich",
-      "language": "TypeScript",
-      "reason": "The one pair whose break its own e2e suite exercises, 1.137.3 -> 1.138.0, changes only success statuses (200 to 204 on four operations the suite checks, with empty bodies both sides). The catalogue classes a success status removed as behavior-only and the IR has no op that answers an old caller with another status, so no Change could serve it; every other exercised break (1.113 stacks, 3.0 error envelope) is behavioral."
     },
     {
       "name": "appwrite",

@@ -1,0 +1,108 @@
+# Written by hand, as Immich's maintainers would: 1.138 syncs an album's
+# assets, and their metadata, as two kinds, created and updated, where 1.137
+# synced both as one. An old caller acking the one kind acks the created ones,
+# and is shown an update as the one kind it knows, which is what it was shown
+# before.
+irVersion: 1
+id: chg_sync_entity_type_sync_entity_type_vocabulary
+summary: "An album's assets and their metadata are synced as created and as updated, where they were synced as one kind."
+scopes:
+  - schema: "#/components/schemas/SyncEntityType"
+ops:
+  - op: convert
+    path: ""
+    codec:
+      kind: enumMap
+      pairs:
+        - - AuthUserV1
+          - AuthUserV1
+        - - UserV1
+          - UserV1
+        - - UserDeleteV1
+          - UserDeleteV1
+        - - AssetV1
+          - AssetV1
+        - - AssetDeleteV1
+          - AssetDeleteV1
+        - - AssetExifV1
+          - AssetExifV1
+        - - PartnerV1
+          - PartnerV1
+        - - PartnerDeleteV1
+          - PartnerDeleteV1
+        - - PartnerAssetV1
+          - PartnerAssetV1
+        - - PartnerAssetBackfillV1
+          - PartnerAssetBackfillV1
+        - - PartnerAssetDeleteV1
+          - PartnerAssetDeleteV1
+        - - PartnerAssetExifV1
+          - PartnerAssetExifV1
+        - - PartnerAssetExifBackfillV1
+          - PartnerAssetExifBackfillV1
+        - - PartnerStackBackfillV1
+          - PartnerStackBackfillV1
+        - - PartnerStackDeleteV1
+          - PartnerStackDeleteV1
+        - - PartnerStackV1
+          - PartnerStackV1
+        - - AlbumV1
+          - AlbumV1
+        - - AlbumDeleteV1
+          - AlbumDeleteV1
+        - - AlbumUserV1
+          - AlbumUserV1
+        - - AlbumUserBackfillV1
+          - AlbumUserBackfillV1
+        - - AlbumUserDeleteV1
+          - AlbumUserDeleteV1
+        - - AlbumAssetBackfillV1
+          - AlbumAssetBackfillV1
+        - - AlbumAssetExifBackfillV1
+          - AlbumAssetExifBackfillV1
+        - - AlbumToAssetV1
+          - AlbumToAssetV1
+        - - AlbumToAssetDeleteV1
+          - AlbumToAssetDeleteV1
+        - - AlbumToAssetBackfillV1
+          - AlbumToAssetBackfillV1
+        - - MemoryV1
+          - MemoryV1
+        - - MemoryDeleteV1
+          - MemoryDeleteV1
+        - - MemoryToAssetV1
+          - MemoryToAssetV1
+        - - MemoryToAssetDeleteV1
+          - MemoryToAssetDeleteV1
+        - - StackV1
+          - StackV1
+        - - StackDeleteV1
+          - StackDeleteV1
+        - - PersonV1
+          - PersonV1
+        - - PersonDeleteV1
+          - PersonDeleteV1
+        - - AssetFaceV1
+          - AssetFaceV1
+        - - AssetFaceDeleteV1
+          - AssetFaceDeleteV1
+        - - UserMetadataV1
+          - UserMetadataV1
+        - - UserMetadataDeleteV1
+          - UserMetadataDeleteV1
+        - - SyncAckV1
+          - SyncAckV1
+        - - SyncResetV1
+          - SyncResetV1
+        - - AlbumAssetV1
+          - AlbumAssetCreateV1
+        - - AlbumAssetExifV1
+          - AlbumAssetExifCreateV1
+      fold:
+        - - AlbumAssetUpdateV1
+          - AlbumAssetV1
+        - - AlbumAssetExifUpdateV1
+          - AlbumAssetExifV1
+assertions:
+  side_effects_unchanged: true
+  loss_acknowledged: true

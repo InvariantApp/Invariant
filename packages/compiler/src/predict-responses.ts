@@ -46,6 +46,7 @@ import {
   schemaSetRequired,
   schemaWiden,
 } from "./schema.ts";
+import { type StatusMapping, statusNow } from "./status.ts";
 
 /** The JSON representation a response is served in, or the only one it has. */
 function mediaOf(content: JsonObject): JsonObject | undefined {
@@ -151,6 +152,7 @@ export function applyResponseScope(
   ops: readonly DataOp[],
   issues: PredictionIssue[],
   changeId: string,
+  statuses: readonly StatusMapping[] = [],
 ): void {
   const refuse = (message: string) => issues.push({ changeId, message });
   const old = operationById(oldContract, scope.operation);
@@ -159,6 +161,9 @@ export function applyResponseScope(
     return;
   }
   const target = mapEndpoint(routes, old.method, old.path);
+  // The new contract keeps this response at the status the operation answers
+  // with now.
+  const answered = statusNow(statuses, old.method, old.path, scope.response);
   const paths = document["paths"];
   const item = isJsonObject(paths) ? paths[target.path] : undefined;
   const operation = isJsonObject(item) ? item[target.method] : undefined;
@@ -200,7 +205,7 @@ export function applyResponseScope(
             newContract,
             target.method,
             target.path,
-            scope.response,
+            answered,
             op.path,
           );
           if (!found) {
@@ -230,7 +235,7 @@ export function applyResponseScope(
             newContract,
             target.method,
             target.path,
-            scope.response,
+            answered,
             op.path,
           );
           const before = shapeInNew(

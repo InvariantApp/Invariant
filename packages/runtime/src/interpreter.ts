@@ -238,10 +238,17 @@ function applyMove(
   limits: ExecuteLimits,
 ): number {
   const slots = resolveSlots(root, instr.from, limits.maxMatches);
+  // A value moved beneath its own place, as Meilisearch's list of a rule's
+  // actions became the `pin` list of an object in its place, leaves that
+  // place first, so the object can be built there.
+  const beneath =
+    instr.to.length > instr.from.length &&
+    instr.from.every((segment, index) => segment === instr.to[index]);
   let moved = 0;
 
   for (const slot of slots) {
     const value = readSlot(slot);
+    if (beneath) deleteSlot(slot);
     const target = createSlot(root, instr.to, slot.captures);
     if (!target) {
       throw new TransformError(
@@ -249,7 +256,7 @@ function applyMove(
         `Cannot place the value from ${instr.from.join("/")} at ${instr.to.join("/")}`,
       );
     }
-    deleteSlot(slot);
+    if (!beneath) deleteSlot(slot);
     writeSlot(target, value);
     pruneEmptyAncestors(root, instr.from, slot.captures);
     moved += 1;
@@ -471,6 +478,30 @@ function setsOver(
   );
 }
 
+/**
+ * A value a program writes, as a copy of its own. Written as it stands, one
+ * object would be shared by every place it lands and by the program itself,
+ * so an instruction that writes into one of them, as Meilisearch's restored
+ * `action` has its `type` put back, would write into all of them and into
+ * every later answer. The Go engine has always copied it.
+ */
+function fresh(value: Json): Json {
+  if (Array.isArray(value)) return value.map(fresh);
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    Object.getPrototypeOf(value) === Object.prototype
+  ) {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, Json>).map(([key, entry]) => [
+        key,
+        fresh(entry),
+      ]),
+    );
+  }
+  return value;
+}
+
 function applySet(
   root: Json,
   instr: Extract<CompiledInstr, { k: "set" }>,
@@ -482,7 +513,7 @@ function applySet(
     let written = 0;
     for (const slot of resolveSlots(root, instr.path, limits.maxMatches)) {
       if (readSlot(slot) !== null) continue;
-      writeSlot(slot, instr.value);
+      writeSlot(slot, fresh(instr.value));
       written += 1;
     }
     return written;
@@ -506,7 +537,7 @@ function applySet(
         rest.length === 0 ? element : createSlot(readSlot(element), rest, []);
       if (!target) continue;
       if (!setsOver(instr, readSlot(target))) continue;
-      writeSlot(target, instr.value);
+      writeSlot(target, fresh(instr.value));
       written += 1;
     }
     return written;
@@ -517,7 +548,7 @@ function applySet(
     throw new TransformError(instr.c, `Cannot write ${instr.path.join("/")}`);
   }
   if (!setsOver(instr, readSlot(slot))) return 0;
-  writeSlot(slot, instr.value);
+  writeSlot(slot, fresh(instr.value));
   return 1;
 }
 
@@ -708,7 +739,7 @@ function step(
       break;
     case "set":
       if (instr.path.length === 0) {
-        writeSlot(hereFor(instr, here).slot, instr.value);
+        writeSlot(hereFor(instr, here).slot, fresh(instr.value));
         countApplied(result, instr.c, 1);
         break;
       }

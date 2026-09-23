@@ -336,6 +336,13 @@ for (const name of ["Order", "OrderCreate", "OrderEvent"]) {
   { name: "session_hint", in: "cookie", schema: { type: "string" } },
 );
 
+// Creating a refund answers 201 where it answered 204.
+(
+  ((NEW["paths"] as Record<string, Schema>)["/v1/refunds"] as Record<string, Schema>)[
+    "post"
+  ] as { responses: Record<string, unknown> }
+).responses = { "201": { description: "created" } };
+
 const schemas = (OLD["components"] as { schemas: Record<string, Schema> }).schemas;
 const SCHEMA_REFS = [
   ...Object.keys(schemas).map((name) => `#/components/schemas/${name}`),
@@ -425,6 +432,7 @@ function arbitraryOf(schema: Schema, name = ""): fc.Arbitrary<unknown> {
       if (pattern === "^#/components/schemas/") return fc.constantFrom(...SCHEMA_REFS);
       if (pattern?.startsWith("^(/(")) return fc.constantFrom(...POINTERS);
       if (pattern === "^/") return fc.constantFrom(...PATHS);
+      if (pattern === "^2\\d\\d$") return fc.constantFrom("200", "201", "204");
       if (pattern === "^[a-z][a-z0-9_]*$")
         return fc.constantFrom("chg_generated", "chg_other");
       if (name === "operation") return fc.constantFrom(...OPERATIONS, "noSuchOperation");
@@ -963,7 +971,11 @@ function unserved(change: Change, program: unknown): string[] {
     // to serve.
     const identity =
       op.op === "route" && op.from.method === op.to.method && op.from.path === op.to.path;
-    if ((op.op === "route" || op.op === "retire") && !identity && mentions === 0) {
+    if (
+      (op.op === "route" || op.op === "retire" || op.op === "status") &&
+      !identity &&
+      mentions === 0
+    ) {
       missing.push(op.op);
     }
   }
@@ -1089,6 +1101,23 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
               ],
             } as Change,
           ],
+          // A success status that changed, on the one operation whose status
+          // the two contracts disagree about.
+          [
+            {
+              irVersion: 1,
+              id: "chg_generated",
+              summary: "paid",
+              ops: [
+                {
+                  op: "status",
+                  endpoint: { method: "post", path: "/v1/refunds" },
+                  from: "204",
+                  to: "201",
+                },
+              ],
+            } as Change,
+          ],
           // A schema that contains itself: every data op, through the blocks.
           ...THREAD_OPS.map((op): [Change] => [
             {
@@ -1122,6 +1151,7 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
       "restate",
       "route",
       "retire",
+      "status",
       "behavior",
       "parameters",
       "response bodies",
@@ -1328,7 +1358,7 @@ describe("L1: the op x location x direction matrix", () => {
         ).toBeDefined();
       }
     }
-    for (const op of ["route", "retire", "behavior"]) {
+    for (const op of ["route", "retire", "status", "behavior"]) {
       expect(matrix.endpoint[op], op).toBeDefined();
     }
     // Every op kind and codec the IR can express is in the matrix, read from
@@ -1480,6 +1510,12 @@ describe("L1: the op x location x direction matrix", () => {
         to: { method: "post", path: "/v1/orders/{id}/refunds" },
       },
       retire: { op: "retire", endpoint: { method: "post", path: "/v1/refunds" } },
+      status: {
+        op: "status",
+        endpoint: { method: "post", path: "/v1/refunds" },
+        from: "204",
+        to: "201",
+      },
       behavior: { op: "behavior", flag: "refunds_are_async" },
     })) {
       expect(matrix.endpoint[name]?.status).toBe("served");

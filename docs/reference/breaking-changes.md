@@ -6,7 +6,7 @@ Every breaking change the pinned differ (oasdiff v1.33.0-rc.1) can report, and w
 
 ## Served automatically
 
-A Change the rules draft with nobody deciding anything, and the runtime serves. 13 checks.
+A Change the rules draft with nobody deciding anything, and the runtime serves. 14 checks.
 
 | Check | Op | Served | What it means |
 |---|---|---|---|
@@ -23,6 +23,7 @@ A Change the rules draft with nobody deciding anything, and the runtime serves. 
 | `request-property-removed` | `move` | yes | A request field was removed. If another field replaced it, a `move` translates old callers' requests; if nothing did, a `remove` drops what they still send. |
 | `response-property-became-nullable` | `dropNull` | yes | A response field may now be null. Where old callers could already be sent it left out, a `dropNull` sends it that way; where they were always given a value, a `default` fills one in that you decide. |
 | `response-required-property-added` | `add` | yes | Responses now always carry a field old callers were never promised. An `add` takes it out of their responses, so a strict client validating against its contract still passes. |
+| `response-success-status-removed` | `status` | yes | A success status an old caller relies on is no longer returned. Where the operation now answers with one other success status, a `status` answers old callers the one they were promised, with no body where their contract promised none; it is drafted where the two contracts settle which status replaced which. Where their contract promised a body the new status does not carry, nothing can stand in for it: declare a `behavior` flag instead. |
 
 ## Served once you decide
 
@@ -212,7 +213,7 @@ A Change the runtime serves once you answer a question, such as what an old call
 
 ## Behavior only
 
-No translation can hide it. A `behavior` flag lets your own code serve old callers as before. 131 checks.
+No translation can hide it. A `behavior` flag lets your own code serve old callers as before. 130 checks.
 
 | Check | Op | Served | What it means |
 |---|---|---|---|
@@ -345,7 +346,6 @@ No translation can hide it. A `behavior` flag lets your own code serve old calle
 | `response-media-type-parameter-changed` |  | not applicable | What a response is encoded as changed. No translation can hide this from an old caller. Declare it as a `behavior` flag and branch on it in your own code, or keep the old behaviour for old contracts. |
 | `response-media-type-parameter-removed` |  | not applicable | What a response is encoded as changed. No translation can hide this from an old caller. Declare it as a `behavior` flag and branch on it in your own code, or keep the old behaviour for old contracts. |
 | `response-media-type-removed` |  | not applicable | What a response is encoded as changed. No translation can hide this from an old caller. Declare it as a `behavior` flag and branch on it in your own code, or keep the old behaviour for old contracts. |
-| `response-success-status-removed` |  | not applicable | A success status an old caller relies on is no longer returned. No translation can hide this from an old caller. Declare it as a `behavior` flag and branch on it in your own code, or keep the old behaviour for old contracts. |
 | `webhook-removed` |  | not applicable | A webhook you sent is no longer sent. Nothing can stand in for an event that is not produced; tell the subscribers who depend on it. |
 
 ## Process

@@ -94,14 +94,21 @@ interface Project {
   server: {
     /** The port the server listens on inside its container. */
     port: number;
+    /**
+     * The port the suite calls on this machine, for a suite that names its
+     * own rather than taking a URL: Immich's calls 127.0.0.1:2285. The
+     * server answers there in arms a and b, and the proxy in arm c.
+     */
+    suitePort?: number;
     /** A path that answers 200 once the server is ready. */
     ready: string;
     readySeconds?: number;
     env?: Record<string, string>;
     /**
      * A compose file beside this manifest, for a server that needs others
-     * (a database, a cache). It is given IMAGE, PORT and CONTAINER, and must
-     * name the API's own container CONTAINER.
+     * (a database, a cache). It is given IMAGE, PORT, CONTAINER and SUITE,
+     * the suite's directory, for a server that reads files the suite writes,
+     * and must name the API's own container CONTAINER.
      */
     compose?: string;
     /**
@@ -133,6 +140,13 @@ interface Project {
     repo?: string;
     /** The paths of the suite's repository to check out. */
     sparse: string[];
+    /**
+     * Submodules the suite reads, by their path in its repository, each
+     * checked out at the commit the release pins it to, from the URL
+     * `.gitmodules` gives: Immich's suite uploads the pictures in its
+     * test-assets submodule. `.gitmodules` has to be among the sparse paths.
+     */
+    submodules?: string[];
     dir: string;
     /**
      * Run once per release in the suite's directory. `{work}` is a directory
@@ -171,6 +185,8 @@ const RECORDED = join(ROOT, "proving/servers/changes");
  */
 const SUITE_PORT = 16_333;
 const BEHIND_PORT = 16_334;
+
+const suitePortOf = (project: Project) => project.server.suitePort ?? SUITE_PORT;
 
 function log(message: string): void {
   process.stdout.write(`${message}\n`);
@@ -238,6 +254,36 @@ async function checkout(
   return dir;
 }
 
+/**
+ * A submodule of a checked-out repository, at the commit that repository
+ * pins it to, from the URL its `.gitmodules` gives.
+ */
+async function submodule(src: string, path: string): Promise<void> {
+  const listed = (await sh("git", ["ls-tree", "HEAD", path], { cwd: src })).trim();
+  const [mode, kind, commit] = listed.split(/\s+/);
+  if (mode !== "160000" || kind !== "commit" || !commit) {
+    throw new Error(`${path} is not a submodule of the suite's repository`);
+  }
+  const names = await sh(
+    "git",
+    ["config", "-f", ".gitmodules", "--get-regexp", "^submodule\\..*\\.path$"],
+    { cwd: src },
+  );
+  const name = names
+    .split("\n")
+    .map((line) => line.split(" "))
+    .find(([, declared]) => declared === path)?.[0]
+    ?.replace(/^submodule\./, "")
+    .replace(/\.path$/, "");
+  if (!name) throw new Error(`.gitmodules names no submodule at ${path}`);
+  const url = (
+    await sh("git", ["config", "-f", ".gitmodules", "--get", `submodule.${name}.url`], {
+      cwd: src,
+    })
+  ).trim();
+  await checkout(url, commit, [], join(src, path));
+}
+
 function releaseOf(project: Project, tag: string): Release {
   const release = project.releases[tag];
   if (!release) throw new Error(`${project.name} does not pin ${tag}`);
@@ -298,6 +344,9 @@ async function suiteOf(
     join(CACHE, project.name, tag, "suite"),
     project.suite.repo ? release.suiteRef : undefined,
   );
+  for (const path of project.suite.submodules ?? []) {
+    await submodule(src, path);
+  }
   const dir = join(src, project.suite.dir);
   const work = join(CACHE, project.name, tag);
   const env = join(work, "env");
@@ -381,6 +430,7 @@ async function startServer(
   tag: string,
   port: number,
   secrets: Record<string, string>,
+  suite: { dir: string },
 ): Promise<Record<string, string>> {
   const release = releaseOf(project, tag);
   const image = `${project.image}@${release.digest}`;
@@ -394,6 +444,7 @@ async function startServer(
         IMAGE: image,
         PORT: String(port),
         CONTAINER: container,
+        SUITE: suite.dir,
       },
     });
   } else {
@@ -441,7 +492,13 @@ async function startServer(
 async function stopServer(project: Project): Promise<void> {
   if (project.server.compose) {
     await sh("docker", [...composeArgs(project), "down", "-v", "--remove-orphans"], {
-      env: { ...process.env, IMAGE: "none", PORT: "0", CONTAINER: containerOf(project) },
+      env: {
+        ...process.env,
+        IMAGE: "none",
+        PORT: "0",
+        CONTAINER: containerOf(project),
+        SUITE: ".",
+      },
     }).catch(() => "");
   } else {
     await sh("docker", ["rm", "-f", "-v", containerOf(project)]).catch(() => "");
@@ -475,6 +532,7 @@ async function startProxy(
   label: string,
   upstream: string,
   work: string,
+  port: number,
 ): Promise<ChildProcess> {
   const programPath = join(work, "program.json");
   const configPath = join(work, "sidecar.json");
@@ -484,7 +542,7 @@ async function startProxy(
     JSON.stringify({
       program: programPath,
       upstream,
-      listen: { port: SUITE_PORT, host: "127.0.0.1" },
+      listen: { port, host: "127.0.0.1" },
       identity: [{ kind: "default", label }],
       maxBodyBytes: 32 * 1024 * 1024,
       // A sidecar in front of one application, which builds its links from
@@ -498,7 +556,7 @@ async function startProxy(
     ["--import", "tsx", join(ROOT, "packages/sidecar/src/cli.ts"), configPath],
     { stdio: ["ignore", "ignore", "inherit"] },
   );
-  await waitFor(`http://127.0.0.1:${SUITE_PORT}/__invariant/health`, "the proxy", 30_000);
+  await waitFor(`http://127.0.0.1:${port}/__invariant/health`, "the proxy", 30_000);
   return proxy;
 }
 
@@ -696,13 +754,20 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
       const vars = await startServer(
         project,
         tag,
-        through ? BEHIND_PORT : SUITE_PORT,
+        through ? BEHIND_PORT : suitePortOf(project),
         secrets,
+        suite,
       );
       await dumpSpec(project, tag, vars);
       if (through) {
-        proxy = await startProxy(through.program, from, vars["url"] ?? "", work);
-        vars["url"] = `http://127.0.0.1:${SUITE_PORT}`;
+        proxy = await startProxy(
+          through.program,
+          from,
+          vars["url"] ?? "",
+          work,
+          suitePortOf(project),
+        );
+        vars["url"] = `http://127.0.0.1:${suitePortOf(project)}`;
       }
       return await runSuite(
         project,

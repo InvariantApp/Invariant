@@ -289,11 +289,21 @@ export function render(
 }
 
 function said(arm: ArmResult, id: string): string {
-  // The first line that says something: Go's reports open with the test's
-  // own name and a timestamped log line.
-  const message = arm.messages?.[id]
-    ?.split("\n")
-    .map((line) => line.trim())
+  const lines = (arm.messages?.[id] ?? "").split("\n").map((line) => line.trim());
+  // testify says where it failed on one line and what on the next ones; the
+  // values it compared are what a reader needs.
+  const compared = (name: string) =>
+    lines
+      .find((line) => new RegExp(`^${name}\\s*:`).test(line))
+      ?.replace(/^\w+\s*:\s*/, "");
+  const expected = compared("expected");
+  const actual = compared("actual");
+  if (expected !== undefined && actual !== undefined) {
+    return `: ${cell(`expected ${expected}, got ${actual}`.slice(0, 160))}`;
+  }
+  // Otherwise the first line that says something: Go's reports open with the
+  // test's own name and a timestamped log line.
+  const message = lines
     .find((line) => line !== "" && !/^(=== RUN|\d{4}\/\d\d\/\d\d )/.test(line))
     ?.slice(0, 160);
   return message ? `: ${cell(message)}` : "";

@@ -101,9 +101,11 @@ const RULES: Rule[] = [
 
   // Status codes and media types of whole responses and request bodies.
   rule(/^response-success-status-removed$/, {
-    class: "behavior-only",
-    served: "not applicable",
-    sentence: `A success status an old caller relies on is no longer returned. ${BEHAVIOR}`,
+    class: "adaptable",
+    op: "status",
+    served: "yes",
+    sentence:
+      "A success status an old caller relies on is no longer returned. Where the operation now answers with one other success status, a `status` answers old callers the one they were promised, with no body where their contract promised none; it is drafted where the two contracts settle which status replaced which. Where their contract promised a body the new status does not carry, nothing can stand in for it: declare a `behavior` flag instead.",
   }),
   rule(/^(response-(body-)?media-type|response-body-content|response-media-type)-/, {
     class: "behavior-only",

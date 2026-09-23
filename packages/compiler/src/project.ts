@@ -34,6 +34,7 @@ import {
   parsePointer,
   type RouteRule,
   type SiteProgram,
+  type StatusRule,
   siteKey,
   type WidenOp,
 } from "@invariant-app/ir";
@@ -66,6 +67,7 @@ import {
   unaddressableKeys,
 } from "./predict.ts";
 import { type SharedBlocks, sharedBlocks } from "./shared.ts";
+import { type StatusMapping, statusMappings, statusNow, statusRule } from "./status.ts";
 
 export interface ProjectionIssue {
   changeId: string;
@@ -238,7 +240,10 @@ interface SiteAccumulator {
    * envelope at all.
    */
   request: { instr: Instr; param: boolean }[];
+  /** Keyed by the status the provider answers with, which the runtime reads. */
   response: Map<string, Instr[]>;
+  /** Success statuses an old caller is answered as another, in declared order. */
+  status: StatusRule[];
   /** How each parameter an instruction names is written, keyed `in name`. */
   old: Map<string, ParamCodec>;
   new: Map<string, ParamCodec>;
@@ -255,7 +260,13 @@ function accumulatorFor(
 ): SiteAccumulator {
   let entry = sites.get(key);
   if (!entry) {
-    entry = { request: [], response: new Map(), old: new Map(), new: new Map() };
+    entry = {
+      request: [],
+      response: new Map(),
+      status: [],
+      old: new Map(),
+      new: new Map(),
+    };
     sites.set(key, entry);
   }
   return entry;
@@ -277,6 +288,7 @@ export function projectStep(
     ...findInterference(changes),
   ];
   const routes = routeMappings(changes);
+  const statuses = statusMappings(changes);
   const sites = new Map<string, SiteAccumulator>();
 
   const routeRules: RouteRule[] = routes.map((route) => ({
@@ -296,6 +308,14 @@ export function projectStep(
   for (const change of changes) {
     for (const op of change.ops) {
       if (op.op === "behavior") behaviors.push(op.flag);
+      if (op.op === "status") {
+        // One the prediction refuses has no rule; the gate says why.
+        const rule = statusRule(oldContract, newContract, routes, op, change.id);
+        if (rule) {
+          const target = mapEndpoint(routes, op.endpoint.method, op.endpoint.path);
+          accumulatorFor(sites, siteKey(target.method, target.path)).status.push(rule);
+        }
+      }
       if (op.op === "retire") {
         retired.push({
           method: op.endpoint.method,
@@ -343,6 +363,7 @@ export function projectStep(
       change,
       oldContract,
       routes,
+      statuses,
       sites,
       outbound,
       issues,
@@ -351,7 +372,7 @@ export function projectStep(
     );
   }
 
-  collectShared(shared, oldContract, newContract, routes, sites);
+  collectShared(shared, oldContract, newContract, routes, statuses, sites);
 
   if (newContract) {
     collectErrorParams(oldContract, newContract, changes, routes, sites);
@@ -386,7 +407,10 @@ export function projectStep(
       .filter(([, instrs]) => instrs.length > 0);
     // A status whose Changes compile to nothing, as a bound does, is not work.
     if (responses.length > 0) program.response = Object.fromEntries(responses);
-    if (program.request || program.envelope || program.response) out[key] = program;
+    if (entry.status.length > 0) program.status = entry.status;
+    if (program.request || program.envelope || program.response || program.status) {
+      out[key] = program;
+    }
   }
 
   const sent = [...outbound.entries()].sort().filter(([, instrs]) => instrs.length > 0);
@@ -415,6 +439,7 @@ function collectShared(
   oldContract: OpenApiDocument,
   newContract: OpenApiDocument | undefined,
   routes: readonly RouteMapping[],
+  statuses: readonly StatusMapping[],
   sites: Map<string, SiteAccumulator>,
 ): void {
   if (shared.targets.size === 0) return;
@@ -429,10 +454,11 @@ function collectShared(
       entry.body ??= bodiesOf(oldContract, newContract, { method, path }, target);
       entry.request.push(...forward.map((instr) => ({ instr, param: false })));
     }
-    for (const { status, schema } of responseSchemas(oldContract, operation)) {
+    for (const { status: promised, schema } of responseSchemas(oldContract, operation)) {
       const backward = shared.entry(schema, "backward");
       if (backward.length === 0) continue;
       const entry = accumulatorFor(sites, key);
+      const status = statusNow(statuses, method, path, promised);
       entry.response.set(status, [...backward, ...(entry.response.get(status) ?? [])]);
     }
   }
@@ -847,6 +873,7 @@ function collectBackward(
   change: Change,
   oldContract: OpenApiDocument,
   routes: readonly RouteMapping[],
+  statuses: readonly StatusMapping[],
   sites: Map<string, SiteAccumulator>,
   outbound: Map<string, Instr[]>,
   issues: ProjectionIssue[],
@@ -874,10 +901,13 @@ function collectBackward(
     if (site.direction !== "response" || site.status === undefined) continue;
     const target = mapEndpoint(routes, site.method, site.path);
     const entry = accumulatorFor(sites, siteKey(target.method, target.path));
-    let instrs = entry.response.get(site.status);
+    // Filed under the status the provider answers with now, which is the one
+    // the runtime reads, whatever an old caller is then answered.
+    const status = statusNow(statuses, site.method, site.path, site.status);
+    let instrs = entry.response.get(status);
     if (!instrs) {
       instrs = [];
-      entry.response.set(site.status, instrs);
+      entry.response.set(status, instrs);
     }
     instrs.push(
       ...guarded(site, change, "backward", (prefix) =>

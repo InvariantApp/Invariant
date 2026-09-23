@@ -129,22 +129,65 @@ function mergeSite(earlier: SiteProgram, later: SiteProgram): SiteProgram {
     if (request.length > 0) out.request = request;
   }
 
-  if (earlier.response || later.response) {
+  // Each status the provider answers with runs the later step's work for it,
+  // then the earlier step's for the status the later step answered with,
+  // each found as the runtime finds it: the exact status, then its class,
+  // then `default`. A later step that answers an old caller another status
+  // hands the earlier step that one.
+  const rules = later.status ?? [];
+  if (earlier.response || later.response || rules.length > 0) {
+    const handed = (status: string): string => {
+      let current = status;
+      for (const rule of rules)
+        if (String(rule.from) === current) current = String(rule.to);
+      return current;
+    };
     const response: Record<string, Instr[]> = {};
     const statuses = new Set([
       ...Object.keys(earlier.response ?? {}),
       ...Object.keys(later.response ?? {}),
+      ...rules.map((rule) => String(rule.from)),
     ]);
     for (const status of [...statuses].sort()) {
       response[status] = [
-        ...(later.response?.[status] ?? []),
-        ...(earlier.response?.[status] ?? []),
+        ...(lookup(later.response, status) ?? []),
+        ...(lookup(earlier.response, handed(status)) ?? []),
       ];
     }
-    out.response = response;
+    if (Object.values(response).some((list) => list.length > 0)) out.response = response;
   }
+  // Applied in turn to the provider's status: the later step's rules first,
+  // as a response undoes the later step first.
+  const status = [...rules, ...(earlier.status ?? [])];
+  if (status.length > 0) out.status = status;
 
   return out;
+}
+
+/**
+ * The work a site's response map holds for a status, found as the runtime
+ * finds it: the key itself, then, for an exact status, its class, and then
+ * `default`. Classes are compared without regard to case, as OpenAPI's `2XX`
+ * and the runtime's `2xx` are the same key.
+ */
+function lookup(
+  response: Record<string, Instr[]> | undefined,
+  status: string,
+): Instr[] | undefined {
+  if (!response) return undefined;
+  const wanted = /^\d{3}$/.test(status)
+    ? [status, `${status[0]}xx`, "default"]
+    : /^\d[xX]{2}$/.test(status)
+      ? [status.toLowerCase(), "default"]
+      : [status];
+  const byKey = new Map(
+    Object.entries(response).map(([key, list]) => [key.toLowerCase(), list]),
+  );
+  for (const key of wanted) {
+    const found = byKey.get(key);
+    if (found !== undefined) return found;
+  }
+  return undefined;
 }
 
 const codecKey = (codec: ParamCodec) => `${codec.in} ${codec.name}`;
@@ -454,7 +497,7 @@ function joined(own: Projected, later: Link | undefined, label: string): Link {
 function contractOf(frame: Omit<ContractProgram, "sites">, link: Link): ContractProgram {
   const sites = Object.fromEntries(
     [...link.sites.entries()].filter(
-      ([, site]) => site.request || site.envelope || site.response,
+      ([, site]) => site.request || site.envelope || site.response || site.status,
     ),
   );
   const outbound = Object.entries(link.outbound).filter(([, list]) => list.length > 0);

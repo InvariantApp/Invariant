@@ -43,9 +43,63 @@ export interface DecodedSite {
   template: string[];
   /** How the request body is written when it arrives form-encoded. */
   form?: DecodedForm;
+  /** Keyed by the status the provider answered with. */
   response: Map<string, CompiledInstr[]>;
+  /**
+   * Success statuses an old caller is answered as another, applied in turn
+   * to the status the provider answered with. Empty for most sites.
+   */
+  status: StatusRule[];
   /** True when any instruction re-encodes a number. */
   numeric: boolean;
+}
+
+/**
+ * The provider's `from` answered as `to`, with no body where `empty` says
+ * the caller's contract promised none.
+ */
+export interface StatusRule {
+  from: number;
+  to: number;
+  empty: boolean;
+  c: string;
+}
+
+/** Success statuses whose answer never carries a body, whatever a rule says. */
+export const EMPTY_STATUSES: ReadonlySet<number> = new Set([204, 205]);
+
+function decodeStatusRules(raw: unknown, where: string): StatusRule[] {
+  const list = array(raw, where);
+  if (list.length === 0) throw new ProgramError(`${where} must name at least one rule`);
+  return list.map((entry, index) => {
+    const at = `${where}[${index}]`;
+    const value = object(entry, at);
+    expectKeys(value, ["from", "to", "empty", "c"], at);
+    const status = (name: "from" | "to"): number => {
+      const code = value[name];
+      if (
+        typeof code !== "number" ||
+        !Number.isInteger(code) ||
+        code < 200 ||
+        code > 299
+      ) {
+        throw new ProgramError(`${at}.${name} must be a success status, 200 to 299`);
+      }
+      return code;
+    };
+    const from = status("from");
+    const to = status("to");
+    if (from === to) throw new ProgramError(`${at} answers ${from} as itself`);
+    const empty = onlyTrue(value["empty"], `${at}.empty`);
+    // A 204 or a 205 never carries a body, so a rule that would send one
+    // with it is a program nobody should have compiled.
+    if (EMPTY_STATUSES.has(to) && !empty) {
+      throw new ProgramError(
+        `${at} answers ${to}, which carries no body, so it must be empty`,
+      );
+    }
+    return { from, to, empty, c: string(value["c"], `${at}.c`) };
+  });
 }
 
 const HTTP_METHODS = new Set([
@@ -872,7 +926,7 @@ function decodeSite(
   blocks: Blocks,
 ): DecodedSite {
   const value = object(raw, where);
-  expectKeys(value, ["form", "request", "envelope", "response"], where);
+  expectKeys(value, ["form", "request", "envelope", "response", "status"], where);
   const form =
     value["form"] === undefined ? undefined : decodeForm(value["form"], `${where}.form`);
   if (value["request"] !== undefined && value["envelope"] !== undefined) {
@@ -916,9 +970,14 @@ function decodeSite(
     needsExactNumbers(request) ||
     (envelope !== undefined && needsExactNumbers(envelope.instrs)) ||
     [...response.values()].some((list) => needsExactNumbers(list));
+  const status =
+    value["status"] === undefined
+      ? []
+      : decodeStatusRules(value["status"], `${where}.status`);
   return {
     request,
     response,
+    status,
     numeric,
     template,
     ...(envelope === undefined ? {} : { envelope }),

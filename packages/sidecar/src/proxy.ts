@@ -135,7 +135,7 @@ export function createProxy(options: ProxyOptions): FetchHandler {
     const callerHost = request.headers.get("host") ?? url.host;
     if (upstreamHost === "caller") {
       headers.set("host", callerHost);
-    } else if (!headers.has("x-forwarded-host")) {
+    } else if (!headers.has("x-forwarded-host") && callerHost !== "") {
       headers.set("x-forwarded-host", callerHost);
     }
     // Only a caller who reached this proxy over TLS is told apart from one
@@ -268,11 +268,19 @@ export function createProxy(options: ProxyOptions): FetchHandler {
     }
 
     // A method with no body sends none, including when a route changed a
-    // POST into a GET and its fields moved into the query string.
+    // POST into a GET and its fields moved into the query string, and says
+    // nothing of one: a GET that came with a body, as Immich's suite sends,
+    // is sent on without it, and the length of what was left out would have
+    // the provider wait for bytes that never come.
     const bodyless = method === "GET" || method === "HEAD";
-    if (bodyless && body !== null) {
+    if (bodyless) {
+      const described =
+        body !== null ||
+        (headers.get("content-length") ?? "0") !== "0" ||
+        headers.has("transfer-encoding");
       headers.delete("content-length");
-      headers.delete("content-type");
+      headers.delete("transfer-encoding");
+      if (described) headers.delete("content-type");
     }
     let answer: Response;
     try {

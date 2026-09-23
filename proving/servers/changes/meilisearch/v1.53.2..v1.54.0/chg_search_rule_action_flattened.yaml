@@ -1,0 +1,28 @@
+# Written by hand, as Meilisearch's maintainers would: a rule's action named
+# its document in a selector and what to do with it in an action. Pinning was
+# the only thing an action could do, so a pin is now one object: the
+# document's index and id, and its position.
+irVersion: 1
+id: chg_search_rule_action_flattened
+summary: "A pin names its document and its position in one object, where it had a selector and an action."
+scopes:
+  - schema: "#/components/schemas/RuleAction"
+ops:
+  - op: remove
+    path: /action/type
+    restore: pin
+  - op: move
+    from: /action/position
+    to: /position
+  - op: remove
+    path: /action
+    restore: {}
+  - op: move
+    from: /selector/indexUid
+    to: /indexUid
+  - op: move
+    from: /selector/id
+    to: /id
+assertions:
+  side_effects_unchanged: true
+  loss_acknowledged: true

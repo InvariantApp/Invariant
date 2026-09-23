@@ -382,6 +382,21 @@ export const FormProgram = Type.Object(
   { additionalProperties: false },
 );
 
+/**
+ * A success status an old caller is answered with in place of the one the
+ * provider answered: `from` becomes `to`. `empty` sends no body, where the old
+ * contract promised none with `to`; a `204` is always sent without one.
+ */
+export const StatusRule = Type.Object(
+  {
+    from: Type.Integer({ minimum: 200, maximum: 299 }),
+    to: Type.Integer({ minimum: 200, maximum: 299 }),
+    empty: Type.Optional(Type.Literal(true)),
+    c: ChangeId,
+  },
+  { additionalProperties: false },
+);
+
 export const SiteProgram = Type.Object(
   {
     /**
@@ -401,6 +416,13 @@ export const SiteProgram = Type.Object(
      * shorthands `2xx`, `4xx`, `5xx`. An exact code wins over its class.
      */
     response: Type.Optional(Type.Record(Type.String(), Type.Array(Instr))),
+    /**
+     * Success statuses answered as another, applied in order to the status
+     * the provider answered, so a chain of releases is one list: each step's
+     * rules run after the later steps', as its response work does. The
+     * response work above is keyed by the provider's status, before any rule.
+     */
+    status: Type.Optional(Type.Array(StatusRule, { minItems: 1 })),
   },
   { additionalProperties: false },
 );
@@ -553,6 +575,7 @@ export type RouteRule = Static<typeof RouteRule>;
 export type ParamCodec = Static<typeof ParamCodec>;
 export type EnvelopeProgram = Static<typeof EnvelopeProgram>;
 export type FormProgram = Static<typeof FormProgram>;
+export type StatusRule = Static<typeof StatusRule>;
 export type SiteProgram = Static<typeof SiteProgram>;
 export type ContractProgram = Static<typeof ContractProgram>;
 export type CompiledProgram = Static<typeof CompiledProgram>;

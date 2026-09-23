@@ -35,7 +35,8 @@ export type ProgramFeature =
   | "base-path"
   | "retired"
   | "behaviors"
-  | "identity";
+  | "identity"
+  | "status";
 
 /**
  * A feature added since the last release, which the next one will carry.
@@ -96,6 +97,7 @@ export const FEATURE_SINCE: Readonly<Record<ProgramFeature, string>> = {
   retired: "0.1.0",
   behaviors: "0.1.0",
   identity: "0.1.0",
+  status: NEXT,
 };
 
 function instrFeatures(list: readonly Instr[], into: Set<ProgramFeature>): void {
@@ -132,6 +134,7 @@ export function featuresOf(program: Omit<CompiledProgram, "minRuntime" | "compil
     }
     for (const site of Object.values(contract.sites)) {
       if (site.form) used.add("form");
+      if (site.status) used.add("status");
       if (site.request) instrFeatures(site.request, used);
       if (site.envelope) {
         used.add("envelope");

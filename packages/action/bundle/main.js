@@ -3370,6 +3370,40 @@ const RetireOp = Type$1.Object({
 	additionalProperties: false,
 	description: "An operation that is gone. No transform can serve it; the runtime answers a caller with the provider's guidance instead of a bare 404."
 });
+/** A success status as a response is keyed by it: an exact code, `201`. */
+const SuccessStatus = Type$1.String({ pattern: "^2\\d\\d$" });
+/**
+* An operation that answers with another success status.
+*
+* Gitea 1.25 answers the creation of an Actions variable `201 Created` where
+* 1.24 answered `204 No Content`, and Immich 1.138 answers four operations
+* `204` where 1.137 answered `200` with no body. Nothing about the work
+* changed, and an old caller that checks the status it was promised fails on
+* every one of them.
+*
+* An old caller is answered `from` wherever the operation now answers `to`.
+* What happens to the body is read from the two contracts, not declared: where
+* the old contract promised no body with `from`, none is sent, whatever the
+* provider sent with `to`; where it promised one and `to` carries one, the
+* body is served as every body is, through the release's other Changes. Where
+* it promised one and `to` carries none, nothing can stand in for it, and the
+* compiler refuses the Change.
+*
+* Exact, because an old caller is answered as its contract promised and is
+* shown nothing it was not: a body it was never promised is not shown at all.
+*/
+const StatusOp = Type$1.Object({
+	op: Type$1.Literal("status"),
+	/** The operation, as the old contract names it. */
+	endpoint: Endpoint,
+	/** The success status the old contract promised. */
+	from: SuccessStatus,
+	/** The success status the operation answers with now. */
+	to: SuccessStatus
+}, {
+	additionalProperties: false,
+	description: "An operation answers with another success status. Old callers are answered `from` where it now answers `to`, with no body where their contract promised none."
+});
 const BehaviorOp = Type$1.Object({
 	op: Type$1.Literal("behavior"),
 	flag: Slug,
@@ -3402,6 +3436,7 @@ const Op = Type$1.Union([
 	RestateOp,
 	RouteOp,
 	RetireOp,
+	StatusOp,
 	BehaviorOp
 ]);
 /**
@@ -3617,7 +3652,8 @@ const FEATURE_SINCE = {
 	"base-path": "0.1.0",
 	retired: "0.1.0",
 	behaviors: "0.1.0",
-	identity: "0.1.0"
+	identity: "0.1.0",
+	status: NEXT
 };
 function instrFeatures(list, into) {
 	for (const instr of list) {
@@ -3649,6 +3685,7 @@ function featuresOf(program) {
 		}
 		for (const site of Object.values(contract.sites)) {
 			if (site.form) used.add("form");
+			if (site.status) used.add("status");
 			if (site.request) instrFeatures(site.request, used);
 			if (site.envelope) {
 				used.add("envelope");
@@ -4020,6 +4057,23 @@ const FormProgram = Type$1.Object({
 		Type$1.Literal("object")
 	]))
 }, { additionalProperties: false });
+/**
+* A success status an old caller is answered with in place of the one the
+* provider answered: `from` becomes `to`. `empty` sends no body, where the old
+* contract promised none with `to`; a `204` is always sent without one.
+*/
+const StatusRule = Type$1.Object({
+	from: Type$1.Integer({
+		minimum: 200,
+		maximum: 299
+	}),
+	to: Type$1.Integer({
+		minimum: 200,
+		maximum: 299
+	}),
+	empty: Type$1.Optional(Type$1.Literal(true)),
+	c: ChangeId
+}, { additionalProperties: false });
 const SiteProgram = Type$1.Object({
 	/**
 	* Present when the operation's request body may arrive form-encoded. The
@@ -4037,7 +4091,14 @@ const SiteProgram = Type$1.Object({
 	* Canonical back to old shape, keyed by status code or by the class
 	* shorthands `2xx`, `4xx`, `5xx`. An exact code wins over its class.
 	*/
-	response: Type$1.Optional(Type$1.Record(Type$1.String(), Type$1.Array(Instr)))
+	response: Type$1.Optional(Type$1.Record(Type$1.String(), Type$1.Array(Instr))),
+	/**
+	* Success statuses answered as another, applied in order to the status
+	* the provider answered, so a chain of releases is one list: each step's
+	* rules run after the later steps', as its response work does. The
+	* response work above is keyed by the provider's status, before any rule.
+	*/
+	status: Type$1.Optional(Type$1.Array(StatusRule, { minItems: 1 }))
 }, { additionalProperties: false });
 const ContractProgram = Type$1.Object({
 	label: Type$1.String(),
@@ -18809,12 +18870,14 @@ function countApplied(result, changeId, times) {
 }
 function applyMove(root, instr, limits) {
 	const slots = resolveSlots(root, instr.from, limits.maxMatches);
+	const beneath = instr.to.length > instr.from.length && instr.from.every((segment, index) => segment === instr.to[index]);
 	let moved = 0;
 	for (const slot of slots) {
 		const value = readSlot$1(slot);
+		if (beneath) deleteSlot$1(slot);
 		const target = createSlot(root, instr.to, slot.captures);
 		if (!target) throw new TransformError(instr.c, `Cannot place the value from ${instr.from.join("/")} at ${instr.to.join("/")}`);
-		deleteSlot$1(slot);
+		if (!beneath) deleteSlot$1(slot);
 		writeSlot$1(target, value);
 		pruneEmptyAncestors(root, instr.from, slot.captures);
 		moved += 1;
@@ -18936,12 +18999,24 @@ function setsOver(instr, current) {
 	if (!instr.ifAbsent && !instr.ifNull) return true;
 	return instr.ifAbsent && current === void 0 || instr.ifNull === true && current === null;
 }
+/**
+* A value a program writes, as a copy of its own. Written as it stands, one
+* object would be shared by every place it lands and by the program itself,
+* so an instruction that writes into one of them, as Meilisearch's restored
+* `action` has its `type` put back, would write into all of them and into
+* every later answer. The Go engine has always copied it.
+*/
+function fresh(value) {
+	if (Array.isArray(value)) return value.map(fresh);
+	if (value !== null && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, fresh(entry)]));
+	return value;
+}
 function applySet(root, instr, limits) {
 	if (instr.ifNull && !instr.ifAbsent) {
 		let written = 0;
 		for (const slot of resolveSlots(root, instr.path, limits.maxMatches)) {
 			if (readSlot$1(slot) !== null) continue;
-			writeSlot$1(slot, instr.value);
+			writeSlot$1(slot, fresh(instr.value));
 			written += 1;
 		}
 		return written;
@@ -18955,7 +19030,7 @@ function applySet(root, instr, limits) {
 			const target = rest.length === 0 ? element : createSlot(readSlot$1(element), rest, []);
 			if (!target) continue;
 			if (!setsOver(instr, readSlot$1(target))) continue;
-			writeSlot$1(target, instr.value);
+			writeSlot$1(target, fresh(instr.value));
 			written += 1;
 		}
 		return written;
@@ -18963,7 +19038,7 @@ function applySet(root, instr, limits) {
 	const slot = createSlot(root, instr.path, []);
 	if (!slot) throw new TransformError(instr.c, `Cannot write ${instr.path.join("/")}`);
 	if (!setsOver(instr, readSlot$1(slot))) return 0;
-	writeSlot$1(slot, instr.value);
+	writeSlot$1(slot, fresh(instr.value));
 	return 1;
 }
 function applyDel(root, instr, limits) {
@@ -19067,7 +19142,7 @@ function step(root, instr, limits, result, calls, here) {
 			break;
 		case "set":
 			if (instr.path.length === 0) {
-				writeSlot$1(hereFor(instr, here).slot, instr.value);
+				writeSlot$1(hereFor(instr, here).slot, fresh(instr.value));
 				countApplied(result, instr.c, 1);
 				break;
 			}
@@ -19791,6 +19866,24 @@ function headersForText(source, text, decoded) {
 	return headers;
 }
 /**
+* Headers for an answer sent without the body the provider sent: nothing
+* left that describes those bytes.
+*/
+function withoutBody(headers) {
+	for (const name of [
+		"content-type",
+		"content-length",
+		"content-encoding",
+		"content-language",
+		"content-location",
+		"content-range",
+		"content-md5",
+		"digest",
+		"repr-digest",
+		"content-digest"
+	]) headers.delete(name);
+}
+/**
 * What separates a handler's entity tag from the contract it was adapted for.
 * Legal inside an entity tag, and not in a contract label.
 */
@@ -19904,6 +19997,38 @@ var ProgramError = class extends Error {
 		this.name = "ProgramError";
 	}
 };
+/** Success statuses whose answer never carries a body, whatever a rule says. */
+const EMPTY_STATUSES = /* @__PURE__ */ new Set([204, 205]);
+function decodeStatusRules(raw, where) {
+	const list = array$1(raw, where);
+	if (list.length === 0) throw new ProgramError(`${where} must name at least one rule`);
+	return list.map((entry, index) => {
+		const at = `${where}[${index}]`;
+		const value = object$1(entry, at);
+		expectKeys(value, [
+			"from",
+			"to",
+			"empty",
+			"c"
+		], at);
+		const status = (name) => {
+			const code = value[name];
+			if (typeof code !== "number" || !Number.isInteger(code) || code < 200 || code > 299) throw new ProgramError(`${at}.${name} must be a success status, 200 to 299`);
+			return code;
+		};
+		const from = status("from");
+		const to = status("to");
+		if (from === to) throw new ProgramError(`${at} answers ${from} as itself`);
+		const empty = onlyTrue(value["empty"], `${at}.empty`);
+		if (EMPTY_STATUSES.has(to) && !empty) throw new ProgramError(`${at} answers ${to}, which carries no body, so it must be empty`);
+		return {
+			from,
+			to,
+			empty,
+			c: string$1(value["c"], `${at}.c`)
+		};
+	});
+}
 const HTTP_METHODS = /* @__PURE__ */ new Set([
 	"get",
 	"put",
@@ -20563,7 +20688,8 @@ function decodeSite(raw, where, template, blocks) {
 		"form",
 		"request",
 		"envelope",
-		"response"
+		"response",
+		"status"
 	], where);
 	const form = value["form"] === void 0 ? void 0 : decodeForm(value["form"], `${where}.form`);
 	if (value["request"] !== void 0 && value["envelope"] !== void 0) throw new ProgramError(`${where} has both request and envelope; one list keeps the order`);
@@ -20576,10 +20702,12 @@ function decodeSite(raw, where, template, blocks) {
 		if (response.has(key)) throw new ProgramError(`${where}.response names ${key} twice`);
 		response.set(key, array$1(list, `${where}.response.${status}`).map((instr, index) => decodeInstr(instr, `${where}.response.${status}[${index}]`, 0, blocks)));
 	}
+	const numeric = needsExactNumbers(request) || envelope !== void 0 && needsExactNumbers(envelope.instrs) || [...response.values()].some((list) => needsExactNumbers(list));
 	return {
 		request,
 		response,
-		numeric: needsExactNumbers(request) || envelope !== void 0 && needsExactNumbers(envelope.instrs) || [...response.values()].some((list) => needsExactNumbers(list)),
+		status: value["status"] === void 0 ? [] : decodeStatusRules(value["status"], `${where}.status`),
+		numeric,
 		template,
 		...envelope === void 0 ? {} : { envelope },
 		...form === void 0 ? {} : { form }
@@ -21318,6 +21446,7 @@ var InvariantRuntime = class {
 			changesIn(site.request, referenced);
 			changesIn(site.envelope?.instrs ?? [], referenced);
 			for (const list of site.response.values()) changesIn(list, referenced);
+			for (const rule of site.status) referenced.add(rule.c);
 			for (const change of disabled) if (referenced.has(change)) throw new UnsupportedContractError(label, `change ${change} is switched off`);
 		}
 		return site;
@@ -21442,17 +21571,30 @@ var InvariantRuntime = class {
 			if (marked === void 0) into.delete("etag");
 			else into.set("etag", marked);
 		};
+		const answered = adapted ? this.statusFor(site, response.status) : void 0;
+		const shown = answered?.status ?? response.status;
+		if (answered) this.#countStatus(answered, context);
 		const head = options.method?.toUpperCase() === "HEAD";
 		const stands = response.status === 304 ? 200 : response.status;
-		if (adapted && site && (head || response.status === 304) && this.respondsTo(site, stands)) {
-			mark(headers);
+		if (adapted && site && (head || response.status === 304) && (this.respondsTo(site, stands) || answered !== void 0)) {
+			if (answered?.empty) withoutBody(headers);
+			else mark(headers);
 			if (head) headers.delete("content-length");
 			return new Response(null, {
-				status: response.status,
+				status: head ? shown : response.status,
 				headers
 			});
 		}
-		if (!site || !response.body || !this.respondsTo(site, response.status) || !isJsonMediaType(response.headers.get("content-type"))) return responseOf(response.body, response.status, headers);
+		if (answered?.empty) {
+			await response.body?.cancel();
+			withoutBody(headers);
+			if (!EMPTY_STATUSES.has(shown)) headers.set("content-length", "0");
+			return new Response(null, {
+				status: shown,
+				headers
+			});
+		}
+		if (!site || !response.body || !this.respondsTo(site, response.status) || !isJsonMediaType(response.headers.get("content-type"))) return responseOf(response.body, shown, headers);
 		try {
 			const original = await readBodyText(response, {
 				limit: this.#maxBodyBytes,
@@ -21462,7 +21604,7 @@ var InvariantRuntime = class {
 			const rebuilt = headersForText(headers, transformed.body, original.decoded);
 			if (transformed.body !== original.text) mark(rebuilt);
 			if (transformed.folded.length > 0) rebuilt.set(FOLDED_HEADER, transformed.folded.join(", "));
-			return responseOf(transformed.body, response.status, rebuilt);
+			return responseOf(transformed.body, shown, rebuilt);
 		} catch (error) {
 			const shaped = responseFailure(options.errors ?? DEFAULT_ERROR_SHAPER, error);
 			if (!shaped) throw error;
@@ -21689,6 +21831,40 @@ var InvariantRuntime = class {
 			throw error;
 		}
 	}
+	/**
+	* The status an old caller is answered with where the provider answered
+	* `status`, whether it goes without a body, and the Changes that said so:
+	* the site's rules applied in turn. Nothing where no rule names the status.
+	* A binding that holds a response back to adapt it holds one this names,
+	* whatever its body.
+	*/
+	statusFor(site, status) {
+		if (!site || site.status.length === 0) return void 0;
+		let current = status;
+		let empty = false;
+		const changes = [];
+		for (const rule of site.status) {
+			if (rule.from !== current) continue;
+			current = rule.to;
+			empty ||= rule.empty;
+			changes.push(rule.c);
+		}
+		if (changes.length === 0) return void 0;
+		return {
+			status: current,
+			empty: empty || EMPTY_STATUSES.has(current),
+			changes
+		};
+	}
+	/** A status answered as another, counted as any applied Change is. */
+	#countStatus(answered, context) {
+		this.#onUsage?.({
+			contract: context.contract,
+			operation: context.operation,
+			consumer: context.consumer,
+			changes: new Map(answered.changes.map((change) => [change, 1]))
+		});
+	}
 	/** True when this status has compiled response work, so the body must be read. */
 	respondsTo(site, status) {
 		return statusKeysFor(status).some((key) => (site.response.get(key)?.length ?? 0) > 0);
@@ -21815,11 +21991,42 @@ function parentFor(document, root, segments, create) {
 		last: segments[segments.length - 1]
 	};
 }
+/**
+* Whether a schema is an object that says nothing of what it holds: no
+* properties declared, nothing composed, and any field allowed. Meilisearch
+* 1.53 wrote a dynamic search rule's `action` that way, `{type: object}`, and
+* a Change still has to be able to say where the position it always held
+* went. Only such an object: a field missing from one that declares its
+* properties is a pointer to nothing, and stays refused as one.
+*/
+function opaqueObject(schema) {
+	const properties = schema["properties"];
+	return schema["type"] === "object" && (!isJsonObject(properties) || Object.keys(properties).length === 0) && schema["additionalProperties"] !== false && ![
+		"allOf",
+		"anyOf",
+		"oneOf",
+		"$ref",
+		"not",
+		"enum",
+		"const"
+	].some((keyword) => schema[keyword] !== void 0);
+}
 function readSlot(document, root, segments) {
 	const { parent, last } = parentFor(document, root, segments, false);
 	const keyword = WILDCARD_KEYWORD[last];
 	const schema = keyword ? parent[keyword] : parent["properties"]?.[last];
-	if (schema === void 0) throw new SchemaOpError(`Nothing to read at "${segments.join("/")}"`);
+	if (schema === void 0) {
+		if (!keyword && opaqueObject(parent)) {
+			const values = parent["additionalProperties"];
+			return {
+				parent,
+				last,
+				schema: isJsonObject(values) ? clone$1(values) : {},
+				required: false
+			};
+		}
+		throw new SchemaOpError(`Nothing to read at "${segments.join("/")}"`);
+	}
 	return {
 		parent,
 		last,
@@ -22690,6 +22897,119 @@ function applyOne(document, newContract, located, scope, op) {
 	}
 }
 //#endregion
+//#region ../compiler/src/status.ts
+/**
+* An operation that answers with another success status: the `status` op.
+*
+* Three things read it. The prediction moves the old contract's response from
+* the status it was promised at to the one the operation answers with now,
+* so the gate compares the body and headers that response carries as it would
+* any other. The projection gives the old contract's site a rule that answers
+* an old caller the status it was promised. And the response work of the
+* release's other Changes, written against the old contract's status, is
+* filed under the status the provider now answers with, which is the one the
+* runtime reads when the answer arrives.
+*
+* What happens to the body is read from the two contracts rather than
+* declared, so it cannot be declared wrong: where the old contract promised no
+* body, the caller is sent none; where it promised one and the new status
+* carries one, the body is served like any other; where it promised one and
+* the new status carries none, nothing can stand in for it and the Change is
+* refused.
+*/
+function statusMappings(changes) {
+	const out = [];
+	for (const change of changes) for (const op of change.ops) {
+		if (op.op !== "status") continue;
+		out.push({
+			method: op.endpoint.method,
+			path: op.endpoint.path,
+			from: op.from,
+			to: op.to,
+			changeId: change.id
+		});
+	}
+	return out;
+}
+/**
+* The status an old operation's response is answered with now: the status a
+* Change moved it to, or the one it always had.
+*/
+function statusNow(mappings, method, path, status) {
+	return mappings.find((mapping) => mapping.method === method.toLowerCase() && mapping.path === path && mapping.from === status)?.to ?? status;
+}
+function operationAt(document, endpoint) {
+	return operationsOf(document).find((candidate) => !candidate.webhook && candidate.method === endpoint.method && candidate.path === endpoint.path)?.operation;
+}
+/** The response an operation declares at an exact status, with a shared one followed to what it names. */
+function responseAt(document, operation, status) {
+	const responses = operation["responses"];
+	if (!isJsonObject(responses)) return void 0;
+	let response = responses[status];
+	for (let hops = 0; isJsonObject(response) && typeof response["$ref"] === "string" && hops < 16; hops += 1) response = resolveRef(document, response["$ref"]);
+	return isJsonObject(response) ? response : void 0;
+}
+/** Whether a response promises a body, in any representation. */
+function carriesBody(response) {
+	const content = response["content"];
+	return isJsonObject(content) && Object.keys(content).length > 0;
+}
+const label = (op) => `${op.endpoint.method.toUpperCase()} ${op.endpoint.path}`;
+/**
+* Why the op cannot be served as written, if it cannot: checked against the
+* old contract, and against the new one where there is one.
+*/
+function statusProblem(oldContract, newContract, routes, op) {
+	if (op.from === op.to) return `${label(op)} answers ${op.from} either way, so nothing changed`;
+	const old = operationAt(oldContract, op.endpoint);
+	if (!old) return `${label(op)} is not an operation of the old contract`;
+	const promised = responseAt(oldContract, old, op.from);
+	if (!promised) return `${label(op)} never answered ${op.from} in the old contract, so no old caller was promised it`;
+	if (!newContract) return void 0;
+	const target = mapEndpoint(routes, op.endpoint.method, op.endpoint.path);
+	const now = operationAt(newContract, target);
+	if (!now) return `${target.method.toUpperCase()} ${target.path} is not an operation of the new contract`;
+	const answered = responseAt(newContract, now, op.to);
+	if (!answered) return `${target.method.toUpperCase()} ${target.path} does not answer ${op.to} in the new contract`;
+	if (responseAt(newContract, now, op.from)) return `${target.method.toUpperCase()} ${target.path} still answers ${op.from} in the new contract, so it did not become ${op.to}`;
+	if (carriesBody(promised) && !carriesBody(answered)) return `old callers were promised a body with ${op.from}, and ${op.to} carries none, so nothing can be sent in its place`;
+}
+/**
+* The old contract's response moved to the status the operation answers with
+* now, in the predicted document, as the op's half of the closure check.
+*/
+function applyStatus(document, oldContract, newContract, routes, op, issues, changeId) {
+	const problem = statusProblem(oldContract, newContract, routes, op);
+	if (problem) {
+		issues.push({
+			changeId,
+			message: problem
+		});
+		return;
+	}
+	const responses = operationAt(document, mapEndpoint(routes, op.endpoint.method, op.endpoint.path))?.["responses"];
+	if (!isJsonObject(responses) || responses[op.from] === void 0) {
+		issues.push({
+			changeId,
+			message: `${label(op)} has no ${op.from} response left in the predicted contract to move`
+		});
+		return;
+	}
+	responses[op.to] = responses[op.from];
+	delete responses[op.from];
+}
+/** The rule an old caller's answers are given, where the op can be served. */
+function statusRule(oldContract, newContract, routes, op, changeId) {
+	if (statusProblem(oldContract, newContract, routes, op) !== void 0) return void 0;
+	const promised = responseAt(oldContract, operationAt(oldContract, op.endpoint), op.from);
+	return {
+		from: Number(op.to),
+		to: Number(op.from),
+		...carriesBody(promised) ? {} : { empty: true },
+		c: changeId
+	};
+}
+//#endregion
 //#region ../compiler/src/predict-responses.ts
 /**
 * A Change to one operation's response body where the body's schema is
@@ -22761,7 +23081,7 @@ function shapeInNew(newContract, method, path, status, pointer) {
 		required
 	};
 }
-function applyResponseScope(document, oldContract, newContract, routes, scope, ops, issues, changeId) {
+function applyResponseScope(document, oldContract, newContract, routes, scope, ops, issues, changeId, statuses = []) {
 	const refuse = (message) => issues.push({
 		changeId,
 		message
@@ -22772,6 +23092,7 @@ function applyResponseScope(document, oldContract, newContract, routes, scope, o
 		return;
 	}
 	const target = mapEndpoint(routes, old.method, old.path);
+	const answered = statusNow(statuses, old.method, old.path, scope.response);
 	const paths = document["paths"];
 	const item = isJsonObject(paths) ? paths[target.path] : void 0;
 	const operation = isJsonObject(item) ? item[target.method] : void 0;
@@ -22799,7 +23120,7 @@ function applyResponseScope(document, oldContract, newContract, routes, scope, o
 				schemaRemove(document, root, op.path);
 				break;
 			case "add": {
-				const found = shapeInNew(newContract, target.method, target.path, scope.response, op.path);
+				const found = shapeInNew(newContract, target.method, target.path, answered, op.path);
 				if (!found) throw new SchemaOpError(`the new contract's ${scope.response} response has no ${op.path}`);
 				importReferences(document, newContract, found.shape);
 				schemaAdd(document, root, op.path, found.shape, found.required);
@@ -22815,7 +23136,7 @@ function applyResponseScope(document, oldContract, newContract, routes, scope, o
 				schemaSetNullable(document, root, op.path, op.toward === "old");
 				break;
 			case "restate": {
-				const next = shapeInNew(newContract, target.method, target.path, scope.response, op.path);
+				const next = shapeInNew(newContract, target.method, target.path, answered, op.path);
 				const before = shapeInNew(document, target.method, target.path, scope.response, op.path);
 				if (!next || !before) throw new SchemaOpError(`the ${next ? "old" : "new"} contract's ${scope.response} response has no ${op.path || "body"}`);
 				proveRestated({
@@ -23005,11 +23326,11 @@ function topOf(document, schema) {
 * The shape a newly added field has in the new contract. Resolved by position
 * rather than by schema name, so a renamed schema still lines up.
 */
-function shapeFromNewContract(newDocument, routes, site, path) {
+function shapeFromNewContract(newDocument, routes, statuses, site, path) {
 	const target = mapEndpoint(routes, site.method, site.path);
 	const operation = operationsOf(newDocument).find((candidate) => candidate.method === target.method && candidate.path === target.path);
 	if (!operation) return void 0;
-	const body = bodySchemaFor(newDocument, operation.operation, site.direction, site.status ?? void 0);
+	const body = bodySchemaFor(newDocument, operation.operation, site.direction, site.status === void 0 ? void 0 : statusNow(statuses, site.method, site.path, site.status));
 	if (body === void 0) return void 0;
 	const segments = [...parsePointer(site.prefix), ...parsePointer(path)];
 	const shape = navigate(newDocument, body, segments);
@@ -23047,6 +23368,7 @@ function predictDocument(oldContract, newContract, changes) {
 	const document = structuredClone(oldContract);
 	const issues = [...unaddressableKeys(changes)];
 	const routes = routeMappings(changes);
+	const statuses = statusMappings(changes);
 	for (const change of changes) for (const index of undecidedOps(change)) {
 		const op = change.ops[index];
 		issues.push({
@@ -23072,7 +23394,7 @@ function predictDocument(oldContract, newContract, changes) {
 		}
 		for (const scope of scopes) {
 			if (isResponseScope(scope)) {
-				applyResponseScope(document, oldContract, newContract, routes, scope, dataOps, issues, change.id);
+				applyResponseScope(document, oldContract, newContract, routes, scope, dataOps, issues, change.id, statuses);
 				continue;
 			}
 			if (isParameterScope(scope)) {
@@ -23117,7 +23439,7 @@ function predictDocument(oldContract, newContract, changes) {
 					}
 					case "add": {
 						const site = oldSites[0];
-						const resolved = (site ? shapeFromNewContract(newContract, routes, site, op.path) : void 0) ?? shapeByName(newContract, name, op.path);
+						const resolved = (site ? shapeFromNewContract(newContract, routes, statuses, site, op.path) : void 0) ?? shapeByName(newContract, name, op.path);
 						if (!resolved) {
 							issues.push({
 								changeId: change.id,
@@ -23150,7 +23472,7 @@ function predictDocument(oldContract, newContract, changes) {
 						break;
 					case "restate": {
 						const site = oldSites[0];
-						const next = shapeByName(newContract, name, op.path) ?? (site ? shapeFromNewContract(newContract, routes, site, op.path) : void 0);
+						const next = shapeByName(newContract, name, op.path) ?? (site ? shapeFromNewContract(newContract, routes, statuses, site, op.path) : void 0);
 						if (!next) throw new Error(`the new contract has no ${op.path || name} to restate it as`);
 						const before = navigate(document, schema, parsePointer(op.path));
 						if (before === void 0) throw new Error(`the old contract has no ${op.path} on ${name}`);
@@ -23198,6 +23520,7 @@ function predictDocument(oldContract, newContract, changes) {
 		}
 	}
 	for (const entry of towardOld) looserInResponses(document, newContract, routes, entry, issues);
+	for (const change of changes) for (const op of change.ops) if (op.op === "status") applyStatus(document, oldContract, newContract, routes, op, issues, change.id);
 	return {
 		document,
 		issues
@@ -23406,6 +23729,10 @@ function derive(change) {
 			break;
 		case "restate":
 			reasons.push(`${op.path || "the value"} is stated differently and allows nothing new to old callers, so it passes through exactly`);
+			break;
+		case "status":
+			source = source === "manual" ? source : "assisted";
+			reasons.push(`${op.endpoint.method.toUpperCase()} ${op.endpoint.path} answers ${op.to} where it answered ${op.from}, so an old caller is answered ${op.from}; code that checks the status it is answered has to be changed by hand to migrate`);
 			break;
 		case "retire":
 			runtime = "none";
@@ -23782,6 +24109,7 @@ function accumulatorFor(sites, key) {
 		entry = {
 			request: [],
 			response: /* @__PURE__ */ new Map(),
+			status: [],
 			old: /* @__PURE__ */ new Map(),
 			new: /* @__PURE__ */ new Map()
 		};
@@ -23797,6 +24125,7 @@ function accumulatorFor(sites, key) {
 function projectStep(label, oldContract, changes, newContract) {
 	const issues = [...unaddressableKeys(changes), ...findInterference(changes)];
 	const routes = routeMappings(changes);
+	const statuses = statusMappings(changes);
 	const sites = /* @__PURE__ */ new Map();
 	const routeRules = routes.map((route) => ({
 		from: route.from,
@@ -23807,6 +24136,13 @@ function projectStep(label, oldContract, changes, newContract) {
 	const retired = [];
 	for (const change of changes) for (const op of change.ops) {
 		if (op.op === "behavior") behaviors.push(op.flag);
+		if (op.op === "status") {
+			const rule = statusRule(oldContract, newContract, routes, op, change.id);
+			if (rule) {
+				const target = mapEndpoint(routes, op.endpoint.method, op.endpoint.path);
+				accumulatorFor(sites, siteKey(target.method, target.path)).status.push(rule);
+			}
+		}
 		if (op.op === "retire") retired.push({
 			method: op.endpoint.method,
 			path: op.endpoint.path,
@@ -23827,8 +24163,8 @@ function projectStep(label, oldContract, changes, newContract) {
 		collectParameters(change, oldContract, newContract, routes, sites, issues);
 	}
 	const outbound = /* @__PURE__ */ new Map();
-	for (const change of [...changes].reverse()) collectBackward(change, oldContract, routes, sites, outbound, issues, shared.targets, variants);
-	collectShared(shared, oldContract, newContract, routes, sites);
+	for (const change of [...changes].reverse()) collectBackward(change, oldContract, routes, statuses, sites, outbound, issues, shared.targets, variants);
+	collectShared(shared, oldContract, newContract, routes, statuses, sites);
 	if (newContract) collectErrorParams(oldContract, newContract, changes, routes, sites);
 	const out = {};
 	for (const [key, entry] of [...sites.entries()].sort()) {
@@ -23845,7 +24181,8 @@ function projectStep(label, oldContract, changes, newContract) {
 		else if (entry.request.length > 0) program.request = entry.request.map((item) => item.instr);
 		const responses = [...entry.response.entries()].sort().filter(([, instrs]) => instrs.length > 0);
 		if (responses.length > 0) program.response = Object.fromEntries(responses);
-		if (program.request || program.envelope || program.response) out[key] = program;
+		if (entry.status.length > 0) program.status = entry.status;
+		if (program.request || program.envelope || program.response || program.status) out[key] = program;
 	}
 	const sent = [...outbound.entries()].sort().filter(([, instrs]) => instrs.length > 0);
 	return {
@@ -23866,7 +24203,7 @@ function projectStep(label, oldContract, changes, newContract) {
 * through them. After the listed instructions on the way in, and before them
 * on the way out, so each direction undoes the other.
 */
-function collectShared(shared, oldContract, newContract, routes, sites) {
+function collectShared(shared, oldContract, newContract, routes, statuses, sites) {
 	if (shared.targets.size === 0) return;
 	for (const { method, path, operation, webhook } of operationsOf(oldContract)) {
 		if (webhook === true) continue;
@@ -23885,10 +24222,11 @@ function collectShared(shared, oldContract, newContract, routes, sites) {
 				param: false
 			})));
 		}
-		for (const { status, schema } of responseSchemas$1(oldContract, operation)) {
+		for (const { status: promised, schema } of responseSchemas$1(oldContract, operation)) {
 			const backward = shared.entry(schema, "backward");
 			if (backward.length === 0) continue;
 			const entry = accumulatorFor(sites, key);
+			const status = statusNow(statuses, method, path, promised);
 			entry.response.set(status, [...backward, ...entry.response.get(status) ?? []]);
 		}
 	}
@@ -24202,7 +24540,7 @@ function prefixInstr(instr, part) {
 		};
 	}
 }
-function collectBackward(change, oldContract, routes, sites, outbound, issues, shared, variants) {
+function collectBackward(change, oldContract, routes, statuses, sites, outbound, issues, shared, variants) {
 	const dataOps = change.ops.filter(isDataOp);
 	if (dataOps.length === 0) return;
 	for (const site of sitesOf(change, oldContract, issues, shared)) {
@@ -24216,10 +24554,11 @@ function collectBackward(change, oldContract, routes, sites, outbound, issues, s
 		if (site.direction !== "response" || site.status === void 0) continue;
 		const target = mapEndpoint(routes, site.method, site.path);
 		const entry = accumulatorFor(sites, siteKey(target.method, target.path));
-		let instrs = entry.response.get(site.status);
+		const status = statusNow(statuses, site.method, site.path, site.status);
+		let instrs = entry.response.get(status);
 		if (!instrs) {
 			instrs = [];
-			entry.response.set(site.status, instrs);
+			entry.response.set(status, instrs);
 		}
 		instrs.push(...guarded(site, change, "backward", (prefix) => [...dataOps].reverse().flatMap((op) => backwardInstrs(op, prefix, change.id, variants))));
 	}
@@ -24323,13 +24662,44 @@ function mergeSite(earlier, later) {
 		const request = [...earlier.request ?? [], ...later.request ?? []];
 		if (request.length > 0) out.request = request;
 	}
-	if (earlier.response || later.response) {
+	const rules = later.status ?? [];
+	if (earlier.response || later.response || rules.length > 0) {
+		const handed = (status) => {
+			let current = status;
+			for (const rule of rules) if (String(rule.from) === current) current = String(rule.to);
+			return current;
+		};
 		const response = {};
-		const statuses = /* @__PURE__ */ new Set([...Object.keys(earlier.response ?? {}), ...Object.keys(later.response ?? {})]);
-		for (const status of [...statuses].sort()) response[status] = [...later.response?.[status] ?? [], ...earlier.response?.[status] ?? []];
-		out.response = response;
+		const statuses = /* @__PURE__ */ new Set([
+			...Object.keys(earlier.response ?? {}),
+			...Object.keys(later.response ?? {}),
+			...rules.map((rule) => String(rule.from))
+		]);
+		for (const status of [...statuses].sort()) response[status] = [...lookup$1(later.response, status) ?? [], ...lookup$1(earlier.response, handed(status)) ?? []];
+		if (Object.values(response).some((list) => list.length > 0)) out.response = response;
 	}
+	const status = [...rules, ...earlier.status ?? []];
+	if (status.length > 0) out.status = status;
 	return out;
+}
+/**
+* The work a site's response map holds for a status, found as the runtime
+* finds it: the key itself, then, for an exact status, its class, and then
+* `default`. Classes are compared without regard to case, as OpenAPI's `2XX`
+* and the runtime's `2xx` are the same key.
+*/
+function lookup$1(response, status) {
+	if (!response) return void 0;
+	const wanted = /^\d{3}$/.test(status) ? [
+		status,
+		`${status[0]}xx`,
+		"default"
+	] : /^\d[xX]{2}$/.test(status) ? [status.toLowerCase(), "default"] : [status];
+	const byKey = new Map(Object.entries(response).map(([key, list]) => [key.toLowerCase(), list]));
+	for (const key of wanted) {
+		const found = byKey.get(key);
+		if (found !== void 0) return found;
+	}
 }
 const codecKey = (codec) => `${codec.in} ${codec.name}`;
 /** A site's request instructions over the body, relative to it. */
@@ -24523,7 +24893,7 @@ function joined(own, later, label) {
 	};
 }
 function contractOf(frame, link) {
-	const sites = Object.fromEntries([...link.sites.entries()].filter(([, site]) => site.request || site.envelope || site.response));
+	const sites = Object.fromEntries([...link.sites.entries()].filter(([, site]) => site.request || site.envelope || site.response || site.status));
 	const outbound = Object.entries(link.outbound).filter(([, list]) => list.length > 0);
 	return {
 		...frame,
@@ -24858,9 +25228,10 @@ const RULES = [
 		sentence: "Authentication changed. An adapter must never alter who is allowed to call what, so old callers have to update their credentials; tell them directly."
 	}),
 	rule(/^response-success-status-removed$/, {
-		class: "behavior-only",
-		served: "not applicable",
-		sentence: `A success status an old caller relies on is no longer returned. ${BEHAVIOR}`
+		class: "adaptable",
+		op: "status",
+		served: "yes",
+		sentence: "A success status an old caller relies on is no longer returned. Where the operation now answers with one other success status, a `status` answers old callers the one they were promised, with no body where their contract promised none; it is drafted where the two contracts settle which status replaced which. Where their contract promised a body the new status does not carry, nothing can stand in for it: declare a `behavior` flag instead."
 	}),
 	rule(/^(response-(body-)?media-type|response-body-content|response-media-type)-/, {
 		class: "behavior-only",
