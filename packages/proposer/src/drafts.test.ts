@@ -1626,3 +1626,46 @@ describe("a list that became nullable through a union with null", () => {
     ).toEqual([]);
   });
 });
+
+describe("a list whose items became a choice", () => {
+  // Asana's portfolio items, Twilio's compliance list and Langfuse's
+  // evaluation-rule filters all did this between two versions: the items went
+  // from one shape to a choice of shapes, or from a choice written out to a
+  // choice with a name. Read as a field the list gained, each drafted an `add`
+  // for `/<field>/*`, and the compiler refused every one of them, because a
+  // list has no place of that name to copy a shape from.
+  const withItems = (items: Schema) => ({
+    ...base,
+    Thing: object({ id: { type: "string" }, filters: { type: "array", items } }, ["id"]),
+  });
+  const branch = (kind: string) => object({ kind: { type: "string", enum: [kind] } });
+
+  it("is not a field added or removed, whether the choice is named or written out", async () => {
+    const pairs: [Schema, Schema][] = [
+      // Written out on one side, named on the other.
+      [branch("old"), { $ref: "#/components/schemas/Filters" }],
+      // One shape, then a choice of shapes.
+      [branch("old"), { oneOf: [branch("a"), branch("b")] }],
+      // A choice of shapes, then one shape.
+      [{ oneOf: [branch("a"), branch("b")] }, branch("only")],
+    ];
+    for (const [before, after] of pairs) {
+      const outcome = await propose(
+        contract(withItems(before)),
+        contract({
+          ...withItems(after),
+          Filters: { oneOf: [branch("a"), branch("b")] },
+        }),
+        { judge: new RulesJudge() },
+      );
+      const ops = [
+        ...outcome.proposals.map((proposal) => proposal.change),
+        ...outcome.decisions.map(decisionChange),
+      ].flatMap((change) => change.ops);
+      expect(
+        ops.filter((op) => "path" in op && String(op.path).endsWith("/*")),
+        JSON.stringify(after),
+      ).toEqual([]);
+    }
+  });
+});

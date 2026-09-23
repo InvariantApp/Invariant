@@ -189,3 +189,105 @@ describe("a Change to a response body written in place", () => {
     ).toContain("memo");
   });
 });
+
+describe("a Change to what a response's list holds", () => {
+  // Twilio's compliance list and Asana's portfolio items both changed what
+  // each item of a list is. The prediction looked the shape up in the new
+  // contract by walking properties alone, so `/items/*` found nothing and
+  // every such Change was refused as unservable, although the pointer layer
+  // that serves it has always walked a list.
+  const listing = (item: Record<string, unknown>): OpenApiDocument =>
+    ({
+      openapi: "3.0.3",
+      info: { title: "portfolios", version: "1" },
+      paths: {
+        "/portfolios/{id}/items": {
+          get: {
+            operationId: "listItems",
+            parameters: [
+              { name: "id", in: "path", required: true, schema: { type: "string" } },
+            ],
+            responses: {
+              "200": {
+                description: "the items",
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      properties: { data: { type: "array", items: item } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }) as unknown as OpenApiDocument;
+
+  const ADD_KIND = parseChange({
+    irVersion: 1,
+    id: "chg_items_kind",
+    summary: "Each item says what kind it is.",
+    scopes: [{ operation: "listItems", response: "200" }],
+    ops: [{ op: "add", path: "/data/*/kind", value: null }],
+  });
+
+  it("is predicted by walking into the list, as the pointer layer does", () => {
+    const before = listing({ type: "object", properties: { gid: { type: "string" } } });
+    const after = listing({
+      type: "object",
+      properties: { gid: { type: "string" }, kind: { type: "string" } },
+      required: ["kind"],
+    });
+    const prediction = predictDocument(before, after, [ADD_KIND]);
+    expect(prediction.issues).toEqual([]);
+    const item = pick(
+      prediction.document,
+      "paths",
+      "/portfolios/{id}/items",
+      "get",
+      "responses",
+      "200",
+      ...JSON_BODY,
+      "properties",
+      "data",
+      "items",
+    );
+    expect(Object.keys(pick(item, "properties") as object)).toEqual(["gid", "kind"]);
+    expect(pick(item, "required")).toEqual(["kind"]);
+  });
+
+  it("is refused where the whole item is what would be added", () => {
+    // What this compiled to, before it was refused, was `del /data/*` on the
+    // way back to an old caller: their list arrived empty, and closure called
+    // it explained because the predicted document matched the new contract.
+    const before = listing({ type: "object", properties: { gid: { type: "string" } } });
+    const after = listing({
+      oneOf: [
+        { type: "object", properties: { gid: { type: "string" } } },
+        { type: "object", properties: { kind: { type: "string" } } },
+      ],
+    });
+    const prediction = predictDocument(before, after, [
+      parseChange({
+        irVersion: 1,
+        id: "chg_items_themselves",
+        summary: "Each item may now be one of two things.",
+        scopes: [{ operation: "listItems", response: "200" }],
+        ops: [{ op: "add", path: "/data/*", value: null }],
+      }),
+    ]);
+    expect(prediction.issues.map((issue) => issue.message)).toEqual([
+      "add on listItems's 200 response: A list's items and a map's values are not a field to add: say what each item may be instead",
+    ]);
+  });
+
+  it("is refused where the new contract's list holds nothing of that name", () => {
+    const before = listing({ type: "object", properties: { gid: { type: "string" } } });
+    const prediction = predictDocument(before, before, [ADD_KIND]);
+    expect(prediction.issues.map((issue) => issue.message)).toEqual([
+      "add on listItems's 200 response: the new contract's 200 response has no /data/*/kind",
+    ]);
+  });
+});

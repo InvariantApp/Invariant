@@ -321,11 +321,17 @@ export function scoreboard(inputs: {
         : "",
       evidence: "engines/go/invariant/vectors_test.go, in CI on every commit",
     },
-    unmeasured(
-      "L13",
-      "The whole product journey in a browser against staging.",
-      "M7 and M8.",
-    ),
+    {
+      id: "L13",
+      claim: "The whole product journey in a browser against staging.",
+      status: "not met",
+      value:
+        "every dashboard screen is walked in a real browser against the whole " +
+        "service on each commit, at a laptop's and a phone's width, asserting " +
+        "what the service holds rather than an empty state; signing up with " +
+        "GitHub and paying by card are not yet walked, and neither is staging",
+      evidence: "e2e/journey.spec.ts in the service's repository, in its local CI",
+    },
     unmeasured("L14", "Enterprise identity, audit, self-hosting and residency.", "M9."),
   );
   lines.push({

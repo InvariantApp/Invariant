@@ -723,6 +723,23 @@ export function schemaRelax(
 }
 
 /**
+ * A list's items and a map's values are not a field, so neither is added nor
+ * removed. Both ops are served by writing or deleting what the pointer names:
+ * at a wildcard that is every item of the list, so `add` would empty an old
+ * caller's list and `remove` would empty a new one's, while the predicted
+ * document matched the new contract and closure called it explained. What a
+ * list gained is a `widen` and what it lost is a declared loss.
+ */
+function refuseWildcardLeaf(segments: readonly string[], op: string): void {
+  const last = segments[segments.length - 1];
+  if (last !== undefined && WILDCARD_KEYWORD[last] !== undefined) {
+    throw new SchemaOpError(
+      `A list's items and a map's values are not a field to ${op}: say what each item may be instead`,
+    );
+  }
+}
+
+/**
  * `add` takes the field's shape from the new contract and supplies only the
  * default, which the specification cannot express. Nothing about the shape is
  * invented here.
@@ -734,7 +751,9 @@ export function schemaAdd(
   shape: JsonValue,
   required: boolean,
 ): void {
-  writeSlot(document, root, parsePointer(path), clone(shape), required);
+  const segments = parsePointer(path);
+  refuseWildcardLeaf(segments, "add");
+  writeSlot(document, root, segments, clone(shape), required);
 }
 
 export function schemaRemove(
@@ -743,6 +762,7 @@ export function schemaRemove(
   path: string,
 ): void {
   const segments = parsePointer(path);
+  refuseWildcardLeaf(segments, "remove");
   readSlot(document, root, segments);
   deleteSlot(document, root, segments);
   pruneEmptyObjects(document, root, segments);

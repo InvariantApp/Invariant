@@ -21258,15 +21258,30 @@ function schemaRelax(document, root, path, set, sentByOldCallers) {
 	}
 }
 /**
+* A list's items and a map's values are not a field, so neither is added nor
+* removed. Both ops are served by writing or deleting what the pointer names:
+* at a wildcard that is every item of the list, so `add` would empty an old
+* caller's list and `remove` would empty a new one's, while the predicted
+* document matched the new contract and closure called it explained. What a
+* list gained is a `widen` and what it lost is a declared loss.
+*/
+function refuseWildcardLeaf(segments, op) {
+	const last = segments[segments.length - 1];
+	if (last !== void 0 && WILDCARD_KEYWORD[last] !== void 0) throw new SchemaOpError(`A list's items and a map's values are not a field to ${op}: say what each item may be instead`);
+}
+/**
 * `add` takes the field's shape from the new contract and supplies only the
 * default, which the specification cannot express. Nothing about the shape is
 * invented here.
 */
 function schemaAdd(document, root, path, shape, required) {
-	writeSlot(document, root, parsePointer(path), clone$1(shape), required);
+	const segments = parsePointer(path);
+	refuseWildcardLeaf(segments, "add");
+	writeSlot(document, root, segments, clone$1(shape), required);
 }
 function schemaRemove(document, root, path) {
 	const segments = parsePointer(path);
+	refuseWildcardLeaf(segments, "remove");
 	readSlot(document, root, segments);
 	deleteSlot(document, root, segments);
 	pruneEmptyObjects(document, root, segments);
@@ -21688,10 +21703,18 @@ function shapeInNew(newContract, method, path, status, pointer) {
 	let required = false;
 	for (const segment of parsePointer(pointer)) {
 		const parent = resolveSchema(newContract, declared ?? {});
-		const properties = isJsonObject(parent) ? parent["properties"] : void 0;
+		if (!isJsonObject(parent)) return void 0;
+		const keyword = segment === "*" ? "items" : segment === "{}" ? "additionalProperties" : void 0;
+		if (keyword !== void 0) {
+			if (parent[keyword] === void 0) return void 0;
+			declared = parent[keyword];
+			required = false;
+			continue;
+		}
+		const properties = parent["properties"];
 		if (!isJsonObject(properties) || properties[segment] === void 0) return void 0;
 		declared = properties[segment];
-		required = isJsonObject(parent) && Array.isArray(parent["required"]) && parent["required"].includes(segment);
+		required = Array.isArray(parent["required"]) && parent["required"].includes(segment);
 	}
 	return declared === void 0 ? void 0 : {
 		shape: declared,

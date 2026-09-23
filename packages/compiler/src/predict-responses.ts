@@ -113,11 +113,22 @@ function shapeInNew(
   for (const segment of parsePointer(pointer)) {
     // Walked as the differ reads it: references followed, `allOf` merged.
     const parent = resolveSchema(newContract, declared ?? {});
-    const properties = isJsonObject(parent) ? parent["properties"] : undefined;
+    if (!isJsonObject(parent)) return undefined;
+    // A list's items and a map's values are reached the way the pointer layer
+    // reaches them, so a Change about what a list holds can be served; only
+    // a field of an object is ever required.
+    const keyword =
+      segment === "*" ? "items" : segment === "{}" ? "additionalProperties" : undefined;
+    if (keyword !== undefined) {
+      if (parent[keyword] === undefined) return undefined;
+      declared = parent[keyword];
+      required = false;
+      continue;
+    }
+    const properties = parent["properties"];
     if (!isJsonObject(properties) || properties[segment] === undefined) return undefined;
     declared = properties[segment];
     required =
-      isJsonObject(parent) &&
       Array.isArray(parent["required"]) &&
       (parent["required"] as JsonValue[]).includes(segment);
   }

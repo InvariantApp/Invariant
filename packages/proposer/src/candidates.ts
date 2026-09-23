@@ -284,9 +284,22 @@ function fieldsOf(
     // schema: most real changes happen a level or two down.
     const items = isJsonObject(value["items"]) ? value["items"] : undefined;
     // A list of a union, as Stripe's `discounts` are: each item is the field.
-    const itemUnion = items ? unionOf(items) : {};
+    // The union may be written in place or named, as Figma names the effects
+    // a node can hold; a name is followed, since what the item may be is the
+    // same either way.
+    const itemChoice = items
+      ? throughNull(document, resolvedObject(document, items))
+      : undefined;
+    const itemUnion = itemChoice ? unionOf(itemChoice) : {};
+    // The item is a field of this schema whenever it is a choice at all, even
+    // one whose branches are written out instead of named, as Langfuse writes
+    // out the ten shapes an evaluation-rule filter could take. A side that
+    // writes them out has no variants to record, and if that left the field
+    // out altogether the other side's would read as newly added, which is not
+    // a thing an adapter can serve.
     const listed: FieldShape[] =
-      itemUnion.variants === undefined
+      itemChoice === undefined ||
+      (itemUnion.variants === undefined && !isUnion(document, itemChoice))
         ? []
         : [
             {
@@ -403,13 +416,23 @@ function compare(
       (field) => !pointers.some((other) => field.pointer.startsWith(`${other}/`)),
     );
   };
+  // The items of a list are compared with the items of that list or not at
+  // all. Nothing adds or removes an item the way it adds or removes a field:
+  // a list whose items became a choice, or became an enum, still holds the
+  // items it held, and drafting their addition asks the compiler for a place
+  // in the new contract that a list has no name for.
+  const item = (field: FieldShape) => field.pointer.endsWith("/*");
   // A schema's own value is compared with itself or not at all: a named
   // schema that became a scalar did not gain a field at its root.
   const removed = outermost(
-    before.filter((field) => field.pointer !== "" && !afterAt.has(field.pointer)),
+    before.filter(
+      (field) => field.pointer !== "" && !item(field) && !afterAt.has(field.pointer),
+    ),
   );
   const added = outermost(
-    after.filter((field) => field.pointer !== "" && !beforeAt.has(field.pointer)),
+    after.filter(
+      (field) => field.pointer !== "" && !item(field) && !beforeAt.has(field.pointer),
+    ),
   );
   const altered = before
     .filter((field) => afterAt.has(field.pointer))
