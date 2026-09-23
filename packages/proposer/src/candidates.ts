@@ -138,6 +138,24 @@ export interface SchemaDelta {
    * under the old name, so nothing in it is drafted as dropped.
    */
   replaced?: true;
+  /**
+   * Fields that moved together out of a wrapper object or into a new one,
+   * each the same field in a new place. Not in `removed` or `added`.
+   */
+  regrouped?: Regrouped[];
+}
+
+/**
+ * One field that moved with its siblings out of a wrapper (`hoisted`: every
+ * field of `P/w` is now at `P`) or into a new one (`nested`: fields of `P`
+ * are now inside `P/w`). `wrapper` is that object's pointer on the side where
+ * it exists: the old side for a hoist, the new side for a nest.
+ */
+export interface Regrouped {
+  old: FieldShape;
+  new: FieldShape;
+  wrapper: string;
+  kind: "hoisted" | "nested";
 }
 
 /** How far below the schema's own properties nested inline objects are followed. */
@@ -397,15 +415,130 @@ function operationsUsing(document: OpenApiDocument): Map<string, string[]> {
   return byRef;
 }
 
+const segmentsOfPointer = (pointer: string): string[] =>
+  pointer === "" ? [] : pointer.split("/").slice(1);
+const pointerOf = (segments: readonly string[]): string =>
+  segments.length === 0 ? "" : `/${segments.join("/")}`;
+const isWildcardSegment = (segment: string | undefined) =>
+  segment === "*" || segment === "{}";
+
+/**
+ * Fields that moved together out of a wrapper object, or into a new one.
+ *
+ * Datadog flattened a custom rule's revision: it had been a resource with a
+ * `type` and an `attributes` object holding twenty fields, and became those
+ * twenty fields directly. Read one field at a time that is twenty fields
+ * removed and twenty unrelated fields added, which no judge is asked to pair
+ * and which left forty-odd places unexplained in one release. It is twenty
+ * moves, and the IR has always had `move`.
+ *
+ * Read strictly, so a coincidental name is never mistaken for a restructure:
+ * each pair keeps its path apart from the one wrapper segment, keeps its type,
+ * and moves with at least one sibling through the same wrapper; the wrapper is
+ * gone on the side it left, or new on the side it arrived; and a list's items
+ * or a map's values are never the wrapper.
+ */
+function regroupedFields(
+  before: readonly FieldShape[],
+  after: readonly FieldShape[],
+  beforeAt: ReadonlyMap<string, FieldShape>,
+  afterAt: ReadonlyMap<string, FieldShape>,
+): Regrouped[] {
+  const groups = new Map<string, Regrouped[]>();
+  const offer = (candidate: Regrouped) => {
+    const key = `${candidate.kind} ${candidate.wrapper}`;
+    groups.set(key, [...(groups.get(key) ?? []), candidate]);
+  };
+  const item = (field: FieldShape) => field.pointer.endsWith("/*");
+  for (const old of before) {
+    if (afterAt.has(old.pointer) || item(old)) continue;
+    const segments = segmentsOfPointer(old.pointer);
+    for (let at = 0; at < segments.length - 1; at += 1) {
+      if (isWildcardSegment(segments[at])) continue;
+      const wrapper = pointerOf(segments.slice(0, at + 1));
+      const moved = afterAt.get(
+        pointerOf([...segments.slice(0, at), ...segments.slice(at + 1)]),
+      );
+      if (
+        moved &&
+        !beforeAt.has(moved.pointer) &&
+        !afterAt.has(wrapper) &&
+        moved.type === old.type
+      ) {
+        offer({ old, new: moved, wrapper, kind: "hoisted" });
+      }
+    }
+  }
+  for (const next of after) {
+    if (beforeAt.has(next.pointer) || item(next)) continue;
+    const segments = segmentsOfPointer(next.pointer);
+    for (let at = 0; at < segments.length - 1; at += 1) {
+      if (isWildcardSegment(segments[at])) continue;
+      const wrapper = pointerOf(segments.slice(0, at + 1));
+      const old = beforeAt.get(
+        pointerOf([...segments.slice(0, at), ...segments.slice(at + 1)]),
+      );
+      if (
+        old &&
+        !afterAt.has(old.pointer) &&
+        !beforeAt.has(wrapper) &&
+        old.type === next.type
+      ) {
+        offer({ old, new: next, wrapper, kind: "nested" });
+      }
+    }
+  }
+
+  // Largest groups first, and each field in at most one move.
+  const usedOld = new Set<string>();
+  const usedNew = new Set<string>();
+  const chosen: Regrouped[] = [];
+  for (const group of [...groups.values()].sort((a, b) => b.length - a.length)) {
+    const free = group.filter(
+      (pair) => !usedOld.has(pair.old.pointer) && !usedNew.has(pair.new.pointer),
+    );
+    if (free.length < 2) continue;
+    for (const pair of free) {
+      usedOld.add(pair.old.pointer);
+      usedNew.add(pair.new.pointer);
+      chosen.push(pair);
+    }
+  }
+  // A field inside a moved object goes with it; its own move would act on
+  // something the outer one already carried away.
+  return chosen.filter(
+    (pair) =>
+      !chosen.some(
+        (other) => other !== pair && pair.old.pointer.startsWith(`${other.old.pointer}/`),
+      ),
+  );
+}
+
 /** The fields that went, arrived and changed shape, or nothing when none did. */
 function compare(
   before: FieldShape[],
   after: FieldShape[],
-): Pick<SchemaDelta, "removed" | "added" | "altered" | "replaced"> | undefined {
+):
+  | Pick<SchemaDelta, "removed" | "added" | "altered" | "replaced" | "regrouped">
+  | undefined {
   // Keyed by pointer, which is what identifies a field; a nested name is
   // only for reading.
   const afterAt = new Map(after.map((field) => [field.pointer, field]));
   const beforeAt = new Map(before.map((field) => [field.pointer, field]));
+  // Fields that moved with their siblings through one wrapper are moves, and
+  // neither they, what they hold, nor the wrapper they left or arrived in is
+  // a field removed or added.
+  const regrouped = regroupedFields(before, after, beforeAt, afterAt);
+  const under = (pointer: string, roots: readonly string[]) =>
+    roots.some((root) => pointer === root || pointer.startsWith(`${root}/`));
+  const movedFrom = regrouped.map((pair) => pair.old.pointer);
+  const movedTo = regrouped.map((pair) => pair.new.pointer);
+  const left = new Set(
+    regrouped.filter((pair) => pair.kind === "hoisted").map((pair) => pair.wrapper),
+  );
+  const arrived = new Set(
+    regrouped.filter((pair) => pair.kind === "nested").map((pair) => pair.wrapper),
+  );
   // A field that went with the object holding it went because the object
   // did, and the op for the object says so; one of its own would then act on
   // something already gone. PayPal removed `office_bearers` and every field
@@ -426,19 +559,34 @@ function compare(
   // schema that became a scalar did not gain a field at its root.
   const removed = outermost(
     before.filter(
-      (field) => field.pointer !== "" && !item(field) && !afterAt.has(field.pointer),
+      (field) =>
+        field.pointer !== "" &&
+        !item(field) &&
+        !afterAt.has(field.pointer) &&
+        !under(field.pointer, movedFrom) &&
+        !left.has(field.pointer),
     ),
   );
   const added = outermost(
     after.filter(
-      (field) => field.pointer !== "" && !item(field) && !beforeAt.has(field.pointer),
+      (field) =>
+        field.pointer !== "" &&
+        !item(field) &&
+        !beforeAt.has(field.pointer) &&
+        !under(field.pointer, movedTo) &&
+        !arrived.has(field.pointer),
     ),
   );
   const altered = before
     .filter((field) => afterAt.has(field.pointer))
     .map((field) => ({ old: field, new: afterAt.get(field.pointer) as FieldShape }))
     .filter((pair) => shapeDiffers(pair.old, pair.new));
-  if (removed.length === 0 && added.length === 0 && altered.length === 0)
+  if (
+    removed.length === 0 &&
+    added.length === 0 &&
+    altered.length === 0 &&
+    regrouped.length === 0
+  )
     return undefined;
   // Most of what it held gone, and other things in their place: another
   // schema under the same name, as PayPal's `payout_item` went from the item
@@ -450,7 +598,13 @@ function compare(
   const kept = held.filter((field) => afterAt.has(field.pointer));
   const replaced =
     held.length >= 3 && kept.length * 2 < held.length && top(added).length > 0;
-  return { removed, added, altered, ...(replaced ? { replaced: true as const } : {}) };
+  return {
+    removed,
+    added,
+    altered,
+    ...(regrouped.length > 0 ? { regrouped } : {}),
+    ...(replaced ? { replaced: true as const } : {}),
+  };
 }
 
 /**
@@ -869,7 +1023,8 @@ function inheritedOnce(
   }
   for (let index = deltas.length - 1; index >= 0; index -= 1) {
     const delta = deltas[index] as SchemaDelta;
-    if (delta.removed.length + delta.added.length + delta.altered.length === 0) {
+    const moved = delta.regrouped?.length ?? 0;
+    if (delta.removed.length + delta.added.length + delta.altered.length + moved === 0) {
       deltas.splice(index, 1);
     }
   }

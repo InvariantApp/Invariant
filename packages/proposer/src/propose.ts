@@ -452,6 +452,7 @@ export async function propose(
     ...retired,
     ...parameters,
     ...renamedOperations,
+    ...regroupedProposals(deltas),
     ...added.proposals,
     ...gone.proposals,
   );
@@ -645,6 +646,67 @@ function sidesOfDelta(
 
 const fieldSlug = (schema: string, field: string, what: string) =>
   `chg_${slug(schema)}_${slug(field)}_${what}`.slice(0, 128);
+
+/**
+ * Fields that moved together out of a wrapper or into a new one, drafted as
+ * the moves they are: one Change per wrapper, so a reviewer reads "the
+ * revision's attributes were flattened into it" once instead of forty
+ * removals and forty unrelated additions. Anything else about a field that
+ * moved, a vocabulary or a format, is drafted with its move, as it is for a
+ * rename.
+ */
+function regroupedProposals(deltas: readonly SchemaDelta[]): Proposal[] {
+  const proposals: Proposal[] = [];
+  for (const delta of deltas) {
+    const byWrapper = new Map<string, NonNullable<SchemaDelta["regrouped"]>>();
+    for (const pair of delta.regrouped ?? []) {
+      const key = `${pair.kind} ${pair.wrapper}`;
+      byWrapper.set(key, [...(byWrapper.get(key) ?? []), pair]);
+    }
+    for (const pairs of byWrapper.values()) {
+      const [first] = pairs;
+      if (!first) continue;
+      const wrapper = first.wrapper.split("/").filter(Boolean).join(".");
+      const ops: Op[] = [];
+      const notes: string[] = [
+        first.kind === "hoisted"
+          ? `the ${pairs.length} fields \`${wrapper}\` held are now where it was, and \`${wrapper}\` is gone: each is the same field one level up, so each is a \`move\``
+          : `${pairs.length} fields are now inside a new \`${wrapper}\`: each is the same field one level down, so each is a \`move\``,
+      ];
+      for (const pair of pairs) {
+        const drafted = opsFor(pair.old, pair.new);
+        ops.push(...drafted.ops);
+        // The first note is the move itself, said once above for all of them.
+        notes.push(...drafted.notes.slice(1));
+      }
+      const guessed = ops.some(
+        (op) =>
+          op.op === "convert" &&
+          op.codec.kind === "enumMap" &&
+          op.codec.pairs.some(([from, to]) => from !== to),
+      );
+      const confidence = guessed ? RENAME_GUESS_CONFIDENCE : 1;
+      proposals.push({
+        change: {
+          irVersion: 1,
+          id: fieldSlug(delta.schema, wrapper, first.kind),
+          summary:
+            first.kind === "hoisted"
+              ? `\`${wrapper}\` was dissolved on ${delta.schema}, and what it held moved up a level.`
+              : `Fields on ${delta.schema} moved into a new \`${wrapper}\`.`,
+          scopes: [scopeOf(delta)],
+          ops,
+          provenance: { proposed_by: { judge: "rules", confidence } },
+        },
+        judge: "rules",
+        confidence,
+        attention: guessed ? "explicit" : "normal",
+        notes,
+      });
+    }
+  }
+  return proposals;
+}
 
 /**
  * Fields that are new and required in the target contract.

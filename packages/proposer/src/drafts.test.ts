@@ -1669,3 +1669,161 @@ describe("a list whose items became a choice", () => {
     }
   });
 });
+
+describe("fields that moved together through a wrapper", () => {
+  const all = (outcome: Awaited<ReturnType<typeof propose>>) => [
+    ...outcome.proposals.map((proposal) => proposal.change),
+    ...outcome.decisions.map(decisionChange),
+  ];
+  const opsOn = (outcome: Awaited<ReturnType<typeof propose>>, path: string) =>
+    all(outcome)
+      .flatMap((change) => change.ops)
+      .filter((op) => JSON.stringify(op).includes(`"${path}"`));
+
+  it("is a move for each field when a wrapper was dissolved (Datadog)", async () => {
+    // A JSON:API resource flattened: `type` and `attributes` gone, and what
+    // `attributes` held now sits on the revision itself.
+    const outcome = await propose(
+      contract({
+        ...base,
+        Thing: object(
+          {
+            id: { type: "string" },
+            revision: object({
+              type: { type: "string", enum: ["custom_rule_revision"] },
+              attributes: object({
+                code: { type: "string" },
+                name: { type: "string" },
+                language: { type: "string" },
+              }),
+            }),
+          },
+          ["id"],
+        ),
+      }),
+      contract({
+        ...base,
+        Thing: object(
+          {
+            id: { type: "string" },
+            revision: object({
+              code: { type: "string" },
+              name: { type: "string" },
+              language: { type: "string" },
+            }),
+          },
+          ["id"],
+        ),
+      }),
+      { judge: new RulesJudge() },
+    );
+    const regrouped = outcome.proposals.find((proposal) =>
+      proposal.change.id.endsWith("_hoisted"),
+    );
+    expect(regrouped?.change.ops).toEqual([
+      { op: "move", from: "/revision/attributes/code", to: "/revision/code" },
+      { op: "move", from: "/revision/attributes/name", to: "/revision/name" },
+      { op: "move", from: "/revision/attributes/language", to: "/revision/language" },
+    ]);
+    // Nothing else acts on the fields that moved, or on the wrapper they left.
+    for (const path of ["/revision/code", "/revision/name", "/revision/attributes"]) {
+      expect(
+        opsOn(outcome, path).filter((op) => op.op !== "move"),
+        path,
+      ).toEqual([]);
+    }
+  });
+
+  it("is a move for each field when a wrapper was introduced", async () => {
+    const outcome = await propose(
+      contract({
+        ...base,
+        ThingCreate: object({
+          amount: { type: "integer" },
+          currency: { type: "string" },
+          legacy: { type: "string" },
+        }),
+      }),
+      contract({
+        ...base,
+        ThingCreate: object({
+          price: object({ amount: { type: "integer" }, currency: { type: "string" } }),
+          legacy: { type: "string" },
+        }),
+      }),
+      { judge: new RulesJudge() },
+    );
+    const regrouped = outcome.proposals.find((proposal) =>
+      proposal.change.id.endsWith("_nested"),
+    );
+    expect(regrouped?.change.ops).toEqual([
+      { op: "move", from: "/amount", to: "/price/amount" },
+      { op: "move", from: "/currency", to: "/price/currency" },
+    ]);
+  });
+
+  it("is not read into one field that happens to share a name", async () => {
+    // One field is a coincidence, not a restructure: left to the judge.
+    const outcome = await propose(
+      contract({
+        ...base,
+        Thing: object(
+          { id: { type: "string" }, meta: object({ name: { type: "string" } }) },
+          ["id"],
+        ),
+      }),
+      contract({
+        ...base,
+        Thing: object({ id: { type: "string" }, name: { type: "string" } }, ["id"]),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(
+      outcome.proposals.filter((proposal) =>
+        /_(hoisted|nested)$/.test(proposal.change.id),
+      ),
+    ).toEqual([]);
+  });
+
+  it("is not read where the wrapper is still there, or the type changed", async () => {
+    const outcome = await propose(
+      contract({
+        ...base,
+        Thing: object(
+          {
+            id: { type: "string" },
+            outer: object({
+              a: { type: "string" },
+              b: { type: "string" },
+              keep: { type: "string" },
+            }),
+            box: object({ c: { type: "string" }, d: { type: "string" } }),
+          },
+          ["id"],
+        ),
+      }),
+      contract({
+        ...base,
+        Thing: object(
+          {
+            id: { type: "string" },
+            // Still there, holding what stayed.
+            outer: object({ keep: { type: "string" } }),
+            a: { type: "string" },
+            b: { type: "string" },
+            // Gone, but what came out is not what went in.
+            c: { type: "integer" },
+            d: { type: "integer" },
+          },
+          ["id"],
+        ),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(
+      outcome.proposals.filter((proposal) =>
+        /_(hoisted|nested)$/.test(proposal.change.id),
+      ),
+    ).toEqual([]);
+  });
+});
