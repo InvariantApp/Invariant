@@ -130,6 +130,13 @@ GITHUB_TOKEN=... node --import tsx proving/replay/mine.mts --package github.com/
 
 The nightly run adds up to 150 cases.
 
+A bot's bump carries mostly the SDK's own changes; the contract migrations
+are often a person's own pull request, titled for the API version it moves
+to ("read Stripe fields that basil relocated"). For stripe, plaid-python,
+kubernetes and openai on PyPI the miner also searches such titles, reads what
+each pull request upgraded from its manifests' diff, and keeps it only where
+that moves the SDK forward across a major version.
+
 `replay/run.mts` replays them. Each repository is fetched at the bump's base
 with no history and no blob it does not need, the SDK alone is installed at
 the version the base's lockfile names, with install scripts off, and the
