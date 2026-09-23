@@ -11,7 +11,7 @@ import {
   createServer,
   type IncomingMessage,
   type Server,
-  type ServerResponse,
+  ServerResponse,
 } from "node:http";
 import {
   createSecureServer,
@@ -19,10 +19,11 @@ import {
   type Http2ServerRequest,
   type Http2ServerResponse,
 } from "node:http2";
-import type { AddressInfo } from "node:net";
-import { Readable } from "node:stream";
+import type { AddressInfo, Socket } from "node:net";
+import { type Duplex, Readable } from "node:stream";
+import { ERROR_CODES } from "@invariant-app/runtime";
 import type { FetchHandler } from "./proxy.ts";
-import type { UpgradeHandler } from "./upgrade.ts";
+import { asksForH2c, hasBody, type UpgradeHandler } from "./upgrade.ts";
 
 export interface Listening {
   server: Server | Http2SecureServer;
@@ -94,7 +95,15 @@ export async function serve(
         },
       );
   server.maxConnections = options.maxConnections ?? 10_000;
-  if (options.upgrade) server.on("upgrade", options.upgrade);
+  const upgrade = options.upgrade;
+  if (upgrade) {
+    server.on("upgrade", (incoming: IncomingMessage, socket: Duplex, head: Buffer) => {
+      // HTTP/2 in cleartext is declined the way RFC 7540 lets a server that
+      // does not speak it decline: by answering as if nobody had asked.
+      if (asksForH2c(incoming)) servePlainly(handler, incoming, socket, options.onError);
+      else upgrade(incoming, socket, head);
+    });
+  }
 
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
@@ -149,14 +158,68 @@ function destroy(outgoing: Outgoing): void {
   else outgoing.destroy();
 }
 
+/**
+ * An upgrade request answered as an ordinary one, on the socket it came in on,
+ * which then closes. Its body, if it had one, was never parsed as one, so such
+ * a request is refused rather than sent on without it.
+ */
+function servePlainly(
+  handler: FetchHandler,
+  incoming: IncomingMessage,
+  socket: Duplex,
+  onError: ((error: unknown) => void) | undefined,
+): void {
+  const outgoing = new ServerResponse(incoming);
+  outgoing.shouldKeepAlive = false;
+  outgoing.assignSocket(socket as Socket);
+  outgoing.once("finish", () => {
+    outgoing.detachSocket(socket as Socket);
+    socket.end();
+  });
+  socket.on("error", () => socket.destroy());
+  if (hasBody(incoming)) {
+    refuse(
+      outgoing,
+      "This request asks to switch to HTTP/2 in cleartext and carries a body, which this proxy does not accept. Send it without `Upgrade: h2c`.",
+    );
+    return;
+  }
+  void handle(handler, incoming, outgoing, onError);
+}
+
+/** A request this proxy cannot read as one, answered in the shape of its own errors. */
+function refuse(outgoing: Outgoing, message: string): void {
+  outgoing.statusCode = 400;
+  outgoing.setHeader("content-type", "application/json");
+  outgoing.end(
+    JSON.stringify({
+      error: {
+        type: "invalid_request_error",
+        message,
+        code: ERROR_CODES.requestNotTranslatable,
+      },
+    }),
+  );
+}
+
 async function handle(
   handler: FetchHandler,
   incoming: Incoming,
   outgoing: Outgoing,
   onError: ((error: unknown) => void) | undefined,
 ): Promise<void> {
+  let request: Request;
   try {
-    const response = await handler(toRequest(incoming));
+    request = toRequest(incoming);
+  } catch {
+    // Node's parser takes a `Host` of `a b`, which no URL can hold. That is
+    // the caller's mistake, and answering it 500 would page the provider for
+    // it. Found by the threat-model tests.
+    refuse(outgoing, "The request's Host header is not a host.");
+    return;
+  }
+  try {
+    const response = await handler(request);
     await write(response, outgoing);
   } catch (error) {
     onError?.(error);

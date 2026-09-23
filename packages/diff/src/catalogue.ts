@@ -184,7 +184,7 @@ const RULES: Rule[] = [
       op: "convert",
       served: "yes",
       sentence:
-        "A parameter no longer accepts some values old callers send. An enum map translates them into values it does accept, which you decide.",
+        "A parameter no longer accepts some values old callers send. Where it is a list, such as the fields a caller asks to be included, `dropValues` leaves those values out and serves the rest, a loss you acknowledge; where it is one value, an enum map translates it into one it does accept, which you decide.",
     },
   ),
   rule(/^request-(parameter|header-property)(-property)?-/, {
@@ -264,7 +264,7 @@ const RULES: Rule[] = [
       op: "convert",
       served: "yes",
       sentence:
-        "A request field no longer accepts some values old callers send. An enum map translates them into values it does accept, which you decide.",
+        "A request field no longer accepts some values old callers send. Where it is a list, `dropValues` leaves those values out and sends the rest, a loss you acknowledge; where it is one value, an enum map translates it into one it does accept, which you decide.",
     },
   ),
   rule(/^request-(body|property)-(type-changed|list-of-types-narrowed)$/, {

@@ -1,0 +1,323 @@
+{
+  "about": "Each row of the threat model in docs/DESIGN.md section 11.1, and each attack M10.1 names, with the tests that send it. Read by proving/scoreboard.mts for launch gate L15 and checked against DESIGN.md and the test files by proving/threats/manifest.test.ts.",
+  "rows": [
+    {
+      "threat": "Tenant isolation",
+      "status": "partly covered",
+      "here": "Migration workdirs: a migration writes only inside the checkout it migrates, never into a sibling checkout its configuration reaches or through a link, and the rebuild worktree is removed when a rebuild fails.",
+      "tests": [
+        {
+          "file": "proving/threats/workdirs.test.ts",
+          "titles": [
+            "a path a provider's symbol map names",
+            "does not edit another checkout its configuration includes",
+            "does not write through a package.json that is a link to another checkout",
+            "is removed when a rebuild fails, and the checkout is left as it was"
+          ]
+        }
+      ],
+      "elsewhere": "Row-level security keyed by api_id, per-Api tokens, the service's per-run migration directories, and cross-tenant probes on every endpoint live in the service's repository."
+    },
+    {
+      "threat": "Artifact tampering",
+      "status": "partly covered",
+      "here": "invariant verify refuses a bundle edited after signing, signed by another key, under a forged key id, stripped of signatures, lifted onto another payload type, of another predicate type, whose subject digest does not match its bundle, or of an unknown version; a signed commit is never handed to git as an option.",
+      "tests": [
+        { "file": "proving/threats/artifacts.test.ts", "titles": ["invariant verify"] },
+        { "file": "proving/fuzz/trust.test.ts", "titles": ["a signed bundle"] }
+      ],
+      "elsewhere": "The registry's own check of the signature and digest on upload lives in the service's repository.",
+      "gaps": [
+        "the runtime's optional check of a program's digest against invariant.lock"
+      ]
+    },
+    {
+      "threat": "Tampered or spoofed contract labels",
+      "status": "partly covered",
+      "here": "An unknown label, or one named like a prototype, is refused 400 in the provider's shape before the provider; a caller's x-invariant- headers are dropped; credentials pass an adapted request untouched, and a program that addresses a credential or framing header is refused at load.",
+      "tests": [
+        {
+          "file": "proving/threats/proxy.test.ts",
+          "titles": [
+            "spoofed contract labels",
+            "the headers no program may touch",
+            "drops every header a caller forges in the engine's name"
+          ]
+        }
+      ],
+      "gaps": ["a lint in invariant check for behavior flags used in auth code paths"]
+    },
+    {
+      "threat": "Malicious payloads and transformation bombs",
+      "status": "covered",
+      "here": "Body cap, depth cap (256 levels, where DESIGN 11.1 says 64), wildcard fan-out cap and time budget, through the proxy and the runtime; a specification whose schema sits at 2^depth places compiles to a program the size of the schemas; YAML alias expansion is refused before it is built; programs that nest or call forever are refused at load.",
+      "tests": [
+        {
+          "file": "proving/threats/proxy.test.ts",
+          "titles": ["bodies built to make the proxy work"]
+        },
+        {
+          "file": "proving/threats/bombs.test.ts",
+          "titles": [
+            "a specification that multiplies what the compiler writes",
+            "YAML that multiplies what the parser holds",
+            "bodies that would make the runtime work without end"
+          ]
+        },
+        {
+          "file": "engines/go/invariant/budget_test.go",
+          "titles": ["TestTimeBudgetStopsAShortProgramOverALargeBody"]
+        },
+        {
+          "file": "packages/runtime/src/depth.test.ts",
+          "titles": ["a body nested too deeply"]
+        },
+        { "file": "proving/fuzz/runtime.test.ts", "titles": ["Rig F: the runtime"] }
+      ]
+    },
+    {
+      "threat": "Arbitrary code in traffic path",
+      "status": "covered",
+      "here": "Nothing on the request path evaluates, imports or requires at run time, reaches a network, file or process, or depends on anything but exact decimal arithmetic.",
+      "tests": [
+        {
+          "file": "proving/threats/structure.test.ts",
+          "titles": ["arbitrary code in the traffic path"]
+        },
+        {
+          "file": "packages/runtime/src/isolation.test.ts",
+          "titles": ["What the request path is allowed to touch."]
+        }
+      ]
+    },
+    {
+      "threat": "Prompt injection via specs, descriptions, PR text",
+      "status": "covered",
+      "here": "Untrusted text written into every field a judge reads reaches Jev only in its state and S2 only as JSON values in the user turn, never in a question, option or system prompt; an answer that is not a key offered is no answer; a draft never names a field the specification lacks. The recorded adversarial corpus measures how often a judge obeys what it does read.",
+      "tests": [
+        {
+          "file": "proving/threats/judges.test.ts",
+          "titles": [
+            "what a judge is sent",
+            "what a judge's answer can be",
+            "what becomes a draft"
+          ]
+        },
+        {
+          "file": "packages/eval/src/eval.test.ts",
+          "titles": ["instructions smuggled into change notes"]
+        }
+      ],
+      "notes": "A field name that is a single identifier is still shown in its option, as a name; anything that can carry a sentence is referred to by its key."
+    },
+    {
+      "threat": "Secrets",
+      "status": "partly covered",
+      "here": "The runtime reads no environment; the proxy takes its control-plane token only from an environment variable it names, and only over https; a signing key that will not load is refused without being repeated; every commit in the history is scanned for secrets.",
+      "tests": [
+        {
+          "file": "proving/threats/structure.test.ts",
+          "titles": [
+            "secrets and what a compromised runtime holds",
+            "scans every commit in the history for secrets on every push"
+          ]
+        },
+        {
+          "file": "proving/threats/proxy.test.ts",
+          "titles": [
+            "will not take a token written into its configuration",
+            "will not send its control-plane token anywhere but https"
+          ]
+        }
+      ],
+      "elsewhere": "The GitHub App's private key and the model API keys are held in the service's secret store, in the service's repository."
+    },
+    {
+      "threat": "Consumer source access",
+      "status": "partly covered",
+      "here": "The migration engine can send nothing anywhere, and a delivery writes only plain paths inside the consumer's repository.",
+      "tests": [
+        {
+          "file": "proving/threats/workdirs.test.ts",
+          "titles": [
+            "the engine imports nothing that can start a process, load code or send source anywhere",
+            "delivering a migration"
+          ]
+        }
+      ],
+      "elsewhere": "Per-repository installation, the ephemeral clone and keeping no source are the service's, in its repository.",
+      "gaps": ["model-assisted repair that sends only the enclosing function"]
+    },
+    {
+      "threat": "Executing consumer code",
+      "status": "covered",
+      "here": "A migration over a repository with install scripts, a compiler plugin and module side effects runs none of them, and the engine imports nothing that can start a process or load code.",
+      "tests": [
+        { "file": "proving/threats/workdirs.test.ts", "titles": ["consumer code"] }
+      ]
+    },
+    {
+      "threat": "Supply chain",
+      "status": "covered",
+      "here": "The runtime depends on nothing but exact decimal arithmetic; every workflow installs from the lockfile; every third-party action is pinned to a commit; npm publishes carry provenance from a token the workflow is issued.",
+      "tests": [
+        {
+          "file": "proving/threats/structure.test.ts",
+          "titles": [
+            "the supply chain",
+            "depends on nothing but exact decimal arithmetic, which depends on nothing"
+          ]
+        }
+      ]
+    },
+    {
+      "threat": "Runtime compromise blast radius",
+      "status": "partly covered",
+      "here": "The runtime holds no credential and reads no environment, and the proxy holds only the ingest token, from its environment, sent only over https.",
+      "tests": [
+        {
+          "file": "proving/threats/structure.test.ts",
+          "titles": [
+            "the runtime reads no environment, so there is no credential in it to read"
+          ]
+        },
+        {
+          "file": "proving/threats/proxy.test.ts",
+          "titles": ["will not send its control-plane token anywhere but https"]
+        }
+      ],
+      "elsewhere": "That the ingest token can only write is the service's to enforce, in its repository."
+    },
+    {
+      "threat": "Data retention",
+      "status": "out of scope",
+      "elsewhere": "Counter, bundle and log retention are the service's, in its repository."
+    }
+  ],
+  "attacks": [
+    {
+      "attack": "Bundle tampering: signature, digest, predicate",
+      "tests": [
+        { "file": "proving/threats/artifacts.test.ts", "titles": ["invariant verify"] }
+      ]
+    },
+    {
+      "attack": "Replayed and stale webhooks",
+      "tests": [
+        {
+          "file": "proving/threats/webhooks.test.ts",
+          "titles": [
+            "a replayed webhook",
+            "a stale webhook",
+            "a forged or edited webhook"
+          ]
+        }
+      ]
+    },
+    {
+      "attack": "Sponsored-link replay",
+      "tests": [
+        { "file": "proving/threats/webhooks.test.ts", "titles": ["a sponsored link"] }
+      ],
+      "notes": "A link is a bearer grant to bind one installation to one named consumer until it expires; whether it may be redeemed more than once is decided where it is redeemed, in the service."
+    },
+    {
+      "attack": "SSRF through the proxy's upstream configuration",
+      "tests": [
+        {
+          "file": "proving/threats/proxy.test.ts",
+          "titles": ["choosing where the proxy connects"]
+        }
+      ]
+    },
+    {
+      "attack": "SSRF through a specification's $refs",
+      "tests": [
+        {
+          "file": "proving/threats/refs.test.ts",
+          "titles": [
+            "invariant check on a specification with a hostile $ref",
+            "every other way a specification is read"
+          ]
+        }
+      ],
+      "notes": "The service's /v1/propose and playground read documents through contractOf, which refuses every external reference; the endpoints themselves are the service's."
+    },
+    {
+      "attack": "Request smuggling and header injection through the proxy",
+      "tests": [
+        {
+          "file": "proving/threats/proxy.test.ts",
+          "titles": [
+            "request smuggling",
+            "header injection",
+            "the headers no program may touch"
+          ]
+        }
+      ]
+    },
+    {
+      "attack": "Prototype pollution",
+      "tests": [
+        {
+          "file": "proving/threats/pollution.test.ts",
+          "titles": ["the runtime", "the compiler", "the pointer layer", "configuration"]
+        },
+        {
+          "file": "proving/threats/proxy.test.ts",
+          "titles": ["carries __proto__ and constructor through as the data they are"]
+        }
+      ]
+    },
+    {
+      "attack": "Transformation bombs",
+      "tests": [
+        {
+          "file": "proving/threats/bombs.test.ts",
+          "titles": [
+            "a specification that multiplies what the compiler writes",
+            "bodies that would make the runtime work without end"
+          ]
+        }
+      ]
+    },
+    {
+      "attack": "Path traversal in migration workdirs",
+      "tests": [
+        {
+          "file": "proving/threats/workdirs.test.ts",
+          "titles": [
+            "a path a provider's symbol map names",
+            "a repository that links or reaches outside itself",
+            "delivering a migration"
+          ]
+        }
+      ]
+    },
+    {
+      "attack": "Prompt injection",
+      "tests": [
+        { "file": "proving/threats/judges.test.ts", "titles": ["what a judge is sent"] }
+      ]
+    }
+  ],
+  "outOfScope": [
+    "Cross-tenant probes on every endpoint of the control plane, in the service's repository.",
+    "Token scope escapes against the control plane's API, in the service's repository.",
+    "Sandbox escape attempts against the hosted playground, in the service's repository.",
+    "SSRF through the service's /v1/propose endpoint and playground as endpoints; the document reader they share is covered here."
+  ],
+  "found": [
+    "The proxy piped a caller's connection to the upstream as soon as it forwarded an Upgrade handshake, so a second request on the same socket reached the upstream outside the base path and unexamined; an h2c upgrade was passed on the same way.",
+    "The proxy forwarded /api/..%2fadmin, which a server that decodes before routing reads as /admin, and answered a Host no URL can hold with 500.",
+    "A captured webhook delivery sent again under a fresh delivery id, or under another event's name, was handled a second time.",
+    "A $ref to a file committed as a link was followed outside the repository, reading the file it pointed at into the document.",
+    "A $ref to #/components/schemas/__proto__ or .../constructor resolved to a JavaScript prototype and counted as defined; a schema gathered from a file named __proto__ was lost.",
+    "A Change naming prototype compiled without an issue into a program the runtime refuses at load.",
+    "A field name holding a sentence was written into Jev's question as an option; a choice that was not a key threw; a field named __proto__ vanished from both judges' scores.",
+    "A schema at 2^depth places made the compiler write a program that doubled with each level, and sixteen levels overflowed its stack.",
+    "The runtime's time budget, in TypeScript and in Go, was never read for a program shorter than 256 instructions.",
+    "A migration wrote a symbol map's helpers path and a regenerated file's path wherever ../ or an absolute path pointed, wrote through a package.json or source file committed as a link, and migrated a sibling checkout whose path its own was a prefix of.",
+    "Every third-party GitHub Action was referenced by a tag its owner can move."
+  ]
+}

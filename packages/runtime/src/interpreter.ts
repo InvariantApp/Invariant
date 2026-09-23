@@ -63,6 +63,7 @@ export type CompiledInstr =
   | { k: "case"; path: Segments; from: StringCase; to: StringCase; c: string }
   | { k: "wrap"; path: Segments; c: string }
   | { k: "unwrap"; path: Segments; first?: boolean; c: string }
+  | { k: "drop"; path: Segments; values: ReadonlySet<string>; c: string }
   | {
       k: "set";
       path: Segments;
@@ -384,7 +385,7 @@ const LEAVE_OUT: unique symbol = Symbol("leave out");
  */
 function applyEach(
   root: Json,
-  instr: Extract<CompiledInstr, { k: "time" | "case" | "wrap" | "unwrap" }>,
+  instr: Extract<CompiledInstr, { k: "time" | "case" | "wrap" | "unwrap" | "drop" }>,
   limits: ExecuteLimits,
   here: Here | undefined,
   convert: (value: unknown) => unknown,
@@ -423,6 +424,20 @@ function unwrapped(value: unknown, first: boolean): unknown {
     );
   }
   return value[0];
+}
+
+/**
+ * A list without the values the new contract no longer accepts, its other
+ * items in their order. Asana stopped offering fields an old caller could ask
+ * for in `opt_fields`, and asking for one refused the whole request.
+ */
+function withoutValues(value: unknown, values: ReadonlySet<string>): unknown {
+  if (!Array.isArray(value)) {
+    throw new CodecRefusal(
+      `expected a list to take values out of, found ${typeof value}`,
+    );
+  }
+  return value.filter((item) => typeof item !== "string" || !values.has(item));
 }
 
 function applyCast(
@@ -544,6 +559,14 @@ export function execute(
   for (const instr of program) {
     try {
       step(root, instr, bounded, result, 0, undefined);
+      // Read after every instruction as well as every so many steps. One
+      // instruction can move ten thousand places, and a program shorter than
+      // the step interval never read the clock at all: sixty moves over nine
+      // thousand items ran for more than a second against a five millisecond
+      // budget. Found by the threat-model tests.
+      if (bounded.deadline !== undefined && performance.now() > bounded.deadline) {
+        throw new TimeExceeded();
+      }
     } catch (error) {
       if (error instanceof FanOutExceeded)
         throw new MatchLimitError(instr.c, error.limit);
@@ -671,6 +694,15 @@ function step(
         instr.c,
         applyEach(root, instr, limits, here, (value) =>
           unwrapped(value, instr.first === true),
+        ),
+      );
+      break;
+    case "drop":
+      countApplied(
+        result,
+        instr.c,
+        applyEach(root, instr, limits, here, (value) =>
+          withoutValues(value, instr.values),
         ),
       );
       break;

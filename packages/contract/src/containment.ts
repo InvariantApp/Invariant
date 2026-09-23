@@ -25,7 +25,7 @@
  */
 import { isJsonObject, type JsonObject, type JsonValue } from "@invariant-app/ir";
 import { resolveSchema } from "./resolve.ts";
-import type { OpenApiDocument } from "./spec.ts";
+import { type OpenApiDocument, resolveRef } from "./spec.ts";
 
 /** A schema and the document its references resolve in. */
 export interface Placed {
@@ -137,6 +137,73 @@ export function keepsNames(before: Placed, after: Placed): Coverage {
     }
   }
   return COVERED;
+}
+
+/**
+ * Whether every named schema a restated place refers to, the old contract
+ * either lacks or states the same way.
+ *
+ * A restatement is proved against the new contract, references and all, and
+ * written with the new contract's names. Where the old contract already has a
+ * schema of that name and says something else in it, the written place would
+ * refer to that old statement, which is not what was proved: Plaid's account
+ * identity came to be built from a base whose balances may be null, and
+ * written into the old contract it found a base where they never are. Words
+ * that only describe a schema are not compared.
+ */
+export function referencesAlike(old: OpenApiDocument, next: Placed): Coverage {
+  const reached = new Set<string>();
+  const pending: JsonValue[] = [next.schema];
+  while (pending.length > 0) {
+    const value = pending.pop() as JsonValue;
+    if (Array.isArray(value)) {
+      pending.push(...value);
+      continue;
+    }
+    if (!isJsonObject(value)) continue;
+    const ref = value["$ref"];
+    if (typeof ref === "string" && !reached.has(ref)) {
+      reached.add(ref);
+      const target = resolveRef(next.document, ref);
+      if (target !== undefined) {
+        const before = resolveRef(old, ref);
+        if (
+          before !== undefined &&
+          JSON.stringify(unannotated(before)) !== JSON.stringify(unannotated(target))
+        ) {
+          return missed(
+            ref,
+            "the old contract states it differently, so the place would refer to that",
+          );
+        }
+        pending.push(target);
+      }
+    }
+    pending.push(...Object.values(value));
+  }
+  return COVERED;
+}
+
+/**
+ * A schema with what only describes it taken out, for comparing what it
+ * allows. A map of properties is keyed by names, and a property may well be
+ * called `description`; only the schemas under the names are read.
+ */
+export function unannotated(value: JsonValue): JsonValue {
+  if (Array.isArray(value)) return value.map(unannotated);
+  if (!isJsonObject(value)) return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !ANNOTATIONS.has(key) && !key.startsWith("x-"))
+      .map(([key, child]) => [
+        key,
+        key === "properties" && isJsonObject(child)
+          ? Object.fromEntries(
+              Object.entries(child).map(([name, schema]) => [name, unannotated(schema)]),
+            )
+          : unannotated(child),
+      ]),
+  );
 }
 
 /** How deep `keepsNames` reads. */

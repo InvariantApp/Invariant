@@ -133,7 +133,8 @@ delta warns; it never passes.
 ### Codecs
 
 The codec catalog is closed too: `scale10`, `enumMap`, `cast`, `dateFormat`,
-`stringCase`, `wrapArray`, `unwrapSingle`. There are no expressions and no
+`stringCase`, `wrapArray`, `unwrapSingle`, `dropValues`. There are no
+expressions and no
 conditionals. Every codec is exact or refuses, unless the Change declares a
 loss by name, and a declared loss makes the Change `declared-lossy`.
 
@@ -167,6 +168,13 @@ loss by name, and a declared loss makes the Change `declared-lossy`.
   any length but one is **refused**; with `pick: first`, the first item is
   shown and an empty list leaves the field out, which is declared-lossy.
 - **`unwrapSingle {pick?}`**: the inverse, a list that became one value.
+- **`dropValues {values}`**: a list whose items no longer accept some values
+  an old caller may send. Forward takes those values out of the list and keeps
+  the rest in order; a single value where a list belongs is **refused**.
+  Backward does nothing, since a list an old caller is sent is the new
+  contract's to fill. Always declared-lossy: the caller asked for something it
+  will not get. A single value that is gone is an `enumMap` to one that
+  remains, never this.
 
 A null passes through every codec unchanged, so a nullable field stays
 nullable on both sides.

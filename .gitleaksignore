@@ -1,2 +1,8 @@
 # A test URL, http://api.internal:8080/api/v1/payments, read as a generic key.
 24faf6888f54d4a1b265a088f8a633d26babb2fe:packages/sidecar/src/proxy.test.ts:generic-api-key:290
+# A made-up NetBox token, sixteen hex digits counted out and repeated, for a
+# throwaway container in the Rig D compose file; generated at run time from
+# the next commit on.
+99ff74ae9b4d6058b01aa5d932d58dd13ecb5dff:proving/servers/compose/netbox.yaml:generic-api-key:36
+# This file's own first description of that token, which quoted it.
+af0e1fd8a30db0a05cbd4fa7162fdde7f2f434f4:.gitleaksignore:generic-api-key:3

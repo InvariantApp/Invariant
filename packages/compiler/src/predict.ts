@@ -54,6 +54,42 @@ export interface Prediction {
   issues: PredictionIssue[];
 }
 
+/**
+ * Keys no program may name, the runtime's own list. It refuses a program that
+ * names one at load, since a pointer through `__proto__` or `constructor`
+ * reaches the shared prototype of every object in the process.
+ */
+const UNADDRESSABLE = new Set(["__proto__", "constructor", "prototype"]);
+
+/**
+ * A Change that names one of those keys, refused here rather than compiled
+ * into a program the runtime will not load. `prototype` compiled without a
+ * word and the program failed only when a provider deployed it. Found by the
+ * threat-model tests.
+ */
+export function unaddressableKeys(changes: readonly Change[]): PredictionIssue[] {
+  const issues: PredictionIssue[] = [];
+  for (const change of changes) {
+    change.ops.forEach((op, index) => {
+      for (const field of ["path", "from", "to"] as const) {
+        const pointer = (op as Record<string, unknown>)[field];
+        if (typeof pointer !== "string" || !pointer.startsWith("/")) continue;
+        const named = pointer
+          .slice(1)
+          .split("/")
+          .map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"))
+          .find((segment) => UNADDRESSABLE.has(segment));
+        if (named === undefined) continue;
+        issues.push({
+          changeId: change.id,
+          message: `op ${index + 1} (${op.op}) names "${named}" in ${pointer}, which no program may address: every object shares it`,
+        });
+      }
+    });
+  }
+  return issues;
+}
+
 export interface RouteMapping {
   from: { method: string; path: string };
   to: { method: string; path: string };
@@ -209,6 +245,51 @@ function navigate(
   return current;
 }
 
+/**
+ * A schema at a place, as it is written: references followed, and nothing
+ * merged. Undefined where the way there runs through a composition, which
+ * only a resolved reading can walk.
+ */
+export function writtenAt(
+  document: OpenApiDocument,
+  schema: JsonValue,
+  segments: readonly string[],
+): JsonValue | undefined {
+  let current: JsonValue | undefined = topOf(document, schema);
+  for (const segment of segments) {
+    if (!isJsonObject(current)) return undefined;
+    const properties = current["properties"];
+    const next: JsonValue | undefined =
+      segment === "*"
+        ? current["items"]
+        : segment === "{}"
+          ? current["additionalProperties"]
+          : isJsonObject(properties)
+            ? properties[segment]
+            : undefined;
+    if (next === undefined) return undefined;
+    current = topOf(document, next);
+  }
+  return current;
+}
+
+/**
+ * A schema taken as written at its top: a reference is followed to what it
+ * names, since a schema restated as a reference to its own name would state
+ * nothing at all.
+ */
+export function topOf(document: OpenApiDocument, schema: JsonValue): JsonValue {
+  let current = schema;
+  for (
+    let hops = 0;
+    isJsonObject(current) && typeof current["$ref"] === "string" && hops < 16;
+    hops += 1
+  ) {
+    current = resolveRef(document, current["$ref"]) ?? null;
+  }
+  return current;
+}
+
 function sitesForScope(document: OpenApiDocument, scope: Scope): Site[] {
   if (!isSchemaScope(scope)) return [];
   return findSchemaSites(document, scope.schema).sites;
@@ -286,7 +367,7 @@ export function predictDocument(
   changes: readonly Change[],
 ): Prediction {
   const document = structuredClone(oldContract);
-  const issues: PredictionIssue[] = [];
+  const issues: PredictionIssue[] = [...unaddressableKeys(changes)];
   const routes = routeMappings(changes);
 
   for (const change of changes) {
@@ -472,28 +553,32 @@ export function predictDocument(
               if (before === undefined) {
                 throw new Error(`the old contract has no ${op.path} on ${name}`);
               }
+              // Written as the new contract writes it, found by name where it
+              // can be, and otherwise as it was proved. Plaid's account
+              // identity is built from a base with `allOf` and declares the
+              // base's mask again, nullable: merged here, the two statements
+              // were reconciled one way, and the differ reconciles them
+              // another, so the prediction said something the new contract
+              // does not.
+              const statement =
+                writtenAt(
+                  newContract,
+                  { $ref: `#/components/schemas/${name}` },
+                  parsePointer(op.path),
+                ) ?? topOf(newContract, next.shape);
+              if (!isJsonObject(statement)) {
+                throw new Error(`the new contract's ${op.path || name} is not a schema`);
+              }
               proveRestated(
                 { document, schema: before },
                 { document: newContract, schema: next.shape },
                 schemaDirections(oldContract, scope.schema),
                 op.path || name,
+                {
+                  before: writtenAt(document, schema, parsePointer(op.path)) ?? before,
+                  after: statement,
+                },
               );
-              // Taken as written at its top: the new contract may name it by
-              // the same name, and a schema restated as a reference to
-              // itself would state nothing at all.
-              let statement = next.shape;
-              for (
-                let hops = 0;
-                isJsonObject(statement) &&
-                typeof statement["$ref"] === "string" &&
-                hops < 16;
-                hops += 1
-              ) {
-                statement = resolveRef(newContract, statement["$ref"]) ?? null;
-              }
-              if (!isJsonObject(statement)) {
-                throw new Error(`the new contract's ${op.path || name} is not a schema`);
-              }
               importReferences(document, newContract, statement);
               schemaRestate(document, schema, op.path, statement);
               break;

@@ -180,10 +180,13 @@ describe("the cost of numeric fidelity", () => {
     execute(exact, [{ k: "scale", path: ["amount"], exp: 2, c: "m" }]);
     expect(stringifyJson(exact)).toBe('{"amount":123456789012345678901}');
 
-    const lossy = parseJson(body, "double");
-    execute(lossy, [{ k: "scale", path: ["amount"], exp: 2, c: "m" }]);
-    // The double already rounded before any transform ran. Recording what that
-    // actually produces keeps the default's limit visible.
-    expect(stringifyJson(lossy)).toBe('{"amount":123456789012345680000}');
+    // Sixteen digits in a row take the exact path even in double mode, since
+    // a double rounds integers past 2^53. What the default still rounds is
+    // precision spread across the point, runs of fewer than sixteen digits
+    // that together hold more than a double can. Recording what that actually
+    // produces keeps the default's limit visible.
+    expect(stringifyJson(parseJson(body, "double"))).toBe(body);
+    const spread = parseJson('{"amount":12345678.123456789}', "double");
+    expect(stringifyJson(spread)).toBe('{"amount":12345678.12345679}');
   });
 });

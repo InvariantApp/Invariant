@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { chmodSync, existsSync, statSync } from "node:fs";
-import { appendFile, chmod, copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { basename, dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
+import { appendFile, chmod, copyFile, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { exec, execFile, spawn, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -3081,6 +3081,30 @@ const UnwrapSingleCodec = Type$1.Object({
 	kind: Type$1.Literal("unwrapSingle"),
 	pick: Type$1.Optional(ListPick)
 }, { additionalProperties: false });
+/**
+* Values an old caller may put in a list that the new contract no longer
+* accepts, taken out of it on the way in.
+*
+* Asana stopped offering a hundred and twenty-six of the fields a caller
+* could ask a portfolio's items to include, and an old caller asking for
+* `opt_fields=color` was refused outright. The fields are not coming back,
+* so nothing can serve them; what can be served is everything else the
+* caller asked for, which is the request with those values left out.
+*
+* Applied to a list, never to a single value: a single value that is gone
+* has no request left without it, and is an `enumMap` to a value that
+* remains, which a person decides. Forward only, since a list an old caller
+* is sent is the new contract's to fill. Always lossy, because the caller
+* asked for something it will not get; the compiler derives
+* `declared-lossy` from it and the gate asks for that in writing.
+*/
+const DropValuesCodec = Type$1.Object({
+	kind: Type$1.Literal("dropValues"),
+	values: Type$1.Array(Type$1.String(), {
+		minItems: 1,
+		uniqueItems: true
+	})
+}, { additionalProperties: false });
 const Codec = Type$1.Union([
 	Scale10Codec,
 	EnumMapCodec,
@@ -3088,7 +3112,8 @@ const Codec = Type$1.Union([
 	DateFormatCodec,
 	StringCaseCodec,
 	WrapArrayCodec,
-	UnwrapSingleCodec
+	UnwrapSingleCodec,
+	DropValuesCodec
 ]);
 /**
 * Every operation a path item can declare, in OpenAPI's own order.
@@ -3527,13 +3552,35 @@ function isDeniedHeader(name) {
 /** The product version this package was released as, which the compiler records. */
 const PRODUCT_VERSION = "0.1.0";
 /**
+* A feature added since the last release, which the next one will carry.
+*
+* Its version is not known until the release is cut, since Changesets decides
+* it from what the release holds. `scripts/sync-versions.mts` replaces each
+* `NEXT` below with that version when it is, so a published release never
+* says it.
+*/
+const NEXT = "next";
+/**
+* What a program that uses a feature not yet released asks for: a pre-release
+* of the patch after this one, which every published runtime refuses with the
+* error that names a newer runtime, and which the next release, whatever it
+* turns out to be, runs. `drop` was the first instruction added after 0.1.0
+* shipped, and entered at a version, the release it would ship in could not
+* yet be named and the one it was compiled by could not run it.
+*/
+function nextRelease$1(version) {
+	const [core = "0.0.0"] = version.split("-", 1);
+	const [major = 0, minor = 0, patch = 0] = core.split(".").map(Number);
+	return `${major}.${minor}.${patch + 1}-${NEXT}`;
+}
+/**
 * The first runtime release that runs each feature.
 *
-* A feature added after a release is entered at the version it will ship in,
-* which is always later than any runtime already published, so a runtime that
-* predates it refuses the program instead of misreading it. Typed as a record
-* over every instruction kind, so a new instruction does not compile until it
-* is entered here.
+* A feature added after a release is entered as `NEXT` and becomes the version
+* it shipped in when the release is cut, which is always later than any
+* runtime already published, so a runtime that predates it refuses the
+* program instead of misreading it. Typed as a record over every instruction
+* kind, so a new instruction does not compile until it is entered here.
 */
 const FEATURE_SINCE = {
 	move: "0.1.0",
@@ -3544,6 +3591,7 @@ const FEATURE_SINCE = {
 	case: "0.1.0",
 	wrap: "0.1.0",
 	unwrap: "0.1.0",
+	drop: NEXT,
 	set: "0.1.0",
 	del: "0.1.0",
 	within: "0.1.0",
@@ -3625,7 +3673,8 @@ function compareVersions$2(a, b) {
 function minRuntimeFor(program) {
 	let oldest = "0.1.0";
 	for (const feature of featuresOf(program)) {
-		const since = FEATURE_SINCE[feature];
+		const entered = FEATURE_SINCE[feature];
+		const since = entered === "next" ? nextRelease$1(PRODUCT_VERSION) : entered;
 		if (compareVersions$2(since, oldest) > 0) oldest = since;
 	}
 	return oldest;
@@ -3757,6 +3806,17 @@ const UnwrapInstr = Type$1.Object({
 	first: Type$1.Optional(Type$1.Literal(true)),
 	c: ChangeId
 }, { additionalProperties: false });
+/**
+* Takes the listed values out of the list at `path`: what an old caller asked
+* for that the new contract no longer accepts (Asana's `opt_fields`). A value
+* that is not a string is left alone; the list's other items keep their order.
+*/
+const DropInstr = Type$1.Object({
+	k: Type$1.Literal("drop"),
+	path: Pointer,
+	values: Type$1.Array(Type$1.String(), { minItems: 1 }),
+	c: ChangeId
+}, { additionalProperties: false });
 const SetInstr = Type$1.Object({
 	k: Type$1.Literal("set"),
 	path: Pointer,
@@ -3821,6 +3881,7 @@ const Instr = Type$1.Recursive((Self) => Type$1.Union([
 	CaseInstr,
 	WrapInstr,
 	UnwrapInstr,
+	DropInstr,
 	SetInstr,
 	DelInstr,
 	Type$1.Object({
@@ -14246,7 +14307,7 @@ function at$1(value, pointer, where) {
 	let node = value;
 	for (const segment of pointer.split("/").slice(1)) {
 		const key = pointerKey(segment);
-		node = Array.isArray(node) ? node[Number(key)] : isJsonObject(node) ? node[key] : void 0;
+		node = Array.isArray(node) ? node[Number(key)] : isJsonObject(node) && Object.hasOwn(node, key) ? node[key] : void 0;
 		if (node === void 0) throw new BundleError(`${where} points at nothing`);
 	}
 	return node;
@@ -14260,6 +14321,11 @@ function repositoryOf(path) {
 		if (parent === dir) return dirname(resolve(path));
 		dir = parent;
 	}
+}
+/** Whether `path` is `root` or lies somewhere beneath it. */
+function within$1(root, path) {
+	const inside = relative(root, path);
+	return inside !== ".." && !inside.startsWith(`..${sep}`) && !isAbsolute(inside);
 }
 /** Whether a document refers to anything outside itself. */
 function refersOutside(value) {
@@ -14280,13 +14346,15 @@ async function bundleDocument(path, options = {}) {
 	const load = async (file, from) => {
 		const cached = files.get(file);
 		if (cached !== void 0) return cached;
-		const inside = relative(root, file);
-		if (inside.startsWith("..") || isAbsolute(inside)) throw new BundleError(`${from} refers to ${file}, outside the repository at ${root}. A specification may only refer to files beside it.`);
+		const outsideAt = `${from} refers to ${file}, outside the repository at ${root}. A specification may only refer to files beside it.`;
+		if (!within$1(root, file)) throw new BundleError(outsideAt);
 		if (files.size >= MAX_FILES) throw new BundleError(`${entry} refers to more than ${MAX_FILES} files`);
 		let text;
 		try {
+			if (file !== entry && !within$1(await realpath(root), await realpath(file))) throw new BundleError(outsideAt);
 			text = await readFile(file, "utf8");
-		} catch {
+		} catch (error) {
+			if (error instanceof BundleError) throw error;
 			throw new BundleError(`${from} refers to ${file}, which cannot be read`);
 		}
 		const value = parseText(file, text);
@@ -14300,7 +14368,7 @@ async function bundleDocument(path, options = {}) {
 	const named = {};
 	/** Where each target was placed, by `file#pointer`. */
 	const placed = /* @__PURE__ */ new Map();
-	const taken = new Set(Object.keys((swagger ? document["definitions"] : isJsonObject(document["components"]) ? document["components"]["schemas"] : void 0) ?? {}));
+	const taken = /* @__PURE__ */ new Set([...Object.keys((swagger ? document["definitions"] : isJsonObject(document["components"]) ? document["components"]["schemas"] : void 0) ?? {}), "__proto__"]);
 	const home = swagger ? "#/definitions/" : "#/components/schemas/";
 	const targetOf = (ref, file) => {
 		if (/^[a-z][a-z0-9+.-]*:/i.test(ref)) throw new BundleError(`${file} refers to ${ref}. References are resolved from files, never fetched.`);
@@ -15726,7 +15794,7 @@ function resolveRef(document, ref) {
 		}
 		let next;
 		if (Array.isArray(current)) next = /^(0|[1-9]\d*)$/.test(key) ? current[Number(key)] : void 0;
-		else if (isJsonObject(current)) next = current[key];
+		else if (isJsonObject(current) && Object.hasOwn(current, key)) next = current[key];
 		if (next === void 0) return void 0;
 		current = next;
 	}
@@ -16034,6 +16102,52 @@ function keepsNames(before, after) {
 	const kept = namesIn(after.document, after.schema);
 	for (const name of namesIn(before.document, before.schema)) if (!kept.has(name)) return missed(name, "the new schema no longer names it, so a value under it would be lost");
 	return COVERED;
+}
+/**
+* Whether every named schema a restated place refers to, the old contract
+* either lacks or states the same way.
+*
+* A restatement is proved against the new contract, references and all, and
+* written with the new contract's names. Where the old contract already has a
+* schema of that name and says something else in it, the written place would
+* refer to that old statement, which is not what was proved: Plaid's account
+* identity came to be built from a base whose balances may be null, and
+* written into the old contract it found a base where they never are. Words
+* that only describe a schema are not compared.
+*/
+function referencesAlike(old, next) {
+	const reached = /* @__PURE__ */ new Set();
+	const pending = [next.schema];
+	while (pending.length > 0) {
+		const value = pending.pop();
+		if (Array.isArray(value)) {
+			pending.push(...value);
+			continue;
+		}
+		if (!isJsonObject(value)) continue;
+		const ref = value["$ref"];
+		if (typeof ref === "string" && !reached.has(ref)) {
+			reached.add(ref);
+			const target = resolveRef(next.document, ref);
+			if (target !== void 0) {
+				const before = resolveRef(old, ref);
+				if (before !== void 0 && JSON.stringify(unannotated(before)) !== JSON.stringify(unannotated(target))) return missed(ref, "the old contract states it differently, so the place would refer to that");
+				pending.push(target);
+			}
+		}
+		pending.push(...Object.values(value));
+	}
+	return COVERED;
+}
+/**
+* A schema with what only describes it taken out, for comparing what it
+* allows. A map of properties is keyed by names, and a property may well be
+* called `description`; only the schemas under the names are read.
+*/
+function unannotated(value) {
+	if (Array.isArray(value)) return value.map(unannotated);
+	if (!isJsonObject(value)) return value;
+	return Object.fromEntries(Object.entries(value).filter(([key]) => !ANNOTATIONS$1.has(key) && !key.startsWith("x-")).map(([key, child]) => [key, key === "properties" && isJsonObject(child) ? Object.fromEntries(Object.entries(child).map(([name, schema]) => [name, unannotated(schema)])) : unannotated(child)]));
 }
 /** How deep `keepsNames` reads. */
 const NAME_DEPTH = 12;
@@ -16482,10 +16596,25 @@ const JSON_KINDS$1 = [
 * schema can be shared by every place it sits.
 */
 const MAX_WALK_STEPS = 2e6;
+/**
+* How many places one search lists before the schema is served by blocks
+* instead.
+*
+* The step budget bounds how long a search takes, not how much it finds, and
+* without recursion nothing else stopped it. A document of a few kilobytes,
+* each level holding two references to the next, puts a schema at 2^depth
+* places: sixteen levels listed 65,536 of them and the compiler died of a
+* stack overflow, and fourteen wrote a 6.8 MB program for a one-field rename,
+* doubling with each level. Found by the threat-model tests. Past this many
+* places the program is as large as the schemas rather than the paths, which
+* is what the blocks are for.
+*/
+const MAX_PLACES = 1e4;
 /** How many reasons a search keeps; the rest are counted, not listed. */
 const MAX_NOTES = 100;
 const freshBudget = () => ({
 	steps: 0,
+	places: 0,
 	exhausted: false,
 	dropped: 0
 });
@@ -16720,6 +16849,12 @@ function walk$2(ctx, schema, segments) {
 	const ref = schema["$ref"];
 	if (typeof ref === "string") {
 		if (ref === ctx.target) {
+			ctx.budget.places += 1;
+			if (ctx.budget.places > MAX_PLACES) {
+				ctx.budget.exhausted = true;
+				note(ctx, `the schema sits in more than ${MAX_PLACES} places, too many to place a transform on each`);
+				return;
+			}
 			ctx.found.push({
 				prefix: formatPointer(segments),
 				guards: []
@@ -17355,6 +17490,12 @@ function forwardInstrs(op, prefix, changeId) {
 				to: op.codec.to,
 				c: changeId
 			}];
+			case "dropValues": return [{
+				k: "drop",
+				path: prefixed(prefix, op.path),
+				values: op.codec.values,
+				c: changeId
+			}];
 			default: return [valueCodec(op.codec, prefixed(prefix, op.path), changeId, "forward")];
 		}
 		case "add": return [{
@@ -17476,6 +17617,7 @@ function backwardInstrs(op, prefix, changeId, variants = NO_VARIANTS) {
 				to: op.codec.from,
 				c: changeId
 			}];
+			case "dropValues": return [];
 			default: return [valueCodec(op.codec, prefixed(prefix, op.path), changeId, "backward")];
 		}
 		case "add": return [{
@@ -17951,17 +18093,30 @@ function responseFailure(errors, error) {
 * precision can turn it on.
 */
 /**
-* A number a double might not hold. `1e400` parses to Infinity and `1e-400`
-* to 0, and Infinity is written back as `null`, so a transform on such a body
-* would change what the caller sent without a word. Found by fuzzing.
+* A number that a double, or writing one back, would not keep as it was sent.
 *
-* A number with fewer than 100 digits in a row and an exponent of at most two
-* digits lies within 1e±198, well inside a double's range, so anything this
-* does not match is safe on the fast path. What it does match, including the
-* odd string holding a hundred digits, pays for an exact parse and loses
-* nothing.
+* `1e400` parses to Infinity and `1e-400` to 0, and Infinity is written back
+* as `null`, so a transform on such a body would change what the caller sent
+* without a word. Found by fuzzing. Nor does a double hold every integer:
+* past 2^53, which has sixteen digits, it rounds. Qdrant's own suite sends a
+* search `limit` of u64::MAX, 18446744073709551615, which came out of the
+* proxy as 18446744073709552000, no longer a u64, and the search was refused.
+*
+* And a double written back is spelled the shortest way: `1.0` comes out as
+* `1`, `1e99` as `1e+99`, `-0` as `0`. The value is the same, but not every
+* server reads only the value. Qdrant tells a list of vectors from other
+* inputs by how its numbers are written, and a multivector sent as
+* `[[1.0, 2.0, 3.0]]` stopped being one on its way through. A proxy changes
+* what it transforms and nothing else, so a body holding any number that
+* would be spelled differently takes the exact path too: a fraction that ends
+* in zero, an exponent, or a negative zero.
+*
+* The regular expression has no lookahead so that the Go engine's test can
+* hold its hand-written scanner to the very same pattern. What it matches
+* inside a string, such as a version called `1.0` or a card number, pays for
+* an exact parse and loses nothing.
 */
-const BEYOND_DOUBLE = /[\d.][eE][+-]?\d{3}|\d{100}/;
+const EXACT_PARSE = /\d{16}|\.\d*0(?:[^\d]|$)|[\d.][eE]|-0(?:[^.\d]|$)/;
 /** Whether a JSON text nests deeper than the limit, found in one pass without parsing. */
 function tooDeep(text, limit) {
 	if (text.length <= limit) return false;
@@ -17984,7 +18139,7 @@ function tooDeep(text, limit) {
 }
 function parseJson(text, fidelity) {
 	if (tooDeep(text, 256)) throw new BodyTooDeepError(256);
-	if (fidelity === "double" && !BEYOND_DOUBLE.test(text)) return JSON.parse(text);
+	if (fidelity === "double" && !EXACT_PARSE.test(text)) return JSON.parse(text);
 	return JSON.parse(text, function preserveNumbers(_key, value, context) {
 		if (typeof value !== "number") return value;
 		const source = context?.source;
@@ -18622,6 +18777,15 @@ function unwrapped(value, first) {
 	if (value.length !== 1) throw new CodecRefusal(`the list holds ${value.length} items, and only one can be shown`);
 	return value[0];
 }
+/**
+* A list without the values the new contract no longer accepts, its other
+* items in their order. Asana stopped offering fields an old caller could ask
+* for in `opt_fields`, and asking for one refused the whole request.
+*/
+function withoutValues(value, values) {
+	if (!Array.isArray(value)) throw new CodecRefusal(`expected a list to take values out of, found ${typeof value}`);
+	return value.filter((item) => typeof item !== "string" || !values.has(item));
+}
 function applyCast$1(root, instr, limits, here) {
 	const slots = slotsAt(root, instr.path, limits, here);
 	let cast = 0;
@@ -18698,6 +18862,7 @@ function execute(root, program, limits = DEFAULT_LIMITS) {
 	};
 	for (const instr of program) try {
 		step(root, instr, bounded, result, 0, void 0);
+		if (bounded.deadline !== void 0 && performance.now() > bounded.deadline) throw new TimeExceeded();
 	} catch (error) {
 		if (error instanceof FanOutExceeded) throw new MatchLimitError(instr.c, error.limit);
 		if (error instanceof TimeExceeded) throw new TimeBudgetError(instr.c, limits.timeBudgetMs ?? 0);
@@ -18762,6 +18927,9 @@ function step(root, instr, limits, result, calls, here) {
 			break;
 		case "unwrap":
 			countApplied(result, instr.c, applyEach(root, instr, limits, here, (value) => unwrapped(value, instr.first === true)));
+			break;
+		case "drop":
+			countApplied(result, instr.c, applyEach(root, instr, limits, here, (value) => withoutValues(value, instr.values)));
 			break;
 		case "set":
 			if (instr.path.length === 0) {
@@ -19922,6 +20090,22 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 				...onlyTrue(value["first"], `${where}.first`) ? { first: true } : {},
 				c: changeId
 			};
+		case "drop": {
+			expectKeys(value, [
+				"k",
+				"path",
+				"values",
+				"c"
+			], where);
+			const values = value["values"];
+			if (!Array.isArray(values) || values.length === 0 || !values.every((entry) => typeof entry === "string")) throw new ProgramError(`${where}.values must be a list of strings`);
+			return {
+				k: "drop",
+				path: segmentsOf$2(string$1(value["path"], `${where}.path`), `${where}.path`),
+				values: new Set(values),
+				c: changeId
+			};
+		}
 		case "set": {
 			expectKeys(value, [
 				"k",
@@ -20308,7 +20492,13 @@ function checkVersion(value) {
 	const minRuntime = value["minRuntime"];
 	if (minRuntime === void 0) return;
 	if (typeof minRuntime !== "string" || !/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(minRuntime)) throw new ProgramError("program.minRuntime must be a version such as 1.2.3");
-	if (compareVersions$1(minRuntime, "0.1.0") > 0) throw new ProgramTooNewError(`runtime ${minRuntime}`, compiledBy);
+	if (compareVersions$1(minRuntime, "0.1.0") > 0 && minRuntime !== nextRelease("0.1.0")) throw new ProgramTooNewError(`runtime ${minRuntime}`, compiledBy);
+}
+/** The version a feature not yet released asks for, as `@invariant-app/ir` writes it. */
+function nextRelease(version) {
+	const [core = "0.0.0"] = version.split("-", 1);
+	const [major = 0, minor = 0, patch = 0] = core.split(".").map(Number);
+	return `${major}.${minor}.${patch + 1}-next`;
 }
 function decodeProgram(raw) {
 	const value = object$1(raw, "program");
@@ -21737,7 +21927,30 @@ function applyUnwrapSingle(schema) {
 	}
 	return out;
 }
-function applyCodecToSchema(schema, codec) {
+/**
+* A list without the values `dropValues` takes out of it. The items' own
+* vocabulary is written in place in the list's statement, which is where the
+* values are now absent from; the named schema they may refer to is left
+* alone, since other places may still hold those values.
+*/
+function applyDropValues(schema, values, document) {
+	const types = declaredTypes(schema);
+	const written = schema["items"];
+	if (types.length > 0 && !types.includes("array") || written === void 0) throw new SchemaOpError("dropValues applies only to a list whose items are described");
+	const items = document === void 0 ? written : resolveSchema(document, written);
+	const listed = isJsonObject(items) ? items["enum"] : void 0;
+	if (!isJsonObject(items) || !Array.isArray(listed)) throw new SchemaOpError("dropValues applies only to a list whose items list their values");
+	const gone = new Set(values);
+	const missing = values.filter((value) => !listed.includes(value));
+	if (missing.length > 0) throw new SchemaOpError(`dropValues names ${missing.map((value) => `"${value}"`).join(", ")}, which the list never held`);
+	const out = clone$1(schema);
+	out["items"] = {
+		...clone$1(items),
+		enum: listed.filter((value) => typeof value !== "string" || !gone.has(value))
+	};
+	return out;
+}
+function applyCodecToSchema(schema, codec, document) {
 	if (!isJsonObject(schema)) throw new SchemaOpError("A codec needs a schema object to apply to");
 	switch (codec.kind) {
 		case "scale10": return applyScale10(schema, codec.exponent);
@@ -21747,6 +21960,7 @@ function applyCodecToSchema(schema, codec) {
 		case "stringCase": return applyStringCase(schema, codec);
 		case "wrapArray": return applyWrapArray(schema);
 		case "unwrapSingle": return applyUnwrapSingle(schema);
+		case "dropValues": return applyDropValues(schema, codec.values, document);
 	}
 }
 /**
@@ -21758,13 +21972,13 @@ function schemaConvert(document, root, path, codec) {
 	if (segments.length === 0) {
 		if (codec.kind === "wrapArray") throw new SchemaOpError("Cannot wrap the scope itself in a list; wrap a field of it");
 		const own = ownRoot(document, root);
-		const converted = applyCodecToSchema(resolveSchema(document, own), codec);
+		const converted = applyCodecToSchema(resolveSchema(document, own), codec, document);
 		for (const key of Object.keys(own)) delete own[key];
 		Object.assign(own, isJsonObject(converted) ? converted : {});
 		return;
 	}
 	const slot = readSlot(document, root, segments);
-	writeSlot(document, root, segments, codec.kind === "wrapArray" ? applyWrapArray(isJsonObject(slot.schema) ? slot.schema : {}) : applyCodecToSchema(resolveSchema(document, slot.schema), codec), slot.required);
+	writeSlot(document, root, segments, codec.kind === "wrapArray" ? applyWrapArray(isJsonObject(slot.schema) ? slot.schema : {}) : applyCodecToSchema(resolveSchema(document, slot.schema), codec, document), slot.required);
 }
 /**
 * `widen`: the union at `path` gains `variant` as a branch. What old callers
@@ -21934,8 +22148,22 @@ function setNullable(document, schema, nullable, label) {
 * proved schema against schema by the shared containment check, and the
 * Change is refused, naming where and why, wherever either cannot be shown.
 */
-function proveRestated(before, after, directions, place) {
-	const named = keepsNames(before, after);
+function proveRestated(before, after, directions, place, written = {
+	before: before.schema,
+	after: after.schema
+}) {
+	const alike = referencesAlike(before.document, {
+		document: after.document,
+		schema: written.after
+	});
+	if (!alike.covered) throw new SchemaOpError(`${place} is not the same values restated: it refers to ${alike.at}, and ${alike.reason}`);
+	const named = keepsNames({
+		document: before.document,
+		schema: written.before
+	}, {
+		document: after.document,
+		schema: written.after
+	});
 	if (!named.covered) throw new SchemaOpError(`${place} is not the same values restated: ${named.at} ${named.reason}`);
 	if (directions.response) {
 		const answer = covers(before, after);
@@ -22223,7 +22451,7 @@ function applyOne(document, newContract, located, scope, op) {
 	switch (op.op) {
 		case "convert": {
 			const parameter = existing(address.part, name);
-			parameter["schema"] = applyCodecToSchema(schemaOf(parameter), op.codec);
+			parameter["schema"] = applyCodecToSchema(schemaOf(parameter), op.codec, document);
 			return;
 		}
 		case "add": {
@@ -22424,7 +22652,7 @@ function applyResponseScope(document, oldContract, newContract, routes, scope, o
 					request: false,
 					response: true
 				}, `${scope.operation}'s ${scope.response} response${op.path ? ` at ${op.path}` : ""}`);
-				const statement = resolveSchema(newContract, next.shape);
+				const statement = topOf(newContract, next.shape);
 				importReferences(document, newContract, statement);
 				schemaRestate(document, root, op.path, statement);
 				break;
@@ -22446,6 +22674,42 @@ function applyResponseScope(document, oldContract, newContract, routes, scope, o
 /**
 * Replaying declared Changes over the old contract to predict the new one.
 */
+/**
+* Keys no program may name, the runtime's own list. It refuses a program that
+* names one at load, since a pointer through `__proto__` or `constructor`
+* reaches the shared prototype of every object in the process.
+*/
+const UNADDRESSABLE = /* @__PURE__ */ new Set([
+	"__proto__",
+	"constructor",
+	"prototype"
+]);
+/**
+* A Change that names one of those keys, refused here rather than compiled
+* into a program the runtime will not load. `prototype` compiled without a
+* word and the program failed only when a provider deployed it. Found by the
+* threat-model tests.
+*/
+function unaddressableKeys(changes) {
+	const issues = [];
+	for (const change of changes) change.ops.forEach((op, index) => {
+		for (const field of [
+			"path",
+			"from",
+			"to"
+		]) {
+			const pointer = op[field];
+			if (typeof pointer !== "string" || !pointer.startsWith("/")) continue;
+			const named = pointer.slice(1).split("/").map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~")).find((segment) => UNADDRESSABLE.has(segment));
+			if (named === void 0) continue;
+			issues.push({
+				changeId: change.id,
+				message: `op ${index + 1} (${op.op}) names "${named}" in ${pointer}, which no program may address: every object shares it`
+			});
+		}
+	});
+	return issues;
+}
 function routeMappings(changes) {
 	const out = [];
 	for (const change of changes) for (const op of change.ops) if (op.op === "route") out.push({
@@ -22535,6 +22799,32 @@ function navigate(document, schema, segments) {
 	}
 	return current;
 }
+/**
+* A schema at a place, as it is written: references followed, and nothing
+* merged. Undefined where the way there runs through a composition, which
+* only a resolved reading can walk.
+*/
+function writtenAt(document, schema, segments) {
+	let current = topOf(document, schema);
+	for (const segment of segments) {
+		if (!isJsonObject(current)) return void 0;
+		const properties = current["properties"];
+		const next = segment === "*" ? current["items"] : segment === "{}" ? current["additionalProperties"] : isJsonObject(properties) ? properties[segment] : void 0;
+		if (next === void 0) return void 0;
+		current = topOf(document, next);
+	}
+	return current;
+}
+/**
+* A schema taken as written at its top: a reference is followed to what it
+* names, since a schema restated as a reference to its own name would state
+* nothing at all.
+*/
+function topOf(document, schema) {
+	let current = schema;
+	for (let hops = 0; isJsonObject(current) && typeof current["$ref"] === "string" && hops < 16; hops += 1) current = resolveRef(document, current["$ref"]) ?? null;
+	return current;
+}
 function sitesForScope(document, scope) {
 	if (!isSchemaScope(scope)) return [];
 	return findSchemaSites(document, scope.schema).sites;
@@ -22583,7 +22873,7 @@ function shapeByName(newDocument, name, path) {
 */
 function predictDocument(oldContract, newContract, changes) {
 	const document = structuredClone(oldContract);
-	const issues = [];
+	const issues = [...unaddressableKeys(changes)];
 	const routes = routeMappings(changes);
 	for (const change of changes) for (const index of undecidedOps(change)) {
 		const op = change.ops[index];
@@ -22679,16 +22969,18 @@ function predictDocument(oldContract, newContract, changes) {
 						if (!next) throw new Error(`the new contract has no ${op.path || name} to restate it as`);
 						const before = navigate(document, schema, parsePointer(op.path));
 						if (before === void 0) throw new Error(`the old contract has no ${op.path} on ${name}`);
+						const statement = writtenAt(newContract, { $ref: `#/components/schemas/${name}` }, parsePointer(op.path)) ?? topOf(newContract, next.shape);
+						if (!isJsonObject(statement)) throw new Error(`the new contract's ${op.path || name} is not a schema`);
 						proveRestated({
 							document,
 							schema: before
 						}, {
 							document: newContract,
 							schema: next.shape
-						}, schemaDirections(oldContract, scope.schema), op.path || name);
-						let statement = next.shape;
-						for (let hops = 0; isJsonObject(statement) && typeof statement["$ref"] === "string" && hops < 16; hops += 1) statement = resolveRef(newContract, statement["$ref"]) ?? null;
-						if (!isJsonObject(statement)) throw new Error(`the new contract's ${op.path || name} is not a schema`);
+						}, schemaDirections(oldContract, scope.schema), op.path || name, {
+							before: writtenAt(document, schema, parsePointer(op.path)) ?? before,
+							after: statement
+						});
 						importReferences(document, newContract, statement);
 						schemaRestate(document, schema, op.path, statement);
 						break;
@@ -22761,6 +23053,11 @@ function derive(change) {
 				const toOld = op.codec.kind === "wrapArray";
 				reasons.push(toOld ? `${op.path} is now a list, so an old caller is shown its first item, nothing where it is empty, and never the rest` : `${op.path} is now one value, so the provider is sent the first item of an old caller's list and never the rest`);
 				(toOld ? lossy.backward : lossy.forward).push(op.path);
+			}
+			if (op.codec.kind === "dropValues") {
+				runtime = worse(runtime, "declared-lossy");
+				reasons.push(`${op.path} no longer accepts ${op.codec.values.length} value${op.codec.values.length === 1 ? "" : "s"} an old caller may send, which are left out of the list, so what they asked for with them is not given`);
+				lossy.forward.push(op.path);
 			}
 			if (op.codec.kind === "enumMap") {
 				if (op.codec.fold !== void 0 && op.codec.fold.length > 0) {
@@ -23196,7 +23493,7 @@ function accumulatorFor(sites, key) {
 * is where the request will have arrived by the time the program runs.
 */
 function projectStep(label, oldContract, changes, newContract) {
-	const issues = [...findInterference(changes)];
+	const issues = [...unaddressableKeys(changes), ...findInterference(changes)];
 	const routes = routeMappings(changes);
 	const sites = /* @__PURE__ */ new Map();
 	const routeRules = routes.map((route) => ({
@@ -24320,7 +24617,7 @@ const RULES = [
 		class: "needs-decision",
 		op: "convert",
 		served: "yes",
-		sentence: "A parameter no longer accepts some values old callers send. An enum map translates them into values it does accept, which you decide."
+		sentence: "A parameter no longer accepts some values old callers send. Where it is a list, such as the fields a caller asks to be included, `dropValues` leaves those values out and serves the rest, a loss you acknowledge; where it is one value, an enum map translates it into one it does accept, which you decide."
 	}),
 	rule(/^request-(parameter|header-property)(-property)?-/, {
 		class: "needs-decision",
@@ -24378,7 +24675,7 @@ const RULES = [
 		class: "needs-decision",
 		op: "convert",
 		served: "yes",
-		sentence: "A request field no longer accepts some values old callers send. An enum map translates them into values it does accept, which you decide."
+		sentence: "A request field no longer accepts some values old callers send. Where it is a list, `dropValues` leaves those values out and sends the rest, a loss you acknowledge; where it is one value, an enum map translates it into one it does accept, which you decide."
 	}),
 	rule(/^request-(body|property)-(type-changed|list-of-types-narrowed)$/, {
 		class: "needs-decision",

@@ -21,5 +21,12 @@ export function recoding(codec: Codec): string {
       return "a list of one instead of the value";
     case "unwrapSingle":
       return "the one item instead of a list";
+    case "dropValues":
+      return `a list that no longer accepts ${codec.values
+        .slice(0, 3)
+        .map((value) => `\`${value}\``)
+        .join(
+          ", ",
+        )}${codec.values.length > 3 ? ` and ${codec.values.length - 3} more` : ""}`;
   }
 }

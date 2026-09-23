@@ -36,6 +36,7 @@ import {
   type TypeElementTypes,
 } from "ts-morph";
 import { exactMinorUnits } from "./numbers.ts";
+import { within } from "./paths.ts";
 
 export type { ManualSite };
 
@@ -558,7 +559,9 @@ function isGenerated(path: string, scope: EditScope): boolean {
 
 export function editable(node: Node, scope: EditScope): boolean {
   const path = node.getSourceFile().getFilePath();
-  return path.startsWith(scope.repoDir) && !isGenerated(path, scope);
+  // Inside the repository by path, not by prefix: `/work/repo` is not a
+  // prefix of anything in `/work/repo-other`.
+  return within(scope.repoDir, path) && !isGenerated(path, scope);
 }
 
 /**

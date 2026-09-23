@@ -24,6 +24,8 @@ type Instr struct {
 	CaseFrom string
 	CaseTo   string
 	First    bool
+	// Drop is the values a drop instruction takes out of a list.
+	Drop     map[string]bool
 	Value    any
 	IfAbsent bool
 	IfNull   bool
@@ -102,7 +104,15 @@ func Execute(root any, program []*Instr, limits Limits) (*Result, error) {
 		r.deadline = time.Now().Add(limits.TimeBudget)
 	}
 	for _, instr := range program {
-		if err := r.step(root, instr, 0, nil); err != nil {
+		err := r.step(root, instr, 0, nil)
+		// Read after every instruction as well as every so many steps: one
+		// instruction can move ten thousand places, and a program shorter than
+		// the step interval never read the clock at all. Found by the
+		// threat-model tests against the reference engine.
+		if err == nil && !r.deadline.IsZero() && time.Now().After(r.deadline) {
+			err = timeExceeded{}
+		}
+		if err != nil {
 			var fan *fanOutExceeded
 			var decimalError *DecimalError
 			switch {
@@ -212,6 +222,10 @@ func (r *run) step(root any, instr *Instr, calls int, h *here) error {
 		return err
 	case "unwrap":
 		n, err := r.each(root, instr, h, func(value any) (any, error) { return unwrapped(value, instr.First) }, true)
+		r.count(instr.C, n)
+		return err
+	case "drop":
+		n, err := r.each(root, instr, h, func(value any) (any, error) { return withoutValues(value, instr.Drop) }, true)
 		r.count(instr.C, n)
 		return err
 	case "set":
@@ -518,6 +532,25 @@ func unwrapped(value any, first bool) (any, error) {
 		return nil, refuse("the list holds %d items, and only one can be shown", len(array.Items))
 	}
 	return array.Items[0], nil
+}
+
+// withoutValues is a list without the values the new contract no longer
+// accepts, its other items in their order. Asana stopped offering fields an
+// old caller could ask for in opt_fields, and asking for one refused the
+// whole request.
+func withoutValues(value any, drop map[string]bool) (any, error) {
+	array, ok := value.(*Array)
+	if !ok {
+		return nil, refuse("expected a list to take values out of, found %s", typeName(value))
+	}
+	kept := make([]any, 0, len(array.Items))
+	for _, item := range array.Items {
+		if text, isText := item.(string); isText && drop[text] {
+			continue
+		}
+		kept = append(kept, item)
+	}
+	return &Array{Items: kept}, nil
 }
 
 // each rewrites every value at the path, leaving null alone. Codec refusals

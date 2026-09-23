@@ -498,6 +498,23 @@ function decodeInstr(
         c: changeId,
       };
     }
+    case "drop": {
+      expectKeys(value, ["k", "path", "values", "c"], where);
+      const values = value["values"];
+      if (
+        !Array.isArray(values) ||
+        values.length === 0 ||
+        !values.every((entry) => typeof entry === "string")
+      ) {
+        throw new ProgramError(`${where}.values must be a list of strings`);
+      }
+      return {
+        k: "drop",
+        path: segmentsOf(string(value["path"], `${where}.path`), `${where}.path`),
+        values: new Set(values as string[]),
+        c: changeId,
+      };
+    }
     case "set": {
       expectKeys(value, ["k", "path", "value", "ifAbsent", "ifNull", "c"], where);
       if (typeof value["ifAbsent"] !== "boolean") {
@@ -964,7 +981,7 @@ export class ProgramTooNewError extends ProgramError {
 }
 
 /** Orders two `major.minor.patch` versions; a pre-release sorts before its release. */
-function compareVersions(a: string, b: string): number {
+export function compareVersions(a: string, b: string): number {
   const parse = (version: string) => {
     const [core = "", pre] = version.split("-", 2);
     return { parts: core.split(".").map((part) => Number(part) || 0), pre };
@@ -1014,9 +1031,19 @@ function checkVersion(value: Record<string, unknown>): void {
   ) {
     throw new ProgramError("program.minRuntime must be a version such as 1.2.3");
   }
-  if (compareVersions(minRuntime, VERSION) > 0) {
+  // A feature not yet released asks for a pre-release of the patch after the
+  // last release, `-next`. The runtime built from the same unreleased source
+  // implements it; every published one is older and refuses it here.
+  if (compareVersions(minRuntime, VERSION) > 0 && minRuntime !== nextRelease(VERSION)) {
     throw new ProgramTooNewError(`runtime ${minRuntime}`, compiledBy);
   }
+}
+
+/** The version a feature not yet released asks for, as `@invariant-app/ir` writes it. */
+function nextRelease(version: string): string {
+  const [core = "0.0.0"] = version.split("-", 1);
+  const [major = 0, minor = 0, patch = 0] = core.split(".").map(Number);
+  return `${major}.${minor}.${patch + 1}-next`;
 }
 
 export function decodeProgram(raw: unknown): DecodedProgram {
