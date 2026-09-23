@@ -36,7 +36,7 @@ import { questionsFor } from "./judge.ts";
 import { describePrefixMove, detectPrefixMove, prefixChange } from "./prefix.ts";
 import { type Restatement, restatements } from "./restate.ts";
 import { stemOf, UNIT_SUFFIXES } from "./rules.ts";
-import { foldDecisions } from "./vocabulary.ts";
+import { foldDecisions, retiredValueDecisions, retiredValues } from "./vocabulary.ts";
 
 /**
  * How much a rename inferred from one value going and one arriving is worth.
@@ -606,6 +606,9 @@ async function drafted(
         ...foldDecisions(
           deltas.filter((delta) => sidesOfDelta(oldContract, delta).response),
         ),
+        ...retiredValueDecisions(
+          deltas.filter((delta) => sidesOfDelta(oldContract, delta).request),
+        ),
       ],
     };
   }
@@ -726,6 +729,9 @@ async function drafted(
       ...valueDecisions,
       ...foldDecisions(
         deltas.filter((delta) => sidesOfDelta(oldContract, delta).response),
+      ),
+      ...retiredValueDecisions(
+        deltas.filter((delta) => sidesOfDelta(oldContract, delta).request),
       ),
     ],
   };
@@ -1046,6 +1052,34 @@ function droppedDraft(
  * it needs is not in the specification at all. Those still get written by hand,
  * and the release gate refuses the release until they are.
  */
+/**
+ * A list's items that stopped accepting values, as the op that leaves those
+ * values out of what old callers send: the list is the item's parent.
+ */
+function droppedFromList(pair: {
+  old: FieldShape;
+  new: FieldShape;
+}): { ops: Op[]; notes: string[] } | undefined {
+  if (!pair.old.pointer.endsWith("/*")) return undefined;
+  const from = pair.old.enumValues;
+  const to = pair.new.enumValues;
+  if (!from || !to || to.some((value) => !from.includes(value))) return undefined;
+  const went = from.filter((value) => !to.includes(value));
+  if (went.length === 0) return undefined;
+  return {
+    ops: [
+      {
+        op: "convert",
+        path: pair.old.pointer.slice(0, -2),
+        codec: { kind: "dropValues", values: went },
+      },
+    ],
+    notes: [
+      `${went.length} value${went.length === 1 ? "" : "s"} the list no longer accepts ${went.length === 1 ? "is" : "are"} left out of what old callers send; what they asked for with ${went.length === 1 ? "it" : "them"} is not given`,
+    ],
+  };
+}
+
 function alteredProposals(
   deltas: readonly SchemaDelta[],
   oldContract: Parameters<typeof schemaDeltas>[0],
@@ -1058,10 +1092,20 @@ function alteredProposals(
     const sides = delta.altered.length > 0 ? sidesOfDelta(oldContract, delta) : undefined;
     for (const pair of delta.altered) {
       const narrowed = narrowOps(pair.old, pair.new, sides ?? NEITHER);
+      // A list whose items stopped accepting values old callers may send:
+      // those values are left out of the list, and the rest is served.
+      const listDrop = (sides ?? NEITHER).request ? droppedFromList(pair) : undefined;
       // A vocabulary that only shrank needs no pairing, and saying it does
       // would send a reviewer looking for a rename that never happened.
-      const shape =
-        narrowed.ops.length > 0 ? { ops: [], notes: [] } : opsFor(pair.old, pair.new);
+      const shape = listDrop
+        ? listDrop
+        : narrowed.ops.length > 0
+          ? { ops: [], notes: [] }
+          : opsFor(pair.old, pair.new);
+      // A single value only old callers send that lost values is asked about
+      // as one decision, `retiredValueDecisions`, rather than left open.
+      const retiredAsked =
+        (sides ?? NEITHER).request && retiredValues(pair) !== undefined;
       const reshaped = valuesDiffer(pair.old, pair.new);
       // A vocabulary that grew is asked about as a fold decision, and the
       // rest of what changed about the field is still drafted below.
@@ -1070,7 +1114,8 @@ function alteredProposals(
         shape.ops.length === 0 &&
         narrowed.ops.length === 0 &&
         !foldCovers(pair, sides ?? NEITHER) &&
-        !onlyUnstated(pair.old, pair.new)
+        !onlyUnstated(pair.old, pair.new) &&
+        !retiredAsked
       ) {
         unresolved.push({
           schema: delta.schema,

@@ -21,6 +21,12 @@
  *   is written does not change what it allows. A reference to anything with
  *   structure is left alone, so the differ still reports a change to a shared
  *   object once, where it was made.
+ * - An enum of a schema whose type is text lists its values as text. Plaid
+ *   wrote its Prism versions as `type: string, enum: [4.1, 4, 3]` and a
+ *   later release as `enum: ["4.1", "4", "3"]`: read literally the first
+ *   allowed no text at all, callers sent `"3"` all along, and the differ
+ *   reported thirty-three values removed. A number there is the text it is
+ *   written as.
  * - A way to authenticate that names a scheme the document never declares is
  *   left out. Supabase listed `fga_permissions` beside `bearer` on hundreds of
  *   operations without ever declaring it; no caller could use it, so its
@@ -83,6 +89,23 @@ function constAsEnum(schema: JsonObject): void {
   delete schema["const"];
 }
 
+/** A text schema's numeric enum values as the text they are written as, in place. */
+function textEnum(schema: JsonObject): void {
+  const values = schema["enum"];
+  if (!Array.isArray(values) || !values.some((value) => typeof value === "number"))
+    return;
+  const type = schema["type"];
+  const types = Array.isArray(type) ? type : [type];
+  if (
+    !types.includes("string") ||
+    types.some((entry) => entry !== "string" && entry !== "null")
+  )
+    return;
+  schema["enum"] = values.map((value) =>
+    typeof value === "number" ? String(value) : value,
+  );
+}
+
 export function equivalentForms(document: OpenApiDocument): OpenApiDocument {
   const copy = structuredClone(document) as unknown as JsonObject;
   const components = isJsonObject(copy["components"]) ? copy["components"] : undefined;
@@ -96,6 +119,7 @@ export function equivalentForms(document: OpenApiDocument): OpenApiDocument {
     if (!isJsonObject(schema) || !isScalarSchema(schema)) continue;
     const form = structuredClone(schema);
     constAsEnum(form);
+    textEnum(form);
     // The name it was given is the component's, not the value's: an inline
     // copy of the same values has none, and the differ matches union branches
     // by it, reading a named copy as a different branch.
@@ -116,6 +140,7 @@ export function equivalentForms(document: OpenApiDocument): OpenApiDocument {
         if (target) return structuredClone(target);
       }
       constAsEnum(node);
+      textEnum(node);
     }
     for (const [key, value] of Object.entries(node)) {
       if (!isMap && (DATA.has(key) || key.startsWith("x-"))) continue;

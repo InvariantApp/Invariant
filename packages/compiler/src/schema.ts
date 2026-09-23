@@ -334,6 +334,8 @@ function applyEnumMap(
     }
     return mapped;
   });
+  // Two old values sent as one leave that one listed once.
+  out["enum"] = [...new Set(out["enum"] as (string | null)[])];
   // A folded value exists in the new contract and not the old one, so the
   // predicted document has to grow it or the closure check reports the
   // addition as an unexplained delta, which is the very thing being explained.

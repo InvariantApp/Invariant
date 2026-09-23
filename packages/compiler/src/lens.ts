@@ -103,6 +103,25 @@ export function servesPathParameter(op: DataOp): boolean {
 export const PATH_PARAMETER_REFUSAL =
   "a path parameter can only be converted in place or given new bounds";
 
+/**
+ * An enum map read backwards: each new value shown to an old caller as the
+ * old value it came from. Where two old values became one, and that one is
+ * also a value the old contract names, it is shown as itself: Plaid stopped
+ * accepting a report version old callers may still send, which a decision
+ * sends as a version it keeps, and a response carrying the kept version was
+ * never the one that went, which the API can no longer produce.
+ */
+function backwardPairs(
+  pairs: readonly (readonly [string, string])[],
+): Record<string, string> {
+  const back: Record<string, string> = {};
+  for (const [from, to] of pairs) {
+    if (Object.hasOwn(back, to) && back[to] === to) continue;
+    back[to] = from;
+  }
+  return back;
+}
+
 /** Old-shape-to-canonical primitives for one data op, at one pointer prefix. */
 export function forwardInstrs(op: DataOp, prefix: string, changeId: string): Instr[] {
   switch (op.op) {
@@ -279,7 +298,7 @@ export function backwardInstrs(
               // a fold: an old caller cannot send a value its own contract
               // never described, so there is nothing to fold on the way in.
               map: {
-                ...Object.fromEntries(op.codec.pairs.map(([from, to]) => [to, from])),
+                ...backwardPairs(op.codec.pairs),
                 ...Object.fromEntries(op.codec.fold ?? []),
               },
               ...(op.codec.fold && op.codec.fold.length > 0

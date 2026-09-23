@@ -17519,6 +17519,22 @@ function servesPathParameter(op) {
 	return op.op === "convert" && op.codec.kind !== "wrapArray" && op.codec.kind !== "unwrapSingle";
 }
 const PATH_PARAMETER_REFUSAL = "a path parameter can only be converted in place or given new bounds";
+/**
+* An enum map read backwards: each new value shown to an old caller as the
+* old value it came from. Where two old values became one, and that one is
+* also a value the old contract names, it is shown as itself: Plaid stopped
+* accepting a report version old callers may still send, which a decision
+* sends as a version it keeps, and a response carrying the kept version was
+* never the one that went, which the API can no longer produce.
+*/
+function backwardPairs(pairs) {
+	const back = {};
+	for (const [from, to] of pairs) {
+		if (Object.hasOwn(back, to) && back[to] === to) continue;
+		back[to] = from;
+	}
+	return back;
+}
 /** Old-shape-to-canonical primitives for one data op, at one pointer prefix. */
 function forwardInstrs(op, prefix, changeId) {
 	switch (op.op) {
@@ -17662,7 +17678,7 @@ function backwardInstrs(op, prefix, changeId, variants = NO_VARIANTS) {
 				k: "enum",
 				path: prefixed(prefix, op.path),
 				map: {
-					...Object.fromEntries(op.codec.pairs.map(([from, to]) => [to, from])),
+					...backwardPairs(op.codec.pairs),
 					...Object.fromEntries(op.codec.fold ?? [])
 				},
 				...op.codec.fold && op.codec.fold.length > 0 ? { folded: op.codec.fold.map(([value]) => value) } : {},
@@ -21856,6 +21872,7 @@ function applyEnumMap(schema, pairs, fold = []) {
 		if (mapped === void 0) throw new SchemaOpError(`enumMap does not cover the existing value "${value}"`);
 		return mapped;
 	});
+	out["enum"] = [...new Set(out["enum"])];
 	const already = new Set(out["enum"]);
 	for (const [value] of fold) if (!already.has(value)) {
 		out["enum"].push(value);
@@ -25341,6 +25358,15 @@ function constAsEnum(schema) {
 	schema["enum"] = [schema["const"]];
 	delete schema["const"];
 }
+/** A text schema's numeric enum values as the text they are written as, in place. */
+function textEnum(schema) {
+	const values = schema["enum"];
+	if (!Array.isArray(values) || !values.some((value) => typeof value === "number")) return;
+	const type = schema["type"];
+	const types = Array.isArray(type) ? type : [type];
+	if (!types.includes("string") || types.some((entry) => entry !== "string" && entry !== "null")) return;
+	schema["enum"] = values.map((value) => typeof value === "number" ? String(value) : value);
+}
 function equivalentForms(document) {
 	const copy = structuredClone(document);
 	const components = isJsonObject(copy["components"]) ? copy["components"] : void 0;
@@ -25350,6 +25376,7 @@ function equivalentForms(document) {
 		if (!isJsonObject(schema) || !isScalarSchema(schema)) continue;
 		const form = structuredClone(schema);
 		constAsEnum(form);
+		textEnum(form);
 		delete form["title"];
 		const pointer = name.replaceAll("~", "~0").replaceAll("/", "~1");
 		inlinable.set(`${SCHEMA_REF}${pointer}`, form);
@@ -25365,6 +25392,7 @@ function equivalentForms(document) {
 				if (target) return structuredClone(target);
 			}
 			constAsEnum(node);
+			textEnum(node);
 		}
 		for (const [key, value] of Object.entries(node)) {
 			if (!isMap && (DATA.has(key) || key.startsWith("x-"))) continue;

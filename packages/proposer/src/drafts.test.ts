@@ -1544,7 +1544,7 @@ describe("a vocabulary that only lost values", () => {
     expect(outcome.unresolved.map((entry) => entry.field)).toContain("type");
   });
 
-  it("is a question where old callers send it, since they send the value that went", async () => {
+  it("is a decision where old callers send it, since they send the value that went", async () => {
     const outcome = await propose(
       contract(withState(["enabled", "deleted"], true)),
       contract(withState(["enabled"], true)),
@@ -1557,9 +1557,45 @@ describe("a vocabulary that only lost values", () => {
           proposal.change.ops.some((op) => op.op === "relax"),
       ),
     ).toBe(false);
-    expect(outcome.unresolved.map((entry) => entry.reason).join()).toMatch(
-      /`deleted` is no longer accepted/,
+    // Which accepted value an old caller's `deleted` is sent as is asked, with
+    // the answer left as the placeholder the gate refuses.
+    const asked = outcome.decisions.filter(
+      (decision) => decision.kind === "vocabulary" && decision.schema === "ThingCreate",
     );
+    expect(asked.map((decision) => decisionChange(decision).ops)).toEqual([
+      [
+        {
+          op: "convert",
+          path: "/state",
+          codec: {
+            kind: "enumMap",
+            pairs: [
+              ["enabled", "enabled"],
+              ["deleted", CHOOSE_ONE],
+            ],
+          },
+        },
+      ],
+    ]);
+    expect(outcome.unresolved.map((entry) => entry.field)).not.toContain("state");
+  });
+
+  it("leaves out of a list what its items no longer accept, where old callers send it", async () => {
+    const tagged = (values: string[]) => ({
+      ...base,
+      ThingCreate: object({
+        name: { type: "string" },
+        tags: { type: "array", items: { type: "string", enum: values } },
+      }),
+    });
+    const outcome = await propose(
+      contract(tagged(["gift", "rush", "fragile"])),
+      contract(tagged(["gift", "fragile"])),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.proposals.flatMap((proposal) => proposal.change.ops)).toEqual([
+      { op: "convert", path: "/tags", codec: { kind: "dropValues", values: ["rush"] } },
+    ]);
   });
 
   it("is not read as any text where the old values were not text", async () => {

@@ -5,7 +5,7 @@
  * and was blocked on 347 breaking changes nobody could see.
  */
 import type { OpenApiDocument } from "@invariant-app/contract";
-import type { JsonObject } from "@invariant-app/ir";
+import type { JsonObject, JsonValue } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import { equivalentForms } from "./equivalent-forms.ts";
 import { diffDocuments } from "./oasdiff.ts";
@@ -116,6 +116,51 @@ describe("two ways of writing one schema", () => {
     expect(entries.map((entry) => entry.id)).toContain(
       "request-property-enum-value-removed",
     );
+  });
+});
+
+describe("a text schema whose values are written as numbers", () => {
+  // Plaid's Prism versions, `type: string` with `enum: [4.1, 4, 3]`, written
+  // as text a release later.
+  const version = (values: JsonValue[]) =>
+    api({
+      type: "object",
+      properties: { cashscore: { type: "string", nullable: true, enum: values } },
+    });
+
+  it("lists them as the text they are written as", () => {
+    const prepared = equivalentForms(version([4.1, 4, "3_lite", 3, null])) as unknown as {
+      components: {
+        schemas: { Message: { properties: { cashscore: { enum: unknown[] } } } };
+      };
+    };
+    expect(prepared.components.schemas.Message.properties.cashscore.enum).toEqual([
+      "4.1",
+      "4",
+      "3_lite",
+      "3",
+      null,
+    ]);
+  });
+
+  it("is not a breaking change when they are written as text", async () => {
+    expect(
+      breakingEntries(
+        await diffDocuments(
+          version([4.1, 4, "3_lite", 3, null]),
+          version(["4.1", "4", "3_lite", "3", null]),
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it("leaves a number schema's numeric values alone", () => {
+    const prepared = equivalentForms(
+      api({ type: "object", properties: { n: { type: "number", enum: [1, 2] } } }),
+    ) as unknown as {
+      components: { schemas: { Message: { properties: { n: { enum: unknown[] } } } } };
+    };
+    expect(prepared.components.schemas.Message.properties.n.enum).toEqual([1, 2]);
   });
 });
 
