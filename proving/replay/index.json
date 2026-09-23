@@ -1588,6 +1588,47 @@
       ]
     },
     {
+      "id": "dimagi/commcare-hq#33775",
+      "repo": "dimagi/commcare-hq",
+      "pr": 33775,
+      "base": "56584bbed579d6488e36fbc56863da35ea9ae96b",
+      "head": "2c543a291589823093be4f703891341e4daed3b8",
+      "package": "stripe",
+      "ecosystem": "pypi",
+      "from": "4.1.0",
+      "to": "7.2.0",
+      "license": "BSD-3-Clause",
+      "mergedAt": "2024-01-05T13:38:10Z",
+      "files": [
+        "corehq/apps/accounting/models.py",
+        "corehq/apps/accounting/tests/generator.py",
+        "corehq/apps/accounting/tests/test_autopay.py",
+        "corehq/apps/accounting/tests/test_autopay_with_api.py",
+        "corehq/apps/accounting/tests/test_models.py",
+        "corehq/apps/accounting/tests/test_stripe_payment_method_with_api.py",
+        "corehq/apps/accounting/tests/utils.py",
+        "corehq/apps/accounting/utils/stripe.py"
+      ]
+    },
+    {
+      "id": "dimagi/commcare-hq#35635",
+      "repo": "dimagi/commcare-hq",
+      "pr": 35635,
+      "base": "bebe1179ff9ed887e61d48576506bcbd120dd916",
+      "head": "5db66319a5abca13c765169af5e3c53248282a99",
+      "package": "stripe",
+      "ecosystem": "pypi",
+      "from": "7.2.0",
+      "to": "11.4.0",
+      "license": "BSD-3-Clause",
+      "mergedAt": "2025-01-24T15:36:37Z",
+      "files": [
+        "corehq/apps/accounting/tests/test_autopay.py",
+        "corehq/apps/accounting/tests/test_stripe_payment.py",
+        "corehq/warnings.py"
+      ]
+    },
+    {
       "id": "dimagi/commcare-hq#37038",
       "repo": "dimagi/commcare-hq",
       "pr": 37038,
@@ -2045,6 +2086,31 @@
       "files": [
         "src/octokit/factory.js",
         "src/octokit/factory.test.js"
+      ]
+    },
+    {
+      "id": "fossasia/eventyay-stripe#10",
+      "repo": "fossasia/eventyay-stripe",
+      "pr": 10,
+      "base": "68c9208e01259488b11c85f7bc9f58f45da84033",
+      "head": "3a0f15e9a0f87b185bb1b81f3dfe37a9eb182515",
+      "package": "stripe",
+      "ecosystem": "pypi",
+      "from": "5.4.",
+      "to": "11.3.",
+      "license": "Apache-2.0",
+      "mergedAt": "2025-01-03T09:09:35Z",
+      "files": [
+        "eventyay_stripe/__init__.py",
+        "eventyay_stripe/apps.py",
+        "eventyay_stripe/payment.py",
+        "eventyay_stripe/signals.py",
+        "eventyay_stripe/tasks.py",
+        "eventyay_stripe/tests/test_provider.py",
+        "eventyay_stripe/tests/test_settings.py",
+        "eventyay_stripe/tests/test_webhook.py",
+        "eventyay_stripe/validation_models.py",
+        "eventyay_stripe/views.py"
       ]
     },
     {
@@ -4023,6 +4089,22 @@
       ]
     },
     {
+      "id": "learning-unlimited/ESP-Website#5803",
+      "repo": "learning-unlimited/ESP-Website",
+      "pr": 5803,
+      "base": "56bdfdb8c149ceaef8ff3a8691f05fc3187b664a",
+      "head": "7c916add9e286285f0866ccf55882e645be1285e",
+      "package": "stripe",
+      "ecosystem": "pypi",
+      "from": "2.60.0",
+      "to": "7.5.0",
+      "license": "MIT",
+      "mergedAt": "2026-05-22T18:50:09Z",
+      "files": [
+        "esp/esp/program/modules/handlers/creditcardmodule_stripe.py"
+      ]
+    },
+    {
       "id": "liatrio/liatrio-otel-collector#823",
       "repo": "liatrio/liatrio-otel-collector",
       "pr": 823,
@@ -4288,6 +4370,43 @@
       "mergedAt": "2026-08-19T21:49:28Z",
       "files": [
         "setup.py"
+      ]
+    },
+    {
+      "id": "LVTD-LLC/TuxSEO#15",
+      "repo": "LVTD-LLC/TuxSEO",
+      "pr": 15,
+      "base": "87f0663e11b13def2564a1915489efaa7ef9014e",
+      "head": "c00cc28d3123bed48da1ccf44bed8752fdf3e31e",
+      "package": "stripe",
+      "ecosystem": "pypi",
+      "from": "4.0.2",
+      "to": "11.6.0",
+      "license": "MIT",
+      "mergedAt": "2025-02-28T11:00:59Z",
+      "files": [
+        "core/choices.py",
+        "core/migrations/0008_profile_product_profile_state_alter_project_type.py",
+        "core/models.py",
+        "core/utils.py",
+        "core/views.py",
+        "core/webhooks.py"
+      ]
+    },
+    {
+      "id": "mage-ai/mage-ai#3835",
+      "repo": "mage-ai/mage-ai",
+      "pr": 3835,
+      "base": "6f003cfebe8dd249376b144a940f73152ef73cdf",
+      "head": "2859f8e800067a60f21d6f3eafcf729a005a9088",
+      "package": "stripe",
+      "ecosystem": "pypi",
+      "from": "4.2.0",
+      "to": "5.5.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2023-11-07T23:55:53Z",
+      "files": [
+        "mage_integrations/mage_integrations/sources/stripe/__init__.py"
       ]
     },
     {
@@ -4648,6 +4767,26 @@
         "llama_stack/providers/inline/agents/meta_reference/responses/openai_responses.py",
         "tests/unit/conversations/test_conversations.py",
         "tests/unit/providers/agents/meta_reference/test_openai_responses_conversations.py"
+      ]
+    },
+    {
+      "id": "okfde/froide-payment#22",
+      "repo": "okfde/froide-payment",
+      "pr": 22,
+      "base": "49681083b54fec2e545ab73d0fc26fa12290962d",
+      "head": "46400b328b8e5f38c1a2b9b08eaff5ef7e8273b0",
+      "package": "stripe",
+      "ecosystem": "pypi",
+      "from": "5.5.0",
+      "to": "7.14.0",
+      "license": "MIT",
+      "mergedAt": "2025-06-25T11:58:40Z",
+      "files": [
+        "froide_payment/forms.py",
+        "froide_payment/models.py",
+        "froide_payment/provider/stripe.py",
+        "froide_payment/templatetags/froide_payment.py",
+        "froide_payment/utils.py"
       ]
     },
     {
@@ -5097,6 +5236,90 @@
       "mergedAt": "2024-03-15T20:17:58Z",
       "files": [
         "servers/account-data-deleter/src/config/index.ts"
+      ]
+    },
+    {
+      "id": "polarsource/polar#1732",
+      "repo": "polarsource/polar",
+      "pr": 1732,
+      "base": "093f6b33e64fd61dec95c1a497a45197b74f2289",
+      "head": "ca310538995c891ff89faca9decb15acef1c7c09",
+      "package": "stripe",
+      "ecosystem": "pypi",
+      "from": "6.6.0",
+      "to": "7.4.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2023-11-16T14:03:47Z",
+      "files": [
+        "server/polar/account/service.py",
+        "server/polar/integrations/stripe/endpoints.py",
+        "server/polar/integrations/stripe/service.py",
+        "server/polar/integrations/stripe/utils.py",
+        "server/polar/payment_method/schemas.py",
+        "server/polar/subscription/schemas.py",
+        "server/polar/subscription/service/subscribe_session.py",
+        "server/polar/subscription/service/subscription.py",
+        "server/polar/subscription/service/subscription_tier.py",
+        "server/tests/account/test_endpoints.py",
+        "server/tests/pledge/test_service.py",
+        "server/tests/reward/test_service.py",
+        "server/tests/subscription/service/test_subscribe_session.py",
+        "server/tests/subscription/service/test_subscription.py",
+        "server/tests/subscription/service/test_subscription_tier.py",
+        "server/tests/subscription/test_endpoints.py"
+      ]
+    },
+    {
+      "id": "polarsource/polar#3130",
+      "repo": "polarsource/polar",
+      "pr": 3130,
+      "base": "0a995743658366cfff2cbe7c47fd3d18b4fd6326",
+      "head": "be9586a63c027db5b416a166faa9b5bfac3c4e86",
+      "package": "stripe",
+      "ecosystem": "pypi",
+      "from": "7.4.0",
+      "to": "9.2.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2024-04-18T09:45:00Z",
+      "files": [
+        "server/polar/account/service.py",
+        "server/polar/integrations/stripe/endpoints.py",
+        "server/polar/integrations/stripe/service.py",
+        "server/polar/integrations/stripe/utils.py",
+        "server/polar/pledge/payment_intent_service.py"
+      ]
+    },
+    {
+      "id": "polarsource/polar#9275",
+      "repo": "polarsource/polar",
+      "pr": 9275,
+      "base": "1393e0b3232e78c6e34d08c9a17b2ed69695bea3",
+      "head": "0d4b995be2215950e5d57336b1bd01dde847359d",
+      "package": "stripe",
+      "ecosystem": "pypi",
+      "from": "10.12.0",
+      "to": "14",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-01-30T14:11:13Z",
+      "files": [
+        "server/polar/checkout/service.py",
+        "server/polar/config.py",
+        "server/polar/customer_portal/service/customer.py",
+        "server/polar/integrations/stripe/payment.py",
+        "server/polar/integrations/stripe/schemas.py",
+        "server/polar/integrations/stripe/service.py",
+        "server/polar/integrations/stripe/tasks.py",
+        "server/polar/models/dispute.py",
+        "server/polar/pledge/service.py",
+        "server/polar/tax/tax_id.py",
+        "server/polar/transaction/service/payment.py",
+        "server/scripts/order_item_migration.py",
+        "server/scripts/payments_import.py",
+        "server/scripts/pledge_invoice_payment_fix.py",
+        "server/scripts/tax_rates_import.py",
+        "server/tests/checkout/test_service.py",
+        "server/tests/fixtures/stripe.py",
+        "server/tests/transaction/service/test_payment.py"
       ]
     },
     {
@@ -5792,6 +6015,27 @@
       "files": [
         "cli.ts",
         "src/SlackReporter.ts"
+      ]
+    },
+    {
+      "id": "SabaTech-dev/QA-FRAMEWORK#230",
+      "repo": "SabaTech-dev/QA-FRAMEWORK",
+      "pr": 230,
+      "base": "8e884619a55cf88fd6b294851a38c7b2638853c7",
+      "head": "5a269143fab0c26c4ee073978a338561278974b4",
+      "package": "stripe",
+      "ecosystem": "pypi",
+      "from": "10.12.0",
+      "to": "15.6.1",
+      "license": "MIT",
+      "mergedAt": "2026-09-08T11:14:54Z",
+      "files": [
+        "dashboard/backend/api/v1/billing_routes.py",
+        "dashboard/backend/services/stripe_service.py",
+        "dashboard/backend/tests/integration/test_billing_subscribe_smoke.py",
+        "dashboard/backend/tests/services/test_stripe_service.py",
+        "tests/e2e/test_stripe_e2e.py",
+        "tests/unit/billing/test_stripe_migration_contract.py"
       ]
     },
     {
