@@ -23,6 +23,7 @@ import { type EditScope, type EngineResult, editable, runEngine } from "./engine
 import { assertWritable, repositoryPath } from "./paths.ts";
 import { bumpPins } from "./pins.ts";
 import { flagRetired } from "./retired.ts";
+import { consumerFile, type Release, upgradeBreaks } from "./verify.ts";
 
 // The plan and the edits are shared with every language pack, and still
 // importable from here, where they began.
@@ -30,6 +31,7 @@ export * from "@invariant-app/migrate-core";
 export type { EditScope } from "./engine.ts";
 export { MigrationPathError } from "./paths.ts";
 export * from "./raw.ts";
+export type { Release } from "./verify.ts";
 
 export interface MigrateOptions {
   /** Root of the consumer repository. */
@@ -66,6 +68,14 @@ export interface MigrateOptions {
    */
   resolution?: { baseUrl: string; paths: Record<string, string[]> };
   plan: MigrationPlan;
+  /**
+   * The release being moved to. With it, the consumer's files are checked
+   * against it once the edits are in, and every error the upgrade brings is
+   * reported to a person (`verify.ts`).
+   */
+  upgraded?: Release;
+  /** The release used today, where it does not resolve through the repository itself. */
+  current?: Release;
   /** Write the result to disk. Off by default, so a dry run stays a dry run. */
   write?: boolean;
 }
@@ -340,6 +350,20 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
 
   const project = projectFor(options);
   const diagnosticsBefore = diagnosticsOf(project);
+  // The consumer's own files as they were read, for the check against the
+  // upgraded release, which compares them with what the edits leave.
+  const original = new Map<string, string>();
+  if (options.upgraded) {
+    for (const source of project.getSourceFiles()) {
+      const path = source.getFilePath();
+      if (
+        consumerFile(options.repoDir, path) &&
+        !options.generated.some((entry) => path.startsWith(entry))
+      ) {
+        original.set(path, source.getFullText());
+      }
+    }
+  }
 
   // First pass: everything that follows from the Changes themselves.
   const scope: EditScope = {
@@ -398,6 +422,21 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
   for (const [path, entry] of regenerated) {
     files.set(path, entry.source);
     project.createSourceFile(path, entry.source, { overwrite: true });
+  }
+
+  if (options.upgraded) {
+    const flagged = new Set(result.manual.map((site) => `${site.file}:${site.offset}`));
+    for (const site of upgradeBreaks({
+      repoDir: options.repoDir,
+      original,
+      edited: files,
+      edits: result.edits,
+      compilerOptions: project.getCompilerOptions(),
+      upgraded: options.upgraded,
+      ...(options.current ? { current: options.current } : {}),
+    })) {
+      if (!flagged.has(`${site.file}:${site.offset}`)) result.manual.push(site);
+    }
   }
 
   // Manual sites were located in the source as it was read. Every edit above

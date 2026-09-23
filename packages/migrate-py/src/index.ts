@@ -24,6 +24,7 @@ import {
   groupByFile,
   type ManualSite,
   type MigrationPlan,
+  originalOffset,
 } from "@invariant-app/migrate-core";
 import {
   type EngineResult,
@@ -38,6 +39,7 @@ import { type Diagnostic, Pyright } from "./pyright.ts";
 import { PyrightReferences } from "./references.ts";
 import { enclosing, type Tree } from "./syntax.ts";
 
+export { originalOffset } from "@invariant-app/migrate-core";
 export { compose, manualAt, Sources } from "./engine.ts";
 export { byteColumnToCharacter, LineIndex } from "./offsets.ts";
 export type { Diagnostic } from "./pyright.ts";
@@ -318,22 +320,4 @@ export function broken(
     sites.push(manualAt(file, original, extent.start, extent.end, UPGRADE, reason));
   }
   return sites;
-}
-
-/**
- * Where an offset in the edited text was before the edits: shifted back by
- * every edit wholly before it, and to the start of an edit it falls inside.
- */
-export function originalOffset(offset: number, edits: readonly Edit[]): number {
-  let shift = 0;
-  for (const edit of [...edits].sort((a, b) => a.start - b.start)) {
-    const replacement =
-      typeof edit.replacement === "string" ? edit.replacement : edit.replacement("");
-    const newStart = edit.start + shift;
-    const newEnd = newStart + replacement.length;
-    if (offset < newStart) break;
-    if (offset < newEnd) return edit.start;
-    shift += replacement.length - (edit.end - edit.start);
-  }
-  return offset - shift;
 }

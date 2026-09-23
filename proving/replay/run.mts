@@ -17,8 +17,10 @@
  * What the engine is told comes from the SDK alone, the way `invariant sdk
  * stamp` records it: where the SDK's options name the API version, and which
  * version the upgraded release speaks. A package with nothing recorded is
- * replayed with no plan, so its sites count as missed rather than being left
- * out of the denominator.
+ * replayed with no plan. Either way the consumer is checked against both
+ * releases, TypeScript and JavaScript alike, and every place it stops
+ * type-checking across the upgrade is reported; what that does not reach
+ * counts as missed rather than being left out of the denominator.
  *
  * Usage:
  *   node --env-file-if-exists=.env --import tsx proving/replay/run.mts [--package stripe]
@@ -370,8 +372,14 @@ async function restoreAt(
   );
 }
 
-/** The SDK installed at `spec`, once per version, scripts off. */
-async function installed(name: string, spec: string): Promise<string> {
+/**
+ * The SDK installed at `spec`, once per version, scripts off: the package, and
+ * the prefix it and its dependencies resolve from.
+ */
+async function installed(
+  name: string,
+  spec: string,
+): Promise<{ sdk: string; prefix: string }> {
   const dir = join(CACHE, "npm", `${name.replaceAll("/", "+")}@${spec}`);
   const sdk = join(dir, "node_modules", name);
   if (!existsSync(join(sdk, "package.json"))) {
@@ -392,7 +400,7 @@ async function installed(name: string, spec: string): Promise<string> {
       { maxBuffer: 64 * 1024 * 1024 },
     );
   }
-  return realpathSync(sdk);
+  return { sdk: realpathSync(sdk), prefix: dir };
 }
 
 /** The version range the base's nearest manifest asks for, when the bump did not say. */
@@ -532,7 +540,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
               ? "contract"
               : STAMPS[entry.package]
                 ? "pin"
-                : "none",
+                : "verify",
   };
   const work = join(CACHE, "work", entry.id.replace(/[^\w.-]+/g, "_"));
   const repo = join(work, "repo");
@@ -635,7 +643,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       for (const [path, text] of go.files)
         engineText.set(path.slice(repo.length + 1), text);
     }
-    if (stamp) {
+    if (entry.ecosystem === "npm") {
       // Each file's blob id comes with the tree, before any blob is fetched.
       const blobs = new Map<string, string>();
       for (const line of (await git(repo, "ls-tree", "-r", entry.base)).split("\n")) {
@@ -694,24 +702,31 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
           entry.package,
           entry.to,
         ) || entry.to;
-      const oldSdk = await installed(entry.package, from);
-      const newSdk = await installed(entry.package, to);
-      const old = stamp(oldSdk);
-      const next = stamp(newSdk);
-      if (!old || !next) throw new Error("the SDK records no API version");
+      const oldRelease = await installed(entry.package, from);
+      const newRelease = await installed(entry.package, to);
+      const oldSdk = oldRelease.sdk;
+      const newSdk = newRelease.sdk;
+      // An SDK that records the API version it speaks is told the pin and,
+      // where its contracts are known, the Changes; every other one is still
+      // checked against both releases, and each place the upgrade breaks is
+      // reported.
+      const old = stamp?.(oldSdk);
+      const next = stamp?.(newSdk);
+      if (stamp && (!old || !next)) throw new Error("the SDK records no API version");
 
       await mkdir(join(repo, "node_modules"), { recursive: true });
       await symlink(oldSdk, join(repo, "node_modules", entry.package), "dir");
       // What changed in the contract between the two releases, where the SDK
       // says which contracts they speak.
-      const contract = stamp.contract
-        ? await stamp.contract(
-            versionOf(oldSdk),
-            versionOf(newSdk),
-            oldSdk,
-            old.pinType.includes("."),
-          )
-        : undefined;
+      const contract =
+        stamp?.contract && old
+          ? await stamp.contract(
+              versionOf(oldSdk),
+              versionOf(newSdk),
+              oldSdk,
+              old.pinType.includes("."),
+            )
+          : undefined;
       const symbols: SymbolMap = {
         package: entry.package,
         upgradeTo: {
@@ -723,7 +738,9 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         types: contract?.types ?? {},
         ...(contract ? { operations: contract.operations } : {}),
         accessors: [],
-        pin: { type: old.pinType, property: old.pinProperty, label: next.label },
+        ...(old && next
+          ? { pin: { type: old.pinType, property: old.pinProperty, label: next.label } }
+          : {}),
       };
       const resolution = await pathsOf(repo, entry.base);
       const result = await migrate({
@@ -732,7 +749,10 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         sources: importing(repo, readable, entry.package),
         ...(resolution ? { resolution } : {}),
         plan: buildPlan(contract?.changes ?? [], symbols),
+        current: { package: entry.package, from: oldRelease.prefix },
+        upgraded: { package: entry.package, from: newRelease.prefix },
       });
+      base.versions = [versionOf(oldSdk), versionOf(newSdk)];
       for (const site of result.manual) {
         const file = site.file.slice(repo.length + 1);
         const text = before.get(file) ?? readFileSync(site.file, "utf8");
