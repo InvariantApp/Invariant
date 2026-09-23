@@ -4,7 +4,7 @@
     {
       "name": "qdrant",
       "language": "Rust",
-      "notes": "Every consecutive minor release from 1.12, the first whose suite pins its dependencies in a lock file (tests/poetry.lock); 1.10 and 1.11 install theirs unpinned from a shell script.",
+      "notes": "Every consecutive minor release from 1.12, the first whose suite pins its dependencies in a lock file (tests/poetry.lock); 1.10 and 1.11 install theirs unpinned from a shell script. 1.12 -> 1.13, 1.13 -> 1.14 and 1.15 -> 1.16 run on the proposer's drafts, whose decisions are left unanswered: every test those releases break is broken by behavior no op serves (error messages, rescoring with an offset, a lock that answers without a content type, init_from removed, telemetry reporting different keys), so answering them would add arm c's regression check and no served test. Every other pair records its answers under changes/qdrant.",
       "repo": "qdrant/qdrant",
       "image": "qdrant/qdrant",
       "server": {
