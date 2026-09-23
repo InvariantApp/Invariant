@@ -98,8 +98,12 @@ be one the old schema admitted; where they send it, every value the old schema
 admitted must be one the new schema accepts. Both proofs rest on one
 assumption, stated here once: a property neither schema declares is never
 sent, so a closed `additionalProperties` and an open one describe the same
-values. A `discriminator` names a property every branch carries, as OpenAPI
-requires. A restatement the proof cannot show is refused, naming the place and
+values. Because of that assumption containment cannot tell a renamed
+optional field from one that was always absent, so a restatement must also
+keep every property name the old schema declares under the place, in some
+branch if the new schema is a choice: what may change is how the values are
+written, never which names carry them. A `discriminator` names a property
+every branch carries, as OpenAPI requires. A restatement the proof cannot show is refused, naming the place and
 the reason, and is then a `relax`, which declares the difference, or a
 `convert`, which translates it.
 
