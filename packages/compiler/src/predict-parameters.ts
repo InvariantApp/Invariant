@@ -31,7 +31,7 @@ import {
   type ParameterScope,
   parsePointer,
 } from "@invariant-app/ir";
-import { importReferences } from "./import.ts";
+import { importReferences, importRestated } from "./import.ts";
 import { PATH_PARAMETER_REFUSAL, servesPathParameter } from "./lens.ts";
 import {
   addressOf,
@@ -315,8 +315,12 @@ function applyToBody(
         { request: true, response: false },
         `the request body${op.path ? ` at ${op.path}` : ""}`,
       );
-      importReferences(document, newContract, next.shape);
-      schemaRestate(document, root, op.path, next.shape);
+      schemaRestate(
+        document,
+        root,
+        op.path,
+        importRestated(document, newContract, next.shape),
+      );
       return;
     }
     case "widen":
@@ -498,8 +502,7 @@ function applyOne(
         { request: true, response: false },
         `the ${address.part} parameter ${name}`,
       );
-      importReferences(document, newContract, next);
-      parameter["schema"] = structuredClone(next);
+      parameter["schema"] = importRestated(document, newContract, next);
       return;
     }
     case "relax": {

@@ -270,3 +270,57 @@ describe("a field renamed", () => {
     );
   });
 });
+
+describe("a restatement that refers to a schema the old contract states differently", () => {
+  it("means what was proved, and leaves the old schema to its other uses (Plaid)", () => {
+    // The identity wrote its balance out in place, nullable; the new identity
+    // is built from a base whose balance refers to a named balance that
+    // became nullable, and the old named balance, used elsewhere, still says
+    // it never is.
+    const balance = (nullable: boolean) => ({
+      type: "object",
+      properties: {
+        available: { type: "number", ...(nullable ? { nullable: true } : {}) },
+      },
+    });
+    const schemas = (identity: unknown, named: unknown): Schemas => ({
+      Identity: identity,
+      Balance: named,
+      Base: {
+        type: "object",
+        properties: { balances: { $ref: "#/components/schemas/Balance" } },
+      },
+      Node: {
+        type: "object",
+        properties: {
+          identity: { $ref: "#/components/schemas/Identity" },
+          balance: { $ref: "#/components/schemas/Balance" },
+        },
+      },
+    });
+    const before = contract(
+      schemas(
+        { type: "object", properties: { balances: balance(true) } },
+        balance(false),
+      ),
+    );
+    const after = contract(
+      schemas({ allOf: [{ $ref: "#/components/schemas/Base" }] }, balance(true)),
+    );
+    const prediction = predictDocument(before, after, [restate("Identity")]);
+    expect(prediction.issues).toEqual([]);
+    const predicted = schemasOf(prediction.document);
+    // Written as the new contract writes it, through a base that leads to
+    // the new balance, both under names of their own.
+    expect(predicted["Identity"]).toEqual({
+      allOf: [{ $ref: "#/components/schemas/Base_restated" }],
+    });
+    expect(predicted["Base_restated"]).toEqual({
+      type: "object",
+      properties: { balances: { $ref: "#/components/schemas/Balance_restated" } },
+    });
+    expect(predicted["Base"]).toEqual(schemasOf(before)["Base"]);
+    expect(predicted["Balance_restated"]).toEqual(balance(true));
+    expect(predicted["Balance"]).toEqual(balance(false));
+  });
+});

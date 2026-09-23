@@ -24,9 +24,14 @@ import {
   parsePointer,
   type ResponseScope,
 } from "@invariant-app/ir";
-import { importReferences } from "./import.ts";
+import { importReferences, importRestated } from "./import.ts";
 import { operationById } from "./parameters.ts";
-import { mapEndpoint, type PredictionIssue, type RouteMapping } from "./predict.ts";
+import {
+  mapEndpoint,
+  type PredictionIssue,
+  type RouteMapping,
+  topOf,
+} from "./predict.ts";
 import { proveRestated } from "./restate.ts";
 import {
   SchemaOpError,
@@ -246,9 +251,15 @@ export function applyResponseScope(
             { request: false, response: true },
             `${scope.operation}'s ${scope.response} response${op.path ? ` at ${op.path}` : ""}`,
           );
-          const statement = resolveSchema(newContract, next.shape);
-          importReferences(document, newContract, statement);
-          schemaRestate(document, root, op.path, statement);
+          // As the new contract writes it, never merged here: the differ
+          // reconciles a composition its own way (see `writtenAt`).
+          const statement = topOf(newContract, next.shape);
+          schemaRestate(
+            document,
+            root,
+            op.path,
+            importRestated(document, newContract, statement),
+          );
           break;
         }
         case "relax":

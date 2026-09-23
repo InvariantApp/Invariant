@@ -27,7 +27,7 @@ import {
   type Scope,
   undecidedOps,
 } from "@invariant-app/ir";
-import { importReferences } from "./import.ts";
+import { importReferences, importRestated } from "./import.ts";
 import { applyParameterScope } from "./predict-parameters.ts";
 import { applyResponseScope } from "./predict-responses.ts";
 import { proveRestated } from "./restate.ts";
@@ -205,6 +205,51 @@ function navigate(
             : undefined;
     if (next === undefined) return undefined;
     current = resolveSchema(document, next);
+  }
+  return current;
+}
+
+/**
+ * A schema at a place, as it is written: references followed, and nothing
+ * merged. Undefined where the way there runs through a composition, which
+ * only a resolved reading can walk.
+ */
+export function writtenAt(
+  document: OpenApiDocument,
+  schema: JsonValue,
+  segments: readonly string[],
+): JsonValue | undefined {
+  let current: JsonValue | undefined = topOf(document, schema);
+  for (const segment of segments) {
+    if (!isJsonObject(current)) return undefined;
+    const properties = current["properties"];
+    const next: JsonValue | undefined =
+      segment === "*"
+        ? current["items"]
+        : segment === "{}"
+          ? current["additionalProperties"]
+          : isJsonObject(properties)
+            ? properties[segment]
+            : undefined;
+    if (next === undefined) return undefined;
+    current = topOf(document, next);
+  }
+  return current;
+}
+
+/**
+ * A schema taken as written at its top: a reference is followed to what it
+ * names, since a schema restated as a reference to its own name would state
+ * nothing at all.
+ */
+export function topOf(document: OpenApiDocument, schema: JsonValue): JsonValue {
+  let current = schema;
+  for (
+    let hops = 0;
+    isJsonObject(current) && typeof current["$ref"] === "string" && hops < 16;
+    hops += 1
+  ) {
+    current = resolveRef(document, current["$ref"]) ?? null;
   }
   return current;
 }
@@ -478,24 +523,28 @@ export function predictDocument(
                 schemaDirections(oldContract, scope.schema),
                 op.path || name,
               );
-              // Taken as written at its top: the new contract may name it by
-              // the same name, and a schema restated as a reference to
-              // itself would state nothing at all.
-              let statement = next.shape;
-              for (
-                let hops = 0;
-                isJsonObject(statement) &&
-                typeof statement["$ref"] === "string" &&
-                hops < 16;
-                hops += 1
-              ) {
-                statement = resolveRef(newContract, statement["$ref"]) ?? null;
-              }
+              // Written as the new contract writes it, found by name where it
+              // can be, and otherwise as it was proved. Plaid's account
+              // identity is built from a base with `allOf` and declares the
+              // base's mask again, nullable: merged here, the two statements
+              // were reconciled one way, and the differ reconciles them
+              // another, so the prediction said something the new contract
+              // does not.
+              const statement =
+                writtenAt(
+                  newContract,
+                  { $ref: `#/components/schemas/${name}` },
+                  parsePointer(op.path),
+                ) ?? topOf(newContract, next.shape);
               if (!isJsonObject(statement)) {
                 throw new Error(`the new contract's ${op.path || name} is not a schema`);
               }
-              importReferences(document, newContract, statement);
-              schemaRestate(document, schema, op.path, statement);
+              schemaRestate(
+                document,
+                schema,
+                op.path,
+                importRestated(document, newContract, statement),
+              );
               break;
             }
             case "widen": {

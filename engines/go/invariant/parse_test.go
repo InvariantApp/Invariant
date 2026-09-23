@@ -83,3 +83,21 @@ func sameValue(ours, theirs any) bool {
 	}
 	return ours == theirs
 }
+
+// A double rounds integers past 2^53: Qdrant's suite sends a limit of
+// u64::MAX, which read as a double comes back as 18446744073709552000, out of
+// range for the u64 it was sent as.
+func TestKeepsAnIntegerPastTwoToTheFiftyThree(t *testing.T) {
+	body := []byte(`{"limit":18446744073709551615,"vector":[0.1,0.2]}`)
+	value, err := Parse(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(out) != string(body) {
+		t.Fatalf("got %s, want %s", out, body)
+	}
+}

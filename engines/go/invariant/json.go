@@ -112,9 +112,10 @@ const MaxDepth = 256
 var ErrTooDeep = fmt.Errorf("the body nests more than %d levels deep", MaxDepth)
 
 // beyondDouble says whether the text holds a number a double might not: an
-// exponent of three digits or more, or a hundred digits in a row. Such a body
+// exponent of three digits or more, or sixteen digits in a row, since a double
+// rounds integers past 2^53 (Qdrant sends a limit of u64::MAX). Such a body
 // keeps its numbers' original digits rather than reading them as doubles. It
-// means what the reference's /[\d.][eE][+-]?\d{3}|\d{100}/ means, scanned by
+// means what the reference's /[\d.][eE][+-]?\d{3}|\d{16}/ means, scanned by
 // hand because Go's regular expressions take most of a parse to run it.
 func beyondDouble(text []byte) bool {
 	digit := func(c byte) bool { return c >= '0' && c <= '9' }
@@ -123,7 +124,7 @@ func beyondDouble(text []byte) bool {
 		c := text[index]
 		if digit(c) {
 			run++
-			if run >= 100 {
+			if run >= 16 {
 				return true
 			}
 			continue

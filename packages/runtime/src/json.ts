@@ -34,13 +34,20 @@ export type NumberFidelity = "double" | "preserve";
  * to 0, and Infinity is written back as `null`, so a transform on such a body
  * would change what the caller sent without a word. Found by fuzzing.
  *
- * A number with fewer than 100 digits in a row and an exponent of at most two
- * digits lies within 1e±198, well inside a double's range, so anything this
- * does not match is safe on the fast path. What it does match, including the
- * odd string holding a hundred digits, pays for an exact parse and loses
- * nothing.
+ * Nor does a double hold every integer: past 2^53, which has sixteen digits,
+ * it rounds. Qdrant's own suite sends a search `limit` of u64::MAX,
+ * 18446744073709551615, which came out of the proxy as 18446744073709552000,
+ * no longer a u64, and the search was refused. The provider's handler is not
+ * always a JavaScript one that would round it anyway. So sixteen digits in a
+ * row, anywhere in the body, also pays for an exact parse.
+ *
+ * A number with fewer than sixteen digits in a row and an exponent of at most
+ * two digits is exact as a double and lies well inside its range, so anything
+ * this does not match is safe on the fast path. What it does match, including
+ * a sixteen-digit string such as a card number, pays for an exact parse and
+ * loses nothing.
  */
-const BEYOND_DOUBLE = /[\d.][eE][+-]?\d{3}|\d{100}/;
+const BEYOND_DOUBLE = /[\d.][eE][+-]?\d{3}|\d{16}/;
 
 /**
  * How deeply a body may nest. Far beyond anything a real API sends: GitHub's

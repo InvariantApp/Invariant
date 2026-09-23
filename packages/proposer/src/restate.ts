@@ -166,13 +166,49 @@ function choicesIn(
   // A reference standing where an object was written out says nothing new:
   // PayPal named its invoice's parts and no value changed.
   const written = CHOICE_KEYWORDS.filter((keyword) => schema[keyword] !== undefined).map(
-    (keyword) => `${keyword}=${JSON.stringify(schema[keyword])}`,
+    (keyword) =>
+      `${keyword}=${JSON.stringify(unannotated(schema[keyword] as JsonValue))}`,
   );
   if (written.length > 0) found.set(pointer, written.join(" "));
   for (const [key, child] of Object.entries(childrenOf(schema))) {
     choicesIn(child, `${pointer}/${key}`, found, depth + 1);
   }
   return found;
+}
+
+/** Words about a schema that say nothing about its values. */
+const ANNOTATIONS = new Set([
+  "description",
+  "title",
+  "example",
+  "examples",
+  "deprecated",
+  "externalDocs",
+  "$comment",
+]);
+
+/**
+ * A schema with what only describes it taken out. Amazon reworded the
+ * description beside each reference in a health check's `allOf`, and each
+ * field read as a choice written differently, restated to no purpose.
+ */
+function unannotated(value: JsonValue): JsonValue {
+  if (Array.isArray(value)) return value.map(unannotated);
+  if (!isJsonObject(value)) return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !ANNOTATIONS.has(key) && !key.startsWith("x-"))
+      .map(([key, child]) => [
+        key,
+        // A map of properties is keyed by names, and a property may well be
+        // called `description`; only the schemas under the names are read.
+        key === "properties" && isJsonObject(child)
+          ? Object.fromEntries(
+              Object.entries(child).map(([name, schema]) => [name, unannotated(schema)]),
+            )
+          : unannotated(child),
+      ]),
+  );
 }
 
 /** What a schema written in place holds, by the segment that reaches it. */
