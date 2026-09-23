@@ -40,6 +40,7 @@ export type {
   Verifier,
 } from "./references.ts";
 export { PyrightReferences } from "./references.ts";
+export * from "./requirements.ts";
 export * from "./syntax.ts";
 export * from "./wheels.ts";
 

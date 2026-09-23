@@ -54,7 +54,10 @@ import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import type { Change } from "@invariant-app/ir";
 import type { ManualSite } from "@invariant-app/migrate-core";
-import { installWheel, migrate as migratePython } from "@invariant-app/migrate-py";
+import {
+  installWithDependencies,
+  migrate as migratePython,
+} from "@invariant-app/migrate-py";
 import { buildPlan, migrate, type SymbolMap } from "@invariant-app/migrate-ts";
 import { ts } from "ts-morph";
 import { ROOT } from "../corpus/manifest.mts";
@@ -883,8 +886,12 @@ async function replayPython(
     (await releaseBefore(entry.package, to, entry.mergedAt));
   if (!from) throw new Error("the base does not say which version it used");
   const cache = join(CACHE, "pypi");
-  const old = await installWheel(entry.package, from, cache);
-  const next = await installWheel(entry.package, to, cache);
+  // Each release with what its wheel says it needs, so a pydantic model's
+  // fields are read through pydantic rather than an unknown base.
+  const oldSites = await installWithDependencies(entry.package, from, cache);
+  const nextSites = await installWithDependencies(entry.package, to, cache);
+  const old = { site: oldSites.sites[0] as string, version: oldSites.version };
+  const next = { site: nextSites.sites[0] as string, version: nextSites.version };
 
   let changes: Change[] = [];
   let types: Record<string, string> = {};
@@ -927,8 +934,8 @@ async function replayPython(
   const result = await migratePython({
     repoDir: repo,
     sources,
-    packages: [old.site],
-    upgraded: [next.site],
+    packages: oldSites.sites,
+    upgraded: nextSites.sites,
     plan: buildPlan(changes, symbols),
   });
   if (keep) {
