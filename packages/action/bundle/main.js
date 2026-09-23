@@ -16284,7 +16284,7 @@ var Prover = class {
 			if (!answer.covered) return answer;
 		}
 		if (types.has("number") || types.has("integer")) {
-			const answer = numbersCovered(o, i, at);
+			const answer = numbersCovered(o, i, at, !types.has("number"));
 			if (!answer.covered) return answer;
 		}
 		if (types.has("array")) {
@@ -16423,7 +16423,49 @@ function stringsCovered(o, i, at) {
 	if (o["format"] !== void 0 && o["format"] !== i["format"]) return missed(at, `the outer schema is a ${String(o["format"])}, and the inner is not said to be`);
 	return COVERED;
 }
-function numbersCovered(o, i, at) {
+/**
+* Numeric formats that bound a whole number, by the lowest and highest value
+* each holds. 2 ** 63 - 1 is not a double, so int64 is bounded by the
+* nearest one below it, which only ever refuses more.
+*/
+const WHOLE_NUMBER_FORMATS = {
+	int32: {
+		low: -(2 ** 31),
+		high: 2 ** 31 - 1
+	},
+	int64: {
+		low: -(2 ** 63),
+		high: 2 ** 63 - 1024
+	}
+};
+/** Numeric formats, and the narrower ones every value of which they hold. */
+const NARROWER_FORMATS = {
+	int64: ["int32"],
+	double: ["float"]
+};
+/**
+* Why the outer schema's numeric format may refuse what the inner allows, or
+* nothing when it cannot. An int32 or int64 is a range of whole numbers, so
+* an inner schema of whole numbers bounded inside that range is held by it
+* whether or not it says so: Twilio stated `int64` on a page size it had
+* always bounded to 1000. Any other format is a claim this cannot check, and
+* is kept only where the inner states it, or one it holds.
+*/
+function formatRefuses(o, i, whole) {
+	const format = o["format"];
+	const inner = i["format"];
+	if (format === void 0 || format === inner) return void 0;
+	if (typeof inner === "string" && NARROWER_FORMATS[String(format)]?.includes(inner)) return;
+	const range = WHOLE_NUMBER_FORMATS[String(format)];
+	if (!range) return `the outer schema is a ${String(format)}, and the inner is not said to be`;
+	if (!whole) return `the outer schema holds whole numbers as ${String(format)}, and the inner may not be whole`;
+	const low = lowerBound(i);
+	const high = upperBound(i);
+	if (!low || !high || low.value < range.low || high.value > range.high) return `the outer schema is a ${String(format)}, and the inner may be beyond what one holds`;
+}
+function numbersCovered(o, i, at, whole) {
+	const formatted = formatRefuses(o, i, whole);
+	if (formatted) return missed(at, formatted);
 	const outerLow = lowerBound(o);
 	const innerLow = lowerBound(i);
 	if (outerLow && !(innerLow && tighterLow(innerLow, outerLow))) return missed(at, `the outer schema is at least ${outerLow.value}, and the inner may be lower`);
@@ -16489,6 +16531,10 @@ function refuses(o, value) {
 		if (o["format"] !== void 0) return `is not shown to be a ${String(o["format"])}`;
 	}
 	if (typeof value === "number") {
+		const format = o["format"];
+		const range = format === void 0 ? void 0 : WHOLE_NUMBER_FORMATS[String(format)];
+		if (format !== void 0 && !range) return `is not shown to be a ${String(format)}`;
+		if (range && (!Number.isInteger(value) || value < range.low || value > range.high)) return `is not ${a(String(format))}`;
 		const low = lowerBound(o);
 		const high = upperBound(o);
 		if (low && (value < low.value || low.exclusive && value === low.value)) return "is too low";
@@ -22929,10 +22975,6 @@ function topOf(document, schema) {
 	for (let hops = 0; isJsonObject(current) && typeof current["$ref"] === "string" && hops < 16; hops += 1) current = resolveRef(document, current["$ref"]) ?? null;
 	return current;
 }
-function sitesForScope(document, scope) {
-	if (!isSchemaScope(scope)) return [];
-	return findSchemaSites(document, scope.schema).sites;
-}
 /**
 * The shape a newly added field has in the new contract. Resolved by position
 * rather than by schema name, so a renamed schema still lines up.
@@ -22990,6 +23032,7 @@ function predictDocument(oldContract, newContract, changes) {
 		if (op.op === "route") applyRoute(document, op, issues, change.id);
 		if (op.op === "retire") applyRetire(document, op, issues, change.id);
 	}
+	const towardOld = [];
 	for (const change of changes) {
 		const dataOps = change.ops.filter(isDataOp);
 		if (dataOps.length === 0) continue;
@@ -23021,7 +23064,9 @@ function predictDocument(oldContract, newContract, changes) {
 				});
 				continue;
 			}
-			const oldSites = sitesForScope(oldContract, scope);
+			const scan = findSchemaSites(oldContract, scope.schema);
+			const oldSites = scan.sites;
+			const listed = scan.exhausted !== true && scan.unsupported.length === 0;
 			for (const op of dataOps) try {
 				switch (op.op) {
 					case "move":
@@ -23060,6 +23105,16 @@ function predictDocument(oldContract, newContract, changes) {
 					}
 					case "default": {
 						const looser = op.toward === "old";
+						if (looser && bothWays(oldSites)) {
+							towardOld.push({
+								changeId: change.id,
+								name,
+								sites: oldSites,
+								listed,
+								op
+							});
+							break;
+						}
 						if (op.when !== "null") schemaSetRequired(document, schema, op.path, !looser);
 						if (op.when !== "absent") schemaSetNullable(document, schema, op.path, looser);
 						break;
@@ -23096,6 +23151,16 @@ function predictDocument(oldContract, newContract, changes) {
 						break;
 					case "dropNull":
 						if (oldSites.some((site) => site.direction === (op.toward === "new" ? "request" : "response")) && schemaRequiredAt(document, schema, op.path)) throw new Error(`${op.path} is required, so a null cannot be sent as the field left out`);
+						if (op.toward === "old" && bothWays(oldSites)) {
+							towardOld.push({
+								changeId: change.id,
+								name,
+								sites: oldSites,
+								listed,
+								op
+							});
+							break;
+						}
 						schemaSetNullable(document, schema, op.path, op.toward === "old");
 				}
 			} catch (error) {
@@ -23106,10 +23171,108 @@ function predictDocument(oldContract, newContract, changes) {
 			}
 		}
 	}
+	for (const entry of towardOld) looserInResponses(document, newContract, routes, entry, issues);
 	return {
 		document,
 		issues
 	};
+}
+const bothWays = (sites) => sites.some((site) => site.direction === "request") && sites.some((site) => site.direction === "response");
+/**
+* Whether the new contract still has what old callers send stated as strictly
+* as before somewhere, which is when loosening what they share would say
+* something the new contract does not. Where it loosened their requests too,
+* as Okta loosened the schemas an app's profile is defined with both ways,
+* the shared schema is loosened as it always was.
+*/
+function strictInNewRequests(newContract, routes, entry) {
+	const { op } = entry;
+	const absent = op.op === "default" && op.when !== "null";
+	const nulled = op.op === "dropNull" || op.when !== "absent";
+	return entry.sites.some((site) => {
+		if (site.direction !== "request") return false;
+		const target = mapEndpoint(routes, site.method, site.path);
+		const operation = operationsOf(newContract).find((candidate) => candidate.method === target.method && candidate.path === target.path);
+		if (!operation) return false;
+		const body = bodySchemaFor(newContract, operation.operation, "request");
+		if (body === void 0) return false;
+		const within = [...parsePointer(site.prefix), ...parsePointer(op.path)];
+		const field = navigate(newContract, body, within);
+		const parent = navigate(newContract, body, within.slice(0, -1));
+		if (!isJsonObject(field) || !isJsonObject(parent)) return false;
+		const name = within[within.length - 1];
+		const required = Array.isArray(parent["required"]) && parent["required"].includes(name);
+		return absent && required || nulled && !mayBeNull(field);
+	});
+}
+/** Whether a schema allows null, in any of the ways a document can say so. */
+function mayBeNull(schema) {
+	const types = schema["type"];
+	const values = schema["enum"];
+	return schema["nullable"] === true || Array.isArray(types) && types.includes("null") || Array.isArray(values) && values.includes(null) || ["anyOf", "oneOf"].some((key) => Array.isArray(schema[key]) && schema[key].some((branch) => isJsonObject(branch) && branch["type"] === "null"));
+}
+/**
+* A field that may now be missing or null where old callers are sent it,
+* predicted in their responses alone.
+*
+* The op only ever acts on what old callers are sent; what they send is as it
+* was. Loosening the schema they share said otherwise: Adyen's
+* `AfterpayTouchInfo` kept `supportUrl` required for the requests that set a
+* payment method up and pointed responses at a schema where it is optional,
+* and a prediction that made it optional everywhere found it newly required
+* in every request. So each response the schema reaches is loosened in that
+* response's own copy, once every other Change has been applied, and the
+* shared schema stays as requests have it. Where the new contract loosened
+* the requests as well, where a response cannot be walked to the field, or
+* where the schema reaches more places than can be listed, the shared schema
+* is loosened as before.
+*/
+function looserInResponses(document, newContract, routes, entry, issues) {
+	const { op } = entry;
+	const segments = parsePointer(op.path);
+	const places = [];
+	let walked = entry.listed && strictInNewRequests(newContract, routes, entry);
+	for (const site of walked ? entry.sites : []) {
+		if (site.direction !== "response" || site.status === void 0) continue;
+		const target = mapEndpoint(routes, site.method, site.path);
+		const paths = document["paths"];
+		const item = isJsonObject(paths) ? paths[target.path] : void 0;
+		const operation = isJsonObject(item) ? item[target.method] : void 0;
+		if (!isJsonObject(operation)) continue;
+		const body = bodySchemaFor(document, operation, "response", site.status);
+		const within = [...parsePointer(site.prefix), ...segments];
+		if (body === void 0 || navigate(document, body, within) === void 0) {
+			walked = false;
+			break;
+		}
+		places.push({
+			operation,
+			status: site.status,
+			path: `${site.prefix}${op.path}`
+		});
+	}
+	const loosen = (root, path) => {
+		if (op.op === "dropNull") {
+			schemaSetNullable(document, root, path, true);
+			return;
+		}
+		if (op.when !== "null") schemaSetRequired(document, root, path, false);
+		if (op.when !== "absent") schemaSetNullable(document, root, path, true);
+	};
+	try {
+		if (!walked) {
+			const schemas = document["components"]?.["schemas"];
+			const schema = isJsonObject(schemas) ? schemas[entry.name] : void 0;
+			if (isJsonObject(schema)) loosen(schema, op.path);
+			return;
+		}
+		for (const place of places) loosen(ownBody(document, place.operation, place.status), place.path);
+	} catch (error) {
+		issues.push({
+			changeId: entry.changeId,
+			message: `${op.op} on ${entry.name}: ${error instanceof Error ? error.message : String(error)}`
+		});
+	}
 }
 //#endregion
 //#region ../compiler/src/derive.ts

@@ -20,9 +20,18 @@ type Schema = Record<string, unknown>;
 function contract(
   schemas: Record<string, Schema>,
   operationIds = { get: "getThing", post: "createThing" },
+  /** The request body written in place, where it no longer names `ThingCreate`. */
+  written?: Schema,
 ) {
   const body = (name: string) => ({
-    content: { "application/json": { schema: { $ref: `#/components/schemas/${name}` } } },
+    content: {
+      "application/json": {
+        schema:
+          name === "ThingCreate" && written
+            ? written
+            : { $ref: `#/components/schemas/${name}` },
+      },
+    },
   });
   return {
     openapi: "3.0.3",
@@ -532,6 +541,122 @@ describe("objects written in place that became references", () => {
         value: CHOOSE_ONE,
         when: "absent",
         toward: "new",
+      },
+    ]);
+  });
+});
+
+describe("references written out in place", () => {
+  const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
+  const opsBy = (outcome: Awaited<ReturnType<typeof propose>>) =>
+    outcome.proposals.map((proposal) => ({
+      scope: proposal.change.scopes?.[0],
+      ops: proposal.change.ops,
+    }));
+
+  it("reads what the schema held, and leaves what it changed itself to it (PayPal's phone)", async () => {
+    // The phone number, written out where `phone_with_type` had referred to
+    // `phone`, lost its country code with `phone`, and always had its
+    // national number through it.
+    const phone = (fields: string[]) =>
+      object(
+        Object.fromEntries(fields.map((field) => [field, { type: "string" }])),
+        fields,
+      );
+    const schemas = (typed: Schema, number: string[]) => ({
+      ...base,
+      Phone: phone(number),
+      Typed: typed,
+      ThingCreate: object({ name: { type: "string" }, phone: ref("Typed") }),
+      Thing: object({ id: { type: "string" }, phone: ref("Typed") }, ["id"]),
+    });
+    const outcome = await propose(
+      contract(
+        schemas(object({ number: ref("Phone") }, ["number"]), [
+          "country_code",
+          "national_number",
+        ]),
+      ),
+      contract(
+        schemas(object({ number: phone(["national_number"]) }, ["number"]), [
+          "national_number",
+        ]),
+      ),
+      { judge: new RulesJudge() },
+    );
+    // One question, where the country code went; nothing where it was used.
+    expect(
+      outcome.decisions.map((decision) => [decision.schema, decision.field]),
+    ).toEqual([["Phone", "country_code"]]);
+    expect(outcome.proposals).toEqual([]);
+  });
+
+  it("compares each place as what it holds now, where the places differ (PayPal's name)", async () => {
+    // One `name`, written out as a payer's given name and surname, and as a
+    // shipping name's full name alone.
+    const name = object({
+      given_name: { type: "string" },
+      surname: { type: "string" },
+      full_name: { type: "string" },
+    });
+    const outcome = await propose(
+      contract({
+        ...base,
+        Name: name,
+        ThingCreate: object({ payer: ref("Name"), shipping: ref("Name") }),
+      }),
+      contract({
+        ...base,
+        ThingCreate: object({
+          payer: object({ given_name: { type: "string" }, surname: { type: "string" } }),
+          shipping: object({ full_name: { type: "string" } }),
+        }),
+      }),
+      { judge: new RulesJudge() },
+    );
+    const removed = opsBy(outcome).flatMap(({ scope, ops }) =>
+      ops.map((op) => `${JSON.stringify(scope)} ${op.op} ${"path" in op ? op.path : ""}`),
+    );
+    expect(removed.sort()).toEqual(
+      ["/payer/full_name", "/shipping/given_name", "/shipping/surname"].map(
+        (path) => `{"schema":"#/components/schemas/ThingCreate"} remove ${path}`,
+      ),
+    );
+  });
+
+  it("compares a request body written out in place with the schema it named (Okta's group)", async () => {
+    // A group was created from a `Group`, and later from an object holding
+    // its name alone, while `Group` stayed as it was.
+    const outcome = await propose(
+      contract(base),
+      contract(base, undefined, {
+        type: "object",
+        properties: { name: { type: "string" } },
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(opsBy(outcome)).toEqual([
+      {
+        scope: { operation: "createThing", location: "body" },
+        ops: [{ op: "remove", path: "/legacy" }],
+      },
+    ]);
+  });
+
+  it("drafts once what the named schema changed itself, not again at the body", async () => {
+    const outcome = await propose(
+      contract(base),
+      contract(
+        { ...base, ThingCreate: object({ name: { type: "string" } }) },
+        undefined,
+        { type: "object", properties: { name: { type: "string" } } },
+      ),
+      { judge: new RulesJudge() },
+    );
+    expect(opsBy(outcome)).toEqual([
+      {
+        scope: { schema: "#/components/schemas/ThingCreate" },
+        ops: [{ op: "remove", path: "/legacy" }],
       },
     ]);
   });
@@ -1200,6 +1325,38 @@ describe("a bound on a value that moved", () => {
       ),
     ).toBe(false);
     expect(outcome.unresolved.map((entry) => entry.reason).join()).toMatch(/refused/);
+  });
+
+  it("is restated where a format appeared that the bounds already kept (Discord)", async () => {
+    // Discord stated `int32` on a thread's slow mode, which it had always
+    // bounded to 0 and 21600, on a schema old callers send and are sent.
+    const slowMode = { type: "integer", minimum: 0, maximum: 21600 };
+    const both = (field: Schema) => ({
+      ...base,
+      Shared: object({ id: { type: "string" }, rate_limit_per_user: field }, ["id"]),
+      ThingCreate: { $ref: "#/components/schemas/Shared" },
+    });
+    const outcome = await propose(
+      contract(both(slowMode)),
+      contract(both({ ...slowMode, format: "int32" })),
+      { judge: new RulesJudge() },
+    );
+    const ops = outcome.proposals.flatMap((proposal) => proposal.change.ops);
+    expect(ops).toContainEqual({ op: "restate", path: "/rate_limit_per_user" });
+    expect(ops.every((op) => op.op === "restate")).toBe(true);
+    expect(outcome.unresolved).toEqual([]);
+  });
+
+  it("is still reported where the format may refuse what old callers send", async () => {
+    const outcome = await propose(
+      contract(withBody({ type: "string" }, { type: "integer" })),
+      contract(withBody({ type: "string" }, { type: "integer", format: "int64" })),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.proposals.flatMap((proposal) => proposal.change.ops)).toEqual([]);
+    expect(outcome.unresolved.map((entry) => entry.reason).join()).toContain(
+      "now allows less (format) in requests",
+    );
   });
 });
 

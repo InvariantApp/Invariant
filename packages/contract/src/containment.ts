@@ -368,7 +368,7 @@ class Prover {
       if (!answer.covered) return answer;
     }
     if (types.has("number") || types.has("integer")) {
-      const answer = numbersCovered(o, i, at);
+      const answer = numbersCovered(o, i, at, !types.has("number"));
       if (!answer.covered) return answer;
     }
     if (types.has("array")) {
@@ -586,7 +586,59 @@ function stringsCovered(o: JsonObject, i: JsonObject, at: string): Coverage {
   return COVERED;
 }
 
-function numbersCovered(o: JsonObject, i: JsonObject, at: string): Coverage {
+/**
+ * Numeric formats that bound a whole number, by the lowest and highest value
+ * each holds. 2 ** 63 - 1 is not a double, so int64 is bounded by the
+ * nearest one below it, which only ever refuses more.
+ */
+const WHOLE_NUMBER_FORMATS: Readonly<Record<string, { low: number; high: number }>> = {
+  int32: { low: -(2 ** 31), high: 2 ** 31 - 1 },
+  int64: { low: -(2 ** 63), high: 2 ** 63 - 1024 },
+};
+
+/** Numeric formats, and the narrower ones every value of which they hold. */
+const NARROWER_FORMATS: Readonly<Record<string, readonly string[]>> = {
+  int64: ["int32"],
+  double: ["float"],
+};
+
+/**
+ * Why the outer schema's numeric format may refuse what the inner allows, or
+ * nothing when it cannot. An int32 or int64 is a range of whole numbers, so
+ * an inner schema of whole numbers bounded inside that range is held by it
+ * whether or not it says so: Twilio stated `int64` on a page size it had
+ * always bounded to 1000. Any other format is a claim this cannot check, and
+ * is kept only where the inner states it, or one it holds.
+ */
+function formatRefuses(o: JsonObject, i: JsonObject, whole: boolean): string | undefined {
+  const format = o["format"];
+  const inner = i["format"];
+  if (format === undefined || format === inner) return undefined;
+  if (typeof inner === "string" && NARROWER_FORMATS[String(format)]?.includes(inner)) {
+    return undefined;
+  }
+  const range = WHOLE_NUMBER_FORMATS[String(format)];
+  if (!range)
+    return `the outer schema is a ${String(format)}, and the inner is not said to be`;
+  if (!whole) {
+    return `the outer schema holds whole numbers as ${String(format)}, and the inner may not be whole`;
+  }
+  const low = lowerBound(i);
+  const high = upperBound(i);
+  if (!low || !high || low.value < range.low || high.value > range.high) {
+    return `the outer schema is a ${String(format)}, and the inner may be beyond what one holds`;
+  }
+  return undefined;
+}
+
+function numbersCovered(
+  o: JsonObject,
+  i: JsonObject,
+  at: string,
+  whole: boolean,
+): Coverage {
+  const formatted = formatRefuses(o, i, whole);
+  if (formatted) return missed(at, formatted);
   const outerLow = lowerBound(o);
   const innerLow = lowerBound(i);
   if (outerLow && !(innerLow && tighterLow(innerLow, outerLow))) {
@@ -693,6 +745,12 @@ function refuses(o: JsonObject, value: JsonValue): string | undefined {
     if (o["format"] !== undefined) return `is not shown to be a ${String(o["format"])}`;
   }
   if (typeof value === "number") {
+    const format = o["format"];
+    const range = format === undefined ? undefined : WHOLE_NUMBER_FORMATS[String(format)];
+    if (format !== undefined && !range) return `is not shown to be a ${String(format)}`;
+    if (range && (!Number.isInteger(value) || value < range.low || value > range.high)) {
+      return `is not ${a(String(format))}`;
+    }
     const low = lowerBound(o);
     const high = upperBound(o);
     if (low && (value < low.value || (low.exclusive && value === low.value)))

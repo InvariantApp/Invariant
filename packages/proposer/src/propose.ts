@@ -10,7 +10,7 @@
  * which; whether that is a rename, a unit change or an enum remapping, and
  * what the scale factor is, comes from the declared shapes.
  */
-import { schemaDirections } from "@invariant-app/contract";
+import { covers, type OpenApiDocument, schemaDirections } from "@invariant-app/contract";
 import {
   type Change,
   type JsonValue,
@@ -1152,7 +1152,12 @@ function alteredProposals(
           side: "removed",
         });
       }
-      const relaxed = relaxOps(pair.old, pair.new, sides ?? NEITHER);
+      const relaxed = restatedBounds(
+        pair.old,
+        pair.new,
+        sides ?? NEITHER,
+        relaxOps(pair.old, pair.new, sides ?? NEITHER),
+      );
       if (relaxed.unresolved) {
         unresolved.push({
           schema: delta.schema,
@@ -1272,6 +1277,72 @@ export function relaxOps(
     ...(unresolved ? { unresolved } : {}),
   };
 }
+
+/**
+ * Bounds read one keyword at a time as narrowed on a field old callers send,
+ * which read together rule out nothing they did: Discord stated `int32` on a
+ * `rate_limit_per_user` it had always bounded to 0 and 21600, and any format
+ * that appears reads as a narrowing on its own. Where the new statement is
+ * proved to accept every value old callers send, and to send them nothing
+ * their contract ruled out, it is drafted as the `restate` it is, which the
+ * compiler proves again; otherwise the reading stands.
+ */
+function restatedBounds(
+  old: FieldShape,
+  next: FieldShape,
+  sides: { request: boolean; response: boolean },
+  relaxed: ReturnType<typeof relaxOps>,
+): ReturnType<typeof relaxOps> {
+  if (
+    relaxed.unresolved === undefined ||
+    old.type === undefined ||
+    old.type !== next.type ||
+    old.required !== next.required ||
+    old.nullable !== next.nullable ||
+    old.enumValues?.join("|") !== next.enumValues?.join("|") ||
+    old.enumNull !== next.enumNull ||
+    old.unlistedValues !== next.unlistedValues ||
+    old.variants?.join("|") !== next.variants?.join("|") ||
+    old.ref !== next.ref ||
+    JSON.stringify(old.items) !== JSON.stringify(next.items)
+  ) {
+    return relaxed;
+  }
+  const before = { document: UNREFERENCED, schema: statedAs(old) };
+  const after = { document: UNREFERENCED, schema: statedAs(next) };
+  if (
+    (sides.request && !covers(after, before).covered) ||
+    (sides.response && !covers(before, after).covered)
+  ) {
+    return relaxed;
+  }
+  const changed = Object.keys({ ...old.bounds, ...next.bounds }).filter(
+    (keyword) =>
+      JSON.stringify(old.bounds?.[keyword]) !== JSON.stringify(next.bounds?.[keyword]),
+  );
+  return {
+    ops: [{ op: "restate", path: next.pointer }],
+    notes: [
+      `\`${old.name}\` is bounded differently (${changed.join(", ")}), and read together its bounds allow every value they did, and nothing more`,
+    ],
+  };
+}
+
+/** A field's value as a schema, as much of it as its shape records. */
+function statedAs(field: FieldShape): JsonValue {
+  const type = field.type as string;
+  const values: JsonValue[] | undefined = field.enumValues
+    ? [...field.enumValues, ...(field.enumNull ? [null] : [])]
+    : undefined;
+  return {
+    type: field.nullable ? [type, "null"] : type,
+    ...(values ? { enum: values } : {}),
+    ...(field.bounds ?? {}),
+  };
+}
+
+/** The document a shape's schema is read in: it names no other schema, so none. */
+const UNREFERENCED = { openapi: "3.1.0", paths: {} } as unknown as OpenApiDocument;
 
 /**
  * A vocabulary that lost values and gained none, on a field only old callers

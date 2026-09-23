@@ -59,7 +59,7 @@ function mediaOf(content: JsonObject): JsonObject | undefined {
  * The body schema of `status` on the predicted operation, as the operation's
  * own, or the reason there is none to change.
  */
-function ownBody(
+export function ownBody(
   document: OpenApiDocument,
   operation: JsonObject,
   status: string,
