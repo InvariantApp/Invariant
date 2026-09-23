@@ -293,6 +293,10 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # The hostile-$ref and alias-bomb tests run `invariant check`, which
+      # needs the pinned differ.
+      - run: node --import tsx scripts/fetch-oasdiff.mts --host
+
       - name: The threat-model tests
         run: pnpm exec vitest run proving/threats
 

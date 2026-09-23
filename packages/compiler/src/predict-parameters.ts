@@ -440,7 +440,7 @@ function applyOne(
   switch (op.op) {
     case "convert": {
       const parameter = existing(address.part, name);
-      const converted = applyCodecToSchema(schemaOf(parameter), op.codec);
+      const converted = applyCodecToSchema(schemaOf(parameter), op.codec, document);
       parameter["schema"] = converted;
       return;
     }

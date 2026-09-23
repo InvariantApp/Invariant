@@ -124,6 +124,21 @@ export const UnwrapInstr = Type.Object(
   { additionalProperties: false },
 );
 
+/**
+ * Takes the listed values out of the list at `path`: what an old caller asked
+ * for that the new contract no longer accepts (Asana's `opt_fields`). A value
+ * that is not a string is left alone; the list's other items keep their order.
+ */
+export const DropInstr = Type.Object(
+  {
+    k: Type.Literal("drop"),
+    path: Pointer,
+    values: Type.Array(Type.String(), { minItems: 1 }),
+    c: ChangeId,
+  },
+  { additionalProperties: false },
+);
+
 export const SetInstr = Type.Object(
   {
     k: Type.Literal("set"),
@@ -197,6 +212,7 @@ export const Instr = Type.Recursive(
       CaseInstr,
       WrapInstr,
       UnwrapInstr,
+      DropInstr,
       SetInstr,
       DelInstr,
       Type.Object(
@@ -528,6 +544,7 @@ export type TimeInstr = Static<typeof TimeInstr>;
 export type CaseInstr = Static<typeof CaseInstr>;
 export type WrapInstr = Static<typeof WrapInstr>;
 export type UnwrapInstr = Static<typeof UnwrapInstr>;
+export type DropInstr = Static<typeof DropInstr>;
 export type SetInstr = Static<typeof SetInstr>;
 export type DelInstr = Static<typeof DelInstr>;
 export type Instr = Static<typeof Instr>;

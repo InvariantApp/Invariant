@@ -105,6 +105,17 @@ export function derive(change: Change): Derived {
           );
           (toOld ? lossy.backward : lossy.forward).push(op.path);
         }
+        if (op.codec.kind === "dropValues") {
+          // The caller asked for something the API no longer has, and is
+          // served everything else it asked for without being told.
+          runtime = worse(runtime, "declared-lossy");
+          reasons.push(
+            `${op.path} no longer accepts ${op.codec.values.length} value` +
+              `${op.codec.values.length === 1 ? "" : "s"} an old caller may send, ` +
+              "which are left out of the list, so what they asked for with them is not given",
+          );
+          lossy.forward.push(op.path);
+        }
         if (op.codec.kind === "enumMap") {
           if (op.codec.fold !== undefined && op.codec.fold.length > 0) {
             // The caller is shown a value that is not the one the API meant,

@@ -45,3 +45,14 @@ await writeFile(
     "",
   ].join("\n"),
 );
+
+// A feature added since the last release is entered as `NEXT`, since its
+// version is not known until Changesets decides it; it is known now, and it is
+// the runtime's, since that is the release that first runs it.
+const format = join(ROOT, "packages", "ir", "src", "format.ts");
+const source = await readFile(format, "utf8");
+const released = source.replace(
+  /^(\s+(?:"[^"]+"|[A-Za-z]+)): NEXT,$/gm,
+  (_, key: string) => `${key}: ${JSON.stringify(runtime.version)},`,
+);
+if (released !== source) await writeFile(format, released);

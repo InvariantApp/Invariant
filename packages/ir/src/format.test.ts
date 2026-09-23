@@ -5,6 +5,8 @@ import {
   FEATURE_SINCE,
   featuresOf,
   minRuntimeFor,
+  NEXT,
+  nextRelease,
   PRODUCT_VERSION,
   PROGRAM_VERSION,
 } from "./format.ts";
@@ -54,13 +56,24 @@ describe("the program format", () => {
 
   it("never asks for a runtime newer than the release that compiled it", () => {
     // A runtime of the same release has to run everything its compiler emits.
+    // One not yet released asks for the release after this one, which this
+    // release's own runtime is built to accept.
     for (const [feature, since] of Object.entries(FEATURE_SINCE)) {
+      if (since === NEXT) continue;
       expect(compareVersions(since, PRODUCT_VERSION), feature).toBeLessThanOrEqual(0);
     }
   });
 
   it("asks for the newest runtime any feature it uses needs", () => {
     expect(minRuntimeFor(program() as never)).toBe("0.1.0");
+  });
+
+  it("asks for the release after this one where a feature is not yet released", () => {
+    expect(nextRelease("0.1.0")).toBe("0.1.1-next");
+    // Every published runtime refuses it, and any later release runs it.
+    expect(compareVersions(nextRelease("0.1.0"), "0.1.0")).toBe(1);
+    expect(compareVersions(nextRelease("0.1.0"), "0.1.1")).toBe(-1);
+    expect(compareVersions(nextRelease("0.1.0"), "0.2.0")).toBe(-1);
   });
 
   it("orders versions as releases are ordered", () => {

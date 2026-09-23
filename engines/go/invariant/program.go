@@ -394,6 +394,26 @@ func decodeInstr(raw any, where string, depth int, named blocks, descended bool)
 		}
 		instr.First, err = onlyTrue(value, "first", where)
 		return instr, err
+	case "drop":
+		if err := expectKeys(value, []string{"k", "path", "values", "c"}, where); err != nil {
+			return nil, err
+		}
+		if instr.Path, err = pathField(value, "path", where); err != nil {
+			return nil, err
+		}
+		list, ok := field(value, "values").(*Array)
+		if !ok || len(list.Items) == 0 {
+			return nil, programError("%s.values must be a list of strings", where)
+		}
+		instr.Drop = make(map[string]bool, len(list.Items))
+		for _, entry := range list.Items {
+			text, isText := entry.(string)
+			if !isText {
+				return nil, programError("%s.values must be a list of strings", where)
+			}
+			instr.Drop[text] = true
+		}
+		return instr, nil
 	case "set":
 		if err := expectKeys(value, []string{"k", "path", "value", "ifAbsent", "ifNull", "c"}, where); err != nil {
 			return nil, err

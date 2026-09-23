@@ -92,7 +92,7 @@ export function passUpgrades(
     // hoping its bytes are read as something else, and they would not be sent
     // until the upstream had switched protocols anyway. A path that leaves the
     // API is refused here as it is for every other request.
-    if (hasBody(request) || hidesTraversal(at.pathname)) {
+    if (hasBody(request) || (base !== "" && hidesTraversal(at.pathname))) {
       socket.end(
         "HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\n\r\n",
       );

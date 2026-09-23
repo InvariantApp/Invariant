@@ -280,8 +280,8 @@ export interface ParameterShape {
   /** The declared `default`, when there is one. */
   default?: JsonValue;
   description?: string;
-  /** For a list: the type of each item. */
-  items?: { type: string | undefined };
+  /** For a list: the type of each item, and the values it lists, if it does. */
+  items?: { type: string | undefined; enumValues?: string[] };
 }
 
 const LOCATIONS = new Set(["query", "path", "header", "cookie"]);
@@ -325,9 +325,25 @@ function parameterShape(
       ? { description: parameter["description"] }
       : {}),
     ...(isJsonObject(schema["items"])
-      ? { items: { type: typeOfItems(document, schema["items"]) } }
+      ? {
+          items: {
+            type: typeOfItems(document, schema["items"]),
+            ...listedValues(document, schema["items"]),
+          },
+        }
       : {}),
   };
+}
+
+function listedValues(
+  document: OpenApiDocument,
+  raw: JsonValue,
+): { enumValues?: string[] } {
+  const items = resolveSchema(document, raw);
+  const values = isJsonObject(items) ? items["enum"] : undefined;
+  return Array.isArray(values)
+    ? { enumValues: values.filter((value): value is string => typeof value === "string") }
+    : {};
 }
 
 function typeOfItems(document: OpenApiDocument, raw: JsonValue): string | undefined {
@@ -467,7 +483,8 @@ const SCALAR_TYPES = new Set(["string", "integer", "number", "boolean"]);
 const sameShape = (a: ParameterShape, b: ParameterShape): boolean =>
   a.type === b.type &&
   a.format === b.format &&
-  a.enumValues?.join("|") === b.enumValues?.join("|");
+  a.enumValues?.join("|") === b.enumValues?.join("|") &&
+  a.items?.enumValues?.join("|") === b.items?.enumValues?.join("|");
 
 function slugOf(...parts: string[]): string {
   return parts
@@ -651,6 +668,33 @@ export function parameterDrafts(deltas: readonly ParameterDelta[]): {
           } else {
             notes.push("the new vocabulary keeps every old value");
           }
+        }
+      }
+
+      // A list whose items stopped accepting values: Asana took a hundred and
+      // twenty-six fields out of what `opt_fields` may ask for. What an old
+      // caller asks for that is gone is left out, and the rest is served, a
+      // loss the provider acknowledges. Values that went while others
+      // arrived may be renames, which is a decision.
+      const listedFrom = before.type === "array" ? before.items?.enumValues : undefined;
+      const listedTo = after.type === "array" ? after.items?.enumValues : undefined;
+      if (listedFrom && listedTo) {
+        const went = listedFrom.filter((value) => !listedTo.includes(value));
+        const arrived = listedTo.filter((value) => !listedFrom.includes(value));
+        if (went.length > 0 && arrived.length > 0) {
+          ask(
+            delta,
+            before.name,
+            `the values its list accepts changed (${went.slice(0, 5).join(", ")}${went.length > 5 ? ", ..." : ""} went while others arrived), and whether any was renamed is a decision`,
+            "removed",
+          );
+          continue;
+        }
+        if (went.length > 0) {
+          ops.push({ op: "convert", path, codec: { kind: "dropValues", values: went } });
+          notes.push(
+            `${went.length} value${went.length === 1 ? "" : "s"} the list no longer accepts ${went.length === 1 ? "is" : "are"} left out of what old callers send; what they asked for with ${went.length === 1 ? "it" : "them"} is not given`,
+          );
         }
       }
 
