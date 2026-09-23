@@ -1,0 +1,25 @@
+# Written by hand, as NetBox's maintainers would: 3.5 listed a config
+# template's data_file as required, yet sent it as null for a template no data
+# file backs, which that schema never allowed. 3.6 lists it as optional. There
+# is no file to fill in for such a template, and a null would break the old
+# schema as much as leaving it out, so this is acknowledged, not served.
+irVersion: 1
+id: chg_config_template_data_file_optional
+summary: "A config template's data_file is no longer listed as always present."
+scopes: []
+ops:
+  - op: behavior
+    flag: config_template_data_file_optional
+    covers:
+      - "response-property-became-optional at GET /api/extras/config-templates/: the response property `results/items/data_file` became optional for the status `200`"
+      - "response-property-became-optional at PATCH /api/extras/config-templates/: the response property `items/data_file` became optional for the status `200`"
+      - "response-property-became-optional at POST /api/extras/config-templates/: the response property `data_file` became optional for the status `201`"
+      - "response-property-became-optional at PUT /api/extras/config-templates/: the response property `items/data_file` became optional for the status `200`"
+      - "response-property-became-optional at GET /api/extras/config-templates/{id}/: the response property `data_file` became optional for the status `200`"
+      - "response-property-became-optional at PATCH /api/extras/config-templates/{id}/: the response property `data_file` became optional for the status `200`"
+      - "response-property-became-optional at PUT /api/extras/config-templates/{id}/: the response property `data_file` became optional for the status `200`"
+      - "response-property-became-optional at POST /api/extras/config-templates/{id}/render/: the response property `data_file` became optional for the status `200` (media type: text/plain)"
+      - "response-property-became-optional at POST /api/extras/config-templates/{id}/render/: the response property `data_file` became optional for the status `200` (media type: application/json)"
+      - "response-property-became-optional at POST /api/extras/config-templates/{id}/sync/: the response property `data_file` became optional for the status `200`"
+assertions:
+  side_effects_unchanged: true
