@@ -16,7 +16,8 @@
     "default",
     "dropNull",
     "widen",
-    "relax"
+    "relax",
+    "restate"
   ],
   "cells": {
     "body request": {
@@ -65,7 +66,8 @@
         "convert cast",
         "convert dateFormat",
         "convert stringCase",
-        "relax"
+        "relax",
+        "restate"
       ],
       "why": "A path parameter can be converted in place and is written back into the template. The template's parameters are fixed, so renaming, adding or removing one is a route change, and the gate blocks it as a parameter op. A path segment holds one value, so it cannot become a list or stop being one."
     },
@@ -109,6 +111,9 @@
     "widen request": "An old caller never sends a kind of value its contract does not describe, so nothing is translated on the way in; the op still says what the new contract accepts.",
     "relax request": "A bound says which values are allowed; nothing is rewritten. A request bound that narrowed is refused at prediction, since old callers would be turned away.",
     "relax response": "The value passes through as the API produced it; the loss is that an old caller may see a value its contract ruled out, which the provider acknowledges.",
-    "relax outbound": "As for a response: the payload's value passes through as the API produced it."
+    "relax outbound": "As for a response: the payload's value passes through as the API produced it.",
+    "restate request": "The contract says the same values another way; nothing is rewritten, and the compiler refuses it unless every value an old caller sends is one the new contract accepts.",
+    "restate response": "The contract says the same values another way; nothing is rewritten, and the compiler refuses it unless every value the API now answers with is one the old contract allowed.",
+    "restate outbound": "As for a response: the compiler refuses it unless every payload the provider now sends is one the old contract allowed."
   }
 }

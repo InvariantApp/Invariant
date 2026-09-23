@@ -30,6 +30,7 @@ import {
 import { importReferences } from "./import.ts";
 import { applyParameterScope } from "./predict-parameters.ts";
 import { applyResponseScope } from "./predict-responses.ts";
+import { proveRestated } from "./restate.ts";
 import {
   schemaAdd,
   schemaConvert,
@@ -37,6 +38,7 @@ import {
   schemaRelax,
   schemaRemove,
   schemaRequiredAt,
+  schemaRestate,
   schemaSetNullable,
   schemaSetRequired,
   schemaWiden,
@@ -444,6 +446,54 @@ export function predictDocument(
                 schemaDirections(oldContract, scope.schema).request,
               );
               break;
+            case "restate": {
+              // The new statement, found where this schema reaches the wire
+              // or else by its name, is only taken once it is proved to allow
+              // nothing the old one did not where old callers receive it, and
+              // to refuse nothing they send.
+              const site = oldSites[0];
+              const next =
+                (site
+                  ? shapeFromNewContract(newContract, routes, site, op.path)
+                  : undefined) ?? shapeByName(newContract, name, op.path);
+              if (!next) {
+                throw new Error(
+                  `the new contract has no ${op.path || name} to restate it as`,
+                );
+              }
+              // As this schema stands when the op is reached, so a restatement
+              // after other ops in the same Change is proved against what they
+              // made of it.
+              const before = navigate(document, schema, parsePointer(op.path));
+              if (before === undefined) {
+                throw new Error(`the old contract has no ${op.path} on ${name}`);
+              }
+              proveRestated(
+                { document, schema: before },
+                { document: newContract, schema: next.shape },
+                schemaDirections(oldContract, scope.schema),
+                op.path || name,
+              );
+              // Taken as written at its top: the new contract may name it by
+              // the same name, and a schema restated as a reference to
+              // itself would state nothing at all.
+              let statement = next.shape;
+              for (
+                let hops = 0;
+                isJsonObject(statement) &&
+                typeof statement["$ref"] === "string" &&
+                hops < 16;
+                hops += 1
+              ) {
+                statement = resolveRef(newContract, statement["$ref"]) ?? null;
+              }
+              if (!isJsonObject(statement)) {
+                throw new Error(`the new contract's ${op.path || name} is not a schema`);
+              }
+              importReferences(document, newContract, statement);
+              schemaRestate(document, schema, op.path, statement);
+              break;
+            }
             case "widen": {
               // The variant is the new contract's, and comes over with it.
               if (resolveRef(newContract, op.variant) === undefined) {
