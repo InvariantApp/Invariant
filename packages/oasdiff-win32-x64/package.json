@@ -1,6 +1,6 @@
 {
   "name": "@invariant-app/oasdiff-win32-x64",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The oasdiff release binary for win32-x64, repackaged unmodified for the Invariant release gate.",
   "license": "Apache-2.0",
   "repository": {

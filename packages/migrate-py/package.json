@@ -1,6 +1,6 @@
 {
   "name": "@invariant-app/migrate-py",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Type-aware references and byte-range codemods for Python consumers, through pyright and tree-sitter",
   "license": "Apache-2.0",
   "type": "module",

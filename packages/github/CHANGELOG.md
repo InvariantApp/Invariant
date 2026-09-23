@@ -1,5 +1,13 @@
 # @invariant-app/github
 
+## 0.3.0
+
+### Patch Changes
+
+- @invariant-app/bundle@0.3.0
+  - @invariant-app/migrate-ts@0.3.0
+  - @invariant-app/ir@0.3.0
+
 ## 0.2.0
 
 ### Patch Changes
