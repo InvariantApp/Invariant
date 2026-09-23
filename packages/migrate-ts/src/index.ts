@@ -8,7 +8,7 @@
  */
 import { readdirSync, statSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { Node, Project, type SourceFile, ts } from "ts-morph";
 import { applyEdits, type Edit, groupByFile } from "./edits.ts";
 import {
@@ -18,12 +18,14 @@ import {
   type ManualSite,
   runEngine,
 } from "./engine.ts";
+import { assertWritable, repositoryPath } from "./paths.ts";
 import { bumpPins } from "./pins.ts";
 import { buildPlan, type MigrationPlan, type SymbolMap } from "./plan.ts";
 import { flagRetired } from "./retired.ts";
 
 export * from "./edits.ts";
 export type { EditScope, ManualSite } from "./engine.ts";
+export { MigrationPathError } from "./paths.ts";
 export * from "./plan.ts";
 export * from "./raw.ts";
 
@@ -322,6 +324,18 @@ function relocateManualSites(manual: ManualSite[], edits: readonly Edit[]): void
 }
 
 export async function migrate(options: MigrateOptions): Promise<MigrationResult> {
+  // Named by the provider's symbol map and by whoever runs this, so each is
+  // refused before anything is read if it would land outside the repository.
+  const emit = options.plan.symbols.helpers?.emit;
+  const emitPath =
+    emit === undefined
+      ? undefined
+      : repositoryPath(options.repoDir, emit.path, "helpers.emit.path");
+  const regenerated = (options.regenerate ?? []).map(
+    (entry) =>
+      [repositoryPath(options.repoDir, entry.path, "a regenerated file"), entry] as const,
+  );
+
   const project = projectFor(options);
   const diagnosticsBefore = diagnosticsOf(project);
 
@@ -369,9 +383,8 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
   // come from, so the migration brings them. The file is real source in this
   // repository, type-checked and property-tested against an integer oracle,
   // rather than a string assembled here and hoped over.
-  const emit = options.plan.symbols.helpers?.emit;
-  if (emit) {
-    const path = resolve(options.repoDir, emit.path);
+  if (emitPath !== undefined) {
+    const path = emitPath;
     const source = await readFile(
       new URL("./templates/units.ts", import.meta.url),
       "utf8",
@@ -380,8 +393,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
     project.createSourceFile(path, source, { overwrite: true });
   }
 
-  for (const entry of options.regenerate ?? []) {
-    const path = resolve(options.repoDir, entry.path);
+  for (const [path, entry] of regenerated) {
     files.set(path, entry.source);
     project.createSourceFile(path, entry.source, { overwrite: true });
   }
@@ -396,6 +408,11 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
   const diagnosticsAfter = diagnosticsOf(project);
 
   if (options.write) {
+    // Every destination is checked before the first is written, so a refusal
+    // leaves the repository as it was rather than half migrated.
+    for (const file of [...files.keys(), join(options.repoDir, "package.json")]) {
+      await assertWritable(options.repoDir, file);
+    }
     await Promise.all([...files].map(([file, text]) => writeFile(file, text, "utf8")));
     await upgradeManifest(options.repoDir, options.plan.symbols);
   }
