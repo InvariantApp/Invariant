@@ -85,7 +85,13 @@ function resolvedObject(
 }
 
 function refOf(raw: JsonValue | undefined): Pick<FieldShape, "ref"> {
-  return isJsonObject(raw) && typeof raw["$ref"] === "string" ? { ref: raw["$ref"] } : {};
+  if (!isJsonObject(raw)) return {};
+  if (typeof raw["$ref"] === "string") return { ref: raw["$ref"] };
+  // The schema a field names beside null is the schema it names.
+  const lone = besideNull(raw)?.only;
+  return isJsonObject(lone) && typeof lone["$ref"] === "string"
+    ? { ref: lone["$ref"] }
+    : {};
 }
 
 /** The keywords of a schema that bound its value, where it has any. */
@@ -171,31 +177,57 @@ const escapePointer = (segment: string) =>
  */
 const inline = (raw: JsonValue): boolean => !JSON.stringify(raw).includes('"$ref"');
 
-const isNullBranch = (branch: JsonValue): boolean =>
-  isJsonObject(branch) && branch["type"] === "null" && Object.keys(branch).length === 1;
+/** Keywords that describe a schema without constraining its values. */
+const ANNOTATIONS = new Set([
+  "title",
+  "description",
+  "example",
+  "examples",
+  "deprecated",
+]);
+
+/**
+ * A branch that holds only null: 3.1's `type: null`, or a branch that says
+ * nothing but `nullable: true`, which is how schemars and utoipa write the
+ * null half of an Option<T> in OpenAPI 3.0.
+ */
+const isNullBranch = (branch: JsonValue): boolean => {
+  if (!isJsonObject(branch)) return false;
+  const said = Object.keys(branch).filter((key) => !ANNOTATIONS.has(key));
+  return said.length === 1 && (branch["type"] === "null" || branch["nullable"] === true);
+};
+
+/** The one branch of a union with null that is not null, when there is one. */
+function besideNull(
+  value: JsonObject,
+): { key: "anyOf" | "oneOf"; only: JsonValue } | undefined {
+  for (const key of ["anyOf", "oneOf"] as const) {
+    const branches = value[key];
+    if (!Array.isArray(branches) || !branches.some(isNullBranch)) continue;
+    const others = branches.filter((branch) => !isNullBranch(branch));
+    const [only] = others;
+    return others.length === 1 && only !== undefined ? { key, only } : undefined;
+  }
+  return undefined;
+}
 
 /**
  * A field that may also be null, written as a union of its value and null, as
  * Mistral's `tools` became `anyOf: [array, null]`: the field is its value.
  * Read as a union instead, its list items looked removed, and a `remove` was
  * drafted for items the compiler could not find. A branch that names another
- * schema stays as it is, since that schema is compared under its own name.
+ * schema is read as that schema, as a field that names it directly is:
+ * Qdrant's telemetry turned `app: AppBuildTelemetry` into `anyOf:
+ * [AppBuildTelemetry, nullable]`, and read as a union it looked like a change
+ * of shape no op expresses rather than the field becoming nullable.
  */
 function throughNull(document: OpenApiDocument, value: JsonObject): JsonObject {
-  for (const key of ["anyOf", "oneOf"] as const) {
-    const branches = value[key];
-    if (!Array.isArray(branches) || !branches.some(isNullBranch)) continue;
-    const others = branches.filter((branch) => !isNullBranch(branch));
-    const [only] = others;
-    if (others.length !== 1 || !isJsonObject(only) || typeof only["$ref"] === "string") {
-      return value;
-    }
-    const resolved = resolveSchema(document, only);
-    if (!isJsonObject(resolved)) return value;
-    const { [key]: _union, ...rest } = value;
-    return { ...resolved, ...rest };
-  }
-  return value;
+  const lone = besideNull(value);
+  if (!lone || !isJsonObject(lone.only)) return value;
+  const resolved = resolveSchema(document, lone.only);
+  if (!isJsonObject(resolved)) return value;
+  const { [lone.key]: _union, ...rest } = value;
+  return { ...resolved, ...rest };
 }
 
 function fieldsOf(
@@ -278,10 +310,7 @@ function fieldsOf(
         enumNull ||
         ["anyOf", "oneOf"].some(
           (key) =>
-            Array.isArray(outer[key]) &&
-            (outer[key] as JsonValue[]).some(
-              (branch) => isJsonObject(branch) && branch["type"] === "null",
-            ),
+            Array.isArray(outer[key]) && (outer[key] as JsonValue[]).some(isNullBranch),
         ),
       ...(value["default"] === undefined ? {} : { default: value["default"] }),
       ...(value["readOnly"] === true ? { readOnly: true } : {}),

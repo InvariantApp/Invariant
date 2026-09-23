@@ -484,6 +484,24 @@ function sitesOf(
     }
     found.push(...scan.sites);
   }
+  // A value that is the whole body has nowhere to be written back into, so
+  // the runtime leaves it as it came. A vocabulary that is a schema of its own
+  // is always some object's field in practice; where one is a body by itself,
+  // the gate says so rather than ship a translation that never happens.
+  const itself = change.ops.some(
+    (op) =>
+      isDataOp(op) &&
+      op.op !== "relax" &&
+      (op.op === "move" ? op.from === "" || op.to === "" : op.path === ""),
+  );
+  if (itself) {
+    for (const site of found.filter((each) => each.prefix === "")) {
+      issues.push({
+        changeId: change.id,
+        message: `${site.operationId} ${site.direction}${site.status ? ` ${site.status}` : ""}: the value is the whole body there, which the runtime cannot replace`,
+      });
+    }
+  }
   return found;
 }
 

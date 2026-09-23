@@ -1,0 +1,17 @@
+# Written by hand, as Qdrant's maintainers would: 1.17 reports each local
+# shard's update queue, which no caller of 1.16 was shown. It is optional, so
+# nothing drafts it, but an old caller that reads a shard's fields as a set
+# (Qdrant's own telemetry test does) sees one it never had. Taking it out of
+# old callers' responses shows them the shard as 1.16 described it.
+irVersion: 1
+id: chg_local_shard_telemetry_update_queue_added
+summary: "`update_queue` is new on LocalShardTelemetry."
+scopes:
+  - schema: "#/components/schemas/LocalShardTelemetry"
+ops:
+  - op: add
+    path: /update_queue
+    value: null
+assertions:
+  loss_acknowledged: true
+  side_effects_unchanged: true

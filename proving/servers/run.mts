@@ -772,7 +772,9 @@ if (process.argv[1]?.endsWith("run.mts") && reportInputs) {
     const partial = wanted !== undefined || onlyPair !== undefined || option("select");
     const out = join(
       partial ? CACHE : join(ROOT, "proving/servers"),
-      partial ? `results-${wanted ?? "all"}.json` : "results.json",
+      partial
+        ? `results-${wanted ?? "all"}${onlyPair ? `-${onlyPair.join("..")}` : ""}.json`
+        : "results.json",
     );
     await writeFile(out, `${JSON.stringify(results, null, 2)}\n`, "utf8");
     const report = render(results, partial ? [] : manifest.skipped);

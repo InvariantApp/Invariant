@@ -220,6 +220,55 @@ describe("the lens laws", () => {
     );
   });
 
+  /**
+   * A vocabulary with a name of its own is drafted as a Change to that schema
+   * at its root, and its values are strings: no body to hold them. Run as a
+   * whole body, the fold Qdrant 1.17's `UpdateStatus` was given looked as if
+   * it had never run, and every such decision, once answered, was refused.
+   */
+  it("hold for a fold on a vocabulary that is a schema of its own", () => {
+    const { old, head } = contracts();
+    for (const [contract, values] of [
+      [old, ["succeeded", "failed", "pending"]],
+      [head, ["succeeded", "failed", "pending", "disputed"]],
+    ] as const) {
+      const schemas = (
+        contract["components"] as Record<string, Record<string, Record<string, unknown>>>
+      )["schemas"] as Record<string, Record<string, unknown>>;
+      schemas["Status"] = { type: "string", enum: [...values] };
+      (schemas["Payment"]?.["properties"] as Record<string, unknown>)["status"] = {
+        $ref: "#/components/schemas/Status",
+      };
+    }
+
+    const report = laws(old, head, [
+      {
+        irVersion: 1,
+        id: "chg_status_vocabulary",
+        summary: "`Status` can answer with values old callers never saw.",
+        scopes: [{ schema: "#/components/schemas/Status" }],
+        ops: [
+          {
+            op: "convert",
+            path: "",
+            codec: {
+              kind: "enumMap",
+              pairs: [
+                ["succeeded", "succeeded"],
+                ["failed", "failed"],
+                ["pending", "pending"],
+              ],
+              fold: [["disputed", "failed"]],
+            },
+          },
+        ],
+        assertions: { loss_acknowledged: true },
+      },
+    ]);
+
+    expect(report.failures).toEqual([]);
+  });
+
   it("catch a value map that does not cover the vocabulary", () => {
     const { old, head } = contracts();
     const report = laws(old, head, [

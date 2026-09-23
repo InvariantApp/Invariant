@@ -1,0 +1,25 @@
+# Decided for the proving ground, as Qdrant's maintainers would:
+# wait_timeout means the update was accepted but did not finish within the
+# wait the caller asked for; the old contract's word for accepted and not yet
+# applied is acknowledged.
+irVersion: 1
+id: chg_update_status_update_status_vocabulary
+summary: "`UpdateStatus` on UpdateStatus can answer with values old callers never saw."
+scopes:
+  - schema: "#/components/schemas/UpdateStatus"
+ops:
+  - op: convert
+    path: ""
+    codec:
+      kind: enumMap
+      pairs:
+        - - acknowledged
+          - acknowledged
+        - - completed
+          - completed
+      fold:
+        - - wait_timeout
+          - acknowledged
+assertions:
+  loss_acknowledged: true
+  side_effects_unchanged: true

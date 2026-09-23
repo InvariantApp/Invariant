@@ -73,6 +73,9 @@ export interface LawReport {
 /** Removes the pointers a declared loss is allowed to change, on both sides. */
 function withoutLossy(value: unknown, pointers: readonly string[]): unknown {
   if (pointers.length === 0) return value;
+  // The value itself declared lossy, as a fold on a vocabulary that is a
+  // schema of its own is: there is nothing of it left to compare.
+  if (pointers.includes("")) return undefined;
   const copy = structuredClone(value);
   // `*` is every item of a list and `{}` every value of a map.
   const remove = (cursor: unknown, segments: readonly string[]): void => {

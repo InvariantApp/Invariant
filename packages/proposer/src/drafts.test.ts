@@ -1627,6 +1627,29 @@ describe("a list that became nullable through a union with null", () => {
   });
 });
 
+describe("a named schema that became nullable through a union with null", () => {
+  it("is the same field, now optional and nullable, as schemars writes Option<T> (Qdrant's telemetry)", async () => {
+    // Qdrant 1.17 turned `app: AppBuildTelemetry` into `anyOf: [ref,
+    // {nullable: true}]` and stopped requiring it. Read as a union, it was
+    // reported as a change of shape no op expresses.
+    const app = (schema: Schema, required: string[]) => ({
+      ...base,
+      App: object({ name: { type: "string" } }, ["name"]),
+      Thing: object({ id: { type: "string" }, app: schema }, ["id", ...required]),
+    });
+    const ref = { $ref: "#/components/schemas/App" };
+    const outcome = await propose(
+      contract(app(ref, ["app"])),
+      contract(app({ anyOf: [ref, { nullable: true }] }, [])),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.unresolved).toEqual([]);
+    expect(outcome.decisions.map((decision) => decision.id)).toEqual([
+      "chg_thing_app_default_old",
+    ]);
+  });
+});
+
 describe("a list whose items became a choice", () => {
   // Asana's portfolio items, Twilio's compliance list and Langfuse's
   // evaluation-rule filters all did this between two versions: the items went
