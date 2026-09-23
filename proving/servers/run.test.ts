@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   compareArms,
+  expand,
   type PairResult,
   readJunit,
   render,
@@ -15,7 +16,7 @@ describe("reading a JUnit report", () => {
       <testcase classname="openapi.test_alias" name="test_rename" time="0.1"><failure message="assert &quot;a&quot; == 1">trace</failure></testcase>
       <testcase classname="openapi.test_query" name="test_x[True]" time="0.1"><error message="setup">trace</error></testcase>
       <testcase classname="openapi.test_query" name="test_y" time="0"><skipped message="no" /></testcase>
-      <testcase classname="gitea" name="TestIssue" time="0"><failure message="Failed" type="">issue_test.go:40: expected 1</failure></testcase>
+      <testcase classname="gitea" name="TestIssue" time="0"><failure message="Failed" type="">issue_test.go:40:&#xA;&#x9;expected 1</failure></testcase>
     </testsuite></testsuites>`;
     expect(readJunit(xml)).toEqual({
       outcomes: {
@@ -28,9 +29,23 @@ describe("reading a JUnit report", () => {
       messages: {
         "openapi.test_alias::test_rename": 'assert "a" == 1',
         "openapi.test_query::test_x[True]": "setup",
-        "gitea::TestIssue": "issue_test.go:40: expected 1",
+        "gitea::TestIssue": "issue_test.go:40:\n\texpected 1",
       },
     });
+  });
+});
+
+describe("filling in a manifest's placeholders", () => {
+  it("fills every name it is given, underscores and digits included, and leaves the rest", () => {
+    // Meilisearch was started with the key "{MEILI_KEY}" when names could
+    // only be letters, and every test was refused.
+    expect(
+      expand("Token {NETBOX_TOKEN} for {url} at {port2}, not {missing}", {
+        NETBOX_TOKEN: "abc",
+        url: "http://127.0.0.1:1",
+        port2: "2",
+      }),
+    ).toBe("Token abc for http://127.0.0.1:1 at 2, not {missing}");
   });
 });
 

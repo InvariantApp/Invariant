@@ -53,6 +53,17 @@ export interface Skipped {
   reason: string;
 }
 
+/**
+ * `{name}` replaced with its value, for every name given; anything else is
+ * left as written. Names are a manifest's, like `url` or `NETBOX_TOKEN`.
+ */
+export function expand(text: string, vars: Record<string, string>): string {
+  return text.replace(
+    /\{([A-Za-z_][A-Za-z0-9_]*)\}/g,
+    (whole, name: string) => vars[name] ?? whole,
+  );
+}
+
 /** Test id to outcome, and to the start of what a failing test said, read from a JUnit report. */
 export function readJunit(xml: string): Pick<ArmResult, "outcomes" | "messages"> {
   const outcomes: Record<string, Outcome> = {};
@@ -84,7 +95,12 @@ function unescapeXml(text: string): string {
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
-    .replace(/&#10;/g, "\n")
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex: string) =>
+      String.fromCodePoint(Number.parseInt(hex, 16)),
+    )
+    .replace(/&#([0-9]+);/g, (_, decimal: string) =>
+      String.fromCodePoint(Number.parseInt(decimal, 10)),
+    )
     .replace(/&amp;/g, "&");
 }
 

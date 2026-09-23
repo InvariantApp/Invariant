@@ -58,6 +58,7 @@ import { ROOT } from "../corpus/manifest.mts";
 import {
   type ArmResult,
   compareArms,
+  expand,
   type GateSummary,
   type PairResult,
   readJunit,
@@ -202,11 +203,6 @@ async function patiently<T>(step: () => Promise<T>, attempts = 3): Promise<T> {
       await sleep(attempt * 20_000);
     }
   }
-}
-
-/** `{name}` replaced with its value, for every name given; anything else is left as written. */
-export function expand(text: string, vars: Record<string, string>): string {
-  return text.replace(/\{([a-zA-Z]+)\}/g, (whole, name: string) => vars[name] ?? whole);
 }
 
 /** A repository's files at one commit, only the paths asked for. */
