@@ -33,6 +33,20 @@ things to get right:
 The supported shape is one proxy beside each instance of your API, in the same
 pod or task, so the program it runs always ships with the build it fronts.
 
+## What your API sees
+
+The request as the caller sent it, apart from what a program changed: the
+caller's `Host`, and whatever `X-Forwarded-*` headers a proxy in front of this
+one set. The proxy adds only `X-Forwarded-For`, and `X-Forwarded-Proto: https`
+where it terminated TLS and your API listens on plain HTTP. It invents nothing
+else, because an API reads forwarding headers as a sign it sits behind a proxy
+that set them, and builds its links from them. For an API that routes by its
+own host name, `"upstreamHost": "upstream"` sends the upstream's host instead,
+with the caller's in `X-Forwarded-Host`.
+
+A response comes back with its body whatever its status, a `205` included,
+which some APIs send one with.
+
 ## WebSockets
 
 A request asking to `Upgrade`, a WebSocket among them, is passed to the

@@ -1,0 +1,599 @@
+# Decided for the proving ground, as Meilisearch's maintainers would:
+# invalid_dynamic_search_rule_uid is a malformed rule identifier; an old
+# caller has no code for it, and the general code for a request the server
+# will not accept is bad_request.
+irVersion: 1
+id: chg_code_code_vocabulary
+summary: "`Code` on Code can answer with values old callers never saw."
+scopes:
+  - schema: "#/components/schemas/Code"
+ops:
+  - op: convert
+    path: ""
+    codec:
+      kind: enumMap
+      pairs:
+        - - api_key_already_exists
+          - api_key_already_exists
+        - - api_key_not_found
+          - api_key_not_found
+        - - index_scoped_api_key_with_global_action
+          - index_scoped_api_key_with_global_action
+        - - bad_parameter
+          - bad_parameter
+        - - bad_request
+          - bad_request
+        - - database_size_limit_reached
+          - database_size_limit_reached
+        - - document_not_found
+          - document_not_found
+        - - dump_already_processing
+          - dump_already_processing
+        - - dump_not_found
+          - dump_not_found
+        - - dump_process_failed
+          - dump_process_failed
+        - - duplicate_index_found
+          - duplicate_index_found
+        - - immutable_api_key_actions
+          - immutable_api_key_actions
+        - - immutable_api_key_created_at
+          - immutable_api_key_created_at
+        - - immutable_api_key_expires_at
+          - immutable_api_key_expires_at
+        - - immutable_api_key_indexes
+          - immutable_api_key_indexes
+        - - immutable_api_key_key
+          - immutable_api_key_key
+        - - immutable_api_key_uid
+          - immutable_api_key_uid
+        - - immutable_api_key_updated_at
+          - immutable_api_key_updated_at
+        - - immutable_index_created_at
+          - immutable_index_created_at
+        - - immutable_index_updated_at
+          - immutable_index_updated_at
+        - - import_task_already_received
+          - import_task_already_received
+        - - import_task_unknown_remote
+          - import_task_unknown_remote
+        - - receive_import_finished_unknown_remote
+          - receive_import_finished_unknown_remote
+        - - import_task_without_network_task
+          - import_task_without_network_task
+        - - index_already_exists
+          - index_already_exists
+        - - index_creation_failed
+          - index_creation_failed
+        - - index_not_found
+          - index_not_found
+        - - index_primary_key_already_exists
+          - index_primary_key_already_exists
+        - - index_primary_key_multiple_candidates_found
+          - index_primary_key_multiple_candidates_found
+        - - index_primary_key_no_candidate_found
+          - index_primary_key_no_candidate_found
+        - - internal
+          - internal
+        - - invalid_api_key
+          - invalid_api_key
+        - - invalid_api_key_actions
+          - invalid_api_key_actions
+        - - invalid_api_key_description
+          - invalid_api_key_description
+        - - invalid_api_key_expires_at
+          - invalid_api_key_expires_at
+        - - invalid_api_key_indexes
+          - invalid_api_key_indexes
+        - - invalid_api_key_limit
+          - invalid_api_key_limit
+        - - invalid_api_key_name
+          - invalid_api_key_name
+        - - invalid_api_key_offset
+          - invalid_api_key_offset
+        - - invalid_api_key_uid
+          - invalid_api_key_uid
+        - - invalid_content_type
+          - invalid_content_type
+        - - invalid_document_csv_delimiter
+          - invalid_document_csv_delimiter
+        - - invalid_document_fields
+          - invalid_document_fields
+        - - invalid_document_retrieve_vectors
+          - invalid_document_retrieve_vectors
+        - - missing_document_filter
+          - missing_document_filter
+        - - missing_document_edition_function
+          - missing_document_edition_function
+        - - inconsistent_document_change_headers
+          - inconsistent_document_change_headers
+        - - invalid_document_filter
+          - invalid_document_filter
+        - - invalid_document_sort
+          - invalid_document_sort
+        - - invalid_document_use_network
+          - invalid_document_use_network
+        - - invalid_document_retrieve
+          - invalid_document_retrieve
+        - - invalid_document_geo_field
+          - invalid_document_geo_field
+        - - invalid_document_geojson_field
+          - invalid_document_geojson_field
+        - - invalid_header_value
+          - invalid_header_value
+        - - invalid_vector_dimensions
+          - invalid_vector_dimensions
+        - - invalid_vectors_type
+          - invalid_vectors_type
+        - - invalid_document_id
+          - invalid_document_id
+        - - invalid_document_ids
+          - invalid_document_ids
+        - - invalid_document_limit
+          - invalid_document_limit
+        - - invalid_document_offset
+          - invalid_document_offset
+        - - invalid_search_embedder
+          - invalid_search_embedder
+        - - invalid_similar_embedder
+          - invalid_similar_embedder
+        - - invalid_search_hybrid_query
+          - invalid_search_hybrid_query
+        - - invalid_index_limit
+          - invalid_index_limit
+        - - invalid_index_offset
+          - invalid_index_offset
+        - - invalid_index_primary_key
+          - invalid_index_primary_key
+        - - invalid_index_custom_metadata
+          - invalid_index_custom_metadata
+        - - invalid_skip_creation
+          - invalid_skip_creation
+        - - invalid_index_uid
+          - invalid_index_uid
+        - - invalid_multi_search_facets
+          - invalid_multi_search_facets
+        - - invalid_multi_search_facets_by_index
+          - invalid_multi_search_facets_by_index
+        - - invalid_multi_search_facet_order
+          - invalid_multi_search_facet_order
+        - - invalid_multi_search_query_personalization
+          - invalid_multi_search_query_personalization
+        - - invalid_multi_search_query_show_performance_details
+          - invalid_multi_search_query_show_performance_details
+        - - invalid_multi_search_federated
+          - invalid_multi_search_federated
+        - - invalid_multi_search_federation_options
+          - invalid_multi_search_federation_options
+        - - invalid_multi_search_max_values_per_facet
+          - invalid_multi_search_max_values_per_facet
+        - - invalid_multi_search_merge_facets
+          - invalid_multi_search_merge_facets
+        - - invalid_multi_search_query_facets
+          - invalid_multi_search_query_facets
+        - - invalid_multi_search_distinct
+          - invalid_multi_search_distinct
+        - - invalid_multi_search_query_pagination
+          - invalid_multi_search_query_pagination
+        - - invalid_multi_search_query_ranking_rules
+          - invalid_multi_search_query_ranking_rules
+        - - invalid_multi_search_query_position
+          - invalid_multi_search_query_position
+        - - invalid_multi_search_remote
+          - invalid_multi_search_remote
+        - - invalid_multi_search_weight
+          - invalid_multi_search_weight
+        - - invalid_network_leader
+          - invalid_network_leader
+        - - invalid_network_remotes
+          - invalid_network_remotes
+        - - invalid_network_shards
+          - invalid_network_shards
+        - - invalid_network_self
+          - invalid_network_self
+        - - invalid_network_search_api_key
+          - invalid_network_search_api_key
+        - - invalid_network_write_api_key
+          - invalid_network_write_api_key
+        - - invalid_network_url
+          - invalid_network_url
+        - - invalid_search_attributes_to_search_on
+          - invalid_search_attributes_to_search_on
+        - - invalid_search_attributes_to_crop
+          - invalid_search_attributes_to_crop
+        - - invalid_search_attributes_to_highlight
+          - invalid_search_attributes_to_highlight
+        - - invalid_similar_attributes_to_retrieve
+          - invalid_similar_attributes_to_retrieve
+        - - invalid_similar_retrieve_vectors
+          - invalid_similar_retrieve_vectors
+        - - invalid_search_attributes_to_retrieve
+          - invalid_search_attributes_to_retrieve
+        - - invalid_search_ranking_score_threshold
+          - invalid_search_ranking_score_threshold
+        - - invalid_similar_ranking_score_threshold
+          - invalid_similar_ranking_score_threshold
+        - - invalid_search_retrieve_vectors
+          - invalid_search_retrieve_vectors
+        - - invalid_search_crop_length
+          - invalid_search_crop_length
+        - - invalid_search_crop_marker
+          - invalid_search_crop_marker
+        - - invalid_search_facets
+          - invalid_search_facets
+        - - invalid_search_semantic_ratio
+          - invalid_search_semantic_ratio
+        - - invalid_search_locales
+          - invalid_search_locales
+        - - invalid_facet_search_exhaustive_facet_count
+          - invalid_facet_search_exhaustive_facet_count
+        - - invalid_facet_search_facet_name
+          - invalid_facet_search_facet_name
+        - - invalid_similar_id
+          - invalid_similar_id
+        - - invalid_search_filter
+          - invalid_search_filter
+        - - invalid_similar_filter
+          - invalid_similar_filter
+        - - invalid_search_highlight_post_tag
+          - invalid_search_highlight_post_tag
+        - - invalid_search_highlight_pre_tag
+          - invalid_search_highlight_pre_tag
+        - - invalid_search_hits_per_page
+          - invalid_search_hits_per_page
+        - - invalid_similar_limit
+          - invalid_similar_limit
+        - - invalid_search_limit
+          - invalid_search_limit
+        - - invalid_search_matching_strategy
+          - invalid_search_matching_strategy
+        - - invalid_similar_offset
+          - invalid_similar_offset
+        - - invalid_search_offset
+          - invalid_search_offset
+        - - invalid_search_page
+          - invalid_search_page
+        - - invalid_search_q
+          - invalid_search_q
+        - - invalid_facet_search_query
+          - invalid_facet_search_query
+        - - invalid_facet_search_name
+          - invalid_facet_search_name
+        - - facet_search_disabled
+          - facet_search_disabled
+        - - invalid_search_vector
+          - invalid_search_vector
+        - - invalid_search_media
+          - invalid_search_media
+        - - invalid_search_show_matches_position
+          - invalid_search_show_matches_position
+        - - invalid_search_show_ranking_score
+          - invalid_search_show_ranking_score
+        - - invalid_similar_show_ranking_score
+          - invalid_similar_show_ranking_score
+        - - invalid_search_show_ranking_score_details
+          - invalid_search_show_ranking_score_details
+        - - invalid_search_show_performance_details
+          - invalid_search_show_performance_details
+        - - invalid_search_use_network
+          - invalid_search_use_network
+        - - invalid_similar_show_ranking_score_details
+          - invalid_similar_show_ranking_score_details
+        - - invalid_similar_show_performance_details
+          - invalid_similar_show_performance_details
+        - - invalid_search_sort
+          - invalid_search_sort
+        - - invalid_search_distinct
+          - invalid_search_distinct
+        - - invalid_search_personalize
+          - invalid_search_personalize
+        - - invalid_search_personalize_user_context
+          - invalid_search_personalize_user_context
+        - - invalid_search_media_and_vector
+          - invalid_search_media_and_vector
+        - - invalid_settings_displayed_attributes
+          - invalid_settings_displayed_attributes
+        - - invalid_settings_distinct_attribute
+          - invalid_settings_distinct_attribute
+        - - invalid_settings_proximity_precision
+          - invalid_settings_proximity_precision
+        - - invalid_settings_facet_search
+          - invalid_settings_facet_search
+        - - invalid_settings_prefix_search
+          - invalid_settings_prefix_search
+        - - invalid_settings_faceting
+          - invalid_settings_faceting
+        - - invalid_settings_filterable_attributes
+          - invalid_settings_filterable_attributes
+        - - invalid_settings_foreign_keys
+          - invalid_settings_foreign_keys
+        - - invalid_settings_pagination
+          - invalid_settings_pagination
+        - - invalid_settings_search_cutoff_ms
+          - invalid_settings_search_cutoff_ms
+        - - invalid_settings_embedders
+          - invalid_settings_embedders
+        - - invalid_settings_ranking_rules
+          - invalid_settings_ranking_rules
+        - - invalid_settings_searchable_attributes
+          - invalid_settings_searchable_attributes
+        - - invalid_settings_sortable_attributes
+          - invalid_settings_sortable_attributes
+        - - invalid_settings_stop_words
+          - invalid_settings_stop_words
+        - - invalid_settings_non_separator_tokens
+          - invalid_settings_non_separator_tokens
+        - - invalid_settings_separator_tokens
+          - invalid_settings_separator_tokens
+        - - invalid_settings_dictionary
+          - invalid_settings_dictionary
+        - - invalid_settings_synonyms
+          - invalid_settings_synonyms
+        - - invalid_settings_typo_tolerance
+          - invalid_settings_typo_tolerance
+        - - invalid_settings_localized_attributes
+          - invalid_settings_localized_attributes
+        - - invalid_state
+          - invalid_state
+        - - invalid_stats_show_internal_database_sizes
+          - invalid_stats_show_internal_database_sizes
+        - - invalid_stats_size_format
+          - invalid_stats_size_format
+        - - invalid_store_file
+          - invalid_store_file
+        - - invalid_swap_duplicate_index_found
+          - invalid_swap_duplicate_index_found
+        - - invalid_swap_indexes
+          - invalid_swap_indexes
+        - - invalid_swap_rename
+          - invalid_swap_rename
+        - - invalid_task_after_enqueued_at
+          - invalid_task_after_enqueued_at
+        - - invalid_task_after_finished_at
+          - invalid_task_after_finished_at
+        - - invalid_task_after_started_at
+          - invalid_task_after_started_at
+        - - invalid_task_before_enqueued_at
+          - invalid_task_before_enqueued_at
+        - - invalid_task_before_finished_at
+          - invalid_task_before_finished_at
+        - - invalid_task_before_started_at
+          - invalid_task_before_started_at
+        - - invalid_task_canceled_by
+          - invalid_task_canceled_by
+        - - invalid_task_from
+          - invalid_task_from
+        - - invalid_task_limit
+          - invalid_task_limit
+        - - invalid_task_reverse
+          - invalid_task_reverse
+        - - invalid_task_statuses
+          - invalid_task_statuses
+        - - invalid_task_types
+          - invalid_task_types
+        - - invalid_task_uids
+          - invalid_task_uids
+        - - invalid_batch_uids
+          - invalid_batch_uids
+        - - io_error
+          - io_error
+        - - feature_not_enabled
+          - feature_not_enabled
+        - - malformed_payload
+          - malformed_payload
+        - - max_fields_limit_exceeded
+          - max_fields_limit_exceeded
+        - - missing_api_key_actions
+          - missing_api_key_actions
+        - - missing_api_key_expires_at
+          - missing_api_key_expires_at
+        - - missing_api_key_indexes
+          - missing_api_key_indexes
+        - - missing_authorization_header
+          - missing_authorization_header
+        - - missing_content_type
+          - missing_content_type
+        - - missing_document_id
+          - missing_document_id
+        - - missing_facet_search_facet_name
+          - missing_facet_search_facet_name
+        - - missing_index_uid
+          - missing_index_uid
+        - - missing_master_key
+          - missing_master_key
+        - - missing_network_url
+          - missing_network_url
+        - - missing_payload
+          - missing_payload
+        - - missing_search_hybrid
+          - missing_search_hybrid
+        - - missing_swap_indexes
+          - missing_swap_indexes
+        - - missing_task_filters
+          - missing_task_filters
+        - - network_version_mismatch
+          - network_version_mismatch
+        - - no_space_left_on_device
+          - no_space_left_on_device
+        - - not_leader
+          - not_leader
+        - - payload_too_large
+          - payload_too_large
+        - - remote_bad_response
+          - remote_bad_response
+        - - remote_bad_request
+          - remote_bad_request
+        - - unknown_remote
+          - unknown_remote
+        - - remote_could_not_send_request
+          - remote_could_not_send_request
+        - - remote_invalid_api_key
+          - remote_invalid_api_key
+        - - remote_remote_error
+          - remote_remote_error
+        - - remote_timeout
+          - remote_timeout
+        - - too_many_search_requests
+          - too_many_search_requests
+        - - task_not_found
+          - task_not_found
+        - - task_file_not_found
+          - task_file_not_found
+        - - batch_not_found
+          - batch_not_found
+        - - too_many_open_files
+          - too_many_open_files
+        - - too_many_vectors
+          - too_many_vectors
+        - - unexpected_network_previous_remotes
+          - unexpected_network_previous_remotes
+        - - network_version_too_old
+          - network_version_too_old
+        - - unprocessed_network_task
+          - unprocessed_network_task
+        - - unretrievable_document
+          - unretrievable_document
+        - - unretrievable_error_code
+          - unretrievable_error_code
+        - - unsupported_media_type
+          - unsupported_media_type
+        - - invalid_s3_snapshot_request
+          - invalid_s3_snapshot_request
+        - - invalid_s3_snapshot_parameters
+          - invalid_s3_snapshot_parameters
+        - - s3_snapshot_server_error
+          - s3_snapshot_server_error
+        - - vector_embedding_error
+          - vector_embedding_error
+        - - not_found_similar_id
+          - not_found_similar_id
+        - - invalid_document_edition_context
+          - invalid_document_edition_context
+        - - invalid_document_edition_function_filter
+          - invalid_document_edition_function_filter
+        - - edit_documents_by_function_error
+          - edit_documents_by_function_error
+        - - invalid_settings_index_chat
+          - invalid_settings_index_chat
+        - - invalid_export_url
+          - invalid_export_url
+        - - invalid_export_api_key
+          - invalid_export_api_key
+        - - invalid_export_payload_size
+          - invalid_export_payload_size
+        - - invalid_export_indexes_patterns
+          - invalid_export_indexes_patterns
+        - - invalid_export_index_filter
+          - invalid_export_index_filter
+        - - invalid_export_index_override_settings
+          - invalid_export_index_override_settings
+        - - unimplemented_external_function_calling
+          - unimplemented_external_function_calling
+        - - unimplemented_non_streaming_chat_completions
+          - unimplemented_non_streaming_chat_completions
+        - - unimplemented_multi_choice_chat_completions
+          - unimplemented_multi_choice_chat_completions
+        - - chat_not_found
+          - chat_not_found
+        - - invalid_chat_setting_document_template
+          - invalid_chat_setting_document_template
+        - - invalid_chat_completion_org_id
+          - invalid_chat_completion_org_id
+        - - invalid_chat_completion_project_id
+          - invalid_chat_completion_project_id
+        - - invalid_chat_completion_api_version
+          - invalid_chat_completion_api_version
+        - - invalid_chat_completion_deployment_id
+          - invalid_chat_completion_deployment_id
+        - - invalid_chat_completion_source
+          - invalid_chat_completion_source
+        - - invalid_chat_completion_base_api
+          - invalid_chat_completion_base_api
+        - - invalid_chat_completion_api_key
+          - invalid_chat_completion_api_key
+        - - invalid_chat_completion_prompts
+          - invalid_chat_completion_prompts
+        - - invalid_chat_completion_system_prompt
+          - invalid_chat_completion_system_prompt
+        - - invalid_chat_completion_search_description_prompt
+          - invalid_chat_completion_search_description_prompt
+        - - invalid_chat_completion_search_query_param_prompt
+          - invalid_chat_completion_search_query_param_prompt
+        - - invalid_chat_completion_search_filter_param_prompt
+          - invalid_chat_completion_search_filter_param_prompt
+        - - invalid_chat_completion_search_index_uid_param_prompt
+          - invalid_chat_completion_search_index_uid_param_prompt
+        - - invalid_chat_completion_pre_query_prompt
+          - invalid_chat_completion_pre_query_prompt
+        - - invalid_index_fields_filter
+          - invalid_index_fields_filter
+        - - invalid_index_fields_filter_attribute_patterns
+          - invalid_index_fields_filter_attribute_patterns
+        - - invalid_index_fields_filter_displayed
+          - invalid_index_fields_filter_displayed
+        - - invalid_index_fields_filter_searchable
+          - invalid_index_fields_filter_searchable
+        - - invalid_index_fields_filter_sortable
+          - invalid_index_fields_filter_sortable
+        - - invalid_index_fields_filter_distinct
+          - invalid_index_fields_filter_distinct
+        - - invalid_index_fields_filter_ranking_rule
+          - invalid_index_fields_filter_ranking_rule
+        - - invalid_index_fields_filter_filterable
+          - invalid_index_fields_filter_filterable
+        - - requires_enterprise_edition
+          - requires_enterprise_edition
+        - - invalid_render_template
+          - invalid_render_template
+        - - invalid_render_input
+          - invalid_render_input
+        - - render_document_not_found
+          - render_document_not_found
+        - - template_parsing_error
+          - template_parsing_error
+        - - template_rendering_error
+          - template_rendering_error
+        - - invalid_webhooks
+          - invalid_webhooks
+        - - invalid_webhook_url
+          - invalid_webhook_url
+        - - invalid_webhook_headers
+          - invalid_webhook_headers
+        - - immutable_webhook
+          - immutable_webhook
+        - - invalid_webhook_uuid
+          - invalid_webhook_uuid
+        - - webhook_not_found
+          - webhook_not_found
+        - - immutable_webhook_uuid
+          - immutable_webhook_uuid
+        - - immutable_webhook_is_editable
+          - immutable_webhook_is_editable
+        - - invalid_dynamic_search_rule_offset
+          - invalid_dynamic_search_rule_offset
+        - - invalid_dynamic_search_rule_limit
+          - invalid_dynamic_search_rule_limit
+        - - invalid_dynamic_search_rule_filter
+          - invalid_dynamic_search_rule_filter
+        - - invalid_dynamic_search_rule_description
+          - invalid_dynamic_search_rule_description
+        - - invalid_dynamic_search_rule_priority
+          - invalid_dynamic_search_rule_priority
+        - - invalid_dynamic_search_rule_active
+          - invalid_dynamic_search_rule_active
+        - - invalid_dynamic_search_rule_conditions
+          - invalid_dynamic_search_rule_conditions
+        - - invalid_dynamic_search_rule_actions
+          - invalid_dynamic_search_rule_actions
+        - - invalid_dynamic_search_rule_filter_query
+          - invalid_dynamic_search_rule_filter_query
+        - - invalid_dynamic_search_rule_filter_active
+          - invalid_dynamic_search_rule_filter_active
+        - - dynamic_search_rule_not_found
+          - dynamic_search_rule_not_found
+      fold:
+        - - invalid_dynamic_search_rule_uid
+          - bad_request
+assertions:
+  loss_acknowledged: true
+  side_effects_unchanged: true

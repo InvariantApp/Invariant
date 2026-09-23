@@ -47,7 +47,10 @@ const RELAY_DROPPED = new Set([
   "content-length",
 ]);
 
-export function passUpgrades(upstream: string | URL): UpgradeHandler {
+export function passUpgrades(
+  upstream: string | URL,
+  host: "caller" | "upstream" = "upstream",
+): UpgradeHandler {
   const target = new URL(upstream);
   const secure = target.protocol === "https:";
   const base = target.pathname.replace(/\/$/, "");
@@ -58,11 +61,15 @@ export function passUpgrades(upstream: string | URL): UpgradeHandler {
     const at = new URL(request.url ?? "/", "http://placeholder.invalid");
     const headers: [string, string][] = [];
     let forwarded: string | undefined;
+    // The Host the provider is sent, as for every other request.
+    const callerHost = request.headers.host;
+    let forwardedHost = false;
     for (let index = 0; index < request.rawHeaders.length; index += 2) {
       const name = request.rawHeaders[index] as string;
       const value = request.rawHeaders[index + 1] as string;
       const lower = name.toLowerCase();
       if (lower === "host") continue;
+      if (lower === "x-forwarded-host") forwardedHost = true;
       // Nothing a caller claims as the engine's own conclusion is passed on.
       if (lower.startsWith("x-invariant-")) continue;
       if (lower === "x-forwarded-for") {
@@ -71,7 +78,12 @@ export function passUpgrades(upstream: string | URL): UpgradeHandler {
       }
       headers.push([name, value]);
     }
-    headers.push(["Host", target.host]);
+    if (host === "caller" && callerHost) {
+      headers.push(["Host", callerHost]);
+    } else {
+      headers.push(["Host", target.host]);
+      if (callerHost && !forwardedHost) headers.push(["X-Forwarded-Host", callerHost]);
+    }
     const peer = request.socket.remoteAddress;
     if (peer) forwarded = forwarded ? `${forwarded}, ${peer}` : peer;
     if (forwarded) headers.push(["X-Forwarded-For", forwarded]);

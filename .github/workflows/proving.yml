@@ -6,14 +6,28 @@ on:
   schedule:
     - cron: "17 3 * * *"
   workflow_dispatch:
+    inputs:
+      rigs:
+        description: Which rigs to run. `servers` runs rig D alone, `corpus` the corpus alone; either records nothing.
+        type: choice
+        options: [all, servers, corpus]
+        default: all
+      servers:
+        description: Rig D projects to run, comma-separated. Empty runs every one.
+        type: string
+        default: ""
 
+# Full runs queue behind one another. A run of one rig alone is its own queue
+# per branch (and, for rig D, per set of projects), so trying something out
+# never displaces a full run or another trial.
 concurrency:
-  group: proving
+  group: ${{ inputs.rigs == 'servers' && format('proving-servers-{0}-{1}', github.ref, inputs.servers) || inputs.rigs == 'corpus' && format('proving-corpus-{0}', github.ref) || 'proving' }}
   cancel-in-progress: false
 
 jobs:
   corpus:
     name: corpus (shard ${{ matrix.shard }} of 8)
+    if: inputs.rigs != 'servers'
     strategy:
       fail-fast: false
       matrix:
@@ -59,6 +73,7 @@ jobs:
 
   traffic:
     name: traffic (rig C)
+    if: inputs.rigs != 'servers' && inputs.rigs != 'corpus'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -97,6 +112,7 @@ jobs:
 
   swagger:
     name: swagger 2.0 (two converters)
+    if: inputs.rigs != 'servers' && inputs.rigs != 'corpus'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -132,20 +148,49 @@ jobs:
           name: swagger-report
           path: proving/swagger/REPORT.md
 
+  # Rig D's release pairs, one job each, from the manifest, so adding a
+  # project or a pair is one edit to projects.json.
+  servers-plan:
+    name: servers (rig D, plan)
+    if: inputs.rigs != 'corpus'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    outputs:
+      pairs: ${{ steps.plan.outputs.pairs }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - id: plan
+        env:
+          WANTED: ${{ inputs.servers }}
+        run: |
+          pairs=$(jq -c --arg wanted "$WANTED" '
+            ($wanted | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(. != ""))) as $only
+            | [.projects[]
+                | select(($only | length) == 0 or (.name as $n | $only | index($n)))
+                | .name as $project
+                | .pairs[]
+                | { project: $project, pair: "\(.[0]):\(.[1])", id: "\($project)-\(.[0])..\(.[1])" }]
+          ' proving/servers/projects.json)
+          echo "pairs=$pairs" >> "$GITHUB_OUTPUT"
+
   servers:
-    name: servers (rig D, ${{ matrix.project }})
+    name: servers (rig D, ${{ matrix.id }})
+    needs: servers-plan
+    if: needs.servers-plan.outputs.pairs != '[]'
     strategy:
       fail-fast: false
       matrix:
-        project: [qdrant]
+        include: ${{ fromJSON(needs.servers-plan.outputs.pairs) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 150
     # Runs the projects' own images and test suites, which this project did
-    # not write, so the job holds no secret. Reading this repository needs
-    # the token while it is private; checkout drops it from git's config
-    # before anything else runs, so no later step can use it.
-    permissions:
-      contents: read
+    # not write, so the job holds no secret and no token: the repository is
+    # public, and checkout keeps nothing in git's config.
+    permissions: {}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -160,21 +205,41 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # The gate that compiles each release's program diffs with it.
+      - run: node --import tsx scripts/fetch-oasdiff.mts --host
+
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
 
+      # For the suites written in Go; a module that pins a newer toolchain
+      # fetches it itself.
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: stable
+          cache: false
+
       - name: Three arms per release pair
-        run: pnpm proving:servers --project ${{ matrix.project }}
+        run: pnpm proving:servers --project ${{ matrix.project }} --pair ${{ matrix.pair }}
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: servers-${{ matrix.project }}
-          path: .cache/servers/results-${{ matrix.project }}.json
+          name: servers-${{ matrix.id }}
+          # The results, what each arm's suite reported, the documents a
+          # server served, which --propose and --gate read on a laptop, and
+          # the Changes the gate judged with its report.
+          path: |
+            .cache/servers/results-${{ matrix.id }}.json
+            .cache/servers/${{ matrix.project }}/*/spec.json
+            .cache/servers/${{ matrix.project }}/*/*.xml
+            .cache/servers/${{ matrix.project }}/*/gate.txt
+            .cache/servers/${{ matrix.project }}/*/provider/invariant/changes/*.yaml
           # Under .cache, which upload-artifact skips unless told otherwise.
           include-hidden-files: true
+          if-no-files-found: ignore
 
   fuzz:
     name: fuzz (rig F)
+    if: inputs.rigs != 'servers' && inputs.rigs != 'corpus'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -237,6 +302,7 @@ jobs:
 
   replay-mine:
     name: replay miner (rig E)
+    if: inputs.rigs != 'servers' && inputs.rigs != 'corpus'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     # Reads pull request metadata through the API and commits only the index.
@@ -275,7 +341,7 @@ jobs:
   # to; its token is the only secret here, and nothing third-party runs.
   journey:
     name: journey (L9, ${{ matrix.os }}, run ${{ matrix.run }})
-    if: vars.JOURNEY_ENABLED == 'true'
+    if: vars.JOURNEY_ENABLED == 'true' && inputs.rigs != 'servers' && inputs.rigs != 'corpus'
     strategy:
       fail-fast: false
       max-parallel: 6
@@ -322,7 +388,7 @@ jobs:
     needs: [corpus, traffic, swagger, servers, fuzz, threats, journey]
     # Every rig's result is gathered even when one of them failed, so the
     # scoreboard says which; nothing is recorded unless all of them passed.
-    if: always()
+    if: always() && inputs.rigs != 'servers' && inputs.rigs != 'corpus'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -377,7 +443,7 @@ jobs:
 
       - name: Merge the real-server projects into one report
         if: always()
-        run: node --import tsx proving/servers/run.mts --report servers-results/*.json
+        run: node --import tsx proving/servers/run.mts --report servers-results/results-*.json
 
       # L17: the runtime on npm, given this commit's programs.
       - name: The published runtime against this commit's programs

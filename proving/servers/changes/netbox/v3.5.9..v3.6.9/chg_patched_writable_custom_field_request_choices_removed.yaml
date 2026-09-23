@@ -1,0 +1,20 @@
+# Drafted by rules, 100% confident.
+#
+# This is a proposal, not a decision. Read it, fix what is wrong, and merge
+# it; merging is what records that you confirmed it. The release gate will
+# still check that these ops explain the whole breaking diff.
+#
+# NEEDS A CLOSE LOOK:
+#   - drafted as dropped from old callers' requests because no judge would say it became `choice_set`. If it was renamed, write the move instead.
+irVersion: 1
+id: chg_patched_writable_custom_field_request_choices_removed
+summary: "`choices` was removed from PatchedWritableCustomFieldRequest."
+scopes:
+  - schema: "#/components/schemas/PatchedWritableCustomFieldRequest"
+ops:
+  - op: remove
+    path: /choices
+provenance:
+  proposed_by:
+    judge: rules
+    confidence: 1

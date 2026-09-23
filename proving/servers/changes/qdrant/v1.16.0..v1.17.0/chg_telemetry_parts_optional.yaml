@@ -1,0 +1,46 @@
+# Written by hand, as Qdrant's maintainers would: 1.17 declares the
+# application, collection config, optimizer and remote-shard statistics of
+# telemetry optional (schemars writes each Option<T> as a union of T and a
+# bare nullable, which the differ reads as any value), because other callers
+# of the same types leave them out. GET /telemetry still fills every one of
+# them in, so nothing needs translating for an old caller, and nothing is:
+# this acknowledges the deltas rather than transforming them.
+irVersion: 1
+id: chg_telemetry_parts_optional
+summary: "Telemetry's parts are declared optional; GET /telemetry still sends every one an old caller was promised."
+scopes: []
+ops:
+  - op: behavior
+    flag: telemetry_parts_optional
+    covers:
+      - "response-property-any-of-added at GET /telemetry: added `#/components/schemas/AppBuildTelemetry, subschema #2` to the `result/app` response property `anyOf` list for the response status `200`"
+      - "response-property-any-of-added at GET /telemetry: added `#/components/schemas/CollectionConfigTelemetry, subschema #2` to the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/config` response property `anyOf` list for the response status `200`"
+      - "response-property-any-of-added at GET /telemetry: added `#/components/schemas/OperationDurationStatistics, subschema #2` to the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/remote/items/searches` response property `anyOf` list for the response status `200`"
+      - "response-property-any-of-added at GET /telemetry: added `#/components/schemas/OperationDurationStatistics, subschema #2` to the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/remote/items/updates` response property `anyOf` list for the response status `200`"
+      - "response-property-any-of-added at GET /telemetry: added `#/components/schemas/OptimizerTelemetry, subschema #2` to the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/local/anyOf[#/components/schemas/LocalShardTelemetry]/optimizations` response property `anyOf` list for the response status `200`"
+      - "response-property-became-nullable at GET /telemetry: the response property `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/init_time_ms` became nullable for the status `200`"
+      - "response-property-became-optional at GET /telemetry: the response property `result/app` became optional for the status `200`"
+      - "response-property-became-optional at GET /telemetry: the response property `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/config` became optional for the status `200`"
+      - "response-property-became-optional at GET /telemetry: the response property `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/init_time_ms` became optional for the status `200`"
+      - "response-property-became-optional at GET /telemetry: the response property `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/local/anyOf[#/components/schemas/LocalShardTelemetry]/optimizations` became optional for the status `200`"
+      - "response-property-became-optional at GET /telemetry: the response property `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/remote/items/searches` became optional for the status `200`"
+      - "response-property-became-optional at GET /telemetry: the response property `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/remote/items/updates` became optional for the status `200`"
+      - "response-property-type-changed at GET /telemetry: the `result/app` response's property `type` changed from `object` to `any` for status `200`"
+      - "response-property-type-changed at GET /telemetry: the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/config` response's property `type` changed from `object` to `any` for status `200`"
+      - "response-property-type-changed at GET /telemetry: the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/local/anyOf[#/components/schemas/LocalShardTelemetry]/optimizations` response's property `type` changed from `object` to `any` for status `200`"
+      - "response-property-type-changed at GET /telemetry: the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/remote/items/searches` response's property `type` changed from `object` to `any` for status `200`"
+      - "response-property-type-changed at GET /telemetry: the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/remote/items/updates` response's property `type` changed from `object` to `any` for status `200`"
+      - "response-required-property-removed at GET /telemetry: removed the required property `result/app/name` from the response with the `200` status"
+      - "response-required-property-removed at GET /telemetry: removed the required property `result/app/startup` from the response with the `200` status"
+      - "response-required-property-removed at GET /telemetry: removed the required property `result/app/version` from the response with the `200` status"
+      - "response-required-property-removed at GET /telemetry: removed the required property `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/config/hnsw_config` from the response with the `200` status"
+      - "response-required-property-removed at GET /telemetry: removed the required property `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/config/optimizer_config` from the response with the `200` status"
+      - "response-required-property-removed at GET /telemetry: removed the required property `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/config/params` from the response with the `200` status"
+      - "response-required-property-removed at GET /telemetry: removed the required property `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/config/wal_config` from the response with the `200` status"
+      - "response-required-property-removed at GET /telemetry: removed the required property `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/local/anyOf[#/components/schemas/LocalShardTelemetry]/optimizations/optimizations` from the response with the `200` status"
+      - "response-required-property-removed at GET /telemetry: removed the required property `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/local/anyOf[#/components/schemas/LocalShardTelemetry]/optimizations/status` from the response with the `200` status"
+      - "response-required-property-removed at GET /telemetry: removed the required property `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/remote/items/searches/count` from the response with the `200` status"
+      - "response-required-property-removed at GET /telemetry: removed the required property `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/remote/items/updates/count` from the response with the `200` status"
+      - "response-required-property-removed at GET /telemetry: removed the required property `result/requests/anyOf[#/components/schemas/RequestsTelemetry]/grpc/responses/additionalProperties/count` from the response with the `200` status"
+assertions:
+  side_effects_unchanged: true

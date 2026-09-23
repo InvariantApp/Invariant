@@ -1,0 +1,53 @@
+# NetBox as netbox-docker runs it, cut to what the REST API needs: the
+# application, its database and its two caches, without the worker and the
+# housekeeping jobs. Every credential is made when the pair runs (projects.json,
+# `server.secrets`), and the superuser's token is the one pynetbox's
+# integration suite calls with, read from the suite's own source. Every
+# container is thrown away with its volumes after each arm.
+services:
+  netbox:
+    image: ${IMAGE}
+    container_name: ${CONTAINER}
+    depends_on: [postgres, redis, redis-cache]
+    ports:
+      - "127.0.0.1:${PORT}:8080"
+    environment:
+      CORS_ORIGIN_ALLOW_ALL: "True"
+      DB_HOST: postgres
+      DB_NAME: netbox
+      DB_USER: netbox
+      DB_PASSWORD: ${NETBOX_DB_PASSWORD}
+      GRAPHQL_ENABLED: "true"
+      MEDIA_ROOT: /opt/netbox/netbox/media
+      METRICS_ENABLED: "false"
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${NETBOX_REDIS_PASSWORD}
+      REDIS_DATABASE: "0"
+      REDIS_SSL: "false"
+      REDIS_CACHE_HOST: redis-cache
+      REDIS_CACHE_PASSWORD: ${NETBOX_REDIS_CACHE_PASSWORD}
+      REDIS_CACHE_DATABASE: "1"
+      REDIS_CACHE_SSL: "false"
+      RELEASE_CHECK_URL: ""
+      SECRET_KEY: ${NETBOX_SECRET_KEY}
+      SKIP_SUPERUSER: "false"
+      SUPERUSER_NAME: admin
+      SUPERUSER_EMAIL: admin@example.com
+      SUPERUSER_PASSWORD: ${NETBOX_SUPERUSER_PASSWORD}
+      SUPERUSER_API_TOKEN: ${NETBOX_TOKEN}
+      WEBHOOKS_ENABLED: "true"
+
+  postgres:
+    image: postgres:15.14-alpine@sha256:64583b3cb4f2010277bdd9749456de78e5c36f8956466ba14b0b96922e510950
+    environment:
+      POSTGRES_DB: netbox
+      POSTGRES_USER: netbox
+      POSTGRES_PASSWORD: ${NETBOX_DB_PASSWORD}
+
+  redis:
+    image: redis:7.4.6-alpine@sha256:3b73847e72874be07e6657b129a94761662b79bc0f679273757d4218573b2a98
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${NETBOX_REDIS_PASSWORD}"]
+
+  redis-cache:
+    image: redis:7.4.6-alpine@sha256:3b73847e72874be07e6657b129a94761662b79bc0f679273757d4218573b2a98
+    command: ["redis-server", "--requirepass", "${NETBOX_REDIS_CACHE_PASSWORD}"]

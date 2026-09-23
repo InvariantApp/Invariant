@@ -1,0 +1,41 @@
+# Decided for the proving ground, as Qdrant's maintainers would:
+# ManualRecovery is a replica an operator has to recover by hand; to a caller
+# that predates it, it is a replica in recovery, which is what Recovery tells
+# them.
+irVersion: 1
+id: chg_replica_state_replica_state_vocabulary
+summary: "`ReplicaState` on ReplicaState can answer with values old callers never saw."
+scopes:
+  - schema: "#/components/schemas/ReplicaState"
+ops:
+  - op: convert
+    path: ""
+    codec:
+      kind: enumMap
+      pairs:
+        - - Active
+          - Active
+        - - Dead
+          - Dead
+        - - Partial
+          - Partial
+        - - Initializing
+          - Initializing
+        - - Listener
+          - Listener
+        - - PartialSnapshot
+          - PartialSnapshot
+        - - Recovery
+          - Recovery
+        - - Resharding
+          - Resharding
+        - - ReshardingScaleDown
+          - ReshardingScaleDown
+        - - ActiveRead
+          - ActiveRead
+      fold:
+        - - ManualRecovery
+          - Recovery
+assertions:
+  loss_acknowledged: true
+  side_effects_unchanged: true

@@ -1,0 +1,249 @@
+# Decided for the proving ground, as NetBox's maintainers would:
+# The labels of the two new 400GE types, shown as the labels of the types
+# their values fold onto.
+irVersion: 1
+id: chg_interface_template_type_label_vocabulary
+summary: "`type.label` on InterfaceTemplate can answer with values old callers
+  never saw."
+scopes:
+  - schema: "#/components/schemas/InterfaceTemplate"
+ops:
+  - op: convert
+    path: /type/label
+    codec:
+      kind: enumMap
+      pairs:
+        - - Virtual
+          - Virtual
+        - - Bridge
+          - Bridge
+        - - Link Aggregation Group (LAG)
+          - Link Aggregation Group (LAG)
+        - - 100BASE-FX (10/100ME FIBER)
+          - 100BASE-FX (10/100ME FIBER)
+        - - 100BASE-LFX (10/100ME FIBER)
+          - 100BASE-LFX (10/100ME FIBER)
+        - - 100BASE-TX (10/100ME)
+          - 100BASE-TX (10/100ME)
+        - - 100BASE-T1 (10/100ME Single Pair)
+          - 100BASE-T1 (10/100ME Single Pair)
+        - - 1000BASE-T (1GE)
+          - 1000BASE-T (1GE)
+        - - 2.5GBASE-T (2.5GE)
+          - 2.5GBASE-T (2.5GE)
+        - - 5GBASE-T (5GE)
+          - 5GBASE-T (5GE)
+        - - 10GBASE-T (10GE)
+          - 10GBASE-T (10GE)
+        - - 10GBASE-CX4 (10GE)
+          - 10GBASE-CX4 (10GE)
+        - - GBIC (1GE)
+          - GBIC (1GE)
+        - - SFP (1GE)
+          - SFP (1GE)
+        - - SFP+ (10GE)
+          - SFP+ (10GE)
+        - - XFP (10GE)
+          - XFP (10GE)
+        - - XENPAK (10GE)
+          - XENPAK (10GE)
+        - - X2 (10GE)
+          - X2 (10GE)
+        - - SFP28 (25GE)
+          - SFP28 (25GE)
+        - - SFP56 (50GE)
+          - SFP56 (50GE)
+        - - QSFP+ (40GE)
+          - QSFP+ (40GE)
+        - - QSFP28 (50GE)
+          - QSFP28 (50GE)
+        - - CFP (100GE)
+          - CFP (100GE)
+        - - CFP2 (100GE)
+          - CFP2 (100GE)
+        - - CFP2 (200GE)
+          - CFP2 (200GE)
+        - - CFP2 (400GE)
+          - CFP2 (400GE)
+        - - CFP4 (100GE)
+          - CFP4 (100GE)
+        - - CXP (100GE)
+          - CXP (100GE)
+        - - Cisco CPAK (100GE)
+          - Cisco CPAK (100GE)
+        - - DSFP (100GE)
+          - DSFP (100GE)
+        - - SFP-DD (100GE)
+          - SFP-DD (100GE)
+        - - QSFP28 (100GE)
+          - QSFP28 (100GE)
+        - - QSFP-DD (100GE)
+          - QSFP-DD (100GE)
+        - - QSFP56 (200GE)
+          - QSFP56 (200GE)
+        - - QSFP-DD (200GE)
+          - QSFP-DD (200GE)
+        - - QSFP-DD (400GE)
+          - QSFP-DD (400GE)
+        - - OSFP (400GE)
+          - OSFP (400GE)
+        - - CDFP (400GE)
+          - CDFP (400GE)
+        - - CPF8 (400GE)
+          - CPF8 (400GE)
+        - - QSFP-DD (800GE)
+          - QSFP-DD (800GE)
+        - - OSFP (800GE)
+          - OSFP (800GE)
+        - - 1000BASE-KX (1GE)
+          - 1000BASE-KX (1GE)
+        - - 10GBASE-KR (10GE)
+          - 10GBASE-KR (10GE)
+        - - 10GBASE-KX4 (10GE)
+          - 10GBASE-KX4 (10GE)
+        - - 25GBASE-KR (25GE)
+          - 25GBASE-KR (25GE)
+        - - 40GBASE-KR4 (40GE)
+          - 40GBASE-KR4 (40GE)
+        - - 50GBASE-KR (50GE)
+          - 50GBASE-KR (50GE)
+        - - 100GBASE-KP4 (100GE)
+          - 100GBASE-KP4 (100GE)
+        - - 100GBASE-KR2 (100GE)
+          - 100GBASE-KR2 (100GE)
+        - - 100GBASE-KR4 (100GE)
+          - 100GBASE-KR4 (100GE)
+        - - IEEE 802.11a
+          - IEEE 802.11a
+        - - IEEE 802.11b/g
+          - IEEE 802.11b/g
+        - - IEEE 802.11n
+          - IEEE 802.11n
+        - - IEEE 802.11ac
+          - IEEE 802.11ac
+        - - IEEE 802.11ad
+          - IEEE 802.11ad
+        - - IEEE 802.11ax
+          - IEEE 802.11ax
+        - - IEEE 802.11ay
+          - IEEE 802.11ay
+        - - IEEE 802.15.1 (Bluetooth)
+          - IEEE 802.15.1 (Bluetooth)
+        - - Other (Wireless)
+          - Other (Wireless)
+        - - GSM
+          - GSM
+        - - CDMA
+          - CDMA
+        - - LTE
+          - LTE
+        - - OC-3/STM-1
+          - OC-3/STM-1
+        - - OC-12/STM-4
+          - OC-12/STM-4
+        - - OC-48/STM-16
+          - OC-48/STM-16
+        - - OC-192/STM-64
+          - OC-192/STM-64
+        - - OC-768/STM-256
+          - OC-768/STM-256
+        - - OC-1920/STM-640
+          - OC-1920/STM-640
+        - - OC-3840/STM-1234
+          - OC-3840/STM-1234
+        - - SFP (1GFC)
+          - SFP (1GFC)
+        - - SFP (2GFC)
+          - SFP (2GFC)
+        - - SFP (4GFC)
+          - SFP (4GFC)
+        - - SFP+ (8GFC)
+          - SFP+ (8GFC)
+        - - SFP+ (16GFC)
+          - SFP+ (16GFC)
+        - - SFP28 (32GFC)
+          - SFP28 (32GFC)
+        - - QSFP+ (64GFC)
+          - QSFP+ (64GFC)
+        - - QSFP28 (128GFC)
+          - QSFP28 (128GFC)
+        - - SDR (2 Gbps)
+          - SDR (2 Gbps)
+        - - DDR (4 Gbps)
+          - DDR (4 Gbps)
+        - - QDR (8 Gbps)
+          - QDR (8 Gbps)
+        - - FDR10 (10 Gbps)
+          - FDR10 (10 Gbps)
+        - - FDR (13.5 Gbps)
+          - FDR (13.5 Gbps)
+        - - EDR (25 Gbps)
+          - EDR (25 Gbps)
+        - - HDR (50 Gbps)
+          - HDR (50 Gbps)
+        - - NDR (100 Gbps)
+          - NDR (100 Gbps)
+        - - XDR (250 Gbps)
+          - XDR (250 Gbps)
+        - - T1 (1.544 Mbps)
+          - T1 (1.544 Mbps)
+        - - E1 (2.048 Mbps)
+          - E1 (2.048 Mbps)
+        - - T3 (45 Mbps)
+          - T3 (45 Mbps)
+        - - E3 (34 Mbps)
+          - E3 (34 Mbps)
+        - - xDSL
+          - xDSL
+        - - DOCSIS
+          - DOCSIS
+        - - GPON (2.5 Gbps / 1.25 Gps)
+          - GPON (2.5 Gbps / 1.25 Gps)
+        - - XG-PON (10 Gbps / 2.5 Gbps)
+          - XG-PON (10 Gbps / 2.5 Gbps)
+        - - XGS-PON (10 Gbps)
+          - XGS-PON (10 Gbps)
+        - - NG-PON2 (TWDM-PON) (4x10 Gbps)
+          - NG-PON2 (TWDM-PON) (4x10 Gbps)
+        - - EPON (1 Gbps)
+          - EPON (1 Gbps)
+        - - 10G-EPON (10 Gbps)
+          - 10G-EPON (10 Gbps)
+        - - Cisco StackWise
+          - Cisco StackWise
+        - - Cisco StackWise Plus
+          - Cisco StackWise Plus
+        - - Cisco FlexStack
+          - Cisco FlexStack
+        - - Cisco FlexStack Plus
+          - Cisco FlexStack Plus
+        - - Cisco StackWise-80
+          - Cisco StackWise-80
+        - - Cisco StackWise-160
+          - Cisco StackWise-160
+        - - Cisco StackWise-320
+          - Cisco StackWise-320
+        - - Cisco StackWise-480
+          - Cisco StackWise-480
+        - - Cisco StackWise-1T
+          - Cisco StackWise-1T
+        - - Juniper VCP
+          - Juniper VCP
+        - - Extreme SummitStack
+          - Extreme SummitStack
+        - - Extreme SummitStack-128
+          - Extreme SummitStack-128
+        - - Extreme SummitStack-256
+          - Extreme SummitStack-256
+        - - Extreme SummitStack-512
+          - Extreme SummitStack-512
+        - - Other
+          - Other
+      fold:
+        - - QSFP112 (400GE)
+          - QSFP-DD (400GE)
+        - - OSFP-RHS (400GE)
+          - OSFP (400GE)
+assertions:
+  loss_acknowledged: true
+  side_effects_unchanged: true

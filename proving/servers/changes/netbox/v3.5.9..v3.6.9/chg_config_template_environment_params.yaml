@@ -1,0 +1,22 @@
+# Drafted by rules, 100% confident.
+#
+# This is a proposal, not a decision. Read it, fix what is wrong, and merge
+# it; merging is what records that you confirmed it. The release gate will
+# still check that these ops explain the whole breaking diff.
+#
+#   - the field kept its name, so only its values moved
+#   - `environment_params` may now hold values its old bounds ruled out (type); they pass through as the API produced them, a declared loss to acknowledge
+irVersion: 1
+id: chg_config_template_environment_params
+summary: "`environment_params` changed shape on ConfigTemplate."
+scopes:
+  - schema: "#/components/schemas/ConfigTemplate"
+ops:
+  - op: relax
+    path: /environment_params
+    set:
+      type: null
+provenance:
+  proposed_by:
+    judge: rules
+    confidence: 1

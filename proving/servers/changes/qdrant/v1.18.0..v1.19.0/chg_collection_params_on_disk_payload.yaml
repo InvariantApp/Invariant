@@ -1,0 +1,21 @@
+# Drafted by rules, 100% confident.
+#
+# This is a proposal, not a decision. Read it, fix what is wrong, and merge
+# it; merging is what records that you confirmed it. The release gate will
+# still check that these ops explain the whole breaking diff.
+#
+#   - the field kept its name and its values
+#   - `on_disk_payload` can now be null, and old callers, who could always be sent it left out, are sent it that way
+irVersion: 1
+id: chg_collection_params_on_disk_payload
+summary: "`on_disk_payload` changed shape on CollectionParams."
+scopes:
+  - schema: "#/components/schemas/CollectionParams"
+ops:
+  - op: dropNull
+    path: /on_disk_payload
+    toward: old
+provenance:
+  proposed_by:
+    judge: rules
+    confidence: 1

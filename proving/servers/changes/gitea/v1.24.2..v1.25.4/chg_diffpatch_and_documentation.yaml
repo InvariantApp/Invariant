@@ -1,0 +1,24 @@
+# Written by hand, as Gitea's maintainers would. The workflow listing answered
+# with an object holding the list in 1.24 already
+# (routers/api/v1/repo/action.go); 1.25 only documents it. A commit status's
+# state is now listed as the values the server takes. The diffpatch body is
+# its own schema in 1.25, without sha and from_path: 1.24 checked sha against
+# the file, 1.25 ignores it, and from_path was never read. The first two
+# change nothing on the wire; the third is behavior no op restores.
+# Acknowledged, not transformed.
+irVersion: 1
+id: chg_diffpatch_and_documentation
+summary: "The diffpatch body stopped reading sha, and two descriptions caught up with the server."
+scopes: []
+ops:
+  - op: behavior
+    flag: diffpatch_and_documentation
+    covers:
+      - "response-body-type-changed at GET /repos/{owner}/{repo}/actions/workflows: the response's body `type` changed from `array<object>` to `object` for status `200` (media type: text/html)"
+      - "response-body-type-changed at GET /repos/{owner}/{repo}/actions/workflows: the response's body `type` changed from `array<object>` to `object` for status `200` (media type: application/json)"
+      - "request-property-became-enum at POST /repos/{owner}/{repo}/statuses/{sha}: request property `state` was restricted to a list of enum values (media type: application/json)"
+      - "request-property-became-enum at POST /repos/{owner}/{repo}/statuses/{sha}: request property `state` was restricted to a list of enum values (media type: text/plain)"
+      - "request-property-removed at POST /repos/{owner}/{repo}/diffpatch: removed the request property `from_path`"
+      - "request-property-removed at POST /repos/{owner}/{repo}/diffpatch: removed the request property `sha`"
+assertions:
+  side_effects_unchanged: true

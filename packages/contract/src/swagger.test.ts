@@ -218,6 +218,55 @@ describe("the Swagger 2.0 upgrade", () => {
     );
   });
 
+  it("reads a response that names a definition as a response whose body is it (Gitea's runner lists)", () => {
+    // Gitea 1.24 and 1.25 answer four runner listings with `$ref:
+    // "#/definitions/ActionRunnersResponse"`, where 2.0 wants a response.
+    // Upgraded as written, it named a schema where a response belongs, and
+    // the differ refused the whole document.
+    const converted = upgradeSwagger(
+      swagger(
+        {
+          "/admin/actions/runners": {
+            get: {
+              responses: {
+                "200": { $ref: "#/definitions/ActionRunnersResponse" },
+                "400": { $ref: "#/responses/error" },
+              },
+            },
+          },
+        },
+        {
+          definitions: {
+            ActionRunnersResponse: {
+              description: "ActionRunnersResponse returns Runners",
+              type: "object",
+              properties: { total_count: { type: "integer" } },
+            },
+          },
+          responses: { error: { description: "APIError is error format response" } },
+        },
+      ),
+    );
+    const responses = at(
+      converted,
+      "paths",
+      "/admin/actions/runners",
+      "get",
+      "responses",
+    );
+    expect(responses).toEqual({
+      "200": {
+        description: "ActionRunnersResponse returns Runners",
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/ActionRunnersResponse" },
+          },
+        },
+      },
+      "400": { $ref: "#/components/responses/error" },
+    });
+  });
+
   it("leaves a list in an example alone, since an example is not a schema", () => {
     const document = swagger({
       "/pins": {

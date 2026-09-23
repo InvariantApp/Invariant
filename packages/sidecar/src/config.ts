@@ -31,6 +31,11 @@ export interface SidecarConfig {
   identity?: IdentityStrategy[];
   maxBodyBytes: number;
   upstreamTimeoutMs: number;
+  /**
+   * The Host the provider is sent: the caller's (`caller`, the default), or
+   * the upstream's own with the caller's in X-Forwarded-Host (`upstream`).
+   */
+  upstreamHost: "caller" | "upstream";
   /** Longest a caller's whole request may take to arrive. */
   requestTimeoutMs: number;
   /** Longest a caller's request headers may take to arrive. */
@@ -96,6 +101,7 @@ const KEYS = new Set([
   "identity",
   "maxBodyBytes",
   "upstreamTimeoutMs",
+  "upstreamHost",
   "requestTimeoutMs",
   "headersTimeoutMs",
   "maxConnections",
@@ -179,6 +185,7 @@ export function parseConfig(raw: unknown, relativeTo: string): SidecarConfig {
       : { identity: identityFrom(value["identity"]) }),
     maxBodyBytes: positiveInt(value, "maxBodyBytes", 1024 * 1024),
     upstreamTimeoutMs: positiveInt(value, "upstreamTimeoutMs", 30_000),
+    upstreamHost: hostChoice(value["upstreamHost"]),
     requestTimeoutMs,
     headersTimeoutMs,
     maxConnections: positiveInt(value, "maxConnections", 10_000),
@@ -191,6 +198,12 @@ export function parseConfig(raw: unknown, relativeTo: string): SidecarConfig {
     skip: stringList(value, "skip"),
     ...optionalServices(value, relativeTo),
   };
+}
+
+function hostChoice(value: unknown): "caller" | "upstream" {
+  if (value === undefined) return "upstream";
+  if (value === "caller" || value === "upstream") return value;
+  throw new ConfigError(`"upstreamHost" must be "caller" or "upstream".`);
 }
 
 /** The control plane, flags and telemetry sections, each checked against the others. */

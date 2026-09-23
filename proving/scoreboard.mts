@@ -23,7 +23,11 @@ import { type AuditFile, agreement } from "./replay/audit.mts";
 import type { SiteClass } from "./replay/classify.mts";
 import type { ReplayIndex } from "./replay/mine.mts";
 import type { ReplayResult } from "./replay/run.mts";
-import type { PairResult as ServerResult } from "./servers/run.mts";
+import {
+  type PairResult as ServerResult,
+  headline as serversHeadline,
+  tally,
+} from "./servers/pairs.ts";
 import type { SkewResult } from "./skew/run.mts";
 import { summarize as summarizeThreats, type ThreatManifest } from "./threats/summary.ts";
 import type { TrafficResult } from "./traffic/run.mts";
@@ -231,11 +235,7 @@ export function scoreboard(inputs: {
   });
 
   const servers = inputs.servers ?? [];
-  const projects = new Set(servers.map((result) => result.project));
-  const languages = new Set(servers.map((result) => result.language));
-  const regressions = servers.reduce((sum, result) => sum + result.regressions.length, 0);
-  const broken = servers.reduce((sum, result) => sum + result.broken.length, 0);
-  const fixed = servers.reduce((sum, result) => sum + result.served.length, 0);
+  const counted = tally(servers);
   lines.push({
     id: "L7",
     claim:
@@ -243,13 +243,12 @@ export function scoreboard(inputs: {
     status:
       servers.length === 0
         ? "not measured"
-        : projects.size >= 6 &&
-            languages.size >= 4 &&
-            regressions === 0 &&
-            fixed === broken
+        : counted.proven.length >= 6 &&
+            counted.languages.length >= 4 &&
+            counted.regressions === 0
           ? "met"
           : "not met",
-    value: `${projects.size} projects in ${languages.size} languages; ${fixed} of ${broken} tests the releases broke served, ${regressions} regressions`,
+    value: serversHeadline(counted),
     evidence: "proving/servers/results.json",
   });
 

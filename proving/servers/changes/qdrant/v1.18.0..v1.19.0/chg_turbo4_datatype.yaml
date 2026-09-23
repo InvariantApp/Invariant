@@ -1,0 +1,26 @@
+# Written by hand, as Qdrant's maintainers would: 1.19 can store a vector as
+# turbo4. An old caller only meets it on a collection a newer caller made that
+# way, and the vectors configuration that holds it is a choice between one set
+# of parameters and a map of them, which nothing tells apart, so a fold cannot
+# be placed there. Acknowledged, not served.
+irVersion: 1
+id: chg_turbo4_datatype
+summary: "Vectors can be stored as turbo4, a datatype old callers never saw."
+scopes: []
+ops:
+  - op: behavior
+    flag: turbo4_datatype
+    covers:
+      - "response-property-enum-value-added at GET /collections/{collection_name}: added the new `turbo4` enum value to the `result/config/params/sparse_vectors/additionalProperties/index/anyOf[#/components/schemas/SparseIndexParams]/datatype/anyOf[subschema #1]/` response property for the response status `200`"
+      - "response-property-enum-value-added at GET /collections/{collection_name}: added the new `turbo4` enum value to the `result/config/params/vectors/anyOf[#/components/schemas/VectorParams]/datatype/anyOf[subschema #1]/` response property for the response status `200`"
+      - "response-property-enum-value-added at GET /collections/{collection_name}: added the new `turbo4` enum value to the `result/config/params/vectors/anyOf[subschema #2]/additionalProperties/datatype/anyOf[subschema #1]/` response property for the response status `200`"
+      - "response-property-enum-value-added at GET /telemetry: added the new `turbo4` enum value to the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/config/anyOf[#/components/schemas/CollectionConfigTelemetry]/params/sparse_vectors/additionalProperties/index/anyOf[#/components/schemas/SparseIndexParams]/datatype/anyOf[subschema #1]/` response property for the response status `200`"
+      - "response-property-enum-value-added at GET /telemetry: added the new `turbo4` enum value to the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/config/anyOf[#/components/schemas/CollectionConfigTelemetry]/params/vectors/anyOf[#/components/schemas/VectorParams]/datatype/anyOf[subschema #1]/` response property for the response status `200`"
+      - "response-property-enum-value-added at GET /telemetry: added the new `turbo4` enum value to the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/config/anyOf[#/components/schemas/CollectionConfigTelemetry]/params/vectors/anyOf[subschema #2]/additionalProperties/datatype/anyOf[subschema #1]/` response property for the response status `200`"
+      - "response-property-enum-value-added at GET /telemetry: added the new `turbo4` enum value to the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/local/anyOf[#/components/schemas/LocalShardTelemetry]/segments/items/config/sparse_vector_data/additionalProperties/index/datatype/anyOf[subschema #1]/` response property for the response status `200`"
+      - "response-property-enum-value-added at GET /telemetry: added the new `turbo4` enum value to the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/local/anyOf[#/components/schemas/LocalShardTelemetry]/segments/items/config/vector_data/additionalProperties/datatype/anyOf[subschema #1]/` response property for the response status `200`"
+      - "response-property-enum-value-added at GET /telemetry: added the new `turbo4` enum value to the `result/collections/collections/items/anyOf[#/components/schemas/CollectionsAggregatedTelemetry]/params/sparse_vectors/additionalProperties/index/anyOf[#/components/schemas/SparseIndexParams]/datatype/anyOf[subschema #1]/` response property for the response status `200`"
+      - "response-property-enum-value-added at GET /telemetry: added the new `turbo4` enum value to the `result/collections/collections/items/anyOf[#/components/schemas/CollectionsAggregatedTelemetry]/params/vectors/anyOf[#/components/schemas/VectorParams]/datatype/anyOf[subschema #1]/` response property for the response status `200`"
+      - "response-property-enum-value-added at GET /telemetry: added the new `turbo4` enum value to the `result/collections/collections/items/anyOf[#/components/schemas/CollectionsAggregatedTelemetry]/params/vectors/anyOf[subschema #2]/additionalProperties/datatype/anyOf[subschema #1]/` response property for the response status `200`"
+assertions:
+  side_effects_unchanged: true

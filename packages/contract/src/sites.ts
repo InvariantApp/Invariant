@@ -70,6 +70,18 @@ export type Guard =
 /** The kinds of value JSON has. */
 export type JsonKind = "object" | "array" | "string" | "number" | "boolean" | "null";
 
+/** Keywords that describe a schema without constraining its values. */
+const ANNOTATIONS = new Set([
+  "title",
+  "description",
+  "example",
+  "examples",
+  "deprecated",
+  "readOnly",
+  "writeOnly",
+  "externalDocs",
+]);
+
 const JSON_KINDS: readonly JsonKind[] = [
   "object",
   "array",
@@ -271,10 +283,20 @@ function closedValues(
 export function jsonKindOf(
   document: OpenApiDocument,
   schema: JsonValue,
+  /** The choices already being read, so one that holds itself ends. */
+  within: ReadonlySet<JsonValue> = new Set(),
 ): JsonKind | undefined {
   const resolved = resolveSchema(document, schema);
-  if (!isJsonObject(resolved)) return undefined;
-  if (resolved["nullable"] === true) return undefined;
+  if (!isJsonObject(resolved) || within.has(resolved)) return undefined;
+  if (resolved["nullable"] === true) {
+    // A branch that says nothing but that it may be null is how schemars and
+    // utoipa write Option<T> in OpenAPI 3.0, beside the branch for T: Qdrant's
+    // telemetry does it 249 times. Read alone, `nullable` without a type
+    // constrains nothing, but no generator writes it to mean anything but
+    // null, and a union of it with an object is only ever an object or null.
+    const said = Object.keys(resolved).filter((key) => !ANNOTATIONS.has(key));
+    return said.length === 1 ? "null" : undefined;
+  }
   const type = resolved["type"];
   if (typeof type === "string") {
     if (type === "integer") return "number";
@@ -285,7 +307,33 @@ export function jsonKindOf(
   if (type !== undefined) return undefined;
   if (isJsonObject(resolved["properties"])) return "object";
   if (resolved["items"] !== undefined) return "array";
+  // A choice is the kind its branches all are: Meilisearch's task `network`
+  // is null or one of three objects, and the objects are told from null by
+  // being objects before anything tells them from each other.
+  for (const key of ["oneOf", "anyOf"]) {
+    const branches = resolved[key];
+    if (!Array.isArray(branches) || branches.length === 0) continue;
+    const inside = new Set([...within, resolved]);
+    const kinds = new Set(branches.map((branch) => jsonKindOf(document, branch, inside)));
+    const [only] = kinds;
+    return kinds.size === 1 ? only : undefined;
+  }
   return undefined;
+}
+
+/** Whether every branch of a union but the one at `index` holds only null. */
+function onlyNullBeside(
+  document: OpenApiDocument,
+  branches: readonly JsonValue[],
+  index: number,
+): boolean {
+  return (
+    branches.length > 1 &&
+    jsonKindOf(document, branches[index] as JsonValue) !== "null" &&
+    branches.every(
+      (branch, at) => at === index || jsonKindOf(document, branch) === "null",
+    )
+  );
 }
 
 /**
@@ -493,6 +541,14 @@ function walk(ctx: WalkContext, schema: JsonValue, segments: string[]): void {
       for (const message of inner.unsupported) note(ctx, message);
       if (inner.found.length === 0) return;
       const at = formatPointer(segments);
+      // Beside nothing but null, the branch needs no guard: an instruction
+      // finds nothing to act on in a null, and every codec passes one through.
+      // Qdrant's telemetry nests an Option<T> inside an Option<T> so often
+      // that a guard for each ran past the depth a program may nest to.
+      if (key !== "not" && onlyNullBeside(ctx.document, branches, index)) {
+        ctx.found.push(...inner.found);
+        return;
+      }
       const guard =
         key === "not" ? undefined : guardFor(ctx.document, schema, branches, index, at);
       if (!guard) {
@@ -827,6 +883,10 @@ export function refsWithin(
         const inner = visit(branch, segments);
         if (inner.length === 0) return;
         const at = formatPointer(segments);
+        if (key !== "not" && onlyNullBeside(document, branches, index)) {
+          found.push(...inner);
+          return;
+        }
         const guard =
           key === "not" ? undefined : guardFor(document, schema, branches, index, at);
         if (!guard) {

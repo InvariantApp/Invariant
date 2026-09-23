@@ -183,6 +183,69 @@ describe("unions on the way to a schema", () => {
     });
   });
 
+  it("tells an object from the null a Rust generator writes beside it as nullable alone", () => {
+    // schemars writes every Option<T> in OpenAPI 3.0 this way, Qdrant's
+    // telemetry 249 times: the object, or a branch that is nothing but
+    // `nullable: true`. Qdrant 1.17's telemetry Changes were refused over it.
+    const scan = findSchemaSites(
+      document({
+        type: "object",
+        properties: {
+          local: { anyOf: [ref("Card"), { nullable: true, description: "absent" }] },
+        },
+      }) as never,
+      "#/components/schemas/Card",
+    );
+    // Nothing but null beside it, so the place needs no guard at all: an
+    // instruction finds nothing to act on in a null.
+    expect(scan.unsupported).toEqual([]);
+    expect(scan.sites[0]?.prefix).toBe("/local");
+    expect(scan.sites[0]?.guards ?? []).toEqual([]);
+  });
+
+  it("tells null from a choice whose every branch is an object (Meilisearch's task network)", () => {
+    // A task's `network` is null or one of three objects, the second of
+    // which holds the error codes Meilisearch 1.54 added one to.
+    const scan = findSchemaSites(
+      document({
+        type: "object",
+        properties: {
+          network: {
+            oneOf: [
+              { type: "null" },
+              {
+                oneOf: [
+                  { type: "object", required: ["origin"], properties: { origin: {} } },
+                  {
+                    type: "object",
+                    required: ["remote"],
+                    properties: { remote: ref("Card") },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      }) as never,
+      "#/components/schemas/Card",
+    );
+    expect(scan.unsupported).toEqual([]);
+    expect(scan.sites[0]?.guards).toEqual([{ at: "/network", has: "remote" }]);
+  });
+
+  it("still refuses a branch that is nullable and says what else it may be", () => {
+    const scan = findSchemaSites(
+      document({
+        type: "object",
+        properties: {
+          local: { anyOf: [ref("Card"), { nullable: true, minProperties: 1 }] },
+        },
+      }) as never,
+      "#/components/schemas/Card",
+    );
+    expect(scan.unsupported).toHaveLength(1);
+  });
+
   it("tells two objects beside an id apart by a field only one requires, as Stripe's deleted objects", () => {
     const scan = findSchemaSites(
       {

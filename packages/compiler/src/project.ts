@@ -144,6 +144,11 @@ export function schemaLens(
   changes: Change[];
   /** Where each direction may lose information by declaration, from the root, `*` for list items. */
   lossy: { forward: string[]; backward: string[] };
+  /**
+   * Where a `relax` lets a value through as it came, from the root as `lossy`
+   * is: a value there may be one the other contract rules out, by declaration.
+   */
+  relaxed: string[];
   /** The shared blocks the instructions call, for schemas whose places cannot be listed. */
   blocks: Record<string, Instr[]>;
 } {
@@ -153,6 +158,7 @@ export function schemaLens(
   const backward: Instr[][] = [];
   const involved: Change[] = [];
   const lossy = { forward: [] as string[], backward: [] as string[] };
+  const relaxed: string[] = [];
   for (const change of changes) {
     const dataOps = change.ops.filter(isDataOp);
     if (dataOps.length === 0) continue;
@@ -162,6 +168,13 @@ export function schemaLens(
     for (const scope of change.scopes ?? []) {
       if (!isSchemaScope(scope)) continue;
       const places = findSchemaWithin(oldContract, scope.schema, schemaRef).placements;
+      // A relax runs nothing, so it would otherwise leave no trace here, and
+      // the values it lets through would read as a fault of no Change at all.
+      for (const op of dataOps) {
+        if (op.op !== "relax") continue;
+        for (const place of places) relaxed.push(prefixed(place.prefix, op.path));
+        if (places.length > 0 && !involved.includes(change)) involved.push(change);
+      }
       if (shared.targets.has(scope.schema)) {
         // Run through the blocks below. Its declared loss is excused where the
         // schema sits down to the depth its places can be listed, which is as
@@ -213,6 +226,7 @@ export function schemaLens(
     backward: [...shared.entry(root, "backward"), ...backward.reverse().flat()],
     changes: involved,
     lossy,
+    relaxed,
     blocks: shared.blocks,
   };
 }
@@ -491,6 +505,24 @@ function sitesOf(
       issues.push({ changeId: change.id, message });
     }
     found.push(...scan.sites);
+  }
+  // A value that is the whole body has nowhere to be written back into, so
+  // the runtime leaves it as it came. A vocabulary that is a schema of its own
+  // is always some object's field in practice; where one is a body by itself,
+  // the gate says so rather than ship a translation that never happens.
+  const itself = change.ops.some(
+    (op) =>
+      isDataOp(op) &&
+      op.op !== "relax" &&
+      (op.op === "move" ? op.from === "" || op.to === "" : op.path === ""),
+  );
+  if (itself) {
+    for (const site of found.filter((each) => each.prefix === "")) {
+      issues.push({
+        changeId: change.id,
+        message: `${site.operationId} ${site.direction}${site.status ? ` ${site.status}` : ""}: the value is the whole body there, which the runtime cannot replace`,
+      });
+    }
   }
   return found;
 }

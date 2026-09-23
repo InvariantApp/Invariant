@@ -1,0 +1,20 @@
+# Written by hand, as Meilisearch's maintainers would (listed under Breaking
+# Changes in 1.54.0): a dynamic search rule's actions went from a list of
+# {selector, action: {type, position}} to an object of lists keyed by the
+# action's type, pin and scale. Turning a list into lists grouped by a value
+# its items hold is a regrouping no op expresses, so this is acknowledged, not
+# served: meilisearch-js 0.62's rule tests still fail through the proxy.
+irVersion: 1
+id: chg_search_rule_actions_regrouped
+summary: "A dynamic search rule's actions are grouped by kind, where they were a list."
+scopes: []
+ops:
+  - op: behavior
+    flag: search_rule_actions_regrouped
+    covers:
+      - "response-property-became-optional at POST /dynamic-search-rules: the response property `results/items/actions` became optional for the status `200`"
+      - "response-property-type-changed at POST /dynamic-search-rules: the `results/items/actions` response's property `type` changed from `array<object>` to `object` for status `200`"
+      - "response-property-became-optional at GET /dynamic-search-rules/{uid}: the response property `actions` became optional for the status `200`"
+      - "response-property-type-changed at GET /dynamic-search-rules/{uid}: the `actions` response's property `type` changed from `array<object>` to `object` for status `200`"
+assertions:
+  side_effects_unchanged: true

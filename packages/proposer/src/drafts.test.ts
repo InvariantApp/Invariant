@@ -1627,6 +1627,99 @@ describe("a list that became nullable through a union with null", () => {
   });
 });
 
+describe("a named schema that became nullable through a union with null", () => {
+  it("is the same field, now optional and nullable, as schemars writes Option<T> (Qdrant's telemetry)", async () => {
+    // Qdrant 1.17 turned `app: AppBuildTelemetry` into `anyOf: [ref,
+    // {nullable: true}]` and stopped requiring it. Read as a union, it was
+    // reported as a change of shape no op expresses.
+    const app = (schema: Schema, required: string[]) => ({
+      ...base,
+      App: object({ name: { type: "string" } }, ["name"]),
+      Thing: object({ id: { type: "string" }, app: schema }, ["id", ...required]),
+    });
+    const ref = { $ref: "#/components/schemas/App" };
+    const outcome = await propose(
+      contract(app(ref, ["app"])),
+      contract(app({ anyOf: [ref, { nullable: true }] }, [])),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.unresolved).toEqual([]);
+    expect(outcome.decisions.map((decision) => decisionChange(decision).id)).toEqual([
+      "chg_thing_app_default_old",
+    ]);
+  });
+});
+
+describe("a named choice beside null", () => {
+  it("is compared under its own name, not again at every field holding it (Qdrant's stemmer)", async () => {
+    // Qdrant's `stemmer` is a named choice of stemming algorithms, or null.
+    // Read through the choice, the field took on its branches, and the one
+    // the choice gained was drafted again at the field, over what the
+    // choice's own comparison said.
+    const stemmer = (branches: Schema[]) => ({
+      ...base,
+      Snowball: object({ language: { type: "string" } }, ["language"]),
+      Disabled: object({ type: { type: "string", enum: ["none"] } }, ["type"]),
+      Stemming: { anyOf: branches },
+      Thing: object(
+        {
+          id: { type: "string" },
+          stemmer: {
+            anyOf: [{ $ref: "#/components/schemas/Stemming" }, { nullable: true }],
+          },
+        },
+        ["id"],
+      ),
+    });
+    const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
+    const outcome = await propose(
+      contract(stemmer([ref("Snowball")])),
+      contract(stemmer([ref("Snowball"), ref("Disabled")])),
+      { judge: new RulesJudge() },
+    );
+    expect(
+      outcome.proposals.filter((proposal) =>
+        proposal.change.ops.some((op) => "path" in op && op.path === "/stemmer"),
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("a named object that became a list", () => {
+  it("is a reshaping to write by hand, not its fields dropped (Meilisearch's AttributePatterns)", async () => {
+    // Meilisearch 1.54 documents `AttributePatterns` as the list of strings
+    // it always was on the wire, where 1.53 documented an object holding
+    // one. Drafted as `patterns` removed from requests, closure called a
+    // reshaping explained, and an old caller's patterns would have been
+    // dropped wherever the object was really sent.
+    const patterns = (schema: Schema) => ({
+      ...base,
+      Patterns: schema,
+      ThingCreate: object({
+        name: { type: "string" },
+        facets: { $ref: "#/components/schemas/Patterns" },
+      }),
+    });
+    const outcome = await propose(
+      contract(
+        patterns(
+          object({ patterns: { type: "array", items: { type: "string" } } }, [
+            "patterns",
+          ]),
+        ),
+      ),
+      contract(patterns({ type: "array", items: { type: "string" } })),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.proposals.map((proposal) => proposal.change.ops)).toEqual([]);
+    expect(
+      outcome.unresolved.map((entry) => `${entry.schema}: ${entry.reason}`),
+    ).toContain(
+      "Patterns: the type changed from object to array, which no codec expresses. This is a reshaping rather than a re-encoding.",
+    );
+  });
+});
+
 describe("a list whose items became a choice", () => {
   // Asana's portfolio items, Twilio's compliance list and Langfuse's
   // evaluation-rule filters all did this between two versions: the items went

@@ -1,0 +1,29 @@
+# Decided for the proving ground, as Qdrant's maintainers would:
+# InRamMmap is an mmap storage kept in RAM; of the kinds an old caller knows,
+# the in-RAM mmap one is InRamChunkedMmap.
+irVersion: 1
+id: chg_vector_storage_type_vector_storage_type_vocabulary
+summary: "`VectorStorageType` on VectorStorageType can answer with values old
+  callers never saw."
+scopes:
+  - schema: "#/components/schemas/VectorStorageType"
+ops:
+  - op: convert
+    path: ""
+    codec:
+      kind: enumMap
+      pairs:
+        - - Memory
+          - Memory
+        - - Mmap
+          - Mmap
+        - - ChunkedMmap
+          - ChunkedMmap
+        - - InRamChunkedMmap
+          - InRamChunkedMmap
+      fold:
+        - - InRamMmap
+          - InRamChunkedMmap
+assertions:
+  loss_acknowledged: true
+  side_effects_unchanged: true

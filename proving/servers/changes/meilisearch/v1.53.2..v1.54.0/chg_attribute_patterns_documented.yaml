@@ -1,0 +1,23 @@
+# Written by hand, as Meilisearch's maintainers would: AttributePatterns is a
+# transparent wrapper around a list of strings, so the wire always carried the
+# list; 1.53's document described the wrapper's field instead, and 1.54's
+# describes the list. Nothing an old caller sends changes, so nothing is
+# transformed.
+irVersion: 1
+id: chg_attribute_patterns_documented
+summary: "Attribute patterns are documented as the list of strings they always were."
+scopes: []
+ops:
+  - op: behavior
+    flag: attribute_patterns_documented
+    covers:
+      - "request-property-type-changed at POST /indexes/{index_uid}/fields: the `filter/oneOf[#/components/schemas/ListFieldsFilter]/attributePatterns/oneOf[#/components/schemas/AttributePatterns]/` request property `type` changed from `object` to `array<string>`"
+      - "request-property-type-changed at POST /indexes/{index_uid}/search: the `facets/oneOf[#/components/schemas/AttributePatterns]/` request property `type` changed from `object` to `array<string>`"
+      - "request-property-type-changed at POST /multi-search: the `federation/oneOf[#/components/schemas/Federation]/facetsByIndex/additionalProperties/` request property `type` changed from `object` to `array<string>`"
+      - "request-property-type-changed at POST /multi-search: the `queries/items/facets/oneOf[#/components/schemas/AttributePatterns]/` request property `type` changed from `object` to `array<string>`"
+      - "request-property-removed at POST /indexes/{index_uid}/fields: removed the request property `filter/oneOf[#/components/schemas/ListFieldsFilter]/attributePatterns/oneOf[#/components/schemas/AttributePatterns]/patterns`"
+      - "request-property-removed at POST /indexes/{index_uid}/search: removed the request property `facets/oneOf[#/components/schemas/AttributePatterns]/patterns`"
+      - "request-property-removed at POST /multi-search: removed the request property `federation/oneOf[#/components/schemas/Federation]/facetsByIndex/additionalProperties/patterns`"
+      - "request-property-removed at POST /multi-search: removed the request property `queries/items/facets/oneOf[#/components/schemas/AttributePatterns]/patterns`"
+assertions:
+  side_effects_unchanged: true

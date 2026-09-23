@@ -1,0 +1,20 @@
+# Written by hand, as Qdrant's maintainers would: 1.18 can add a named vector
+# to an existing collection, and its immutable segments then report the
+# placeholder storage Empty (empty for sparse vectors), which holds no data.
+# Nothing an old caller knew means that, so it is acknowledged rather than
+# folded into a storage kind it is not. The proposer paired sparse on_disk
+# with empty only because each was the only value to go and to arrive; on_disk
+# went with RocksDB and is unrelated, so that draft was not merged.
+irVersion: 1
+id: chg_empty_vector_storage
+summary: "Segments report Empty storage for a named vector added after they were built."
+scopes: []
+ops:
+  - op: behavior
+    flag: empty_vector_storage
+    covers:
+      - "response-property-enum-value-added at GET /telemetry: added the new `Empty` enum value to the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/local/anyOf[#/components/schemas/LocalShardTelemetry]/segments/items/config/vector_data/additionalProperties/storage_type` response property for the response status `200`"
+      - "response-property-enum-value-added at GET /telemetry: added the new `empty` enum value to the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/local/anyOf[#/components/schemas/LocalShardTelemetry]/segments/items/config/sparse_vector_data/additionalProperties/storage_type` response property for the response status `200`"
+      - "response-property-enum-value-removed at GET /telemetry: removed the `on_disk` enum value from the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/local/anyOf[#/components/schemas/LocalShardTelemetry]/segments/items/config/sparse_vector_data/additionalProperties/storage_type` response property for the response status `200`"
+assertions:
+  side_effects_unchanged: true

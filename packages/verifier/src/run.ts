@@ -32,12 +32,71 @@ export interface Lens {
  * naming `__proto__`, an unknown primitive, or an unbounded wildcard is
  * refused. That means the verifier can never test a program the runtime would
  * have rejected at load time.
+ *
+ * A value that is neither an object nor a list is run from inside a body, as
+ * every site that carries one holds it: a named vocabulary such as Qdrant's
+ * `UpdateStatus` is always some object's field. Run as a whole body, the
+ * runtime has nothing to write it back into, and a fold the provider decided
+ * looked as if it never ran.
  */
 export function lensFor(
   forward: readonly Instr[],
   backward: readonly Instr[],
   blocks: Readonly<Record<string, Instr[]>> = {},
 ): Lens {
+  const whole = siteFor(forward, backward, blocks);
+  const inside = siteFor(
+    forward.length > 0 ? [within(forward)] : [],
+    backward.length > 0 ? [within(backward)] : [],
+    blocks,
+  );
+  const context = { contract: LABEL, operation: "verify" };
+  const held = (value: unknown) => value === null || typeof value !== "object";
+  const run = (
+    value: unknown,
+    transform: (target: Built, body: string) => string,
+  ): unknown =>
+    held(value)
+      ? (
+          JSON.parse(transform(inside, JSON.stringify({ [HOLDER]: value }))) as Record<
+            string,
+            unknown
+          >
+        )[HOLDER]
+      : JSON.parse(transform(whole, JSON.stringify(value)));
+
+  return {
+    forward: (value) =>
+      run(value, ({ runtime, site }, body) =>
+        runtime.transformRequest(site, body, context),
+      ),
+    backward: (value) =>
+      run(value, ({ runtime, site }, body) =>
+        runtime.transformResponse(site, STATUS, body, context),
+      ),
+  };
+}
+
+/** The field a value that is not a body is carried in. */
+const HOLDER = "value";
+
+const within = (block: readonly Instr[]): Instr => ({
+  k: "within",
+  path: `/${HOLDER}`,
+  block: [...block],
+  c: "verify",
+});
+
+interface Built {
+  runtime: InvariantRuntime;
+  site: DecodedSite;
+}
+
+function siteFor(
+  forward: readonly Instr[],
+  backward: readonly Instr[],
+  blocks: Readonly<Record<string, Instr[]>>,
+): Built {
   const runtime: InvariantRuntime = createRuntime({
     program: {
       irVersion: 2,
@@ -66,16 +125,5 @@ export function lensFor(
 
   const site: DecodedSite | undefined = runtime.siteFor(LABEL, METHOD, PATH);
   if (!site) throw new Error("the verifier built a program with no site in it");
-  const context = { contract: LABEL, operation: "verify" };
-
-  return {
-    forward: (value) =>
-      JSON.parse(
-        runtime.transformRequest(site, JSON.stringify(value), context),
-      ) as unknown,
-    backward: (value) =>
-      JSON.parse(
-        runtime.transformResponse(site, STATUS, JSON.stringify(value), context),
-      ) as unknown,
-  };
+  return { runtime, site };
 }

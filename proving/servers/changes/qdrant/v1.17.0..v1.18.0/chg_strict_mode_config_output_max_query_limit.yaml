@@ -1,0 +1,25 @@
+# Drafted by rules, 100% confident.
+#
+# This is a proposal, not a decision. Read it, fix what is wrong, and merge
+# it; merging is what records that you confirmed it. The release gate will
+# still check that these ops explain the whole breaking diff.
+#
+#   - the field kept its name and its values
+#   - `max_query_limit` may now hold values its old bounds ruled out (minimum); they pass through as the API produced them, a declared loss to acknowledge
+irVersion: 1
+id: chg_strict_mode_config_output_max_query_limit
+summary: "`max_query_limit` changed shape on StrictModeConfigOutput."
+scopes:
+  - schema: "#/components/schemas/StrictModeConfigOutput"
+ops:
+  - op: relax
+    path: /max_query_limit
+    set:
+      minimum: 0
+assertions:
+  loss_acknowledged: true
+  side_effects_unchanged: true
+provenance:
+  proposed_by:
+    judge: rules
+    confidence: 1

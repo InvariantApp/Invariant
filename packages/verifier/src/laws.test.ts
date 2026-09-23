@@ -180,6 +180,166 @@ describe("the lens laws", () => {
     expect(report.failures[0]?.detail).toMatch(/"auto" is not one of/);
   });
 
+  /**
+   * A field added to a schema only responses carry is taken out of old
+   * callers' responses, and the proposer drafts it with a null value because
+   * no request ever needs one. Qdrant 1.17's `uuid` on SegmentInfo was drafted
+   * exactly so, at full confidence, and the gate then refused it for what the
+   * forward half did to a request that cannot exist.
+   */
+  it("check only the directions a schema travels", () => {
+    const { old, head } = contracts();
+    for (const contract of [old, head]) {
+      const create = (contract["paths"] as Record<string, Record<string, unknown>>)[
+        "/v1/payments"
+      ]?.["post"] as Record<string, unknown>;
+      delete create["requestBody"];
+    }
+    const schema = (
+      head["components"] as Record<
+        string,
+        Record<string, Record<string, Record<string, unknown>>>
+      >
+    )["schemas"]?.["Payment"] as Record<string, unknown>;
+    (schema["properties"] as Record<string, unknown>)["uuid"] = { type: "string" };
+    schema["required"] = [...(schema["required"] as string[]), "uuid"];
+
+    const report = laws(old, head, [
+      {
+        irVersion: 1,
+        id: "chg_payment_uuid_added",
+        summary: "`uuid` is new and required on Payment.",
+        scopes: [{ schema: "#/components/schemas/Payment" }],
+        ops: [{ op: "add", path: "/uuid", value: null }],
+      },
+    ]);
+
+    expect(report.failures).toEqual([]);
+    expect(report.evidence.find((entry) => entry.kind === "E4-laws")?.summary).toMatch(
+      /from the new contract to the old/,
+    );
+  });
+
+  /**
+   * A vocabulary with a name of its own is drafted as a Change to that schema
+   * at its root, and its values are strings: no body to hold them. Run as a
+   * whole body, the fold Qdrant 1.17's `UpdateStatus` was given looked as if
+   * it had never run, and every such decision, once answered, was refused.
+   */
+  it("hold for a fold on a vocabulary that is a schema of its own", () => {
+    const { old, head } = contracts();
+    for (const [contract, values] of [
+      [old, ["succeeded", "failed", "pending"]],
+      [head, ["succeeded", "failed", "pending", "disputed"]],
+    ] as const) {
+      const schemas = (
+        contract["components"] as Record<string, Record<string, Record<string, unknown>>>
+      )["schemas"] as Record<string, Record<string, unknown>>;
+      schemas["Status"] = { type: "string", enum: [...values] };
+      (schemas["Payment"]?.["properties"] as Record<string, unknown>)["status"] = {
+        $ref: "#/components/schemas/Status",
+      };
+    }
+
+    const report = laws(old, head, [
+      {
+        irVersion: 1,
+        id: "chg_status_vocabulary",
+        summary: "`Status` can answer with values old callers never saw.",
+        scopes: [{ schema: "#/components/schemas/Status" }],
+        ops: [
+          {
+            op: "convert",
+            path: "",
+            codec: {
+              kind: "enumMap",
+              pairs: [
+                ["succeeded", "succeeded"],
+                ["failed", "failed"],
+                ["pending", "pending"],
+              ],
+              fold: [["disputed", "failed"]],
+            },
+          },
+        ],
+        assertions: { loss_acknowledged: true },
+      },
+    ]);
+
+    expect(report.failures).toEqual([]);
+  });
+
+  /**
+   * A `relax` translates nothing. It declares that a value outside the old
+   * bounds passes through as the API produced it, so the old contract refusing
+   * that value is the loss it names, not a fault. Qdrant 1.18 lowered
+   * `max_query_limit`'s minimum on StrictModeConfigOutput from 1 to 0; the
+   * relax drafted for it was refused on `{"max_query_limit":0}`, reported
+   * under no Change at all, because a Change with nothing to run was never
+   * counted as touching the schema.
+   */
+  it("excuse the values a relax passes through outside the old bounds", () => {
+    const { old, head } = contracts();
+    for (const [contract, minimum] of [
+      [old, 1],
+      [head, 0],
+    ] as const) {
+      const create = (contract["paths"] as Record<string, Record<string, unknown>>)[
+        "/v1/payments"
+      ]?.["post"] as Record<string, unknown>;
+      delete create["requestBody"];
+      const schema = (
+        contract["components"] as Record<
+          string,
+          Record<string, Record<string, Record<string, unknown>>>
+        >
+      )["schemas"]?.["Payment"] as Record<string, unknown>;
+      (schema["properties"] as Record<string, unknown>)["limit"] = {
+        type: "integer",
+        minimum,
+        // Few enough values that 0 is sure to be generated.
+        maximum: 3,
+      };
+      schema["required"] = [...(schema["required"] as string[]), "limit"];
+    }
+
+    const report = laws(old, head, [
+      {
+        irVersion: 1,
+        id: "chg_payment_limit_relaxed",
+        summary: "`limit` may now be 0.",
+        scopes: [{ schema: "#/components/schemas/Payment" }],
+        ops: [{ op: "relax", path: "/limit", set: { minimum: 0 } }],
+        assertions: { loss_acknowledged: true },
+      },
+    ]);
+
+    expect(report.failures).toEqual([]);
+    expect(report.evidence.find((entry) => entry.kind === "E4-laws")?.summary).toMatch(
+      /^chg_payment_limit_relaxed round trip/,
+    );
+  });
+
+  it("still catch a value a relax does not cover", () => {
+    const { old, head } = contracts();
+    const report = laws(old, head, [
+      {
+        irVersion: 1,
+        id: "chg_status_restore",
+        summary: "`status` is restored as a value old callers never saw.",
+        scopes: [{ schema: "#/components/schemas/Payment" }],
+        ops: [
+          { op: "relax", path: "/amount", set: { multipleOf: null } },
+          { op: "remove", path: "/status", restore: "refunded" },
+        ],
+      },
+    ]);
+
+    expect(report.failures.map((failure) => failure.detail).join("\n")).toMatch(
+      /\/status/,
+    );
+  });
+
   it("catch a value map that does not cover the vocabulary", () => {
     const { old, head } = contracts();
     const report = laws(old, head, [

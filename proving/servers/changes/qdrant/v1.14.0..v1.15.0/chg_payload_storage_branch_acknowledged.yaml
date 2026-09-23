@@ -1,0 +1,17 @@
+# Written by hand, as Qdrant's maintainers would: 1.15 can keep a segment's
+# payload as an mmap in RAM, written as a fourth branch of PayloadStorageType.
+# To an old caller it is mmap storage, but a fold on the type inside a
+# choice's branches is not something the compiler can predict yet (Nothing to
+# read at type), so it is acknowledged, not served; no test in the suite sees
+# it.
+irVersion: 1
+id: chg_payload_storage_branch_acknowledged
+summary: "Payload storage can be in_ram_mmap, a fourth branch old callers never saw."
+scopes: []
+ops:
+  - op: behavior
+    flag: payload_storage_in_ram_mmap
+    covers:
+      - "response-property-one-of-added at GET /telemetry: added `subschema #4` to the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/local/anyOf[#/components/schemas/LocalShardTelemetry]/segments/items/config/payload_storage_type` response property `oneOf` list for the response status `200`"
+assertions:
+  side_effects_unchanged: true

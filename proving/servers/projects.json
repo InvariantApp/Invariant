@@ -1,22 +1,71 @@
 {
-  "about": "Rig D. Real open-source API servers across their own breaking releases. Each release is pinned by its tag's commit, for the specification and the old release's own API suite, and by its image digest, for the server. The suite of the old release, validating against the old specification, is run against the old server, the new server, and the new server through the proxy.",
+  "about": "Rig D. Real open-source API servers across their own breaking releases. Each release is pinned by its tag's commit, for the specification and the suite, and by its image digest, for the server. The old release's own client or API suite, unmodified, is run against the old server, the new server, and the new server through the proxy running the program the product compiles from the Changes under changes/<project>/<from>..<to>/.",
   "projects": [
     {
       "name": "qdrant",
       "language": "Rust",
+      "notes": "Every consecutive minor release from 1.12, the first whose suite pins its dependencies in a lock file (tests/poetry.lock); 1.10 and 1.11 install theirs unpinned from a shell script. 1.12 -> 1.13, 1.13 -> 1.14 and 1.15 -> 1.16 run on the proposer's drafts, whose decisions are left unanswered: every test those releases break is broken by behavior no op serves (error messages, rescoring with an offset, a lock that answers without a content type, init_from removed, telemetry reporting different keys), so answering them would add arm c's regression check and no served test. Every other pair records its answers under changes/qdrant.",
       "repo": "qdrant/qdrant",
       "image": "qdrant/qdrant",
-      "containerPort": 6333,
-      "ready": "/collections",
-      "spec": "docs/redoc/master/openapi.json",
+      "server": {
+        "port": 6333,
+        "ready": "/collections"
+      },
+      "spec": {
+        "path": "docs/redoc/master/openapi.json"
+      },
       "suite": {
-        "dir": "tests",
         "sparse": ["tests", "docs/redoc/master"],
-        "lock": "poetry",
-        "run": ["pytest", "openapi", "-q", "-p", "no:cacheprovider", "--timeout", "120"],
-        "env": { "QDRANT_HOST": "{url}", "OPENAPI_FILE": "{spec}" }
+        "dir": "tests",
+        "install": [
+          [
+            "uvx",
+            "--from",
+            "poetry>=2,<3",
+            "--with",
+            "poetry-plugin-export",
+            "poetry",
+            "export",
+            "--without-hashes",
+            "--format",
+            "requirements.txt",
+            "--output",
+            "{work}/requirements.txt"
+          ],
+          ["uv", "venv", "--quiet", "--python", "3.11", "{env}"],
+          [
+            "uv",
+            "pip",
+            "install",
+            "--quiet",
+            "--python",
+            "{env}/bin/python",
+            "-r",
+            "{work}/requirements.txt"
+          ]
+        ],
+        "run": [
+          "pytest",
+          "openapi",
+          "-q",
+          "-p",
+          "no:cacheprovider",
+          "--timeout",
+          "120",
+          "--junitxml",
+          "{report}"
+        ],
+        "select": ["-k", "{select}"],
+        "env": {
+          "QDRANT_HOST": "{url}",
+          "OPENAPI_FILE": "{spec}"
+        }
       },
       "releases": {
+        "v1.12.0": {
+          "commit": "a0d2eccac0c179116214e7cb3583359c80d41998",
+          "digest": "sha256:dd037bc4175c162e23b87c8f584bff72fba65a49e2ff4540ae7e9ac76ed3fd73"
+        },
         "v1.13.0": {
           "commit": "ffda0b90c8c44fc43c99adab518b9787fe57bde6",
           "digest": "sha256:a3506c537c50d6a2eec11c6793bff4b16cc4fccae607612c6ecc28ca01aed0bd"
@@ -24,6 +73,10 @@
         "v1.14.0": {
           "commit": "3617a0111fc8590c4adcc6e88882b63ca4dda9e7",
           "digest": "sha256:f21bbaf111837592b70f4d727c62cf6d6525b5374b1193e9faeac26a953702a8"
+        },
+        "v1.15.0": {
+          "commit": "137b6c1e4a91320e4658987d47f235078fb0ab11",
+          "digest": "sha256:709bd2656bb929b745a956260f61a6395d09f8eed72c5bf2131985ae70f95974"
         },
         "v1.16.0": {
           "commit": "0d79528705f04def1b52842f747e5a00ab1e338a",
@@ -42,7 +95,282 @@
           "digest": "sha256:057ee3a8da769fe7310dd3537b4dc7583bf87a95ce8ac43c0af5a46bc580d1fc"
         }
       },
-      "pairs": [["v1.13.0", "v1.14.0"], ["v1.16.0", "v1.17.0"], ["v1.18.0", "v1.19.0"]]
+      "pairs": [
+        ["v1.12.0", "v1.13.0"],
+        ["v1.13.0", "v1.14.0"],
+        ["v1.14.0", "v1.15.0"],
+        ["v1.15.0", "v1.16.0"],
+        ["v1.16.0", "v1.17.0"],
+        ["v1.17.0", "v1.18.0"],
+        ["v1.18.0", "v1.19.0"]
+      ]
+    },
+    {
+      "name": "netbox",
+      "language": "Python",
+      "repo": "netbox-community/netbox",
+      "image": "netboxcommunity/netbox",
+      "server": {
+        "port": 8080,
+        "ready": "/api/",
+        "readySeconds": 600,
+        "compose": "compose/netbox.yaml",
+        "secrets": {
+          "NETBOX_TOKEN": {
+            "suite": "tests/integration/conftest.py",
+            "pattern": "token=\"([0-9a-f]{40})\""
+          },
+          "NETBOX_DB_PASSWORD": {
+            "random": 16
+          },
+          "NETBOX_REDIS_PASSWORD": {
+            "random": 16
+          },
+          "NETBOX_REDIS_CACHE_PASSWORD": {
+            "random": 16
+          },
+          "NETBOX_SECRET_KEY": {
+            "random": 32
+          },
+          "NETBOX_SUPERUSER_PASSWORD": {
+            "random": 16
+          }
+        }
+      },
+      "spec": {
+        "served": "/api/schema/?format=json",
+        "headers": {
+          "Authorization": "Token {NETBOX_TOKEN}",
+          "Accept": "application/json"
+        }
+      },
+      "suite": {
+        "repo": "netbox-community/pynetbox",
+        "sparse": [],
+        "dir": ".",
+        "install": [
+          ["uv", "venv", "--quiet", "--python", "3.10", "{env}"],
+          [
+            "env",
+            "SETUPTOOLS_SCM_PRETEND_VERSION=7.1.0",
+            "uv",
+            "pip",
+            "install",
+            "--quiet",
+            "--python",
+            "{env}/bin/python",
+            "-r",
+            "requirements-dev.txt",
+            "."
+          ]
+        ],
+        "run": [
+          "pytest",
+          "tests/integration",
+          "-p",
+          "no:docker",
+          "-p",
+          "no:cacheprovider",
+          "--netbox-versions=3.5",
+          "--url-override={url}",
+          "--junitxml",
+          "{report}"
+        ],
+        "select": ["-k", "{select}"],
+        "env": {}
+      },
+      "releases": {
+        "v3.5.9": {
+          "commit": "0dbfbf6941d580b19948c06aecc33161d5575a92",
+          "digest": "sha256:673b90015e6bc916d712a2e94ac62849ee9c221ccd7bce8c226e2d060e333ddf",
+          "suite": "0bab812e9d274c5eaf9f2bb6b834002dea05e361"
+        },
+        "v3.6.9": {
+          "commit": "0c0672550a52085de8637d2d47c7cd64936efd22",
+          "digest": "sha256:cf8a16f61d96c5d15cf5c639129662390e4b42685ed9c94ab4e344edeceb9a70"
+        }
+      },
+      "pairs": [["v3.5.9", "v3.6.9"]]
+    },
+    {
+      "name": "meilisearch",
+      "language": "Rust",
+      "repo": "meilisearch/meilisearch",
+      "image": "getmeili/meilisearch-enterprise",
+      "server": {
+        "port": 7700,
+        "ready": "/health",
+        "env": {
+          "MEILI_MASTER_KEY": "{MEILI_KEY}",
+          "MEILI_NO_ANALYTICS": "true",
+          "MEILI_EXPERIMENTAL_ALLOWED_IP_NETWORKS": "any"
+        },
+        "secrets": {
+          "MEILI_KEY": {
+            "suite": "tests/utils/meilisearch-test-utils.ts",
+            "pattern": "MASTER_KEY = \"([^\"]+)\""
+          }
+        }
+      },
+      "spec": {
+        "asset": "meilisearch-openapi.json"
+      },
+      "suite": {
+        "repo": "meilisearch/meilisearch-js",
+        "sparse": [],
+        "dir": ".",
+        "install": [["pnpm", "install", "--frozen-lockfile"]],
+        "run": [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "--reporter=default",
+          "--reporter=junit",
+          "--outputFile.junit={report}"
+        ],
+        "select": ["-t", "{select}"],
+        "env": {
+          "MEILISEARCH_URL": "{url}"
+        }
+      },
+      "releases": {
+        "v1.53.2": {
+          "commit": "ec006cecec6f684b1dcaee093a45ab4c05707127",
+          "digest": "sha256:9ff4496a42a7c1837eba030a09af21ccbcac992542231afdb50253b440ec5a89",
+          "specSha256": "ac7ac0be0a0d947d1ca01b31dbe530b98d9f752cdc149372a386352c68328f09",
+          "suite": "b9d8cdfb778aba1dd30beadc37f586544880df7a"
+        },
+        "v1.54.0": {
+          "commit": "1380adaacebad8a019d88549a06bae2dd90de249",
+          "digest": "sha256:dc420c61577771ed00fbfc418e8da6cf9aa85198e28f5b32e83e882b40574d06",
+          "specSha256": "4d0ffe35a54b7d8264b99084466378176eedeb617f598cc8205b1310b31ce86e"
+        }
+      },
+      "pairs": [["v1.53.2", "v1.54.0"]]
+    },
+    {
+      "name": "gitea",
+      "language": "Go",
+      "notes": "go-sdk's TestPull panics against its own release, Gitea 1.24.2, in CI (pull_test.go:105 dereferences a pull request the mergeability check did not return), and a panic ends the test binary, so every test after it went unrun in arm a. It is skipped by name; it would fail arm a and be left out anyway.",
+      "repo": "go-gitea/gitea",
+      "image": "gitea/gitea",
+      "server": {
+        "port": 3000,
+        "ready": "/api/v1/version",
+        "readySeconds": 300,
+        "env": {
+          "GITEA__security__INSTALL_LOCK": "true",
+          "GITEA__security__PASSWORD_COMPLEXITY": "off",
+          "GITEA__security__MIN_PASSWORD_LENGTH": "6",
+          "GITEA__database__DB_TYPE": "sqlite3",
+          "GITEA__server__ROOT_URL": "http://gitea:3000/",
+          "GITEA__service__DISABLE_REGISTRATION": "false"
+        },
+        "setup": [
+          {
+            "run": [
+              "docker",
+              "exec",
+              "-u",
+              "git",
+              "{container}",
+              "gitea",
+              "admin",
+              "user",
+              "create",
+              "--username=test01",
+              "--password={GITEA_PASSWORD}",
+              "--email=test01@gitea.io",
+              "--admin=true",
+              "--must-change-password=false",
+              "--access-token"
+            ]
+          }
+        ],
+        "secrets": {
+          "GITEA_PASSWORD": {
+            "random": 16
+          }
+        }
+      },
+      "spec": {
+        "served": "/swagger.v1.json"
+      },
+      "suite": {
+        "repo": "https://gitea.com/gitea/go-sdk.git",
+        "sparse": [],
+        "dir": "gitea",
+        "install": [["go", "mod", "download"]],
+        "run": [
+          "go",
+          "run",
+          "gotest.tools/gotestsum@v1.13.0",
+          "--junitfile",
+          "{report}",
+          "--",
+          "-skip",
+          "^TestPull$",
+          "-count=1",
+          "."
+        ],
+        "select": ["-run", "{select}"],
+        "env": {
+          "GITEA_SDK_TEST_URL": "{url}",
+          "GITEA_SDK_TEST_USERNAME": "test01",
+          "GITEA_SDK_TEST_PASSWORD": "{GITEA_PASSWORD}"
+        }
+      },
+      "releases": {
+        "v1.24.2": {
+          "commit": "acd4e10990e63f0f81ecb0252b8f5c044cb6df0e",
+          "digest": "sha256:8e2e3f40c5ff3fee920c6d0faac0db9cca2183d80ff23965d1022434d37e7910",
+          "suite": "060554f46291abccac23a24f5e9bb264f962e21d",
+          "suiteRef": "refs/tags/gitea/v0.22.1"
+        },
+        "v1.25.4": {
+          "commit": "369830bada2fd8826a5135cb2fc66660a9bef708",
+          "digest": "sha256:17d18218be2dad1f8ed402a4f906989505c90ab8b66ee9befcecfb5d470133e7"
+        }
+      },
+      "pairs": [["v1.24.2", "v1.25.4"]]
+    }
+  ],
+  "skipped": [
+    {
+      "name": "jellyfin",
+      "language": "C#",
+      "reason": "Specifications are published for every release and 10.11 -> 12.0 really breaks (routes removed, SessionInfo.NowPlayingQueueFullItems gone), but no suite of a 10.11 release exercises it: jellyfin-sdk-typescript v0.13.0's five live tests touch no changed operation, the Kotlin, C# and Python SDKs have only mocked tests, and the server's own integration tests run in-process against test-only controllers."
+    },
+    {
+      "name": "keycloak",
+      "language": "Java",
+      "reason": "Every ERR-level delta between consecutive published admin API specifications (24.0.5 to 26.7.4) is a documentation fix (a status the server already returned, a renamed path parameter, a schema renamed to its existing wire name); the real breaks (identity providers leaving the realm representation, locked-out users reporting enabled, brief organization members) are behavioral and absent from the specification."
+    },
+    {
+      "name": "directus",
+      "language": "TypeScript",
+      "reason": "No release pair has a structural REST break that its own suite both exercises and passes on the old release: the 11.0 policies change is behavioral and crashes the blackbox seeds before any REST call, 11.0 to 11.4 fail arm a (upstream patched the suite in 11.4.1), and the later breaks (/webhooks, /utils/hash removed, /server/health auth, inactive collections) are unexercised or behavioral."
+    },
+    {
+      "name": "forgejo",
+      "language": "Go",
+      "reason": "No live-instance suite fails because of an ERR-level delta: the Forgejo specification barely changes on the wire from 7 to 16. The one exercised break found (9.0 refusing a token with no scopes, which fails forgejo-sdk v1.2.0's TestUserApp) is absent from the specification, whose CreateAccessTokenOption is identical in 8.0.3 and 9.0.3."
+    },
+    {
+      "name": "immich",
+      "language": "TypeScript",
+      "reason": "The one pair whose break its own e2e suite exercises, 1.137.3 -> 1.138.0, changes only success statuses (200 to 204 on four operations the suite checks, with empty bodies both sides). The catalogue classes a success status removed as behavior-only and the IR has no op that answers an old caller with another status, so no Change could serve it; every other exercised break (1.113 stacks, 3.0 error envelope) is behavioral."
+    },
+    {
+      "name": "appwrite",
+      "language": "PHP",
+      "reason": "1.9.0 -> 1.9.5 renames webhook fields and moves a route, which the ops serve, but two of the tests it breaks are behavioral (the signature key is no longer returned on GET, and a filter names the old field inside a query string), so the pair cannot be served in full. Its suite also runs only from a development image built from source, against the fixed host http://appwrite/v1. Not wired yet."
+    },
+    {
+      "name": "openmetadata",
+      "language": "Java",
+      "reason": "1.4.8 -> 1.5.0 renames owner to owners and makes it a list, which move and wrapArray serve, but the Python SDK that is the suite refuses on connect any server whose minor version differs from its own, so arm c cannot run without falsifying the version the server reports."
     }
   ]
 }

@@ -1,0 +1,15 @@
+# Written by hand, as Qdrant's maintainers would: 1.19 adds
+# DisabledStemmerParams to the stemmers a text index reports. An old caller
+# only meets it on an index a newer caller made. Acknowledged, not served.
+irVersion: 1
+id: chg_disabled_stemmer
+summary: "A text index's stemmer can be disabled explicitly, a kind old callers never saw."
+scopes: []
+ops:
+  - op: behavior
+    flag: disabled_stemmer
+    covers:
+      - "response-property-any-of-added at GET /collections/{collection_name}: added `#/components/schemas/DisabledStemmerParams` to the `result/payload_schema/additionalProperties/params/anyOf[#/components/schemas/PayloadSchemaParams]/anyOf[#/components/schemas/TextIndexParams]/stemmer/anyOf[#/components/schemas/StemmingAlgorithm]/` response property `anyOf` list for the response status `200`"
+      - "response-property-any-of-added at GET /telemetry: added `#/components/schemas/DisabledStemmerParams` to the `result/collections/collections/items/anyOf[#/components/schemas/CollectionTelemetry]/shards/items/local/anyOf[#/components/schemas/LocalShardTelemetry]/segments/items/info/index_schema/additionalProperties/params/anyOf[#/components/schemas/PayloadSchemaParams]/anyOf[#/components/schemas/TextIndexParams]/stemmer/anyOf[#/components/schemas/StemmingAlgorithm]/` response property `anyOf` list for the response status `200`"
+assertions:
+  side_effects_unchanged: true

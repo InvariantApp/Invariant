@@ -1,0 +1,16 @@
+# Written by hand, as NetBox's maintainers would: 3.6 lets the mask_length
+# filter on IP addresses repeat, as a list of whole numbers. An old caller's
+# single mask_length=24 is already a list of one in the form the new filter
+# reads, so nothing needs translating; only a fractional length, which no mask
+# has, is now refused.
+irVersion: 1
+id: chg_ip_address_mask_length_list
+summary: "The mask_length filter on IP addresses takes several lengths."
+scopes: []
+ops:
+  - op: behavior
+    flag: ip_address_mask_length_list
+    covers:
+      - "request-parameter-type-changed at GET /api/ipam/ip-addresses/: for the `query` request parameter `mask_length`, the `type` was changed from `number` to `array<integer/int32>`"
+assertions:
+  side_effects_unchanged: true

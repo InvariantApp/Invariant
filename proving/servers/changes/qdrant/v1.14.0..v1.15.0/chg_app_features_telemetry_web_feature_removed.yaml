@@ -1,0 +1,16 @@
+# Decided for the proving ground, as Qdrant's maintainers would:
+# web_feature said whether the web UI was compiled into the build; every image
+# Qdrant publishes serves it, and 1.15 dropped the flag because it no longer
+# varies.
+irVersion: 1
+id: chg_app_features_telemetry_web_feature_removed
+summary: "`web_feature` was removed from AppFeaturesTelemetry."
+scopes:
+  - schema: "#/components/schemas/AppFeaturesTelemetry"
+ops:
+  - op: remove
+    path: /web_feature
+    restore: true
+assertions:
+  loss_acknowledged: true
+  side_effects_unchanged: true

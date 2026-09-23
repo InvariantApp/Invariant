@@ -1,0 +1,15 @@
+# Written by hand, as Qdrant's maintainers would: DELETE /issues now answers
+# with an object instead of true. No op turns an object back into a boolean,
+# so an old caller of it gets the new answer; nothing in the suite clears
+# issues. Acknowledged, not served.
+irVersion: 1
+id: chg_issues_clear_result
+summary: "Clearing issues answers with an object where it answered true."
+scopes: []
+ops:
+  - op: behavior
+    flag: issues_clear_result
+    covers:
+      - "response-body-type-changed at DELETE /issues: the response's body `type` changed from `boolean` to `object` for status `200`"
+assertions:
+  side_effects_unchanged: true

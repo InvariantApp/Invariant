@@ -1,0 +1,24 @@
+# Drafted by rules, 100% confident.
+#
+# This is a proposal, not a decision. Read it, fix what is wrong, and merge
+# it; merging is what records that you confirmed it. The release gate will
+# still check that these ops explain the whole breaking diff.
+#
+#   - the field kept its name and its values
+#   - `key` may now hold values its old bounds ruled out (maxLength, minLength); they pass through as the API produced them, a declared loss to acknowledge
+irVersion: 1
+id: chg_users_tokens_provision_create_201_response_key
+summary: "`key` changed shape on users_tokens_provision_create 201 response."
+scopes:
+  - operation: users_tokens_provision_create
+    response: "201"
+ops:
+  - op: relax
+    path: /key
+    set:
+      maxLength: null
+      minLength: null
+provenance:
+  proposed_by:
+    judge: rules
+    confidence: 1

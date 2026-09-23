@@ -252,7 +252,13 @@ function toRequest(incoming: Incoming): Request {
   const authority = incoming.headers[":authority"];
   const host =
     incoming.headers.host ?? (typeof authority === "string" ? authority : "localhost");
-  const url = new URL(`${target.pathname}${target.search}`, `http://${host}`);
+  // The scheme the caller used, which the proxy tells the provider about only
+  // where it differs from its own connection to it.
+  const secure = "encrypted" in incoming.socket && incoming.socket.encrypted === true;
+  const url = new URL(
+    `${target.pathname}${target.search}`,
+    `${secure ? "https" : "http"}://${host}`,
+  );
 
   const headers = new Headers();
   for (let index = 0; index < incoming.rawHeaders.length; index += 2) {

@@ -1,0 +1,23 @@
+# Written by hand, as Qdrant's maintainers would: 1.18 documents a minimum of
+# 1 second for the timeout query parameter on the cluster and collection
+# operations that take one, which 1.17 allowed from 0. No op can make the
+# server take a value it refuses, and turning 0 into 1 would be a different
+# request, so an old caller sending 0 is acknowledged, not served.
+irVersion: 1
+id: chg_timeout_minimum
+summary: "A timeout of 0 is refused where it used to be taken."
+scopes: []
+ops:
+  - op: behavior
+    flag: timeout_minimum
+    covers:
+      - "request-parameter-min-set at DELETE /cluster/peer/{peer_id}: for the `query` request parameter `timeout`, the min was set to `1.00`"
+      - "request-parameter-min-set at POST /collections/aliases: for the `query` request parameter `timeout`, the min was set to `1.00`"
+      - "request-parameter-min-set at DELETE /collections/{collection_name}: for the `query` request parameter `timeout`, the min was set to `1.00`"
+      - "request-parameter-min-set at PATCH /collections/{collection_name}: for the `query` request parameter `timeout`, the min was set to `1.00`"
+      - "request-parameter-min-set at PUT /collections/{collection_name}: for the `query` request parameter `timeout`, the min was set to `1.00`"
+      - "request-parameter-min-set at POST /collections/{collection_name}/cluster: for the `query` request parameter `timeout`, the min was set to `1.00`"
+      - "request-parameter-min-set at PUT /collections/{collection_name}/shards: for the `query` request parameter `timeout`, the min was set to `1.00`"
+      - "request-parameter-min-set at POST /collections/{collection_name}/shards/delete: for the `query` request parameter `timeout`, the min was set to `1.00`"
+assertions:
+  side_effects_unchanged: true
