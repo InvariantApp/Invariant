@@ -19,3 +19,5 @@ packages/oasdiff-*/bin/
 packages/sidecar/image/bundle/
 packages/sidecar/image/LICENSE
 packages/sidecar/image/NOTICE
+# Worktrees that Claude Code agents build in; each is a checkout of its own.
+.claude/worktrees/
