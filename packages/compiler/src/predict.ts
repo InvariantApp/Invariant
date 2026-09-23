@@ -447,15 +447,19 @@ export function predictDocument(
               );
               break;
             case "restate": {
-              // The new statement, found where this schema reaches the wire
-              // or else by its name, is only taken once it is proved to allow
-              // nothing the old one did not where old callers receive it, and
-              // to refuse nothing they send.
+              // The new statement, found by the schema's name or, where the
+              // name is gone, where it reaches the wire, is only taken once it
+              // is proved to allow nothing the old one did not where old
+              // callers receive it, and to refuse nothing they send. By name
+              // first: Figma reaches a text node only through a choice of
+              // twenty-four kinds of node, and the place on the wire names
+              // the choice, not the text node.
               const site = oldSites[0];
               const next =
+                shapeByName(newContract, name, op.path) ??
                 (site
                   ? shapeFromNewContract(newContract, routes, site, op.path)
-                  : undefined) ?? shapeByName(newContract, name, op.path);
+                  : undefined);
               if (!next) {
                 throw new Error(
                   `the new contract has no ${op.path || name} to restate it as`,

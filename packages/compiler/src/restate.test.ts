@@ -143,6 +143,40 @@ describe("an object stated as a choice of its kinds", () => {
     expect(schemasOf(prediction.document)["Spare"]).toEqual(schemasOf(after)["Effect"]);
   });
 
+  it("is stated by its own name where the wire reaches it only through a choice", () => {
+    // Figma reaches a text node only through a choice of every kind of node:
+    // the place on the wire names the choice, and the text node is one branch.
+    const throughChoice = (schemas: Schemas): Schemas => ({
+      ...schemas,
+      Paint: {
+        type: "object",
+        properties: { color: { type: "string" } },
+        required: ["color"],
+      },
+      Node: {
+        type: "object",
+        properties: {
+          effects: {
+            type: "array",
+            items: {
+              oneOf: [
+                { $ref: "#/components/schemas/Effect" },
+                { $ref: "#/components/schemas/Paint" },
+              ],
+            },
+          },
+        },
+      },
+    });
+    const prediction = predictDocument(
+      contract(throughChoice(oneEffect)),
+      contract(throughChoice(effectKinds(["DROP_SHADOW", "INNER_SHADOW", "LAYER_BLUR"]))),
+      [restate("Effect")],
+    );
+    expect(prediction.issues).toEqual([]);
+    expect(schemasOf(prediction.document)["Effect"]).toEqual(schemasOf(after)["Effect"]);
+  });
+
   it("passes values through untouched, and loses nothing", () => {
     const change = restate("Effect");
     const { program, issues } = chainProgram("nodes", "v2", "sha256:2", [
