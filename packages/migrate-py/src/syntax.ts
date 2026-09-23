@@ -148,6 +148,56 @@ export function roleOf(node: Node): PyRole {
   return "unknown";
 }
 
+/** Statements that are one thing to fix, whatever lines they span. */
+const SIMPLE_STATEMENTS = new Set([
+  "expression_statement",
+  "return_statement",
+  "assert_statement",
+  "raise_statement",
+  "delete_statement",
+  "import_statement",
+  "import_from_statement",
+  "future_import_statement",
+  "global_statement",
+  "nonlocal_statement",
+  "type_alias_statement",
+]);
+
+/** Statements that hold others: showing one whole would be showing a function. */
+const COMPOUND_STATEMENTS = new Set([
+  "if_statement",
+  "for_statement",
+  "while_statement",
+  "try_statement",
+  "with_statement",
+  "match_statement",
+  "function_definition",
+  "class_definition",
+  "decorated_definition",
+  "block",
+  "module",
+]);
+
+/**
+ * The simple statement around `start` to `end`, or the span itself where it
+ * is in a compound statement's header, such as an `if`'s condition.
+ */
+export function statementAround(
+  tree: Tree,
+  start: number,
+  end: number,
+): { start: number; end: number } {
+  let node: Node | null = tree.rootNode.descendantForIndex(start, Math.max(start, end));
+  while (node) {
+    if (SIMPLE_STATEMENTS.has(node.type)) {
+      return { start: node.startIndex, end: node.endIndex };
+    }
+    if (COMPOUND_STATEMENTS.has(node.type)) break;
+    node = node.parent;
+  }
+  return { start, end };
+}
+
 /** Every node below `root` of one of `types`, in source order. */
 export function descendantsOfType(root: Node, types: readonly string[]): Node[] {
   return root.descendantsOfType([...types]).filter((node): node is Node => node !== null);

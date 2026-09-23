@@ -56,8 +56,6 @@ export interface PyrightOptions {
   root: string;
   /** Directories of unpacked packages, searched for imports in this order. */
   packages: readonly string[];
-  /** How long, after the last message from the server, a file's analysis counts as settled. */
-  quiet?: number;
 }
 
 const require = createRequire(import.meta.url);
@@ -73,16 +71,9 @@ export class Pyright {
   private readonly child: ChildProcess;
   private readonly connection: MessageConnection;
   private readonly opened = new Map<string, number>();
-  private readonly diagnostics = new Map<string, Diagnostic[]>();
-  /** Files whose diagnostics have arrived since they were last opened or changed. */
-  private readonly settled = new Map<string, () => void>();
-  private lastMessage = Date.now();
   private stderr = "";
 
-  private readonly options: PyrightOptions;
-
   private constructor(options: PyrightOptions) {
-    this.options = options;
     this.child = spawn(process.execPath, [serverPath(), "--stdio"], {
       cwd: options.root,
       stdio: ["pipe", "pipe", "pipe"],
@@ -125,17 +116,9 @@ export class Pyright {
     );
     this.connection.onRequest("client/registerCapability", () => null);
     this.connection.onRequest("window/workDoneProgress/create", () => null);
-    this.connection.onNotification(
-      "textDocument/publishDiagnostics",
-      (params: { uri: string; diagnostics: Diagnostic[] }) => {
-        this.lastMessage = Date.now();
-        this.diagnostics.set(params.uri, params.diagnostics);
-        this.settled.get(params.uri)?.();
-      },
-    );
-    this.connection.onNotification(() => {
-      this.lastMessage = Date.now();
-    });
+    // Diagnostics are asked for (`diagnosticsOf`); anything the server
+    // publishes or logs on its own is not read.
+    this.connection.onNotification(() => undefined);
     this.connection.listen();
   }
 
@@ -151,7 +134,7 @@ export class Pyright {
           hover: { contentFormat: ["plaintext"] },
           definition: { linkSupport: false },
           references: {},
-          publishDiagnostics: {},
+          diagnostic: { dynamicRegistration: false },
         },
         general: { positionEncodings: ["utf-16"] },
       },
@@ -168,7 +151,6 @@ export class Pyright {
     const uri = uriOf(path);
     const version = (this.opened.get(uri) ?? 0) + 1;
     this.opened.set(uri, version);
-    this.diagnostics.delete(uri);
     if (version === 1) {
       await this.connection.sendNotification("textDocument/didOpen", {
         textDocument: { uri, languageId: "python", version, text },
@@ -210,35 +192,26 @@ export class Pyright {
   }
 
   /**
-   * The diagnostics for an open file, once the server has published them and
-   * then gone quiet. A file's first set can be published before the imports
-   * it depends on are resolved, so readiness is both: the first publication,
-   * and no message from the server for `quiet` milliseconds after it.
+   * The diagnostics for an open file, asked for rather than waited on.
+   *
+   * Waiting for the server to publish them, and then for it to go quiet, was
+   * the first way this worked, and it was a race: on a busy runner pyright
+   * published a file's empty set on opening it and then said nothing while
+   * it checked, the quiet period ended first, and one CI run reported an
+   * upgrade's error that the next run on the same commit did not. A pull
+   * request (LSP 3.17's `textDocument/diagnostic`) is answered only once the
+   * file is checked.
    */
-  async diagnosticsOf(path: string, timeout = 60_000): Promise<Diagnostic[]> {
-    const uri = uriOf(path);
-    if (!this.diagnostics.has(uri)) {
-      await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(() => {
-          this.settled.delete(uri);
-          reject(
-            new Error(
-              `pyright published no diagnostics for ${path}: ${this.stderr.slice(-400)}`,
-            ),
-          );
-        }, timeout);
-        this.settled.set(uri, () => {
-          clearTimeout(timer);
-          this.settled.delete(uri);
-          resolve();
-        });
-      });
+  async diagnosticsOf(path: string): Promise<Diagnostic[]> {
+    const result = (await this.connection.sendRequest("textDocument/diagnostic", {
+      textDocument: { uri: uriOf(path) },
+    })) as { kind: string; items?: Diagnostic[] } | null;
+    if (result?.kind !== "full") {
+      throw new Error(
+        `pyright gave no diagnostics for ${path}: ${this.stderr.slice(-400)}`,
+      );
     }
-    const quiet = this.options.quiet ?? 300;
-    while (Date.now() - this.lastMessage < quiet) {
-      await new Promise((resolve) => setTimeout(resolve, quiet));
-    }
-    return this.diagnostics.get(uri) ?? [];
+    return result.items ?? [];
   }
 
   async stop(): Promise<void> {

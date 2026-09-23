@@ -152,22 +152,39 @@ export interface ContractPlan {
 }
 
 /**
- * Every class a stripe-python release declares at the top of a module, by
- * its name: `Subscription` in `stripe/_subscription.py`, `Session` in
- * `stripe/checkout/_session.py`.
+ * Every class a stripe-python release declares, by its name: at the top of a
+ * module, as `Subscription` in `stripe/_subscription.py`, and nested in
+ * another, as `AutomaticTax` inside it.
  */
-function declaredClasses(dir: string, found = new Set<string>(), depth = 0): Set<string> {
+function declaredClasses(
+  dir: string,
+  found = { top: new Set<string>(), nested: new Set<string>() },
+  depth = 0,
+): { top: Set<string>; nested: Set<string> } {
   if (depth > 4) return found;
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) declaredClasses(path, found, depth + 1);
     else if (entry.isFile() && entry.name.endsWith(".py")) {
-      for (const match of readFileSync(path, "utf8").matchAll(/^class (\w+)\b/gm)) {
-        found.add(match[1] as string);
+      for (const match of readFileSync(path, "utf8").matchAll(/^( *)class (\w+)\b/gm)) {
+        (match[1] === "" ? found.top : found.nested).add(match[2] as string);
       }
     }
   }
   return found;
+}
+
+/** The one schema a property refers to, directly or as the only non-null choice. */
+function refOf(property: unknown): string | undefined {
+  if (typeof property !== "object" || property === null) return undefined;
+  const value = property as { $ref?: string; anyOf?: unknown[]; allOf?: unknown[] };
+  if (value.$ref?.startsWith("#/components/schemas/")) {
+    return value.$ref.slice("#/components/schemas/".length);
+  }
+  const choices = (value.anyOf ?? value.allOf ?? [])
+    .map(refOf)
+    .filter((ref) => ref !== undefined);
+  return choices.length === 1 ? choices[0] : undefined;
 }
 
 /**
@@ -224,7 +241,30 @@ export async function stripePlan(
     const classes = declaredClasses(join(sdk, "stripe"));
     for (const schema of schemas) {
       const name = pythonTypeOf(schema);
-      if (classes.has(name.split(".").at(-1) ?? name)) types[schema] = name;
+      if (classes.top.has(name.split(".").at(-1) ?? name)) types[schema] = name;
+    }
+    // A schema only one object holds is a class nested in that object's:
+    // `subscription_automatic_tax` is `stripe.Subscription.AutomaticTax`,
+    // named after the property, found through the property that refers to
+    // it, as deep as the nesting goes.
+    const components = (
+      (before as Record<string, unknown>)["components"] as {
+        schemas: Record<string, { properties?: Record<string, unknown> }>;
+      }
+    ).schemas;
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const [parent, schema] of Object.entries(components)) {
+        const holder = types[parent];
+        if (!holder) continue;
+        for (const [property, value] of Object.entries(schema.properties ?? {})) {
+          const target = refOf(value);
+          const nested = pascal(property);
+          if (!target || types[target] || !classes.nested.has(nested)) continue;
+          types[target] = `${holder}.${nested}`;
+          grew = true;
+        }
+      }
     }
     return {
       changes: [...outcome.proposals.map((proposal) => proposal.change), ...removals],

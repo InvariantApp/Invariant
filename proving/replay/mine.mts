@@ -289,6 +289,8 @@ export function classify(
 }
 
 const TOKEN = process.env["GITHUB_TOKEN"] ?? "";
+/** Each request as it is made, to stderr, for seeing where a slow run spends its time. */
+const VERBOSE = process.argv.includes("--verbose");
 
 /**
  * The API said to come back later than this run is willing to wait. A
@@ -306,13 +308,25 @@ const orElse =
   };
 
 async function github<T>(path: string, attempt = 0): Promise<T> {
-  const response = await fetch(`https://api.github.com${path}`, {
-    headers: {
-      accept: "application/vnd.github+json",
-      "user-agent": "invariant-proving",
-      ...(TOKEN ? { authorization: `Bearer ${TOKEN}` } : {}),
-    },
-  });
+  if (VERBOSE)
+    process.stderr.write(`${new Date().toISOString()} ${path.slice(0, 160)}\n`);
+  let response: Response;
+  try {
+    response = await fetch(`https://api.github.com${path}`, {
+      headers: {
+        accept: "application/vnd.github+json",
+        "user-agent": "invariant-proving",
+        ...(TOKEN ? { authorization: `Bearer ${TOKEN}` } : {}),
+      },
+      // A request that never answers once held a run for most of an hour
+      // with nothing written; it is given up on and asked again.
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch (error) {
+    if (attempt >= 3) throw error;
+    await sleep(2_000 * (attempt + 1));
+    return github(path, attempt + 1);
+  }
   if (response.status === 403 || response.status === 429) {
     // The search API's thirty a minute resets within the minute and is worth
     // waiting for; an hourly limit is not, and ends the run.
@@ -378,8 +392,15 @@ async function mine(): Promise<void> {
   const perPackage = Number(option("per-package") ?? 60);
   const only = option("package");
   const ecosystem = option("ecosystem") as Ecosystem | undefined;
-  // Stops in time to write what it found, whatever else happens.
-  const deadline = Date.now() + Number(option("minutes") ?? 40) * 60_000;
+  // Stops in time to write what it found, whatever else happens; told to
+  // stop, it stops at the next search the same way, rather than losing
+  // everything it found since it started.
+  let deadline = Date.now() + Number(option("minutes") ?? 40) * 60_000;
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.once(signal, () => {
+      deadline = 0;
+    });
+  }
 
   const index = await readIndex();
   const known = new Set(index.cases.map((entry) => entry.id));
@@ -403,84 +424,112 @@ async function mine(): Promise<void> {
         (entry) =>
           entry.package === target.package && target.ecosystems.includes(entry.ecosystem),
       ).length;
-      windows: for (const window of months(monthCount)) {
-        for (const phrase of target.titles) {
-          if (added >= limit) break search;
-          if (mine >= perPackage) break windows;
-          if (Date.now() > deadline) {
-            stopped = "out of time";
-            break search;
-          }
-          // Asked for one ecosystem, only repositories in its language are
-          // searched: most `Bump stripe from` pull requests are stripe-node
-          // bumps, and reading each one's files to find that out took the
-          // whole hour's rate limit for eight Python cases.
-          const language = ecosystem ? LANGUAGE[ecosystem] : undefined;
-          const query = `"${phrase}" in:title is:pr is:merged created:${window.from}..${window.to}${language ? ` language:${language}` : ""}`;
-          const found = await github<{ items: SearchItem[] }>(
-            `/search/issues?per_page=100&q=${encodeURIComponent(query)}`,
-          );
-          for (const item of found.items) {
-            if (added >= limit) break;
-            const repo = item.repository_url.replace("https://api.github.com/repos/", "");
-            const id = `${repo}#${item.number}`;
-            if (known.has(id)) continue;
-            const bump = parseBump(item.title, target);
-            if (!bump || !isMajor(bump.from, bump.to)) continue;
-
-            let owner = licences.get(repo);
-            if (!owner) {
-              const meta = await github<{
-                license: { spdx_id: string } | null;
-                fork: boolean;
-              }>(`/repos/${repo}`).catch(orElse(undefined));
-              owner = {
-                license: meta?.license?.spdx_id ?? "NOASSERTION",
-                fork: meta?.fork ?? true,
-              };
-              licences.set(repo, owner);
+      // Asked for one ecosystem, only repositories in its language are
+      // searched: most `Bump stripe from` pull requests are stripe-node
+      // bumps, and reading each one's files to find that out took the whole
+      // hour's rate limit for eight Python cases.
+      const language = ecosystem ? LANGUAGE[ecosystem] : undefined;
+      const search = (
+        phrase: string,
+        window: { from: string; to: string },
+        page: number,
+      ) =>
+        github<{ total_count: number; items: SearchItem[] }>(
+          `/search/issues?per_page=100&page=${page}&q=${encodeURIComponent(
+            `"${phrase}" in:title is:pr is:merged created:${window.from}..${window.to}${language ? ` language:${language}` : ""}`,
+          )}`,
+        );
+      const monthly = months(monthCount);
+      const whole = {
+        from: (monthly.at(-1) as { from: string }).from,
+        to: (monthly[0] as { to: string }).to,
+      };
+      phrases: for (const phrase of target.titles) {
+        // One query over the whole range where it has no more results than
+        // the search API pages through (a thousand), which for most SDKs in
+        // one language it does; month by month where it has more. A month a
+        // query at a time was the only way before, and ninety-six queries a
+        // package at thirty a minute took most of an hour's run.
+        const first = await search(phrase, whole, 1);
+        await sleep(2_100);
+        const windows = first.total_count <= 1_000 ? [whole] : monthly;
+        for (const window of windows) {
+          for (let page = 1; page <= 10; page += 1) {
+            if (added >= limit) break search;
+            if (mine >= perPackage) break phrases;
+            if (Date.now() > deadline) {
+              stopped = "out of time";
+              break search;
             }
-            if (owner.fork || !PERMISSIVE.has(owner.license)) continue;
+            const found =
+              window === whole && page === 1 ? first : await search(phrase, window, page);
+            for (const item of found.items) {
+              if (added >= limit) break;
+              const repo = item.repository_url.replace(
+                "https://api.github.com/repos/",
+                "",
+              );
+              const id = `${repo}#${item.number}`;
+              if (known.has(id)) continue;
+              const bump = parseBump(item.title, target);
+              if (!bump || !isMajor(bump.from, bump.to)) continue;
 
-            const files = await github<{ filename: string }[]>(
-              `/repos/${repo}/pulls/${item.number}/files?per_page=100`,
-            ).catch(orElse([] as { filename: string }[]));
-            const kind = classify(
-              files.map((file) => file.filename),
-              target.ecosystems,
-            );
-            if (!kind || kind.sources.length === 0 || kind.sources.length > 50) continue;
+              let owner = licences.get(repo);
+              if (!owner) {
+                const meta = await github<{
+                  license: { spdx_id: string } | null;
+                  fork: boolean;
+                }>(`/repos/${repo}`).catch(orElse(undefined));
+                owner = {
+                  license: meta?.license?.spdx_id ?? "NOASSERTION",
+                  fork: meta?.fork ?? true,
+                };
+                licences.set(repo, owner);
+              }
+              if (owner.fork || !PERMISSIVE.has(owner.license)) continue;
 
-            const pull = await github<{
-              base: { sha: string };
-              head: { sha: string };
-              merged_at: string | null;
-            }>(`/repos/${repo}/pulls/${item.number}`).catch(orElse(undefined));
-            if (!pull?.merged_at) continue;
+              const files = await github<{ filename: string }[]>(
+                `/repos/${repo}/pulls/${item.number}/files?per_page=100`,
+              ).catch(orElse([] as { filename: string }[]));
+              const kind = classify(
+                files.map((file) => file.filename),
+                target.ecosystems,
+              );
+              if (!kind || kind.sources.length === 0 || kind.sources.length > 50)
+                continue;
 
-            index.cases.push({
-              id,
-              repo,
-              pr: item.number,
-              base: pull.base.sha,
-              head: pull.head.sha,
-              package: target.package,
-              ecosystem: kind.ecosystem,
-              from: bump.from,
-              to: bump.to,
-              license: owner.license,
-              mergedAt: pull.merged_at,
-              files: kind.sources,
-            });
-            known.add(id);
-            added += 1;
-            mine += 1;
-            process.stdout.write(
-              `${id} ${target.package} ${bump.from} -> ${bump.to} (${kind.sources.length} files)\n`,
-            );
+              const pull = await github<{
+                base: { sha: string };
+                head: { sha: string };
+                merged_at: string | null;
+              }>(`/repos/${repo}/pulls/${item.number}`).catch(orElse(undefined));
+              if (!pull?.merged_at) continue;
+
+              index.cases.push({
+                id,
+                repo,
+                pr: item.number,
+                base: pull.base.sha,
+                head: pull.head.sha,
+                package: target.package,
+                ecosystem: kind.ecosystem,
+                from: bump.from,
+                to: bump.to,
+                license: owner.license,
+                mergedAt: pull.merged_at,
+                files: kind.sources,
+              });
+              known.add(id);
+              added += 1;
+              mine += 1;
+              process.stdout.write(
+                `${id} ${target.package} ${bump.from} -> ${bump.to} (${kind.sources.length} files)\n`,
+              );
+            }
+            // The search API allows thirty requests a minute.
+            if (!(window === whole && page === 1)) await sleep(2_100);
+            if (found.items.length < 100) break;
           }
-          // The search API allows thirty requests a minute.
-          await sleep(2_100);
         }
       }
     }

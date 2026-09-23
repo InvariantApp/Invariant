@@ -23,7 +23,7 @@
  * Usage:
  *   node --env-file-if-exists=.env --import tsx proving/replay/run.mts [--package stripe]
  *     [--ecosystem npm|pypi|go] [--case owner/repo#1] [--limit 10] [--keep] [--classify]
- *     [--again] [--shard 0/4] [--results shard-0.json]
+ *     [--again] [--shard 0/4] [--results shard-0.json] [--verbose]
  *   node --import tsx proving/replay/run.mts --merge shard-*.json
  *   node --env-file-if-exists=.env --import tsx proving/replay/run.mts --rescore
  *     [--ecosystem pypi] [--classify]
@@ -44,7 +44,8 @@
  * import it against the old release and checks them against the new one.
  *
  * `--keep` leaves each case's checkout in place and prints what the engine
- * was told and did, for reading a miss.
+ * was told and did, for reading a miss; `--verbose` prints the same and keeps
+ * nothing.
  */
 import { execFile, spawn } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
@@ -72,6 +73,7 @@ import {
   importingPython,
   PYTHON_PINS,
   pinnedPython,
+  releaseBefore,
   stripePythonVersion,
   topLevelModules,
 } from "./python.mts";
@@ -447,6 +449,8 @@ function packageRoots(paths: readonly string[], files: readonly string[]): strin
 
 interface ReplayOptions {
   keep: boolean;
+  /** Print what the engine was told and did, without keeping the checkout. */
+  verbose?: boolean;
   classes: Record<string, ClassRecord>;
   classifier?: { client: Parameters<typeof classify>[2]; model: string };
 }
@@ -537,7 +541,13 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
     /** Base lines, per file, the engine reported to a person rather than edited. */
     const flagged = new Map<string, (readonly [number, number])[]>();
     if (entry.ecosystem === "pypi") {
-      const python = await replayPython(entry, repo, work, before, keep);
+      const python = await replayPython(
+        entry,
+        repo,
+        work,
+        before,
+        keep || options.verbose === true,
+      );
       for (const [file, ranges] of python.flagged) flagged.set(file, ranges);
       for (const [file, text] of python.files) engineText.set(file, text);
       base.versions = python.versions;
@@ -861,16 +871,17 @@ async function replayPython(
     }
     return found;
   };
-  const from =
-    pinnedPython(await pinsAt(entry.base, blobs.keys()), entry.package, entry.from) ||
-    entry.from;
-  if (!from) throw new Error("the base does not say which version it used");
   const to =
     pinnedPython(
       await pinsAt(entry.head, (await tree(entry.head)).keys()),
       entry.package,
       entry.to,
     ) || entry.to;
+  const from =
+    pinnedPython(await pinsAt(entry.base, blobs.keys()), entry.package, entry.from) ||
+    entry.from ||
+    (await releaseBefore(entry.package, to, entry.mergedAt));
+  if (!from) throw new Error("the base does not say which version it used");
   const cache = join(CACHE, "pypi");
   const old = await installWheel(entry.package, from, cache);
   const next = await installWheel(entry.package, to, cache);
@@ -1066,6 +1077,7 @@ async function main(): Promise<void> {
     if (results.has(entry.id) && !args.includes("--again")) continue;
     const result = await replay(entry, {
       keep: args.includes("--keep"),
+      verbose: args.includes("--verbose"),
       classes,
       ...(classifier ? { classifier } : {}),
     });

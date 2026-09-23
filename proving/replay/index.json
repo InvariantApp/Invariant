@@ -265,6 +265,41 @@
       ]
     },
     {
+      "id": "Alishahryar1/free-claude-code#1504",
+      "repo": "Alishahryar1/free-claude-code",
+      "pr": 1504,
+      "base": "93b855df1318d34a17fed55cd5da0cb6e5492bc6",
+      "head": "e633df8432024113e7c82e52a39096a739e7b1ff",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.54.0",
+      "to": "3.3.0",
+      "license": "MIT",
+      "mergedAt": "2026-08-21T22:58:31Z",
+      "files": [
+        "src/free_claude_code/providers/openai_chat/provider.py",
+        "tests/providers/support.py",
+        "tests/providers/test_chutes.py",
+        "tests/providers/test_cline_pass.py",
+        "tests/providers/test_failure_policy.py",
+        "tests/providers/test_featherless.py",
+        "tests/providers/test_groq_reasoning.py",
+        "tests/providers/test_mistral.py",
+        "tests/providers/test_nebius.py",
+        "tests/providers/test_nvidia_nim.py",
+        "tests/providers/test_nvidia_nim_degraded_retry.py",
+        "tests/providers/test_openai_chat_usage.py",
+        "tests/providers/test_openai_compat_5xx_retry.py",
+        "tests/providers/test_provider_transport_logging.py",
+        "tests/providers/test_qwencloud.py",
+        "tests/providers/test_qwencloud_coding.py",
+        "tests/providers/test_stream_recovery.py",
+        "tests/providers/test_streaming_errors.py",
+        "tests/providers/test_together.py",
+        "tests/providers/test_xai.py"
+      ]
+    },
+    {
       "id": "ALRubinger/aileron#857",
       "repo": "ALRubinger/aileron",
       "pr": 857,
@@ -551,6 +586,24 @@
       "files": [
         "packages/agency/src/openai.ts",
         "packages/safegen/src/openai/set-up-openai-json-generator.ts"
+      ]
+    },
+    {
+      "id": "bedrock-python/mattermind#27",
+      "repo": "bedrock-python/mattermind",
+      "pr": 27,
+      "base": "ccf59df950012458526ef4a98f33c6f73f9cd2f7",
+      "head": "cb3c1d2db830e39a868f7adaf150a8502d9aba53",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.36.0",
+      "to": "3.13.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-09-14T13:36:24Z",
+      "files": [
+        "src/mattermind/agent/loop.py",
+        "src/mattermind/cli/app.py",
+        "tests/unit/test_cli.py"
       ]
     },
     {
@@ -1302,6 +1355,23 @@
         "internal/github/github_client.go",
         "internal/github/github_test.go",
         "internal/github/mocks.go"
+      ]
+    },
+    {
+      "id": "Couchers-org/couchers#9659",
+      "repo": "Couchers-org/couchers",
+      "pr": 9659,
+      "base": "1a6a76905a2a8d8f4683be0ba4925e6d7f2633c6",
+      "head": "ec29b954333abaabdd98220006084b94bce04606",
+      "package": "stripe",
+      "ecosystem": "pypi",
+      "from": "14.4.0",
+      "to": "15.6.1",
+      "license": "MIT",
+      "mergedAt": "2026-09-06T02:26:48Z",
+      "files": [
+        "app/backend/src/couchers/servicers/donations.py",
+        "app/backend/src/tests/test_donations.py"
       ]
     },
     {
@@ -3234,6 +3304,22 @@
       ]
     },
     {
+      "id": "jshwi/jss#1054",
+      "repo": "jshwi/jss",
+      "pr": 1054,
+      "base": "5b7c144681a51a13de481e0f3b11780952adb13a",
+      "head": "0e71531ef5b42dad36ccd7c3bc6e317dee79678d",
+      "package": "stripe",
+      "ecosystem": "pypi",
+      "from": "5.5.0",
+      "to": "7.4.0",
+      "license": "MIT",
+      "mergedAt": "2023-11-11T07:41:46Z",
+      "files": [
+        "app/views/order.py"
+      ]
+    },
+    {
       "id": "jshwi/jss#1096",
       "repo": "jshwi/jss",
       "pr": 1096,
@@ -3277,6 +3363,23 @@
       "to": "8.1.0",
       "license": "MIT",
       "mergedAt": "2024-02-02T09:44:35Z",
+      "files": [
+        "app/views/order.py",
+        "tests/_test.py"
+      ]
+    },
+    {
+      "id": "jshwi/jss#1249",
+      "repo": "jshwi/jss",
+      "pr": 1249,
+      "base": "9cf24259fc88b7a551a91fda10883f997d6e3159",
+      "head": "12acf6b2f00559abc7feb7332cb500d92726388e",
+      "package": "stripe",
+      "ecosystem": "pypi",
+      "from": "7.14.0",
+      "to": "9.1.0",
+      "license": "MIT",
+      "mergedAt": "2024-04-12T00:35:37Z",
       "files": [
         "app/views/order.py",
         "tests/_test.py"
@@ -4109,6 +4212,22 @@
       "files": [
         "client/src/plus/ai-help/use-ai.ts",
         "scripts/ai-help.ts"
+      ]
+    },
+    {
+      "id": "microsoft/PyRIT#2426",
+      "repo": "microsoft/PyRIT",
+      "pr": 2426,
+      "base": "201bb0a2b0b63bc713c16352df2973ca8982d9f6",
+      "head": "984f42fc041f3beaea6183e1357c318cef0fcdfb",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.53.0",
+      "to": "3.1.0",
+      "license": "MIT",
+      "mergedAt": "2026-08-19T19:03:34Z",
+      "files": [
+        "pyrit/prompt_target/openai/openai_video_target.py"
       ]
     },
     {
@@ -5561,6 +5680,23 @@
       "mergedAt": "2025-08-30T16:41:33Z",
       "files": [
         "src/models.ts"
+      ]
+    },
+    {
+      "id": "siro103/OpSyne#2",
+      "repo": "siro103/OpSyne",
+      "pr": 2,
+      "base": "1f64e4af5033a767064d8946b295231a0b2e72d3",
+      "head": "20fd5a20d747a91f4a2af058d9db8647f0e69301",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.54.0",
+      "to": "3.13.0",
+      "license": "MIT",
+      "mergedAt": "2026-09-15T03:57:46Z",
+      "files": [
+        "tests/test_adapter_agent.py",
+        "tests/test_investigation.py"
       ]
     },
     {
@@ -8138,6 +8274,23 @@
       "files": [
         "internal/inspector/inspector.go",
         "internal/inspector/permissions.go"
+      ]
+    },
+    {
+      "id": "XiyaoWang0519/agent-call#74",
+      "repo": "XiyaoWang0519/agent-call",
+      "pr": 74,
+      "base": "47b61faf57dfbe60e3ac3ec81baeb261b8a4fa2d",
+      "head": "a86aceaee45226a9a6d332aac78a97af69ec0d7e",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.53.0",
+      "to": "3.3.1",
+      "license": "MIT",
+      "mergedAt": "2026-08-26T11:43:07Z",
+      "files": [
+        "app/openai_client.py",
+        "tests/test_http_clients.py"
       ]
     },
     {

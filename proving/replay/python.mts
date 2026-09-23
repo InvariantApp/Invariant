@@ -13,7 +13,7 @@
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { normalizeName } from "@invariant-app/migrate-py";
+import { compareVersions, normalizeName } from "@invariant-app/migrate-py";
 
 /** Files a Python repository pins its dependencies in. */
 export const PYTHON_PINS =
@@ -135,6 +135,40 @@ export function importingPython(
         return false;
       }
     });
+}
+
+/**
+ * The release a repository that pinned nothing had installed: the newest one
+ * below the major version it was bumped to, published before the bump was
+ * merged. Renovate names only the target ("to v5"), and a requirement with
+ * no version installs whatever was newest, so this is the release a fresh
+ * install on that day resolved to.
+ */
+export async function releaseBefore(
+  name: string,
+  to: string,
+  mergedAt: string,
+): Promise<string | undefined> {
+  const response = await fetch(`https://pypi.org/pypi/${normalizeName(name)}/json`);
+  if (!response.ok) return undefined;
+  const project = (await response.json()) as {
+    releases: Record<string, { upload_time_iso_8601: string; yanked?: boolean }[]>;
+  };
+  const major = Number(/^(\d+)/.exec(to)?.[1] ?? Number.NaN);
+  const cutoff = Date.parse(mergedAt);
+  const candidates = Object.entries(project.releases)
+    .filter(([version, files]) => {
+      if (!/^\d+(\.\d+)*$/.test(version)) return false;
+      const first = files.find((file) => !file.yanked);
+      return (
+        first !== undefined &&
+        Number(version.split(".")[0]) < major &&
+        Date.parse(first.upload_time_iso_8601) < cutoff
+      );
+    })
+    .map(([version]) => version)
+    .sort(compareVersions);
+  return candidates.at(-1);
 }
 
 /** The API version a stripe-python release is built for, where it records one. */

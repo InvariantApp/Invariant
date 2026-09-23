@@ -4,9 +4,30 @@ import {
   nodeAt,
   parsePython,
   roleOf,
+  statementAround,
   stringValue,
   withStringValue,
 } from "./syntax.ts";
+
+describe("the statement a reviewer is shown", () => {
+  it("is the whole call around an argument, and not the block around a condition", async () => {
+    const text = [
+      "if client.old_flag:",
+      "    client.indices.create(",
+      "        index=name,",
+      "        body={'mappings': m},",
+      "    )",
+    ].join("\n");
+    const tree = await parsePython(text);
+    const body = text.indexOf("body=");
+    const call = statementAround(tree, body, body + 4);
+    expect(text.slice(call.start, call.end)).toBe(
+      "client.indices.create(\n        index=name,\n        body={'mappings': m},\n    )",
+    );
+    const flag = text.indexOf("old_flag");
+    expect(statementAround(tree, flag, flag + 8)).toEqual({ start: flag, end: flag + 8 });
+  });
+});
 
 const at = async (text: string, needle: string, from = 0) => {
   const tree = await parsePython(text);

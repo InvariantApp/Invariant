@@ -27,6 +27,7 @@ import { type EngineResult, manualAt, runTargets, Sources } from "./engine.ts";
 import { bumpPins } from "./pins.ts";
 import { type Diagnostic, Pyright } from "./pyright.ts";
 import { PyrightReferences } from "./references.ts";
+import { statementAround, type Tree } from "./syntax.ts";
 
 export { compose, manualAt, Sources } from "./engine.ts";
 export { byteColumnToCharacter, LineIndex } from "./offsets.ts";
@@ -116,6 +117,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
       for (const [file, text] of now) await checker.open(file, text);
       after = await new PyrightReferences(checker, repoDir, now).errors(checked);
       for (const [file, diagnostics] of after) {
+        if (diagnostics.length === 0) continue;
         result.manual.push(
           ...broken(
             file,
@@ -124,6 +126,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
             diagnostics,
             before.get(file) ?? [],
             result.edits,
+            await sources.tree(file),
           ),
         );
       }
@@ -166,6 +169,8 @@ export function broken(
   after: readonly Diagnostic[],
   before: readonly Diagnostic[],
   edits: readonly Edit[],
+  /** The file as it was read, parsed, to show each error's whole statement. */
+  tree?: Tree,
 ): ManualSite[] {
   const lineOf = (text: string, line: number) => text.split("\n")[line]?.trim() ?? "";
   const keyOf = (text: string, diagnostic: Diagnostic) =>
@@ -198,16 +203,21 @@ export function broken(
         mine,
       ),
     );
-    sites.push(
-      manualAt(
-        file,
-        original,
-        start,
-        end,
-        UPGRADE,
-        `this no longer type-checks against the upgraded SDK: ${diagnostic.message.split("\n")[0]}`,
-      ),
-    );
+    // A reviewer is shown the whole statement: the checker points at one
+    // argument of a call that spans lines, and the fix is to the call.
+    const extent = tree ? statementAround(tree, start, end) : { start, end };
+    const reason = `this no longer type-checks against the upgraded SDK: ${diagnostic.message.split("\n")[0]}`;
+    if (
+      sites.some(
+        (site) =>
+          site.offset === extent.start &&
+          site.end === extent.end &&
+          site.reason === reason,
+      )
+    ) {
+      continue;
+    }
+    sites.push(manualAt(file, original, extent.start, extent.end, UPGRADE, reason));
   }
   return sites;
 }
