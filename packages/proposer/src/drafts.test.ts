@@ -1644,7 +1644,7 @@ describe("a named schema that became nullable through a union with null", () => 
       { judge: new RulesJudge() },
     );
     expect(outcome.unresolved).toEqual([]);
-    expect(outcome.decisions.map((decision) => decision.id)).toEqual([
+    expect(outcome.decisions.map((decision) => decisionChange(decision).id)).toEqual([
       "chg_thing_app_default_old",
     ]);
   });
