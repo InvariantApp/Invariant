@@ -30,17 +30,30 @@ export type Json = unknown;
 export type NumberFidelity = "double" | "preserve";
 
 /**
- * A number a double might not hold. `1e400` parses to Infinity and `1e-400`
- * to 0, and Infinity is written back as `null`, so a transform on such a body
- * would change what the caller sent without a word. Found by fuzzing.
+ * A number that a double, or writing one back, would not keep as it was sent.
  *
- * A number with fewer than 100 digits in a row and an exponent of at most two
- * digits lies within 1e±198, well inside a double's range, so anything this
- * does not match is safe on the fast path. What it does match, including the
- * odd string holding a hundred digits, pays for an exact parse and loses
- * nothing.
+ * `1e400` parses to Infinity and `1e-400` to 0, and Infinity is written back
+ * as `null`, so a transform on such a body would change what the caller sent
+ * without a word. Found by fuzzing. Nor does a double hold every integer:
+ * past 2^53, which has sixteen digits, it rounds. Qdrant's own suite sends a
+ * search `limit` of u64::MAX, 18446744073709551615, which came out of the
+ * proxy as 18446744073709552000, no longer a u64, and the search was refused.
+ *
+ * And a double written back is spelled the shortest way: `1.0` comes out as
+ * `1`, `1e99` as `1e+99`, `-0` as `0`. The value is the same, but not every
+ * server reads only the value. Qdrant tells a list of vectors from other
+ * inputs by how its numbers are written, and a multivector sent as
+ * `[[1.0, 2.0, 3.0]]` stopped being one on its way through. A proxy changes
+ * what it transforms and nothing else, so a body holding any number that
+ * would be spelled differently takes the exact path too: a fraction that ends
+ * in zero, an exponent, or a negative zero.
+ *
+ * The regular expression has no lookahead so that the Go engine's test can
+ * hold its hand-written scanner to the very same pattern. What it matches
+ * inside a string, such as a version called `1.0` or a card number, pays for
+ * an exact parse and loses nothing.
  */
-const BEYOND_DOUBLE = /[\d.][eE][+-]?\d{3}|\d{100}/;
+const EXACT_PARSE = /\d{16}|\.\d*0(?:[^\d]|$)|[\d.][eE]|-0(?:[^.\d]|$)/;
 
 /**
  * How deeply a body may nest. Far beyond anything a real API sends: GitHub's
@@ -72,7 +85,7 @@ function tooDeep(text: string, limit: number): boolean {
 
 export function parseJson(text: string, fidelity: NumberFidelity): Json {
   if (tooDeep(text, MAX_DEPTH)) throw new BodyTooDeepError(MAX_DEPTH);
-  if (fidelity === "double" && !BEYOND_DOUBLE.test(text)) return JSON.parse(text);
+  if (fidelity === "double" && !EXACT_PARSE.test(text)) return JSON.parse(text);
 
   return JSON.parse(text, function preserveNumbers(_key, value, context) {
     if (typeof value !== "number") return value;

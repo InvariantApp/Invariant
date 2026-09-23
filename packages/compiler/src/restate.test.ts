@@ -270,3 +270,48 @@ describe("a field renamed", () => {
     );
   });
 });
+
+describe("a restatement that refers to a schema the old contract states differently", () => {
+  it("is refused, since written in it would mean the old schema (Plaid)", () => {
+    // The identity wrote its balance out in place, nullable; the new identity
+    // is built from a base whose balance refers to a named balance that
+    // became nullable, and the old named balance, used elsewhere, still says
+    // it never is.
+    const balance = (nullable: boolean) => ({
+      type: "object",
+      properties: {
+        available: { type: "number", ...(nullable ? { nullable: true } : {}) },
+      },
+    });
+    const schemas = (identity: unknown, named: unknown): Schemas => ({
+      Identity: identity,
+      Balance: named,
+      Base: {
+        type: "object",
+        properties: { balances: { $ref: "#/components/schemas/Balance" } },
+      },
+      Node: {
+        type: "object",
+        properties: {
+          identity: { $ref: "#/components/schemas/Identity" },
+          balance: { $ref: "#/components/schemas/Balance" },
+        },
+      },
+    });
+    const before = contract(
+      schemas(
+        { type: "object", properties: { balances: balance(true) } },
+        balance(false),
+      ),
+    );
+    const after = contract(
+      schemas({ allOf: [{ $ref: "#/components/schemas/Base" }] }, balance(true)),
+    );
+    // Written into the old contract, the new identity's base would find the
+    // old balance, which is not what was proved: refused, naming it.
+    const prediction = predictDocument(before, after, [restate("Identity")]);
+    expect(prediction.issues.map((issue) => issue.message).join()).toContain(
+      "it refers to #/components/schemas/Balance, and the old contract states it differently",
+    );
+  });
+});
