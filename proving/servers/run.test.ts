@@ -171,4 +171,22 @@ describe("what the pairs prove", () => {
     expect(text).toContain("| keycloak | Java | no suite runs black-box |");
     expect(text).toContain("- `t2`: KeyError: 'name'");
   });
+
+  it("says what a Go test compared, where it opens with the line it failed on", () => {
+    const text = render([
+      {
+        ...unserved,
+        arms: {
+          ...unserved.arms,
+          c: {
+            ...unserved.arms.c,
+            messages: {
+              t2: '=== RUN   TestCommitStatus\n    status_test.go:64:\n        \tError Trace:\tstatus_test.go:64\n        \tError:      \tNot equal:\n        \t            \texpected: "warning"\n        \t            \tactual  : "success"',
+            },
+          },
+        },
+      },
+    ]);
+    expect(text).toContain('- `t2`: expected "warning", got "success"');
+  });
 });
