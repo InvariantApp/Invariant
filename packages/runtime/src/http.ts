@@ -222,3 +222,30 @@ export function appendVary(headers: Headers, names: readonly string[]): void {
   if (missing.length === 0) return;
   headers.set("vary", [...(current ? [current] : []), ...missing].join(", "));
 }
+
+/**
+ * Statuses a `Response` may not be built with a body for. RFC 9110 gives 205
+ * no content, and `fetch` enforces it, but servers answer with one anyway:
+ * Gitea returns the notifications it marked read with its 205.
+ */
+const NULL_BODY_STATUSES = new Set([101, 103, 204, 205, 304]);
+
+type Body = ConstructorParameters<typeof Response>[0];
+
+/**
+ * A response rebuilt around a status someone else chose, keeping the body
+ * that came with it whatever the status. Every place the runtime or a binding
+ * passes a provider's answer on goes through this, so none of them drops a
+ * body the caller's contract promised. Where `Response` insists the status
+ * has none, it is built at 200 and reports the status it was given, so
+ * whatever writes it to the wire sends both; only what the provider itself
+ * answered is ever built this way.
+ */
+export function responseOf(body: Body, status: number, headers: Headers): Response {
+  if (body === null || body === undefined || !NULL_BODY_STATUSES.has(status)) {
+    return new Response(body, { status, headers });
+  }
+  const response = new Response(body, { status: 200, headers });
+  Object.defineProperty(response, "status", { value: status, enumerable: true });
+  return response;
+}

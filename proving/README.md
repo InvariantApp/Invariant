@@ -81,20 +81,38 @@ API never reached. A violation fails the run.
 ## Rig D: real servers
 
 `servers/projects.json` names each project, pins every release by its tag's
-commit and its image digest, and lists the release pairs to run. For each
-pair the old release's own API suite, validating against the old
-specification, runs against the old server, the new server, and the new
-server through the proxy running the drafted program, each from a fresh
-container.
+commit and its image digest (and, where the client lives elsewhere, the
+commit of the client that belongs to the release), and lists the release
+pairs to run. For each pair the old release's own client or API suite,
+unmodified, runs against the old server (arm a), the new server (arm b), and
+the new server through the proxy (arm c), each from a fresh container, or a
+fresh compose project under `servers/compose/` where the server needs a
+database. The suite always calls the same address; in arm c the proxy takes
+it and the server sits behind.
+
+The program in arm c is what the product compiles for a provider: a
+repository with an `invariant.yaml` naming the two releases' documents, the
+Changes committed under `servers/changes/<project>/<from>..<to>/`, and
+`invariant check`, which compiles only when the gate does not block. Those
+Changes are drafted with the product's own proposer and completed the way a
+provider would: decisions answered, with the reason in the file's header,
+and what no op serves acknowledged in a `behavior` Change, which the report
+counts. A pair with none committed gets what the proposer drafts on the spot.
 
 ```console
-pnpm proving:servers --project qdrant
-node --import tsx proving/servers/run.mts --project qdrant --pair v1.13.0:v1.14.0 --select test_alias
+pnpm proving:servers --project netbox --pair v3.5.9:v3.6.9       # three arms, needs Docker
+node --import tsx proving/servers/run.mts --project qdrant --pair v1.16.0:v1.17.0 --propose
+node --import tsx proving/servers/run.mts --project qdrant --pair v1.16.0:v1.17.0 --gate
 ```
 
-Needs Docker and `uv`. The suite is installed from the release's own lock
-file into a virtual environment of its own. A test that passes without the
-adapter and fails through it fails the run.
+`--propose` and `--gate` need no Docker. A project whose document is only
+served by the running server is read from a CI run's dump, which each job
+uploads with the suite's reports, the gate's report and the Changes it
+judged. In CI each release pair is a job of its own, holding no token;
+`gh workflow run proving.yml -f rigs=servers -f servers=netbox` runs rig D
+alone. A pair the release did not break is reported as vacuous; a test that
+passes without the adapter and fails through it fails the run. Projects
+looked at and left out are listed in `projects.json` with the reason.
 
 ## Rig F: hostile input
 

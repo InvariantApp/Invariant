@@ -33,16 +33,29 @@ import {
   type InvariantRuntime,
   RetiredEndpointError,
   requestFailure,
+  responseOf,
   type ShapedError,
   UnsupportedContractError,
 } from "@invariant-app/runtime";
+import { sendUpstream } from "./upstream.ts";
 
 export interface ProxyOptions {
   runtime: InvariantRuntime;
   /** Where the provider's API listens. Any base path is kept. */
   upstream: string | URL;
-  /** Injected for tests. Defaults to the global `fetch`. */
+  /**
+   * Injected for tests. Defaults to Node's own HTTP client, which unlike
+   * `fetch` sends the caller's Host and keeps a body sent with a 205.
+   */
   fetch?: typeof fetch;
+  /**
+   * The Host the provider is sent. `caller`, the default, is the one the
+   * caller sent, as a sidecar in front of one application should: whatever
+   * the provider builds from it, a link or a redirect, points where the caller
+   * can go. `upstream` sends the upstream's own, with the caller's in
+   * X-Forwarded-Host, for a provider that routes by its own name.
+   */
+  upstreamHost?: "caller" | "upstream";
   /** How long the provider has to answer before the caller is told it did not. */
   upstreamTimeoutMs?: number;
   /**
@@ -84,7 +97,8 @@ export type FetchHandler = (request: Request) => Promise<Response>;
 export function createProxy(options: ProxyOptions): FetchHandler {
   const runtime = options.runtime;
   const upstream = new URL(options.upstream);
-  const send = options.fetch ?? fetch;
+  const send = options.fetch ?? sendUpstream;
+  const upstreamHost = options.upstreamHost ?? "caller";
   const timeoutMs = options.upstreamTimeoutMs ?? DEFAULT_TIMEOUT_MS;
   const healthPath = options.healthPath ?? DEFAULT_HEALTH_PATH;
   const errors = options.errors ?? DEFAULT_ERROR_SHAPER;
@@ -112,6 +126,26 @@ export function createProxy(options: ProxyOptions): FetchHandler {
     }
 
     const headers = forwardable(request.headers);
+    // Forwarding headers are the caller's to send, or a proxy's in front of
+    // this one: they are passed on as they came and never invented, since a
+    // provider reads their presence as being behind a proxy that set them.
+    // Gitea then builds its links from the Host, which is why that is the
+    // caller's too.
+    const callerHost = request.headers.get("host") ?? url.host;
+    if (upstreamHost === "caller") {
+      headers.set("host", callerHost);
+    } else if (!headers.has("x-forwarded-host")) {
+      headers.set("x-forwarded-host", callerHost);
+    }
+    // Only a caller who reached this proxy over TLS is told apart from one
+    // who did not, where the provider behind it is not.
+    if (
+      url.protocol === "https:" &&
+      upstream.protocol === "http:" &&
+      !headers.has("x-forwarded-proto")
+    ) {
+      headers.set("x-forwarded-proto", "https");
+    }
     // A caller must never be able to hand the engine a conclusion it did not
     // reach itself, so anything claiming to be internal is dropped on arrival.
     for (const name of [...headers.keys()]) {
@@ -232,9 +266,6 @@ export function createProxy(options: ProxyOptions): FetchHandler {
       );
     }
 
-    headers.set("x-forwarded-host", new URL(request.url).host);
-    headers.set("x-forwarded-proto", new URL(request.url).protocol.replace(":", ""));
-
     // A method with no body sends none, including when a route changed a
     // POST into a GET and its fields moved into the query string.
     const bodyless = method === "GET" || method === "HEAD";
@@ -268,20 +299,20 @@ export function createProxy(options: ProxyOptions): FetchHandler {
     }
 
     const out = forwardable(answer.headers);
-    // The body arrives already decoded, so its declared encoding and length
-    // describe bytes this proxy no longer holds. Passing them on would have a
-    // client decompress plain text.
-    out.delete("content-encoding");
+    // The body arrives decoded, so its declared length describes bytes this
+    // proxy no longer holds, and so does its encoding where it was undone:
+    // passing that on would have a client decompress plain text. An injected
+    // `fetch` undoes it without saying so.
+    if (options.fetch) out.delete("content-encoding");
     out.delete("content-length");
 
-    if (!adapted)
-      return new Response(answer.body, { status: answer.status, headers: out });
-    // `fetch` has already decoded the body, so it is read as it stands.
+    if (!adapted) return responseOf(answer.body, answer.status, out);
+    // The body has already been decoded, so it is read as it stands.
     return runtime.adaptResponse(
       adapted.site,
-      new Response(answer.body, { status: answer.status, headers: out }),
+      responseOf(answer.body, answer.status, out),
       adapted.context,
-      { encoded: false, method: request.method, errors },
+      { encoded: out.has("content-encoding"), method: request.method, errors },
     );
   }
 }

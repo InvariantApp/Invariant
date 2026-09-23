@@ -55,6 +55,7 @@ async function main(): Promise<void> {
         runtime,
         upstream: config.upstream,
         upstreamTimeoutMs: config.upstreamTimeoutMs,
+        upstreamHost: config.upstreamHost,
         healthPath: config.healthPath,
         ...(config.metricsPath === null
           ? {}
@@ -85,7 +86,7 @@ async function main(): Promise<void> {
     port: config.listen.port,
     host: config.listen.host,
     ...(tls ? { tls } : {}),
-    upgrade: passUpgrades(config.upstream),
+    upgrade: passUpgrades(config.upstream, config.upstreamHost),
     requestTimeoutMs: config.requestTimeoutMs,
     headersTimeoutMs: config.headersTimeoutMs,
     maxConnections: config.maxConnections,

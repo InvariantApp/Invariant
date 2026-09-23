@@ -180,6 +180,22 @@ async function sh(
   return stdout;
 }
 
+/**
+ * A step that reaches a package index, tried again after a pause when it
+ * fails. Qdrant 1.18's suite once failed to install because the index said a
+ * pinned release did not exist, which a minute later it did.
+ */
+async function patiently<T>(step: () => Promise<T>, attempts = 3): Promise<T> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await step();
+    } catch (error) {
+      if (attempt >= attempts) throw error;
+      await sleep(attempt * 20_000);
+    }
+  }
+}
+
 /** `{name}` replaced with its value, for every name given; anything else is left as written. */
 export function expand(text: string, vars: Record<string, string>): string {
   return text.replace(/\{([a-zA-Z]+)\}/g, (whole, name: string) => vars[name] ?? whole);
@@ -289,7 +305,7 @@ async function suiteOf(
       string,
       ...string[],
     ];
-    await sh(program, rest, { cwd: dir, env: suiteEnv(env, dir) });
+    await patiently(() => sh(program, rest, { cwd: dir, env: suiteEnv(env, dir) }));
   }
   await writeFile(marker, "", "utf8");
   return { dir, env };

@@ -28,6 +28,7 @@ import {
   isJsonMediaType,
   markEtag,
   readBodyText,
+  responseOf,
   unmarkConditionals,
 } from "./http.ts";
 import {
@@ -86,6 +87,7 @@ export {
   markEtag,
   type ReadOptions,
   readBodyText,
+  responseOf,
   unmarkConditionals,
 } from "./http.ts";
 export { type ParameterValues, readParameters, writeParameters } from "./parameters.ts";
@@ -1013,7 +1015,7 @@ export class InvariantRuntime {
       !this.respondsTo(site, response.status) ||
       !isJsonMediaType(response.headers.get("content-type"))
     ) {
-      return new Response(response.body, { status: response.status, headers });
+      return responseOf(response.body, response.status, headers);
     }
 
     try {
@@ -1034,10 +1036,7 @@ export class InvariantRuntime {
         // names in place of one it does not, and this is how they can know.
         rebuilt.set(FOLDED_HEADER, transformed.folded.join(", "));
       }
-      return new Response(transformed.body, {
-        status: response.status,
-        headers: rebuilt,
-      });
+      return responseOf(transformed.body, response.status, rebuilt);
     } catch (error) {
       const shaped = responseFailure(options.errors ?? DEFAULT_ERROR_SHAPER, error);
       if (!shaped) throw error;
