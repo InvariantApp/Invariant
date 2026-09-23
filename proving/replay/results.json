@@ -1,5 +1,57 @@
 [
   {
+    "id": "2gis/k8s-handle#143",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "versions": [
+      "23.6.0",
+      "24.2.0"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 1
+    }
+  },
+  {
+    "id": "2gis/k8s-handle#148",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "versions": [
+      "24.2.0",
+      "27.2.0"
+    ],
+    "sites": 6,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 3,
+    "missed": 3,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 3
+    }
+  },
+  {
     "id": "3lvia/cli#270",
     "language": "go",
     "package": "github.com/google/go-github",
@@ -126,10 +178,39 @@
     }
   },
   {
+    "id": "ag2ai/ag2#2844",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "1.99.3",
+      "2.30.0"
+    ],
+    "sites": 20,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 1,
+    "missed": 19,
+    "extra": 0,
+    "extraFlags": 4,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
     "id": "AI-Robotic-Labs/http-privacy#553",
     "language": "python",
     "package": "openai",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "2.53.0",
+      "3.3.1"
+    ],
     "sites": 1,
     "identical": 0,
     "differs": 0,
@@ -144,6 +225,84 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0
+    }
+  },
+  {
+    "id": "AI4Bharat/Anudesh-Backend#224",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.102.0"
+    ],
+    "sites": 29,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 14,
+    "missed": 15,
+    "extra": 0,
+    "extraFlags": 4,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 3
+    }
+  },
+  {
+    "id": "AI4Bharat/Anudesh-Backend#227",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.99.9"
+    ],
+    "sites": 29,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 14,
+    "missed": 15,
+    "extra": 0,
+    "extraFlags": 4,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 8
+    }
+  },
+  {
+    "id": "Aider-AI/aider#391",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.3.7"
+    ],
+    "sites": 91,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 9,
+    "missed": 82,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 4
     }
   },
   {
@@ -294,6 +453,32 @@
     }
   },
   {
+    "id": "Alishahryar1/free-claude-code#1504",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.54.0",
+      "3.3.0"
+    ],
+    "sites": 87,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 15,
+    "missed": 72,
+    "extra": 0,
+    "extraFlags": 6,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 6
+    }
+  },
+  {
     "id": "ALRubinger/aileron#857",
     "language": "go",
     "package": "github.com/google/go-github",
@@ -303,6 +488,82 @@
     "differs": 0,
     "flagged": 0,
     "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "amachino/command-ai#1",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.10",
+      "1.109.1"
+    ],
+    "sites": 21,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 1,
+    "missed": 20,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 2
+    }
+  },
+  {
+    "id": "ansys/review-bot#120",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.2.4"
+    ],
+    "sites": 13,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 3,
+    "missed": 10,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "app-sre/qontract-reconcile#2501",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "versions": [
+      "12.0.1",
+      "24.2.0"
+    ],
+    "sites": 7,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 7,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -588,10 +849,117 @@
     }
   },
   {
+    "id": "armalite/data-product-hub#14",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.10",
+      "1.109.1"
+    ],
+    "sites": 48,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 4,
+    "missed": 44,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 16
+    }
+  },
+  {
+    "id": "aryn-ai/sycamore#242",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.14.1"
+    ],
+    "sites": 87,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 2,
+    "missed": 85,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 2
+    }
+  },
+  {
+    "id": "Azure-Samples/azure-search-openai-demo#1017",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.3.6"
+    ],
+    "sites": 152,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 19,
+    "missed": 133,
+    "extra": 0,
+    "extraFlags": 1,
+    "inScope": {
+      "sites": 1,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 1,
+      "unclassified": 0,
+      "contested": 13
+    }
+  },
+  {
     "id": "Azure-Samples/rag-with-azure-ai-search-notebooks#6",
     "language": "python",
     "package": "openai",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "1.109.1",
+      "2.8.1"
+    ],
+    "sites": 3,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 3,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "Azure/azure-iot-ops-cli-extension#895",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "versions": [
+      "35.0.0",
+      "36.0.2"
+    ],
     "sites": 3,
     "identical": 0,
     "differs": 0,
@@ -639,6 +1007,31 @@
     "differs": 0,
     "flagged": 0,
     "missed": 5,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "bedrock-python/mattermind#27",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.36.0",
+      "3.13.0"
+    ],
+    "sites": 17,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 2,
+    "missed": 15,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -828,6 +1221,57 @@
     "differs": 0,
     "flagged": 0,
     "missed": 6,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "canonical/nginx-ingress-integrator-operator#43",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "versions": [
+      "19.15.0",
+      "25.3.0"
+    ],
+    "sites": 27,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 10,
+    "missed": 17,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 8
+    }
+  },
+  {
+    "id": "cartography-cncf/cartography#980",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "versions": [
+      "18.20.0",
+      "22.6.0"
+    ],
+    "sites": 3,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 1,
+    "missed": 2,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -1059,6 +1503,31 @@
     "differs": 0,
     "flagged": 0,
     "missed": 12,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "chidiwilliams/buzz#661",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.10",
+      "1.6.1"
+    ],
+    "sites": 12,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 3,
+    "missed": 9,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -1344,6 +1813,19 @@
     }
   },
   {
+    "id": "citadel-ai/langcheck#57",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "sites": 0,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 0,
+    "extra": 0,
+    "error": "openai 0.11.6 publishes no pure-Python wheel; a source distribution is never built"
+  },
+  {
     "id": "CleanExpo/NodeJS-Starter-V1#60",
     "language": "typescript",
     "package": "stripe",
@@ -1491,6 +1973,57 @@
     }
   },
   {
+    "id": "Couchers-org/couchers#9659",
+    "language": "python",
+    "package": "stripe",
+    "engine": "contract",
+    "versions": [
+      "14.4.0",
+      "15.6.1"
+    ],
+    "sites": 8,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 8,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 6
+    }
+  },
+  {
+    "id": "Cray-HPE/canu#215",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "versions": [
+      "20.13.0",
+      "24.2.0"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
     "id": "Cyb3r-Jak3/cloudflare-utils#361",
     "language": "go",
     "package": "github.com/google/go-github",
@@ -1596,6 +2129,32 @@
     }
   },
   {
+    "id": "dclin/gptlab-streamlit#6",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.8",
+      "2.15.0"
+    ],
+    "sites": 38,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 38,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 1
+    }
+  },
+  {
     "id": "decipad/decipad#6655",
     "language": "typescript",
     "package": "stripe",
@@ -1620,7 +2179,11 @@
     "id": "DefectDojo/django-DefectDojo#11886",
     "language": "python",
     "package": "PyGithub",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "1.58.2",
+      "2.6.1"
+    ],
     "sites": 5,
     "identical": 0,
     "differs": 0,
@@ -1635,6 +2198,32 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0
+    }
+  },
+  {
+    "id": "developing-human/usable-chatgpt-demo#1",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.0",
+      "1.12.0"
+    ],
+    "sites": 51,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 12,
+    "missed": 39,
+    "extra": 0,
+    "extraFlags": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 1
     }
   },
   {
@@ -1701,17 +2290,72 @@
     }
   },
   {
+    "id": "dimagi/commcare-hq#33775",
+    "language": "python",
+    "package": "stripe",
+    "engine": "contract",
+    "versions": [
+      "4.1.0",
+      "7.2.0"
+    ],
+    "sites": 46,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 46,
+    "extra": 0,
+    "extraFlags": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 16
+    }
+  },
+  {
+    "id": "dimagi/commcare-hq#35635",
+    "language": "python",
+    "package": "stripe",
+    "engine": "contract",
+    "versions": [
+      "7.2.0",
+      "11.4.0"
+    ],
+    "sites": 3,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 2,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
     "id": "dimagi/commcare-hq#37038",
     "language": "python",
     "package": "stripe",
-    "engine": "none",
+    "engine": "contract",
+    "versions": [
+      "11.4.0",
+      "13.2.0"
+    ],
     "sites": 19,
     "identical": 0,
     "differs": 0,
     "flagged": 0,
     "missed": 19,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 58,
     "inScope": {
       "sites": 0,
       "identical": 0,
@@ -1725,12 +2369,16 @@
     "id": "dimagi/open-chat-studio#3129",
     "language": "python",
     "package": "langfuse",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "3.14.5",
+      "4.5.0"
+    ],
     "sites": 14,
     "identical": 0,
     "differs": 0,
-    "flagged": 0,
-    "missed": 14,
+    "flagged": 5,
+    "missed": 9,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -1788,12 +2436,54 @@
     "id": "eakmanrq/sqlframe#524",
     "language": "python",
     "package": "openai",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "1.30.5",
+      "1.30.5"
+    ],
     "sites": 2,
     "identical": 0,
     "differs": 0,
     "flagged": 0,
     "missed": 2,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "ebridges/plaid2qif#28",
+    "language": "python",
+    "package": "plaid-python",
+    "engine": "verify",
+    "sites": 0,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 0,
+    "extra": 0,
+    "error": "plaid-python 7.2.0 publishes no pure-Python wheel; a source distribution is never built"
+  },
+  {
+    "id": "Eigenwise/atomic-agents#190",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "1.95.1",
+      "2.8.1"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -2037,6 +2727,32 @@
     }
   },
   {
+    "id": "epam/ai-dial-adapter-openai#389",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "1.90.0",
+      "2.16.0"
+    ],
+    "sites": 59,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 8,
+    "missed": 51,
+    "extra": 0,
+    "extraFlags": 20,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 7
+    }
+  },
+  {
     "id": "EvanGribar/Swarm-Review#80",
     "language": "typescript",
     "package": "@octokit/rest",
@@ -2061,7 +2777,11 @@
     "id": "felddy/foundryvtt-docker#858",
     "language": "python",
     "package": "docker",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "6.1.3",
+      "7.0.0"
+    ],
     "sites": 1,
     "identical": 0,
     "differs": 0,
@@ -2082,7 +2802,11 @@
     "id": "felddy/weewx-docker#281",
     "language": "python",
     "package": "docker",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "6.1.3",
+      "7.0.0"
+    ],
     "sites": 1,
     "identical": 0,
     "differs": 0,
@@ -2163,6 +2887,32 @@
     }
   },
   {
+    "id": "floomhq/floom#129",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "1.35.3",
+      "2.36.0"
+    ],
+    "sites": 99,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 99,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 34
+    }
+  },
+  {
     "id": "form8ion/github#15",
     "language": "javascript",
     "package": "@octokit/rest",
@@ -2181,6 +2931,32 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0
+    }
+  },
+  {
+    "id": "fossasia/eventyay-stripe#10",
+    "language": "python",
+    "package": "stripe",
+    "engine": "contract",
+    "versions": [
+      "5.4.0",
+      "11.3.0"
+    ],
+    "sites": 143,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 1,
+    "missed": 142,
+    "extra": 0,
+    "extraFlags": 2,
+    "inScope": {
+      "sites": 9,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 9,
+      "unclassified": 0,
+      "contested": 75
     }
   },
   {
@@ -2205,15 +2981,32 @@
     }
   },
   {
-    "id": "gefyrahq/gefyra#547",
+    "id": "gainy-app/gainy#669",
     "language": "python",
-    "package": "kubernetes",
-    "engine": "none",
-    "sites": 1,
+    "package": "plaid-python",
+    "engine": "verify",
+    "sites": 0,
     "identical": 0,
     "differs": 0,
     "flagged": 0,
-    "missed": 1,
+    "missed": 0,
+    "extra": 0,
+    "error": "plaid-python 8.4.0 publishes no pure-Python wheel; a source distribution is never built"
+  },
+  {
+    "id": "gefyrahq/gefyra#547",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "versions": [
+      "28.1.0",
+      "29.0.0"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 1,
+    "missed": 0,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -2880,12 +3673,16 @@
     "id": "Giskard-AI/giskard-oss#2790",
     "language": "python",
     "package": "openai",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "2.43.0",
+      "2.54.0"
+    ],
     "sites": 1,
     "identical": 0,
     "differs": 0,
-    "flagged": 0,
-    "missed": 1,
+    "flagged": 1,
+    "missed": 0,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -3321,7 +4118,11 @@
     "id": "hassio-addons/repository-updater#105",
     "language": "python",
     "package": "PyGithub",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "1.59.1",
+      "2.1.1"
+    ],
     "sites": 1,
     "identical": 0,
     "differs": 0,
@@ -3402,6 +4203,32 @@
     }
   },
   {
+    "id": "HumanSignal/Adala#78",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.14.3"
+    ],
+    "sites": 147,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 4,
+    "missed": 143,
+    "extra": 0,
+    "extraFlags": 3,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 42
+    }
+  },
+  {
     "id": "iggy/botkube#358",
     "language": "go",
     "package": "github.com/google/go-github",
@@ -3423,10 +4250,66 @@
     }
   },
   {
+    "id": "IINemo/lm-polygraph#240",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.0",
+      "1.52.0"
+    ],
+    "sites": 23,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 2,
+    "missed": 21,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 1
+    }
+  },
+  {
+    "id": "ijwfly/chatgpt-tg#63",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "1.35.8",
+      "3.3.1"
+    ],
+    "sites": 320,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 320,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 19
+    }
+  },
+  {
     "id": "ImageMarkup/isic#1471",
     "language": "python",
     "package": "elasticsearch",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "8.18.1",
+      "9.4.0"
+    ],
     "sites": 19,
     "identical": 0,
     "differs": 0,
@@ -3531,7 +4414,11 @@
     "id": "interuss/monitoring#1498",
     "language": "python",
     "package": "kubernetes",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "35.0.0",
+      "36.0.2"
+    ],
     "sites": 5,
     "identical": 0,
     "differs": 0,
@@ -3573,12 +4460,16 @@
     "id": "it-at-m/zammad-ai#128",
     "language": "python",
     "package": "langfuse",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "3.14.5",
+      "4.0.1"
+    ],
     "sites": 10,
     "identical": 0,
     "differs": 0,
-    "flagged": 0,
-    "missed": 10,
+    "flagged": 1,
+    "missed": 9,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -3587,6 +4478,56 @@
       "differs": 0,
       "flagged": 0,
       "missed": 1,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "Jamyn/dispatch#196",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.53.0",
+      "3.1.0"
+    ],
+    "sites": 14,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 2,
+    "missed": 12,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "Jamyn/dispatch#21",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "1.77.0",
+      "2.53.0"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
       "unclassified": 0
     }
   },
@@ -3675,6 +4616,31 @@
     }
   },
   {
+    "id": "johnhughes3/LegalForecastBench#836",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.53.0",
+      "3.0.0"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
     "id": "JonasBaeumer/AgentWallet#159",
     "language": "typescript",
     "package": "stripe",
@@ -3696,10 +4662,65 @@
     }
   },
   {
+    "id": "jorgesm/meetingsGPT#1",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.44.0",
+      "3.14.1"
+    ],
+    "sites": 36,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 36,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 2,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 2,
+      "unclassified": 0,
+      "contested": 23
+    }
+  },
+  {
+    "id": "jshwi/jss#1054",
+    "language": "python",
+    "package": "stripe",
+    "engine": "contract",
+    "versions": [
+      "5.5.0",
+      "7.4.0"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
     "id": "jshwi/jss#1096",
     "language": "python",
     "package": "stripe",
-    "engine": "none",
+    "engine": "contract",
+    "versions": [
+      "5.5.0",
+      "7.7.0"
+    ],
     "sites": 1,
     "identical": 0,
     "differs": 0,
@@ -3720,7 +4741,11 @@
     "id": "jshwi/jss#1108",
     "language": "python",
     "package": "stripe",
-    "engine": "none",
+    "engine": "contract",
+    "versions": [
+      "5.5.0",
+      "7.7.0"
+    ],
     "sites": 1,
     "identical": 0,
     "differs": 0,
@@ -3741,7 +4766,36 @@
     "id": "jshwi/jss#1186",
     "language": "python",
     "package": "stripe",
-    "engine": "none",
+    "engine": "contract",
+    "versions": [
+      "7.14.0",
+      "8.1.0"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "jshwi/jss#1249",
+    "language": "python",
+    "package": "stripe",
+    "engine": "contract",
+    "versions": [
+      "7.14.0",
+      "9.1.0"
+    ],
     "sites": 2,
     "identical": 0,
     "differs": 0,
@@ -3762,7 +4816,11 @@
     "id": "jshwi/jss#1314",
     "language": "python",
     "package": "stripe",
-    "engine": "none",
+    "engine": "contract",
+    "versions": [
+      "7.7.0",
+      "9.6.0"
+    ],
     "sites": 2,
     "identical": 0,
     "differs": 0,
@@ -3783,12 +4841,16 @@
     "id": "jshwi/jss#1608",
     "language": "python",
     "package": "stripe",
-    "engine": "none",
+    "engine": "contract",
+    "versions": [
+      "12.5.1",
+      "13.2.0"
+    ],
     "sites": 2,
     "identical": 0,
     "differs": 0,
-    "flagged": 0,
-    "missed": 2,
+    "flagged": 1,
+    "missed": 1,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -3801,10 +4863,40 @@
     }
   },
   {
+    "id": "jupyterlab/jupyter-ai#551",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "sites": 0,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 0,
+    "extra": 0,
+    "error": "openai 0.26.5 publishes no pure-Python wheel; a source distribution is never built"
+  },
+  {
+    "id": "jupyterlab/jupyter-ai#567",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "sites": 0,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 0,
+    "extra": 0,
+    "error": "openai 0.26.5 publishes no pure-Python wheel; a source distribution is never built"
+  },
+  {
     "id": "KapJI/homeassistant-stubs#365",
     "language": "python",
     "package": "PyGithub",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "1.59.1",
+      "2.1.1"
+    ],
     "sites": 2,
     "identical": 0,
     "differs": 0,
@@ -4074,6 +5166,32 @@
     }
   },
   {
+    "id": "kreneskyp/ix#330",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.0",
+      "1.2.3"
+    ],
+    "sites": 9,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 9,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 3
+    }
+  },
+  {
     "id": "kula-app/OnLaunch#1052",
     "language": "typescript",
     "package": "stripe",
@@ -4242,6 +5360,32 @@
     }
   },
   {
+    "id": "KurtLehnardt/free-claude-code-secure#14",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.54.0",
+      "3.3.1"
+    ],
+    "sites": 97,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 14,
+    "missed": 83,
+    "extra": 0,
+    "extraFlags": 11,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 3
+    }
+  },
+  {
     "id": "kyma-project/test-infra#13902",
     "language": "go",
     "package": "github.com/google/go-github",
@@ -4368,6 +5512,57 @@
     }
   },
   {
+    "id": "lagowski/dap#878",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.53.0",
+      "3.0.0"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 1,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "learning-unlimited/ESP-Website#5803",
+    "language": "python",
+    "package": "stripe",
+    "engine": "contract",
+    "versions": [
+      "2.60.0",
+      "7.5.0"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 1,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 1
+    }
+  },
+  {
     "id": "liatrio/liatrio-otel-collector#823",
     "language": "go",
     "package": "github.com/google/go-github",
@@ -4407,6 +5602,32 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0
+    }
+  },
+  {
+    "id": "lihor-hub/news-dashboard#1407",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.53.0",
+      "3.3.1"
+    ],
+    "sites": 9,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 2,
+    "missed": 7,
+    "extra": 0,
+    "extraFlags": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 2
     }
   },
   {
@@ -4557,10 +5778,40 @@
     }
   },
   {
+    "id": "longhorn/longhorn-tests#1173",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "versions": [
+      "11.0.0",
+      "25.3.0"
+    ],
+    "sites": 33,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 1,
+    "missed": 32,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 2
+    }
+  },
+  {
     "id": "lookit/lookit-api#1594",
     "language": "python",
     "package": "docker",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "4.2.1",
+      "7.1.0"
+    ],
     "sites": 6,
     "identical": 0,
     "differs": 0,
@@ -4620,10 +5871,141 @@
     }
   },
   {
+    "id": "Lucs1590/strava-to-trainingpeaks#168",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "1.109.1",
+      "2.3.0"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "Lucs1590/strava-to-trainingpeaks#302",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.53.0",
+      "3.1.0"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "LVTD-LLC/TuxSEO#15",
+    "language": "python",
+    "package": "stripe",
+    "engine": "contract",
+    "versions": [
+      "4.0.2",
+      "11.6.0"
+    ],
+    "sites": 28,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 28,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 10
+    }
+  },
+  {
+    "id": "mage-ai/mage-ai#3835",
+    "language": "python",
+    "package": "stripe",
+    "engine": "contract",
+    "versions": [
+      "4.2.0",
+      "5.5.0"
+    ],
+    "sites": 50,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 1,
+    "missed": 49,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 1,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 16
+    }
+  },
+  {
+    "id": "MaibornWolff/hybrid-cloud-operator-library#4",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "versions": [
+      "25.3.0",
+      "26.1.0"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
     "id": "MaibornWolff/hybrid-cloud-operator-library#6",
     "language": "python",
     "package": "kubernetes",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "28.1.0",
+      "29.0.0"
+    ],
     "sites": 1,
     "identical": 0,
     "differs": 0,
@@ -4683,6 +6065,31 @@
     }
   },
   {
+    "id": "masorange/titan-cli#204",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "1.109.1",
+      "2.8.1"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
     "id": "masumi-network/sokosumi#1595",
     "language": "typescript",
     "package": "stripe",
@@ -4725,6 +6132,19 @@
     }
   },
   {
+    "id": "mbafford/plaid-sync#5",
+    "language": "python",
+    "package": "plaid-python",
+    "engine": "verify",
+    "sites": 0,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 0,
+    "extra": 0,
+    "error": "plaid-python 7.1.0 publishes no pure-Python wheel; a source distribution is never built"
+  },
+  {
     "id": "mdn/yari#9888",
     "language": "typescript",
     "package": "openai",
@@ -4743,6 +6163,108 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0
+    }
+  },
+  {
+    "id": "microsoft/deep-language-networks#51",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.0",
+      "1.14.1"
+    ],
+    "sites": 78,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 10,
+    "missed": 68,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 23
+    }
+  },
+  {
+    "id": "microsoft/PyRIT#2426",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.53.0",
+      "3.1.0"
+    ],
+    "sites": 5,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 5,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "ministryofjustice/analytics-platform-control-panel#1415",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "versions": [
+      "25.3.0",
+      "31.0.0"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 3,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "moleculemaker/mmli-backend#72",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "versions": [
+      "27.2.0",
+      "31.0.0"
+    ],
+    "sites": 4,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 4,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 2
     }
   },
   {
@@ -4959,12 +6481,16 @@
     "id": "neurogeom/CopilotJ#36",
     "language": "python",
     "package": "langfuse",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "3.3.2",
+      "4.7.0"
+    ],
     "sites": 5,
     "identical": 0,
     "differs": 0,
-    "flagged": 0,
-    "missed": 5,
+    "flagged": 1,
+    "missed": 4,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -4975,6 +6501,123 @@
       "missed": 0,
       "unclassified": 0
     }
+  },
+  {
+    "id": "NVIDIA/garak#477",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.7",
+      "1.12.0"
+    ],
+    "sites": 17,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 6,
+    "missed": 11,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 1
+    }
+  },
+  {
+    "id": "ocadotechnology/mirror-operator#69",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "versions": [
+      "11.0.0",
+      "21.7.0"
+    ],
+    "sites": 10,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 10,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 3
+    }
+  },
+  {
+    "id": "ogx-ai/ogx#3847",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "1.107.0",
+      "2.5.0"
+    ],
+    "sites": 17,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 17,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 16
+    }
+  },
+  {
+    "id": "okfde/froide-payment#22",
+    "language": "python",
+    "package": "stripe",
+    "engine": "contract",
+    "versions": [
+      "5.5.0",
+      "7.14.0"
+    ],
+    "sites": 35,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 35,
+    "extra": 0,
+    "extraFlags": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 27
+    }
+  },
+  {
+    "id": "onetop21/MLAppDeploy#141",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "sites": 0,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 0,
+    "extra": 0,
+    "error": "kubernetes has no release matching 19.0.0"
   },
   {
     "id": "open-telemetry/opentelemetry-collector-contrib#46597",
@@ -5316,12 +6959,16 @@
     "id": "pamelafox/chatgpt-backend-fastapi#16",
     "language": "python",
     "package": "openai",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.5.0"
+    ],
     "sites": 40,
     "identical": 0,
     "differs": 0,
-    "flagged": 0,
-    "missed": 40,
+    "flagged": 3,
+    "missed": 37,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -5337,12 +6984,16 @@
     "id": "panodata/omniload#49",
     "language": "python",
     "package": "asana",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "3.2.3",
+      "5.3.0"
+    ],
     "sites": 2,
     "identical": 0,
     "differs": 0,
-    "flagged": 0,
-    "missed": 2,
+    "flagged": 1,
+    "missed": 1,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -5358,12 +7009,41 @@
     "id": "PennyDreadfulMTG/Penny-Dreadful-Tools#14690",
     "language": "python",
     "package": "PyGithub",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "1.59.1",
+      "2.9.1"
+    ],
     "sites": 4,
     "identical": 0,
     "differs": 0,
-    "flagged": 0,
-    "missed": 4,
+    "flagged": 2,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "piercefreeman/gpt-json#43",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.6",
+      "1.16.2"
+    ],
+    "sites": 43,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 7,
+    "missed": 36,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -5473,10 +7153,117 @@
     "error": "the SDK records no API version"
   },
   {
+    "id": "polarsource/polar#1732",
+    "language": "python",
+    "package": "stripe",
+    "engine": "contract",
+    "versions": [
+      "6.6.0",
+      "7.4.0"
+    ],
+    "sites": 94,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 94,
+    "extra": 0,
+    "extraFlags": 2,
+    "inScope": {
+      "sites": 1,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 1,
+      "unclassified": 0,
+      "contested": 55
+    }
+  },
+  {
+    "id": "polarsource/polar#3130",
+    "language": "python",
+    "package": "stripe",
+    "engine": "contract",
+    "versions": [
+      "7.4.0",
+      "9.2.0"
+    ],
+    "sites": 13,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 6,
+    "missed": 7,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "polarsource/polar#9275",
+    "language": "python",
+    "package": "stripe",
+    "engine": "contract",
+    "versions": [
+      "11.6.0",
+      "14.3.0"
+    ],
+    "sites": 61,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 27,
+    "missed": 34,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 2,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 2,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 14
+    }
+  },
+  {
+    "id": "popalex/ubiquitous-octo-broccoli-rpg#86",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.44.0",
+      "3.3.1"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 1
+    }
+  },
+  {
     "id": "primerhq/primer#207",
     "language": "python",
     "package": "openai",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "2.50.0",
+      "3.6.0"
+    ],
     "sites": 19,
     "identical": 0,
     "differs": 0,
@@ -5491,6 +7278,32 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0
+    }
+  },
+  {
+    "id": "projectsyn/commodore#859",
+    "language": "python",
+    "package": "PyGithub",
+    "engine": "verify",
+    "versions": [
+      "1.59.1",
+      "2.1.1"
+    ],
+    "sites": 7,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 2,
+    "missed": 5,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 1
     }
   },
   {
@@ -5599,10 +7412,52 @@
     }
   },
   {
+    "id": "punt-labs/vox#431",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.36.0",
+      "3.1.0"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "raiyanyahya/dallecli#11",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "sites": 0,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 0,
+    "extra": 0,
+    "error": "openai 0.26.5 publishes no pure-Python wheel; a source distribution is never built"
+  },
+  {
     "id": "raiyanyahya/freshenv#216",
     "language": "python",
     "package": "docker",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "6.0.1",
+      "7.0.0"
+    ],
     "sites": 1,
     "identical": 0,
     "differs": 0,
@@ -5809,6 +7664,32 @@
     }
   },
   {
+    "id": "refuel-ai/autolabel#651",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.4",
+      "1.2.2"
+    ],
+    "sites": 25,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 25,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 1
+    }
+  },
+  {
     "id": "remal/github-repository-token-issuer#132",
     "language": "go",
     "package": "github.com/google/go-github",
@@ -5977,6 +7858,31 @@
     }
   },
   {
+    "id": "rob-luke/conversations#74",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.2.0"
+    ],
+    "sites": 29,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 5,
+    "missed": 24,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
     "id": "roberteggl/github-deployment-bridge#8",
     "language": "go",
     "package": "github.com/google/go-github",
@@ -6082,6 +7988,31 @@
     }
   },
   {
+    "id": "rungalileo/galileo-python#557",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "1.95.1",
+      "2.32.0"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
     "id": "ryanrosello-og/playwright-slack-report#430",
     "language": "typescript",
     "package": "@slack/web-api",
@@ -6103,17 +8034,47 @@
     }
   },
   {
-    "id": "sandeepraju/sulley#4",
+    "id": "SabaTech-dev/QA-FRAMEWORK#230",
     "language": "python",
-    "package": "twilio",
-    "engine": "none",
-    "sites": 1,
+    "package": "stripe",
+    "engine": "contract",
+    "versions": [
+      "10.12.0",
+      "15.6.1"
+    ],
+    "sites": 33,
     "identical": 0,
     "differs": 0,
-    "flagged": 0,
-    "missed": 1,
+    "flagged": 6,
+    "missed": 27,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 10,
+    "inScope": {
+      "sites": 5,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 2,
+      "missed": 3,
+      "unclassified": 0,
+      "contested": 5
+    }
+  },
+  {
+    "id": "salt-extensions/saltext-kubernetes#9",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "versions": [
+      "3.0.0",
+      "19.15.0"
+    ],
+    "sites": 23,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 1,
+    "missed": 22,
+    "extra": 0,
+    "extraFlags": 19,
     "inScope": {
       "sites": 0,
       "identical": 0,
@@ -6122,6 +8083,19 @@
       "missed": 0,
       "unclassified": 0
     }
+  },
+  {
+    "id": "sandeepraju/sulley#4",
+    "language": "python",
+    "package": "twilio",
+    "engine": "verify",
+    "sites": 0,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 0,
+    "extra": 0,
+    "error": "twilio 5.4.0 publishes no pure-Python wheel; a source distribution is never built"
   },
   {
     "id": "sanidhyy/canva-clone#106",
@@ -6271,6 +8245,32 @@
     }
   },
   {
+    "id": "ScilifelabDataCentre/serve-event-listener#7",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "versions": [
+      "29.0.0",
+      "32.0.0"
+    ],
+    "sites": 14,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 14,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 10
+    }
+  },
+  {
     "id": "sethrylan/issue-digest#63",
     "language": "typescript",
     "package": "openai",
@@ -6292,15 +8292,44 @@
     }
   },
   {
+    "id": "siro103/OpSyne#2",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.54.0",
+      "3.13.0"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 2,
+    "missed": 0,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
     "id": "smallketchup82/rezero-summarizer#17",
     "language": "python",
     "package": "openai",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.3.5"
+    ],
     "sites": 4,
     "identical": 0,
     "differs": 0,
-    "flagged": 0,
-    "missed": 4,
+    "flagged": 1,
+    "missed": 3,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -6334,6 +8363,32 @@
     }
   },
   {
+    "id": "Soju06/codex-lb#1807",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.53.0",
+      "3.0.0"
+    ],
+    "sites": 11,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 11,
+    "extra": 0,
+    "extraFlags": 5,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 3
+    }
+  },
+  {
     "id": "stacklok/frizbee#397",
     "language": "go",
     "package": "github.com/google/go-github",
@@ -6352,6 +8407,32 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0
+    }
+  },
+  {
+    "id": "stanford-crfm/helm#2384",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.10",
+      "0.27.10"
+    ],
+    "sites": 32,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 32,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 2,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 2,
+      "unclassified": 0,
+      "contested": 2
     }
   },
   {
@@ -8098,6 +10179,31 @@
     }
   },
   {
+    "id": "swirlai/swirl-search#1011",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.3.4"
+    ],
+    "sites": 38,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 6,
+    "missed": 32,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
     "id": "synapsy-ai/write#1032",
     "language": "typescript",
     "package": "stripe",
@@ -8350,6 +10456,32 @@
     }
   },
   {
+    "id": "theodore86/github-rate-limits-exporter#316",
+    "language": "python",
+    "package": "PyGithub",
+    "engine": "verify",
+    "versions": [
+      "1.59.1",
+      "2.1.1"
+    ],
+    "sites": 27,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 27,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 2
+    }
+  },
+  {
     "id": "theopenlane/core#1314",
     "language": "go",
     "package": "github.com/stripe/stripe-go",
@@ -8374,7 +10506,11 @@
     "id": "tobydoescode/hass-integration-kubernetes#7",
     "language": "python",
     "package": "kubernetes",
-    "engine": "none",
+    "engine": "verify",
+    "versions": [
+      "35.0.0",
+      "36.0.3"
+    ],
     "sites": 7,
     "identical": 0,
     "differs": 0,
@@ -8395,7 +10531,11 @@
     "id": "tough-dev-school/education-backend#2330",
     "language": "python",
     "package": "stripe",
-    "engine": "none",
+    "engine": "contract",
+    "versions": [
+      "6.7.0",
+      "10.4.0"
+    ],
     "sites": 5,
     "identical": 0,
     "differs": 0,
@@ -8416,14 +10556,18 @@
     "id": "tough-dev-school/education-backend#2799",
     "language": "python",
     "package": "stripe",
-    "engine": "none",
+    "engine": "contract",
+    "versions": [
+      "12.5.1",
+      "13.2.0"
+    ],
     "sites": 14,
     "identical": 0,
     "differs": 0,
     "flagged": 0,
     "missed": 14,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 1,
     "inScope": {
       "sites": 0,
       "identical": 0,
@@ -8529,6 +10673,31 @@
     "missed": 0,
     "extra": 0,
     "error": "the SDK records no API version"
+  },
+  {
+    "id": "UKGovernmentBEIS/inspect_evals#2187",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.36.0",
+      "3.2.0"
+    ],
+    "sites": 31,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 31,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
   },
   {
     "id": "unlock-protocol/unlock#14035",
@@ -8972,6 +11141,31 @@
     }
   },
   {
+    "id": "vpromise/SiliconWeaver#26",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "1.109.1",
+      "3.3.1"
+    ],
+    "sites": 7,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 7,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
     "id": "webhippie/mygithub#265",
     "language": "go",
     "package": "github.com/google/go-github",
@@ -9074,6 +11268,32 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0
+    }
+  },
+  {
+    "id": "wndhydrnt/rcmt#408",
+    "language": "python",
+    "package": "PyGithub",
+    "engine": "verify",
+    "versions": [
+      "1.59.1",
+      "2.1.1"
+    ],
+    "sites": 12,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 12,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 1
     }
   },
   {
@@ -9242,6 +11462,83 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0
+    }
+  },
+  {
+    "id": "XiyaoWang0519/agent-call#74",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.53.0",
+      "3.3.1"
+    ],
+    "sites": 9,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 1,
+    "missed": 8,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    }
+  },
+  {
+    "id": "Yelp/paasta#3632",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "versions": [
+      "18.20.0",
+      "24.2.0"
+    ],
+    "sites": 32,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 7,
+    "missed": 25,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 3
+    }
+  },
+  {
+    "id": "Yelp/paasta#3646",
+    "language": "python",
+    "package": "kubernetes",
+    "engine": "verify",
+    "versions": [
+      "18.20.0",
+      "24.2.0"
+    ],
+    "sites": 32,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 7,
+    "missed": 25,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 3
     }
   },
   {

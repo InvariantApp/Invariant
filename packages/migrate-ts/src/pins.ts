@@ -10,6 +10,8 @@
  * environment variable or a value computed at runtime, is shown to a person:
  * what it holds is not in the source.
  */
+
+import type { SymbolMap } from "@invariant-app/migrate-core";
 import { Node, type Project } from "ts-morph";
 import {
   type EditScope,
@@ -18,7 +20,6 @@ import {
   manualFrom,
   membersOf,
 } from "./engine.ts";
-import type { SymbolMap } from "./plan.ts";
 
 const CHANGE = "sdk-upgrade";
 

@@ -130,6 +130,13 @@ GITHUB_TOKEN=... node --import tsx proving/replay/mine.mts --package github.com/
 
 The nightly run adds up to 150 cases.
 
+A bot's bump carries mostly the SDK's own changes; the contract migrations
+are often a person's own pull request, titled for the API version it moves
+to ("read Stripe fields that basil relocated"). For stripe, plaid-python,
+kubernetes and openai on PyPI the miner also searches such titles, reads what
+each pull request upgraded from its manifests' diff, and keeps it only where
+that moves the SDK forward across a major version.
+
 `replay/run.mts` replays them. Each repository is fetched at the bump's base
 with no history and no blob it does not need, the SDK alone is installed at
 the version the base's lockfile names, with install scripts off, and the
@@ -159,6 +166,28 @@ is audited by hand before a number from them is quoted.
 ```console
 node --env-file-if-exists=.env --import tsx proving/replay/run.mts --classify
 node --import tsx proving/replay/run.mts --package stripe --limit 5 --keep
+```
+
+PyPI cases go through the Python pack (`@invariant-app/migrate-py`). The
+release each side used comes from the repository's own pins (a requirements
+file, a Poetry, uv or PDM lock, a Pipfile lock, a manifest's requirement), or,
+where nothing is pinned, from the newest release below the target's major
+published before the bump was merged. Both releases are unpacked from their
+wheels, with what their metadata requires, and never built from a source
+distribution; a release with no wheel is a case that could not be replayed.
+pyright reads the files that import the SDK against the old release and
+checks the result against the new one, and every error the upgrade brings is
+flagged. For stripe-python the pack is also told the Changes, the same way as
+for stripe-node, from the OpenAPI release each stripe-python release records.
+
+The Python replay runs in GitHub Actions (`.github/workflows/replay.yml`, four
+shards, on every push that touches the pack or the rig), with no token and no
+secret, since it fetches and reads strangers' repositories. Its sites are then
+classed where the key is, and the run scored again without replaying:
+
+```console
+gh run download <run> -n replay-report     # results.json and .cache/replay/sites
+node --env-file-if-exists=.env --import tsx proving/replay/run.mts --rescore --ecosystem pypi --classify
 ```
 
 `replay/sites.mts` reads every case's human hunks from the GitHub API, which

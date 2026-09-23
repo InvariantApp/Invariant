@@ -9,24 +9,26 @@
 import { readdirSync, statSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { Node, Project, type SourceFile, ts } from "ts-morph";
-import { applyEdits, type Edit, groupByFile } from "./edits.ts";
 import {
-  type EditScope,
-  type EngineResult,
-  editable,
+  applyEdits,
+  buildPlan,
+  type Edit,
+  groupByFile,
   type ManualSite,
-  runEngine,
-} from "./engine.ts";
+  type MigrationPlan,
+  type SymbolMap,
+} from "@invariant-app/migrate-core";
+import { Node, Project, type SourceFile, ts } from "ts-morph";
+import { type EditScope, type EngineResult, editable, runEngine } from "./engine.ts";
 import { assertWritable, repositoryPath } from "./paths.ts";
 import { bumpPins } from "./pins.ts";
-import { buildPlan, type MigrationPlan, type SymbolMap } from "./plan.ts";
 import { flagRetired } from "./retired.ts";
 
-export * from "./edits.ts";
-export type { EditScope, ManualSite } from "./engine.ts";
+// The plan and the edits are shared with every language pack, and still
+// importable from here, where they began.
+export * from "@invariant-app/migrate-core";
+export type { EditScope } from "./engine.ts";
 export { MigrationPathError } from "./paths.ts";
-export * from "./plan.ts";
 export * from "./raw.ts";
 
 export interface MigrateOptions {

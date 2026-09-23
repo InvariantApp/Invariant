@@ -6,6 +6,9 @@ packages:
 allowBuilds:
   '@nestjs/core': false
   esbuild: true
+  # Only its prebuilt grammar .wasm is read, by web-tree-sitter; the native
+  # binding its install script builds is never loaded.
+  tree-sitter-python: false
 
 minimumReleaseAgeExclude:
   - '@nestjs/common@12.0.4'

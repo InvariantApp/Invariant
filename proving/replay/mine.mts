@@ -16,7 +16,7 @@
  *
  * Usage:
  *   GITHUB_TOKEN=... node --import tsx proving/replay/mine.mts [--months 24] [--limit 200]
- *     [--package stripe]
+ *     [--package stripe] [--ecosystem pypi] [--per-package 60] [--minutes 40]
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -31,6 +31,19 @@ interface Target {
   ecosystems: Ecosystem[];
   /** Search phrases; each is searched as an exact title phrase. */
   titles: string[];
+  /**
+   * Words a person's own migration pull request has in its title, per
+   * ecosystem: "read Stripe fields that basil relocated". Such a pull request
+   * names no versions, so what it upgraded is read from its manifests' diff,
+   * and it is kept only where that crosses a major version.
+   */
+  searches?: Partial<Record<Ecosystem, string[]>>;
+}
+
+/** One search: a bot's exact title phrase, or words from a person's title. */
+interface Query {
+  text: string;
+  human: boolean;
 }
 
 /** An SDK bumped the usual ways: by Dependabot, or by Renovate. */
@@ -49,6 +62,21 @@ const TARGETS: Target[] = [
     package: "stripe",
     ecosystems: ["npm", "pypi"],
     titles: ["Bump stripe from", "update dependency stripe to"],
+    // Python's contract migrations are mostly made by people rather than on
+    // a bot's bump: PostHog's "read Stripe fields that basil relocated" moved
+    // the SDK across a major and every read of a field the API version moved.
+    searches: {
+      pypi: [
+        "stripe basil",
+        "stripe acacia",
+        "stripe clover",
+        "stripe dahlia",
+        "stripe api version",
+        "upgrade stripe",
+        "update stripe",
+        "stripe sdk",
+      ],
+    },
   },
   {
     package: "github.com/stripe/stripe-go",
@@ -72,6 +100,8 @@ const TARGETS: Target[] = [
     package: "plaid-python",
     ecosystems: ["pypi"],
     titles: ["Bump plaid-python from", "update dependency plaid-python to"],
+    // Each plaid-python major pins a new Plaid API version.
+    searches: { pypi: ["upgrade plaid", "update plaid", "plaid api version"] },
   },
   {
     package: "@octokit/rest",
@@ -92,6 +122,7 @@ const TARGETS: Target[] = [
     package: "openai",
     ecosystems: ["npm", "pypi"],
     titles: ["Bump openai from", "update dependency openai to"],
+    searches: { pypi: ["upgrade openai", "migrate openai", "openai v1", "openai sdk"] },
   },
   {
     package: "@slack/web-api",
@@ -112,6 +143,9 @@ const TARGETS: Target[] = [
     package: "kubernetes",
     ecosystems: ["pypi"],
     titles: ["Bump kubernetes from", "update dependency kubernetes to"],
+    // A Kubernetes release that removes an API group (batch/v1beta1's
+    // CronJob) moves every client call to it.
+    searches: { pypi: ["upgrade kubernetes", "kubernetes client", "v1beta1"] },
   },
   {
     package: "docker",
@@ -143,6 +177,12 @@ const TARGETS: Target[] = [
     "spotipy",
     "supabase",
     "xero-python",
+    // Corpus providers whose Python SDKs were not searched at first:
+    // Cloudflare's 3.0 and 4.0 regenerated the whole client from its spec.
+    "cloudflare",
+    "grafana-client",
+    "paypal-server-sdk",
+    "python-intercom",
   ].map((name) => sdk(name, "pypi")),
   ...[
     "@adyen/api-library",
@@ -191,6 +231,14 @@ const MANIFESTS: Record<Ecosystem, RegExp> = {
   npm: /(^|\/)(package\.json|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|npm-shrinkwrap\.json)$/,
   pypi: /(^|\/)(requirements[^/]*\.txt|pyproject\.toml|poetry\.lock|Pipfile(\.lock)?|setup\.(py|cfg)|uv\.lock)$/,
   go: /(^|\/)(go\.mod|go\.sum)$/,
+};
+
+/** A repository's main language on GitHub, for each ecosystem's search. */
+const LANGUAGE: Record<Ecosystem, string | undefined> = {
+  // TypeScript and JavaScript repositories both bump npm packages.
+  npm: undefined,
+  pypi: "python",
+  go: "go",
 };
 
 const SOURCES: Record<Ecosystem, RegExp> = {
@@ -246,6 +294,63 @@ export function parseBump(
   return undefined;
 }
 
+/**
+ * The versions of `name` a pull request's manifests moved between, read from
+ * the diff GitHub shows for each: `-stripe==11.4.0` and `+stripe==12.0.0` in
+ * a requirements file, a Poetry or uv lock's `version =` line under the
+ * package's `name =`, a `package.json` entry, or a `go.mod` line.
+ */
+export function bumpInPatches(
+  files: readonly { filename: string; patch?: string }[],
+  name: string,
+): { from: string; to: string } | undefined {
+  const normal = (raw: string) => raw.toLowerCase().replace(/[-_.]+/g, "-");
+  const target = normal(name);
+  const escaped = name.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+  let from: string | undefined;
+  let to: string | undefined;
+  for (const file of files) {
+    if (
+      !file.patch ||
+      !Object.values(MANIFESTS).some((pattern) => pattern.test(file.filename))
+    )
+      continue;
+    let current = "";
+    for (const line of file.patch.split("\n")) {
+      const sign = line[0];
+      const text = line.slice(1);
+      const named = /^\s*name\s*=\s*"([^"]+)"/.exec(text);
+      if (named) {
+        current = normal(named[1] as string);
+        continue;
+      }
+      if (sign !== "-" && sign !== "+") continue;
+      let version: string | undefined;
+      const locked = /^\s*version\s*=\s*"v?(\d[^"]*)"/.exec(text);
+      if (locked && current === target) version = locked[1];
+      const requirement =
+        /(?:^|["'\s,])([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[^\]]*\])?\s*\(?\s*(?:===|==|~=|>=|\^|~)\s*v?(\d[\w.+-]*)/.exec(
+          text,
+        );
+      if (!version && requirement && normal(requirement[1] as string) === target) {
+        version = requirement[2];
+      }
+      const npm = new RegExp(`"${escaped}"\\s*:\\s*"[\\^~>=v]*(\\d[^"]*)"`).exec(text);
+      if (!version && npm) version = npm[1];
+      const go = new RegExp(
+        `^\\s*(?:require\\s+)?${escaped}(?:/v\\d+)?\\s+v(\\d[^\\s]*)`,
+      ).exec(text);
+      if (!version && go) version = go[1];
+      // `stripe>=5.4.*` reads as `5.4.`; the wildcard is not part of it.
+      version = version?.replace(/\.+$/, "");
+      if (!version) continue;
+      if (sign === "-") from ??= version;
+      else to ??= version;
+    }
+  }
+  return from && to && from !== to ? { from, to } : undefined;
+}
+
 /** Whether a bump crosses a major version, where breaking changes live. */
 export function isMajor(from: string, to: string): boolean {
   const major = (version: string) => {
@@ -256,7 +361,15 @@ export function isMajor(from: string, to: string): boolean {
   // Renovate does not say where it came from; the target alone is kept, and
   // the base commit's manifest says the rest when the case is replayed.
   if (from === "") return /^v?\d+(\.0)*$/.test(to) || to.endsWith(".0.0");
-  return major(from) !== major(to);
+  // Only forward: Yelp/paasta moved kubernetes from 24 back to 21, which is
+  // a different major and no migration to a breaking release.
+  const parts = (version: string) =>
+    version.split(".").map((part) => Number.parseInt(part, 10) || 0);
+  const [a, b] = [parts(from), parts(to)];
+  const forward =
+    (a[0] ?? 0) < (b[0] ?? 0) ||
+    ((a[0] ?? 0) === (b[0] ?? 0) && (a[1] ?? 0) < (b[1] ?? 0));
+  return forward && major(from) !== major(to);
 }
 
 export function classify(
@@ -275,6 +388,8 @@ export function classify(
 }
 
 const TOKEN = process.env["GITHUB_TOKEN"] ?? "";
+/** Each request as it is made, to stderr, for seeing where a slow run spends its time. */
+const VERBOSE = process.argv.includes("--verbose");
 
 /**
  * The API said to come back later than this run is willing to wait. A
@@ -292,13 +407,25 @@ const orElse =
   };
 
 async function github<T>(path: string, attempt = 0): Promise<T> {
-  const response = await fetch(`https://api.github.com${path}`, {
-    headers: {
-      accept: "application/vnd.github+json",
-      "user-agent": "invariant-proving",
-      ...(TOKEN ? { authorization: `Bearer ${TOKEN}` } : {}),
-    },
-  });
+  if (VERBOSE)
+    process.stderr.write(`${new Date().toISOString()} ${path.slice(0, 160)}\n`);
+  let response: Response;
+  try {
+    response = await fetch(`https://api.github.com${path}`, {
+      headers: {
+        accept: "application/vnd.github+json",
+        "user-agent": "invariant-proving",
+        ...(TOKEN ? { authorization: `Bearer ${TOKEN}` } : {}),
+      },
+      // A request that never answers once held a run for most of an hour
+      // with nothing written; it is given up on and asked again.
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch (error) {
+    if (attempt >= 3) throw error;
+    await sleep(2_000 * (attempt + 1));
+    return github(path, attempt + 1);
+  }
   if (response.status === 403 || response.status === 429) {
     // The search API's thirty a minute resets within the minute and is worth
     // waiting for; an hourly limit is not, and ends the run.
@@ -363,8 +490,16 @@ async function mine(): Promise<void> {
   // year, and left uncapped it crowded out every SDK in another language.
   const perPackage = Number(option("per-package") ?? 60);
   const only = option("package");
-  // Stops in time to write what it found, whatever else happens.
-  const deadline = Date.now() + Number(option("minutes") ?? 40) * 60_000;
+  const ecosystem = option("ecosystem") as Ecosystem | undefined;
+  // Stops in time to write what it found, whatever else happens; told to
+  // stop, it stops at the next search the same way, rather than losing
+  // everything it found since it started.
+  let deadline = Date.now() + Number(option("minutes") ?? 40) * 60_000;
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.once(signal, () => {
+      deadline = 0;
+    });
+  }
 
   const index = await readIndex();
   const known = new Set(index.cases.map((entry) => entry.id));
@@ -374,82 +509,139 @@ async function mine(): Promise<void> {
   let stopped = "";
   try {
     search: for (const target of TARGETS.filter(
-      (entry) => !only || entry.package === only,
+      (entry) =>
+        (!only || entry.package === only) &&
+        (!ecosystem || entry.ecosystems.includes(ecosystem)),
+    ).map((entry) =>
+      // `stripe` is a package on npm and on PyPI; asked for one ecosystem, a
+      // bump is classed only into that one.
+      ecosystem ? { ...entry, ecosystems: [ecosystem] } : entry,
     )) {
-      let mine = index.cases.filter((entry) => entry.package === target.package).length;
-      windows: for (const window of months(monthCount)) {
-        for (const phrase of target.titles) {
-          if (added >= limit) break search;
-          if (mine >= perPackage) break windows;
-          if (Date.now() > deadline) {
-            stopped = "out of time";
-            break search;
-          }
-          const query = `"${phrase}" in:title is:pr is:merged created:${window.from}..${window.to}`;
-          const found = await github<{ items: SearchItem[] }>(
-            `/search/issues?per_page=100&q=${encodeURIComponent(query)}`,
-          );
-          for (const item of found.items) {
-            if (added >= limit) break;
-            const repo = item.repository_url.replace("https://api.github.com/repos/", "");
-            const id = `${repo}#${item.number}`;
-            if (known.has(id)) continue;
-            const bump = parseBump(item.title, target);
-            if (!bump || !isMajor(bump.from, bump.to)) continue;
-
-            let owner = licences.get(repo);
-            if (!owner) {
-              const meta = await github<{
-                license: { spdx_id: string } | null;
-                fork: boolean;
-              }>(`/repos/${repo}`).catch(orElse(undefined));
-              owner = {
-                license: meta?.license?.spdx_id ?? "NOASSERTION",
-                fork: meta?.fork ?? true,
-              };
-              licences.set(repo, owner);
+      // The cap is per package in each ecosystem: stripe-node's cases once
+      // used up stripe-python's share, and Python had eight.
+      let mine = index.cases.filter(
+        (entry) =>
+          entry.package === target.package && target.ecosystems.includes(entry.ecosystem),
+      ).length;
+      // Asked for one ecosystem, only repositories in its language are
+      // searched: most `Bump stripe from` pull requests are stripe-node
+      // bumps, and reading each one's files to find that out took the whole
+      // hour's rate limit for eight Python cases.
+      const language = ecosystem ? LANGUAGE[ecosystem] : undefined;
+      const search = (
+        phrase: Query,
+        window: { from: string; to: string },
+        page: number,
+      ) =>
+        github<{ total_count: number; items: SearchItem[] }>(
+          `/search/issues?per_page=100&page=${page}&q=${encodeURIComponent(
+            `${phrase.human ? phrase.text : `"${phrase.text}"`} in:title is:pr is:merged created:${window.from}..${window.to}${language ? ` language:${language}` : ""}`,
+          )}`,
+        );
+      const monthly = months(monthCount);
+      const whole = {
+        from: (monthly.at(-1) as { from: string }).from,
+        to: (monthly[0] as { to: string }).to,
+      };
+      const queries: Query[] = [
+        ...target.titles.map((text) => ({ text, human: false })),
+        ...(target.searches?.[ecosystem ?? target.ecosystems[0] ?? "npm"] ?? []).map(
+          (text) => ({ text, human: true }),
+        ),
+      ];
+      phrases: for (const phrase of queries) {
+        // One query over the whole range where it has no more results than
+        // the search API pages through (a thousand), which for most SDKs in
+        // one language it does; month by month where it has more. A month a
+        // query at a time was the only way before, and ninety-six queries a
+        // package at thirty a minute took most of an hour's run.
+        const first = await search(phrase, whole, 1);
+        await sleep(2_100);
+        const windows = first.total_count <= 1_000 ? [whole] : monthly;
+        for (const window of windows) {
+          // A month is read three pages deep: "Bump docker from" also matches
+          // every docker/* action's bump, a thousand a month of them.
+          for (let page = 1; page <= (window === whole ? 10 : 3); page += 1) {
+            if (added >= limit) break search;
+            if (mine >= perPackage) break phrases;
+            if (Date.now() > deadline) {
+              stopped = "out of time";
+              break search;
             }
-            if (owner.fork || !PERMISSIVE.has(owner.license)) continue;
+            const found =
+              window === whole && page === 1 ? first : await search(phrase, window, page);
+            for (const item of found.items) {
+              if (added >= limit) break;
+              const repo = item.repository_url.replace(
+                "https://api.github.com/repos/",
+                "",
+              );
+              const id = `${repo}#${item.number}`;
+              if (known.has(id)) continue;
+              // A bot's title names the versions; a person's pull request
+              // says what it upgraded in its manifests, read below.
+              let bump = parseBump(item.title, target);
+              if (bump && !isMajor(bump.from, bump.to)) continue;
+              if (!bump && !phrase.human) continue;
 
-            const files = await github<{ filename: string }[]>(
-              `/repos/${repo}/pulls/${item.number}/files?per_page=100`,
-            ).catch(orElse([] as { filename: string }[]));
-            const kind = classify(
-              files.map((file) => file.filename),
-              target.ecosystems,
-            );
-            if (!kind || kind.sources.length === 0 || kind.sources.length > 50) continue;
+              let owner = licences.get(repo);
+              if (!owner) {
+                const meta = await github<{
+                  license: { spdx_id: string } | null;
+                  fork: boolean;
+                }>(`/repos/${repo}`).catch(orElse(undefined));
+                owner = {
+                  license: meta?.license?.spdx_id ?? "NOASSERTION",
+                  fork: meta?.fork ?? true,
+                };
+                licences.set(repo, owner);
+              }
+              if (owner.fork || !PERMISSIVE.has(owner.license)) continue;
 
-            const pull = await github<{
-              base: { sha: string };
-              head: { sha: string };
-              merged_at: string | null;
-            }>(`/repos/${repo}/pulls/${item.number}`).catch(orElse(undefined));
-            if (!pull?.merged_at) continue;
+              const files = await github<{ filename: string; patch?: string }[]>(
+                `/repos/${repo}/pulls/${item.number}/files?per_page=100`,
+              ).catch(orElse([] as { filename: string; patch?: string }[]));
+              const kind = classify(
+                files.map((file) => file.filename),
+                target.ecosystems,
+              );
+              if (!kind || kind.sources.length === 0 || kind.sources.length > 50)
+                continue;
+              bump ??= bumpInPatches(files, target.package);
+              if (!bump || !isMajor(bump.from, bump.to)) continue;
 
-            index.cases.push({
-              id,
-              repo,
-              pr: item.number,
-              base: pull.base.sha,
-              head: pull.head.sha,
-              package: target.package,
-              ecosystem: kind.ecosystem,
-              from: bump.from,
-              to: bump.to,
-              license: owner.license,
-              mergedAt: pull.merged_at,
-              files: kind.sources,
-            });
-            known.add(id);
-            added += 1;
-            mine += 1;
-            process.stdout.write(
-              `${id} ${target.package} ${bump.from} -> ${bump.to} (${kind.sources.length} files)\n`,
-            );
+              const pull = await github<{
+                base: { sha: string };
+                head: { sha: string };
+                merged_at: string | null;
+              }>(`/repos/${repo}/pulls/${item.number}`).catch(orElse(undefined));
+              if (!pull?.merged_at) continue;
+
+              index.cases.push({
+                id,
+                repo,
+                pr: item.number,
+                base: pull.base.sha,
+                head: pull.head.sha,
+                package: target.package,
+                ecosystem: kind.ecosystem,
+                from: bump.from,
+                to: bump.to,
+                license: owner.license,
+                mergedAt: pull.merged_at,
+                files: kind.sources,
+              });
+              known.add(id);
+              added += 1;
+              mine += 1;
+              process.stdout.write(
+                `${id} ${target.package} ${bump.from} -> ${bump.to} (${kind.sources.length} files)\n`,
+              );
+            }
+            // The search API allows thirty requests a minute.
+            if (!(window === whole && page === 1)) await sleep(2_100);
+            if (found.items.length < 100) break;
           }
-          // The search API allows thirty requests a minute.
-          await sleep(2_100);
         }
       }
     }
