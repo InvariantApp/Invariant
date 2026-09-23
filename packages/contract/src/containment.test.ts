@@ -434,6 +434,76 @@ describe("choices", () => {
     expect(holds(outer, { ...shape(["a", "b"]), required: [] }).covered).toBe(false);
   });
 
+  it("tells branches apart by a property one always has and the other never names (Langfuse)", () => {
+    // A chat message has a role and content, a placeholder a name. A value
+    // with no name is never a placeholder, so the choice holds it once.
+    const schemas = {
+      ChatMessage: {
+        type: "object",
+        required: ["role", "content"],
+        properties: { role: string, content: string, type: string },
+      },
+      PlaceholderMessage: {
+        type: "object",
+        required: ["name"],
+        properties: { name: string, type: string },
+      },
+    };
+    const message = {
+      oneOf: [
+        { $ref: "#/components/schemas/ChatMessage" },
+        { $ref: "#/components/schemas/PlaceholderMessage" },
+      ],
+    };
+    expect(holds(message, message, schemas).covered).toBe(true);
+    // A branch whose values may carry any name at all could still be both.
+    const open = {
+      ...schemas,
+      ChatMessage: { ...schemas.ChatMessage, additionalProperties: true },
+    };
+    const answer = holds(message, { $ref: "#/components/schemas/ChatMessage" }, open);
+    expect(answer.covered).toBe(false);
+    if (!answer.covered) expect(answer.reason).toContain("could match it twice");
+  });
+
+  it("covers a choice stated alike on both sides, even one whose branches overlap (Langfuse)", () => {
+    // A variable mapping read by path, or a legacy one that also has every
+    // field the first requires: nothing tells them apart value by value, and
+    // written the same in both documents it allows the same values.
+    const mapping = (source: Record<string, unknown>) => ({
+      PromptVariableMapping: {
+        title: "PromptVariableMapping",
+        oneOf: [
+          { $ref: "#/components/schemas/PromptVariableMappingRead" },
+          { $ref: "#/components/schemas/LegacyPromptVariableMapping" },
+        ],
+      },
+      PromptVariableMappingRead: {
+        type: "object",
+        required: ["variable", "source"],
+        properties: { variable: string, source },
+      },
+      LegacyPromptVariableMapping: {
+        type: "object",
+        required: ["variable", "source", "mappingType"],
+        properties: {
+          variable: string,
+          source,
+          mappingType: { type: "string", const: "legacy" },
+        },
+      },
+    });
+    const list = {
+      type: "array",
+      items: { $ref: "#/components/schemas/PromptVariableMapping" },
+    };
+    expect(holds(list, list, mapping(string)).covered).toBe(true);
+    // Stated differently, it is compared value by value, and a source that
+    // may now be a number is not what was promised.
+    const numbered = holds(list, list, mapping(string), mapping({ type: "number" }));
+    expect(numbered.covered).toBe(false);
+  });
+
   it("does not compare what it does not understand", () => {
     const answer = holds({ type: "string", not: { enum: ["x"] } }, string);
     expect(answer.covered).toBe(false);

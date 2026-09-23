@@ -72,6 +72,17 @@ export interface FieldShape {
    * writes it.
    */
   anyText?: true;
+  /**
+   * A choice written in place, whatever its branches are: a value that
+   * became one of several types did not stop stating its type.
+   */
+  choice?: true;
+  /**
+   * For a choice between plain types and nothing else, those types: Okta's
+   * user schema attributes came to list an enum's values as text or whole
+   * numbers.
+   */
+  types?: string[];
   /** For a union, whether one of its branches is a plain string, as an id is. */
   idBranch?: boolean;
   /** The bounds the schema puts on the value, by keyword. */
@@ -80,6 +91,12 @@ export interface FieldShape {
   ref?: string;
   /** For a list: what each item is, by type and by name when it has one. */
   items?: { type: string | undefined; ref?: string };
+  /**
+   * For a list's item, that the list holds no value twice. A value it gains
+   * cannot be shown to old callers as one they know, since the list may
+   * already hold that one: it is left out of what they are sent instead.
+   */
+  inSet?: true;
 }
 
 /** The first non-null type a schema declares. */
@@ -104,6 +121,33 @@ function resolvedObject(
 function refOf(raw: JsonValue | undefined): Pick<FieldShape, "ref"> {
   if (!isJsonObject(raw)) return {};
   if (typeof raw["$ref"] === "string") return { ref: raw["$ref"] };
+  // A reference written as the one part of an `allOf` beside nothing that
+  // constrains, as PayPal's later releases write every reference, is that
+  // reference: `{ allOf: [{ $ref: error_details }, {}] }`.
+  const parts = raw["allOf"];
+  if (
+    Array.isArray(parts) &&
+    Object.keys(raw).every(
+      (keyword) => keyword === "allOf" || DESCRIBES_NOTHING.has(keyword),
+    )
+  ) {
+    const named = parts.filter(
+      (part) => isJsonObject(part) && typeof part["$ref"] === "string",
+    );
+    const rest = parts.filter((part) => !named.includes(part));
+    const [only] = named;
+    if (
+      named.length === 1 &&
+      isJsonObject(only) &&
+      rest.every(
+        (part) =>
+          isJsonObject(part) &&
+          Object.keys(part).every((keyword) => DESCRIBES_NOTHING.has(keyword)),
+      )
+    ) {
+      return { ref: only["$ref"] as string };
+    }
+  }
   // The schema a field names beside null is the schema it names.
   const lone = besideNull(raw)?.only;
   return isJsonObject(lone) && typeof lone["$ref"] === "string"
@@ -193,6 +237,25 @@ const escapePointer = (segment: string) =>
  * and following it from here too would draft every Change to it twice.
  */
 const inline = (raw: JsonValue): boolean => !JSON.stringify(raw).includes('"$ref"');
+
+/**
+ * Whether an object's fields are written where it stands, so reading them
+ * here reads nothing another schema's comparison also reads: no reference
+ * anywhere in it but inside the properties it declares, each of which is
+ * then read, or not, on its own.
+ *
+ * Supabase's custom hostname response holds `data`, an object written in
+ * place whose error lists refer to a named value. Read as `inline`, that one
+ * reference deep inside kept everything in `data` from being read at all,
+ * and eleven fields that may now be missing went unasked.
+ */
+function writtenHere(raw: JsonValue): boolean {
+  if (Array.isArray(raw)) return raw.every(writtenHere);
+  if (!isJsonObject(raw)) return true;
+  return Object.entries(raw).every(([key, value]) =>
+    key === "$ref" ? false : key === "properties" || writtenHere(value),
+  );
+}
 
 /** Keywords that describe a schema without constraining its values. */
 const ANNOTATIONS = new Set([
@@ -284,6 +347,40 @@ function anyTextChoice(document: OpenApiDocument, value: JsonObject): boolean {
     return others.every(text) && others.some(unnamed);
   }
   return false;
+}
+
+/**
+ * The types a choice is between, where each branch but null says nothing
+ * but its type, and there are at least two.
+ */
+function plainTypes(document: OpenApiDocument, value: JsonObject): string[] | undefined {
+  for (const key of ["anyOf", "oneOf"] as const) {
+    const branches = value[key];
+    if (!Array.isArray(branches)) continue;
+    const types = branches
+      .filter((branch) => !isNullBranch(branch))
+      .map((branch) => {
+        const resolved = resolvedObject(document, branch);
+        const plain = Object.keys(resolved).every(
+          (keyword) => keyword === "type" || ANNOTATIONS.has(keyword),
+        );
+        return plain && typeof resolved["type"] === "string"
+          ? resolved["type"]
+          : undefined;
+      });
+    if (types.length < 2 || types.some((type) => type === undefined)) return undefined;
+    return [...new Set(types as string[])];
+  }
+  return undefined;
+}
+
+/** A choice between plain types, as the shape of a field records it. */
+function typesOfChoice(
+  document: OpenApiDocument,
+  value: JsonObject,
+): Pick<FieldShape, "choice" | "types"> {
+  const types = plainTypes(document, value);
+  return types ? { choice: true, types } : {};
 }
 
 /** A choice of text read as the text it allows: the field, without the choice. */
@@ -385,6 +482,7 @@ function fieldsOf(
         ),
       ...(value["default"] === undefined ? {} : { default: value["default"] }),
       ...(value["readOnly"] === true ? { readOnly: true } : {}),
+      ...typesOfChoice(document, value),
       ...unionOf(value),
       ...boundsOf(value),
       ...refOf(raw),
@@ -428,6 +526,8 @@ function fieldsOf(
               enumValues: undefined,
               required: true,
               nullable: false,
+              choice: true as const,
+              ...typesOfChoice(document, itemChoice),
               ...itemUnion,
             },
           ];
@@ -453,6 +553,7 @@ function fieldsOf(
       // twelve listed. Read as a choice as well, the item was compared twice.
       listed.length = 0;
       listed.push({
+        ...(value["uniqueItems"] === true ? { inSet: true as const } : {}),
         name: `${here.name}.*`,
         pointer: `${here.pointer}/*`,
         type: typeOf(itemSchema),
@@ -467,7 +568,37 @@ function fieldsOf(
         nullable: itemNull || itemSchema["nullable"] === true,
       });
     }
-    if (depth >= NESTING || !inline(raw)) return [field, ...listed];
+    // A list of plain values, or of values it says nothing about: each item
+    // is a field, so what it may hold is compared like any field's. Twilio's
+    // builds listed their asset versions as objects of any shape, and a
+    // later release as values of any kind at all.
+    if (
+      listed.length === 0 &&
+      items &&
+      itemSchema &&
+      typeof items["$ref"] !== "string" &&
+      writtenHere(items) &&
+      !["properties", "enum", "const", "anyOf", "oneOf", "allOf", "items"].some(
+        (keyword) => itemSchema[keyword] !== undefined,
+      )
+    ) {
+      const declared = itemSchema["type"];
+      listed.push({
+        name: `${here.name}.*`,
+        pointer: `${here.pointer}/*`,
+        type: typeOf(itemSchema),
+        format:
+          typeof itemSchema["format"] === "string" ? itemSchema["format"] : undefined,
+        enumValues: undefined,
+        description: undefined,
+        required: true,
+        nullable:
+          (Array.isArray(declared) && declared.includes("null")) ||
+          itemSchema["nullable"] === true,
+        ...boundsOf(itemSchema),
+      });
+    }
+    if (depth >= NESTING || !writtenHere(raw)) return [field, ...listed];
     const mapValues = isJsonObject(value["additionalProperties"])
       ? (value["additionalProperties"] as JsonObject)
       : undefined;
@@ -480,7 +611,7 @@ function fieldsOf(
             { name: `${here.name}.*`, pointer: `${here.pointer}/*` },
             depth + 1,
           )
-        : mapValues && inline(mapValues)
+        : mapValues && writtenHere(mapValues)
           ? // A map: every value, whatever its key, has these fields.
             fieldsOf(
               document,
@@ -503,7 +634,16 @@ function operationsUsing(document: OpenApiDocument): Map<string, string[]> {
   ): void => {
     if (!isJsonObject(schema)) return;
     const ref = schema["$ref"];
-    if (typeof ref !== "string") return;
+    if (typeof ref !== "string") {
+      // A body that is a list of a named schema uses it too, as each item:
+      // Supabase lists an organization's members as a list of
+      // `V1OrganizationMemberResponse`, renamed with an `_Output` suffix in
+      // a later release, and matched by nothing else.
+      if (schema["type"] === "array" && isJsonObject(schema["items"])) {
+        note(schema["items"], operationId, `${where} items`);
+      }
+      return;
+    }
     const name = ref.slice(ref.lastIndexOf("/") + 1);
     byRef.set(name, [...(byRef.get(name) ?? []), `${operationId} ${where}`]);
   };
@@ -704,17 +844,35 @@ function compare(
     .filter((field) => afterAt.has(field.pointer))
     .map((field) => ({ old: field, new: afterAt.get(field.pointer) as FieldShape }))
     .filter((pair) => shapeDiffers(pair.old, pair.new));
+  // What a list held, or an object, is not removed or added one field at a
+  // time where the place became another kind of value: that is one change,
+  // compared where it happened. Cloudflare's failure responses answered a
+  // list of rules as `result` and came to answer an object or null there,
+  // and each rule's fields read as removed from a list no longer there.
+  const containers = new Set(["array", "object"]);
+  const reshaped = altered
+    .filter(
+      (pair) =>
+        pair.old.type !== pair.new.type &&
+        (containers.has(pair.old.type ?? "") || containers.has(pair.new.type ?? "")),
+    )
+    .map((pair) => pair.old.pointer);
+  const ownPlace = (field: FieldShape) =>
+    !reshaped.some((pointer) => field.pointer.startsWith(`${pointer}/`));
+  const ownRemoved = removed.filter(ownPlace);
+  const ownAdded = added.filter(ownPlace);
+  const ownAltered = altered.filter((pair) => ownPlace(pair.old));
   if (
-    removed.length === 0 &&
-    added.length === 0 &&
-    altered.length === 0 &&
+    ownRemoved.length === 0 &&
+    ownAdded.length === 0 &&
+    ownAltered.length === 0 &&
     regrouped.length === 0
   )
     return undefined;
   return {
-    removed,
-    added,
-    altered,
+    removed: ownRemoved,
+    added: ownAdded,
+    altered: ownAltered,
     ...(regrouped.length > 0 ? { regrouped } : {}),
     ...(replaced && regrouped.length === 0 ? { replaced: true as const } : {}),
   };
@@ -816,6 +974,7 @@ function shapeDiffers(a: FieldShape, b: FieldShape): boolean {
   // stopped referring to any list at all changed here.
   if (Boolean(a.unlistedValues) !== Boolean(b.unlistedValues)) return true;
   if (a.variants?.join("|") !== b.variants?.join("|")) return true;
+  if (a.types?.join("|") !== b.types?.join("|")) return true;
   return JSON.stringify(a.bounds ?? {}) !== JSON.stringify(b.bounds ?? {});
 }
 
@@ -1007,7 +1166,13 @@ function compareReading(
   newSchemas: Record<string, JsonValue>,
   before: FieldShape[],
   after: FieldShape[],
-  roots: { name: string; old: JsonValue; new: JsonValue },
+  roots: {
+    name: string;
+    old: JsonValue;
+    new: JsonValue;
+    /** Old schemas that are gone with nothing in the new contract matched to them. */
+    unmatched: ReadonlySet<string>;
+  },
 ): Compared {
   const { name, old: oldRoot, new: newRoot } = roots;
   // A field pointed at another schema is read on both sides, so what differs
@@ -1019,6 +1184,7 @@ function compareReading(
     newSchemas,
     before,
     after,
+    roots.unmatched,
   );
   const written = writtenOutInPlace(
     oldContract,
@@ -1078,6 +1244,7 @@ function compareRead(
     first && first.removed.length > 0
       ? referencesInPlace(
           newContract,
+          left,
           right,
           first.removed.map((field) => field.pointer),
           newSchemas,
@@ -1337,6 +1504,7 @@ function repointedFields(
   newSchemas: Record<string, JsonValue>,
   before: readonly FieldShape[],
   after: readonly FieldShape[],
+  unmatched: ReadonlySet<string>,
 ): { before: FieldShape[]; after: FieldShape[] } {
   const newAt = new Map(after.map((field) => [field.pointer, field]));
   const found = { before: [] as FieldShape[], after: [] as FieldShape[] };
@@ -1351,14 +1519,23 @@ function repointedFields(
       [field.items?.ref, `${field.pointer}/*`, `${field.name}.*`, true],
     ] as [string | undefined, string, string, boolean][]) {
       const was = ref === undefined ? undefined : schemaName(ref);
-      if (was === undefined || !(was in newSchemas)) continue;
+      if (was === undefined) continue;
       // Only where the schema it pointed at is itself unchanged: one that
       // changed is compared under its own name, and reading it here as well
       // would draft the same difference twice. Adyen's `BalanceAccount`
       // recased its status and the list beside it moved to
       // `BalanceAccountBase`, and the second draft met values the first had
-      // already converted.
-      if (JSON.stringify(oldSchemas[was]) !== JSON.stringify(newSchemas[was])) continue;
+      // already converted. One that is gone is compared under the name it
+      // was matched to, unless nothing was: Adyen's fraud check results were
+      // each wrapped in a `FraudCheckResultWrapper`, which a later release
+      // dropped for the result itself, and nothing else reads what the
+      // wrapper held.
+      if (
+        was in newSchemas
+          ? !sameFields(oldContract, newContract, was, oldSchemas, newSchemas)
+          : !unmatched.has(was)
+      )
+        continue;
       const there = newAt.get(field.pointer);
       const now = schemaName((throughItems ? there?.items?.ref : there?.ref) ?? "");
       if (now === undefined || now === was || !(now in newSchemas)) continue;
@@ -1379,6 +1556,28 @@ function repointedFields(
 }
 
 /**
+ * Whether a named schema holds the same fields in both contracts, however it
+ * is written: PayPal's network transaction reference came to be built with
+ * `allOf` from a new `network_transaction`, and said nothing new.
+ */
+function sameFields(
+  oldContract: OpenApiDocument,
+  newContract: OpenApiDocument,
+  name: string,
+  oldSchemas: Record<string, JsonValue>,
+  newSchemas: Record<string, JsonValue>,
+): boolean {
+  const before = oldSchemas[name] as JsonValue;
+  const after = newSchemas[name] as JsonValue;
+  if (JSON.stringify(before) === JSON.stringify(after)) return true;
+  if (kindChange(oldContract, newContract, before, after, name)) return false;
+  return (
+    compare(shapeOf(oldContract, before, name), shapeOf(newContract, after, name)) ===
+    undefined
+  );
+}
+
+/**
  * The fields of a named schema, read where a field now refers to it and the
  * old contract wrote the object in place.
  *
@@ -1393,12 +1592,26 @@ function repointedFields(
  */
 function referencesInPlace(
   document: OpenApiDocument,
+  before: readonly FieldShape[],
   fields: readonly FieldShape[],
   removed: readonly string[],
   newSchemas: Record<string, JsonValue>,
 ): FieldShape[] {
   const found: FieldShape[] = [];
   const read = new Set<string>();
+  // Where the old contract refers to the same schema and reads nothing under
+  // it, both sides name it and it is compared under its name: PayPal's refund
+  // wrote its breakdown in place and later named it, and each amount in it
+  // referred to `money` all along. Read on the new side alone, every
+  // amount's currency looked added.
+  const named = new Map<string, string | undefined>();
+  for (const field of before) {
+    if (field.ref !== undefined) named.set(field.pointer, schemaName(field.ref));
+    if (field.items?.ref !== undefined)
+      named.set(`${field.pointer}/*`, schemaName(field.items.ref));
+  }
+  const readUnder = (pointer: string) =>
+    before.some((field) => field.pointer.startsWith(`${pointer}/`));
   // Read again through what was just read: PayPal nested its references, an
   // invoice's `detail` referring to one whose `attachments` refer to another.
   for (let pending = [...fields]; pending.length > 0; ) {
@@ -1410,7 +1623,12 @@ function referencesInPlace(
       ];
       for (const [ref, pointer, name] of targets) {
         const target = ref === undefined ? undefined : schemaName(ref);
-        if (target === undefined || !(target in newSchemas) || read.has(pointer))
+        if (
+          target === undefined ||
+          !(target in newSchemas) ||
+          read.has(pointer) ||
+          (named.get(pointer) === target && !readUnder(pointer))
+        )
           continue;
         // Only the outermost of what went is listed: the field itself,
         // something under it, or something it is under.
@@ -1855,6 +2073,11 @@ export function schemaDeltas(
     }
   }
   matchThroughReferences(oldContract, newContract, oldSchemas, newSchemas, counterparts);
+  const unmatched = new Set(
+    Object.keys(oldSchemas).filter(
+      (name) => !(name in newSchemas) && !counterparts.has(name),
+    ),
+  );
 
   for (const name of Object.keys(oldSchemas).sort()) {
     const counterpart = counterparts.get(name);
@@ -1898,7 +2121,7 @@ export function schemaDeltas(
       newSchemas,
       before,
       after,
-      { name, old: oldSchemas[name] as JsonValue, new: counterpart.schema },
+      { name, old: oldSchemas[name] as JsonValue, new: counterpart.schema, unmatched },
     );
     if (!compared) continue;
     const { through: places, ...found } = compared;
@@ -1979,7 +2202,7 @@ export function schemaDeltas(
       newSchemas,
       sent(fieldsOf(oldContract, body)),
       sent(fieldsOf(newContract, after)),
-      { name: `${operation.operationId} request body`, old: body, new: after },
+      { name: `${operation.operationId} request body`, old: body, new: after, unmatched },
     );
     if (!compared) continue;
     const { through: places, ...found } = compared;
@@ -2034,7 +2257,12 @@ export function schemaDeltas(
         newSchemas,
         fieldsOf(oldContract, schema),
         fieldsOf(newContract, next),
-        { name: `${operation.operationId} ${status} response`, old: schema, new: next },
+        {
+          name: `${operation.operationId} ${status} response`,
+          old: schema,
+          new: next,
+          unmatched,
+        },
       );
       if (!compared) continue;
       deltas.push({

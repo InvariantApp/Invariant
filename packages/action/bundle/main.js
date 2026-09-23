@@ -50,6 +50,10 @@ const WIDER_FORMATS = {
 */
 function narrows(keyword, before, after) {
 	if (after === null) return false;
+	if (keyword === "type") {
+		if (!Array.isArray(after) || before === void 0 || before === null) return after !== before;
+		return (Array.isArray(before) ? before : [before]).some((type) => !after.includes(type) && !(type === "integer" && after.includes("number")));
+	}
 	if (keyword === "enum") {
 		if (!Array.isArray(after)) return true;
 		if (!Array.isArray(before)) return true;
@@ -3290,8 +3294,23 @@ const RelaxOp = Type$1.Object({
 		* free-form objects. The value passes through as the API produced
 		* it; a caller that checks the type may be sent one it did not
 		* expect. A type changed to another is a `convert`, not this.
+		*
+		* Or the types it may now be, where it may be more than one and every
+		* type it was is among them: Okta's user schema attributes listed an
+		* enum's values as text, and a later release as text or whole
+		* numbers. A value of a type it never was passes through too.
 		*/
-		type: Type$1.Optional(Type$1.Null())
+		type: Type$1.Optional(Type$1.Union([Type$1.Null(), Type$1.Array(Type$1.Union([
+			Type$1.Literal("string"),
+			Type$1.Literal("number"),
+			Type$1.Literal("integer"),
+			Type$1.Literal("boolean"),
+			Type$1.Literal("object"),
+			Type$1.Literal("array")
+		]), {
+			minItems: 2,
+			uniqueItems: true
+		})]))
 	}, {
 		additionalProperties: false,
 		minProperties: 1
@@ -16295,6 +16314,10 @@ var Prover = class {
 			const known = this.#known.get(key);
 			if (known) return known;
 			if (this.#inProgress.has(key)) return COVERED;
+			if (this.#same(outer, inner, /* @__PURE__ */ new Set())) {
+				this.#known.set(key, COVERED);
+				return COVERED;
+			}
 			this.#inProgress.add(key);
 			const answer = this.#compare(outer, inner, at, depth);
 			this.#inProgress.delete(key);
@@ -16423,6 +16446,40 @@ var Prover = class {
 		}
 		return COVERED;
 	}
+	/**
+	* Whether two schemas are stated alike, keyword for keyword with only
+	* annotations set aside, following each pair of references into the
+	* schemas they name. A pair already being followed is taken as alike, since
+	* whatever differs in it is found where the walk is still going.
+	*/
+	#same(outer, inner, pairs) {
+		if (Array.isArray(outer) || Array.isArray(inner)) return Array.isArray(outer) && Array.isArray(inner) && outer.length === inner.length && outer.every((entry, index) => this.#same(entry, inner[index], pairs));
+		if (!isJsonObject(outer) || !isJsonObject(inner)) return outer === inner;
+		const left = outer["$ref"];
+		const right = inner["$ref"];
+		if (typeof left === "string" || typeof right === "string") {
+			if (typeof left !== "string" || typeof right !== "string") return false;
+			const key = `${left}\u0000${right}`;
+			if (!pairs.has(key)) {
+				pairs.add(key);
+				const was = resolveRef(this.outerDocument, left);
+				const now = resolveRef(this.innerDocument, right);
+				if (was === void 0 || now === void 0 || !this.#same(was, now, pairs)) return false;
+			}
+		}
+		const said = (schema) => Object.keys(schema).filter((keyword) => keyword !== "$ref" && !ANNOTATIONS$2.has(keyword) && !keyword.startsWith("x-")).sort();
+		const keywords = said(outer);
+		if (keywords.join("\0") !== said(inner).join("\0")) return false;
+		return keywords.every((keyword) => {
+			const was = outer[keyword];
+			const now = inner[keyword];
+			if (keyword === "properties" && isJsonObject(was) && isJsonObject(now)) {
+				const names = Object.keys(was).sort();
+				return names.join("\0") === Object.keys(now).sort().join("\0") && names.every((name) => this.#same(was[name], now[name], pairs));
+			}
+			return this.#same(was, now, pairs);
+		});
+	}
 	/** Whether one branch of a choice allows all of `inner`, and only one where it must. */
 	#oneBranch(branches, exclusive, inner, i, at, depth) {
 		const holding = branches.findIndex((branch) => this.covers(branch, inner, at, depth + 1).covered);
@@ -16459,6 +16516,7 @@ var Prover = class {
 		}
 		const lp = isJsonObject(l["properties"]) ? l["properties"] : {};
 		const rp = isJsonObject(r["properties"]) ? r["properties"] : {};
+		if (!(r["additionalProperties"] === true || isJsonObject(r["additionalProperties"])) && stringsIn(l["required"]).some((name) => rp[name] === void 0)) return true;
 		return stringsIn(l["required"]).filter((name) => stringsIn(r["required"]).includes(name)).some((name) => {
 			const lv = valuesOf(resolvedObject(this.outerDocument, lp[name]));
 			const rv = valuesOf(resolvedObject(this.innerDocument, rp[name]));
@@ -21960,10 +22018,10 @@ function ownRoot(document, root) {
 * Every node on the way is made this change's own first, so a shared schema is
 * never mutated by a change that targets one use of it.
 */
-function parentFor(document, root, segments, create) {
+function parentFor(document, root, segments, create, created) {
 	if (segments.length === 0) throw new SchemaOpError("Cannot target the schema root");
 	let current = ownRoot(document, root);
-	for (const segment of segments.slice(0, -1)) {
+	for (const [index, segment] of segments.slice(0, -1).entries()) {
 		const keyword = WILDCARD_KEYWORD[segment];
 		if (keyword) {
 			if (!isJsonObject(current[keyword])) throw new SchemaOpError(`Cannot walk into a non-object ${keyword}`);
@@ -21983,6 +22041,7 @@ function parentFor(document, root, segments, create) {
 				type: "object",
 				properties: {}
 			};
+			created?.add(index + 1);
 		}
 		current = own(document, properties, segment);
 	}
@@ -22046,7 +22105,8 @@ function deleteSlot(document, root, segments) {
 	setRequired(parent, last, false);
 }
 function writeSlot(document, root, segments, schema, required) {
-	const { parent, last } = parentFor(document, root, segments, true);
+	const created = /* @__PURE__ */ new Set();
+	const { parent, last } = parentFor(document, root, segments, true, created);
 	const keyword = WILDCARD_KEYWORD[last];
 	if (keyword) {
 		parent[keyword] = schema;
@@ -22061,6 +22121,7 @@ function writeSlot(document, root, segments, schema, required) {
 	properties[last] = schema;
 	setRequired(parent, last, required);
 	for (let depth = segments.length - 1; depth >= 1; depth -= 1) {
+		if (!created.has(depth)) continue;
 		const ancestorPath = segments.slice(0, depth);
 		const grand = parentFor(document, root, ancestorPath, false);
 		const name = ancestorPath[ancestorPath.length - 1];
@@ -22405,10 +22466,30 @@ function schemaRelax(document, root, path, set, sentByOldCallers) {
 	}
 	for (const [keyword, value] of Object.entries(set)) {
 		if (keyword === "enum" && Array.isArray(value) && vocabularyGrows(node[keyword], value)) throw new SchemaOpError(`${path || "the body"} can now hold values old callers never heard of, which a fold decides; relax only takes values away`);
+		if (keyword === "type" && Array.isArray(value)) {
+			relaxTypes(node, value, path);
+			continue;
+		}
 		if (sentByOldCallers && narrows(keyword, node[keyword], value)) throw new SchemaOpError(`${path || "the body"} now allows less (${keyword}) and old callers send it, so they would be refused for what their contract allowed`);
 		if (value === null) delete node[keyword];
 		else node[keyword] = value;
 	}
+}
+/**
+* A value that may now be one of several types, every one it was among them,
+* written as a choice of them: the one spelling both versions of OpenAPI
+* read, and the one a restatement that follows can prove against. What else
+* the value states holds for every type, and stays where it is.
+*/
+function relaxTypes(node, types, path) {
+	const declared = node["type"];
+	const was = (Array.isArray(declared) ? declared : [declared]).filter((type) => typeof type === "string" && type !== "null");
+	const kept = (type) => types.includes(type) || type === "integer" && types.includes("number");
+	if (was.length === 0 || !was.every(kept)) throw new SchemaOpError(`${path || "the body"} was ${was.length === 0 ? "of no one type" : was.join(" or ")}, and a type that went is a convert, not a relax`);
+	if (["anyOf", "oneOf"].some((keyword) => node[keyword] !== void 0)) throw new SchemaOpError(`${path || "the body"} is already a choice`);
+	const nullable = Array.isArray(declared) && declared.includes("null");
+	delete node["type"];
+	node["anyOf"] = [...types.map((type) => ({ type })), ...nullable ? [{ type: "null" }] : []];
 }
 /**
 * A list's items and a map's values are not a field, so neither is added nor
@@ -22482,16 +22563,44 @@ function ownSlot(document, root, segments) {
 }
 const isNullSchema = (branch) => isJsonObject(branch) && branch["type"] === "null" && Object.keys(branch).length === 1;
 /**
+* A statement that is one value or null, as a union of two branches, with
+* which keyword holds them and where the null branch stands. The value's
+* branch is written in place: one naming a schema is another shape of
+* statement, which a value with a declared type is not.
+*/
+function besideNull(statement) {
+	if (!isJsonObject(statement)) return void 0;
+	for (const key of ["anyOf", "oneOf"]) {
+		const branches = statement[key];
+		if (!Array.isArray(branches) || branches.length !== 2) continue;
+		const at = branches.findIndex(isNullSchema);
+		const other = branches[1 - at];
+		if (at === -1 || !isJsonObject(other) || "$ref" in other) return void 0;
+		return {
+			key,
+			at
+		};
+	}
+}
+/**
 * Whether a field may be null, written the way the document's own version
 * writes it: `nullable` in 3.0, a `"null"` type in 3.1. Written the other way,
 * the prediction would mean the same thing and still differ from the real
 * specification, and closure would report a change nobody made.
 */
-function schemaSetNullable(document, root, path, nullable) {
-	setNullable(document, ownSlot(document, root, parsePointer(path)), nullable, path);
+function schemaSetNullable(document, root, path, nullable, written) {
+	setNullable(document, ownSlot(document, root, parsePointer(path)), nullable, path, written);
 }
-/** The same, on a schema object this change already owns, such as a parameter's. */
-function setNullable(document, schema, nullable, label) {
+/**
+* The same, on a schema object this change already owns, such as a
+* parameter's. `written` is the new contract's statement of the place, where
+* it is known: a value that became nullable there as a union of itself and
+* null is written that way here too. Mistral's document owner went from a
+* `uuid` string to `anyOf` that string or null, and written as a list of
+* types the prediction said the same thing in a way the differ reads as the
+* types widening.
+*/
+function setNullable(document, schema, nullable, label, written) {
 	const version = document["openapi"];
 	if (typeof version === "string" && version.startsWith("3.0")) {
 		if (nullable) schema["nullable"] = true;
@@ -22499,6 +22608,19 @@ function setNullable(document, schema, nullable, label) {
 		return;
 	}
 	const declared = schema["type"];
+	const union = nullable && typeof declared === "string" ? besideNull(written) : void 0;
+	if (union !== void 0 && isJsonObject(written)) {
+		const branch = {};
+		for (const [name, value] of Object.entries(schema)) {
+			if (name in written) continue;
+			branch[name] = value;
+			delete schema[name];
+		}
+		const branches = [branch];
+		branches.splice(union.at, 0, { type: "null" });
+		schema[union.key] = branches;
+		return;
+	}
 	if (typeof declared === "string" || Array.isArray(declared)) {
 		const types = (Array.isArray(declared) ? declared : [declared]).filter((type) => type !== "null");
 		const next = nullable ? [...types, "null"] : types;
@@ -22881,6 +23003,10 @@ function applyOne(document, newContract, located, scope, op) {
 		case "relax": {
 			const schema = schemaOf(existing(address.part, name));
 			for (const [keyword, value] of Object.entries(op.set)) {
+				if (keyword === "type" && Array.isArray(value)) {
+					relaxTypes(schema, value, name);
+					continue;
+				}
 				if (narrows(keyword, schema[keyword], value)) throw new SchemaOpError(`${name} now allows less (${keyword}), so old callers would be refused for what their contract allowed`);
 				if (value === null) delete schema[keyword];
 				else schema[keyword] = value;
@@ -23107,6 +23233,10 @@ function applyResponseScope(document, oldContract, newContract, routes, scope, o
 		refuse(`${scope.operation} ${scope.response}: ${error instanceof Error ? error.message : String(error)}`);
 		return;
 	}
+	const writtenInNew = (path) => {
+		const found = shapeInNew(newContract, target.method, target.path, scope.response, path);
+		return found && topOf(newContract, found.shape);
+	};
 	for (const op of ops) try {
 		switch (op.op) {
 			case "move":
@@ -23129,11 +23259,11 @@ function applyResponseScope(document, oldContract, newContract, routes, scope, o
 			case "default": {
 				const looser = op.toward === "old";
 				if (op.when !== "null") schemaSetRequired(document, root, op.path, !looser);
-				if (op.when !== "absent") schemaSetNullable(document, root, op.path, looser);
+				if (op.when !== "absent") schemaSetNullable(document, root, op.path, looser, writtenInNew(op.path));
 				break;
 			}
 			case "dropNull":
-				schemaSetNullable(document, root, op.path, op.toward === "old");
+				schemaSetNullable(document, root, op.path, op.toward === "old", writtenInNew(op.path));
 				break;
 			case "restate": {
 				const next = shapeInNew(newContract, target.method, target.path, answered, op.path);
@@ -23359,6 +23489,16 @@ function shapeByName(newDocument, name, path) {
 	};
 }
 /**
+* How the new contract writes a place in a schema: under the schema's name,
+* or where the schema reaches the wire when the name is gone.
+*/
+function statementInNew(newContract, routes, statuses, name, site, path) {
+	const named = writtenAt(newContract, { $ref: `#/components/schemas/${name}` }, parsePointer(path));
+	if (named !== void 0 && named !== null) return named;
+	const found = site ? shapeFromNewContract(newContract, routes, statuses, site, path) : void 0;
+	return found && topOf(newContract, found.shape);
+}
+/**
 * Applies every declared Change to a copy of the old document.
 *
 * Schema-scoped data ops are applied once to the named schema, so one statement
@@ -23464,7 +23604,7 @@ function predictDocument(oldContract, newContract, changes) {
 							break;
 						}
 						if (op.when !== "null") schemaSetRequired(document, schema, op.path, !looser);
-						if (op.when !== "absent") schemaSetNullable(document, schema, op.path, looser);
+						if (op.when !== "absent") schemaSetNullable(document, schema, op.path, looser, statementInNew(newContract, routes, statuses, name, oldSites[0], op.path));
 						break;
 					}
 					case "relax":
@@ -23509,7 +23649,7 @@ function predictDocument(oldContract, newContract, changes) {
 							});
 							break;
 						}
-						schemaSetNullable(document, schema, op.path, op.toward === "old");
+						schemaSetNullable(document, schema, op.path, op.toward === "old", statementInNew(newContract, routes, statuses, name, oldSites[0], op.path));
 				}
 			} catch (error) {
 				issues.push({
@@ -23600,13 +23740,14 @@ function looserInResponses(document, newContract, routes, entry, issues) {
 			path: `${site.prefix}${op.path}`
 		});
 	}
+	const written = statementInNew(newContract, routes, [], entry.name, void 0, op.path);
 	const loosen = (root, path) => {
 		if (op.op === "dropNull") {
-			schemaSetNullable(document, root, path, true);
+			schemaSetNullable(document, root, path, true, written);
 			return;
 		}
 		if (op.when !== "null") schemaSetRequired(document, root, path, false);
-		if (op.when !== "absent") schemaSetNullable(document, root, path, true);
+		if (op.when !== "absent") schemaSetNullable(document, root, path, true, written);
 	};
 	try {
 		if (!walked) {
@@ -23723,10 +23864,12 @@ function derive(change) {
 			lossy.backward.push(op.path);
 			break;
 		}
-		case "relax":
+		case "relax": {
 			runtime = worse(runtime, "declared-lossy");
-			reasons.push(op.set.enum === null || op.set.type === null ? `${op.path || "the body"} no longer states ${op.set.type === null ? "a type" : "the values it holds"}, so an old caller may be sent ${op.set.type === null ? "a kind of value" : "a value"} its contract ruled out, passed through as it is` : "enum" in op.set ? `${op.path || "the body"} no longer holds some values its contract allowed, so an old caller waiting for one of them will never see it` : `${op.path || "the body"} is bounded differently now (${Object.keys(op.set).join(", ")}), so an old caller may be sent values its contract ruled out, passed through as they are`);
+			const types = Array.isArray(op.set.type) ? op.set.type : void 0;
+			reasons.push(types !== void 0 ? `${op.path || "the body"} may now be ${types.join(" or ")}, so an old caller may be sent a kind of value its contract ruled out, passed through as it is` : op.set.enum === null || op.set.type === null ? `${op.path || "the body"} no longer states ${op.set.type === null ? "a type" : "the values it holds"}, so an old caller may be sent ${op.set.type === null ? "a kind of value" : "a value"} its contract ruled out, passed through as it is` : "enum" in op.set ? `${op.path || "the body"} no longer holds some values its contract allowed, so an old caller waiting for one of them will never see it` : `${op.path || "the body"} is bounded differently now (${Object.keys(op.set).join(", ")}), so an old caller may be sent values its contract ruled out, passed through as they are`);
 			break;
+		}
 		case "restate":
 			reasons.push(`${op.path || "the value"} is stated differently and allows nothing new to old callers, so it passes through exactly`);
 			break;
@@ -25406,6 +25549,12 @@ const RULES = [
 		op: "convert",
 		served: "yes",
 		sentence: "A response field's type changed. A conversion translates it back for old callers, which you confirm: `cast` or `scale10` for a number, `dateFormat` for a time, `wrapArray` or `unwrapSingle` for a value that became a list or stopped being one."
+	}),
+	rule(/^response-property-list-of-types-widened$/, {
+		class: "needs-decision",
+		op: "relax",
+		served: "yes",
+		sentence: "A response field may now be of a type old callers were never promised, beside the one it was. A `relax` lists the types it may now be and a `restate` writes them as the new contract does; values pass through as the API produced them, a declared loss you acknowledge. Where the field became only another type, that is a conversion instead."
 	}),
 	rule(/^response-required-property-removed$/, {
 		class: "needs-decision",

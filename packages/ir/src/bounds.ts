@@ -39,6 +39,19 @@ export function narrows(
   after: JsonValue,
 ): boolean {
   if (after === null) return false;
+  if (keyword === "type") {
+    // Types a value may now be narrow only where one it could be is gone,
+    // or where it stated none and could be anything; a whole number is also
+    // a number.
+    if (!Array.isArray(after) || before === undefined || before === null) {
+      return after !== before;
+    }
+    const was = Array.isArray(before) ? before : [before];
+    return was.some(
+      (type) =>
+        !after.includes(type) && !(type === "integer" && after.includes("number")),
+    );
+  }
   if (keyword === "enum") {
     // A vocabulary narrows when a value it allowed is gone from it.
     if (!Array.isArray(after)) return true;

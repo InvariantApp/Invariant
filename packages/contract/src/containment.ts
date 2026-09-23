@@ -272,6 +272,14 @@ class Prover {
       const known = this.#known.get(key);
       if (known) return known;
       if (this.#inProgress.has(key)) return COVERED;
+      // Stated alike on both sides, all the way down, allows the same values,
+      // whatever this could show of it piece by piece: Langfuse maps an
+      // evaluator's variables with a `oneOf` whose branches overlap, which
+      // compared value by value was not even shown to hold itself.
+      if (this.#same(outer, inner, new Set())) {
+        this.#known.set(key, COVERED);
+        return COVERED;
+      }
       this.#inProgress.add(key);
       const answer = this.#compare(outer, inner, at, depth);
       this.#inProgress.delete(key);
@@ -468,6 +476,62 @@ class Prover {
     return COVERED;
   }
 
+  /**
+   * Whether two schemas are stated alike, keyword for keyword with only
+   * annotations set aside, following each pair of references into the
+   * schemas they name. A pair already being followed is taken as alike, since
+   * whatever differs in it is found where the walk is still going.
+   */
+  #same(outer: JsonValue, inner: JsonValue, pairs: Set<string>): boolean {
+    if (Array.isArray(outer) || Array.isArray(inner)) {
+      return (
+        Array.isArray(outer) &&
+        Array.isArray(inner) &&
+        outer.length === inner.length &&
+        outer.every((entry, index) => this.#same(entry, inner[index] as JsonValue, pairs))
+      );
+    }
+    if (!isJsonObject(outer) || !isJsonObject(inner)) return outer === inner;
+    const left = outer["$ref"];
+    const right = inner["$ref"];
+    if (typeof left === "string" || typeof right === "string") {
+      if (typeof left !== "string" || typeof right !== "string") return false;
+      const key = `${left}\u0000${right}`;
+      if (!pairs.has(key)) {
+        pairs.add(key);
+        const was = resolveRef(this.outerDocument, left);
+        const now = resolveRef(this.innerDocument, right);
+        if (was === undefined || now === undefined || !this.#same(was, now, pairs)) {
+          return false;
+        }
+      }
+    }
+    const said = (schema: JsonObject) =>
+      Object.keys(schema)
+        .filter(
+          (keyword) =>
+            keyword !== "$ref" && !ANNOTATIONS.has(keyword) && !keyword.startsWith("x-"),
+        )
+        .sort();
+    const keywords = said(outer);
+    if (keywords.join("\u0000") !== said(inner).join("\u0000")) return false;
+    return keywords.every((keyword) => {
+      const was = outer[keyword] as JsonValue;
+      const now = inner[keyword] as JsonValue;
+      // Property names are names, never annotations, whatever they are called.
+      if (keyword === "properties" && isJsonObject(was) && isJsonObject(now)) {
+        const names = Object.keys(was).sort();
+        return (
+          names.join("\u0000") === Object.keys(now).sort().join("\u0000") &&
+          names.every((name) =>
+            this.#same(was[name] as JsonValue, now[name] as JsonValue, pairs),
+          )
+        );
+      }
+      return this.#same(was, now, pairs);
+    });
+  }
+
   /** Whether one branch of a choice allows all of `inner`, and only one where it must. */
   #oneBranch(
     branches: readonly JsonValue[],
@@ -536,6 +600,14 @@ class Prover {
     }
     const lp = isJsonObject(l["properties"]) ? l["properties"] : {};
     const rp = isJsonObject(r["properties"]) ? r["properties"] : {};
+    // A property one always has that the other never names, which it then
+    // never sends: Langfuse's chat message has a role and content and its
+    // placeholder a name, and neither is ever the other.
+    const anyName =
+      r["additionalProperties"] === true || isJsonObject(r["additionalProperties"]);
+    if (!anyName && stringsIn(l["required"]).some((name) => rp[name] === undefined)) {
+      return true;
+    }
     const both = stringsIn(l["required"]).filter((name) =>
       stringsIn(r["required"]).includes(name),
     );

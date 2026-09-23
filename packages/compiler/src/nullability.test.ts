@@ -99,6 +99,29 @@ describe("a response field that may now be left out or null", () => {
     );
   });
 
+  it("is predicted as a union with null where the new contract writes it so (Mistral)", () => {
+    // Mistral's document owner went from a `uuid` string to `anyOf` that
+    // string or null. Written as a list of types, the prediction meant the
+    // same and the differ read it as the owner's types widening.
+    const version = (owner: Schema) =>
+      contract("3.1.0", {
+        ThingCreate: thing({ name: { type: "string" } }, []),
+        Thing: thing({ owner }, ["owner"]),
+      });
+    const before = version({ type: "string", format: "uuid", title: "Owner" });
+    const after = version({
+      anyOf: [{ type: "string", format: "uuid" }, { type: "null" }],
+      title: "Owner",
+    });
+    const op = { op: "default", path: "/owner", value: "", when: "null", toward: "old" };
+    const prediction = predictDocument(before, after, [change("Thing", op)]);
+    expect(prediction.issues).toEqual([]);
+    const schemas = (prediction.document["components"] as JsonObject)["schemas"];
+    expect((schemas as JsonObject)["Thing"]).toEqual(
+      ((after["components"] as JsonObject)["schemas"] as JsonObject)["Thing"],
+    );
+  });
+
   it("is predicted in responses alone where old callers send the schema too (Adyen)", () => {
     // Adyen kept `supportUrl` required where a payment method is set up, and
     // made it optional where one is returned. Loosening the schema both share
@@ -200,6 +223,42 @@ describe("a response field that may now be left out or null", () => {
     const derived = derive(change("Thing", op));
     expect(derived.runtime).toBe("declared-lossy");
     expect(derived.lossy.backward).toEqual(["/region"]);
+  });
+});
+
+describe("a field inside an optional object, translated", () => {
+  it("leaves the object optional (Figma)", () => {
+    // Figma's `devStatus` is optional and its `type` required. Folding a new
+    // type made every node's `devStatus` read as always sent, which the
+    // differ reported as it becoming optional again in the new contract.
+    const status = {
+      type: "object",
+      properties: { type: { type: "string", enum: ["NONE", "READY_FOR_DEV"] } },
+      required: ["type"],
+    };
+    const before = contract("3.0.3", {
+      ThingCreate: thing({ name: { type: "string" } }, []),
+      Thing: thing({ devStatus: status }, []),
+    });
+    const fold = {
+      op: "convert",
+      path: "/devStatus/type",
+      codec: {
+        kind: "enumMap",
+        pairs: [
+          ["NONE", "NONE"],
+          ["READY_FOR_DEV", "READY_FOR_DEV"],
+        ],
+        fold: [["COMPLETED", "READY_FOR_DEV"]],
+      },
+    };
+    const thingAfter = (predicted(before, [change("Thing", fold)]) as JsonObject)[
+      "Thing"
+    ] as JsonObject;
+    expect(thingAfter["required"]).toBeUndefined();
+    expect(
+      ((thingAfter["properties"] as JsonObject)["devStatus"] as JsonObject)["required"],
+    ).toEqual(["type"]);
   });
 });
 

@@ -82,7 +82,11 @@ const MINOR_UNIT_EXPONENTS: ReadonlyMap<string, number> = new Map([
 ]);
 
 function slug(text: string): string {
+  // A list's items and a map's values are named, as a restatement names
+  // them, so a Change to a list and one to what it holds keep apart.
   return text
+    .replaceAll("*", "items")
+    .replaceAll("{}", "values")
     .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
@@ -594,7 +598,13 @@ async function drafted(
   const altered = alteredProposals(deltas, oldContract);
   const added = additions(deltas, oldContract);
   const gone = removals(deltas, oldContract);
-  const valueDecisions = [...altered.decisions, ...added.decisions, ...gone.decisions];
+  const regrouped = regroupedProposals(deltas, oldContract);
+  const valueDecisions = [
+    ...altered.decisions,
+    ...added.decisions,
+    ...gone.decisions,
+    ...regrouped.decisions,
+  ];
   altered.proposals.unshift(
     ...moved,
     ...methodChanges,
@@ -602,7 +612,7 @@ async function drafted(
     ...parameters,
     ...renamedOperations,
     ...statuses,
-    ...regroupedProposals(deltas),
+    ...regrouped.proposals,
     ...added.proposals,
     ...gone.proposals,
   );
@@ -617,6 +627,7 @@ async function drafted(
     questionsFor(delta, options.context),
   );
   if (questions.length === 0) {
+    unresolved.push(...added.deferred.map(({ entry }) => entry));
     return {
       proposals: altered.proposals,
       unresolved,
@@ -636,6 +647,23 @@ async function drafted(
   const results = await options.judge.align(questions);
   const proposals: Proposal[] = [...altered.proposals];
   const deltaOf = new Map(deltas.map((delta) => [delta.schema, delta]));
+
+  // A field new and required beside fields that went is one of them renamed
+  // only if the judge said so, or guessed so: Datadog's custom rule gained a
+  // required `id` beside a revision `type` it lost, and with no judge naming
+  // `id` for anything, it is new, and asked about as any new field is.
+  const named = new Set(
+    questions.flatMap((question, index) => {
+      const successor = results[index]?.answer.successor;
+      return typeof successor === "string"
+        ? [`${question.schema}\u0000${successor}`]
+        : [];
+    }),
+  );
+  for (const { entry, decision } of added.deferred) {
+    if (named.has(`${entry.schema}\u0000${entry.field}`)) unresolved.push(entry);
+    else valueDecisions.push(decision);
+  }
 
   questions.forEach((question, index) => {
     const result = results[index];
@@ -811,9 +839,15 @@ const fieldSlug = (schema: string, field: string, what: string) =>
  * moved, a vocabulary or a format, is drafted with its move, as it is for a
  * rename.
  */
-function regroupedProposals(deltas: readonly SchemaDelta[]): Proposal[] {
+function regroupedProposals(
+  deltas: readonly SchemaDelta[],
+  oldContract: Parameters<typeof schemaDeltas>[0],
+): { proposals: Proposal[]; decisions: ValueDecision[] } {
   const proposals: Proposal[] = [];
+  const decisions: ValueDecision[] = [];
   for (const delta of deltas) {
+    const sides =
+      (delta.regrouped ?? []).length > 0 ? sidesOfDelta(oldContract, delta) : NEITHER;
     const byWrapper = new Map<string, NonNullable<SchemaDelta["regrouped"]>>();
     for (const pair of delta.regrouped ?? []) {
       const key = `${pair.kind} ${pair.wrapper}`;
@@ -834,6 +868,29 @@ function regroupedProposals(deltas: readonly SchemaDelta[]): Proposal[] {
         ops.push(...drafted.ops);
         // The first note is the move itself, said once above for all of them.
         notes.push(...drafted.notes.slice(1));
+        // Whether it may be left out or null moved with it, at its new place:
+        // Datadog's revision attributes came up a level, and its `cve` came
+        // up optional where old callers were always given it.
+        const presence = presenceOps(pair.old, pair.new, sides);
+        ops.push(...presence.ops);
+        notes.push(...presence.notes);
+        for (const question of presence.questions) {
+          decisions.push({
+            kind: "value",
+            id: fieldSlug(delta.schema, pair.new.name, `default_${question.op.toward}`),
+            schema: delta.schema,
+            ...(delta.scope ? { scope: delta.scope } : {}),
+            field: pair.new.name,
+            pointer: pair.new.pointer,
+            op: question.op,
+            shape: question.shape,
+            summary:
+              question.op.toward === "old"
+                ? `\`${pair.new.name}\` on ${delta.schema} may now be missing or null for callers who were always given it.`
+                : `\`${pair.new.name}\` on ${delta.schema} needs a value from callers who could leave it out.`,
+            why: question.why,
+          });
+        }
       }
       const guessed = ops.some(
         (op) =>
@@ -861,7 +918,7 @@ function regroupedProposals(deltas: readonly SchemaDelta[]): Proposal[] {
       });
     }
   }
-  return proposals;
+  return { proposals, decisions };
 }
 
 /**
@@ -876,10 +933,11 @@ function regroupedProposals(deltas: readonly SchemaDelta[]): Proposal[] {
 function additions(
   deltas: readonly SchemaDelta[],
   oldContract: Parameters<typeof schemaDeltas>[0],
-): Drafted {
+): Drafted & { deferred: { entry: Unresolved; decision: ValueDecision }[] } {
   const proposals: Proposal[] = [];
   const unresolved: Unresolved[] = [];
   const decisions: ValueDecision[] = [];
+  const deferred: { entry: Unresolved; decision: ValueDecision }[] = [];
   for (const delta of deltas) {
     const required = delta.added.filter((field) => field.required);
     if (required.length === 0) continue;
@@ -890,28 +948,37 @@ function additions(
       if (value === undefined) {
         const why =
           "newly required, and the value a caller who predates it should get is not in the specification";
-        if (delta.removed.length > 0) {
+        const decision: ValueDecision = {
+          kind: "value",
+          id: fieldSlug(delta.schema, field.name, "added"),
+          schema: delta.schema,
+          ...(delta.scope ? { scope: delta.scope } : {}),
+          field: field.name,
+          pointer: field.pointer,
+          op: { op: "add" },
+          shape: field,
+          summary: `\`${field.name}\` is new and required on ${delta.schema}.`,
+          why: `\`${field.name}\` is new and required in requests, and the value sent for a caller who predates it is not in the specification.`,
+        };
+        const entry: Unresolved = {
+          schema: delta.schema,
+          field: field.name,
+          reason: why,
+          side: "added",
+        };
+        if (delta.replaced) {
+          // Another schema under the old name, as PayPal's `payout_item` went
+          // from what a caller sends to what a response reports: its fields
+          // belong to a schema that now has another name, and asking for a
+          // value to send in each would draft a request nobody makes.
+          unresolved.push(entry);
+        } else if (delta.removed.length > 0) {
           // Beside fields that went, it may be one of them renamed, which is
-          // the judge's question and not a value to choose.
-          unresolved.push({
-            schema: delta.schema,
-            field: field.name,
-            reason: why,
-            side: "added",
-          });
+          // the judge's question and not a value to choose. Asked once the
+          // judge has said, and only if it named this field for none.
+          deferred.push({ entry, decision });
         } else {
-          decisions.push({
-            kind: "value",
-            id: fieldSlug(delta.schema, field.name, "added"),
-            schema: delta.schema,
-            ...(delta.scope ? { scope: delta.scope } : {}),
-            field: field.name,
-            pointer: field.pointer,
-            op: { op: "add" },
-            shape: field,
-            summary: `\`${field.name}\` is new and required on ${delta.schema}.`,
-            why: `\`${field.name}\` is new and required in requests, and the value sent for a caller who predates it is not in the specification.`,
-          });
+          decisions.push(decision);
         }
         continue;
       }
@@ -935,7 +1002,7 @@ function additions(
       });
     }
   }
-  return { proposals, unresolved, decisions };
+  return { proposals, unresolved, decisions, deferred };
 }
 
 /**
@@ -1102,14 +1169,17 @@ function droppedFromList(pair: {
 
 /**
  * A list old callers are sent whose items named no values and now name some,
- * as the op that leaves those values out of it on the way back.
+ * or that holds no value twice and gained values, as the op that leaves those
+ * values out of it on the way back.
  *
  * Discord's applications listed `event_webhooks_types` as a list of no
  * values at all, and a later release as twelve kinds of event. An old caller
  * was told the list is always empty and has no value of its own to be shown
  * any of the twelve as, so the list it is sent leaves them out, a loss the
  * provider acknowledges. Where the old list named values, which one a new
- * value is shown as is a decision, asked as a fold.
+ * value is shown as is a decision, asked as a fold, unless the list holds no
+ * value twice: folded onto a value it may already hold, a new one would show
+ * old callers that value twice, so it is left out as well.
  */
 function droppedFromResponseList(
   pair: { old: FieldShape; new: FieldShape },
@@ -1118,6 +1188,24 @@ function droppedFromResponseList(
   if (!sides.response || !pair.old.pointer.endsWith("/*")) return undefined;
   const from = pair.old.enumValues;
   const to = pair.new.enumValues;
+  if (from !== undefined && pair.old.inSet && to !== undefined) {
+    const gained = to.filter((value) => !from.includes(value));
+    if (gained.length === 0 || from.some((value) => !to.includes(value))) {
+      return undefined;
+    }
+    return {
+      ops: [
+        {
+          op: "convert",
+          path: pair.old.pointer.slice(0, -2),
+          codec: { kind: "dropValues", values: gained },
+        },
+      ],
+      notes: [
+        `the list holds no value twice, so ${gained.length === 1 ? "the value it gained is" : `the ${gained.length} values it gained are`} left out of what old callers are sent rather than shown as one it may already hold, a declared loss to acknowledge`,
+      ],
+    };
+  }
   if (from === undefined || from.length > 0 || !to?.length) return undefined;
   return {
     ops: [
@@ -1190,6 +1278,7 @@ function alteredProposals(
         narrowed.ops.length === 0 &&
         !foldCovers(pair, sides ?? NEITHER) &&
         !onlyUnstated(pair.old, pair.new) &&
+        typesWidened(pair.old, pair.new).type === undefined &&
         !retiredAsked &&
         !onlyGrewForRequests(pair, sides ?? NEITHER)
       ) {
@@ -1237,6 +1326,14 @@ function alteredProposals(
       // A vocabulary that opened into a choice of text is written as that
       // choice, which allows nothing the relaxed field does not, and the
       // compiler proves it before it writes it.
+      // A value that may now be one of several types is written as the choice
+      // the new contract states, proved to allow nothing more than the types.
+      if (relaxed.ops.some((op) => op.op === "relax" && Array.isArray(op.set.type))) {
+        relaxed.ops.push({ op: "restate", path: pair.new.pointer });
+        relaxed.notes.push(
+          `\`${pair.old.name}\` is written as a choice between the types it may now be`,
+        );
+      }
       if (
         pair.new.anyText &&
         relaxed.ops.some((op) => op.op === "relax" && op.set.enum === null)
@@ -1325,7 +1422,10 @@ export function relaxOps(
 ): { ops: Op[]; notes: string[]; unresolved?: string } {
   const before = old.bounds ?? {};
   const after = next.bounds ?? {};
-  const set: Record<string, JsonValue> = { ...unstated(old, next) };
+  const set: Record<string, JsonValue> = {
+    ...unstated(old, next),
+    ...typesWidened(old, next),
+  };
   for (const keyword of new Set([...Object.keys(before), ...Object.keys(after)])) {
     const value = after[keyword] ?? null;
     if (JSON.stringify(before[keyword] ?? null) !== JSON.stringify(value))
@@ -1334,7 +1434,11 @@ export function relaxOps(
   const changed = Object.keys(set);
   if (changed.length === 0) return { ops: [], notes: [] };
   const narrowed = changed.filter((keyword) =>
-    narrows(keyword, before[keyword], set[keyword] as JsonValue),
+    narrows(
+      keyword,
+      keyword === "type" ? old.type : before[keyword],
+      set[keyword] as JsonValue,
+    ),
   );
   // A bound that narrowed on something old callers send cannot be served, and
   // is reported. It says nothing about the bounds beside it that widened,
@@ -1562,7 +1666,12 @@ export function widenOps(
  * states something else, and is not this.
  */
 function unstated(old: FieldShape, next: FieldShape): { enum?: null; type?: null } {
-  if (next.variants !== undefined || next.unlistedValues || next.ref !== undefined)
+  if (
+    next.variants !== undefined ||
+    next.choice ||
+    next.unlistedValues ||
+    next.ref !== undefined
+  )
     return {};
   // Listed in place, or in a named schema the field referred to: Mistral's
   // `model` was a reference to `FineTuneableModel` and became a plain string.
@@ -1574,6 +1683,21 @@ function unstated(old: FieldShape, next: FieldShape): { enum?: null; type?: null
 }
 
 /** Whether all that changed about its values is what it stopped stating. */
+/**
+ * A value of one type that may now be one of several, the one it was among
+ * them: Okta's user schema attributes listed an enum's values as text, and
+ * a later release as text or whole numbers.
+ */
+function typesWidened(old: FieldShape, next: FieldShape): { type?: string[] } {
+  if (old.type === undefined || old.types !== undefined || next.types === undefined) {
+    return {};
+  }
+  const kept =
+    next.types.includes(old.type) ||
+    (old.type === "integer" && next.types.includes("number"));
+  return kept ? { type: next.types } : {};
+}
+
 function onlyUnstated(old: FieldShape, next: FieldShape): boolean {
   if (Object.keys(unstated(old, next)).length === 0) return false;
   return (
@@ -1604,8 +1728,13 @@ function foldCovers(
   }
   const gained = to.filter((value) => !from.includes(value));
   const lost = from.filter((value) => !to.includes(value));
-  // One out and one in is drafted as a rename instead.
-  return gained.length > 0 && !(gained.length === 1 && lost.length === 1);
+  // One out and one in is drafted as a rename instead, and what a set gained
+  // is left out of it.
+  return (
+    gained.length > 0 &&
+    !(gained.length === 1 && lost.length === 1) &&
+    !(pair.old.inSet && lost.length === 0)
+  );
 }
 
 /**

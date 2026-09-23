@@ -127,6 +127,10 @@ export function foldDecisions(deltas: readonly SchemaDelta[]): FoldDecision[] {
       // One out and one in is drafted as a rename elsewhere, for a person to
       // confirm; asking again here would ask twice.
       if (lost.length === 1 && gained.length === 1) continue;
+      // A list that holds no value twice only grew: what it gained is left
+      // out of what old callers are sent, since folded onto a value the list
+      // may already hold it would show them that value twice.
+      if (before.inSet && lost.length === 0) continue;
 
       const kept = from.filter((value) => to.includes(value));
       const pairs: [string, string][] = lost.map((value) => [

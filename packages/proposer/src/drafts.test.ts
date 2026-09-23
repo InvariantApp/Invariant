@@ -139,6 +139,58 @@ describe("a new required field", () => {
   });
 });
 
+describe("a new required field beside a field that went", () => {
+  // Datadog's custom rule gained a required `id` beside a revision `type` it
+  // lost. Whether one became the other is the judge's question; once no
+  // judge names `id` for anything, it is new, and asked about as any is.
+  const answering = (successor: string | null): Judge => ({
+    id: "rules",
+    fingerprint: `stub:${successor}`,
+    align: (questions) =>
+      Promise.resolve(
+        questions.map(() => ({
+          answer: {
+            successor,
+            confidence: 0.1,
+            scores: {},
+            stated: false,
+            abstained: successor === null,
+          },
+          judge: "rules" as const,
+          model: undefined,
+          latencyMs: 0,
+          inputTokens: 0,
+          costUsd: 0,
+        })),
+      ),
+  });
+  const beside = (judge: Judge) =>
+    propose(
+      contract(base),
+      contract({
+        ...base,
+        ThingCreate: object({ name: { type: "string" }, tier: { type: "string" } }, [
+          "tier",
+        ]),
+      }),
+      { judge },
+    );
+
+  it("is asked about once no judge names it", async () => {
+    const outcome = await beside(answering(null));
+    expect(outcome.decisions).toContainEqual(
+      expect.objectContaining({ kind: "value", field: "tier", op: { op: "add" } }),
+    );
+    expect(outcome.unresolved.map((entry) => entry.field)).not.toContain("tier");
+  });
+
+  it("stays an open question where a judge guessed it was the one that went", async () => {
+    const outcome = await beside(answering("tier"));
+    expect(outcome.decisions.map((entry) => entry.field)).not.toContain("tier");
+    expect(outcome.unresolved.map((entry) => entry.field)).toContain("tier");
+  });
+});
+
 describe("a removed field with nothing added in its place", () => {
   it("is dropped from old callers' requests where the schema is only ever a request", async () => {
     const outcome = await drafts({ ThingCreate: object({ name: { type: "string" } }) });
@@ -187,11 +239,14 @@ describe("a removed field beside fields that were added", () => {
       note: { type: "string" },
       recipient_type: { type: "string" },
     });
-    const reported = object({
-      payout_item_id: { type: "string" },
-      transaction_status: { type: "string" },
-      time_processed: { type: "string" },
-    });
+    const reported = object(
+      {
+        payout_item_id: { type: "string" },
+        transaction_status: { type: "string" },
+        time_processed: { type: "string" },
+      },
+      ["payout_item_id"],
+    );
     const outcome = await propose(
       contract({ ...base, ThingCreate: sent }),
       contract({ ...base, ThingCreate: reported }),
@@ -200,6 +255,8 @@ describe("a removed field beside fields that were added", () => {
     expect(outcome.proposals.filter((p) => p.change.id.includes("removed"))).toEqual([]);
     // Still asked about: which schema did they go to?
     expect(outcome.unresolved.map((entry) => entry.field)).toContain("amount");
+    // Nor is a value asked for what the other schema requires.
+    expect(outcome.decisions.map((entry) => entry.field)).not.toContain("payout_item_id");
   });
 
   it("is not drafted where the schema became a choice between others holding it", async () => {
@@ -704,6 +761,37 @@ describe("a field that points at a different schema", () => {
       path: "/last_revision/type",
       restore: CHOOSE_ONE,
     });
+  });
+
+  // PayPal's authorizations pointed at `network_transaction_reference`, which
+  // came to be written as `allOf` a new `network_transaction` with `id`
+  // still required, and pointed at `network_transaction` itself, where `id`
+  // is not required. The schema it left says the same, however written.
+  it("is compared where the schema it left holds the same fields, written another way", async () => {
+    const reference = (id: string) => ({ $ref: `#/components/schemas/${id}` });
+    const fields = { id: { type: "string" }, date: { type: "string" } };
+    const holder = (name: string) =>
+      object({ id: { type: "string" }, reference: reference(name) }, ["id"]);
+    const outcome = await propose(
+      contract({
+        ...base,
+        Reference: object(fields, ["id"]),
+        Thing: holder("Reference"),
+      }),
+      contract({
+        ...base,
+        Transaction: object(fields),
+        Reference: { allOf: [reference("Transaction")], required: ["id"] },
+        Thing: holder("Transaction"),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.decisions).toEqual([
+      expect.objectContaining({
+        pointer: "/reference/id",
+        op: { op: "default", when: "absent", toward: "old" },
+      }),
+    ]);
   });
 });
 
@@ -2052,6 +2140,49 @@ describe("fields that moved together through a wrapper", () => {
     }
   });
 
+  it("asks what old callers are shown where a field that moved may now be missing (Datadog)", async () => {
+    // The revision's attributes came up a level, and `cve`, always given to
+    // old callers inside `attributes`, came up optional.
+    const outcome = await propose(
+      contract({
+        ...base,
+        Thing: object(
+          {
+            id: { type: "string" },
+            revision: object({
+              type: { type: "string", enum: ["custom_rule_revision"] },
+              attributes: object({ code: { type: "string" }, cve: { type: "string" } }, [
+                "code",
+                "cve",
+              ]),
+            }),
+          },
+          ["id"],
+        ),
+      }),
+      contract({
+        ...base,
+        Thing: object(
+          {
+            id: { type: "string" },
+            revision: object({ code: { type: "string" }, cve: { type: "string" } }, [
+              "code",
+            ]),
+          },
+          ["id"],
+        ),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.decisions).toEqual([
+      expect.objectContaining({
+        kind: "value",
+        pointer: "/revision/cve",
+        op: { op: "default", when: "absent", toward: "old" },
+      }),
+    ]);
+  });
+
   it("reads a wrapper that is a named schema to find what moved through it (Datadog)", async () => {
     // As Datadog wrote it: the revision pointed at a resource schema whose
     // `attributes` is a schema of its own, and now points at one listing
@@ -2551,6 +2682,101 @@ describe("a response vocabulary that opened, moved or grew from nothing", () => 
       },
     ]);
     expect(outcome.decisions).toEqual([]);
+    expect(outcome.unresolved).toEqual([]);
+  });
+
+  // The same list, once it names values, holds each at most once. A value it
+  // gains folded onto one it named would show old callers that value twice
+  // wherever the list already held it, so the new value is left out instead.
+  it("leaves out of a list that holds no value twice what it gained, rather than folding it", async () => {
+    const outcome = await propose(
+      contract({
+        ...base,
+        ActionTypes: actionTypes,
+        Thing: object(
+          { id: { type: "string" }, events: eventTypes(["ENTITLEMENT_CREATE"]) },
+          ["id"],
+        ),
+      }),
+      contract({
+        ...base,
+        ActionTypes: actionTypes,
+        Thing: object(
+          {
+            id: { type: "string" },
+            events: eventTypes(["ENTITLEMENT_CREATE", "LOBBY_MESSAGE_CREATE"]),
+          },
+          ["id"],
+        ),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(opsOf(outcome)).toEqual([
+      {
+        op: "convert",
+        path: "/events",
+        codec: { kind: "dropValues", values: ["LOBBY_MESSAGE_CREATE"] },
+      },
+    ]);
+    expect(outcome.decisions).toEqual([]);
+    expect(outcome.unresolved).toEqual([]);
+  });
+
+  it("still asks which value a list that may repeat values shows a new one as", async () => {
+    const { uniqueItems: _set, ...list } = eventTypes(["ENTITLEMENT_CREATE"]);
+    const outcome = await propose(
+      contract({
+        ...base,
+        ActionTypes: actionTypes,
+        Thing: object({ id: { type: "string" }, events: list }, ["id"]),
+      }),
+      contract({
+        ...base,
+        ActionTypes: actionTypes,
+        Thing: object(
+          {
+            id: { type: "string" },
+            events: {
+              ...list,
+              items: {
+                ...list.items,
+                enum: ["ENTITLEMENT_CREATE", "LOBBY_MESSAGE_CREATE"],
+              },
+            },
+          },
+          ["id"],
+        ),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(opsOf(outcome)).toEqual([]);
+    expect(outcome.decisions).toEqual([
+      expect.objectContaining({
+        kind: "vocabulary",
+        pointer: "/events/*",
+        gained: ["LOBBY_MESSAGE_CREATE"],
+      }),
+    ]);
+  });
+
+  // Okta's user schema attributes listed their enum's values as text, and a
+  // later release as text or whole numbers: a value that became one of two
+  // types still states its type, and is not declared as having none.
+  it("declares a list's items that became a choice of types as those types, restated", async () => {
+    const values = (items: Schema) =>
+      object({ id: { type: "string" }, values: { type: "array", items } }, ["id"]);
+    const outcome = await propose(
+      contract({ ...base, Thing: values({ type: "string" }) }),
+      contract({
+        ...base,
+        Thing: values({ anyOf: [{ type: "string" }, { type: "integer" }] }),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(opsOf(outcome)).toEqual([
+      { op: "relax", path: "/values/*", set: { type: ["string", "integer"] } },
+      { op: "restate", path: "/values/*" },
+    ]);
     expect(outcome.unresolved).toEqual([]);
   });
 

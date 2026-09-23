@@ -120,6 +120,92 @@ describe("which way a bound moves", () => {
     expect(narrows("uniqueItems", false, true)).toBe(true);
     expect(narrows("uniqueItems", true, false)).toBe(false);
   });
+
+  it("knows the types a value may be", () => {
+    expect(narrows("type", "string", ["string", "integer"])).toBe(false);
+    expect(narrows("type", "integer", ["string", "number"])).toBe(false);
+    expect(narrows("type", "string", ["integer", "boolean"])).toBe(true);
+    expect(narrows("type", ["string", "boolean"], ["string", "integer"])).toBe(true);
+    // A value that stated no type could be anything, and now cannot.
+    expect(narrows("type", undefined, ["string", "integer"])).toBe(true);
+    expect(narrows("type", "string", null)).toBe(false);
+  });
+});
+
+describe("a value that may now be one of several types (Okta)", () => {
+  // Okta's user schema attributes listed an enum's values as text, and a
+  // later release as text or whole numbers, in what old callers send and are
+  // sent alike.
+  function attributes(items: Record<string, unknown>): OpenApiDocument {
+    const body = {
+      content: {
+        "application/json": { schema: { $ref: "#/components/schemas/Attribute" } },
+      },
+    };
+    return {
+      openapi: "3.0.3",
+      info: { title: "attributes", version: "1" },
+      paths: {
+        "/attributes": {
+          post: {
+            operationId: "updateAttribute",
+            requestBody: body,
+            responses: { "200": { description: "updated", ...body } },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          Attribute: {
+            type: "object",
+            properties: { enum: { type: "array", items } },
+          },
+        },
+      },
+    } as unknown as OpenApiDocument;
+  }
+  const before = attributes({ type: "string" });
+  const after = attributes({ anyOf: [{ type: "string" }, { type: "integer" }] });
+  const change = (ops: unknown[]) =>
+    parseChange({
+      irVersion: 1,
+      id: "chg_attribute_enum_items",
+      summary: "An attribute's listed values may now be whole numbers.",
+      scopes: [{ schema: "#/components/schemas/Attribute" }],
+      ops,
+    });
+  const relaxed = { op: "relax", path: "/enum/*", set: { type: ["string", "integer"] } };
+
+  it("is predicted as a choice of those types, restated as the new contract writes it", () => {
+    const prediction = predictDocument(before, after, [
+      change([relaxed, { op: "restate", path: "/enum/*" }]),
+    ]);
+    expect(prediction.issues).toEqual([]);
+    const schemas = (
+      prediction.document as unknown as {
+        components: { schemas: Record<string, unknown> };
+      }
+    ).components.schemas;
+    expect(schemas["Attribute"]).toEqual(
+      (after as unknown as { components: { schemas: Record<string, unknown> } })
+        .components.schemas["Attribute"],
+    );
+  });
+
+  it("is a declared loss with nothing to run", () => {
+    const relax = change([relaxed]);
+    expect(derive(relax).runtime).toBe("declared-lossy");
+    expect(derive(relax).reasons.join()).toContain("may now be string or integer");
+  });
+
+  it("refuses types that leave out one the value was, which is a convert", () => {
+    const prediction = predictDocument(before, after, [
+      change([{ op: "relax", path: "/enum/*", set: { type: ["integer", "boolean"] } }]),
+    ]);
+    expect(prediction.issues.map((issue) => issue.message).join()).toMatch(
+      /a type that went is a convert/,
+    );
+  });
 });
 
 describe("a response vocabulary that lost values", () => {
