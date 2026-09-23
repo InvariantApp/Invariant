@@ -1929,6 +1929,44 @@ describe("restatements", () => {
     expect(restatementsIn(outcome)).toEqual([]);
   });
 
+  it("leaves what a referenced schema changed to its own draft (PayPal)", async () => {
+    // The stored credential is restated as a choice, and the charge pattern
+    // it refers to dropped its length bounds under its own name: the
+    // restatement says nothing about the pattern, so the bounds keep theirs.
+    const pattern = (bounded: boolean) => ({
+      type: "string",
+      enum: ["recurring", "unscheduled"],
+      ...(bounded ? { minLength: 1, maxLength: 30 } : {}),
+    });
+    const credential = (choice: boolean) =>
+      object({
+        kind: choice
+          ? {
+              anyOf: [
+                { type: "string", enum: ["a"] },
+                { type: "string", enum: ["b"] },
+              ],
+            }
+          : { type: "string", enum: ["a", "b"] },
+        charge_pattern: ref("ChargePattern"),
+      });
+    const outcome = await propose(
+      contract({ ...base, ChargePattern: pattern(true), Thing: credential(false) }),
+      contract({ ...base, ChargePattern: pattern(false), Thing: credential(true) }),
+      { judge: new RulesJudge() },
+    );
+    const ops = [
+      ...outcome.proposals.map((proposal) => proposal.change),
+      ...outcome.decisions.map(decisionChange),
+    ].flatMap((change) => change.ops);
+    // The whole credential would be written back as referring to the old
+    // pattern, so the restatement is of the choice alone.
+    expect(ops.filter((op) => op.op === "restate")).toEqual([
+      { op: "restate", path: "/kind" },
+    ]);
+    expect(ops.filter((op) => op.op === "relax")).not.toEqual([]);
+  });
+
   it("stands down where another draft changes a schema the place refers to (PayPal)", async () => {
     // The shared phone schema gained a required country code, which old
     // callers creating a thing must now be given one for; the thing's phone

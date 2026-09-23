@@ -357,7 +357,7 @@ export async function propose(
  */
 function restated(
   outcome: ProposeOutcome,
-  found: readonly Restatement[],
+  found: readonly (readonly Restatement[])[],
 ): ProposeOutcome {
   if (found.length === 0) return outcome;
   const scopeOf = (change: Change) => {
@@ -379,26 +379,41 @@ function restated(
     ...outcome.decisions.map(decisionChange),
   ];
   // Left out where another draft acts above the place, moves something
-  // across its edge, or changes a schema the place refers to. PayPal's wallet
-  // restated its phone number while a decision made the phone schema's
-  // country code always present for old callers, and both cannot hold.
-  const kept = found.filter(
+  // across its edge, reaches through a reference under it, or changes a
+  // schema the place refers to. PayPal's wallet restated its phone number
+  // while a decision made the phone schema's country code always present for
+  // old callers, and both cannot hold.
+  const allowed = (restatement: Restatement) =>
+    !others.some((change) => {
+      const scope = scopeOf(change);
+      return scope !== undefined && restatement.reaches.has(scope);
+    }) &&
+    !others.some(
+      (change) =>
+        scopeOf(change) === restatement.schema &&
+        change.ops.some((op) => {
+          const paths = pathsOf(op);
+          const inside = paths.filter((path) => within(path, restatement.path));
+          const above = paths.some(
+            (path) => path !== restatement.path && within(restatement.path, path),
+          );
+          // Through a reference under the place, the draft changes what the
+          // reference names, and the restatement would write the place
+          // back as referring to that name's old statement.
+          const through = inside.some((path) => !restatement.inPlace(path));
+          return above || through || (inside.length > 0 && inside.length < paths.length);
+        }),
+    );
+  // For each change, the outermost place allowed; the rest go with it.
+  const chosen = [...new Set(found.flatMap((options) => options.find(allowed) ?? []))];
+  const kept = chosen.filter(
     (restatement) =>
-      !others.some((change) => {
-        const scope = scopeOf(change);
-        return scope !== undefined && restatement.reaches.has(scope);
-      }) &&
-      !others.some(
-        (change) =>
-          scopeOf(change) === restatement.schema &&
-          change.ops.some((op) => {
-            const paths = pathsOf(op);
-            const inside = paths.filter((path) => within(path, restatement.path));
-            const above = paths.some(
-              (path) => path !== restatement.path && within(restatement.path, path),
-            );
-            return above || (inside.length > 0 && inside.length < paths.length);
-          }),
+      !chosen.some(
+        (other) =>
+          other !== restatement &&
+          other.schema === restatement.schema &&
+          other.path !== restatement.path &&
+          within(restatement.path, other.path),
       ),
   );
   const covered = (change: Change, op: Op) =>
@@ -406,7 +421,9 @@ function restated(
       (restatement) =>
         scopeOf(change) === restatement.schema &&
         pathsOf(op).length > 0 &&
-        pathsOf(op).every((path) => within(path, restatement.path)),
+        pathsOf(op).every(
+          (path) => within(path, restatement.path) && restatement.inPlace(path),
+        ),
     );
   const proposals = outcome.proposals.flatMap((proposal) => {
     const ops = proposal.change.ops.filter((op) => !covered(proposal.change, op));

@@ -45,16 +45,27 @@ export interface Restatement {
    * changes what was proved.
    */
   reaches: ReadonlySet<string>;
+  /**
+   * Whether a place under this one is written out in the old schema, rather
+   * than reached through a reference. Only those are restated: a named schema
+   * it refers to is compared under its own name, and what changed there needs
+   * its own Change.
+   */
+  inPlace: (path: string) => boolean;
   change: Change;
 }
 
+/**
+ * For each place where how a choice is written changed, the places above it
+ * that are proved to hold the same values, outermost first.
+ */
 export function restatements(
   oldContract: OpenApiDocument,
   newContract: OpenApiDocument,
-): Restatement[] {
+): Restatement[][] {
   const oldSchemas = schemasOf(oldContract);
   const newSchemas = schemasOf(newContract);
-  const found: Restatement[] = [];
+  const found: Restatement[][] = [];
   for (const [name, before] of Object.entries(oldSchemas)) {
     const after = newSchemas[name];
     if (after === undefined || JSON.stringify(before) === JSON.stringify(after)) continue;
@@ -74,26 +85,49 @@ export function restatements(
         (!sides.request || covers(next, old).covered)
       );
     };
-    // The whole schema where it can be shown, which is one statement for
-    // everything under it; otherwise the outermost place above each change
-    // that can be.
-    const paths = proved("")
-      ? [""]
-      : outermost(
-          moved.flatMap((pointer) => {
-            const found = ancestors(pointer).find(proved);
-            return found === undefined ? [] : [found];
-          }),
-        );
-    for (const path of paths) {
-      const reaches = new Set<string>();
-      referencesFrom(oldSchemas, at(before, path) ?? null, reaches);
-      referencesFrom(newSchemas, at(after, path) ?? null, reaches);
-      reaches.delete(name);
-      found.push({ schema: name, path, reaches, change: restateChange(name, path) });
+    // For each change, every place above it that can be shown, outermost
+    // first: the whole schema is one statement for everything under it, and
+    // a place further down stands in where another draft rules out one above.
+    const known = new Map<string, Restatement | undefined>();
+    const restatementAt = (path: string): Restatement | undefined => {
+      if (known.has(path)) return known.get(path);
+      const restatement = proved(path)
+        ? restatementOf(name, path, before, after, oldSchemas, newSchemas)
+        : undefined;
+      known.set(path, restatement);
+      return restatement;
+    };
+    for (const pointer of moved) {
+      const options = ["", ...ancestors(pointer)].flatMap((path) => {
+        const restatement = restatementAt(path);
+        return restatement ? [restatement] : [];
+      });
+      if (options.length > 0) found.push(options);
     }
   }
   return found;
+}
+
+function restatementOf(
+  name: string,
+  path: string,
+  before: JsonValue,
+  after: JsonValue,
+  oldSchemas: Record<string, JsonValue>,
+  newSchemas: Record<string, JsonValue>,
+): Restatement {
+  const reaches = new Set<string>();
+  referencesFrom(oldSchemas, at(before, path) ?? null, reaches);
+  referencesFrom(newSchemas, at(after, path) ?? null, reaches);
+  reaches.delete(name);
+  const inPlace = (inner: string) =>
+    [path, ...ancestors(inner).filter((place) => place.length > path.length)].every(
+      (place) => {
+        const node = at(before, place);
+        return isJsonObject(node) && typeof node["$ref"] !== "string";
+      },
+    );
+  return { schema: name, path, reaches, inPlace, change: restateChange(name, path) };
 }
 
 function restateChange(name: string, path: string): Change {
@@ -170,14 +204,6 @@ function at(schema: JsonValue, pointer: string): JsonValue | undefined {
 function ancestors(pointer: string): string[] {
   const segments = pointer === "" ? [] : pointer.slice(1).split("/");
   return segments.map((_, index) => `/${segments.slice(0, index + 1).join("/")}`);
-}
-
-function outermost(pointers: string[]): string[] {
-  const unique = [...new Set(pointers)];
-  return unique.filter(
-    (pointer) =>
-      !unique.some((other) => other !== pointer && pointer.startsWith(`${other}/`)),
-  );
 }
 
 /** The named schemas a schema refers to, however deep. */
