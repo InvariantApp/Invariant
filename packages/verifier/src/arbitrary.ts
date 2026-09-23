@@ -175,11 +175,45 @@ function stringFor(schema: Record<string, JsonValue>): fc.Arbitrary<JsonValue> {
   return fc.string({ minLength, maxLength, unit: "grapheme-ascii" });
 }
 
+/** Whether a value is of a type the schema declares, as a validator reads `type` and `nullable`. */
+function fitsType(schema: Record<string, JsonValue>, value: JsonValue): boolean {
+  const types = typesOf(schema);
+  if (types.length === 0) return true;
+  if (value === null) return types.includes("null") || schema["nullable"] === true;
+  return types.some((type) => {
+    switch (type) {
+      case "integer":
+        return typeof value === "number" && Number.isInteger(value);
+      case "number":
+        return typeof value === "number";
+      case "string":
+        return typeof value === "string";
+      case "boolean":
+        return typeof value === "boolean";
+      case "array":
+        return Array.isArray(value);
+      case "object":
+        return isJsonObject(value);
+      default:
+        return false;
+    }
+  });
+}
+
 function integerFor(schema: Record<string, JsonValue>): fc.Arbitrary<JsonValue> {
   const step = schema["multipleOf"];
   const { min, max } = bounds(schema, true);
   if (typeof step === "number") return numberWithStep(step, true, { min, max });
-  return fc.integer({ min: Math.ceil(min), max: Math.floor(max) });
+  // Within what a double holds exactly. A 64-bit bound, which Django and Java
+  // APIs declare on every such column, is past it, and fast-check draws such
+  // a range forever. A value outside it is one JSON cannot carry exactly
+  // either, so nothing a caller can send is left out.
+  const low = Math.min(
+    Math.max(Math.ceil(min), -Number.MAX_SAFE_INTEGER),
+    Number.MAX_SAFE_INTEGER,
+  );
+  const high = Math.max(Math.min(Math.floor(max), Number.MAX_SAFE_INTEGER), low);
+  return fc.integer({ min: low, max: high });
 }
 
 /**
@@ -222,7 +256,16 @@ function arbitraryFor(
 
   const enumValues = schema["enum"];
   if (Array.isArray(enumValues) && enumValues.length > 0) {
-    return fc.constantFrom(...(enumValues as JsonValue[]));
+    // A value the declared type rules out is not one the schema allows, even
+    // listed: drf-spectacular lists null beside `type: string` on every
+    // choice field, nullable or not. If the list holds nothing else, it is
+    // drawn from as it is and the oracle counts the contradiction.
+    const allowed = (enumValues as JsonValue[]).filter((value) =>
+      fitsType(schema, value),
+    );
+    return fc.constantFrom(
+      ...(allowed.length > 0 ? allowed : (enumValues as JsonValue[])),
+    );
   }
 
   // One branch, chosen. Whether the value also happens to satisfy another

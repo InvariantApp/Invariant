@@ -100,6 +100,50 @@ describe("deeply nested objects", () => {
   });
 });
 
+describe("integers bounded past what a double holds exactly", () => {
+  // NetBox, through drf-spectacular, bounds every 64-bit column by
+  // 9223372036854775807, which is not a safe integer. Handed that bound,
+  // fast-check's integer drew forever, and the gate's laws on NetBox 3.6
+  // outlasted a two and a half hour job without finishing a single schema.
+  it("finish, inside the declared range", () => {
+    // Read from JSON text, as a served document is.
+    for (const bounds of [
+      '{"minimum": 0, "maximum": 9223372036854775807}',
+      '{"minimum": -9223372036854775808, "maximum": 9223372036854775807}',
+      '{"minimum": 1, "maximum": 18446744073709551615}',
+    ]) {
+      const schema = { type: "integer", ...JSON.parse(bounds) };
+      const values = sample(schema, 20);
+      expect(values).toHaveLength(20);
+      for (const value of values) {
+        expect(Number.isSafeInteger(value)).toBe(true);
+        expect(value as number).toBeGreaterThanOrEqual(schema.minimum);
+      }
+    }
+  });
+});
+
+describe("enums listing a value their type rules out", () => {
+  // drf-spectacular lists null among a choice field's values whatever else
+  // the schema says: NetBox's `poe_mode.value` is `type: string` with
+  // `enum: [pd, pse, "", null]` and no `nullable`. A null drawn from that list
+  // is refused by the schema it came from, and the laws blamed the Changes on
+  // Interface for it.
+  it("draw only the values the rest of the schema allows", () => {
+    const values = sample({ type: "string", enum: ["pd", "pse", "", null] }, 200);
+    expect(values).not.toContain(null);
+    expect(new Set(values)).toEqual(new Set(["pd", "pse", ""]));
+  });
+
+  it("still draw null where the schema is nullable", () => {
+    const values = sample(
+      { type: "string", enum: ["pd", "pse", "", null], nullable: true },
+      200,
+    );
+    expect(values).toContain(null);
+  });
+});
+
 describe("formats", () => {
   it("generates base64 for byte", () => {
     for (const value of sample({ type: "string", format: "byte" })) {
