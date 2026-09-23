@@ -18,7 +18,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { BRAND } from "@invariant-app/ir";
+import { BRAND, minRuntimeFor } from "@invariant-app/ir";
 import * as current from "@invariant-app/runtime";
 
 const ROOT = join(import.meta.dirname, "../..");
@@ -87,7 +87,7 @@ function nameOf(error: unknown): string {
 }
 
 /** The same shape the fuzzers use: one site running a vector's instructions. */
-function vectorCases(compiledBy: string, minRuntime: string): Case[] {
+function vectorCases(compiledBy: string): Case[] {
   const { vectors } = JSON.parse(
     readFileSync(join(ROOT, "conformance/vectors.json"), "utf8"),
   ) as {
@@ -99,12 +99,9 @@ function vectorCases(compiledBy: string, minRuntime: string): Case[] {
       input: unknown;
     }[];
   };
-  return vectors.map((vector) => ({
-    name: `vector: ${vector.name}`,
-    program: {
+  return vectors.map((vector) => {
+    const program = {
       irVersion: current.PROGRAM_VERSION,
-      compiledBy,
-      minRuntime,
       api: "skew",
       current: "sha256:skew",
       currentLabel: "new",
@@ -119,13 +116,24 @@ function vectorCases(compiledBy: string, minRuntime: string): Case[] {
           retired: [],
         },
       },
-    },
-    contract: "old",
-    method: "POST",
-    path: "/skew",
-    status: 200,
-    body: JSON.stringify(vector.input),
-  }));
+    };
+    return {
+      name: `vector: ${vector.name}`,
+      // Stamped as the compiler stamps a program that runs these
+      // instructions: one that needs a feature the published runtime predates
+      // says so, and is refused at load rather than run.
+      program: {
+        ...program,
+        compiledBy,
+        minRuntime: minRuntimeFor(program as Parameters<typeof minRuntimeFor>[0]),
+      },
+      contract: "old",
+      method: "POST",
+      path: "/skew",
+      status: 200,
+      body: JSON.stringify(vector.input),
+    };
+  });
 }
 
 /** Every response site of the fixture's compiled program, fed a body it adapts. */
@@ -189,10 +197,7 @@ try {
       "utf8",
     ),
   );
-  const cases = [
-    ...vectorCases(compiled.compiledBy, compiled.minRuntime),
-    ...fixtureCases(compiled),
-  ];
+  const cases = [...vectorCases(compiled.compiledBy), ...fixtureCases(compiled)];
 
   const result: SkewResult = {
     published: version,

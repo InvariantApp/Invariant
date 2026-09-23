@@ -834,7 +834,11 @@ export function relaxTypes(
   types: readonly string[],
   path: string,
 ): void {
-  const declared = node["type"];
+  // A choice of nothing but types is the same statement as a list of them:
+  // Mistral wrote an agent's version as `anyOf: [integer, null]` and then as
+  // text, a whole number or null.
+  const choice = typeChoice(node);
+  const declared = choice ?? node["type"];
   const was = (Array.isArray(declared) ? declared : [declared]).filter(
     (type): type is string => typeof type === "string" && type !== "null",
   );
@@ -845,15 +849,41 @@ export function relaxTypes(
       `${path || "the body"} was ${was.length === 0 ? "of no one type" : was.join(" or ")}, and a type that went is a convert, not a relax`,
     );
   }
-  if (["anyOf", "oneOf"].some((keyword) => node[keyword] !== undefined)) {
+  if (
+    choice === undefined &&
+    ["anyOf", "oneOf"].some((keyword) => node[keyword] !== undefined)
+  ) {
     throw new SchemaOpError(`${path || "the body"} is already a choice`);
   }
   const nullable = Array.isArray(declared) && declared.includes("null");
   delete node["type"];
+  delete node["oneOf"];
   node["anyOf"] = [
     ...types.map((type) => ({ type })),
     ...(nullable ? [{ type: "null" }] : []),
   ];
+}
+
+/**
+ * The types a choice lists, where each of its branches says nothing but a
+ * type, and nothing where it is any other kind of choice.
+ */
+function typeChoice(node: JsonObject): string[] | undefined {
+  const keyword = ["anyOf", "oneOf"].find((key) => Array.isArray(node[key]));
+  if (keyword === undefined || node["type"] !== undefined) return undefined;
+  const types: string[] = [];
+  for (const branch of node[keyword] as JsonValue[]) {
+    if (!isJsonObject(branch) || typeof branch["type"] !== "string") return undefined;
+    if (
+      Object.keys(branch).some(
+        (key) => key !== "type" && !(ANNOTATIONS as readonly string[]).includes(key),
+      )
+    ) {
+      return undefined;
+    }
+    types.push(branch["type"]);
+  }
+  return types;
 }
 
 /**

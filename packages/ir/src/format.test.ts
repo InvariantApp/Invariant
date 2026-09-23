@@ -68,6 +68,35 @@ describe("the program format", () => {
     expect(minRuntimeFor(program() as never)).toBe("0.1.0");
   });
 
+  it("says so when a move places a value beneath its own place", () => {
+    // Meilisearch's list of a rule's actions became the `pin` list of an
+    // object in its place. Runtime 0.3.0 reads that `move` and then fails at
+    // the first request, so a program that needs it asks for a newer one.
+    const moving = (from: string, to: string) =>
+      program({
+        contracts: {
+          old: {
+            label: "old",
+            routes: [],
+            sites: { "post /x": { request: [{ k: "move", from, to, c: "c" }] } },
+            behaviors: [],
+            retired: [],
+          },
+        },
+      }) as never;
+    expect(featuresOf(moving("/actions", "/actions/pin")).has("move-beneath")).toBe(true);
+    expect(minRuntimeFor(moving("/actions", "/actions/pin"))).toBe(
+      FEATURE_SINCE["move-beneath"] === NEXT
+        ? nextRelease(PRODUCT_VERSION)
+        : FEATURE_SINCE["move-beneath"],
+    );
+    // A sibling whose name only starts the same is not beneath it.
+    expect(featuresOf(moving("/actions", "/actionsList")).has("move-beneath")).toBe(
+      false,
+    );
+    expect(featuresOf(moving("/a/b", "/a")).has("move-beneath")).toBe(false);
+  });
+
   it("asks for the release after this one where a feature is not yet released", () => {
     expect(nextRelease("0.1.0")).toBe("0.1.1-next");
     // Every published runtime refuses it, and any later release runs it.

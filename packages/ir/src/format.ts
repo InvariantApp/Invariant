@@ -36,7 +36,8 @@ export type ProgramFeature =
   | "retired"
   | "behaviors"
   | "identity"
-  | "status";
+  | "status"
+  | "move-beneath";
 
 /**
  * A feature added since the last release, which the next one will carry.
@@ -98,11 +99,19 @@ export const FEATURE_SINCE: Readonly<Record<ProgramFeature, string>> = {
   behaviors: "0.1.0",
   identity: "0.1.0",
   status: NEXT,
+  // A `move` whose target lies beneath its source, as Meilisearch's list of
+  // a rule's actions became the `pin` list of an object in its place. It is
+  // the `move` instruction every runtime reads, and 0.3.0 reads it and then
+  // fails at the first request, so a program that needs it says so.
+  "move-beneath": NEXT,
 };
 
 function instrFeatures(list: readonly Instr[], into: Set<ProgramFeature>): void {
   for (const instr of list) {
     into.add(instr.k);
+    if (instr.k === "move" && instr.to.startsWith(`${instr.from}/`)) {
+      into.add("move-beneath");
+    }
     if (instr.k === "within" || instr.k === "has" || instr.k === "is") {
       instrFeatures(instr.block, into);
     } else if (instr.k === "switch") {
