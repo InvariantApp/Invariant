@@ -30,6 +30,7 @@ import {
   Sources,
   shownExtent,
 } from "./engine.ts";
+import { narrowedParameters } from "./narrowed.ts";
 import { bumpPins } from "./pins.ts";
 import { type Diagnostic, Pyright } from "./pyright.ts";
 import { PyrightReferences } from "./references.ts";
@@ -122,9 +123,11 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
         checked.map((file) => [file, files.get(file) ?? texts.get(file) ?? ""]),
       );
       for (const [file, text] of now) await checker.open(file, text);
-      after = await new PyrightReferences(checker, repoDir, now).errors(checked);
+      const upgraded = new PyrightReferences(checker, repoDir, now);
+      after = await upgraded.errors(checked);
       for (const [file, diagnostics] of after) {
         if (diagnostics.length === 0) continue;
+        const fresh: Diagnostic[] = [];
         result.manual.push(
           ...broken(
             file,
@@ -134,8 +137,22 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
             before.get(file) ?? [],
             result.edits,
             await sources.tree(file),
+            fresh,
           ),
         );
+        for (const diagnostic of fresh) {
+          result.manual.push(
+            ...(await narrowedParameters(
+              upgraded,
+              now,
+              texts,
+              file,
+              diagnostic,
+              result.edits,
+              originalOffset,
+            )),
+          );
+        }
       }
     } finally {
       await checker.stop();
@@ -178,6 +195,8 @@ export function broken(
   edits: readonly Edit[],
   /** The file as it was read, parsed, to show each error's whole statement. */
   tree?: Tree,
+  /** Collects the errors found new, for what else they point at. */
+  fresh: Diagnostic[] = [],
 ): ManualSite[] {
   const lineOf = (text: string, line: number) => text.split("\n")[line]?.trim() ?? "";
   const keyOf = (text: string, diagnostic: Diagnostic) =>
@@ -196,6 +215,7 @@ export function broken(
       seen.set(key, count - 1);
       continue;
     }
+    fresh.push(diagnostic);
     const lines = now.split("\n");
     const offsetIn = (line: number, character: number) =>
       lines.slice(0, line).reduce((sum, text) => sum + text.length + 1, 0) + character;

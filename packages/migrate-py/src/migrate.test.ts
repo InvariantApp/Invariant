@@ -106,6 +106,26 @@ const CONSUMER = [
   '        case "silver":',
   '            return "S"',
   "",
+  "",
+  "def show(sub: acme.Subscription) -> str:",
+  "    from labels import tier_label",
+  "",
+  "    return tier_label(sub.tier)",
+  "",
+].join("\n");
+
+/** The consumer's own copy of the SDK's values, in a module that never imports it. */
+const LABELS = [
+  "from typing import Literal",
+  "",
+  "",
+  'def tier_label(tier: Literal["gold", "silver"]) -> str:',
+  "    match tier:",
+  '        case "gold":',
+  '            return "G"',
+  '        case "silver":',
+  '            return "S"',
+  "",
 ].join("\n");
 
 const changes: Change[] = [
@@ -158,7 +178,7 @@ beforeAll(async () => {
   root = await mkdtemp(join(tmpdir(), "migrate-py-"));
   await writeTree(join(root, "old"), SDK_OLD);
   await writeTree(join(root, "new"), SDK_NEW);
-  await writeTree(join(root, "repo"), { "app.py": CONSUMER });
+  await writeTree(join(root, "repo"), { "app.py": CONSUMER, "labels.py": LABELS });
 });
 
 afterAll(async () => {
@@ -229,9 +249,20 @@ describe("a Python migration", () => {
       [
         32,
         "match sub.tier:",
-        CONSUMER.slice(CONSUMER.indexOf("match sub.tier")).trimEnd().length,
+        CONSUMER.slice(
+          CONSUMER.indexOf("match sub.tier"),
+          CONSUMER.indexOf("\n\n", CONSUMER.indexOf("match sub.tier")),
+        ).length,
       ],
     );
+    // The same value passed to the consumer's own copy of the old values: its
+    // signature and its match are what need the new value.
+    expect(
+      result.manual
+        .filter((site) => site.file.endsWith("labels.py"))
+        .map((site) => site.line)
+        .sort(),
+    ).toEqual([4, 5]);
     // The removed field's read breaks too; it is already reported above, and
     // the renamed field's edit left nothing behind.
     expect(result.manual.some((site) => site.line === 9)).toBe(false);

@@ -100,6 +100,8 @@ const TARGETS: Target[] = [
     package: "plaid-python",
     ecosystems: ["pypi"],
     titles: ["Bump plaid-python from", "update dependency plaid-python to"],
+    // Each plaid-python major pins a new Plaid API version.
+    searches: { pypi: ["upgrade plaid", "update plaid", "plaid api version"] },
   },
   {
     package: "@octokit/rest",
@@ -120,6 +122,7 @@ const TARGETS: Target[] = [
     package: "openai",
     ecosystems: ["npm", "pypi"],
     titles: ["Bump openai from", "update dependency openai to"],
+    searches: { pypi: ["upgrade openai", "migrate openai", "openai v1", "openai sdk"] },
   },
   {
     package: "@slack/web-api",
@@ -140,6 +143,9 @@ const TARGETS: Target[] = [
     package: "kubernetes",
     ecosystems: ["pypi"],
     titles: ["Bump kubernetes from", "update dependency kubernetes to"],
+    // A Kubernetes release that removes an API group (batch/v1beta1's
+    // CronJob) moves every client call to it.
+    searches: { pypi: ["upgrade kubernetes", "kubernetes client", "v1beta1"] },
   },
   {
     package: "docker",
