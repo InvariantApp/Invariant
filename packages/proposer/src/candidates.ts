@@ -1163,7 +1163,13 @@ function compareReading(
   newSchemas: Record<string, JsonValue>,
   before: FieldShape[],
   after: FieldShape[],
-  roots: { name: string; old: JsonValue; new: JsonValue },
+  roots: {
+    name: string;
+    old: JsonValue;
+    new: JsonValue;
+    /** Old schemas that are gone with nothing in the new contract matched to them. */
+    unmatched: ReadonlySet<string>;
+  },
 ): Compared {
   const { name, old: oldRoot, new: newRoot } = roots;
   // A field pointed at another schema is read on both sides, so what differs
@@ -1175,6 +1181,7 @@ function compareReading(
     newSchemas,
     before,
     after,
+    roots.unmatched,
   );
   const written = writtenOutInPlace(
     oldContract,
@@ -1494,6 +1501,7 @@ function repointedFields(
   newSchemas: Record<string, JsonValue>,
   before: readonly FieldShape[],
   after: readonly FieldShape[],
+  unmatched: ReadonlySet<string>,
 ): { before: FieldShape[]; after: FieldShape[] } {
   const newAt = new Map(after.map((field) => [field.pointer, field]));
   const found = { before: [] as FieldShape[], after: [] as FieldShape[] };
@@ -1508,14 +1516,23 @@ function repointedFields(
       [field.items?.ref, `${field.pointer}/*`, `${field.name}.*`, true],
     ] as [string | undefined, string, string, boolean][]) {
       const was = ref === undefined ? undefined : schemaName(ref);
-      if (was === undefined || !(was in newSchemas)) continue;
+      if (was === undefined) continue;
       // Only where the schema it pointed at is itself unchanged: one that
       // changed is compared under its own name, and reading it here as well
       // would draft the same difference twice. Adyen's `BalanceAccount`
       // recased its status and the list beside it moved to
       // `BalanceAccountBase`, and the second draft met values the first had
-      // already converted.
-      if (JSON.stringify(oldSchemas[was]) !== JSON.stringify(newSchemas[was])) continue;
+      // already converted. One that is gone is compared under the name it
+      // was matched to, unless nothing was: Adyen's fraud check results were
+      // each wrapped in a `FraudCheckResultWrapper`, which a later release
+      // dropped for the result itself, and nothing else reads what the
+      // wrapper held.
+      if (
+        was in newSchemas
+          ? JSON.stringify(oldSchemas[was]) !== JSON.stringify(newSchemas[was])
+          : !unmatched.has(was)
+      )
+        continue;
       const there = newAt.get(field.pointer);
       const now = schemaName((throughItems ? there?.items?.ref : there?.ref) ?? "");
       if (now === undefined || now === was || !(now in newSchemas)) continue;
@@ -2031,6 +2048,11 @@ export function schemaDeltas(
     }
   }
   matchThroughReferences(oldContract, newContract, oldSchemas, newSchemas, counterparts);
+  const unmatched = new Set(
+    Object.keys(oldSchemas).filter(
+      (name) => !(name in newSchemas) && !counterparts.has(name),
+    ),
+  );
 
   for (const name of Object.keys(oldSchemas).sort()) {
     const counterpart = counterparts.get(name);
@@ -2074,7 +2096,7 @@ export function schemaDeltas(
       newSchemas,
       before,
       after,
-      { name, old: oldSchemas[name] as JsonValue, new: counterpart.schema },
+      { name, old: oldSchemas[name] as JsonValue, new: counterpart.schema, unmatched },
     );
     if (!compared) continue;
     const { through: places, ...found } = compared;
@@ -2155,7 +2177,7 @@ export function schemaDeltas(
       newSchemas,
       sent(fieldsOf(oldContract, body)),
       sent(fieldsOf(newContract, after)),
-      { name: `${operation.operationId} request body`, old: body, new: after },
+      { name: `${operation.operationId} request body`, old: body, new: after, unmatched },
     );
     if (!compared) continue;
     const { through: places, ...found } = compared;
@@ -2210,7 +2232,12 @@ export function schemaDeltas(
         newSchemas,
         fieldsOf(oldContract, schema),
         fieldsOf(newContract, next),
-        { name: `${operation.operationId} ${status} response`, old: schema, new: next },
+        {
+          name: `${operation.operationId} ${status} response`,
+          old: schema,
+          new: next,
+          unmatched,
+        },
       );
       if (!compared) continue;
       deltas.push({

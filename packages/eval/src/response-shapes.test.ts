@@ -357,3 +357,40 @@ describe("list items that may now be one of several types (Okta)", () => {
     expect(result.breakingAfter).toBe(0);
   });
 });
+
+describe("list items that stopped being wrapped (Adyen)", () => {
+  // Adyen wrapped each fraud check result as `{ FraudCheckResult: {...} }`,
+  // and a later release listed the results themselves, with the wrapper
+  // schema gone and nothing named in its place.
+  const result = {
+    type: "object",
+    required: ["checkId", "name"],
+    properties: { checkId: { type: "integer" }, name: string },
+  };
+  const version = (items: string, schemas: Record<string, Schema>) =>
+    api(ref("FraudResult"), {
+      ...schemas,
+      FraudCheckResult: result,
+      FraudResult: {
+        type: "object",
+        properties: { results: { type: "array", items: ref(items) } },
+      },
+    });
+
+  it("moves what each item held out of the wrapper, and nothing is left", async () => {
+    const analysed = await analyse(
+      "unwrapped",
+      version("FraudCheckResultWrapper", {
+        FraudCheckResultWrapper: {
+          type: "object",
+          properties: { FraudCheckResult: ref("FraudCheckResult") },
+        },
+      }),
+      version("FraudCheckResult", {}),
+    );
+    expect(analysed.compileIssues).toEqual([]);
+    expect(analysed.breakingBefore).toBeGreaterThan(0);
+    expect(analysed.decisions).toBe(0);
+    expect(analysed.breakingAfter).toBe(0);
+  });
+});
