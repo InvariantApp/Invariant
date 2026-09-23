@@ -15,7 +15,9 @@
  * declares. Each is reported to a person with the checker's own words, and an
  * edit of the engine's that the checker rejects is reported the same way.
  */
+import { existsSync, readdirSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import {
   applyEdits,
   type Edit,
@@ -97,6 +99,9 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
   let targets = { resolved: 0, unresolved: 0 };
   let before = new Map<string, Diagnostic[]>();
 
+  // The SDK's own directory comes first; the rest are what it requires.
+  const typedBefore =
+    options.packages[0] !== undefined && shipsTypes(options.packages[0]);
   const server = await Pyright.start({ root: repoDir, packages: options.packages });
   try {
     for (const [file, text] of texts) await server.open(file, text);
@@ -138,6 +143,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
             result.edits,
             await sources.tree(file),
             fresh,
+            typedBefore ? () => true : breaks,
           ),
         );
         for (const diagnostic of fresh) {
@@ -181,6 +187,51 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
 }
 
 /**
+ * Whether a package ships its types for checking (PEP 561's `py.typed`).
+ * stripe-python did from 7.0; before it, every object was a dictionary with
+ * attributes the checker could not see.
+ */
+export function shipsTypes(site: string): boolean {
+  try {
+    return readdirSync(site, { withFileTypes: true }).some(
+      (entry) =>
+        entry.isDirectory() &&
+        !entry.name.endsWith(".dist-info") &&
+        existsSync(join(site, entry.name, "py.typed")),
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The errors that are the upgrade breaking something, rather than the SDK
+ * starting to say what its types are: a name a module no longer has, an
+ * import that no longer resolves, a parameter a function no longer takes,
+ * a match a new value leaves incomplete.
+ *
+ * Across a release that first ships its types, almost every other new error
+ * is the checker seeing, for the first time, that an expandable field may
+ * be a string or a field may be None. okfde's froide-payment moved
+ * stripe-python from 5 to 7 and had 49 of those; its authors changed none of
+ * them, because at runtime nothing had changed. Across releases that were
+ * both typed, every new error counts: a field that became optional there is
+ * the contract saying so.
+ */
+export function breaks(diagnostic: Diagnostic): boolean {
+  const rule = String(diagnostic.code ?? diagnostic.rule ?? "");
+  if (
+    ["reportCallIssue", "reportMissingImports", "reportMatchNotExhaustive"].includes(rule)
+  ) {
+    return true;
+  }
+  return (
+    rule === "reportAttributeAccessIssue" &&
+    /is not a known attribute of module|is unknown import symbol/.test(diagnostic.message)
+  );
+}
+
+/**
  * The errors in `after` that were not in `before`, as sites in the file as it
  * was read. An error is matched by its rule, its message and the text of its
  * line, so one that only moved because an edit above it added a line is the
@@ -197,6 +248,8 @@ export function broken(
   tree?: Tree,
   /** Collects the errors found new, for what else they point at. */
   fresh: Diagnostic[] = [],
+  /** Which new errors are breaks worth a person's time (`breaks` below). */
+  counts: (diagnostic: Diagnostic) => boolean = () => true,
 ): ManualSite[] {
   const lineOf = (text: string, line: number) => text.split("\n")[line]?.trim() ?? "";
   const keyOf = (text: string, diagnostic: Diagnostic) =>
@@ -215,6 +268,7 @@ export function broken(
       seen.set(key, count - 1);
       continue;
     }
+    if (!counts(diagnostic)) continue;
     fresh.push(diagnostic);
     const lines = now.split("\n");
     const offsetIn = (line: number, character: number) =>

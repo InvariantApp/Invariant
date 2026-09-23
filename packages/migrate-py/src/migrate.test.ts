@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import type { Change } from "@invariant-app/ir";
 import { buildPlan } from "@invariant-app/migrate-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { migrate, originalOffset } from "./index.ts";
+import { breaks, migrate, originalOffset } from "./index.ts";
 
 /**
  * A small typed SDK in the shape stripe-python has had since 7.0: classes
@@ -12,6 +12,9 @@ import { migrate, originalOffset } from "./index.ts";
  * API version and a client that takes one per instance.
  */
 const SDK_OLD = {
+  // Its types are shipped for checking, so every new error across the
+  // upgrade counts, not only the ones that break at runtime.
+  "acme/py.typed": "",
   "acme/__init__.py": [
     "from acme._subscription import Invoice as Invoice",
     "from acme._subscription import Subscription as Subscription",
@@ -59,6 +62,7 @@ const SDK_OLD = {
 
 /** The next release: `legacy` is gone and the fields follow the new contract. */
 const SDK_NEW = {
+  "acme/py.typed": "",
   "acme/__init__.py": SDK_OLD["acme/__init__.py"]
     .replace('"2024-01-01"', '"2025-01-01"')
     .replace("\n\ndef legacy() -> None: ...\n", "\n"),
@@ -319,6 +323,32 @@ describe("the API version a consumer pins", () => {
       result.manual.map((site) => [site.file.slice(repo.length + 1), site.line]),
     ).toEqual([["settings.py", 2]]);
   }, 60_000);
+});
+
+describe("which new errors count", () => {
+  const at = { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } };
+  it("counts what breaks, and not the checker first seeing an SDK's types", () => {
+    const counted = [
+      {
+        code: "reportAttributeAccessIssue",
+        message: '"error" is not a known attribute of module "stripe"',
+      },
+      { code: "reportCallIssue", message: 'No parameter named "body"' },
+      {
+        code: "reportMatchNotExhaustive",
+        message: "Cases within match statement do not exhaustively handle all values",
+      },
+      {
+        code: "reportOptionalMemberAccess",
+        message: '"id" is not a known attribute of "None"',
+      },
+      {
+        code: "reportAttributeAccessIssue",
+        message: 'Cannot access attribute "id" for class "str"',
+      },
+    ].map((diagnostic) => breaks({ range: at, ...diagnostic }));
+    expect(counted).toEqual([true, true, true, false, false]);
+  });
 });
 
 describe("offsets across edits", () => {
