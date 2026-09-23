@@ -316,6 +316,23 @@
       ]
     },
     {
+      "id": "ansys/review-bot#120",
+      "repo": "ansys/review-bot",
+      "pr": 120,
+      "base": "a7d002f4d828c23ff169918cac6540b6460f5dae",
+      "head": "ac0742d0a4a2de7897b20321eb162e1f3d4649c5",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.28.1",
+      "to": "1.2.4",
+      "license": "MIT",
+      "mergedAt": "2023-11-16T12:51:59Z",
+      "files": [
+        "src/review/bot/misc.py",
+        "src/review/bot/open_ai_interface.py"
+      ]
+    },
+    {
       "id": "appstrate/appstrate#1301",
       "repo": "appstrate/appstrate",
       "pr": 1301,
@@ -1375,6 +1392,22 @@
       ]
     },
     {
+      "id": "Cray-HPE/canu#215",
+      "repo": "Cray-HPE/canu",
+      "pr": 215,
+      "base": "9c966be9c62b266e72b56f8ec7284ad764e276b9",
+      "head": "0a2b6d7ff518c992dac835cc1606d245042948b3",
+      "package": "kubernetes",
+      "ecosystem": "pypi",
+      "from": "20.13.0",
+      "to": "24.2.0",
+      "license": "MIT",
+      "mergedAt": "2022-10-25T18:54:55Z",
+      "files": [
+        "setup.py"
+      ]
+    },
+    {
       "id": "Cyb3r-Jak3/cloudflare-utils#361",
       "repo": "Cyb3r-Jak3/cloudflare-utils",
       "pr": 361,
@@ -1869,6 +1902,29 @@
       "mergedAt": "2026-07-18T12:35:44Z",
       "files": [
         "app/cmd/collectGameData.go"
+      ]
+    },
+    {
+      "id": "epam/ai-dial-adapter-openai#389",
+      "repo": "epam/ai-dial-adapter-openai",
+      "pr": 389,
+      "base": "9d0f49f16e5c7863cb58a9fc061242457b3b0317",
+      "head": "e5fabdeae009378c726ede07f3282cc2345c588e",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.90.0",
+      "to": "2.16.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-02-05T15:34:42Z",
+      "files": [
+        "aidial_adapter_openai/audio_api/transcribe/adapter.py",
+        "aidial_adapter_openai/image_generation/gpt_image.py",
+        "aidial_adapter_openai/image_generation/model.py",
+        "aidial_adapter_openai/responses/adapter.py",
+        "aidial_adapter_openai/responses/converter.py",
+        "aidial_adapter_openai/responses/event_handler.py",
+        "tests/integration_tests/chat_completion/test_case.py",
+        "tests/utils/openai.py"
       ]
     },
     {
@@ -3214,6 +3270,40 @@
       ]
     },
     {
+      "id": "Jamyn/dispatch#196",
+      "repo": "Jamyn/dispatch",
+      "pr": 196,
+      "base": "7b0d95c8db993b43328f81adb247bd860c14504e",
+      "head": "b98d7931b96efe3375a05074d9c8698f5443fbba",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.53.0",
+      "to": "3.1.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-08-18T20:41:20Z",
+      "files": [
+        "tests/plugins/dispatch_openai/conftest.py",
+        "tests/plugins/dispatch_openai/fake_openai.py",
+        "tests/plugins/dispatch_openai/test_openai_discovery.py"
+      ]
+    },
+    {
+      "id": "Jamyn/dispatch#21",
+      "repo": "Jamyn/dispatch",
+      "pr": 21,
+      "base": "b0aa1d02c6dd8f430ee42e8f3a8cdab7c6a9ea2f",
+      "head": "ed48702d0428965ea38d890f17235a86710afd6a",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.77.0",
+      "to": "2.53.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-08-12T18:40:45Z",
+      "files": [
+        "tests/plugins/test_openai_plugin.py"
+      ]
+    },
+    {
       "id": "jduepmeier/binary-package-manager#124",
       "repo": "jduepmeier/binary-package-manager",
       "pr": 124,
@@ -3279,6 +3369,23 @@
       "files": [
         "src/slack-textract/detect.lambda.ts",
         "test/slack-textract/handler.test.ts"
+      ]
+    },
+    {
+      "id": "johnhughes3/LegalForecastBench#836",
+      "repo": "johnhughes3/LegalForecastBench",
+      "pr": 836,
+      "base": "e217bcc8d4d0413d58dd4d2ba4b282f69d321c44",
+      "head": "033daa9b670d686f5586da5b3d2b741ab9560dc2",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.53.0",
+      "to": "3.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-08-17T13:07:22Z",
+      "files": [
+        "legalforecast/multiharness/openai_responses.py",
+        "tests/test_multiharness_external_adapters.py"
       ]
     },
     {
@@ -3900,6 +4007,22 @@
       ]
     },
     {
+      "id": "lagowski/dap#878",
+      "repo": "lagowski/dap",
+      "pr": 878,
+      "base": "fbd6a70980341b0d2af7f03c052eee917f251172",
+      "head": "e6fb9e23c45689a08272304123c13559c2a1fd16",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.53.0",
+      "to": "3.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-08-17T09:37:40Z",
+      "files": [
+        "tests/smoke/test_provider_quota.py"
+      ]
+    },
+    {
       "id": "liatrio/liatrio-otel-collector#823",
       "repo": "liatrio/liatrio-otel-collector",
       "pr": 823,
@@ -3939,6 +4062,25 @@
       "mergedAt": "2026-09-15T07:28:09Z",
       "files": [
         "tests/tooling/openai-sdk-contract.test.mjs"
+      ]
+    },
+    {
+      "id": "lihor-hub/news-dashboard#1407",
+      "repo": "lihor-hub/news-dashboard",
+      "pr": 1407,
+      "base": "7fe65b3c1258b2de21c7d334a72c4d85b98c85f4",
+      "head": "db8776fc1cae27bf595c6b389d40b2cbc4fb4c65",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.53.0",
+      "to": "3.2.0",
+      "license": "MIT",
+      "mergedAt": "2026-08-21T12:07:24Z",
+      "files": [
+        "backend/tests/test_a2a.py",
+        "backend/tests/test_ai_client.py",
+        "backend/tests/test_embeddings.py",
+        "backend/tests/test_mcp.py"
       ]
     },
     {
@@ -4114,6 +4256,54 @@
         "internal/codesignalcli/dependencies_test.go",
         "internal/fakegithub/gogithub_contract_acceptance_test.go",
         "pkg/githubingest/reader.go"
+      ]
+    },
+    {
+      "id": "Lucs1590/strava-to-trainingpeaks#168",
+      "repo": "Lucs1590/strava-to-trainingpeaks",
+      "pr": 168,
+      "base": "de572b012a4d5c8138194de679482c24a6a0f5ec",
+      "head": "9d7b0d89d1d4808861222ca5d1eb40cda39d64b8",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.109.1",
+      "to": "2.3.0",
+      "license": "MIT",
+      "mergedAt": "2025-10-13T13:35:09Z",
+      "files": [
+        "setup.py"
+      ]
+    },
+    {
+      "id": "Lucs1590/strava-to-trainingpeaks#302",
+      "repo": "Lucs1590/strava-to-trainingpeaks",
+      "pr": 302,
+      "base": "3ba97e1174e0a335a6439a114cc3ef11d4a8a810",
+      "head": "577f756598a93ce8f3920741ba38ff5f076948f9",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.53.0",
+      "to": "3.1.0",
+      "license": "MIT",
+      "mergedAt": "2026-08-19T21:49:28Z",
+      "files": [
+        "setup.py"
+      ]
+    },
+    {
+      "id": "MaibornWolff/hybrid-cloud-operator-library#4",
+      "repo": "MaibornWolff/hybrid-cloud-operator-library",
+      "pr": 4,
+      "base": "310ce47b587e29e119bad36b11862b1c2ef119fe",
+      "head": "7d69892cc77f63c09726b05c64b0315230fc33fa",
+      "package": "kubernetes",
+      "ecosystem": "pypi",
+      "from": "",
+      "to": "26",
+      "license": "Apache-2.0",
+      "mergedAt": "2023-02-20T11:06:42Z",
+      "files": [
+        "setup.py"
       ]
     },
     {
@@ -4438,6 +4628,26 @@
       "files": [
         "copilotj/core/agent.py",
         "copilotj/server/threads.py"
+      ]
+    },
+    {
+      "id": "ogx-ai/ogx#3847",
+      "repo": "ogx-ai/ogx",
+      "pr": 3847,
+      "base": "bb1ebb3c6b6aff8a5e5b0d20198f4268fe91f817",
+      "head": "678978a2c95c0f116485febae82f901a8d8c1195",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.107.0",
+      "to": "2.5.0",
+      "license": "MIT",
+      "mergedAt": "2025-10-22T19:32:49Z",
+      "files": [
+        "llama_stack/apis/conversations/conversations.py",
+        "llama_stack/core/conversations/conversations.py",
+        "llama_stack/providers/inline/agents/meta_reference/responses/openai_responses.py",
+        "tests/unit/conversations/test_conversations.py",
+        "tests/unit/providers/agents/meta_reference/test_openai_responses_conversations.py"
       ]
     },
     {
@@ -4906,6 +5116,23 @@
       ]
     },
     {
+      "id": "projectsyn/commodore#859",
+      "repo": "projectsyn/commodore",
+      "pr": 859,
+      "base": "3eb2430672cc604652bc8c9767b9a68e5689b774",
+      "head": "9297a28741dba39147565015a8bddb60aeacfed3",
+      "package": "PyGithub",
+      "ecosystem": "pypi",
+      "from": "",
+      "to": "2",
+      "license": "BSD-3-Clause",
+      "mergedAt": "2023-10-09T08:31:38Z",
+      "files": [
+        "commodore/dependency_syncer.py",
+        "tests/test_dependency_sync.py"
+      ]
+    },
+    {
       "id": "promhippie/github_exporter#679",
       "repo": "promhippie/github_exporter",
       "pr": 679,
@@ -5037,6 +5264,39 @@
         "src/providers/openai/assistant.ts",
         "test/providers/openai/assistant.test.ts",
         "test/providers/openai/util.test.ts"
+      ]
+    },
+    {
+      "id": "punt-labs/vox#431",
+      "repo": "punt-labs/vox",
+      "pr": 431,
+      "base": "818c87b2de80b010602f01427b7af916cb60efd2",
+      "head": "5207589294d0be5ebf1c73294629b0e4cd54d6e2",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.36.0",
+      "to": "3.1.0",
+      "license": "MIT",
+      "mergedAt": "2026-08-21T17:27:04Z",
+      "files": [
+        "src/punt_vox/logging_config.py",
+        "tests/test_logging_config.py"
+      ]
+    },
+    {
+      "id": "raiyanyahya/dallecli#11",
+      "repo": "raiyanyahya/dallecli",
+      "pr": 11,
+      "base": "173202847d17a66e4e51542bda619eacc0dcd2ab",
+      "head": "0bd6b1e91805f2bb97c46c0ce1ace21f89fb67ba",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.26.5",
+      "to": "0.27.2",
+      "license": "MIT",
+      "mergedAt": "2023-03-14T16:30:55Z",
+      "files": [
+        "setup.py"
       ]
     },
     {
@@ -5729,6 +5989,24 @@
       "mergedAt": "2026-06-17T17:41:55Z",
       "files": [
         "internal/github/client.go"
+      ]
+    },
+    {
+      "id": "Soju06/codex-lb#1807",
+      "repo": "Soju06/codex-lb",
+      "pr": 1807,
+      "base": "b26df4176463b51d310b56a41b05b70163e4d30f",
+      "head": "e1ed45f1941697182406bf23f0f5ad44b418af3e",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.53.0",
+      "to": "3.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-08-18T02:51:00Z",
+      "files": [
+        "tests/e2e/test_openai_sdk_compat.py",
+        "tests/e2e/test_v1_responses_openai_sdk.py",
+        "tests/integration/test_openai_client_compat.py"
       ]
     },
     {
@@ -7405,6 +7683,29 @@
       ]
     },
     {
+      "id": "theodore86/github-rate-limits-exporter#316",
+      "repo": "theodore86/github-rate-limits-exporter",
+      "pr": 316,
+      "base": "1dcf5280861159c96ca0cf427c0a7423acd964aa",
+      "head": "2a7989be75234e1df9ce92df0288e8f9ddb03fac",
+      "package": "PyGithub",
+      "ecosystem": "pypi",
+      "from": "1.59.1",
+      "to": "2.1.1",
+      "license": "MIT",
+      "mergedAt": "2023-12-02T15:33:43Z",
+      "files": [
+        "github_rate_limits_exporter/github.py",
+        "github_rate_limits_exporter/utils.py",
+        "tests/conftest.py",
+        "tests/test_cli.py",
+        "tests/test_collector.py",
+        "tests/test_github.py",
+        "tests/test_utils.py",
+        "tests/utils.py"
+      ]
+    },
+    {
       "id": "theopenlane/core#1314",
       "repo": "theopenlane/core",
       "pr": 1314,
@@ -8123,6 +8424,27 @@
       "files": [
         "pkg/command/list.go",
         "pkg/command/setup.go"
+      ]
+    },
+    {
+      "id": "wndhydrnt/rcmt#408",
+      "repo": "wndhydrnt/rcmt",
+      "pr": 408,
+      "base": "38fd82e793c6daec33db6c133e2859985e8a29b8",
+      "head": "7b562fe0235b2f9bccd7a08e566d9e1737790f14",
+      "package": "PyGithub",
+      "ecosystem": "pypi",
+      "from": "",
+      "to": "2",
+      "license": "MPL-2.0",
+      "mergedAt": "2023-11-22T20:45:21Z",
+      "files": [
+        "rcmt/database/__init__.py",
+        "rcmt/database/migrations/versions/b3117b16eb76_add_model_extension.py",
+        "rcmt/rcmt.py",
+        "rcmt/source/gitlab.py",
+        "tests/source/test_gitlab.py",
+        "tests/test_rcmt.py"
       ]
     },
     {

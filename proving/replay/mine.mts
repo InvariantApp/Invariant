@@ -454,7 +454,9 @@ async function mine(): Promise<void> {
         await sleep(2_100);
         const windows = first.total_count <= 1_000 ? [whole] : monthly;
         for (const window of windows) {
-          for (let page = 1; page <= 10; page += 1) {
+          // A month is read three pages deep: "Bump docker from" also matches
+          // every docker/* action's bump, a thousand a month of them.
+          for (let page = 1; page <= (window === whole ? 10 : 3); page += 1) {
             if (added >= limit) break search;
             if (mine >= perPackage) break phrases;
             if (Date.now() > deadline) {

@@ -191,6 +191,58 @@ describe("a Python migration", () => {
   }, 60_000);
 });
 
+describe("the API version a consumer pins", () => {
+  it("is moved where it followed the SDK, through a settings module, and shown where it was chosen", async () => {
+    const repo = join(root, "pins");
+    await writeTree(repo, {
+      "settings.py": 'ACME_VERSION = "2024-01-01"\nOTHER = "2023-06-01"\n',
+      "client.py": [
+        "import acme",
+        "",
+        "import settings",
+        "",
+        "acme.api_version = settings.ACME_VERSION",
+        'legacy = acme.Client("key", acme_version=settings.OTHER)',
+        "",
+        "",
+        "def mine(acme_version: str) -> str:",
+        "    return acme_version",
+        "",
+        "",
+        'mine(acme_version="2024-01-01")',
+        "",
+      ].join("\n"),
+    });
+    const result = await migrate({
+      repoDir: repo,
+      sources: [join(repo, "client.py")],
+      packages: [join(root, "old")],
+      plan: buildPlan([], {
+        package: "acme",
+        upgradeTo: { package: "acme", version: "2.0.0" },
+        types: {},
+        accessors: [],
+        pin: {
+          type: "acme",
+          property: "api_version",
+          label: "2025-01-01",
+          from: "2024-01-01",
+          keywords: ["acme_version"],
+        },
+      }),
+    });
+    // The settings module is edited where the version is written, once.
+    expect(result.files.get(join(repo, "settings.py"))).toBe(
+      'ACME_VERSION = "2025-01-01"\nOTHER = "2023-06-01"\n',
+    );
+    // The consumer's own function that takes the same keyword is not the SDK's.
+    expect(result.files.has(join(repo, "client.py"))).toBe(false);
+    expect(result.manual.map((site) => [site.file.slice(repo.length + 1), site.line])).toEqual([
+      ["settings.py", 2],
+    ]);
+  }, 60_000);
+});
+
 describe("offsets across edits", () => {
   it("maps an offset in the edited text back to the text as it was read", () => {
     const edits = [
