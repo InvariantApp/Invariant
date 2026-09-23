@@ -87,6 +87,123 @@
         }
       },
       "pairs": [["v1.13.0", "v1.14.0"], ["v1.16.0", "v1.17.0"], ["v1.18.0", "v1.19.0"]]
+    },
+    {
+      "name": "netbox",
+      "language": "Python",
+      "repo": "netbox-community/netbox",
+      "image": "netboxcommunity/netbox",
+      "server": {
+        "port": 8080,
+        "ready": "/api/",
+        "readySeconds": 600,
+        "compose": "compose/netbox.yaml"
+      },
+      "spec": {
+        "served": "/api/schema/?format=json",
+        "headers": {
+          "Authorization": "Token 0123456789abcdef0123456789abcdef01234567",
+          "Accept": "application/json"
+        }
+      },
+      "suite": {
+        "repo": "netbox-community/pynetbox",
+        "sparse": [],
+        "dir": ".",
+        "install": [
+          ["uv", "venv", "--quiet", "--python", "3.10", "{env}"],
+          [
+            "env",
+            "SETUPTOOLS_SCM_PRETEND_VERSION=7.1.0",
+            "uv",
+            "pip",
+            "install",
+            "--quiet",
+            "--python",
+            "{env}/bin/python",
+            "-r",
+            "requirements-dev.txt",
+            "."
+          ]
+        ],
+        "run": [
+          "pytest",
+          "tests/integration",
+          "-p",
+          "no:docker",
+          "-p",
+          "no:cacheprovider",
+          "--netbox-versions=3.5",
+          "--url-override={url}",
+          "--junitxml",
+          "{report}"
+        ],
+        "select": ["-k", "{select}"],
+        "env": {}
+      },
+      "releases": {
+        "v3.5.9": {
+          "commit": "0dbfbf6941d580b19948c06aecc33161d5575a92",
+          "digest": "sha256:673b90015e6bc916d712a2e94ac62849ee9c221ccd7bce8c226e2d060e333ddf",
+          "suite": "0bab812e9d274c5eaf9f2bb6b834002dea05e361"
+        },
+        "v3.6.9": {
+          "commit": "0c0672550a52085de8637d2d47c7cd64936efd22",
+          "digest": "sha256:cf8a16f61d96c5d15cf5c639129662390e4b42685ed9c94ab4e344edeceb9a70"
+        }
+      },
+      "pairs": [["v3.5.9", "v3.6.9"]]
+    },
+    {
+      "name": "meilisearch",
+      "language": "Rust",
+      "repo": "meilisearch/meilisearch",
+      "image": "getmeili/meilisearch-enterprise",
+      "server": {
+        "port": 7700,
+        "ready": "/health",
+        "env": {
+          "MEILI_MASTER_KEY": "masterKey",
+          "MEILI_NO_ANALYTICS": "true",
+          "MEILI_EXPERIMENTAL_ALLOWED_IP_NETWORKS": "any"
+        }
+      },
+      "spec": {
+        "asset": "meilisearch-openapi.json"
+      },
+      "suite": {
+        "repo": "meilisearch/meilisearch-js",
+        "sparse": [],
+        "dir": ".",
+        "install": [["pnpm", "install", "--frozen-lockfile"]],
+        "run": [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "--reporter=default",
+          "--reporter=junit",
+          "--outputFile.junit={report}"
+        ],
+        "select": ["-t", "{select}"],
+        "env": {
+          "MEILISEARCH_URL": "{url}"
+        }
+      },
+      "releases": {
+        "v1.53.2": {
+          "commit": "ec006cecec6f684b1dcaee093a45ab4c05707127",
+          "digest": "sha256:9ff4496a42a7c1837eba030a09af21ccbcac992542231afdb50253b440ec5a89",
+          "specSha256": "ac7ac0be0a0d947d1ca01b31dbe530b98d9f752cdc149372a386352c68328f09",
+          "suite": "b9d8cdfb778aba1dd30beadc37f586544880df7a"
+        },
+        "v1.54.0": {
+          "commit": "1380adaacebad8a019d88549a06bae2dd90de249",
+          "digest": "sha256:dc420c61577771ed00fbfc418e8da6cf9aa85198e28f5b32e83e882b40574d06",
+          "specSha256": "4d0ffe35a54b7d8264b99084466378176eedeb617f598cc8205b1310b31ce86e"
+        }
+      },
+      "pairs": [["v1.53.2", "v1.54.0"]]
     }
   ],
   "skipped": []

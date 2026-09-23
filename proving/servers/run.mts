@@ -40,6 +40,7 @@
  * only served, from a previous run's dump in `.cache/servers`.
  */
 import { type ChildProcess, execFile, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { copyFile, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -73,6 +74,8 @@ interface Release {
   digest: string;
   /** The commit of the suite's own repository that belongs to this release, when the suite lives elsewhere. */
   suite?: string;
+  /** The SHA-256 of the document attached to the release, for a project that publishes it that way. */
+  specSha256?: string;
 }
 
 /** A command, as an argument vector with `{placeholders}`. */
@@ -103,8 +106,15 @@ interface Project {
      */
     setup?: { run: Command; capture?: string }[];
   };
-  /** Where the release's OpenAPI document comes from: its repository, or the running server. */
-  spec: { path: string } | { served: string; headers?: Record<string, string> };
+  /**
+   * Where the release's OpenAPI document comes from: its repository at the
+   * tag, a file attached to its GitHub release (checked against the release's
+   * `specSha256`), or the running server.
+   */
+  spec:
+    | { path: string }
+    | { asset: string }
+    | { served: string; headers?: Record<string, string> };
   suite: {
     /** The suite's repository, when it is not the server's. */
     repo?: string;
@@ -184,8 +194,11 @@ async function checkout(
   await git("init", "-q");
   await git("remote", "add", "origin", url);
   // A file is named as its directory would be, and cone mode takes the
-  // directory whole; non-cone patterns take exactly what is listed.
-  await git("sparse-checkout", "set", "--no-cone", ...sparse.map((path) => `/${path}`));
+  // directory whole; non-cone patterns take exactly what is listed. Nothing
+  // listed means the whole repository, which a client library installs from.
+  if (sparse.length > 0) {
+    await git("sparse-checkout", "set", "--no-cone", ...sparse.map((path) => `/${path}`));
+  }
   await git("fetch", "-q", "--depth", "1", "--filter=blob:none", "origin", commit);
   await git("checkout", "-q", "FETCH_HEAD");
   const head = (await git("rev-parse", "HEAD")).trim();
@@ -199,8 +212,26 @@ function releaseOf(project: Project, tag: string): Release {
   return release;
 }
 
-/** The release's own document: from its repository, or as the running server served it. */
+/** The release's own document: from its repository, its release page, or as the running server served it. */
 async function specOf(project: Project, tag: string): Promise<string> {
+  if ("asset" in project.spec) {
+    const path = join(CACHE, project.name, tag, project.spec.asset);
+    const expected = releaseOf(project, tag).specSha256;
+    if (!expected) throw new Error(`${project.name} ${tag} pins no specSha256`);
+    if (!existsSync(path)) {
+      const url = `https://github.com/${project.repo}/releases/download/${tag}/${project.spec.asset}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`${url} answered ${response.status}`);
+      const body = Buffer.from(await response.arrayBuffer());
+      const actual = createHash("sha256").update(body).digest("hex");
+      if (actual !== expected) {
+        throw new Error(`${url} has SHA-256 ${actual}, not the pinned ${expected}`);
+      }
+      await mkdir(join(CACHE, project.name, tag), { recursive: true });
+      await writeFile(path, body);
+    }
+    return path;
+  }
   if ("path" in project.spec) {
     const src = await checkout(
       project.repo,
