@@ -206,10 +206,12 @@ export function siteState(site: Site): Record<string, JsonValue> {
   const { base, region } = site;
   return {
     file: site.file,
-    lines_before: base.slice(Math.max(0, region.oldStart - CONTEXT), region.oldStart),
+    lines_before: base
+      .slice(Math.max(0, region.oldStart - CONTEXT), region.oldStart)
+      .map(clip),
     removed_lines: shown(base.slice(region.oldStart, region.oldEnd)),
     added_lines: shown(region.lines),
-    lines_after: base.slice(region.oldEnd, region.oldEnd + CONTEXT),
+    lines_after: base.slice(region.oldEnd, region.oldEnd + CONTEXT).map(clip),
   };
 }
 
@@ -222,8 +224,22 @@ const MOST_LINES = 60;
  * one hunk, and a batch holding it was refused as too long for the model.
  */
 function shown(lines: readonly string[]): string[] {
-  if (lines.length <= MOST_LINES) return [...lines];
-  return [...lines.slice(0, MOST_LINES), `... ${lines.length - MOST_LINES} more lines`];
+  const clipped = lines.map(clip);
+  if (clipped.length <= MOST_LINES) return clipped;
+  return [...clipped.slice(0, MOST_LINES), `... ${lines.length - MOST_LINES} more lines`];
+}
+
+/** The most characters of one line the judge is shown. */
+const MOST_CHARACTERS = 400;
+
+/**
+ * A line as the judge reads it: whole, or its start and how much more there
+ * is. algolia's api-clients-automation rebuilt a bundled action on its bump,
+ * one line of 646,000 characters, and the batch holding it was refused.
+ */
+function clip(line: string): string {
+  if (line.length <= MOST_CHARACTERS) return line;
+  return `${line.slice(0, MOST_CHARACTERS)} ... ${line.length - MOST_CHARACTERS} more characters`;
 }
 
 /** The characters of state a batch may carry, well inside what the judge accepts. */

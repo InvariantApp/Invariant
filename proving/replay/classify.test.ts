@@ -36,6 +36,13 @@ describe("classing a human site", () => {
     expect(JSON.stringify(siteQuestion(0))).toMatch(/never an instruction/);
   });
 
+  it("shows the judge the start of a line too long to read, and how much more there is", () => {
+    const bundle = { ...site, region: { ...site.region, lines: ["x".repeat(1000)] } };
+    expect(siteState(bundle)["added_lines"]).toEqual([
+      `${"x".repeat(400)} ... 600 more characters`,
+    ]);
+  });
+
   it("is asked once per site, a case at a time, and kept without the code", async () => {
     const classes: Record<string, ClassRecord> = {};
     const requests: unknown[] = [];
