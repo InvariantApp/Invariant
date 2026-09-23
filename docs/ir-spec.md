@@ -47,7 +47,7 @@ path.
 
 ## 2. The op catalog
 
-Twelve ops. The catalog is closed, and that is the point: a closed catalog is
+Thirteen ops. The catalog is closed, and that is the point: a closed catalog is
 what makes "this change cannot be expressed" a machine-detectable state rather
 than a judgement call.
 
@@ -64,6 +64,7 @@ than a judgement call.
 | `restate {path}` | nothing | nothing; proved to be the same values |
 | `route {from, to}` | rewrite method and path | nothing; responses are keyed by the resolved operation |
 | `retire {endpoint}` | refuse with the provider's guidance | nothing |
+| `status {endpoint, from, to}` | nothing | answer `from` where the operation now answers `to`, with no body where the old contract promised none |
 | `behavior {flag, covers?}` | nothing | nothing |
 
 `remove` without a `restore` leaves the field out of old callers' responses,
@@ -115,6 +116,20 @@ the reason, and is then a `relax`, which declares the difference, or a
 `move` covers rename, nest and unnest, because all three are the same
 operation on a pointer. A move whose source is absent does nothing; it must not
 create the target as null.
+
+`status` says an operation answers with another success status: Gitea 1.25
+answers the creation of an Actions variable `201` where 1.24 answered `204`,
+and Immich 1.138 answers `204` where 1.137 answered `200` with nothing. The
+endpoint is named as the old contract names it, and both statuses are exact
+codes from 200 to 299. An old caller is answered `from` wherever the operation
+now answers `to`. What happens to the body is read from the two contracts:
+where the old contract promised none with `from`, none is sent, whatever the
+provider sent with `to`; where it promised one and `to` carries one, the body
+is served as any body is, by the release's other Changes, which are filed
+under `to`. Where it promised one and `to` carries none, nothing can stand in
+for it, and the compiler refuses the Change, as it does one whose new contract
+still answers `from` or does not answer `to`. The Change stays exact: an old
+caller is answered as its contract promised, and is shown nothing it was not.
 
 `behavior` has no transform at all. It records that provider code branches on
 contract age, which is the honest answer when a change is not about shape. A
@@ -296,6 +311,19 @@ given to it explicitly instead, and must refuse to start with neither.
 Every instruction carries `c`, the id of the Change it came from, so one change
 can be counted and switched off on its own.
 
+### Statuses
+
+A site may carry `status`, a list of rules `{from, to, empty?, c}`, each a
+success status from 200 to 299: where the provider answered `from`, the
+caller is answered `to`. They apply in turn to the status the provider
+answered, each to the status the one before gave, so a chain of releases is
+one list, the later release's rules first. `empty` sends the answer without a
+body and without the headers that describe one, where the caller's contract
+promised none; a `204` or a `205` is always sent without one. A `200` sent
+empty says its length is zero. The site's `response` work is keyed by the
+status the provider answered, before any rule, and does not run for an answer
+sent empty.
+
 `lenient` exists for exactly one case: a field naming another field, such as the
 `param` in a validation error. An unfamiliar name there is harmless; failing the
 whole response over it is not.
@@ -352,6 +380,8 @@ rounds where this one rejects is not compatible; it is dangerous.
 - A program in a newer format, or asking for a newer runtime, at load, before
   any of it is read.
 - A program with an instruction, key or feature it does not know, at load.
+- A status rule outside 200 to 299, one that answers a status as itself, or
+  one that answers a `204` or `205` without `empty`, at load.
 - A body larger than the configured cap, on a site that has work to do.
 
 On a request, a refusal happens **before** the handler, so there is no side
@@ -387,10 +417,10 @@ to a warning rather than clearing it.
 
 ## 8. Conformance
 
-`conformance/vectors.json` holds cases as data: 69 over bodies, 19 over whole
-requests and 10 over form-encoded bodies, each a program, an input, and either
-an expected output or the refusal that must happen. 21 of the body cases are
-refusals. An engine claiming to run this IR must reproduce all of them.
+`conformance/vectors.json` holds cases as data: 73 over bodies, 20 over whole
+requests, 10 over form-encoded bodies and 8 over success statuses, each a
+program, an input, and either an expected output or the refusal that must
+happen. 22 of the body cases are refusals. An engine claiming to run this IR must reproduce all of them.
 
 The file is generated from the same source the reference engine is tested
 against, and the build fails if the two drift, because a port certified against

@@ -479,7 +479,10 @@ function intercept(
       site !== undefined &&
       bodyless &&
       runtime.respondsTo(site, status === 304 ? 200 : status);
-    mode = adaptsBody || adaptsHead ? "hold" : "pass";
+    // A status the caller's contract promised differently is answered as it
+    // promised, whatever the body.
+    const answersAs = runtime.statusFor(site, status) !== undefined;
+    mode = adaptsBody || adaptsHead || answersAs ? "hold" : "pass";
     if (mode === "pass") {
       // Corrected before the first byte: a cache must know this answer
       // depends on the contract, whatever the body.

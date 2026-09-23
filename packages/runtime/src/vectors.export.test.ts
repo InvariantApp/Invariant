@@ -13,6 +13,7 @@ import { describe, expect, it } from "vitest";
 import { ENVELOPE_VECTORS } from "./envelope-vectors.ts";
 import { FORM_VECTORS } from "./form-vectors.ts";
 import { PROGRAM_VERSION } from "./program.ts";
+import { STATUS_VECTORS } from "./status-vectors.ts";
 import { CONFORMANCE_VECTORS } from "./vectors.ts";
 
 const PATH = join(import.meta.dirname, "../../../conformance/vectors.json");
@@ -29,6 +30,7 @@ function serialise(): string {
       vectors: CONFORMANCE_VECTORS,
       envelopes: ENVELOPE_VECTORS,
       forms: FORM_VECTORS,
+      statuses: STATUS_VECTORS,
     },
     null,
     2,

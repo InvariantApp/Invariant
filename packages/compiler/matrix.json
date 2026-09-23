@@ -1,5 +1,5 @@
 {
-  "about": "Every data op, at every place in a message it can name, in each direction: whether the compiler serves it, or blocks the release and why. A test builds a Change for every cell and checks the compiler does what the cell says, and fails if any cell is missing. Endpoint ops (route, retire, behavior) act on a whole operation and are listed once each.",
+  "about": "Every data op, at every place in a message it can name, in each direction: whether the compiler serves it, or blocks the release and why. A test builds a Change for every cell and checks the compiler does what the cell says, and fails if any cell is missing. Endpoint ops (route, retire, status, behavior) act on a whole operation and are listed once each.",
   "locations": ["body", "query", "path", "header", "cookie"],
   "directions": ["request", "response", "outbound"],
   "ops": [
@@ -102,6 +102,10 @@
     "retire": {
       "status": "served",
       "why": "The runtime answers 410 with the provider's guidance, and the provider never sees the call."
+    },
+    "status": {
+      "status": "served",
+      "why": "The runtime answers an old caller the success status its contract promised where the operation now answers another, with no body where the old contract promised none; the body both statuses carry is served as any body is."
     },
     "behavior": {
       "status": "served",

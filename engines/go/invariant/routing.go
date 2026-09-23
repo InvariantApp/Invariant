@@ -477,6 +477,9 @@ func (r *Runtime) siteFor(label, method, full string) (*Site, error) {
 		for _, list := range site.Response {
 			changesIn(list, referenced, map[*Block]bool{})
 		}
+		for _, rule := range site.Status {
+			referenced[rule.C] = true
+		}
 		for _, change := range flags.DisabledChanges {
 			// Skipping a switched-off instruction would hand back a body in
 			// the wrong shape, which is worse than refusing the request.
@@ -595,6 +598,38 @@ func (r *Runtime) RespondsTo(site *Site, status int) bool {
 		}
 	}
 	return false
+}
+
+// Answer is the status an old caller is answered with, whether it goes
+// without a body, and the Changes that said so.
+type Answer struct {
+	Status  int
+	Empty   bool
+	Changes []string
+}
+
+// StatusFor is the status an old caller is answered with where the provider
+// answered status: the site's rules applied in turn. False where no rule
+// names the status. A binding that holds a response back to adapt it holds
+// one this names, whatever its body.
+func (r *Runtime) StatusFor(site *Site, status int) (Answer, bool) {
+	if site == nil {
+		return Answer{}, false
+	}
+	answer := Answer{Status: status}
+	for _, rule := range site.Status {
+		if rule.From != answer.Status {
+			continue
+		}
+		answer.Status = rule.To
+		answer.Empty = answer.Empty || rule.Empty
+		answer.Changes = append(answer.Changes, rule.C)
+	}
+	if len(answer.Changes) == 0 {
+		return Answer{}, false
+	}
+	answer.Empty = answer.Empty || emptyStatus(answer.Status)
+	return answer, true
 }
 
 // ConditionalHeaders are the request's conditional headers as the handler

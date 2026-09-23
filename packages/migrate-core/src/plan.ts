@@ -150,7 +150,8 @@ export function buildPlan(changes: readonly Change[], symbols: SymbolMap): Migra
         });
         continue;
       }
-      if (op.op === "behavior") continue;
+      // Nothing in a consumer's source names a status the SDK checks for it.
+      if (op.op === "behavior" || op.op === "status") continue;
 
       for (const scope of change.scopes ?? []) {
         if (!("schema" in scope)) continue;

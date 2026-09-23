@@ -42,6 +42,7 @@ import {
   schemaSetRequired,
   schemaWiden,
 } from "./schema.ts";
+import { applyStatus, type StatusMapping, statusMappings, statusNow } from "./status.ts";
 
 export interface PredictionIssue {
   changeId: string;
@@ -296,6 +297,7 @@ export function topOf(document: OpenApiDocument, schema: JsonValue): JsonValue {
 function shapeFromNewContract(
   newDocument: OpenApiDocument,
   routes: readonly RouteMapping[],
+  statuses: readonly StatusMapping[],
   site: Site,
   path: string,
 ): { shape: JsonValue; required: boolean } | undefined {
@@ -305,11 +307,14 @@ function shapeFromNewContract(
   );
   if (!operation) return undefined;
 
+  // A response is found at the status the operation answers with now.
   const body = bodySchemaFor(
     newDocument,
     operation.operation,
     site.direction,
-    site.status ?? undefined,
+    site.status === undefined
+      ? undefined
+      : statusNow(statuses, site.method, site.path, site.status),
   );
   if (body === undefined) return undefined;
 
@@ -363,6 +368,7 @@ export function predictDocument(
   const document = structuredClone(oldContract);
   const issues: PredictionIssue[] = [...unaddressableKeys(changes)];
   const routes = routeMappings(changes);
+  const statuses = statusMappings(changes);
 
   for (const change of changes) {
     // Checked before anything is applied, so an open decision is reported as
@@ -408,6 +414,7 @@ export function predictDocument(
           dataOps,
           issues,
           change.id,
+          statuses,
         );
         continue;
       }
@@ -497,7 +504,7 @@ export function predictDocument(
               // in a way no declared route follows.
               const resolved =
                 (site
-                  ? shapeFromNewContract(newContract, routes, site, op.path)
+                  ? shapeFromNewContract(newContract, routes, statuses, site, op.path)
                   : undefined) ?? shapeByName(newContract, name, op.path);
               if (!resolved) {
                 issues.push({
@@ -551,7 +558,7 @@ export function predictDocument(
               const next =
                 shapeByName(newContract, name, op.path) ??
                 (site
-                  ? shapeFromNewContract(newContract, routes, site, op.path)
+                  ? shapeFromNewContract(newContract, routes, statuses, site, op.path)
                   : undefined);
               if (!next) {
                 throw new Error(
@@ -644,6 +651,16 @@ export function predictDocument(
 
   for (const entry of towardOld) {
     looserInResponses(document, newContract, routes, entry, issues);
+  }
+
+  // Last, so every Change above found the old contract's responses where the
+  // old contract keeps them.
+  for (const change of changes) {
+    for (const op of change.ops) {
+      if (op.op === "status") {
+        applyStatus(document, oldContract, newContract, routes, op, issues, change.id);
+      }
+    }
   }
 
   return { document, issues };

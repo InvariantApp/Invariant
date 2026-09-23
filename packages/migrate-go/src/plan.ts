@@ -141,14 +141,16 @@ export function buildGoPlan(
 
   for (const change of changes) {
     for (const op of change.ops) {
-      if (op.op === "retire" || op.op === "route") {
-        const endpoint = op.op === "retire" ? op.endpoint : op.from;
+      if (op.op === "retire" || op.op === "route" || op.op === "status") {
+        const endpoint = op.op === "route" ? op.from : op.endpoint;
         const key = `${endpoint.method} ${endpoint.path}`;
         for (const method of symbols.operations?.[key] ?? []) {
           const said =
             op.op === "retire"
               ? `which the provider retired${op.guidance ? `; ${op.guidance}` : ""}`
-              : `which moved to ${op.to.method.toUpperCase()} ${op.to.path}`;
+              : op.op === "status"
+                ? `which now answers ${op.to} where it answered ${op.from}; code that checks the status has to expect ${op.to}`
+                : `which moved to ${op.to.method.toUpperCase()} ${op.to.path}`;
           flags.push({
             symbol: method,
             roles: ["call", "method-value"],

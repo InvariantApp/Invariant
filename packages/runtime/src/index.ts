@@ -30,6 +30,7 @@ import {
   readBodyText,
   responseOf,
   unmarkConditionals,
+  withoutBody,
 } from "./http.ts";
 import {
   type CompiledInstr,
@@ -47,6 +48,7 @@ import {
   type DecodedProgram,
   type DecodedSite,
   decodeProgram,
+  EMPTY_STATUSES,
   fillTemplate,
   findSite,
   type IdentityStrategy,
@@ -805,6 +807,7 @@ export class InvariantRuntime {
       changesIn(site.request, referenced);
       changesIn(site.envelope?.instrs ?? [], referenced);
       for (const list of site.response.values()) changesIn(list, referenced);
+      for (const rule of site.status) referenced.add(rule.c);
       for (const change of disabled) {
         if (referenced.has(change)) {
           // Skipping a switched-off instruction would hand back a body in the
@@ -996,6 +999,12 @@ export class InvariantRuntime {
       else into.set("etag", marked);
     };
 
+    // The status the caller's contract promised for this answer, where a
+    // Change moved it; the work for the body is still the provider's status's.
+    const answered = adapted ? this.statusFor(site, response.status) : undefined;
+    const shown = answered?.status ?? response.status;
+    if (answered) this.#countStatus(answered, context);
+
     // A 304 stands for the 200 it revalidates; a HEAD for the GET it mirrors.
     const head = options.method?.toUpperCase() === "HEAD";
     const stands = response.status === 304 ? 200 : response.status;
@@ -1003,11 +1012,21 @@ export class InvariantRuntime {
       adapted &&
       site &&
       (head || response.status === 304) &&
-      this.respondsTo(site, stands)
+      (this.respondsTo(site, stands) || answered !== undefined)
     ) {
-      mark(headers);
+      if (answered?.empty) withoutBody(headers);
+      else mark(headers);
       if (head) headers.delete("content-length");
-      return new Response(null, { status: response.status, headers });
+      return new Response(null, { status: head ? shown : response.status, headers });
+    }
+    if (answered?.empty) {
+      // The caller's contract promised no body with this status, so whatever
+      // the provider sent with its own is not sent on. Its entity tag names
+      // the resource rather than these bytes, and is left as it came.
+      await response.body?.cancel();
+      withoutBody(headers);
+      if (!EMPTY_STATUSES.has(shown)) headers.set("content-length", "0");
+      return new Response(null, { status: shown, headers });
     }
     if (
       !site ||
@@ -1015,7 +1034,7 @@ export class InvariantRuntime {
       !this.respondsTo(site, response.status) ||
       !isJsonMediaType(response.headers.get("content-type"))
     ) {
-      return responseOf(response.body, response.status, headers);
+      return responseOf(response.body, shown, headers);
     }
 
     try {
@@ -1036,7 +1055,7 @@ export class InvariantRuntime {
         // names in place of one it does not, and this is how they can know.
         rebuilt.set(FOLDED_HEADER, transformed.folded.join(", "));
       }
-      return responseOf(transformed.body, response.status, rebuilt);
+      return responseOf(transformed.body, shown, rebuilt);
     } catch (error) {
       const shaped = responseFailure(options.errors ?? DEFAULT_ERROR_SHAPER, error);
       if (!shaped) throw error;
@@ -1318,6 +1337,44 @@ export class InvariantRuntime {
       });
       throw error;
     }
+  }
+
+  /**
+   * The status an old caller is answered with where the provider answered
+   * `status`, whether it goes without a body, and the Changes that said so:
+   * the site's rules applied in turn. Nothing where no rule names the status.
+   * A binding that holds a response back to adapt it holds one this names,
+   * whatever its body.
+   */
+  statusFor(
+    site: DecodedSite | undefined,
+    status: number,
+  ): { status: number; empty: boolean; changes: string[] } | undefined {
+    if (!site || site.status.length === 0) return undefined;
+    let current = status;
+    let empty = false;
+    const changes: string[] = [];
+    for (const rule of site.status) {
+      if (rule.from !== current) continue;
+      current = rule.to;
+      empty ||= rule.empty;
+      changes.push(rule.c);
+    }
+    if (changes.length === 0) return undefined;
+    return { status: current, empty: empty || EMPTY_STATUSES.has(current), changes };
+  }
+
+  /** A status answered as another, counted as any applied Change is. */
+  #countStatus(
+    answered: { changes: string[] },
+    context: { contract: string; operation: string; consumer?: string | undefined },
+  ): void {
+    this.#onUsage?.({
+      contract: context.contract,
+      operation: context.operation,
+      consumer: context.consumer,
+      changes: new Map(answered.changes.map((change) => [change, 1])),
+    });
   }
 
   /** True when this status has compiled response work, so the body must be read. */

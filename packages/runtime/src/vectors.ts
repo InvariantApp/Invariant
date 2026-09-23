@@ -58,6 +58,27 @@ export const CONFORMANCE_VECTORS: Vector[] = [
     expect: { output: { id: "pay_1", source: "tok_visa" } },
   },
   {
+    name: "move places a value beneath its own place",
+    why: "Meilisearch's list of a rule's actions became the pin list of an object in its place; the object is built where the list was.",
+    instrs: [
+      { k: "move", from: "/results/*/actions", to: "/results/*/actions/pin", c: C },
+    ],
+    input: {
+      results: [
+        { uid: "a", actions: [{ id: "1" }] },
+        { uid: "b", actions: [] },
+      ],
+    },
+    expect: {
+      output: {
+        results: [
+          { uid: "a", actions: { pin: [{ id: "1" }] } },
+          { uid: "b", actions: { pin: [] } },
+        ],
+      },
+    },
+  },
+  {
     name: "move does nothing when the field is absent",
     why: "An optional field a caller did not send must not appear as null.",
     instrs: [{ k: "move", from: "/amount", to: "/amount_cents", c: C }],
@@ -138,6 +159,39 @@ export const CONFORMANCE_VECTORS: Vector[] = [
     ],
     input: { capture_method: "manual" },
     expect: { output: { capture_method: "manual" } },
+  },
+  {
+    name: "set writes a copy of its value at every place",
+    why: "An object written into every item is each item's own: a later write into one of them, as a restored action has its type put back, reaches that one alone.",
+    instrs: [
+      { k: "set", path: "/items/*/action", value: {}, ifAbsent: false, c: C },
+      {
+        k: "within",
+        path: "/items/*",
+        block: [
+          {
+            k: "switch",
+            path: "/kind",
+            cases: {
+              pin: [
+                { k: "set", path: "/action/type", value: "pin", ifAbsent: false, c: C },
+              ],
+            },
+            c: C,
+          },
+        ],
+        c: C,
+      },
+    ],
+    input: { items: [{ kind: "pin" }, { kind: "other" }] },
+    expect: {
+      output: {
+        items: [
+          { kind: "pin", action: { type: "pin" } },
+          { kind: "other", action: {} },
+        ],
+      },
+    },
   },
   {
     name: "del removes a field",

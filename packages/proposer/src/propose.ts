@@ -30,6 +30,7 @@ import {
   parameterDrafts,
   retireChange,
   retiredEndpoints,
+  statusChanges,
 } from "./endpoints.ts";
 import type { AlignmentQuestion, Judge, JudgeId } from "./judge.ts";
 import { questionsFor } from "./judge.ts";
@@ -572,6 +573,24 @@ async function drafted(
     }),
   );
 
+  // An operation that answers another success status where the documents say
+  // which one replaced which. Not for an operation this proposal retires or
+  // moved, whose old place has no counterpart to compare.
+  const statuses: Proposal[] = statusChanges(oldContract, newContract).map((change) => {
+    const op = change.ops[0] as Extract<Change["ops"][number], { op: "status" }>;
+    return {
+      change,
+      judge: "rules" as const,
+      confidence: 1,
+      attention: "normal" as const,
+      notes: [
+        `an old caller is answered ${op.from} wherever the operation now answers ${op.to}, ` +
+          `with no body where its contract promised none; check that ${op.from} is what your ` +
+          "server answered before",
+      ],
+    };
+  });
+
   const altered = alteredProposals(deltas, oldContract);
   const added = additions(deltas, oldContract);
   const gone = removals(deltas, oldContract);
@@ -582,6 +601,7 @@ async function drafted(
     ...retired,
     ...parameters,
     ...renamedOperations,
+    ...statuses,
     ...regroupedProposals(deltas),
     ...added.proposals,
     ...gone.proposals,

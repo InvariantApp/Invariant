@@ -24,7 +24,23 @@ type Site struct {
 	Template []string
 	// Form is how the request body is written when it arrives form-encoded.
 	Form *Form
+	// Status holds the success statuses an old caller is answered as
+	// another, applied in turn to the status the provider answered with.
+	Status []StatusRule
 }
+
+// StatusRule answers the provider's From as To, with no body where Empty
+// says the caller's contract promised none.
+type StatusRule struct {
+	From  int
+	To    int
+	Empty bool
+	C     string
+}
+
+// emptyStatus says whether an answer with this status never carries a body,
+// whatever a rule says.
+func emptyStatus(status int) bool { return status == 204 || status == 205 }
 
 // Route moves an old endpoint to the one the canonical handler serves.
 type Route struct {
@@ -602,7 +618,7 @@ func decodeSite(raw any, where, path string, named blocks) (*Site, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := expectKeys(site, []string{"form", "request", "envelope", "response"}, where); err != nil {
+	if err := expectKeys(site, []string{"form", "request", "envelope", "response", "status"}, where); err != nil {
 		return nil, err
 	}
 	_, hasRequest := site.Get("request")
@@ -646,6 +662,63 @@ func decodeSite(raw any, where, path string, named blocks) (*Site, error) {
 				return nil, err
 			}
 		}
+	}
+	if rules, present := site.Get("status"); present {
+		if out.Status, err = decodeStatusRules(rules, where+".status"); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+func decodeStatusRules(raw any, where string) ([]StatusRule, error) {
+	items, err := asArray(raw, where)
+	if err != nil {
+		return nil, err
+	}
+	if len(items) == 0 {
+		return nil, programError("%s must name at least one rule", where)
+	}
+	out := make([]StatusRule, 0, len(items))
+	for index, item := range items {
+		at := where + "[" + itoa(index) + "]"
+		value, err := asObject(item, at)
+		if err != nil {
+			return nil, err
+		}
+		if err := expectKeys(value, []string{"from", "to", "empty", "c"}, at); err != nil {
+			return nil, err
+		}
+		status := func(name string) (int, error) {
+			number, ok := field(value, name).(Number)
+			code, parseErr := strconv.Atoi(string(number))
+			if !ok || parseErr != nil || code < 200 || code > 299 {
+				return 0, programError("%s.%s must be a success status, 200 to 299", at, name)
+			}
+			return code, nil
+		}
+		rule := StatusRule{}
+		if rule.From, err = status("from"); err != nil {
+			return nil, err
+		}
+		if rule.To, err = status("to"); err != nil {
+			return nil, err
+		}
+		if rule.From == rule.To {
+			return nil, programError("%s answers %d as itself", at, rule.From)
+		}
+		if rule.Empty, err = onlyTrue(value, "empty", at); err != nil {
+			return nil, err
+		}
+		// A 204 or a 205 never carries a body, so a rule that would send one
+		// with it is a program nobody should have compiled.
+		if emptyStatus(rule.To) && !rule.Empty {
+			return nil, programError("%s answers %d, which carries no body, so it must be empty", at, rule.To)
+		}
+		if rule.C, err = stringField(value, "c", at); err != nil {
+			return nil, err
+		}
+		out = append(out, rule)
 	}
 	return out, nil
 }

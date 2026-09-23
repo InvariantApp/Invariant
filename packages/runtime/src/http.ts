@@ -143,6 +143,27 @@ export function headersForText(source: Headers, text: string, decoded: boolean):
 }
 
 /**
+ * Headers for an answer sent without the body the provider sent: nothing
+ * left that describes those bytes.
+ */
+export function withoutBody(headers: Headers): void {
+  for (const name of [
+    "content-type",
+    "content-length",
+    "content-encoding",
+    "content-language",
+    "content-location",
+    "content-range",
+    "content-md5",
+    "digest",
+    "repr-digest",
+    "content-digest",
+  ]) {
+    headers.delete(name);
+  }
+}
+
+/**
  * What separates a handler's entity tag from the contract it was adapted for.
  * Legal inside an entity tag, and not in a contract label.
  */

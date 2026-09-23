@@ -361,7 +361,10 @@ func (w *interceptor) choose(status int) {
 	}
 	adaptsBody := w.site != nil && w.runtime.RespondsTo(w.site, status) && invariant.IsJSONMediaType(headers.Get("Content-Type"))
 	adaptsHead := w.site != nil && bodyless && w.runtime.RespondsTo(w.site, stands)
-	if adaptsBody || adaptsHead {
+	// A status the caller's contract promised differently is answered as it
+	// promised, whatever the body.
+	_, answersAs := w.runtime.StatusFor(w.site, status)
+	if adaptsBody || adaptsHead || answersAs {
 		w.mode = "hold"
 		return
 	}
@@ -432,25 +435,53 @@ func (w *interceptor) finish() {
 		}
 	}
 
+	// The status the caller's contract promised for this answer, where a
+	// Change moved it; the work for the body is still the provider's status's.
+	answered, answers := invariant.Answer{}, false
+	if adapted {
+		answered, answers = w.runtime.StatusFor(w.site, w.status)
+	}
+	shown := w.status
+	if answers {
+		shown = answered.Status
+	}
+
 	// A 304 stands for the 200 it revalidates; a HEAD for the GET it mirrors.
 	head := strings.EqualFold(w.method, http.MethodHead)
 	stands := w.status
 	if w.status == http.StatusNotModified {
 		stands = http.StatusOK
 	}
-	if adapted && (head || w.status == http.StatusNotModified) && w.runtime.RespondsTo(w.site, stands) {
-		mark()
+	if adapted && (head || w.status == http.StatusNotModified) && (w.runtime.RespondsTo(w.site, stands) || answers) {
+		if answers && answered.Empty {
+			withoutBody(headers)
+		} else {
+			mark()
+		}
 		if head {
 			// It describes bytes the caller is never sent.
 			headers.Del("Content-Length")
+			w.ResponseWriter.WriteHeader(shown)
+			return
 		}
 		w.ResponseWriter.WriteHeader(w.status)
+		return
+	}
+	if answers && answered.Empty {
+		// The caller's contract promised no body with this status, so whatever
+		// the provider sent with its own is not sent on. Its entity tag names
+		// the resource rather than these bytes, and is left as it came.
+		withoutBody(headers)
+		if shown != http.StatusNoContent && shown != http.StatusResetContent {
+			headers.Set("Content-Length", "0")
+		}
+		w.ResponseWriter.WriteHeader(shown)
 		return
 	}
 	body := w.held.Bytes()
 	if w.status == http.StatusNoContent || w.status == http.StatusNotModified || len(body) == 0 ||
 		!w.runtime.RespondsTo(w.site, w.status) || !invariant.IsJSONMediaType(headers.Get("Content-Type")) {
-		w.ResponseWriter.WriteHeader(w.status)
+		w.ResponseWriter.WriteHeader(shown)
 		_, _ = w.ResponseWriter.Write(body)
 		return
 	}
@@ -489,6 +520,16 @@ func (w *interceptor) finish() {
 		// names in place of one it does not, and this is how they can know.
 		headers.Set(invariant.FoldedHeader, strings.Join(transformed.Folded, ", "))
 	}
-	w.ResponseWriter.WriteHeader(w.status)
+	w.ResponseWriter.WriteHeader(shown)
 	_, _ = w.ResponseWriter.Write(transformed.Body)
+}
+
+// withoutBody takes off every header that describes a body not sent on.
+func withoutBody(headers http.Header) {
+	for _, name := range []string{
+		"Content-Type", "Content-Length", "Content-Encoding", "Content-Language",
+		"Content-Location", "Content-Range", "Content-Md5", "Digest", "Repr-Digest", "Content-Digest",
+	} {
+		headers.Del(name)
+	}
 }

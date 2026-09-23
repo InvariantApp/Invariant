@@ -18,6 +18,7 @@ import {
   parameterDrafts,
   retireChange,
   retiredEndpoints,
+  statusChanges,
 } from "./endpoints.ts";
 
 const parameterChanges = (deltas: ParameterDelta[]) =>
@@ -25,6 +26,7 @@ const parameterChanges = (deltas: ParameterDelta[]) =>
 
 interface Op {
   parameters?: unknown[];
+  responses?: Record<string, unknown>;
 }
 
 function doc(paths: Record<string, Record<string, Op>>): OpenApiDocument {
@@ -385,5 +387,60 @@ describe("parameter drafts that need no decision", () => {
         ),
       ),
     ).toEqual([{ op: "dropNull", path: "/cursor", toward: "new" }]);
+  });
+});
+
+describe("a success status that changed", () => {
+  const body = { "application/json": { schema: { type: "object" } } };
+  const answering = (responses: Record<string, unknown>) =>
+    doc({ "/albums/{id}": { delete: { responses } } });
+  const drafted = (before: Record<string, unknown>, after: Record<string, unknown>) =>
+    statusChanges(answering(before), answering(after)).map((change) => change.ops);
+
+  it("is drafted where the new document added the one status that replaced it", () => {
+    // Immich 1.138 answers 204 where 1.137 answered 200 with nothing.
+    expect(
+      drafted({ "200": { description: "ok" } }, { "204": { description: "done" } }),
+    ).toEqual([
+      [
+        {
+          op: "status",
+          endpoint: { method: "delete", path: "/albums/{id}" },
+          from: "200",
+          to: "204",
+        },
+      ],
+    ]);
+  });
+
+  it("is drafted where one status went and one is left", () => {
+    // Gitea 1.24 listed 201 and 204 and answered 204; 1.25 lists 201 alone.
+    expect(
+      drafted(
+        { "201": { description: "created" }, "204": { description: "created" } },
+        { "201": { description: "created" } },
+      ).map((ops) => ops.map((op) => ("from" in op ? [op.from, op.to] : []))),
+    ).toEqual([[["204", "201"]]]);
+  });
+
+  it("is not drafted where the old status promised a body the new one does not carry", () => {
+    expect(
+      drafted(
+        { "200": { description: "ok", content: body } },
+        { "204": { description: "done" } },
+      ),
+    ).toEqual([]);
+  });
+
+  it("is not drafted where the documents do not say which status replaced it", () => {
+    expect(
+      drafted(
+        { "200": { description: "ok" } },
+        { "201": { description: "created" }, "202": { description: "accepted" } },
+      ),
+    ).toEqual([]);
+    expect(
+      drafted({ "200": { description: "ok" } }, { "200": { description: "ok" } }),
+    ).toEqual([]);
   });
 });
