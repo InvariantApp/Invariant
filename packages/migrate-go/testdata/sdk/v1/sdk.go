@@ -73,3 +73,9 @@ func (s *ActionsService) CreateRepoVariable(ctx context.Context, owner, repo str
 func (s *ActionsService) ListRepoSecrets(ctx context.Context, owner, repo string) ([]*Secret, error) {
 	return nil, nil
 }
+
+// String returns a pointer to v.
+func String(v string) *string { return &v }
+
+// Int64 returns a pointer to v.
+func Int64(v int64) *int64 { return &v }

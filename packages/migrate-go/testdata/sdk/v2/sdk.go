@@ -77,3 +77,20 @@ func (s *ActionsService) CreateRepoVariable(ctx context.Context, owner, repo str
 func (s *ActionsService) ListRepoSecrets(ctx context.Context, owner, repo string) ([]*Secret, error) {
 	return nil, nil
 }
+
+// Ptr returns a pointer to v.
+func Ptr[T any](v T) *T { return &v }
+
+// String returns a pointer to v.
+//
+// Deprecated: use Ptr instead.
+//
+//go:fix inline
+func String(v string) *string { return Ptr(v) }
+
+// Int64 returns a pointer to v.
+//
+// Deprecated: use Ptr instead.
+//
+//go:fix inline
+func Int64(v int64) *int64 { return Ptr(v) }

@@ -26,6 +26,12 @@ export interface SurfaceObject {
   operations?: string[];
   /** A function's parameter types, in order. */
   params?: string[];
+  /**
+   * What a call to the function becomes where the SDK marks it
+   * `//go:fix inline`: another function of the same package, with the type
+   * arguments the body instantiates it with, or the builtin `new`.
+   */
+  inline?: { to?: string; typeArgs?: string[]; builtin?: "new" };
   deprecated?: boolean;
 }
 

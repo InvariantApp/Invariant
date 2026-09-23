@@ -62,10 +62,19 @@ export interface GoFlag {
   reason: string;
 }
 
+/** A function the new release marks `//go:fix inline`, whose calls become what it does. */
+export interface GoInline {
+  symbol: GoSymbol;
+  inline: NonNullable<SurfaceObject["inline"]>;
+  reason: string;
+}
+
 export interface GoMigrationPlan {
   symbols: GoSymbolMap;
   /** Identifiers rewritten wherever the consumer names the object. */
   renames: GoRename[];
+  /** Calls rewritten into what the function they call does. */
+  inlines?: GoInline[];
   /** Objects every reference to which is shown to a person. */
   flags: GoFlag[];
   changes: Change[];
@@ -212,9 +221,32 @@ export function buildGoPlan(
       reason: rename.reason,
     });
   }
+  // The SDK's own word that a function is only a name for something else:
+  // go-github 84 marks `String(v)` as `Ptr(v)`, and 92 marks `Ptr(v)` as
+  // `new(v)`. A function the consumer calls today, marked so in the release
+  // it moves to.
+  const existing = new Set(
+    before
+      .filter((object) => object.kind === "func")
+      .map((object) => `${object.package}\u0000${object.key}`),
+  );
+  const inlines: GoInline[] = after.flatMap((object) =>
+    object.kind === "func" &&
+    object.inline &&
+    existing.has(`${object.package}\u0000${object.key}`)
+      ? [
+          {
+            symbol: { package: object.package, key: object.key },
+            inline: object.inline,
+            reason: `${object.key} is marked //go:fix inline in ${symbols.upgradeTo.version}: the call becomes ${object.inline.builtin ? "the builtin new" : object.inline.to}`,
+          },
+        ]
+      : [],
+  );
   return {
     symbols,
     renames,
+    ...(inlines.length > 0 ? { inlines } : {}),
     flags,
     changes: [...changes],
     ...(surface ? { surface } : {}),

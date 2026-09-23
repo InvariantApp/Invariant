@@ -37,6 +37,9 @@ type SurfaceObject struct {
 	Operations []string `json:"operations,omitempty"`
 	// Params are a function's parameter types in order, printed as Type is.
 	Params []string `json:"params,omitempty"`
+	// Inline is what a call to the function becomes, where the SDK marks it
+	// `//go:fix inline`.
+	Inline *Inline `json:"inline,omitempty"`
 	// Deprecated marks what the SDK's documentation says not to use.
 	Deprecated bool `json:"deprecated,omitempty"`
 }
@@ -97,6 +100,7 @@ func surfaceOf(pkg *packages.Package, module string) []SurfaceObject {
 	qualifier := withinModule(pkg.Types, module)
 	relative := relativePackage(pkg.PkgPath, module)
 	docs := docsOf(pkg.Syntax)
+	inlines := inlinesOf(pkg, qualifier)
 	var objects []SurfaceObject
 	add := func(object SurfaceObject) {
 		object.Package = relative
@@ -142,6 +146,7 @@ func surfaceOf(pkg *packages.Package, module string) []SurfaceObject {
 				Type:      unnamedSignature(object.Type().(*types.Signature), qualifier),
 				Signature: types.TypeString(object.Type(), qualifier),
 				Params:    paramTypes(object.Type().(*types.Signature), qualifier),
+				Inline:    inlines[name],
 			})
 		case *types.Var:
 			add(SurfaceObject{Key: name, Kind: "var", Type: types.TypeString(object.Type(), qualifier)})

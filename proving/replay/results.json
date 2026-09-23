@@ -6334,12 +6334,16 @@
     "id": "multimediallc/codeowners-plus#103",
     "language": "go",
     "package": "github.com/google/go-github",
-    "engine": "none",
+    "engine": "contract",
+    "versions": [
+      "v63.0.0",
+      "v84.0.0"
+    ],
     "sites": 60,
-    "identical": 0,
+    "identical": 3,
     "differs": 0,
     "flagged": 0,
-    "missed": 60,
+    "missed": 57,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -6349,6 +6353,20 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
+      },
+      "sdk": {
+        "identical": 3,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 56
+      }
     }
   },
   {

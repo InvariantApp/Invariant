@@ -32,6 +32,77 @@ type Reference struct {
 	SpanEnd   int `json:"spanEnd"`
 	// JSON is a field's wire name.
 	JSON string `json:"json,omitempty"`
+	// Call is what a call passes, where the role is `call`.
+	Call *CallShape `json:"call,omitempty"`
+}
+
+// CallShape is where a call's parts are, for rewriting one call into another.
+type CallShape struct {
+	// Open is the offset of the opening parenthesis.
+	Open int       `json:"open"`
+	Args []CallArg `json:"args"`
+	// TypeArgs spans explicit type arguments, brackets included, where the
+	// call has them.
+	TypeArgs *[2]int `json:"typeArgs,omitempty"`
+}
+
+// CallArg is one argument, and whether it is an untyped constant, whose type
+// the call's parameter decides.
+type CallArg struct {
+	Start   int  `json:"start"`
+	End     int  `json:"end"`
+	Untyped bool `json:"untyped,omitempty"`
+}
+
+// untypedConstant says whether an expression is an untyped constant as
+// written: a literal, an untyped named constant, or arithmetic on those. The
+// type checker records such an argument with the type its parameter gave it,
+// so the syntax is what says a call chose its type.
+func untypedConstant(info *types.Info, expression ast.Expr) bool {
+	switch expression := expression.(type) {
+	case *ast.BasicLit:
+		return true
+	case *ast.ParenExpr:
+		return untypedConstant(info, expression.X)
+	case *ast.UnaryExpr:
+		return untypedConstant(info, expression.X)
+	case *ast.BinaryExpr:
+		return untypedConstant(info, expression.X) && untypedConstant(info, expression.Y)
+	case *ast.Ident:
+		constant, ok := info.Uses[expression].(*types.Const)
+		if !ok {
+			return false
+		}
+		basic, ok := constant.Type().(*types.Basic)
+		return ok && basic.Info()&types.IsUntyped != 0
+	}
+	return false
+}
+
+func shapeOf(info *types.Info, call *ast.CallExpr, offset func(token.Pos) int) *CallShape {
+	shape := &CallShape{Open: offset(call.Lparen), Args: []CallArg{}}
+	for _, argument := range call.Args {
+		shape.Args = append(shape.Args, CallArg{
+			Start:   offset(argument.Pos()),
+			End:     offset(argument.End()),
+			Untyped: untypedConstant(info, argument),
+		})
+	}
+	fun := call.Fun
+	for {
+		paren, ok := fun.(*ast.ParenExpr)
+		if !ok {
+			break
+		}
+		fun = paren.X
+	}
+	switch fun := fun.(type) {
+	case *ast.IndexExpr:
+		shape.TypeArgs = &[2]int{offset(fun.Lbrack), offset(fun.Rbrack) + 1}
+	case *ast.IndexListExpr:
+		shape.TypeArgs = &[2]int{offset(fun.Lbrack), offset(fun.Rbrack) + 1}
+	}
+	return shape
 }
 
 // Import is one import of an SDK package.
@@ -210,6 +281,9 @@ func references(request Request) (RefsResponse, error) {
 			if field, ok := object.(*types.Var); ok && field.IsField() {
 				reference.JSON = fieldTag(field, names)
 			}
+			if call, ok := span.(*ast.CallExpr); ok && role == "call" {
+				reference.Call = shapeOf(info, call, offset)
+			}
 			response.References = append(response.References, reference)
 			return true
 		})
@@ -282,12 +356,22 @@ func roleOf(ident *ast.Ident, object types.Object, stack []ast.Node) (string, as
 		at = 2
 	}
 	outer := parent(at)
+	// Through parentheses, and through the explicit type arguments a generic
+	// function is called with: `github.Ptr[int64](1)`.
 	for {
-		paren, ok := outer.(*ast.ParenExpr)
-		if !ok {
+		wrapped := false
+		switch wrapper := outer.(type) {
+		case *ast.ParenExpr:
+			wrapped = true
+		case *ast.IndexExpr:
+			wrapped = wrapper.X == node
+		case *ast.IndexListExpr:
+			wrapped = wrapper.X == node
+		}
+		if !wrapped {
 			break
 		}
-		node = paren
+		node = outer
 		at++
 		outer = parent(at)
 	}

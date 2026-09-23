@@ -2,8 +2,9 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Change } from "@invariant-app/ir";
+import { applyEdits } from "@invariant-app/migrate-core";
 import { beforeAll, describe, expect, it } from "vitest";
-import { type GoMigrationResult, migrate } from "./engine.ts";
+import { type GoMigrationResult, inlineCalls, migrate } from "./engine.ts";
 import { buildGoPlan, type GoMigrationPlan } from "./plan.ts";
 import { diffSurfaces, type SurfaceObject, surfaceIn } from "./surface.ts";
 
@@ -133,14 +134,98 @@ describe.skipIf(!hasGo)("migrating a Go consumer", () => {
     expect(text).toContain('sdk.CreateVariableRequest{Name: "A", Value: "b"}');
     // The literal's `Name` is EncryptedSecret's, which is never sent: untouched.
     expect(text).toContain('Name:  "TOKEN",');
+    // One Change's rename; the rest are the SDK's: four imports moved, two
+    // renames, and two calls inlined.
     expect(result.edits.map((edit) => edit.changeId).sort()).toEqual([
       "chg_secret_name",
-      "sdk-upgrade",
-      "sdk-upgrade",
-      "sdk-upgrade",
-      "sdk-upgrade",
-      "sdk-upgrade",
+      ...Array<string>(8).fill("sdk-upgrade"),
     ]);
+  });
+
+  it("rewrites a call the SDK marks //go:fix inline into what it does", () => {
+    const pointers = `${CONSUMER}/pointers.go`;
+    const text = result.files.get(pointers) ?? "";
+    expect(text).toContain("return &sdk.IssueComment{Body: sdk.Ptr(name)}");
+    // An untyped constant would make `Ptr(1)` a *int; the body's own type
+    // argument is spelled out.
+    expect(text).toContain("return sdk.Ptr[int64](1)");
+    expect(linesOf(result, pointers)).toEqual([]);
+  });
+
+  it("rewrites a call to a function marked as the builtin new, keeping the import used", async () => {
+    const file = "/repo/x.go";
+    const text =
+      'package x\n\nvar a, b = sdk.Ptr[int64](1), sdk.Ptr("s")\nvar c sdk.Client\n';
+    const at = (needle: string, from = 0) =>
+      Buffer.byteLength(text.slice(0, text.indexOf(needle, from)));
+    const call = (
+      start: number,
+      open: number,
+      argument: string,
+      typeArgs?: [number, number],
+    ) => {
+      const argStart = text.indexOf(argument, open);
+      return {
+        package: "",
+        key: "Ptr",
+        file,
+        start: start + 4,
+        end: start + 7,
+        line: 3,
+        kind: "func",
+        role: "call" as const,
+        spanStart: start,
+        spanEnd: argStart + argument.length + 1,
+        call: {
+          open,
+          args: [{ start: argStart, end: argStart + argument.length, untyped: true }],
+          ...(typeArgs ? { typeArgs } : {}),
+        },
+      };
+    };
+    const first = at("sdk.Ptr[int64]");
+    const second = at('sdk.Ptr("s")');
+    const references = [
+      call(first, at("(1)"), "1", [at("[int64]"), at("[int64]") + 7]),
+      call(second, at('("s")'), '"s"'),
+      { ...call(second, 0, '"s"'), key: "Client", role: "type" as const, kind: "type" },
+    ];
+    const edits = await inlineCalls(
+      references,
+      {
+        ...plan,
+        inlines: [
+          {
+            symbol: { package: "", key: "Ptr" },
+            inline: { builtin: "new" },
+            reason: "Ptr is new",
+          },
+        ],
+      },
+      async () => text,
+      (_, byte) => byte,
+    );
+    expect(applyEdits(file, text, edits)).toBe(
+      'package x\n\nvar a, b = new(int64(1)), new("s")\nvar c sdk.Client\n',
+    );
+    // With nothing else naming the SDK, the calls stay as they are.
+    expect(
+      await inlineCalls(
+        references.slice(0, 2),
+        {
+          ...plan,
+          inlines: [
+            {
+              symbol: { package: "", key: "Ptr" },
+              inline: { builtin: "new" },
+              reason: "",
+            },
+          ],
+        },
+        async () => text,
+        (_, byte) => byte,
+      ),
+    ).toEqual([]);
   });
 
   it("shows every call to a retired operation to a person", () => {

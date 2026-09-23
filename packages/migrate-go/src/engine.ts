@@ -5,7 +5,8 @@
  * against the release it compiles with today and finds every reference to
  * the SDK by the object it resolves to. The edits that follow from the plan
  * are then made as exact byte ranges: the import path moved to the new major
- * version, and each identifier the plan renames. The last pass type-checks
+ * version, each identifier the plan renames, and each call to a function the
+ * new release marks `//go:fix inline`. The last pass type-checks
  * the edited files against the new release, with go.mod moved to it in a
  * copy, and everything that still does not compile is shown to a person,
  * together with everything the error reaches: where the value a call no
@@ -39,6 +40,12 @@ export interface GoReference extends GoSymbol {
   spanStart: number;
   spanEnd: number;
   json?: string;
+  /** Where a call's parts are, where the role is `call`. */
+  call?: {
+    open: number;
+    args: { start: number; end: number; untyped?: boolean }[];
+    typeArgs?: [number, number];
+  };
 }
 
 export interface GoImport {
@@ -209,6 +216,7 @@ export async function migrate(options: GoMigrateOptions): Promise<GoMigrationRes
       end,
     };
   };
+  edits.push(...(await inlineCalls(refs.references, plan, textOf, indexOf)));
   for (const reference of refs.references) {
     const rename = renames.get(symbolId(reference));
     if (rename) {
@@ -273,6 +281,90 @@ export async function migrate(options: GoMigrateOptions): Promise<GoMigrationRes
     }
   }
   return result;
+}
+
+/**
+ * Calls to functions the new release marks `//go:fix inline`, rewritten into
+ * what the function does, as the Go toolchain's inliner would.
+ *
+ * `github.String(name)` becomes `github.Ptr(name)`. An untyped constant
+ * takes its type from the parameter it is passed to, so where one is passed
+ * the type argument the body instantiates is spelled out: go-github's
+ * `Int64(1)` is `Ptr[int64](1)`, since `Ptr(1)` would be a `*int`. A call to
+ * `Ptr(v)`, which go-github 92 marks as `new(v)`, becomes `new(v)`, or
+ * `new(int64(v))` where the call named its type argument; except in a file
+ * where that would leave nothing else using the SDK's import, which would no
+ * longer compile, and which only a person should decide to remove.
+ */
+export async function inlineCalls(
+  references: readonly GoReference[],
+  plan: GoMigrationPlan,
+  textOf: (file: string) => Promise<string>,
+  indexOf: (file: string, byte: number) => number,
+): Promise<Edit[]> {
+  const inlines = new Map(
+    (plan.inlines ?? []).map((each) => [symbolId(each.symbol), each]),
+  );
+  if (inlines.size === 0) return [];
+  const universe = /^[a-z][a-z0-9]*$/;
+  const edits: Edit[] = [];
+  const byFile = new Map<string, GoReference[]>();
+  for (const reference of references) {
+    byFile.set(reference.file, [...(byFile.get(reference.file) ?? []), reference]);
+  }
+  for (const [file, inFile] of byFile) {
+    const text = await textOf(file);
+    const slice = (start: number, end: number) =>
+      text.slice(indexOf(file, start), indexOf(file, end));
+    const becomesNew = (reference: GoReference) =>
+      inlines.get(symbolId(reference))?.inline.builtin === "new" &&
+      reference.role === "call" &&
+      reference.call?.args.length === 1;
+    // Whether the SDK's packages are still named in this file once the calls
+    // that become `new` no longer name them.
+    const stillImported = new Set(
+      inFile.filter((each) => !becomesNew(each)).map((each) => each.package),
+    );
+    for (const reference of inFile) {
+      const planned = inlines.get(symbolId(reference));
+      const call = reference.call;
+      if (!planned || reference.role !== "call" || !call) continue;
+      const { inline } = planned;
+      const edit = (start: number, end: number, replacement: string): Edit => ({
+        file,
+        start: indexOf(file, start),
+        end: indexOf(file, end),
+        replacement,
+        changeId: "sdk-upgrade",
+        author: "codemod",
+        reason: planned.reason,
+      });
+      if (inline.to) {
+        if (call.typeArgs) continue;
+        const explicit =
+          call.args.some((argument) => argument.untyped) &&
+          (inline.typeArgs?.length ?? 0) > 0;
+        if (explicit && !(inline.typeArgs ?? []).every((each) => universe.test(each)))
+          continue;
+        edits.push(
+          edit(
+            reference.start,
+            reference.end,
+            explicit ? `${inline.to}[${(inline.typeArgs ?? []).join(", ")}]` : inline.to,
+          ),
+        );
+        continue;
+      }
+      if (!becomesNew(reference) || !stillImported.has(reference.package)) continue;
+      const argument = call.args[0] as { start: number; end: number };
+      const typeArgs = call.typeArgs && slice(call.typeArgs[0] + 1, call.typeArgs[1] - 1);
+      edits.push(
+        edit(reference.spanStart, argument.start, typeArgs ? `new(${typeArgs}(` : "new("),
+      );
+      if (typeArgs) edits.push(edit(argument.end, argument.end, ")"));
+    }
+  }
+  return edits;
 }
 
 /**
