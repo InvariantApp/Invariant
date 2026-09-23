@@ -17,6 +17,7 @@
  * change `enumMap` exists for.
  */
 import {
+  covers,
   type HttpMethod,
   type OpenApiDocument,
   operationsOf,
@@ -26,6 +27,7 @@ import {
 } from "@invariant-app/contract";
 import {
   type Change,
+  CONSTRAINT_KEYWORDS,
   isJsonObject,
   type JsonObject,
   type JsonValue,
@@ -282,6 +284,8 @@ export interface ParameterShape {
   description?: string;
   /** For a list: the type of each item, and the values it lists, if it does. */
   items?: { type: string | undefined; enumValues?: string[] };
+  /** The bounds the schema puts on the value, by keyword, apart from its format. */
+  bounds?: Record<string, JsonValue>;
 }
 
 const LOCATIONS = new Set(["query", "path", "header", "cookie"]);
@@ -332,8 +336,58 @@ function parameterShape(
           },
         }
       : {}),
+    ...boundsOf(schema),
   };
 }
+
+function boundsOf(schema: JsonObject): Pick<ParameterShape, "bounds"> {
+  const bounds: Record<string, JsonValue> = {};
+  for (const keyword of CONSTRAINT_KEYWORDS) {
+    const bound = schema[keyword];
+    if (keyword !== "format" && bound !== undefined) bounds[keyword] = bound;
+  }
+  return Object.keys(bounds).length > 0 ? { bounds } : {};
+}
+
+/** A parameter's value as a schema, as much of it as its shape records. */
+function statedAs(shape: ParameterShape): JsonObject {
+  return {
+    ...(shape.type === undefined
+      ? {}
+      : { type: shape.nullable ? [shape.type, "null"] : shape.type }),
+    ...(shape.format === undefined ? {} : { format: shape.format }),
+    ...(shape.enumValues === undefined ? {} : { enum: shape.enumValues }),
+    ...(shape.bounds ?? {}),
+  };
+}
+
+/**
+ * Whether a parameter whose format changed still accepts every value old
+ * callers could send, and nothing else about it moved. Twilio stated `int64`
+ * on a `PageSize` it had always bounded to 1 and 1000: the differ reads any
+ * format that appears as a new type, and no value an old caller sends is
+ * refused. The compiler proves it again, on the declarations themselves,
+ * before it believes it.
+ */
+function restatedFormat(before: ParameterShape, after: ParameterShape): boolean {
+  if (
+    before.format === after.format ||
+    before.type === undefined ||
+    before.type !== after.type ||
+    before.nullable !== after.nullable ||
+    before.enumValues?.join("|") !== after.enumValues?.join("|") ||
+    JSON.stringify(before.items) !== JSON.stringify(after.items)
+  ) {
+    return false;
+  }
+  return covers(
+    { document: UNREFERENCED, schema: statedAs(after) },
+    { document: UNREFERENCED, schema: statedAs(before) },
+  ).covered;
+}
+
+/** The document a shape's schema is read in: it names no other schema, so none. */
+const UNREFERENCED = { openapi: "3.1.0", paths: {} } as unknown as OpenApiDocument;
 
 function listedValues(
   document: OpenApiDocument,
@@ -761,6 +815,15 @@ export function parameterDrafts(deltas: readonly ParameterDelta[]): {
         ops.push({ op: "dropNull", path, toward: "new" });
         notes.push(
           "it can no longer be null, so a null from an old caller is sent as the parameter left out",
+        );
+      }
+
+      if (ops.length === 0 && restatedFormat(before, after)) {
+        ops.push({ op: "restate", path });
+        notes.push(
+          after.format === undefined
+            ? `it no longer states the format ${before.format}, which refuses nothing old callers send`
+            : `it now states the format ${after.format}, and every value old callers could send is one it holds`,
         );
       }
 

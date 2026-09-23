@@ -99,6 +99,69 @@ describe("a response field that may now be left out or null", () => {
     );
   });
 
+  it("is predicted in responses alone where old callers send the schema too (Adyen)", () => {
+    // Adyen kept `supportUrl` required where a payment method is set up, and
+    // made it optional where one is returned. Loosening the schema both share
+    // said requests could leave it out, which they cannot.
+    const info = thing({ supportUrl: { type: "string" } }, ["supportUrl"]);
+    const before = contract("3.0.3", {
+      ThingCreate: thing({ info: { $ref: "#/components/schemas/Info" } }, []),
+      Thing: thing({ info: { $ref: "#/components/schemas/Info" } }, ["info"]),
+      Info: info,
+    });
+    const op = {
+      op: "default",
+      path: "/supportUrl",
+      value: "",
+      when: "absent",
+      toward: "old",
+    };
+    const prediction = predictDocument(before, before, [change("Info", op)]);
+    expect(prediction.issues).toEqual([]);
+    const document = prediction.document as JsonObject;
+    // What old callers send is as it was.
+    expect(
+      ((document["components"] as JsonObject)["schemas"] as JsonObject)["Info"],
+    ).toEqual(info);
+    // What they are sent, in that response's own copy, may leave it out.
+    const created = ((document["paths"] as JsonObject)["/things"] as JsonObject)[
+      "post"
+    ] as JsonObject;
+    const body = (
+      ((created["responses"] as JsonObject)["201"] as JsonObject)["content"] as JsonObject
+    )["application/json"] as JsonObject;
+    expect((body["schema"] as JsonObject)["properties"]).toEqual({
+      info: { type: "object", properties: { supportUrl: { type: "string" } } },
+    });
+  });
+
+  it("is predicted in the schema they share where the new contract loosened requests too", () => {
+    const info = (required: string[]) =>
+      thing({ supportUrl: { type: "string" } }, required);
+    const version = (required: string[]) =>
+      contract("3.0.3", {
+        ThingCreate: thing({ info: { $ref: "#/components/schemas/Info" } }, []),
+        Thing: thing({ info: { $ref: "#/components/schemas/Info" } }, ["info"]),
+        Info: info(required),
+      });
+    const op = {
+      op: "default",
+      path: "/supportUrl",
+      value: "",
+      when: "absent",
+      toward: "old",
+    };
+    const prediction = predictDocument(version(["supportUrl"]), version([]), [
+      change("Info", op),
+    ]);
+    expect(prediction.issues).toEqual([]);
+    expect(
+      ((prediction.document["components"] as JsonObject)["schemas"] as JsonObject)[
+        "Info"
+      ],
+    ).toEqual(info([]));
+  });
+
   it("is filled in for old callers only, and only where the new side left it so", () => {
     const op = {
       op: "default",

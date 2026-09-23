@@ -137,6 +137,56 @@ describe("bounds and formats", () => {
       holds({ type: "number", multipleOf: 4 }, { type: "number", multipleOf: 2 }).covered,
     ).toBe(false);
   });
+
+  it("reads int32 and int64 as the whole numbers each holds (Twilio, Discord)", () => {
+    const pageSize = { type: "integer", minimum: 1, maximum: 1000 };
+    // Twilio stated `int64` on a page size it had always bounded to 1000.
+    expect(holds({ ...pageSize, format: "int64" }, pageSize).covered).toBe(true);
+    expect(holds({ ...pageSize, format: "int32" }, pageSize).covered).toBe(true);
+    // Unbounded, or bounded past what the format holds, it may not fit.
+    expect(holds({ type: "integer", format: "int64" }, { type: "integer" }).covered).toBe(
+      false,
+    );
+    expect(
+      holds(
+        { type: "integer", format: "int32" },
+        { type: "integer", minimum: 0, maximum: 2 ** 31 },
+      ).covered,
+    ).toBe(false);
+    // A number that may not be whole is not an integer format's.
+    expect(
+      holds(
+        { type: "number", format: "int32" },
+        { type: "number", minimum: 0, maximum: 10 },
+      ).covered,
+    ).toBe(false);
+    // A narrower format is held by the wider one, never the other way.
+    expect(
+      holds({ type: "integer", format: "int64" }, { type: "integer", format: "int32" })
+        .covered,
+    ).toBe(true);
+    expect(
+      holds({ type: "integer", format: "int32" }, { type: "integer", format: "int64" })
+        .covered,
+    ).toBe(false);
+    // A format that is not a range is only kept where the inner states it.
+    expect(holds({ type: "number", format: "float" }, { type: "number" }).covered).toBe(
+      false,
+    );
+    expect(
+      holds({ type: "number", format: "double" }, { type: "number", format: "float" })
+        .covered,
+    ).toBe(true);
+    // Listed values are checked against the range one by one.
+    expect(
+      holds({ type: "integer", format: "int32" }, { type: "integer", enum: [1, 2] })
+        .covered,
+    ).toBe(true);
+    expect(
+      holds({ type: "integer", format: "int32" }, { type: "integer", enum: [2 ** 40] })
+        .covered,
+    ).toBe(false);
+  });
 });
 
 describe("objects and lists", () => {

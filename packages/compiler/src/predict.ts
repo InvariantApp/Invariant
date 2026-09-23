@@ -14,22 +14,21 @@ import {
 import {
   CHOOSE_ONE,
   type Change,
+  type DataOp,
   isDataOp,
   isJsonObject,
   isParameterScope,
   isResponseScope,
-  isSchemaScope,
   type JsonObject,
   type JsonValue,
   parsePointer,
   type RetireOp,
   type RouteOp,
-  type Scope,
   undecidedOps,
 } from "@invariant-app/ir";
 import { importReferences } from "./import.ts";
 import { applyParameterScope } from "./predict-parameters.ts";
-import { applyResponseScope } from "./predict-responses.ts";
+import { applyResponseScope, ownBody } from "./predict-responses.ts";
 import { proveRestated } from "./restate.ts";
 import {
   schemaAdd,
@@ -290,11 +289,6 @@ export function topOf(document: OpenApiDocument, schema: JsonValue): JsonValue {
   return current;
 }
 
-function sitesForScope(document: OpenApiDocument, scope: Scope): Site[] {
-  if (!isSchemaScope(scope)) return [];
-  return findSchemaSites(document, scope.schema).sites;
-}
-
 /**
  * The shape a newly added field has in the new contract. Resolved by position
  * rather than by schema name, so a renamed schema still lines up.
@@ -389,6 +383,10 @@ export function predictDocument(
     }
   }
 
+  // What may now be missing or null in what old callers are sent, on a
+  // schema they send too, settled once everything else is in place.
+  const towardOld: TowardOld[] = [];
+
   for (const change of changes) {
     const dataOps = change.ops.filter(isDataOp);
     if (dataOps.length === 0) continue;
@@ -439,7 +437,11 @@ export function predictDocument(
         continue;
       }
 
-      const oldSites = sitesForScope(oldContract, scope);
+      const scan = findSchemaSites(oldContract, scope.schema);
+      const oldSites = scan.sites;
+      // Every place it reaches, listed; otherwise the shared schema speaks
+      // for the places the scan could not list.
+      const listed = scan.exhausted !== true && scan.unsupported.length === 0;
       for (const op of dataOps) {
         try {
           switch (op.op) {
@@ -512,6 +514,16 @@ export function predictDocument(
               // Facing old, the new contract is the looser side; facing new,
               // the stricter one.
               const looser = op.toward === "old";
+              if (looser && bothWays(oldSites)) {
+                towardOld.push({
+                  changeId: change.id,
+                  name,
+                  sites: oldSites,
+                  listed,
+                  op,
+                });
+                break;
+              }
               if (op.when !== "null")
                 schemaSetRequired(document, schema, op.path, !looser);
               if (op.when !== "absent")
@@ -607,6 +619,16 @@ export function predictDocument(
                   `${op.path} is required, so a null cannot be sent as the field left out`,
                 );
               }
+              if (op.toward === "old" && bothWays(oldSites)) {
+                towardOld.push({
+                  changeId: change.id,
+                  name,
+                  sites: oldSites,
+                  listed,
+                  op,
+                });
+                break;
+              }
               schemaSetNullable(document, schema, op.path, op.toward === "old");
               break;
           }
@@ -620,5 +642,150 @@ export function predictDocument(
     }
   }
 
+  for (const entry of towardOld) {
+    looserInResponses(document, newContract, routes, entry, issues);
+  }
+
   return { document, issues };
+}
+
+/** A presence op toward old callers on a schema that travels both ways. */
+interface TowardOld {
+  changeId: string;
+  name: string;
+  sites: readonly Site[];
+  /** Whether the sites are every place the schema reaches. */
+  listed: boolean;
+  op: Extract<DataOp, { op: "default" | "dropNull" }>;
+}
+
+const bothWays = (sites: readonly Site[]) =>
+  sites.some((site) => site.direction === "request") &&
+  sites.some((site) => site.direction === "response");
+
+/**
+ * Whether the new contract still has what old callers send stated as strictly
+ * as before somewhere, which is when loosening what they share would say
+ * something the new contract does not. Where it loosened their requests too,
+ * as Okta loosened the schemas an app's profile is defined with both ways,
+ * the shared schema is loosened as it always was.
+ */
+function strictInNewRequests(
+  newContract: OpenApiDocument,
+  routes: readonly RouteMapping[],
+  entry: TowardOld,
+): boolean {
+  const { op } = entry;
+  const absent = op.op === "default" && op.when !== "null";
+  const nulled = op.op === "dropNull" || op.when !== "absent";
+  return entry.sites.some((site) => {
+    if (site.direction !== "request") return false;
+    const target = mapEndpoint(routes, site.method, site.path);
+    const operation = operationsOf(newContract).find(
+      (candidate) => candidate.method === target.method && candidate.path === target.path,
+    );
+    if (!operation) return false;
+    const body = bodySchemaFor(newContract, operation.operation, "request");
+    if (body === undefined) return false;
+    const within = [...parsePointer(site.prefix), ...parsePointer(op.path)];
+    const field = navigate(newContract, body, within);
+    const parent = navigate(newContract, body, within.slice(0, -1));
+    if (!isJsonObject(field) || !isJsonObject(parent)) return false;
+    const name = within[within.length - 1] as string;
+    const required =
+      Array.isArray(parent["required"]) &&
+      (parent["required"] as JsonValue[]).includes(name);
+    return (absent && required) || (nulled && !mayBeNull(field));
+  });
+}
+
+/** Whether a schema allows null, in any of the ways a document can say so. */
+function mayBeNull(schema: JsonObject): boolean {
+  const types = schema["type"];
+  const values = schema["enum"];
+  return (
+    schema["nullable"] === true ||
+    (Array.isArray(types) && types.includes("null")) ||
+    (Array.isArray(values) && values.includes(null)) ||
+    ["anyOf", "oneOf"].some(
+      (key) =>
+        Array.isArray(schema[key]) &&
+        (schema[key] as JsonValue[]).some(
+          (branch) => isJsonObject(branch) && branch["type"] === "null",
+        ),
+    )
+  );
+}
+
+/**
+ * A field that may now be missing or null where old callers are sent it,
+ * predicted in their responses alone.
+ *
+ * The op only ever acts on what old callers are sent; what they send is as it
+ * was. Loosening the schema they share said otherwise: Adyen's
+ * `AfterpayTouchInfo` kept `supportUrl` required for the requests that set a
+ * payment method up and pointed responses at a schema where it is optional,
+ * and a prediction that made it optional everywhere found it newly required
+ * in every request. So each response the schema reaches is loosened in that
+ * response's own copy, once every other Change has been applied, and the
+ * shared schema stays as requests have it. Where the new contract loosened
+ * the requests as well, where a response cannot be walked to the field, or
+ * where the schema reaches more places than can be listed, the shared schema
+ * is loosened as before.
+ */
+function looserInResponses(
+  document: OpenApiDocument,
+  newContract: OpenApiDocument,
+  routes: readonly RouteMapping[],
+  entry: TowardOld,
+  issues: PredictionIssue[],
+): void {
+  const { op } = entry;
+  const segments = parsePointer(op.path);
+  const places: { operation: JsonObject; status: string; path: string }[] = [];
+  let walked = entry.listed && strictInNewRequests(newContract, routes, entry);
+  for (const site of walked ? entry.sites : []) {
+    if (site.direction !== "response" || site.status === undefined) continue;
+    const target = mapEndpoint(routes, site.method, site.path);
+    const paths = document["paths"];
+    const item = isJsonObject(paths) ? paths[target.path] : undefined;
+    const operation = isJsonObject(item) ? item[target.method] : undefined;
+    // Retired, so no response is left to serve.
+    if (!isJsonObject(operation)) continue;
+    const body = bodySchemaFor(document, operation, "response", site.status);
+    const within = [...parsePointer(site.prefix), ...segments];
+    if (body === undefined || navigate(document, body, within) === undefined) {
+      walked = false;
+      break;
+    }
+    places.push({
+      operation,
+      status: site.status,
+      path: `${site.prefix}${op.path}`,
+    });
+  }
+  const loosen = (root: JsonObject, path: string) => {
+    if (op.op === "dropNull") {
+      schemaSetNullable(document, root, path, true);
+      return;
+    }
+    if (op.when !== "null") schemaSetRequired(document, root, path, false);
+    if (op.when !== "absent") schemaSetNullable(document, root, path, true);
+  };
+  try {
+    if (!walked) {
+      const schemas = (document["components"] as JsonObject | undefined)?.["schemas"];
+      const schema = isJsonObject(schemas) ? schemas[entry.name] : undefined;
+      if (isJsonObject(schema)) loosen(schema, op.path);
+      return;
+    }
+    for (const place of places) {
+      loosen(ownBody(document, place.operation, place.status), place.path);
+    }
+  } catch (error) {
+    issues.push({
+      changeId: entry.changeId,
+      message: `${op.op} on ${entry.name}: ${error instanceof Error ? error.message : String(error)}`,
+    });
+  }
 }

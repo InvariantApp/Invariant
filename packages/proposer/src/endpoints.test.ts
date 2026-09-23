@@ -347,6 +347,35 @@ describe("parameter drafts that need no decision", () => {
     ]);
   });
 
+  it("restates a parameter that states a format its bounds already kept (Twilio)", () => {
+    // Twilio stated `int64` on a `PageSize` it had always bounded to 1000.
+    const pageSize = (extra: Record<string, unknown>) => ({
+      name: "PageSize",
+      in: "query",
+      schema: { type: "integer", minimum: 1, maximum: 1000, ...extra },
+    });
+    expect(opsOf(drafted([pageSize({})], [pageSize({ format: "int64" })]))).toEqual([
+      { op: "restate", path: "/PageSize" },
+    ]);
+    // Unbounded, an old caller may send what no int64 holds, which nothing
+    // here can hide.
+    const unbounded = (extra: Record<string, unknown>) => ({
+      name: "memory",
+      in: "query",
+      schema: { type: "integer", ...extra },
+    });
+    expect(opsOf(drafted([unbounded({})], [unbounded({ format: "int64" })]))).toEqual([]);
+    // Nor is a format this cannot check, as Okta's "Opaque token".
+    expect(
+      opsOf(
+        drafted(
+          [param("after", "query")],
+          [param("after", "query", { format: "Opaque token" })],
+        ),
+      ),
+    ).toEqual([]);
+  });
+
   it("drops a null an old caller sends where the parameter can no longer be null", () => {
     expect(
       opsOf(

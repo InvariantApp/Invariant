@@ -103,7 +103,10 @@ optional field from one that was always absent, so a restatement must also
 keep every property name the old schema declares under the place, in some
 branch if the new schema is a choice: what may change is how the values are
 written, never which names carry them. A `discriminator` names a property
-every branch carries, as OpenAPI requires. A restatement the proof cannot show is refused, naming the place and
+every branch carries, as OpenAPI requires. An `int32` or `int64` format is the
+range of whole numbers it holds, so a page size bounded to 1 and 1000 that
+comes to state `int64` is the same values; any other format is kept only where
+both schemas state it. A restatement the proof cannot show is refused, naming the place and
 the reason, and is then a `relax`, which declares the difference, or a
 `convert`, which translates it.
 

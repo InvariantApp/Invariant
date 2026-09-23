@@ -848,7 +848,7 @@ function compareReading(
   before: FieldShape[],
   after: FieldShape[],
   roots: { name: string; old: JsonValue; new: JsonValue },
-): ReturnType<typeof compare> {
+): Compared {
   const { name, old: oldRoot, new: newRoot } = roots;
   // A field pointed at another schema is read on both sides, so what differs
   // between the two is compared rather than passing unnoticed.
@@ -860,11 +860,55 @@ function compareReading(
     before,
     after,
   );
-  const left = [...before, ...repointed.before];
-  const right = [...after, ...repointed.after];
+  const written = writtenOutInPlace(
+    oldContract,
+    newContract,
+    oldSchemas,
+    { before, after },
+    newRoot,
+  );
+  const left = [...before, ...repointed.before, ...written.before];
+  const right = [...after, ...repointed.after, ...written.after];
   if (saysNothing(newContract, newRoot) && !saysNothing(oldContract, oldRoot)) {
     return stoppedDescribing(oldContract, oldRoot, name);
   }
+  const through = written.through.length > 0 ? { through: written.through } : {};
+  const compared = compareRead(
+    oldContract,
+    newContract,
+    oldSchemas,
+    newSchemas,
+    left,
+    right,
+  );
+  return compared && { ...compared, ...through };
+}
+
+/** What `compare` found, and the places in it read through a named schema. */
+type Compared =
+  | (NonNullable<ReturnType<typeof compare>> & { through?: Through[] })
+  | undefined;
+
+/**
+ * A place where the old contract referred to a named schema and the new one
+ * writes an object in its place, which is compared here as what the named
+ * schema held. What that schema's own comparison says about it is its own to
+ * draft, for every place it is used, and is taken out once every schema has
+ * been compared.
+ */
+interface Through {
+  pointer: string;
+  schema: string;
+}
+
+function compareRead(
+  oldContract: OpenApiDocument,
+  newContract: OpenApiDocument,
+  oldSchemas: Record<string, JsonValue>,
+  newSchemas: Record<string, JsonValue>,
+  left: FieldShape[],
+  right: FieldShape[],
+): ReturnType<typeof compare> {
   const first = compare(left, right);
   const inlined =
     first && first.removed.length > 0
@@ -888,6 +932,184 @@ function compareReading(
   if (opened.before.length === 0 && opened.after.length === 0) return compared;
   const regrouped = compare([...left, ...opened.before], [...read, ...opened.after]);
   return regrouped?.regrouped !== undefined ? regrouped : compared;
+}
+
+/**
+ * The fields of a named schema, read where the old contract referred to it
+ * and the new one writes an object in its place.
+ *
+ * PayPal wrote a phone number out in place inside `phone_with_type`, where it
+ * had referred to `phone`, and a shipping name out in place where it had
+ * referred to the `name` a payer's name uses too, keeping only `full_name`.
+ * A named schema is compared under its own name, which says nothing about
+ * what one place that used it now holds: the shipping name's `given_name`
+ * went unexplained, and the phone number's `national_number`, which it
+ * always had through `phone`, read as newly required. Read here, the place is
+ * compared with what the schema held, to the same depth an object written in
+ * place is read, and again through what was just read.
+ */
+function writtenOutInPlace(
+  oldContract: OpenApiDocument,
+  newContract: OpenApiDocument,
+  oldSchemas: Record<string, JsonValue>,
+  fields: { before: readonly FieldShape[]; after: readonly FieldShape[] },
+  newRoot: JsonValue,
+): { before: FieldShape[]; after: FieldShape[]; through: Through[] } {
+  const afterAt = new Map(fields.after.map((field) => [field.pointer, field]));
+  const found = {
+    before: [] as FieldShape[],
+    after: [] as FieldShape[],
+    through: [] as Through[],
+  };
+  const read = new Set<string>();
+  for (let pending = [...fields.before]; pending.length > 0; ) {
+    const next: FieldShape[] = [];
+    for (const field of pending) {
+      const there = afterAt.get(field.pointer);
+      if (there === undefined) continue;
+      const targets: [string | undefined, string | undefined, string, string][] = [
+        [field.ref, there.ref, field.pointer, field.name],
+        [field.items?.ref, there.items?.ref, `${field.pointer}/*`, `${field.name}.*`],
+      ];
+      for (const [ref, now, pointer, name] of targets) {
+        const was = ref === undefined ? undefined : schemaName(ref);
+        if (was === undefined || !(was in oldSchemas) || now !== undefined) continue;
+        if (read.has(pointer)) continue;
+        const depth = segmentsOfPointer(pointer).filter(
+          (segment) => !isWildcardSegment(segment),
+        ).length;
+        if (depth > NESTING) continue;
+        // Written in place as an object with fields of its own. A value that
+        // is no longer an object is a change of kind, compared where the
+        // field is, and a choice is the variants' to say.
+        const written = schemaAt(newContract, newRoot, pointer);
+        if (written === undefined || isUnion(newContract, written)) continue;
+        const object = throughNull(newContract, resolvedObject(newContract, written));
+        if (!isJsonObject(object["properties"])) continue;
+        read.add(pointer);
+        const at = { name, pointer };
+        const held = fieldsOf(newContract, written, at, depth).filter(
+          (inner) => !afterAt.has(inner.pointer),
+        );
+        for (const inner of held) afterAt.set(inner.pointer, inner);
+        found.after.push(...held);
+        const inner = fieldsOf(oldContract, oldSchemas[was] as JsonValue, at, depth);
+        found.before.push(...inner);
+        found.through.push({ pointer, schema: was });
+        next.push(...inner);
+      }
+    }
+    pending = next;
+  }
+  return found;
+}
+
+/**
+ * What each named schema's comparison names, by pointer within it: every
+ * field it removes, adds, changes or moves, and the root where it was
+ * replaced whole. Read before what a schema inherits is taken out of it,
+ * since a Change to the schema it inherits from reaches it too.
+ */
+function touchedBy(deltas: readonly SchemaDelta[]): Map<string, string[]> {
+  const touched = new Map<string, string[]>();
+  for (const delta of deltas) {
+    if (delta.scope !== undefined) continue;
+    const pointers = [
+      ...delta.removed.map((field) => field.pointer),
+      ...delta.added.map((field) => field.pointer),
+      ...delta.altered.map((pair) => pair.old.pointer),
+      ...(delta.regrouped ?? []).flatMap((pair) => [
+        pair.old.pointer,
+        pair.new.pointer,
+        pair.wrapper,
+      ]),
+      ...(delta.replaced ? [""] : []),
+    ];
+    touched.set(delta.schema, [...(touched.get(delta.schema) ?? []), ...pointers]);
+  }
+  return touched;
+}
+
+/**
+ * Whether a request body that named a schema is now written in place, or
+ * names another schema while the new contract keeps the old one. A name that
+ * is gone and whose place another name took is a rename, compared as one.
+ */
+function bodyRewritten(
+  newContract: OpenApiDocument,
+  named: string,
+  after: JsonValue,
+  counterparts: ReadonlyMap<string, Counterpart>,
+): boolean {
+  if (!isJsonObject(after) || isUnion(newContract, after)) return false;
+  const ref = after["$ref"];
+  if (typeof ref !== "string") {
+    return isJsonObject(
+      throughNull(newContract, resolvedObject(newContract, after))["properties"],
+    );
+  }
+  const now = schemaName(ref);
+  const counterpart = counterparts.get(named);
+  return now !== undefined && counterpart !== undefined && now !== counterpart.name;
+}
+
+/**
+ * What a place read through a named schema no longer says of its own, once
+ * that schema's comparison is known.
+ *
+ * The runtime serves a Change to a named schema wherever the old contract
+ * used it, this place included, so what that Change does here is not this
+ * place's to do again: PayPal's `phone` lost its country code, and the phone
+ * number written out in `phone_with_type` lost it with it. Only what the
+ * named schema's comparison leaves alone, beside it and under it, is this
+ * place's own, so the two never act on one field and their order never
+ * matters.
+ */
+function readThrough(
+  deltas: SchemaDelta[],
+  through: Map<SchemaDelta, Through[]>,
+  touchedBy: ReadonlyMap<string, readonly string[]>,
+): void {
+  const under = (pointer: string, root: string) => pointer.startsWith(`${root}/`);
+  for (const [delta, places] of through) {
+    const touched = places.flatMap((place) => {
+      const pointers = touchedBy.get(place.schema) ?? [];
+      // A schema replaced under its name, or another kind of value now,
+      // changed as a whole.
+      return pointers.includes("")
+        ? [{ place: place.pointer, at: place.pointer }]
+        : pointers.map((pointer) => ({
+            place: place.pointer,
+            at: `${place.pointer}${pointer}`,
+          }));
+    });
+    if (touched.length === 0) continue;
+    // Under the place, anything the schema's comparison names, what is under
+    // it, and what holds it; the place itself, and what holds it, stay.
+    const mine = (pointer: string) =>
+      !touched.some(
+        ({ place, at }) =>
+          under(pointer, place) &&
+          (pointer === at || under(pointer, at) || under(at, pointer) || at === place),
+      );
+    delta.removed = delta.removed.filter((field) => mine(field.pointer));
+    delta.added = delta.added.filter((field) => mine(field.pointer));
+    delta.altered = delta.altered.filter((pair) => mine(pair.old.pointer));
+    if (delta.regrouped) {
+      delta.regrouped = delta.regrouped.filter(
+        (pair) => mine(pair.old.pointer) && mine(pair.new.pointer),
+      );
+      if (delta.regrouped.length === 0) delete delta.regrouped;
+    }
+  }
+  for (let index = deltas.length - 1; index >= 0; index -= 1) {
+    const delta = deltas[index] as SchemaDelta;
+    if (!through.has(delta)) continue;
+    const moved = delta.regrouped?.length ?? 0;
+    if (delta.removed.length + delta.added.length + delta.altered.length + moved === 0) {
+      deltas.splice(index, 1);
+    }
+  }
 }
 
 /**
@@ -1217,6 +1439,32 @@ function matchThroughReferences(
 ): void {
   if (Object.keys(oldSchemas).every((name) => counterparts.has(name))) return;
   const oldReferences = referencesIn(oldContract, oldSchemas);
+  // Whether every place a schema is used, of those already matched, now
+  // writes out the same object in its place. PayPal wrote its `name` out as
+  // a payer's given name and surname, and as a shipping name's full name
+  // alone: matched with the first, the second place lost its full name to a
+  // Change it never needed. Where the places differ, each is compared as
+  // what it holds now, where it is.
+  const shapeOfPlace = (there: JsonValue) =>
+    JSON.stringify(
+      fieldsOf(newContract, there).map(
+        ({ description: _description, ...field }) => field,
+      ),
+    );
+  const writtenAlike = (child: string): boolean => {
+    const written = new Set<string>();
+    for (const [parent, references] of oldReferences) {
+      const counterpart = counterparts.get(parent);
+      if (!counterpart) continue;
+      for (const [pointer, target] of references) {
+        if (target !== child) continue;
+        const there = schemaAt(newContract, counterpart.schema, pointer);
+        if (!isJsonObject(there) || typeof there["$ref"] === "string") continue;
+        written.add(shapeOfPlace(there));
+      }
+    }
+    return written.size <= 1;
+  };
   for (let grew = true; grew; ) {
     grew = false;
     for (const [parent, references] of oldReferences) {
@@ -1238,6 +1486,7 @@ function matchThroughReferences(
         } else {
           const written = throughNull(newContract, resolvedObject(newContract, there));
           if (!isJsonObject(written["properties"])) continue;
+          if (!writtenAlike(child)) continue;
           counterparts.set(child, {
             name: `${counterpart.name}${pointer}`,
             schema: there,
@@ -1417,6 +1666,13 @@ export function schemaDeltas(
   }
 
   const deltas: SchemaDelta[] = [];
+  // Places compared through the named schema the old contract referred to
+  // there, settled against that schema's own comparison once it is known.
+  const through = new Map<SchemaDelta, Through[]>();
+  const push = (delta: SchemaDelta, places: Through[] | undefined) => {
+    deltas.push(delta);
+    if (places !== undefined) through.set(delta, places);
+  };
 
   const counterparts = new Map<string, Counterpart>();
   for (const name of Object.keys(oldSchemas)) {
@@ -1475,15 +1731,19 @@ export function schemaDeltas(
       { name, old: oldSchemas[name] as JsonValue, new: counterpart.schema },
     );
     if (!compared) continue;
-    deltas.push({
-      schema: name,
-      newSchema: counterpart.name,
-      ...compared,
-      ...(movedIntoVariants(newContract, counterpart.schema, compared.removed)
-        ? { replaced: true as const }
-        : {}),
-      operations: oldUses.get(name) ?? [],
-    });
+    const { through: places, ...found } = compared;
+    push(
+      {
+        schema: name,
+        newSchema: counterpart.name,
+        ...found,
+        ...(movedIntoVariants(newContract, counterpart.schema, found.removed)
+          ? { replaced: true as const }
+          : {}),
+        operations: oldUses.get(name) ?? [],
+      },
+      places,
+    );
   }
 
   splitByDirection(
@@ -1495,6 +1755,7 @@ export function schemaDeltas(
     { oldUses, newByUse, operationRenames },
     deltas,
   );
+  const touched = touchedBy(deltas);
   inheritedOnce(oldContract, oldSchemas, newContract, newSchemas, deltas);
 
   // Request bodies declared inline, as Twilio and Stripe declare theirs, have
@@ -1505,37 +1766,68 @@ export function schemaDeltas(
     newOps.map((operation) => [`${operation.method} ${operation.path}`, operation]),
   );
   const newById = new Map(newOps.map((operation) => [operation.operationId, operation]));
+  //
+  // A body that named a schema is compared under that name, unless the new
+  // contract writes this operation's body in place, or names another schema
+  // for it while keeping the old one: Okta's group creation took a `Group`,
+  // and later an object holding only a profile, while `Group` stayed for
+  // responses. Then it is compared as what the named schema held, less what
+  // that schema's own comparison says.
   for (const operation of operationsOf(oldContract)) {
     if (operation.webhook) continue;
     const body = requestBodySchema(oldContract, operation.operation);
-    if (!isJsonObject(body) || typeof body["$ref"] === "string") continue;
+    if (!isJsonObject(body)) continue;
+    const named = typeof body["$ref"] === "string" ? schemaName(body["$ref"]) : undefined;
+    if (typeof body["$ref"] === "string" && named === undefined) continue;
     const counterpart =
       newAt.get(`${operation.method} ${operation.path}`) ??
       newById.get(operationRenames.get(operation.operationId) ?? operation.operationId);
     if (!counterpart) continue;
     const after = requestBodySchema(newContract, counterpart.operation);
     if (after === undefined) continue;
+    if (named !== undefined && !bodyRewritten(newContract, named, after, counterparts)) {
+      continue;
+    }
+    // What a request body never carries is not compared: a field only ever
+    // in responses is no field an old caller sends.
+    const sent = (fields: FieldShape[]) => {
+      const withheld = fields
+        .filter((field) => field.readOnly)
+        .map((field) => field.pointer);
+      return fields.filter(
+        (field) =>
+          !withheld.some(
+            (pointer) =>
+              field.pointer === pointer || field.pointer.startsWith(`${pointer}/`),
+          ),
+      );
+    };
     const compared = compareReading(
       oldContract,
       newContract,
       oldSchemas,
       newSchemas,
-      fieldsOf(oldContract, body),
-      fieldsOf(newContract, after),
+      sent(fieldsOf(oldContract, body)),
+      sent(fieldsOf(newContract, after)),
       { name: `${operation.operationId} request body`, old: body, new: after },
     );
     if (!compared) continue;
-    deltas.push({
-      schema: `${operation.operationId} request body`,
-      newSchema: `${counterpart.operationId} request body`,
-      ...compared,
-      operations: [
-        `${operation.operationId} request (${operation.method.toUpperCase()} ${operation.path})`,
-      ],
-      scope: { operation: operation.operationId, location: "body" },
-      sides: { request: true, response: false },
-    });
+    const { through: places, ...found } = compared;
+    push(
+      {
+        schema: `${operation.operationId} request body`,
+        newSchema: `${counterpart.operationId} request body`,
+        ...found,
+        operations: [
+          `${operation.operationId} request (${operation.method.toUpperCase()} ${operation.path})`,
+        ],
+        scope: { operation: operation.operationId, location: "body" },
+        sides: { request: true, response: false },
+      },
+      named === undefined ? places : [{ pointer: "", schema: named }, ...(places ?? [])],
+    );
   }
+  readThrough(deltas, through, touched);
 
   // Response bodies written in place, as PayPal writes its errors, compared
   // per operation and status the same way, and scoped to that response.
