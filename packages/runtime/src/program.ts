@@ -981,7 +981,7 @@ export class ProgramTooNewError extends ProgramError {
 }
 
 /** Orders two `major.minor.patch` versions; a pre-release sorts before its release. */
-function compareVersions(a: string, b: string): number {
+export function compareVersions(a: string, b: string): number {
   const parse = (version: string) => {
     const [core = "", pre] = version.split("-", 2);
     return { parts: core.split(".").map((part) => Number(part) || 0), pre };

@@ -13,6 +13,7 @@ import {
   ProgramTooNewError,
   RUNTIME_VERSION,
 } from "./index.ts";
+import { compareVersions } from "./program.ts";
 
 const COMPILED = JSON.parse(
   readFileSync(
@@ -39,7 +40,11 @@ const refusal = (program: unknown): unknown => {
 describe("a program and the runtime that runs it", () => {
   it("runs what the compiler of the same release produces", () => {
     expect(COMPILED["irVersion"]).toBe(PROGRAM_VERSION);
-    expect(COMPILED["minRuntime"]).toBe(RUNTIME_VERSION);
+    // It asks for no runtime newer than this one: a program that uses nothing
+    // added since 0.1.0 still asks for 0.1.0, which every later runtime runs.
+    expect(
+      compareVersions(COMPILED["minRuntime"] as string, RUNTIME_VERSION),
+    ).toBeLessThanOrEqual(0);
     expect(() => load(COMPILED)).not.toThrow();
   });
 

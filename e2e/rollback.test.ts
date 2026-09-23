@@ -25,7 +25,7 @@ import {
   loadReleaseStep,
 } from "@invariant-app/contract";
 import { flagsFrom } from "@invariant-app/flags";
-import type { JsonValue } from "@invariant-app/ir";
+import { type JsonValue, withoutProvenance } from "@invariant-app/ir";
 import { afterEach, describe, expect, it } from "vitest";
 import { REPO_ROOT, type RunningProvider, startProvider } from "./harness.ts";
 
@@ -110,7 +110,14 @@ describe("rolling back", () => {
       await readFile(join(PROVIDER, "invariant/compiled/program.json"), "utf8"),
     ) as JsonValue;
 
-    expect(digestOf((await compileProgram()) as JsonValue)).toBe(digestOf(committed));
+    // As every comparison of programs is made: without the note of which
+    // release compiled it, which changes with every release and nothing a
+    // caller could observe.
+    const behaves = (program: unknown) =>
+      digestOf(
+        withoutProvenance(program as { compiledBy?: string }) as unknown as JsonValue,
+      );
+    expect(behaves(await compileProgram())).toBe(behaves(committed));
   });
 
   it("restores the previous behaviour exactly when the deploy is reverted", async () => {
