@@ -1876,3 +1876,70 @@ describe("fields that moved together through a wrapper", () => {
     ).toEqual([]);
   });
 });
+
+describe("restatements", () => {
+  const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
+  const phone = (required: string[] = []) =>
+    object(
+      { country_code: { type: "string" }, national_number: { type: "string" } },
+      required,
+    );
+  const restatementsIn = (outcome: Awaited<ReturnType<typeof propose>>) =>
+    outcome.proposals.filter((proposal) => proposal.change.ops[0]?.op === "restate");
+
+  it("is drafted where a field is stated another way and holds the same values", async () => {
+    const outcome = await propose(
+      contract({
+        ...base,
+        Phone: phone(),
+        Thing: object({ id: { type: "string" }, phone: ref("Phone") }, ["id"]),
+      }),
+      contract({
+        ...base,
+        Phone: phone(),
+        PhoneNumber: phone(),
+        Thing: object(
+          { id: { type: "string" }, phone: { allOf: [ref("PhoneNumber")] } },
+          ["id"],
+        ),
+      }),
+      { judge: new RulesJudge() },
+    );
+    // The whole schema is proved, which is one statement for all of it.
+    expect(restatementsIn(outcome).map((proposal) => proposal.change.ops)).toEqual([
+      [{ op: "restate", path: "" }],
+    ]);
+  });
+
+  it("stands down where another draft changes a schema the place refers to (PayPal)", async () => {
+    // The shared phone schema gained a required country code, which old
+    // callers creating a thing must now be given one for; the thing's phone
+    // restated as the old phone would be proved against a phone that draft
+    // changes, and both cannot hold.
+    const outcome = await propose(
+      contract({
+        ...base,
+        Phone: phone(),
+        Thing: object({ id: { type: "string" }, phone: ref("Phone") }, ["id"]),
+        ThingCreate: object({ phone: ref("Phone") }),
+      }),
+      contract({
+        ...base,
+        Phone: phone(["country_code"]),
+        PhoneNumber: phone(),
+        Thing: object(
+          { id: { type: "string" }, phone: { allOf: [ref("PhoneNumber")] } },
+          ["id"],
+        ),
+        ThingCreate: object({ phone: ref("Phone") }),
+      }),
+      { judge: new RulesJudge() },
+    );
+    const others = [
+      ...outcome.proposals.map((proposal) => proposal.change),
+      ...outcome.decisions.map(decisionChange),
+    ].filter((change) => JSON.stringify(change.scopes).includes('/Phone"'));
+    expect(others.length).toBeGreaterThan(0);
+    expect(restatementsIn(outcome)).toEqual([]);
+  });
+});

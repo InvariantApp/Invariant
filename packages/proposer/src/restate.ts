@@ -34,6 +34,12 @@ export interface Restatement {
   schema: string;
   /** Where in it, as a pointer; empty for the whole schema. */
   path: string;
+  /**
+   * Every other named schema the place refers to, on either side. The proof
+   * holds for them as they stand, so a draft that changes one of them
+   * changes what was proved.
+   */
+  reaches: ReadonlySet<string>;
   change: Change;
 }
 
@@ -74,7 +80,11 @@ export function restatements(
           }),
         );
     for (const path of paths) {
-      found.push({ schema: name, path, change: restateChange(name, path) });
+      const reaches = new Set<string>();
+      referencesFrom(oldSchemas, at(before, path) ?? null, reaches);
+      referencesFrom(newSchemas, at(after, path) ?? null, reaches);
+      reaches.delete(name);
+      found.push({ schema: name, path, reaches, change: restateChange(name, path) });
     }
   }
   return found;
@@ -163,6 +173,37 @@ function outermost(pointers: string[]): string[] {
       !unique.some((other) => other !== pointer && pointer.startsWith(`${other}/`)),
   );
 }
+
+/** The named schemas a schema refers to, however deep. */
+function referencesFrom(
+  schemas: Record<string, JsonValue>,
+  schema: JsonValue,
+  found: Set<string>,
+): void {
+  const pending: JsonValue[] = [schema];
+  while (pending.length > 0) {
+    const value = pending.pop() as JsonValue;
+    if (Array.isArray(value)) {
+      pending.push(...value);
+      continue;
+    }
+    if (!isJsonObject(value)) continue;
+    const ref = value["$ref"];
+    if (typeof ref === "string" && ref.startsWith(SCHEMA_REF)) {
+      const name = ref
+        .slice(SCHEMA_REF.length)
+        .replaceAll("~1", "/")
+        .replaceAll("~0", "~");
+      if (!found.has(name) && schemas[name] !== undefined) {
+        found.add(name);
+        pending.push(schemas[name] as JsonValue);
+      }
+    }
+    pending.push(...Object.values(value));
+  }
+}
+
+const SCHEMA_REF = "#/components/schemas/";
 
 function schemasOf(document: OpenApiDocument): Record<string, JsonValue> {
   const components = (document as unknown as JsonObject)["components"];

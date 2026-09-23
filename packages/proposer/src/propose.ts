@@ -378,10 +378,16 @@ function restated(
     ...outcome.proposals.map((proposal) => proposal.change),
     ...outcome.decisions.map(decisionChange),
   ];
-  // Left out where another draft acts above the place, or moves something
-  // across its edge.
+  // Left out where another draft acts above the place, moves something
+  // across its edge, or changes a schema the place refers to. PayPal's wallet
+  // restated its phone number while a decision made the phone schema's
+  // country code always present for old callers, and both cannot hold.
   const kept = found.filter(
     (restatement) =>
+      !others.some((change) => {
+        const scope = scopeOf(change);
+        return scope !== undefined && restatement.reaches.has(scope);
+      }) &&
       !others.some(
         (change) =>
           scopeOf(change) === restatement.schema &&
