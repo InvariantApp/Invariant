@@ -1,20 +1,64 @@
 {
-  "about": "Rig D. Real open-source API servers across their own breaking releases. Each release is pinned by its tag's commit, for the specification and the old release's own API suite, and by its image digest, for the server. The suite of the old release, validating against the old specification, is run against the old server, the new server, and the new server through the proxy.",
+  "about": "Rig D. Real open-source API servers across their own breaking releases. Each release is pinned by its tag's commit, for the specification and the suite, and by its image digest, for the server. The old release's own client or API suite, unmodified, is run against the old server, the new server, and the new server through the proxy running the program the product compiles from the Changes under changes/<project>/<from>..<to>/.",
   "projects": [
     {
       "name": "qdrant",
       "language": "Rust",
       "repo": "qdrant/qdrant",
       "image": "qdrant/qdrant",
-      "containerPort": 6333,
-      "ready": "/collections",
-      "spec": "docs/redoc/master/openapi.json",
+      "server": {
+        "port": 6333,
+        "ready": "/collections"
+      },
+      "spec": {
+        "path": "docs/redoc/master/openapi.json"
+      },
       "suite": {
-        "dir": "tests",
         "sparse": ["tests", "docs/redoc/master"],
-        "lock": "poetry",
-        "run": ["pytest", "openapi", "-q", "-p", "no:cacheprovider", "--timeout", "120"],
-        "env": { "QDRANT_HOST": "{url}", "OPENAPI_FILE": "{spec}" }
+        "dir": "tests",
+        "install": [
+          [
+            "uvx",
+            "--from",
+            "poetry>=2,<3",
+            "--with",
+            "poetry-plugin-export",
+            "poetry",
+            "export",
+            "--without-hashes",
+            "--format",
+            "requirements.txt",
+            "--output",
+            "{work}/requirements.txt"
+          ],
+          ["uv", "venv", "--quiet", "--python", "3.11", "{env}"],
+          [
+            "uv",
+            "pip",
+            "install",
+            "--quiet",
+            "--python",
+            "{env}/bin/python",
+            "-r",
+            "{work}/requirements.txt"
+          ]
+        ],
+        "run": [
+          "pytest",
+          "openapi",
+          "-q",
+          "-p",
+          "no:cacheprovider",
+          "--timeout",
+          "120",
+          "--junitxml",
+          "{report}"
+        ],
+        "select": ["-k", "{select}"],
+        "env": {
+          "QDRANT_HOST": "{url}",
+          "OPENAPI_FILE": "{spec}"
+        }
       },
       "releases": {
         "v1.13.0": {
@@ -44,5 +88,6 @@
       },
       "pairs": [["v1.13.0", "v1.14.0"], ["v1.16.0", "v1.17.0"], ["v1.18.0", "v1.19.0"]]
     }
-  ]
+  ],
+  "skipped": []
 }
