@@ -437,17 +437,23 @@ async function startServer(
   const container = containerOf(project);
   await stopServer(project);
   if (project.server.compose) {
-    await sh("docker", [...composeArgs(project), "up", "-d", "--quiet-pull"], {
-      env: {
-        ...process.env,
-        ...secrets,
-        IMAGE: image,
-        PORT: String(port),
-        CONTAINER: container,
-        SUITE: suite.dir,
-      },
-    });
+    const env = {
+      ...process.env,
+      ...secrets,
+      IMAGE: image,
+      PORT: String(port),
+      CONTAINER: container,
+      SUITE: suite.dir,
+    };
+    // Images are fetched on their own, and again after a pause: a registry
+    // that is asked too often answers "toomanyrequests", as GitHub's did for
+    // Immich's three images once, and that says nothing about the release.
+    await patiently(() =>
+      sh("docker", [...composeArgs(project), "pull", "--quiet"], { env }),
+    );
+    await sh("docker", [...composeArgs(project), "up", "-d", "--quiet-pull"], { env });
   } else {
+    await patiently(() => sh("docker", ["pull", "--quiet", image]));
     const env = Object.entries(project.server.env ?? {}).flatMap(([name, value]) => [
       "-e",
       `${name}=${expand(value, secrets)}`,
