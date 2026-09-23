@@ -1,0 +1,48 @@
+{
+  "name": "@invariant-app/migrate-py",
+  "version": "0.1.0",
+  "description": "Type-aware references and byte-range codemods for Python consumers, through pyright and tree-sitter",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/InvariantApp/Invariant.git",
+    "directory": "packages/migrate-py"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "sbom.cdx.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "node ../../scripts/prepack.mjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "dependencies": {
+    "@invariant-app/ir": "workspace:*",
+    "@invariant-app/migrate-core": "workspace:*",
+    "fflate": "0.8.3",
+    "pyright": "1.1.413",
+    "tree-sitter-python": "0.25.0",
+    "vscode-jsonrpc": "9.0.2",
+    "web-tree-sitter": "0.25.10"
+  }
+}

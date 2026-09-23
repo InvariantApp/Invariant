@@ -102,7 +102,15 @@ func Execute(root any, program []*Instr, limits Limits) (*Result, error) {
 		r.deadline = time.Now().Add(limits.TimeBudget)
 	}
 	for _, instr := range program {
-		if err := r.step(root, instr, 0, nil); err != nil {
+		err := r.step(root, instr, 0, nil)
+		// Read after every instruction as well as every so many steps: one
+		// instruction can move ten thousand places, and a program shorter than
+		// the step interval never read the clock at all. Found by the
+		// threat-model tests against the reference engine.
+		if err == nil && !r.deadline.IsZero() && time.Now().After(r.deadline) {
+			err = timeExceeded{}
+		}
+		if err != nil {
 			var fan *fanOutExceeded
 			var decimalError *DecimalError
 			switch {

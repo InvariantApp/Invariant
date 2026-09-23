@@ -201,7 +201,7 @@ export function parseConfig(raw: unknown, relativeTo: string): SidecarConfig {
 }
 
 function hostChoice(value: unknown): "caller" | "upstream" {
-  if (value === undefined) return "caller";
+  if (value === undefined) return "upstream";
   if (value === "caller" || value === "upstream") return value;
   throw new ConfigError(`"upstreamHost" must be "caller" or "upstream".`);
 }

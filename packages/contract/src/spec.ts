@@ -688,7 +688,11 @@ export function resolveRef(
     // allows: `.../schema/oneOf/0`.
     if (Array.isArray(current))
       next = /^(0|[1-9]\d*)$/.test(key) ? current[Number(key)] : undefined;
-    else if (isJsonObject(current)) next = current[key];
+    // Only what the document itself holds: `#/components/schemas/__proto__`
+    // read through to Object.prototype and `.../constructor` to Object, so a
+    // reference to either counted as resolving and handed every layer after
+    // this a schema no document wrote. Found by the threat-model tests.
+    else if (isJsonObject(current) && Object.hasOwn(current, key)) next = current[key];
     if (next === undefined) return undefined;
     current = next;
   }

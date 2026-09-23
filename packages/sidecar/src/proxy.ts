@@ -49,11 +49,12 @@ export interface ProxyOptions {
    */
   fetch?: typeof fetch;
   /**
-   * The Host the provider is sent. `caller`, the default, is the one the
-   * caller sent, as a sidecar in front of one application should: whatever
-   * the provider builds from it, a link or a redirect, points where the caller
-   * can go. `upstream` sends the upstream's own, with the caller's in
-   * X-Forwarded-Host, for a provider that routes by its own name.
+   * The Host the provider is sent. `upstream`, the default, is the upstream's
+   * own, with the caller's in X-Forwarded-Host: a caller never chooses which
+   * site a server that hosts several answers as. `caller` sends the one the
+   * caller sent, for a sidecar in front of one application that builds its
+   * links from it, as Gitea does; turn it on only where nothing else answers
+   * behind the upstream's address.
    */
   upstreamHost?: "caller" | "upstream";
   /** How long the provider has to answer before the caller is told it did not. */
@@ -98,7 +99,7 @@ export function createProxy(options: ProxyOptions): FetchHandler {
   const runtime = options.runtime;
   const upstream = new URL(options.upstream);
   const send = options.fetch ?? sendUpstream;
-  const upstreamHost = options.upstreamHost ?? "caller";
+  const upstreamHost = options.upstreamHost ?? "upstream";
   const timeoutMs = options.upstreamTimeoutMs ?? DEFAULT_TIMEOUT_MS;
   const healthPath = options.healthPath ?? DEFAULT_HEALTH_PATH;
   const errors = options.errors ?? DEFAULT_ERROR_SHAPER;
@@ -325,6 +326,7 @@ export function createProxy(options: ProxyOptions): FetchHandler {
  * choose a different host, which turns a proxy into an open relay.
  */
 export function targetFor(upstream: URL, path: string, search: string): URL | undefined {
+  if (hidesTraversal(path)) return undefined;
   const target = new URL(upstream.href);
   const base = upstream.pathname.replace(/\/+$/, "");
   target.pathname = `${base}${path.startsWith("/") ? path : `/${path}`}`;
@@ -338,6 +340,31 @@ export function targetFor(upstream: URL, path: string, search: string): URL | un
     return undefined;
   }
   return target;
+}
+
+/**
+ * Whether a path holds a step up that only decoding reveals.
+ *
+ * The URL parser already resolves `..` and `%2e%2e` written as segments of
+ * their own, so those never get here. `..%2f` does, and so does `..%5c`,
+ * because to a URL an escaped slash is part of a segment's name. Plenty of
+ * servers decode it before they route, and to them `/api/..%2fadmin` is
+ * `/admin`: outside the base path this proxy fronts, reached through it. No
+ * API names a resource that way, so such a path is refused as leaving the
+ * API. Found by the threat-model tests.
+ */
+export function hidesTraversal(path: string): boolean {
+  for (const segment of path.split("/")) {
+    if (!segment.includes("%")) continue;
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(segment);
+    } catch {
+      continue;
+    }
+    if (decoded.split(/[/\\]/).some((part) => part === "." || part === "..")) return true;
+  }
+  return false;
 }
 
 /** A copy without hop-by-hop headers, or any the Connection header names. */

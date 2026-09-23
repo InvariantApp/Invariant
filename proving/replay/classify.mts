@@ -30,7 +30,7 @@ import {
   type Question,
 } from "@typesafe-ai/sdk";
 import { ROOT } from "../corpus/manifest.mts";
-import type { Region } from "./score.mts";
+import type { Outcome, Region } from "./score.mts";
 
 /**
  * `contested`: the two questions asked of a site Jev was unsure about
@@ -83,7 +83,16 @@ const SITE_CACHE = join(ROOT, ".cache/replay/sites");
  * is shown are kept; the lines before them are counted, so the site reads back
  * at the same place and keys the same.
  */
-export async function cacheSite(site: Site, dir = SITE_CACHE): Promise<void> {
+export async function cacheSite(
+  site: Site,
+  dir = SITE_CACHE,
+  /**
+   * How the engine did there. Kept beside the lines so a replay run where no
+   * classifier could be asked (a CI job holds no key) can be scored again
+   * once its sites are classed, without replaying anything.
+   */
+  outcome?: Outcome,
+): Promise<void> {
   const skip = Math.max(0, site.region.oldStart - CONTEXT);
   await mkdir(dir, { recursive: true });
   await writeFile(
@@ -91,20 +100,30 @@ export async function cacheSite(site: Site, dir = SITE_CACHE): Promise<void> {
     JSON.stringify({
       site: { ...site, base: site.base.slice(skip, site.region.oldEnd + CONTEXT) },
       skip,
+      ...(outcome ? { outcome } : {}),
     }),
   );
 }
 
-/** Every cached site, as it was scored. */
-export function cachedSites(dir = SITE_CACHE): Site[] {
+/** Every cached site, as it was scored, with the outcome where one was kept. */
+export function cachedOutcomes(dir = SITE_CACHE): { site: Site; outcome?: Outcome }[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir).map((name) => {
-    const { site, skip } = JSON.parse(readFileSync(join(dir, name), "utf8")) as {
+    const { site, skip, outcome } = JSON.parse(readFileSync(join(dir, name), "utf8")) as {
       site: Site;
       skip: number;
+      outcome?: Outcome;
     };
-    return { ...site, base: [...Array<string>(skip).fill(""), ...site.base] };
+    return {
+      site: { ...site, base: [...Array<string>(skip).fill(""), ...site.base] },
+      ...(outcome ? { outcome } : {}),
+    };
   });
+}
+
+/** Every cached site, as it was scored. */
+export function cachedSites(dir = SITE_CACHE): Site[] {
+  return cachedOutcomes(dir).map((entry) => entry.site);
 }
 
 export function readClasses(): Record<string, ClassRecord> {
@@ -172,10 +191,48 @@ export function siteState(site: Site): Record<string, JsonValue> {
   return {
     file: site.file,
     lines_before: base.slice(Math.max(0, region.oldStart - CONTEXT), region.oldStart),
-    removed_lines: base.slice(region.oldStart, region.oldEnd),
-    added_lines: region.lines,
+    removed_lines: shown(base.slice(region.oldStart, region.oldEnd)),
+    added_lines: shown(region.lines),
     lines_after: base.slice(region.oldEnd, region.oldEnd + CONTEXT),
   };
+}
+
+/** The most lines of one side of a site the judge is shown. */
+const MOST_LINES = 60;
+
+/**
+ * A side of a site as the judge reads it: whole, or its first lines and how
+ * many more there are. SabaTech's QA-FRAMEWORK added a 251-line test file in
+ * one hunk, and a batch holding it was refused as too long for the model.
+ */
+function shown(lines: readonly string[]): string[] {
+  if (lines.length <= MOST_LINES) return [...lines];
+  return [...lines.slice(0, MOST_LINES), `... ${lines.length - MOST_LINES} more lines`];
+}
+
+/** The characters of state a batch may carry, well inside what the judge accepts. */
+const BATCH_CHARACTERS = 24_000;
+
+/** Sites in batches of at most `BATCH`, and at most `BATCH_CHARACTERS` of state. */
+export function batches(sites: readonly Site[]): Site[][] {
+  const out: Site[][] = [];
+  let current: Site[] = [];
+  let size = 0;
+  for (const site of sites) {
+    const length = JSON.stringify(siteState(site)).length;
+    if (
+      current.length > 0 &&
+      (current.length >= BATCH || size + length > BATCH_CHARACTERS)
+    ) {
+      out.push(current);
+      current = [];
+      size = 0;
+    }
+    current.push(site);
+    size += length;
+  }
+  if (current.length > 0) out.push(current);
+  return out;
 }
 
 const EMBEDDED_TEXT =
@@ -252,8 +309,7 @@ export async function classify(
       !classes[siteKey(site)] &&
       sites.findIndex((other) => siteKey(other) === siteKey(site)) === at,
   );
-  for (let start = 0; start < open.length; start += BATCH) {
-    const batch = open.slice(start, start + BATCH);
+  for (const batch of batches(open)) {
     const first = batch[0] as Site;
     const response = await client.systemOne({
       model,

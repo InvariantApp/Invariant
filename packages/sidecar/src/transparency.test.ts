@@ -66,6 +66,9 @@ beforeAll(async () => {
     createProxy({
       runtime: createRuntime({ program: PROGRAM }),
       upstream: `http://127.0.0.1:${(upstream.address() as AddressInfo).port}`,
+      // A sidecar in front of one application, as Gitea runs behind it; the
+      // default sends the upstream's own Host, which the threat-model tests hold.
+      upstreamHost: "caller",
     }),
     { port: 0 },
   );

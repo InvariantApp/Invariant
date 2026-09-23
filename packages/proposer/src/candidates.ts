@@ -564,7 +564,24 @@ function compare(
   // Fields that moved with their siblings through one wrapper are moves, and
   // neither they, what they hold, nor the wrapper they left or arrived in is
   // a field removed or added.
-  const regrouped = regroupedFields(before, after, beforeAt, afterAt);
+  // Most of what it held gone, and other things in their place: another
+  // schema under the same name, as PayPal's `payout_item` went from the item
+  // a caller sends to the item a response reports. Its fields were not
+  // dropped, they belong to a schema that now has another name. Nor did they
+  // move into the `payout_item` the new one holds, beside an id and a status
+  // it also gained: a wrapper that is the only thing new at the top is a
+  // wrapper, and one that arrived with other new fields is a new schema.
+  const top = (fields: readonly FieldShape[]) =>
+    fields.filter((field) => field.pointer.split("/").length === 2);
+  const held = top(before);
+  const kept = held.filter((field) => afterAt.has(field.pointer));
+  const arrivedAtTop = top(after).filter((field) => !beforeAt.has(field.pointer));
+  const replaced =
+    held.length >= 3 && kept.length * 2 < held.length && arrivedAtTop.length > 0;
+  const found = regroupedFields(before, after, beforeAt, afterAt);
+  const wrappers = new Set(found.map((pair) => pair.wrapper));
+  const regrouped =
+    replaced && arrivedAtTop.some((field) => !wrappers.has(field.pointer)) ? [] : found;
   const under = (pointer: string, roots: readonly string[]) =>
     roots.some((root) => pointer === root || pointer.startsWith(`${root}/`));
   const movedFrom = regrouped.map((pair) => pair.old.pointer);
@@ -624,22 +641,12 @@ function compare(
     regrouped.length === 0
   )
     return undefined;
-  // Most of what it held gone, and other things in their place: another
-  // schema under the same name, as PayPal's `payout_item` went from the item
-  // a caller sends to the item a response reports. Its fields were not
-  // dropped, they belong to a schema that now has another name.
-  const top = (fields: FieldShape[]) =>
-    fields.filter((field) => field.pointer.split("/").length === 2);
-  const held = top(before);
-  const kept = held.filter((field) => afterAt.has(field.pointer));
-  const replaced =
-    held.length >= 3 && kept.length * 2 < held.length && top(added).length > 0;
   return {
     removed,
     added,
     altered,
     ...(regrouped.length > 0 ? { regrouped } : {}),
-    ...(replaced ? { replaced: true as const } : {}),
+    ...(replaced && regrouped.length === 0 ? { replaced: true as const } : {}),
   };
 }
 

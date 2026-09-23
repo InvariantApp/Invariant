@@ -487,6 +487,9 @@ async function startProxy(
       listen: { port: SUITE_PORT, host: "127.0.0.1" },
       identity: [{ kind: "default", label }],
       maxBodyBytes: 32 * 1024 * 1024,
+      // A sidecar in front of one application, which builds its links from
+      // the Host its callers sent: Gitea's do.
+      upstreamHost: "caller",
     }),
     "utf8",
   );

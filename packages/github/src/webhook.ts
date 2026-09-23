@@ -7,11 +7,12 @@
  * can cause, so the whole security of the delivery path is decided here.
  *
  * Three checks, and each one covers something the others do not. The signature
- * proves GitHub sent it. The timestamp stops a captured request being replayed
- * a week later. The delivery id stops the same one being replayed a second
- * later, which the timestamp cannot.
+ * proves GitHub sent it. The delivery log, keyed by delivery id and by the
+ * body's digest, stops the same one being handled twice for as long as it
+ * remembers. A timestamp from inside the payload, through `isFresh`, stops a
+ * captured request being replayed a week later, once the log has forgotten it.
  */
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 export class WebhookError extends Error {
   /** Status to answer with. 4xx means do not retry; GitHub honours that. */
@@ -147,10 +148,20 @@ export async function verifyWebhook(
   if (log) {
     // Checked after the signature, so an unauthenticated caller cannot fill
     // the log with ids it made up.
-    if (await log.seen(delivery)) {
+    //
+    // The body is remembered too, by its digest. GitHub signs the body and
+    // nothing else, so the delivery id is whatever the sender writes: a
+    // captured delivery sent again under a fresh id carried a valid
+    // signature and was handled a second time, and so was the same body
+    // sent under another event's name. No two deliveries GitHub sends have
+    // the same bytes, since each names its own hook, action and moment.
+    // Found by the threat-model tests.
+    const body = `body:${createHash("sha256").update(request.body, "utf8").digest("hex")}`;
+    if ((await log.seen(delivery)) || (await log.seen(body))) {
       throw new WebhookError(200, `delivery ${delivery} has already been handled`);
     }
     await log.record(delivery);
+    await log.record(body);
   }
 
   return { event, delivery, payload: payload as Record<string, unknown> };

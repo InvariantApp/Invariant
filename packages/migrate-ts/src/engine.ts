@@ -17,7 +17,16 @@
  * than rewritten on a guess. A migration that quietly gets one call site wrong
  * is worse than one that says which call site it could not do.
  */
-import type { AddOp, Codec, DataOp, DefaultOp } from "@invariant-app/ir";
+import type { AddOp, DataOp, DefaultOp } from "@invariant-app/ir";
+import {
+  type Edit,
+  type ManualSite,
+  type MigrationPlan,
+  type Replacement,
+  type Role,
+  recoding,
+  type TargetSymbol,
+} from "@invariant-app/migrate-core";
 import {
   Node,
   type Project,
@@ -26,29 +35,10 @@ import {
   type Type,
   type TypeElementTypes,
 } from "ts-morph";
-import type { Edit, Replacement } from "./edits.ts";
 import { exactMinorUnits } from "./numbers.ts";
-import type { MigrationPlan, Role, TargetSymbol } from "./plan.ts";
+import { within } from "./paths.ts";
 
-export interface ManualSite {
-  file: string;
-  line: number;
-  column: number;
-  changeId: string;
-  reason: string;
-  snippet: string;
-  /**
-   * Byte offset in the file as it was before any edit.
-   *
-   * Kept so the reported line can be moved to where the site ends up. A
-   * migration that inserts an import shifts every line below it, and a report
-   * that points a reviewer one line above the thing it is talking about is
-   * worse than one that points nowhere.
-   */
-  offset: number;
-  /** Where the flagged node ends, also before any edit, so a reviewer sees its extent. */
-  end?: number;
-}
+export type { ManualSite };
 
 export interface EngineResult {
   edits: Edit[];
@@ -129,25 +119,7 @@ interface Composed {
   unsupported: string | undefined;
 }
 
-/** What a re-encoding does to a value, in a reviewer's words. */
-export function recoding(codec: Codec): string {
-  switch (codec.kind) {
-    case "scale10":
-      return `the value times 10^${codec.exponent}`;
-    case "enumMap":
-      return "a renamed value";
-    case "cast":
-      return `${codec.to === "integer" ? "an" : "a"} ${codec.to} instead of ${codec.from === "integer" ? "an" : "a"} ${codec.from}`;
-    case "dateFormat":
-      return `${codec.to} instead of ${codec.from}`;
-    case "stringCase":
-      return `${codec.to} case instead of ${codec.from} case`;
-    case "wrapArray":
-      return "a list of one instead of the value";
-    case "unwrapSingle":
-      return "the one item instead of a list";
-  }
-}
+export { recoding };
 
 function compose(
   targets: readonly TargetSymbol[],
@@ -587,7 +559,9 @@ function isGenerated(path: string, scope: EditScope): boolean {
 
 export function editable(node: Node, scope: EditScope): boolean {
   const path = node.getSourceFile().getFilePath();
-  return path.startsWith(scope.repoDir) && !isGenerated(path, scope);
+  // Inside the repository by path, not by prefix: `/work/repo` is not a
+  // prefix of anything in `/work/repo-other`.
+  return within(scope.repoDir, path) && !isGenerated(path, scope);
 }
 
 /**

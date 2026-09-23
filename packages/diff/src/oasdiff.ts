@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { chmodSync, existsSync, statSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -377,7 +378,40 @@ async function changelogFiles(
   if (!Array.isArray(parsed)) {
     throw new OasdiffError("oasdiff returned something other than a changelog array");
   }
-  return parsed as DiffEntry[];
+  return (parsed as DiffEntry[]).map(canonical);
+}
+
+/**
+ * An entry as one run of the differ would write it every time.
+ *
+ * oasdiff lists what a change added or removed in the order it walked a Go
+ * map, which is different on every run, and its fingerprint is a hash of that
+ * text. Figma's discriminator mappings came back as `NOISE, TEXTURE` from one
+ * run and `TEXTURE, NOISE` from the next: the same 1448 findings, 240 of them
+ * under a different fingerprint, and a comparison refused as not
+ * reproducible. The lists are sorted, and the fingerprint is taken from what
+ * the entry says rather than from how it happened to be spelled.
+ */
+function canonical(entry: DiffEntry): DiffEntry {
+  if (typeof entry.text !== "string") return entry;
+  const text = entry.text.replace(
+    /`([^`]*, [^`]*)`/g,
+    (_, list: string) => `\`${list.split(", ").sort().join(", ")}\``,
+  );
+  const fingerprint = createHash("sha256")
+    .update(
+      JSON.stringify([
+        entry.id,
+        text,
+        entry.level,
+        entry.operation,
+        entry.path,
+        entry.section,
+      ]),
+    )
+    .digest("hex")
+    .slice(0, 12);
+  return { ...entry, text, fingerprint };
 }
 
 /**

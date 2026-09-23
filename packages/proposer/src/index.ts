@@ -5,6 +5,7 @@ export * from "./jev.ts";
 export * from "./judge.ts";
 export * from "./prefix.ts";
 export * from "./propose.ts";
+export * from "./restate.ts";
 export * from "./rules.ts";
 export * from "./s2.ts";
 export * from "./vocabulary.ts";

@@ -9,10 +9,10 @@
  */
 import { loadPendingChanges, loadReleaseStep } from "@invariant-app/contract";
 import type { Change } from "@invariant-app/ir";
+import type { SymbolMap } from "@invariant-app/migrate-core";
+import { buildPlan } from "@invariant-app/migrate-core";
 import { beforeAll, describe, expect, it } from "vitest";
 import { migrate } from "./index.ts";
-import type { SymbolMap } from "./plan.ts";
-import { buildPlan } from "./plan.ts";
 
 const ROOT = new URL("../../../", import.meta.url).pathname;
 const FIXTURE = `${ROOT}fixtures/provider-acme/`;

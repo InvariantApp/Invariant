@@ -378,6 +378,72 @@ printf ']'
   });
 });
 
+/**
+ * The same findings, spelled differently from one run to the next.
+ *
+ * oasdiff lists added and removed values in the order it walked a Go map, and
+ * hashes that text into its fingerprint. Figma's discriminator mappings came
+ * back as `NOISE, TEXTURE` and then `TEXTURE, NOISE`, and a comparison of two
+ * identical answers was refused as not reproducible.
+ */
+describe("a differ that lists values in a different order each run", () => {
+  const previous = process.env["OASDIFF_BIN"];
+  afterEach(() => {
+    if (previous === undefined) delete process.env["OASDIFF_BIN"];
+    else process.env["OASDIFF_BIN"] = previous;
+  });
+
+  /** Answers with one finding whose list is reversed on every other call. */
+  async function shufflingDiffer(): Promise<string> {
+    const dir = await mkdtemp(join(tmpdir(), "invariant-shuffling-"));
+    const fake = join(dir, "shuffling.sh");
+    const counter = join(dir, "n");
+    const entry = (keys: string, fingerprint: string) =>
+      JSON.stringify({
+        id: "response-property-discriminator-mapping-added",
+        text: `added \`${keys}\` discriminator mapping keys to the \`effects/items/\` response property for the response status \`200\``,
+        level: 1,
+        operation: "GET",
+        operationId: "getFile",
+        path: "/v1/files/{file_key}",
+        section: "paths",
+        fingerprint,
+      });
+    await writeFile(
+      fake,
+      `#!/bin/sh
+printf x >> ${counter}
+if [ $(( $(wc -c < ${counter}) % 2 )) -eq 1 ]; then
+  printf '%s' '[${entry("NOISE, TEXTURE", "b4aa2711a7f5")}]'
+else
+  printf '%s' '[${entry("TEXTURE, NOISE", "c8fb69efbe47")}]'
+fi
+`,
+      { mode: 0o755 },
+    );
+    process.env["OASDIFF_BIN"] = fake;
+    return dir;
+  }
+
+  it("confirms the answer, and writes the list one way", async () => {
+    const dir = await shufflingDiffer();
+    try {
+      const first = await diffOutcome(doc(), doc({ requestRequired: [] }), {
+        confirm: true,
+      });
+      const second = await diffOutcome(doc(), doc({ requestRequired: [] }), {
+        confirm: true,
+      });
+      expect(first.entries.map((entry) => entry.text)).toEqual([
+        "added `NOISE, TEXTURE` discriminator mapping keys to the `effects/items/` response property for the response status `200`",
+      ]);
+      expect(second.entries).toEqual(first.entries);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("an unstable diff", () => {
   it("says what differed, where the two runs gave the same number of entries", () => {
     expect(new UnstableDiffError(5600, 5600).message).toMatch(

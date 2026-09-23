@@ -1876,6 +1876,31 @@ describe("fields that moved together through a wrapper", () => {
     }
   });
 
+  it("is not a wrapper where the name now belongs to another schema (PayPal)", async () => {
+    // The item a caller sent became the item a response reports, which holds
+    // what was sent under `payout_item` beside what the service added.
+    const sent = {
+      amount: { type: "string" },
+      receiver: { type: "string" },
+      note: { type: "string" },
+    };
+    const outcome = await propose(
+      contract({ ...base, Thing: object(sent) }),
+      contract({
+        ...base,
+        Thing: object({
+          payout_item_id: { type: "string" },
+          transaction_status: { type: "string" },
+          payout_item: object(sent),
+        }),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(
+      outcome.proposals.filter((proposal) => proposal.change.id.endsWith("_nested")),
+    ).toEqual([]);
+  });
+
   it("is a move for each field when a wrapper was introduced", async () => {
     const outcome = await propose(
       contract({
@@ -1967,5 +1992,150 @@ describe("fields that moved together through a wrapper", () => {
         /_(hoisted|nested)$/.test(proposal.change.id),
       ),
     ).toEqual([]);
+  });
+});
+
+describe("restatements", () => {
+  const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
+  const phone = (required: string[] = []) =>
+    object(
+      { country_code: { type: "string" }, national_number: { type: "string" } },
+      required,
+    );
+  const restatementsIn = (outcome: Awaited<ReturnType<typeof propose>>) =>
+    outcome.proposals.filter((proposal) => proposal.change.ops[0]?.op === "restate");
+
+  it("is drafted where a field is stated another way and holds the same values", async () => {
+    const outcome = await propose(
+      contract({
+        ...base,
+        Phone: phone(),
+        Thing: object({ id: { type: "string" }, phone: ref("Phone") }, ["id"]),
+      }),
+      contract({
+        ...base,
+        Phone: phone(),
+        PhoneNumber: phone(),
+        Thing: object(
+          { id: { type: "string" }, phone: { allOf: [ref("PhoneNumber")] } },
+          ["id"],
+        ),
+      }),
+      { judge: new RulesJudge() },
+    );
+    // The whole schema is proved, which is one statement for all of it.
+    expect(restatementsIn(outcome).map((proposal) => proposal.change.ops)).toEqual([
+      [{ op: "restate", path: "" }],
+    ]);
+  });
+
+  it("is not drafted for a rename, which containment alone cannot tell apart (PayPal)", async () => {
+    const problem = (name: string, choice: boolean) =>
+      object({
+        [name]: {
+          type: "array",
+          items: choice
+            ? { anyOf: [object({ issue: { type: "string" } })] }
+            : object({ issue: { type: "string" } }),
+        },
+      });
+    const outcome = await propose(
+      contract({ ...base, Thing: problem("issues", false) }),
+      contract({ ...base, Thing: problem("details", true) }),
+      { judge: new RulesJudge() },
+    );
+    expect(restatementsIn(outcome)).toEqual([]);
+  });
+
+  it("leaves what a referenced schema changed to its own draft (PayPal)", async () => {
+    // The stored credential is restated as a choice, and the charge pattern
+    // it refers to dropped its length bounds under its own name: the
+    // restatement says nothing about the pattern, so the bounds keep theirs.
+    const pattern = (bounded: boolean) => ({
+      type: "string",
+      enum: ["recurring", "unscheduled"],
+      ...(bounded ? { minLength: 1, maxLength: 30 } : {}),
+    });
+    const credential = (choice: boolean) =>
+      object({
+        kind: choice
+          ? {
+              anyOf: [
+                { type: "string", enum: ["a"] },
+                { type: "string", enum: ["b"] },
+              ],
+            }
+          : { type: "string", enum: ["a", "b"] },
+        charge_pattern: ref("ChargePattern"),
+      });
+    const outcome = await propose(
+      contract({ ...base, ChargePattern: pattern(true), Thing: credential(false) }),
+      contract({ ...base, ChargePattern: pattern(false), Thing: credential(true) }),
+      { judge: new RulesJudge() },
+    );
+    const ops = [
+      ...outcome.proposals.map((proposal) => proposal.change),
+      ...outcome.decisions.map(decisionChange),
+    ].flatMap((change) => change.ops);
+    // The whole credential would be written back as referring to the old
+    // pattern, so the restatement is of the choice alone.
+    expect(ops.filter((op) => op.op === "restate")).toEqual([
+      { op: "restate", path: "/kind" },
+    ]);
+    expect(ops.filter((op) => op.op === "relax")).not.toEqual([]);
+  });
+
+  it("is not drafted where only a description beside a reference changed (Amazon)", async () => {
+    const described = (description: string) =>
+      object({
+        threshold: { allOf: [ref("Threshold"), { description }] },
+        description: { type: "string" },
+      });
+    const outcome = await propose(
+      contract({
+        ...base,
+        Threshold: { type: "integer" },
+        Thing: described("the old words"),
+      }),
+      contract({
+        ...base,
+        Threshold: { type: "integer" },
+        Thing: described("new words"),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(restatementsIn(outcome)).toEqual([]);
+  });
+
+  it("stands down where another draft changes a schema the place refers to (PayPal)", async () => {
+    // The shared phone schema gained a required country code, which old
+    // callers creating a thing must now be given one for; the thing's phone
+    // restated as the old phone would be proved against a phone that draft
+    // changes, and both cannot hold.
+    const outcome = await propose(
+      contract({
+        ...base,
+        Phone: phone(),
+        Thing: object({ id: { type: "string" }, phone: ref("Phone") }, ["id"]),
+        ThingCreate: object({ phone: ref("Phone") }),
+      }),
+      contract({
+        ...base,
+        Phone: phone(["country_code"]),
+        PhoneNumber: phone(),
+        Thing: object(
+          { id: { type: "string" }, phone: { allOf: [ref("PhoneNumber")] } },
+          ["id"],
+        ),
+        ThingCreate: object({ phone: ref("Phone") }),
+      }),
+      { judge: new RulesJudge() },
+    );
+    const others = [
+      ...outcome.proposals.map((proposal) => proposal.change),
+      ...outcome.decisions.map(decisionChange),
+    ].filter((change) => JSON.stringify(change.scopes).includes('/Phone"'));
+    expect(others.length).toBeGreaterThan(0);
+    expect(restatementsIn(outcome)).toEqual([]);
   });
 });

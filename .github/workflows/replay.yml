@@ -1,0 +1,122 @@
+name: Migration replay
+
+# Rig E, the replay (proving/replay/run.mts): each migration pack run where
+# humans already migrated real code across an SDK's breaking release, and
+# scored against what they did. Four shards on GitHub's machines rather than
+# a laptop, since each case type-checks a stranger's repository twice.
+#
+# Every job here fetches and reads third-party repositories, so none holds a
+# secret or a token with any permission: nothing of theirs is executed, and
+# nothing here could be used if it were. Classing the sites the replay finds
+# needs a model key, and happens where the key is, from the sites this run
+# uploads (`run.mts --rescore --classify`).
+on:
+  # Whenever the Python pack or the rig changes, on any branch, so a change to
+  # either is measured before it is merged, not after.
+  push:
+    paths:
+      - "packages/migrate-core/**"
+      - "packages/migrate-py/**"
+      - "proving/replay/**"
+      - ".github/workflows/replay.yml"
+      # Recording what a run measured is not a change to measure.
+      - "!proving/replay/results.json"
+      - "!proving/replay/classes.json"
+      - "!proving/replay/audit.json"
+  workflow_dispatch:
+    inputs:
+      ecosystem:
+        description: "Which cases to replay: npm, pypi or go"
+        default: pypi
+  schedule:
+    - cron: "41 4 * * 1"
+
+concurrency:
+  group: replay-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  replay:
+    name: replay (${{ inputs.ecosystem || 'pypi' }}, shard ${{ matrix.shard }} of 4)
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    permissions: {}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Replay this shard
+        env:
+          ECOSYSTEM: ${{ inputs.ecosystem || 'pypi' }}
+          SHARD: ${{ matrix.shard }}
+        run: >-
+          node --import tsx proving/replay/run.mts
+          --ecosystem "$ECOSYSTEM"
+          --shard "$SHARD/4"
+          --results "replay-$SHARD.json"
+          --verbose
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: replay-${{ matrix.shard }}
+          path: |
+            replay-${{ matrix.shard }}.json
+            .cache/replay/sites
+          # Under .cache, which upload-artifact skips unless told otherwise.
+          include-hidden-files: true
+          if-no-files-found: ignore
+
+  merge:
+    needs: [replay]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions: {}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: replay-*
+          merge-multiple: true
+
+      # The shards laid over the recorded results; what they found is scored
+      # once its sites are classed, where the key is.
+      - name: Merge the shards
+        run: node --import tsx proving/replay/run.mts --merge replay-*.json
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: replay-report
+          path: |
+            proving/replay/results.json
+            .cache/replay/sites
+          include-hidden-files: true

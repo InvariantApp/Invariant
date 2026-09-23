@@ -52,7 +52,12 @@ which some APIs send one with.
 A request asking to `Upgrade`, a WebSocket among them, is passed to the
 upstream with its path, query and headers, and once the upstream agrees the
 bytes flow both ways untouched. There is no message after the handshake for a
-program to adapt. An upstream that cannot be reached is answered with `502`.
+program to adapt. Nothing the caller sends after the handshake reaches the
+upstream until it answers `101`; any other answer is relayed and the
+connection closed, so a refused upgrade cannot carry a second request past
+the proxy. A request to switch to HTTP/2 in cleartext (`Upgrade: h2c`) is
+answered as an ordinary request, as if it had not asked. An upstream that
+cannot be reached is answered with `502`.
 
 ## Metrics
 

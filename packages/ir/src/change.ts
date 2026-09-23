@@ -403,6 +403,33 @@ export const RelaxOp = Type.Object(
   },
 );
 
+/**
+ * The same values, stated differently, and nothing to translate.
+ *
+ * Figma rewrote a node's `Effect` from one object, whose `type` named four
+ * kinds, into a choice between a drop shadow, an inner shadow and a blur,
+ * each declaring the fields that kind has. Every value the new API sends is
+ * one the old contract already allowed, so an old caller is served exactly by
+ * passing it through. `relax` would pass it through too, but it admits a loss
+ * where there is none.
+ *
+ * Nothing about it is taken on trust. The compiler proves, schema against
+ * schema, that every value the new contract allows where old callers receive
+ * it, their contract allowed too, and that every value they send, the new
+ * contract accepts; and refuses the Change, naming where, wherever it cannot.
+ */
+export const RestateOp = Type.Object(
+  {
+    op: Type.Literal("restate"),
+    path: Pointer,
+  },
+  {
+    additionalProperties: false,
+    description:
+      "The new contract states the value at this place differently and allows nothing the old one did not. Values pass through untouched and the compiler proves nothing is lost.",
+  },
+);
+
 export const RouteOp = Type.Object(
   {
     op: Type.Literal("route"),
@@ -493,6 +520,7 @@ export const Op = Type.Union([
   DropNullOp,
   WidenOp,
   RelaxOp,
+  RestateOp,
   RouteOp,
   RetireOp,
   BehaviorOp,
@@ -625,6 +653,7 @@ export type DefaultOp = Static<typeof DefaultOp>;
 export type DropNullOp = Static<typeof DropNullOp>;
 export type WidenOp = Static<typeof WidenOp>;
 export type RelaxOp = Static<typeof RelaxOp>;
+export type RestateOp = Static<typeof RestateOp>;
 export type RouteOp = Static<typeof RouteOp>;
 export type RetireOp = Static<typeof RetireOp>;
 export type BehaviorOp = Static<typeof BehaviorOp>;
@@ -646,7 +675,8 @@ export type DataOp =
   | DefaultOp
   | DropNullOp
   | WidenOp
-  | RelaxOp;
+  | RelaxOp
+  | RestateOp;
 
 const DATA_OPS = new Set([
   "move",
@@ -657,6 +687,7 @@ const DATA_OPS = new Set([
   "dropNull",
   "widen",
   "relax",
+  "restate",
 ]);
 
 export function isDataOp(op: Op): op is DataOp {

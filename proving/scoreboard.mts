@@ -29,6 +29,7 @@ import {
   tally,
 } from "./servers/pairs.ts";
 import type { SkewResult } from "./skew/run.mts";
+import { summarize as summarizeThreats, type ThreatManifest } from "./threats/summary.ts";
 import type { TrafficResult } from "./traffic/run.mts";
 
 type Status = "met" | "not met" | "not measured";
@@ -75,6 +76,9 @@ export function scoreboard(inputs: {
   audit?: AuditFile | undefined;
   classes?: Record<string, { class: SiteClass }> | undefined;
   fuzz: string | undefined;
+  /** The threat-model record, and how its tests last ran. */
+  threats?: ThreatManifest | undefined;
+  threatsResult?: string | undefined;
   chains?: (ChainCost & { budget: typeof BUDGET }) | undefined;
   overhead?: (OverheadResult & { budget: typeof OVERHEAD_BUDGET }) | undefined;
   vectors?: VectorCounts | undefined;
@@ -333,14 +337,7 @@ export function scoreboard(inputs: {
     },
     unmeasured("L14", "Enterprise identity, audit, self-hosting and residency.", "M9."),
   );
-  lines.push({
-    id: "L15",
-    claim:
-      "Threat-model tests, nightly fuzzers with no open crashers, SBOM and provenance, a clean secrets scan and a recent restore drill.",
-    status: "not met",
-    value: `nightly fuzzers ${inputs.fuzz === "success" ? "passing" : inputs.fuzz === undefined ? "not run here" : `failing (${inputs.fuzz})`}; full-history secrets scan on every commit; restore drill 2026-09-22 (RPO 2.1s, RTO 3s, in the service's repository); SBOM and provenance wait on the first publish; threat-model tests are M10`,
-    evidence: "proving/fuzz/, the secrets job in .github/workflows/ci.yml",
-  });
+  lines.push(securityLine(inputs.threats, inputs.threatsResult, inputs.fuzz));
   lines.push(
     {
       id: "L16",
@@ -355,6 +352,59 @@ export function scoreboard(inputs: {
     overheadLine(inputs.overhead),
   );
   return lines;
+}
+
+/**
+ * Whether every release is published with an SBOM and provenance. Nothing has
+ * been published yet, so nothing can have been; this changes with the first
+ * release, and L15 cannot be met before it does.
+ */
+const RELEASES_ATTESTED = false;
+
+/** A job's result, as the scoreboard says it. */
+const outcome = (result: string | undefined, passing = "passing") =>
+  result === "success"
+    ? passing
+    : result === undefined
+      ? "not run here"
+      : `failing (${result})`;
+
+function securityLine(
+  threats: ThreatManifest | undefined,
+  threatsResult: string | undefined,
+  fuzz: string | undefined,
+): Line {
+  const summary = threats ? summarizeThreats(threats) : undefined;
+  const modelled = summary
+    ? `threat-model tests ${outcome(threatsResult)}: of the ${summary.rows} rows of DESIGN 11.1, ` +
+      `${summary.covered} covered here, ${summary.partly} covered here for this repository's part ` +
+      `with the rest in the service's repository, ${summary.outOfScope} wholly the service's; ` +
+      `${summary.attacks} attack families from M10.1 sent end to end, ` +
+      `${summary.found} weaknesses they found fixed` +
+      (summary.gaps.length > 0 ? `; not yet built: ${summary.gaps.join(", ")}` : "")
+    : "threat-model tests not recorded";
+  // Met only when every part is: the tests pass and name nothing unbuilt, the
+  // fuzzers pass, and releases carry an SBOM and provenance.
+  const met =
+    summary !== undefined &&
+    threatsResult === "success" &&
+    summary.gaps.length === 0 &&
+    fuzz === "success" &&
+    RELEASES_ATTESTED;
+  return {
+    id: "L15",
+    claim:
+      "Threat-model tests, nightly fuzzers with no open crashers, SBOM and provenance, a clean secrets scan and a recent restore drill.",
+    status: met ? "met" : "not met",
+    value:
+      `${modelled}; nightly fuzzers ${outcome(fuzz)}; full-history secrets scan on every commit; ` +
+      "restore drill 2026-09-22 (RPO 2.1s, RTO 3s, in the service's repository); " +
+      (RELEASES_ATTESTED
+        ? "SBOM and provenance on every release"
+        : "SBOM and provenance wait on the first publish"),
+    evidence:
+      "proving/threats/manifest.json and its tests, on every commit; proving/fuzz/; the secrets job in .github/workflows/ci.yml",
+  };
 }
 
 /** How the site classes L8 rests on were checked, and how well they held up. */
@@ -595,6 +645,8 @@ if (process.argv[1]?.endsWith("scoreboard.mts")) {
     audit: read<AuditFile>("proving/replay/audit.json"),
     classes: read<Record<string, { class: SiteClass }>>("proving/replay/classes.json"),
     fuzz: process.env["FUZZ_RESULT"],
+    threats: read<ThreatManifest>("proving/threats/manifest.json"),
+    threatsResult: process.env["THREATS_RESULT"],
     chains: read<ChainCost & { budget: typeof BUDGET }>("proving/chains/results.json"),
     vectors: read<VectorCounts>("conformance/vectors.json"),
     ownership: existsSync(join(ROOT, "eval/ownership.yaml"))

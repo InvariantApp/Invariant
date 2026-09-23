@@ -364,9 +364,30 @@ describe("a number a double cannot hold", () => {
     expect(run(`{"amount":${long}}`, [move], "double")).toBe(`{"total":${long}}`);
   });
 
-  it("still takes the fast path for a body with nothing out of range", () => {
-    expect(run('{"amount":1e99,"id":"file123"}', [], "double")).toBe(
-      '{"amount":1e+99,"id":"file123"}',
+  it("keeps an integer past 2^53 exactly as it was sent (Qdrant)", () => {
+    // u64::MAX as a double is 18446744073709552000, which a Rust server
+    // refuses as out of range for the limit it was sent as.
+    const move: CompiledInstr = { k: "move", from: ["n"], to: ["m"], c: "chg_move" };
+    expect(
+      run('{"limit":18446744073709551615,"vector":[0.1,0.2],"n":1}', [move], "double"),
+    ).toBe('{"limit":18446744073709551615,"vector":[0.1,0.2],"m":1}');
+  });
+
+  it("keeps how a number was written, where writing it back would change it (Qdrant)", () => {
+    // `1.0` written back from a double is `1`, and Qdrant tells a multivector
+    // from other inputs by how its numbers are written.
+    for (const body of [
+      '{"vector":[[1.0,2.0,3.0]]}',
+      '{"amount":1e99,"id":"file123"}',
+      '{"fee":-0,"ratio":2.50}',
+    ]) {
+      expect(run(body, [], "double")).toBe(body);
+    }
+  });
+
+  it("still takes the fast path for numbers written as a double writes them", () => {
+    expect(run('{"amount":12.5,"count":3,"id":"file123"}', [], "double")).toBe(
+      '{"amount":12.5,"count":3,"id":"file123"}',
     );
   });
 });

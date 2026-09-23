@@ -59,7 +59,12 @@ import {
   operationById,
   parametersOf,
 } from "./parameters.ts";
-import { mapEndpoint, type RouteMapping, routeMappings } from "./predict.ts";
+import {
+  mapEndpoint,
+  type RouteMapping,
+  routeMappings,
+  unaddressableKeys,
+} from "./predict.ts";
 import { type SharedBlocks, sharedBlocks } from "./shared.ts";
 
 export interface ProjectionIssue {
@@ -267,7 +272,10 @@ export function projectStep(
   changes: readonly Change[],
   newContract?: OpenApiDocument,
 ): Projection {
-  const issues: ProjectionIssue[] = [...findInterference(changes)];
+  const issues: ProjectionIssue[] = [
+    ...unaddressableKeys(changes),
+    ...findInterference(changes),
+  ];
   const routes = routeMappings(changes);
   const sites = new Map<string, SiteAccumulator>();
 

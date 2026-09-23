@@ -26,7 +26,13 @@ import {
 } from "@invariant-app/ir";
 import { importReferences } from "./import.ts";
 import { operationById } from "./parameters.ts";
-import { mapEndpoint, type PredictionIssue, type RouteMapping } from "./predict.ts";
+import {
+  mapEndpoint,
+  type PredictionIssue,
+  type RouteMapping,
+  topOf,
+} from "./predict.ts";
+import { proveRestated } from "./restate.ts";
 import {
   SchemaOpError,
   schemaAdd,
@@ -35,6 +41,7 @@ import {
   schemaRelax,
   schemaRemove,
   schemaRequiredAt,
+  schemaRestate,
   schemaSetNullable,
   schemaSetRequired,
   schemaWiden,
@@ -214,6 +221,43 @@ export function applyResponseScope(
         case "dropNull":
           schemaSetNullable(document, root, op.path, op.toward === "old");
           break;
+        case "restate": {
+          // Old callers only ever receive a response, so only what they may
+          // be sent has to be shown to be what they were promised. Written
+          // resolved at its top, because a schema of the same name in the old
+          // contract is exactly what is being restated.
+          const next = shapeInNew(
+            newContract,
+            target.method,
+            target.path,
+            scope.response,
+            op.path,
+          );
+          const before = shapeInNew(
+            document,
+            target.method,
+            target.path,
+            scope.response,
+            op.path,
+          );
+          if (!next || !before) {
+            throw new SchemaOpError(
+              `the ${next ? "old" : "new"} contract's ${scope.response} response has no ${op.path || "body"}`,
+            );
+          }
+          proveRestated(
+            { document, schema: before.shape },
+            { document: newContract, schema: next.shape },
+            { request: false, response: true },
+            `${scope.operation}'s ${scope.response} response${op.path ? ` at ${op.path}` : ""}`,
+          );
+          // As the new contract writes it, never merged here: the differ
+          // reconciles a composition its own way (see `writtenAt`).
+          const statement = topOf(newContract, next.shape);
+          importReferences(document, newContract, statement);
+          schemaRestate(document, root, op.path, statement);
+          break;
+        }
         case "relax":
           // A response is never sent by an old caller, so a bound may move
           // either way.

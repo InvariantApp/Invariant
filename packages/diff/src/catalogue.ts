@@ -302,7 +302,7 @@ const RULES: Rule[] = [
       op: "convert",
       served: "planned",
       sentence:
-        "A request field accepts fewer shapes than it did. Translating the shapes old callers send needs the union instructions, which are not served yet.",
+        "A request field's shapes are written differently. Where every value old callers send is still accepted, a `restate` says so, and the compiler proves it before it is taken; a shape that is no longer accepted needs the union instructions, which are not served yet.",
     },
   ),
   rule(/^request-(body|property)-/, {
@@ -366,7 +366,7 @@ const RULES: Rule[] = [
     op: "widen",
     served: "yes",
     sentence:
-      "A response field can now hold a kind of object old callers do not know. A `widen` shows it to them as its id where the field already allowed an id, or leaves it out or sends null where it could be; that is a declared loss you acknowledge.",
+      "A response field can now hold a kind of object old callers do not know. Where each kind is one they were already promised, only written separately, a `restate` says so, and the compiler proves it before it is taken. Otherwise a `widen` shows the new kind to them as its id where the field already allowed an id, or leaves it out or sends null where it could be; that is a declared loss you acknowledge.",
   }),
   rule(
     /^response-(body|property)-(any-of-added|one-of-added|all-of-removed|wrapped-in-one-of(-original-preserved)?)$/,
@@ -375,7 +375,7 @@ const RULES: Rule[] = [
       op: "convert",
       served: "planned",
       sentence:
-        "A response field can now take shapes old callers do not know. Folding a new shape into one they do needs the union instructions, which are not served yet.",
+        "A response field's shapes are written differently. Where every value it may now hold is one old callers were already promised, as when one object is split into a choice of its kinds, a `restate` says so, and the compiler proves it before it is taken; folding a shape they do not know into one they do needs the union instructions, which are not served yet.",
     },
   ),
   rule(
