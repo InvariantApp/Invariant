@@ -119,6 +119,51 @@ describe("two ways of writing one schema", () => {
   });
 });
 
+describe("a text schema whose values are written as numbers", () => {
+  // Plaid's Prism versions, `type: string` with `enum: [4.1, 4, 3]`, written
+  // as text a release later.
+  const version = (values: unknown[]) =>
+    api({
+      type: "object",
+      properties: { cashscore: { type: "string", nullable: true, enum: values } },
+    });
+
+  it("lists them as the text they are written as", () => {
+    const prepared = equivalentForms(version([4.1, 4, "3_lite", 3, null])) as unknown as {
+      components: {
+        schemas: { Message: { properties: { cashscore: { enum: unknown[] } } } };
+      };
+    };
+    expect(prepared.components.schemas.Message.properties.cashscore.enum).toEqual([
+      "4.1",
+      "4",
+      "3_lite",
+      "3",
+      null,
+    ]);
+  });
+
+  it("is not a breaking change when they are written as text", async () => {
+    expect(
+      breakingEntries(
+        await diffDocuments(
+          version([4.1, 4, "3_lite", 3, null]),
+          version(["4.1", "4", "3_lite", "3", null]),
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it("leaves a number schema's numeric values alone", () => {
+    const prepared = equivalentForms(
+      api({ type: "object", properties: { n: { type: "number", enum: [1, 2] } } }),
+    ) as unknown as {
+      components: { schemas: { Message: { properties: { n: { enum: unknown[] } } } } };
+    };
+    expect(prepared.components.schemas.Message.properties.n.enum).toEqual([1, 2]);
+  });
+});
+
 describe("a way to authenticate naming a scheme the document never declares", () => {
   const secured = (security: JsonObject[], declared: string[] = ["bearer"]) =>
     ({

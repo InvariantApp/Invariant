@@ -142,9 +142,12 @@ loss by name, and a declared loss makes the Change `declared-lossy`.
   `exponent` places. It must be done on the decimal text, never by multiplying:
   `19.99 * 100` is `1998.9999999999998` in binary floating point. A value that
   cannot be represented exactly after the shift is **refused**, not rounded.
-- **`enumMap {pairs}`** maps values one to one. Must be bijective in version 1.
-  A value with no mapping is **refused**, unless the instruction is marked
-  lenient (see below).
+- **`enumMap {pairs}`** maps values one to one. A value with no mapping is
+  **refused**, unless the instruction is marked lenient (see below). Two old
+  values may be declared to become one, which is how a value the new contract
+  no longer accepts is sent as one it keeps; that is declared-lossy, and on
+  the way back the value that remains is shown as itself, since the API can
+  no longer produce the one that went.
 - **`cast {from, to}`** between `string`, `integer`, `number` and `boolean`.
 - **`dateFormat {from, to, onInexact?}`** between `epoch-s`, `epoch-ms` and
   `rfc3339`: the same instant, written another way. Text is always written in

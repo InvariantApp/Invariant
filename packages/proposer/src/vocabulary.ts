@@ -44,6 +44,11 @@ export interface FoldDecision {
   suggested: { fold: [string, string][]; pairs: [string, string][] };
   /** Why this is a decision rather than something derivable. */
   why: string;
+  /**
+   * `request` for a field only old callers send whose values shrank: each
+   * value that went is sent as one that remains, and nothing is folded.
+   */
+  direction?: "request";
 }
 
 /** The parts of a value's name: `CRA_MONITORING_ERROR` is cra, monitoring, error. */
@@ -165,6 +170,73 @@ export function foldDecisions(deltas: readonly SchemaDelta[]): FoldDecision[] {
 }
 
 /**
+ * The single values a field only requests carry that no longer accepts some
+ * of what old callers send, and nothing arrived in their place: one decision
+ * per field, which remaining value each that went is sent as.
+ *
+ * Adyen, Plaid and PayPal each retired request values this way, a hundred
+ * and twenty-odd places left as open questions because pairing them is a
+ * judgement about meaning. It still is, and it is asked as one, with the
+ * likeliest remaining value suggested: an old caller's request is sent on as
+ * the nearest thing the API still accepts, rather than refused.
+ *
+ * Wherever old callers send the field. Where they are also answered with it,
+ * the value an old one is sent as is shown to them as itself, since the API
+ * no longer produces the one that went. A list's items are not asked about,
+ * since `dropValues` serves those.
+ */
+export function retiredValueDecisions(deltas: readonly SchemaDelta[]): FoldDecision[] {
+  const out: FoldDecision[] = [];
+  for (const delta of deltas) {
+    for (const pair of delta.altered) {
+      const lost = retiredValues(pair);
+      if (lost === undefined) continue;
+      const from = pair.old.enumValues as string[];
+      const kept = from.filter((value) => !lost.includes(value));
+      if (kept.length === 0) continue;
+      out.push({
+        kind: "vocabulary",
+        direction: "request",
+        schema: delta.schema,
+        ...(delta.scope ? { scope: delta.scope } : {}),
+        field: pair.old.name,
+        pointer: pair.old.pointer,
+        gained: [],
+        lost,
+        choices: from,
+        suggested: {
+          fold: [],
+          pairs: lost.map((value) => [value, likeliest(value, kept) ?? CHOOSE_ONE]),
+        },
+        why:
+          `\`${pair.old.name}\` no longer accepts ` +
+          `${lost.map((value) => `\`${value}\``).join(", ")}, which old callers may ` +
+          "send, and nothing arrived in place of it. Which value the API still " +
+          "accepts an old caller's should be sent as is a decision about meaning, " +
+          "so it is not derivable from the two documents.",
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * The values a single field's vocabulary lost with nothing gained, or nothing
+ * where that is not what happened. A list's items are left to `dropValues`.
+ */
+export function retiredValues(pair: {
+  old: { pointer: string; enumValues?: string[] | undefined };
+  new: { enumValues?: string[] | undefined };
+}): string[] | undefined {
+  const from = pair.old.enumValues;
+  const to = pair.new.enumValues;
+  if (!from || !to || pair.old.pointer.endsWith("/*")) return undefined;
+  if (to.some((value) => !from.includes(value))) return undefined;
+  const lost = from.filter((value) => !to.includes(value));
+  return lost.length > 0 ? lost : undefined;
+}
+
+/**
  * A vocabulary decision as a Change file, every answer left as a placeholder.
  *
  * The suggestions go beside it, never into it: the gate refuses any Change
@@ -182,7 +254,10 @@ export function vocabularyChange(decision: FoldDecision): Change {
   return {
     irVersion: 1,
     id: `chg_${slug(decision.schema)}_${slug(decision.field)}_vocabulary`.slice(0, 120),
-    summary: `\`${decision.field}\` on ${decision.schema} can answer with values old callers never saw.`,
+    summary:
+      decision.direction === "request"
+        ? `\`${decision.field}\` on ${decision.schema} no longer accepts values old callers may send.`
+        : `\`${decision.field}\` on ${decision.schema} can answer with values old callers never saw.`,
     scopes: [decision.scope ?? { schema: `#/components/schemas/${decision.schema}` }],
     ops: [
       {
