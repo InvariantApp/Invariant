@@ -239,11 +239,14 @@ describe("a removed field beside fields that were added", () => {
       note: { type: "string" },
       recipient_type: { type: "string" },
     });
-    const reported = object({
-      payout_item_id: { type: "string" },
-      transaction_status: { type: "string" },
-      time_processed: { type: "string" },
-    });
+    const reported = object(
+      {
+        payout_item_id: { type: "string" },
+        transaction_status: { type: "string" },
+        time_processed: { type: "string" },
+      },
+      ["payout_item_id"],
+    );
     const outcome = await propose(
       contract({ ...base, ThingCreate: sent }),
       contract({ ...base, ThingCreate: reported }),
@@ -252,6 +255,8 @@ describe("a removed field beside fields that were added", () => {
     expect(outcome.proposals.filter((p) => p.change.id.includes("removed"))).toEqual([]);
     // Still asked about: which schema did they go to?
     expect(outcome.unresolved.map((entry) => entry.field)).toContain("amount");
+    // Nor is a value asked for what the other schema requires.
+    expect(outcome.decisions.map((entry) => entry.field)).not.toContain("payout_item_id");
   });
 
   it("is not drafted where the schema became a choice between others holding it", async () => {

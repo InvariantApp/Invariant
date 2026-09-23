@@ -960,19 +960,23 @@ function additions(
           summary: `\`${field.name}\` is new and required on ${delta.schema}.`,
           why: `\`${field.name}\` is new and required in requests, and the value sent for a caller who predates it is not in the specification.`,
         };
-        if (delta.removed.length > 0) {
+        const entry: Unresolved = {
+          schema: delta.schema,
+          field: field.name,
+          reason: why,
+          side: "added",
+        };
+        if (delta.replaced) {
+          // Another schema under the old name, as PayPal's `payout_item` went
+          // from what a caller sends to what a response reports: its fields
+          // belong to a schema that now has another name, and asking for a
+          // value to send in each would draft a request nobody makes.
+          unresolved.push(entry);
+        } else if (delta.removed.length > 0) {
           // Beside fields that went, it may be one of them renamed, which is
           // the judge's question and not a value to choose. Asked once the
           // judge has said, and only if it named this field for none.
-          deferred.push({
-            entry: {
-              schema: delta.schema,
-              field: field.name,
-              reason: why,
-              side: "added",
-            },
-            decision,
-          });
+          deferred.push({ entry, decision });
         } else {
           decisions.push(decision);
         }
