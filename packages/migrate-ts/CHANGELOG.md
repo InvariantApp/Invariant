@@ -1,5 +1,13 @@
 # @invariant-app/migrate-ts
 
+## 0.3.0
+
+### Patch Changes
+
+- @invariant-app/decimal@0.3.0
+  - @invariant-app/ir@0.3.0
+  - @invariant-app/migrate-core@0.3.0
+
 ## 0.2.0
 
 ### Patch Changes

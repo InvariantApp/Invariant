@@ -1,5 +1,14 @@
 # @invariant-app/contract
 
+## 0.3.0
+
+### Patch Changes
+
+- e94a03b: A choice whose every branch is the same kind of value is that kind, so a schema reached through null or a choice of objects, as Meilisearch's task `network` is, is served inside it rather than refused as a union nothing tells apart.
+- 0036e1f: A union of a schema and a branch that says nothing but `nullable: true`, which is how schemars and utoipa write an optional value in OpenAPI 3.0, is read as the schema or null, so a Change to the schema is served inside it rather than refused as a union nothing tells apart. A branch beside nothing but null carries no guard at all, since no instruction acts on a null; guarding each one nested Qdrant's telemetry deeper than a program may.
+- 4d37d14: A Swagger 2.0 response that names a definition where a response belongs, as Gitea's runner listings do, is upgraded as a response whose body is that definition. Upgraded as written, it named a schema where a response belongs and the differ refused the whole document.
+- @invariant-app/ir@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes

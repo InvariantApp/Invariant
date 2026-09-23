@@ -1,5 +1,21 @@
 # @invariant-app/bundle
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies [e94a03b]
+- Updated dependencies [782ec22]
+- Updated dependencies [0036e1f]
+- Updated dependencies [0036e1f]
+- Updated dependencies [e2168b7]
+- Updated dependencies [4d37d14]
+- Updated dependencies [0036e1f]
+- Updated dependencies [ac59d08]
+  - @invariant-app/contract@0.3.0
+  - @invariant-app/verifier@0.3.0
+  - @invariant-app/ir@0.3.0
+
 ## 0.2.0
 
 ### Patch Changes
