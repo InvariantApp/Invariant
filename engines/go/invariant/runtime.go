@@ -273,10 +273,25 @@ func checkVersion(value *Object) error {
 	if !isText || !versionText.MatchString(minRuntime) {
 		return programError("program.minRuntime must be a version such as 1.2.3")
 	}
-	if compareVersions(minRuntime, Version) > 0 {
+	// A feature not yet released asks for a pre-release of the patch after the
+	// last release, "-next". The engine built from the same unreleased source
+	// implements it; every published one is older and refuses it here.
+	if compareVersions(minRuntime, Version) > 0 && minRuntime != nextRelease(Version) {
 		return &ProgramTooNewError{Needs: "runtime " + minRuntime, CompiledBy: compiledBy}
 	}
 	return nil
+}
+
+// nextRelease is the version a feature not yet released asks for, as the
+// compiler writes it.
+func nextRelease(version string) string {
+	core, _, _ := strings.Cut(version, "-")
+	parts := strings.Split(core, ".")
+	for len(parts) < 3 {
+		parts = append(parts, "0")
+	}
+	patch, _ := strconv.Atoi(parts[2])
+	return parts[0] + "." + parts[1] + "." + strconv.Itoa(patch+1) + "-next"
 }
 
 func decodeIdentity(raw any) ([]Identity, error) {

@@ -139,6 +139,15 @@ export function forwardInstrs(op: DataOp, prefix: string, changeId: string): Ins
           return [
             { k: "cast", path: prefixed(prefix, op.path), to: op.codec.to, c: changeId },
           ];
+        case "dropValues":
+          return [
+            {
+              k: "drop",
+              path: prefixed(prefix, op.path),
+              values: op.codec.values,
+              c: changeId,
+            },
+          ];
         default:
           return [valueCodec(op.codec, prefixed(prefix, op.path), changeId, "forward")];
       }
@@ -288,6 +297,10 @@ export function backwardInstrs(
               c: changeId,
             },
           ];
+        case "dropValues":
+          // A list an old caller is sent is the new contract's to fill, and
+          // the values dropped on the way in are ones it no longer holds.
+          return [];
         default:
           return [valueCodec(op.codec, prefixed(prefix, op.path), changeId, "backward")];
       }

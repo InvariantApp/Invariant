@@ -351,6 +351,29 @@ export const CONFORMANCE_VECTORS: Vector[] = [
     expect: { refuses: C },
   },
   {
+    name: "drop takes the values out of a list and keeps the rest in order",
+    why:
+      "Asana stopped offering fields an old caller could ask for in opt_fields; " +
+      "the request goes on with everything else it asked for.",
+    instrs: [{ k: "drop", path: "/opt_fields", values: ["color", "archived"], c: C }],
+    input: { opt_fields: ["name", "color", "owner", "archived", "color"] },
+    expect: { output: { opt_fields: ["name", "owner"] } },
+  },
+  {
+    name: "drop leaves an empty list where every value was dropped, and a list without them alone",
+    why: "The caller sent a list, so a list goes on; one with nothing to drop is not touched.",
+    instrs: [{ k: "drop", path: "/lists/*", values: ["color"], c: C }],
+    input: { lists: [["color"], ["name", 7, null]] },
+    expect: { output: { lists: [[], ["name", 7, null]] } },
+  },
+  {
+    name: "drop refuses a single value",
+    why: "A single value that is gone has no request left without it.",
+    instrs: [{ k: "drop", path: "/opt_fields", values: ["color"], c: C }],
+    input: { opt_fields: "color" },
+    expect: { refuses: C },
+  },
+  {
     name: "instructions apply in order",
     why:
       "A rename followed by a conversion targets the new name. Applying them " +

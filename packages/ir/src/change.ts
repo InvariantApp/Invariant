@@ -170,6 +170,31 @@ export const UnwrapSingleCodec = Type.Object(
   { additionalProperties: false },
 );
 
+/**
+ * Values an old caller may put in a list that the new contract no longer
+ * accepts, taken out of it on the way in.
+ *
+ * Asana stopped offering a hundred and twenty-six of the fields a caller
+ * could ask a portfolio's items to include, and an old caller asking for
+ * `opt_fields=color` was refused outright. The fields are not coming back,
+ * so nothing can serve them; what can be served is everything else the
+ * caller asked for, which is the request with those values left out.
+ *
+ * Applied to a list, never to a single value: a single value that is gone
+ * has no request left without it, and is an `enumMap` to a value that
+ * remains, which a person decides. Forward only, since a list an old caller
+ * is sent is the new contract's to fill. Always lossy, because the caller
+ * asked for something it will not get; the compiler derives
+ * `declared-lossy` from it and the gate asks for that in writing.
+ */
+export const DropValuesCodec = Type.Object(
+  {
+    kind: Type.Literal("dropValues"),
+    values: Type.Array(Type.String(), { minItems: 1, uniqueItems: true }),
+  },
+  { additionalProperties: false },
+);
+
 export const Codec = Type.Union([
   Scale10Codec,
   EnumMapCodec,
@@ -178,6 +203,7 @@ export const Codec = Type.Union([
   StringCaseCodec,
   WrapArrayCodec,
   UnwrapSingleCodec,
+  DropValuesCodec,
 ]);
 
 /**
@@ -642,6 +668,7 @@ export type StringCase = Static<typeof StringCase>;
 export type StringCaseCodec = Static<typeof StringCaseCodec>;
 export type WrapArrayCodec = Static<typeof WrapArrayCodec>;
 export type UnwrapSingleCodec = Static<typeof UnwrapSingleCodec>;
+export type DropValuesCodec = Static<typeof DropValuesCodec>;
 export type Codec = Static<typeof Codec>;
 export type ScalarType = Static<typeof ScalarType>;
 export type Endpoint = Static<typeof Endpoint>;
