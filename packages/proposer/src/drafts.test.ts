@@ -2554,6 +2554,80 @@ describe("a response vocabulary that opened, moved or grew from nothing", () => 
     expect(outcome.unresolved).toEqual([]);
   });
 
+  // The same list, once it names values, holds each at most once. A value it
+  // gains folded onto one it named would show old callers that value twice
+  // wherever the list already held it, so the new value is left out instead.
+  it("leaves out of a list that holds no value twice what it gained, rather than folding it", async () => {
+    const outcome = await propose(
+      contract({
+        ...base,
+        ActionTypes: actionTypes,
+        Thing: object(
+          { id: { type: "string" }, events: eventTypes(["ENTITLEMENT_CREATE"]) },
+          ["id"],
+        ),
+      }),
+      contract({
+        ...base,
+        ActionTypes: actionTypes,
+        Thing: object(
+          {
+            id: { type: "string" },
+            events: eventTypes(["ENTITLEMENT_CREATE", "LOBBY_MESSAGE_CREATE"]),
+          },
+          ["id"],
+        ),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(opsOf(outcome)).toEqual([
+      {
+        op: "convert",
+        path: "/events",
+        codec: { kind: "dropValues", values: ["LOBBY_MESSAGE_CREATE"] },
+      },
+    ]);
+    expect(outcome.decisions).toEqual([]);
+    expect(outcome.unresolved).toEqual([]);
+  });
+
+  it("still asks which value a list that may repeat values shows a new one as", async () => {
+    const { uniqueItems: _set, ...list } = eventTypes(["ENTITLEMENT_CREATE"]);
+    const outcome = await propose(
+      contract({
+        ...base,
+        ActionTypes: actionTypes,
+        Thing: object({ id: { type: "string" }, events: list }, ["id"]),
+      }),
+      contract({
+        ...base,
+        ActionTypes: actionTypes,
+        Thing: object(
+          {
+            id: { type: "string" },
+            events: {
+              ...list,
+              items: {
+                ...list.items,
+                enum: ["ENTITLEMENT_CREATE", "LOBBY_MESSAGE_CREATE"],
+              },
+            },
+          },
+          ["id"],
+        ),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(opsOf(outcome)).toEqual([]);
+    expect(outcome.decisions).toEqual([
+      expect.objectContaining({
+        kind: "vocabulary",
+        pointer: "/events/*",
+        gained: ["LOBBY_MESSAGE_CREATE"],
+      }),
+    ]);
+  });
+
   it("asks nothing where only old callers send a list that gained values", async () => {
     const outcome = await propose(
       contract({

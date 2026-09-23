@@ -128,11 +128,13 @@ function parentFor(
   root: JsonObject,
   segments: readonly string[],
   create: boolean,
+  /** Filled with the depth of each intermediate object this walk created. */
+  created?: Set<number>,
 ): { parent: JsonObject; last: string } {
   if (segments.length === 0) throw new SchemaOpError("Cannot target the schema root");
 
   let current = ownRoot(document, root);
-  for (const segment of segments.slice(0, -1)) {
+  for (const [index, segment] of segments.slice(0, -1).entries()) {
     const keyword = WILDCARD_KEYWORD[segment];
     if (keyword) {
       if (!isJsonObject(current[keyword]))
@@ -150,6 +152,7 @@ function parentFor(
     if ((properties as JsonObject)[segment] === undefined) {
       if (!create) throw new SchemaOpError(`No property "${segment}"`);
       (properties as JsonObject)[segment] = { type: "object", properties: {} };
+      created?.add(index + 1);
     }
     current = own(document, properties as JsonObject, segment);
   }
@@ -227,7 +230,8 @@ function writeSlot(
   schema: JsonValue,
   required: boolean,
 ): void {
-  const { parent, last } = parentFor(document, root, segments, true);
+  const created = new Set<number>();
+  const { parent, last } = parentFor(document, root, segments, true, created);
   const keyword = WILDCARD_KEYWORD[last];
   if (keyword) {
     parent[keyword] = schema;
@@ -243,8 +247,11 @@ function writeSlot(
   setRequired(parent, last, required);
 
   // A newly created intermediate object is required exactly when the value it
-  // now holds was required.
+  // now holds was required. One that was already there keeps what it was:
+  // Figma's `devStatus` is optional and its `type` required, and translating
+  // the type's values made every node's `devStatus` read as always sent.
   for (let depth = segments.length - 1; depth >= 1; depth -= 1) {
+    if (!created.has(depth)) continue;
     const ancestorPath = segments.slice(0, depth);
     const grand = parentFor(document, root, ancestorPath, false);
     const name = ancestorPath[ancestorPath.length - 1] as string;
@@ -929,6 +936,27 @@ const isNullSchema = (branch: JsonValue): boolean =>
   isJsonObject(branch) && branch["type"] === "null" && Object.keys(branch).length === 1;
 
 /**
+ * A statement that is one value or null, as a union of two branches, with
+ * which keyword holds them and where the null branch stands. The value's
+ * branch is written in place: one naming a schema is another shape of
+ * statement, which a value with a declared type is not.
+ */
+function besideNull(
+  statement: JsonValue | undefined,
+): { key: "anyOf" | "oneOf"; at: number } | undefined {
+  if (!isJsonObject(statement)) return undefined;
+  for (const key of ["anyOf", "oneOf"] as const) {
+    const branches = statement[key];
+    if (!Array.isArray(branches) || branches.length !== 2) continue;
+    const at = branches.findIndex(isNullSchema);
+    const other = branches[1 - at];
+    if (at === -1 || !isJsonObject(other) || "$ref" in other) return undefined;
+    return { key, at };
+  }
+  return undefined;
+}
+
+/**
  * Whether a field may be null, written the way the document's own version
  * writes it: `nullable` in 3.0, a `"null"` type in 3.1. Written the other way,
  * the prediction would mean the same thing and still differ from the real
@@ -939,16 +967,32 @@ export function schemaSetNullable(
   root: JsonObject,
   path: string,
   nullable: boolean,
+  written?: JsonValue,
 ): void {
-  setNullable(document, ownSlot(document, root, parsePointer(path)), nullable, path);
+  setNullable(
+    document,
+    ownSlot(document, root, parsePointer(path)),
+    nullable,
+    path,
+    written,
+  );
 }
 
-/** The same, on a schema object this change already owns, such as a parameter's. */
+/**
+ * The same, on a schema object this change already owns, such as a
+ * parameter's. `written` is the new contract's statement of the place, where
+ * it is known: a value that became nullable there as a union of itself and
+ * null is written that way here too. Mistral's document owner went from a
+ * `uuid` string to `anyOf` that string or null, and written as a list of
+ * types the prediction said the same thing in a way the differ reads as the
+ * types widening.
+ */
 export function setNullable(
   document: OpenApiDocument,
   schema: JsonObject,
   nullable: boolean,
   label: string,
+  written?: JsonValue,
 ): void {
   const version = document["openapi"];
   if (typeof version === "string" && version.startsWith("3.0")) {
@@ -958,6 +1002,22 @@ export function setNullable(
   }
 
   const declared = schema["type"];
+  const union =
+    nullable && typeof declared === "string" ? besideNull(written) : undefined;
+  if (union !== undefined && isJsonObject(written)) {
+    // Everything the new statement keeps beside its union stays where it is,
+    // and the rest is the value's own branch.
+    const branch: JsonObject = {};
+    for (const [name, value] of Object.entries(schema)) {
+      if (name in written) continue;
+      branch[name] = value;
+      delete schema[name];
+    }
+    const branches: JsonValue[] = [branch];
+    branches.splice(union.at, 0, { type: "null" });
+    schema[union.key] = branches;
+    return;
+  }
   if (typeof declared === "string" || Array.isArray(declared)) {
     const types = (Array.isArray(declared) ? declared : [declared]).filter(
       (type) => type !== "null",

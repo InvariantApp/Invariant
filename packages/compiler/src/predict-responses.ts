@@ -180,6 +180,18 @@ export function applyResponseScope(
     );
     return;
   }
+  // How the new contract writes a place in this response, so what the
+  // prediction writes is said the same way.
+  const writtenInNew = (path: string) => {
+    const found = shapeInNew(
+      newContract,
+      target.method,
+      target.path,
+      scope.response,
+      path,
+    );
+    return found && topOf(newContract, found.shape);
+  };
   for (const op of ops) {
     try {
       switch (op.op) {
@@ -220,11 +232,18 @@ export function applyResponseScope(
         case "default": {
           const looser = op.toward === "old";
           if (op.when !== "null") schemaSetRequired(document, root, op.path, !looser);
-          if (op.when !== "absent") schemaSetNullable(document, root, op.path, looser);
+          if (op.when !== "absent")
+            schemaSetNullable(document, root, op.path, looser, writtenInNew(op.path));
           break;
         }
         case "dropNull":
-          schemaSetNullable(document, root, op.path, op.toward === "old");
+          schemaSetNullable(
+            document,
+            root,
+            op.path,
+            op.toward === "old",
+            writtenInNew(op.path),
+          );
           break;
         case "restate": {
           // Old callers only ever receive a response, so only what they may

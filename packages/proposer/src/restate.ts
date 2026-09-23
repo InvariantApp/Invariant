@@ -71,7 +71,7 @@ export function restatements(
   for (const [name, before] of Object.entries(oldSchemas)) {
     const after = newSchemas[name];
     if (after === undefined || JSON.stringify(before) === JSON.stringify(after)) continue;
-    const moved = choicesMoved(before, after);
+    const moved = choicesMoved(before, after, oldSchemas, newSchemas);
     if (moved.length === 0) continue;
     const sides = schemaDirections(oldContract, `#/components/schemas/${name}`);
     if (!sides.request && !sides.response) continue;
@@ -152,31 +152,64 @@ function restateChange(name: string, path: string): Change {
  * The places, inside one schema written in place, where how a choice or a
  * single value is written differs between the two versions.
  */
-function choicesMoved(before: JsonValue, after: JsonValue): string[] {
-  const was = choicesIn(before);
-  const now = choicesIn(after);
+function choicesMoved(
+  before: JsonValue,
+  after: JsonValue,
+  oldSchemas: Record<string, JsonValue>,
+  newSchemas: Record<string, JsonValue>,
+): string[] {
+  const was = choicesIn(before, oldSchemas);
+  const now = choicesIn(after, newSchemas);
   const places = new Set([...was.keys(), ...now.keys()]);
   return [...places].filter((place) => was.get(place) !== now.get(place));
 }
 
 function choicesIn(
   schema: JsonValue,
+  schemas: Record<string, JsonValue>,
   pointer = "",
   found = new Map<string, string>(),
   depth = 0,
 ): Map<string, string> {
   if (!isJsonObject(schema) || depth > DEPTH) return found;
   // A reference standing where an object was written out says nothing new:
-  // PayPal named its invoice's parts and no value changed.
-  const written = CHOICE_KEYWORDS.filter((keyword) => schema[keyword] !== undefined).map(
+  // PayPal named its invoice's parts and no value changed. One that names a
+  // choice says how the place's choice is written, as a choice written there
+  // would: Supabase's custom hostname errors were any value, and came to
+  // name a choice between the kinds of JSON value.
+  const ref = schema["$ref"];
+  const named =
+    typeof ref === "string" && ref.startsWith(SCHEMA_REF)
+      ? schemas[ref.slice(SCHEMA_REF.length).replaceAll("~1", "/").replaceAll("~0", "~")]
+      : undefined;
+  const stated = isJsonObject(named) ? named : schema;
+  const written = CHOICE_KEYWORDS.filter((keyword) => stated[keyword] !== undefined).map(
     (keyword) =>
-      `${keyword}=${JSON.stringify(unannotated(schema[keyword] as JsonValue))}`,
+      `${keyword}=${JSON.stringify(unannotated(stated[keyword] as JsonValue))}${titlesOf(stated[keyword] as JsonValue)}`,
   );
   if (written.length > 0) found.set(pointer, written.join(" "));
   for (const [key, child] of Object.entries(childrenOf(schema))) {
-    choicesIn(child, `${pointer}/${key}`, found, depth + 1);
+    choicesIn(child, schemas, `${pointer}/${key}`, found, depth + 1);
   }
   return found;
+}
+
+/**
+ * The titles a choice's branches go by, where any has one. A title says
+ * nothing about the values, but a branch written in place is known by it:
+ * Langfuse titled each branch of its prompt, `ChatPrompt` and `TextPrompt`,
+ * and the differ read two branches gone and two new ones arrived in every
+ * response that returns a prompt, where nothing an old caller is sent
+ * changed.
+ */
+function titlesOf(branches: JsonValue): string {
+  if (!Array.isArray(branches)) return "";
+  const titles = branches.map((branch) =>
+    isJsonObject(branch) && typeof branch["title"] === "string" ? branch["title"] : null,
+  );
+  return titles.some((title) => title !== null)
+    ? ` titles=${JSON.stringify(titles)}`
+    : "";
 }
 
 /** What a schema written in place holds, by the segment that reaches it. */

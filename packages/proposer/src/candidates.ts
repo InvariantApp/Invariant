@@ -80,6 +80,12 @@ export interface FieldShape {
   ref?: string;
   /** For a list: what each item is, by type and by name when it has one. */
   items?: { type: string | undefined; ref?: string };
+  /**
+   * For a list's item, that the list holds no value twice. A value it gains
+   * cannot be shown to old callers as one they know, since the list may
+   * already hold that one: it is left out of what they are sent instead.
+   */
+  inSet?: true;
 }
 
 /** The first non-null type a schema declares. */
@@ -193,6 +199,25 @@ const escapePointer = (segment: string) =>
  * and following it from here too would draft every Change to it twice.
  */
 const inline = (raw: JsonValue): boolean => !JSON.stringify(raw).includes('"$ref"');
+
+/**
+ * Whether an object's fields are written where it stands, so reading them
+ * here reads nothing another schema's comparison also reads: no reference
+ * anywhere in it but inside the properties it declares, each of which is
+ * then read, or not, on its own.
+ *
+ * Supabase's custom hostname response holds `data`, an object written in
+ * place whose error lists refer to a named value. Read as `inline`, that one
+ * reference deep inside kept everything in `data` from being read at all,
+ * and eleven fields that may now be missing went unasked.
+ */
+function writtenHere(raw: JsonValue): boolean {
+  if (Array.isArray(raw)) return raw.every(writtenHere);
+  if (!isJsonObject(raw)) return true;
+  return Object.entries(raw).every(([key, value]) =>
+    key === "$ref" ? false : key === "properties" || writtenHere(value),
+  );
+}
 
 /** Keywords that describe a schema without constraining its values. */
 const ANNOTATIONS = new Set([
@@ -453,6 +478,7 @@ function fieldsOf(
       // twelve listed. Read as a choice as well, the item was compared twice.
       listed.length = 0;
       listed.push({
+        ...(value["uniqueItems"] === true ? { inSet: true as const } : {}),
         name: `${here.name}.*`,
         pointer: `${here.pointer}/*`,
         type: typeOf(itemSchema),
@@ -467,7 +493,7 @@ function fieldsOf(
         nullable: itemNull || itemSchema["nullable"] === true,
       });
     }
-    if (depth >= NESTING || !inline(raw)) return [field, ...listed];
+    if (depth >= NESTING || !writtenHere(raw)) return [field, ...listed];
     const mapValues = isJsonObject(value["additionalProperties"])
       ? (value["additionalProperties"] as JsonObject)
       : undefined;
@@ -480,7 +506,7 @@ function fieldsOf(
             { name: `${here.name}.*`, pointer: `${here.pointer}/*` },
             depth + 1,
           )
-        : mapValues && inline(mapValues)
+        : mapValues && writtenHere(mapValues)
           ? // A map: every value, whatever its key, has these fields.
             fieldsOf(
               document,
@@ -503,7 +529,16 @@ function operationsUsing(document: OpenApiDocument): Map<string, string[]> {
   ): void => {
     if (!isJsonObject(schema)) return;
     const ref = schema["$ref"];
-    if (typeof ref !== "string") return;
+    if (typeof ref !== "string") {
+      // A body that is a list of a named schema uses it too, as each item:
+      // Supabase lists an organization's members as a list of
+      // `V1OrganizationMemberResponse`, renamed with an `_Output` suffix in
+      // a later release, and matched by nothing else.
+      if (schema["type"] === "array" && isJsonObject(schema["items"])) {
+        note(schema["items"], operationId, `${where} items`);
+      }
+      return;
+    }
     const name = ref.slice(ref.lastIndexOf("/") + 1);
     byRef.set(name, [...(byRef.get(name) ?? []), `${operationId} ${where}`]);
   };
@@ -1078,6 +1113,7 @@ function compareRead(
     first && first.removed.length > 0
       ? referencesInPlace(
           newContract,
+          left,
           right,
           first.removed.map((field) => field.pointer),
           newSchemas,
@@ -1393,12 +1429,23 @@ function repointedFields(
  */
 function referencesInPlace(
   document: OpenApiDocument,
+  before: readonly FieldShape[],
   fields: readonly FieldShape[],
   removed: readonly string[],
   newSchemas: Record<string, JsonValue>,
 ): FieldShape[] {
   const found: FieldShape[] = [];
   const read = new Set<string>();
+  // Where the old contract refers to the same schema, both sides name it and
+  // it is compared under its name: PayPal's refund wrote its breakdown in
+  // place and later named it, and each amount in it referred to `money` all
+  // along. Read on the new side alone, every amount's currency looked added.
+  const named = new Map<string, string | undefined>();
+  for (const field of before) {
+    if (field.ref !== undefined) named.set(field.pointer, schemaName(field.ref));
+    if (field.items?.ref !== undefined)
+      named.set(`${field.pointer}/*`, schemaName(field.items.ref));
+  }
   // Read again through what was just read: PayPal nested its references, an
   // invoice's `detail` referring to one whose `attachments` refer to another.
   for (let pending = [...fields]; pending.length > 0; ) {
@@ -1410,7 +1457,12 @@ function referencesInPlace(
       ];
       for (const [ref, pointer, name] of targets) {
         const target = ref === undefined ? undefined : schemaName(ref);
-        if (target === undefined || !(target in newSchemas) || read.has(pointer))
+        if (
+          target === undefined ||
+          !(target in newSchemas) ||
+          read.has(pointer) ||
+          named.get(pointer) === target
+        )
           continue;
         // Only the outermost of what went is listed: the field itself,
         // something under it, or something it is under.

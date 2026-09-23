@@ -1102,14 +1102,17 @@ function droppedFromList(pair: {
 
 /**
  * A list old callers are sent whose items named no values and now name some,
- * as the op that leaves those values out of it on the way back.
+ * or that holds no value twice and gained values, as the op that leaves those
+ * values out of it on the way back.
  *
  * Discord's applications listed `event_webhooks_types` as a list of no
  * values at all, and a later release as twelve kinds of event. An old caller
  * was told the list is always empty and has no value of its own to be shown
  * any of the twelve as, so the list it is sent leaves them out, a loss the
  * provider acknowledges. Where the old list named values, which one a new
- * value is shown as is a decision, asked as a fold.
+ * value is shown as is a decision, asked as a fold, unless the list holds no
+ * value twice: folded onto a value it may already hold, a new one would show
+ * old callers that value twice, so it is left out as well.
  */
 function droppedFromResponseList(
   pair: { old: FieldShape; new: FieldShape },
@@ -1118,6 +1121,24 @@ function droppedFromResponseList(
   if (!sides.response || !pair.old.pointer.endsWith("/*")) return undefined;
   const from = pair.old.enumValues;
   const to = pair.new.enumValues;
+  if (from !== undefined && pair.old.inSet && to !== undefined) {
+    const gained = to.filter((value) => !from.includes(value));
+    if (gained.length === 0 || from.some((value) => !to.includes(value))) {
+      return undefined;
+    }
+    return {
+      ops: [
+        {
+          op: "convert",
+          path: pair.old.pointer.slice(0, -2),
+          codec: { kind: "dropValues", values: gained },
+        },
+      ],
+      notes: [
+        `the list holds no value twice, so ${gained.length === 1 ? "the value it gained is" : `the ${gained.length} values it gained are`} left out of what old callers are sent rather than shown as one it may already hold, a declared loss to acknowledge`,
+      ],
+    };
+  }
   if (from === undefined || from.length > 0 || !to?.length) return undefined;
   return {
     ops: [
@@ -1604,8 +1625,13 @@ function foldCovers(
   }
   const gained = to.filter((value) => !from.includes(value));
   const lost = from.filter((value) => !to.includes(value));
-  // One out and one in is drafted as a rename instead.
-  return gained.length > 0 && !(gained.length === 1 && lost.length === 1);
+  // One out and one in is drafted as a rename instead, and what a set gained
+  // is left out of it.
+  return (
+    gained.length > 0 &&
+    !(gained.length === 1 && lost.length === 1) &&
+    !(pair.old.inSet && lost.length === 0)
+  );
 }
 
 /**

@@ -355,6 +355,27 @@ function shapeByName(
 }
 
 /**
+ * How the new contract writes a place in a schema: under the schema's name,
+ * or where the schema reaches the wire when the name is gone.
+ */
+function statementInNew(
+  newContract: OpenApiDocument,
+  routes: readonly RouteMapping[],
+  name: string,
+  site: Site | undefined,
+  path: string,
+): JsonValue | undefined {
+  const named = writtenAt(
+    newContract,
+    { $ref: `#/components/schemas/${name}` },
+    parsePointer(path),
+  );
+  if (named !== undefined && named !== null) return named;
+  const found = site ? shapeFromNewContract(newContract, routes, site, path) : undefined;
+  return found && topOf(newContract, found.shape);
+}
+
+/**
  * Applies every declared Change to a copy of the old document.
  *
  * Schema-scoped data ops are applied once to the named schema, so one statement
@@ -534,7 +555,13 @@ export function predictDocument(
               if (op.when !== "null")
                 schemaSetRequired(document, schema, op.path, !looser);
               if (op.when !== "absent")
-                schemaSetNullable(document, schema, op.path, looser);
+                schemaSetNullable(
+                  document,
+                  schema,
+                  op.path,
+                  looser,
+                  statementInNew(newContract, routes, name, oldSites[0], op.path),
+                );
               break;
             }
             case "relax":
@@ -636,7 +663,13 @@ export function predictDocument(
                 });
                 break;
               }
-              schemaSetNullable(document, schema, op.path, op.toward === "old");
+              schemaSetNullable(
+                document,
+                schema,
+                op.path,
+                op.toward === "old",
+                statementInNew(newContract, routes, name, oldSites[0], op.path),
+              );
               break;
           }
         } catch (error) {
@@ -781,13 +814,14 @@ function looserInResponses(
       path: `${site.prefix}${op.path}`,
     });
   }
+  const written = statementInNew(newContract, routes, entry.name, undefined, op.path);
   const loosen = (root: JsonObject, path: string) => {
     if (op.op === "dropNull") {
-      schemaSetNullable(document, root, path, true);
+      schemaSetNullable(document, root, path, true, written);
       return;
     }
     if (op.when !== "null") schemaSetRequired(document, root, path, false);
-    if (op.when !== "absent") schemaSetNullable(document, root, path, true);
+    if (op.when !== "absent") schemaSetNullable(document, root, path, true, written);
   };
   try {
     if (!walked) {
