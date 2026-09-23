@@ -135,7 +135,7 @@ export function createProxy(options: ProxyOptions): FetchHandler {
     const callerHost = request.headers.get("host") ?? url.host;
     if (upstreamHost === "caller") {
       headers.set("host", callerHost);
-    } else if (!headers.has("x-forwarded-host")) {
+    } else if (!headers.has("x-forwarded-host") && callerHost !== "") {
       headers.set("x-forwarded-host", callerHost);
     }
     // Only a caller who reached this proxy over TLS is told apart from one

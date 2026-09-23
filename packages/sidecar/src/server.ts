@@ -248,10 +248,12 @@ function toRequest(incoming: Incoming): Request {
   // in absolute form names a host, and nothing here should let a caller choose
   // one; the proxy sends everything to its configured upstream regardless.
   const target = new URL(incoming.url ?? "/", "http://placeholder.invalid");
-  // HTTP/2 names the host in :authority, which carries what Host would.
+  // HTTP/2 names the host in :authority, which carries what Host would. An
+  // empty Host is HTTP/1.1's way of naming none, and is passed on as it came;
+  // the URL only needs something to stand in for it.
   const authority = incoming.headers[":authority"];
-  const host =
-    incoming.headers.host ?? (typeof authority === "string" ? authority : "localhost");
+  const named = incoming.headers.host ?? (typeof authority === "string" ? authority : "");
+  const host = named === "" ? "localhost" : named;
   // The scheme the caller used, which the proxy tells the provider about only
   // where it differs from its own connection to it.
   const secure = "encrypted" in incoming.socket && incoming.socket.encrypted === true;

@@ -12,7 +12,7 @@
  * none for.
  */
 import { createServer, type IncomingHttpHeaders, request, type Server } from "node:http";
-import type { AddressInfo } from "node:net";
+import { type AddressInfo, connect } from "node:net";
 import { createRuntime } from "@invariant-app/runtime";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createProxy } from "./proxy.ts";
@@ -120,6 +120,28 @@ describe("the provider, behind the proxy", () => {
     expect(seen[0]?.host).toBe("gitea.internal");
     expect(seen[0]?.["x-forwarded-proto"]).toBe("https");
     expect(seen[0]?.["x-forwarded-host"]).toBe("gitea.example");
+  });
+});
+
+describe("a request that names no host", () => {
+  // HTTP/1.1 has a client send an empty Host where its target has no
+  // authority. Immich 1.137's suite does, to see its share pages fall back
+  // to their public address, and the proxy refused it as not a host.
+  it("reaches the provider with the empty Host it was sent", async () => {
+    seen = [];
+    // Written by hand: Node's own client puts a host in an empty Host.
+    const { port } = new URL(proxy.url);
+    const head = await new Promise<string>((resolve, reject) => {
+      const socket = connect(Number(port), "127.0.0.1", () => {
+        socket.write("GET /version HTTP/1.1\r\nHost: \r\nConnection: close\r\n\r\n");
+      });
+      let text = "";
+      socket.on("data", (chunk) => (text += chunk));
+      socket.on("end", () => resolve(text));
+      socket.on("error", reject);
+    });
+    expect(head.split("\r\n")[0]).toBe("HTTP/1.1 200 OK");
+    expect(seen[0]?.host).toBe("");
   });
 });
 
