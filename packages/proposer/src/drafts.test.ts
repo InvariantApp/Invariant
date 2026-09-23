@@ -582,6 +582,38 @@ describe("a field that points at a different schema", () => {
   });
 });
 
+describe("a named list of a choice that did not change", () => {
+  // Datadog's `display_block` names `LLMObsContentBlocks`, a list of
+  // `LLMObsContentBlock`, which is a choice between two blocks. Nothing
+  // about any of them changed, and every later Datadog release still drafted
+  // `display_block.*.type` as newly required: the list's own reference was
+  // read as if it were its items'.
+  it("drafts nothing", async () => {
+    const schemas = {
+      ...base,
+      Thing: object(
+        { id: { type: "string" }, blocks: { $ref: "#/components/schemas/Blocks" } },
+        ["id", "blocks"],
+      ),
+      Blocks: { type: "array", items: { $ref: "#/components/schemas/Block" } },
+      Block: {
+        ...object({ type: { type: "string" }, url: { type: "string" } }, ["type"]),
+        anyOf: [
+          { $ref: "#/components/schemas/Frontend" },
+          { $ref: "#/components/schemas/Legacy" },
+        ],
+      },
+      Frontend: object({ code: { type: "string" }, type: { type: "string" } }, ["code"]),
+      Legacy: object({ type: { type: "string" } }),
+    };
+    const outcome = await propose(contract(schemas), contract(schemas), {
+      judge: new RulesJudge(),
+    });
+    expect(outcome.proposals).toEqual([]);
+    expect(outcome.decisions).toEqual([]);
+  });
+});
+
 describe("a schema that stopped describing itself", () => {
   // Amazon replaced CloudDirectory's error schemas with `{}` between two
   // versions: an empty schema allows everything the old one did.

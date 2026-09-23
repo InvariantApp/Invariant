@@ -955,10 +955,15 @@ function repointedFields(
   const newAt = new Map(after.map((field) => [field.pointer, field]));
   const found = { before: [] as FieldShape[], after: [] as FieldShape[] };
   for (const field of before) {
-    for (const [ref, pointer, name] of [
-      [field.ref, field.pointer, field.name],
-      [field.items?.ref, `${field.pointer}/*`, `${field.name}.*`],
-    ] as [string | undefined, string, string][]) {
+    // Which reference is read is said, not guessed from the pointer: the
+    // item of a list of a choice is listed as a field of its own, at
+    // `display_block/*`, and read as a list's items it compared Datadog's
+    // unchanged `LLMObsContentBlocks` with the block it holds, so every
+    // field of the block looked newly added to responses that never changed.
+    for (const [ref, pointer, name, throughItems] of [
+      [field.ref, field.pointer, field.name, false],
+      [field.items?.ref, `${field.pointer}/*`, `${field.name}.*`, true],
+    ] as [string | undefined, string, string, boolean][]) {
       const was = ref === undefined ? undefined : schemaName(ref);
       if (was === undefined || !(was in newSchemas)) continue;
       // Only where the schema it pointed at is itself unchanged: one that
@@ -969,9 +974,7 @@ function repointedFields(
       // already converted.
       if (JSON.stringify(oldSchemas[was]) !== JSON.stringify(newSchemas[was])) continue;
       const there = newAt.get(field.pointer);
-      const now = schemaName(
-        (pointer.endsWith("/*") ? there?.items?.ref : there?.ref) ?? "",
-      );
+      const now = schemaName((throughItems ? there?.items?.ref : there?.ref) ?? "");
       if (now === undefined || now === was || !(now in newSchemas)) continue;
       const depth = pointer
         .split("/")
