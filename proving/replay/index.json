@@ -2,6 +2,22 @@
   "about": "Rig E. Merged pull requests where a bot bumped an SDK across a major version and humans edited source files on the same pull request. Only this index is kept; the code stays in its repositories.",
   "cases": [
     {
+      "id": "178inaba/third-party-test#59",
+      "repo": "178inaba/third-party-test",
+      "pr": 59,
+      "base": "063c146f78db55a2fd87569a334a922219e12232",
+      "head": "a9e63e57f4781ee61cbc1a4326ce01aeb8a53dd7",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "72.122.0",
+      "to": "73.0.1",
+      "license": "MIT",
+      "mergedAt": "2022-08-06T17:00:41Z",
+      "files": [
+        "main.go"
+      ]
+    },
+    {
       "id": "2gis/k8s-handle#143",
       "repo": "2gis/k8s-handle",
       "pr": 143,
@@ -757,6 +773,24 @@
         "sycamore/transforms/extract_entity.py",
         "sycamore/transforms/extract_schema.py",
         "sycamore/transforms/summarize.py"
+      ]
+    },
+    {
+      "id": "Awis13/controlplane#41",
+      "repo": "Awis13/controlplane",
+      "pr": 41,
+      "base": "53362ef9c35fb2c796b3a711ec967daa546d3965",
+      "head": "ec24c5d89bfde2c2197f525cb0e4808a7e6d6ef1",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "82.5.1",
+      "to": "86.2.0",
+      "license": "MIT",
+      "mergedAt": "2026-08-02T17:25:17Z",
+      "files": [
+        "internal/billing/handler_test.go",
+        "internal/billing/stripe.go",
+        "internal/billing/webhook_test.go"
       ]
     },
     {
@@ -1586,6 +1620,25 @@
       ]
     },
     {
+      "id": "clambin/github-stars#41",
+      "repo": "clambin/github-stars",
+      "pr": 41,
+      "base": "fcbbf517f35ea80f440e3742aede413c54de783a",
+      "head": "a9cf86b81776dd31f9db64eac72edc4130000614",
+      "package": "github.com/slack-go/slack",
+      "ecosystem": "go",
+      "from": "0.19.0",
+      "to": "0.21.1",
+      "license": "MIT",
+      "mergedAt": "2026-04-11T15:40:10Z",
+      "files": [
+        "github-stars_test.go",
+        "internal/github/github_test.go",
+        "internal/github/webhook_test.go",
+        "internal/stars/store.go"
+      ]
+    },
+    {
       "id": "CleanExpo/NodeJS-Starter-V1#60",
       "repo": "CleanExpo/NodeJS-Starter-V1",
       "pr": 60,
@@ -1736,6 +1789,38 @@
       "mergedAt": "2022-10-25T18:54:55Z",
       "files": [
         "setup.py"
+      ]
+    },
+    {
+      "id": "cryptoquantumwave/khunquant#12",
+      "repo": "cryptoquantumwave/khunquant",
+      "pr": 12,
+      "base": "73eba63309bb9cdabe6aed393adda52bec6721d4",
+      "head": "2d374b3e40c8cbbbc90eeabada6a52c57f157bf0",
+      "package": "github.com/slack-go/slack",
+      "ecosystem": "go",
+      "from": "0.17.3",
+      "to": "0.23.1",
+      "license": "MIT",
+      "mergedAt": "2026-06-02T16:31:57Z",
+      "files": [
+        "pkg/channels/slack/slack.go"
+      ]
+    },
+    {
+      "id": "CSUSTers/csust-got#688",
+      "repo": "CSUSTers/csust-got",
+      "pr": 688,
+      "base": "6b027bd5a5c4b96f726ed8ce2424182aa987dd3f",
+      "head": "3a38b4e6c99591a59d69a72561e5fc076b208472",
+      "package": "github.com/meilisearch/meilisearch-go",
+      "ecosystem": "go",
+      "from": "0.34.2",
+      "to": "0.35.0",
+      "license": "MIT",
+      "mergedAt": "2025-12-31T07:07:28Z",
+      "files": [
+        "meili/meili_search.go"
       ]
     },
     {
@@ -2055,6 +2140,54 @@
       ]
     },
     {
+      "id": "distr-sh/distr#2153",
+      "repo": "distr-sh/distr",
+      "pr": 2153,
+      "base": "e87e1e9b63ca511b725637454b615692b0209306",
+      "head": "fa99d4ac47e3d0a3a4c26de6ef998d29a80cbee0",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "84.4.1",
+      "to": "85.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-04-08T11:37:15Z",
+      "files": [
+        "cmd/hub/cmd/serve.go",
+        "internal/billing/billing_portal.go",
+        "internal/billing/price.go",
+        "internal/billing/subscription.go",
+        "internal/env/env.go",
+        "internal/env/types.go",
+        "internal/handlers/billing_subscription.go",
+        "internal/handlers/webhook_stripe.go"
+      ]
+    },
+    {
+      "id": "distr-sh/distr#2597",
+      "repo": "distr-sh/distr",
+      "pr": 2597,
+      "base": "3fe4949fde45b7b6568131c0b8b2b1242d3313c8",
+      "head": "fcb21ceec93df151a8879fdceec1b39eb9dcc1d1",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "85.2.0",
+      "to": "86.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-06-09T11:35:08Z",
+      "files": [
+        "cmd/hub/cmd/serve.go",
+        "internal/billing/billing_portal.go",
+        "internal/billing/price.go",
+        "internal/billing/subscription.go",
+        "internal/handlers/billing_subscription.go",
+        "internal/handlers/license_templates.go",
+        "internal/handlers/webhook_stripe.go",
+        "internal/handlers/webhook_stripe_vendor.go",
+        "internal/licensetemplate/render.go",
+        "internal/licensetemplate/render_test.go"
+      ]
+    },
+    {
       "id": "driftive/driftive#94",
       "repo": "driftive/driftive",
       "pr": 94,
@@ -2143,6 +2276,24 @@
         "pkg/source/github_asset.go",
         "pkg/source/helm.go",
         "pkg/source/kubernetes.go"
+      ]
+    },
+    {
+      "id": "elastic/elasticsearch-k8s-metrics-adapter#183",
+      "repo": "elastic/elasticsearch-k8s-metrics-adapter",
+      "pr": 183,
+      "base": "9af3379bd51e606be26c0b8144c5952a7c8f230d",
+      "head": "8462421fbc61e02c4987c28b63a636c55070739e",
+      "package": "github.com/elastic/go-elasticsearch",
+      "ecosystem": "go",
+      "from": "",
+      "to": "9",
+      "license": "Apache-2.0",
+      "mergedAt": "2025-05-07T19:01:15Z",
+      "files": [
+        "pkg/client/elasticsearch/client.go",
+        "pkg/client/elasticsearch/discovery.go",
+        "pkg/client/elasticsearch/query.go"
       ]
     },
     {
@@ -2258,6 +2409,22 @@
         "scripts/changelog/merge_gatherer.go",
         "scripts/changelog/merge_gatherer_test.go",
         "scripts/changelog/pr_workflow_adapter.go"
+      ]
+    },
+    {
+      "id": "elicify-ai/omnipus#7",
+      "repo": "elicify-ai/omnipus",
+      "pr": 7,
+      "base": "0ecac48f9b037f1523d611fe599c4ddec4d1ec4c",
+      "head": "f2d628b899ecbac86456eacb82b40f8e890c9eca",
+      "package": "github.com/slack-go/slack",
+      "ecosystem": "go",
+      "from": "0.17.3",
+      "to": "0.20.0",
+      "license": "MIT",
+      "mergedAt": "2026-04-21T05:42:14Z",
+      "files": [
+        "pkg/channels/slack/slack.go"
       ]
     },
     {
@@ -2495,6 +2662,29 @@
         "tests/test_pr_s11_tools_and_exec.py",
         "tests/test_round6_security.py",
         "tests/test_s22d_stream.py"
+      ]
+    },
+    {
+      "id": "foks-proj/go-foks#29",
+      "repo": "foks-proj/go-foks",
+      "pr": 29,
+      "base": "416259fd70372f7d1bc850dadd28da067859d2e7",
+      "head": "4a05180372e53bc5232bcea155e8f554f23bcf92",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "81.4.0",
+      "to": "82.1.0",
+      "license": "MIT",
+      "mergedAt": "2025-05-09T14:14:36Z",
+      "files": [
+        "integration-tests/cli/web_test.go",
+        "integration-tests/cli/webhook_json.go",
+        "proto/infra/extras.go",
+        "server/shared/payments.go",
+        "server/shared/stripe.go",
+        "server/shared/striper.go",
+        "server/web/app/admin/plans.go",
+        "server/web/app/admin/stripe.go"
       ]
     },
     {
@@ -3217,6 +3407,25 @@
       ]
     },
     {
+      "id": "git-pkgs/forge#46",
+      "repo": "git-pkgs/forge",
+      "pr": 46,
+      "base": "cb026459c1eb24e0e6fc9acb8ca0e58d0f615d02",
+      "head": "fdf199c48979dfb43549617f13eaa06bfe127a0c",
+      "package": "code.gitea.io/sdk/gitea",
+      "ecosystem": "go",
+      "from": "0.23.2",
+      "to": "0.24.1",
+      "license": "MIT",
+      "mergedAt": "2026-04-13T10:23:02Z",
+      "files": [
+        "gitea/ci_test.go",
+        "gitea/gitea_test.go",
+        "gitea/prs.go",
+        "gitea/secrets.go"
+      ]
+    },
+    {
       "id": "github/vscode-codeql#4114",
       "repo": "github/vscode-codeql",
       "pr": 4114,
@@ -3304,6 +3513,24 @@
       ]
     },
     {
+      "id": "go-joe/slack-adapter#27",
+      "repo": "go-joe/slack-adapter",
+      "pr": 27,
+      "base": "551a4be5e4eecaa785bbb8fa2f75204c7555bf12",
+      "head": "d30f6c1bfd4a3b3717fec69ec39d4675158b67bf",
+      "package": "github.com/slack-go/slack",
+      "ecosystem": "go",
+      "from": "0.6.5",
+      "to": "0.23.1",
+      "license": "BSD-3-Clause",
+      "mergedAt": "2026-06-29T07:33:03Z",
+      "files": [
+        "adapter.go",
+        "events_api.go",
+        "events_api_test.go"
+      ]
+    },
+    {
       "id": "goodtune/ghp#110",
       "repo": "goodtune/ghp",
       "pr": 110,
@@ -3354,6 +3581,38 @@
       "files": [
         "internal/github/app.go",
         "internal/server/api.go"
+      ]
+    },
+    {
+      "id": "goreleaser/goreleaser#6029",
+      "repo": "goreleaser/goreleaser",
+      "pr": 6029,
+      "base": "142d972b0ae133c9efb5498ecfb21d9064eba859",
+      "head": "88c5a06d3577404e71c42c27433ad753bc21d8db",
+      "package": "code.gitea.io/sdk/gitea",
+      "ecosystem": "go",
+      "from": "0.21.0",
+      "to": "0.22.0",
+      "license": "MIT",
+      "mergedAt": "2025-09-02T03:18:34Z",
+      "files": [
+        "internal/client/gitea_test.go"
+      ]
+    },
+    {
+      "id": "grafana/flagger-k6-webhook#203",
+      "repo": "grafana/flagger-k6-webhook",
+      "pr": 203,
+      "base": "2a402f32816fd5ff736068b15e29e6eb2a364727",
+      "head": "c442a62ab045c84f67c07f651ff9f2b3df4c6ff6",
+      "package": "github.com/slack-go/slack",
+      "ecosystem": "go",
+      "from": "0.14.0",
+      "to": "0.15.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2024-10-16T12:29:55Z",
+      "files": [
+        "pkg/slack/client.go"
       ]
     },
     {
@@ -3577,6 +3836,22 @@
       "mergedAt": "2023-10-02T07:04:50Z",
       "files": [
         "setup.py"
+      ]
+    },
+    {
+      "id": "hellej/pr-slack-reminder-action#30",
+      "repo": "hellej/pr-slack-reminder-action",
+      "pr": 30,
+      "base": "7e7f4fd38482e91d0d1c6f230e28a3ae1f20753c",
+      "head": "537ecd35ec742deaf4d02640be5b64930eba12dd",
+      "package": "github.com/slack-go/slack",
+      "ecosystem": "go",
+      "from": "0.19.0",
+      "to": "0.22.0",
+      "license": "MIT",
+      "mergedAt": "2026-04-16T17:04:34Z",
+      "files": [
+        "testhelpers/mockslackclient/mockslackclient.go"
       ]
     },
     {
@@ -3911,6 +4186,57 @@
       "mergedAt": "2026-03-25T13:32:29Z",
       "files": [
         "zammad-ai/app/triage/genai_handler.py"
+      ]
+    },
+    {
+      "id": "jackchuka/slackcli#17",
+      "repo": "jackchuka/slackcli",
+      "pr": 17,
+      "base": "b6e0f6c523c633fd1dd7ca442cbaec4560a713be",
+      "head": "7f854824a145cdbdd492fd208f5d50d2121100a5",
+      "package": "github.com/slack-go/slack",
+      "ecosystem": "go",
+      "from": "0.20.0",
+      "to": "0.21.0",
+      "license": "MIT",
+      "mergedAt": "2026-04-07T02:30:05Z",
+      "files": [
+        "internal/slack/reactions.go"
+      ]
+    },
+    {
+      "id": "jackchuka/slackcli#3",
+      "repo": "jackchuka/slackcli",
+      "pr": 3,
+      "base": "6646eb6df76fb2753aa4e2ed5af2fb129e02b7c1",
+      "head": "4eb11c6faf20cc63670432dd2dc7d91293a6cc35",
+      "package": "github.com/slack-go/slack",
+      "ecosystem": "go",
+      "from": "0.17.3",
+      "to": "0.18.0",
+      "license": "MIT",
+      "mergedAt": "2026-02-23T14:37:20Z",
+      "files": [
+        "internal/slack/files.go"
+      ]
+    },
+    {
+      "id": "jaegertracing/jaeger#7041",
+      "repo": "jaegertracing/jaeger",
+      "pr": 7041,
+      "base": "40e1ff337c442256a7633615aefe35d4ef8f7ca5",
+      "head": "d0982e0f2bfda3fb8e636b07c11629d885aa1305",
+      "package": "github.com/elastic/go-elasticsearch",
+      "ecosystem": "go",
+      "from": "",
+      "to": "9",
+      "license": "Apache-2.0",
+      "mergedAt": "2025-04-17T20:04:54Z",
+      "files": [
+        "internal/storage/elasticsearch/config/config.go",
+        "internal/storage/elasticsearch/wrapper/wrapper.go",
+        "internal/storage/integration/elasticsearch_test.go",
+        "internal/storage/integration/es_index_cleaner_test.go"
       ]
     },
     {
@@ -4492,6 +4818,24 @@
       ]
     },
     {
+      "id": "kubev2v/migration-event-streamer#120",
+      "repo": "kubev2v/migration-event-streamer",
+      "pr": 120,
+      "base": "ef8381391b5cbb598c079c9b7e4905d061628c91",
+      "head": "3a38085a55fc42dce8ec26d1ecd96083b697b94f",
+      "package": "github.com/elastic/go-elasticsearch",
+      "ecosystem": "go",
+      "from": "",
+      "to": "9",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-08-06T12:02:18Z",
+      "files": [
+        "internal/datastore/elastic/client.go",
+        "internal/datastore/elastic/writer.go",
+        "test/e2e/service/elasticsearch.go"
+      ]
+    },
+    {
       "id": "kula-app/OnLaunch#1052",
       "repo": "kula-app/OnLaunch",
       "pr": 1052,
@@ -4980,6 +5324,27 @@
       ]
     },
     {
+      "id": "linuxfoundation/lfx-crowdfunding#79",
+      "repo": "linuxfoundation/lfx-crowdfunding",
+      "pr": 79,
+      "base": "8156b5f45057af157142484b5d0ec3a9ebe16697",
+      "head": "78202cb6d53986a4555ee692d17d7bbf04b36d0e",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "82.0.0",
+      "to": "85.2.0",
+      "license": "MIT",
+      "mergedAt": "2026-06-02T17:24:02Z",
+      "files": [
+        "backend/internal/handler/approval_handler_test.go",
+        "backend/internal/handler/webhook_handler.go",
+        "backend/internal/handler/webhook_handler_test.go",
+        "backend/internal/infrastructure/clients/stripe_client.go",
+        "backend/internal/service/initiative_service_test.go",
+        "backend/internal/service/stripe_mocks_test.go"
+      ]
+    },
+    {
       "id": "longhorn/longhorn-tests#1173",
       "repo": "longhorn/longhorn-tests",
       "pr": 1173,
@@ -5081,6 +5446,59 @@
       "mergedAt": "2026-08-19T21:49:28Z",
       "files": [
         "setup.py"
+      ]
+    },
+    {
+      "id": "lukasaron/terraform-provider-stripe#69",
+      "repo": "lukasaron/terraform-provider-stripe",
+      "pr": 69,
+      "base": "9664decf1bfcb2990009e05faeda2bef959c3662",
+      "head": "3dc6037487517edf10ae73effc550c84962cdd69",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "76.25.0",
+      "to": "78.11.0",
+      "license": "MPL-2.0",
+      "mergedAt": "2024-06-17T02:25:00Z",
+      "files": [
+        "stripe/provider.go",
+        "stripe/resource_shipping_rate.go",
+        "stripe/resource_stripe_card.go",
+        "stripe/resource_stripe_coupon.go",
+        "stripe/resource_stripe_customer.go",
+        "stripe/resource_stripe_file.go",
+        "stripe/resource_stripe_portal_configuration.go",
+        "stripe/resource_stripe_price.go",
+        "stripe/resource_stripe_product.go",
+        "stripe/resource_stripe_promotion_code.go",
+        "stripe/resource_stripe_tax_rate.go",
+        "stripe/resource_stripe_webhook_endpoint.go",
+        "stripe/utils.go"
+      ]
+    },
+    {
+      "id": "LumeWeb/portal-plugin-billing#136",
+      "repo": "LumeWeb/portal-plugin-billing",
+      "pr": 136,
+      "base": "e641366e35d5a6a1018820024a67c6acd74f1c5a",
+      "head": "a47c266dfb251d343e8e3fae056ed6ba84eb915b",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "83.2.1",
+      "to": "85.1.0",
+      "license": "MIT",
+      "mergedAt": "2026-04-29T05:02:38Z",
+      "files": [
+        "internal/gateway/stripe/checkout_test.go",
+        "internal/gateway/stripe/pause_resume_test.go",
+        "internal/gateway/stripe/plan_change_test.go",
+        "internal/gateway/stripe/stripe.go",
+        "internal/gateway/stripe/stripe_sync_test.go",
+        "internal/gateway/stripe/stripe_syncplan_test.go",
+        "internal/gateway/stripe/stripe_test.go",
+        "internal/gateway/stripe/stripe_validation_test.go",
+        "internal/gateway/stripe/testing.go",
+        "pkg/subscription/stripe_integration/stripe_preview_test.go"
       ]
     },
     {
@@ -5199,6 +5617,22 @@
       "mergedAt": "2026-09-21T22:28:39Z",
       "files": [
         "packages/server/src/stripe/index.ts"
+      ]
+    },
+    {
+      "id": "MartialBE/one-hub#384",
+      "repo": "MartialBE/one-hub",
+      "pr": 384,
+      "base": "cfdf1081457ee9f97bb0a850e8e8f477635abac2",
+      "head": "7d2df1156f48f002108d7a08048364432771692d",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "79.12.0",
+      "to": "80.2.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2024-10-17T11:56:38Z",
+      "files": [
+        "payment/gateway/stripe/payment.go"
       ]
     },
     {
@@ -5842,6 +6276,23 @@
       ]
     },
     {
+      "id": "openclaw/slacrawl#44",
+      "repo": "openclaw/slacrawl",
+      "pr": 44,
+      "base": "3db7c255fa1d09a5142bf03c45e501266652a89c",
+      "head": "c369c314dfc80ca8e5fb148ae3e9779c9b81b290",
+      "package": "github.com/slack-go/slack",
+      "ecosystem": "go",
+      "from": "0.23.1",
+      "to": "0.24.0",
+      "license": "MIT",
+      "mergedAt": "2026-05-25T17:40:05Z",
+      "files": [
+        "internal/slackdesktop/desktop.go",
+        "internal/slackdesktop/desktop_test.go"
+      ]
+    },
+    {
       "id": "opencollective/opencollective-api#10416",
       "repo": "opencollective/opencollective-api",
       "pr": 10416,
@@ -5998,6 +6449,28 @@
       ]
     },
     {
+      "id": "paulden/terraform-provider-meilisearch#129",
+      "repo": "paulden/terraform-provider-meilisearch",
+      "pr": 129,
+      "base": "fa3e477b4e72e34ed74ba06ee2b36d7553abddc9",
+      "head": "ee9c21fd0a3d84db7bf7c753ee7a595b9d70384d",
+      "package": "github.com/meilisearch/meilisearch-go",
+      "ecosystem": "go",
+      "from": "0.27.2",
+      "to": "0.28.0",
+      "license": "MPL-2.0",
+      "mergedAt": "2024-08-26T13:38:02Z",
+      "files": [
+        "internal/provider/index_data_source.go",
+        "internal/provider/index_resource.go",
+        "internal/provider/key_data_source.go",
+        "internal/provider/key_resource.go",
+        "internal/provider/key_resource_test.go",
+        "internal/provider/provider.go",
+        "internal/provider/version_data_source.go"
+      ]
+    },
+    {
       "id": "PennyDreadfulMTG/Penny-Dreadful-Tools#14690",
       "repo": "PennyDreadfulMTG/Penny-Dreadful-Tools",
       "pr": 14690,
@@ -6012,6 +6485,22 @@
       "files": [
         "decksite/data/news.py",
         "shared/repo.py"
+      ]
+    },
+    {
+      "id": "pepabo/plusplusbot#113",
+      "repo": "pepabo/plusplusbot",
+      "pr": 113,
+      "base": "43d30810aaf7943de75c642ba6efb4802241cde7",
+      "head": "32d4f2cb8fe3c8d338fc4214d865ab58c377093c",
+      "package": "github.com/slack-go/slack",
+      "ecosystem": "go",
+      "from": "0.20.0",
+      "to": "0.21.1",
+      "license": "MIT",
+      "mergedAt": "2026-04-10T05:53:44Z",
+      "files": [
+        "bot/bot.go"
       ]
     },
     {
@@ -6538,6 +7027,34 @@
         "release/rke2/rke2.go",
         "release/ui/ui.go",
         "repository/repository.go"
+      ]
+    },
+    {
+      "id": "raystack/frontier#698",
+      "repo": "raystack/frontier",
+      "pr": 698,
+      "base": "9215d57fc5e09de83fb8e9d6dd68f34691d4416d",
+      "head": "38ba63e96292ebe5703a2ced72f14e2ca580d20e",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "75.10.0",
+      "to": "79.5.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2024-07-29T16:03:11Z",
+      "files": [
+        "billing/checkout/service.go",
+        "billing/customer/service.go",
+        "billing/invoice/service.go",
+        "billing/plan/service.go",
+        "billing/product/service.go",
+        "billing/product/service_test.go",
+        "billing/stripetest/backend.go",
+        "billing/stripetest/mocks/backend.go",
+        "billing/subscription/service.go",
+        "cmd/serve.go",
+        "core/event/service.go",
+        "test/e2e/regression/billing_test.go",
+        "test/e2e/testbench/stripe.go"
       ]
     },
     {
@@ -7166,6 +7683,22 @@
         "serve_event_listener/status_data.py",
         "serve_event_listener/status_queue.py",
         "tests/test_status_data.py"
+      ]
+    },
+    {
+      "id": "sebrandon1/mirrorbot#29",
+      "repo": "sebrandon1/mirrorbot",
+      "pr": 29,
+      "base": "2550c75ba041999c4a70c624f3d6e9d95d04c688",
+      "head": "9b428e8f215bf8d984c1e6ce69220eb70c2d804f",
+      "package": "github.com/slack-go/slack",
+      "ecosystem": "go",
+      "from": "0.20.0",
+      "to": "0.21.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-04-08T12:52:34Z",
+      "files": [
+        "main.go"
       ]
     },
     {
@@ -9542,6 +10075,56 @@
       ]
     },
     {
+      "id": "ViBiOh/kaamebott#212",
+      "repo": "ViBiOh/kaamebott",
+      "pr": 212,
+      "base": "e29081262556c75a28db5b57c845aaf2c9848f9b",
+      "head": "eac3719370fa2ac76f94f2b9fb4ced2e25190de8",
+      "package": "github.com/meilisearch/meilisearch-go",
+      "ecosystem": "go",
+      "from": "0.27.2",
+      "to": "0.28.0",
+      "license": "MIT",
+      "mergedAt": "2024-08-24T11:48:41Z",
+      "files": [
+        "cmd/indexer/indexer.go",
+        "pkg/search/search.go"
+      ]
+    },
+    {
+      "id": "ViBiOh/kaamebott#280",
+      "repo": "ViBiOh/kaamebott",
+      "pr": 280,
+      "base": "b05a581c9f45ff57a32e4fbfe72670df567ebf9c",
+      "head": "e14304a29712a8fb6c570feca7f358cb3be588d6",
+      "package": "github.com/meilisearch/meilisearch-go",
+      "ecosystem": "go",
+      "from": "0.32.0",
+      "to": "0.33.0",
+      "license": "MIT",
+      "mergedAt": "2025-08-09T14:48:19Z",
+      "files": [
+        "pkg/indexer/indexer.go",
+        "pkg/search/search.go"
+      ]
+    },
+    {
+      "id": "ViBiOh/kaamebott#304",
+      "repo": "ViBiOh/kaamebott",
+      "pr": 304,
+      "base": "5318fd63b9677b4958de74579dd3629e5015363d",
+      "head": "95bad93fae87789db5e641d29df95cdc25b7486e",
+      "package": "github.com/meilisearch/meilisearch-go",
+      "ecosystem": "go",
+      "from": "0.34.2",
+      "to": "0.35.0",
+      "license": "MIT",
+      "mergedAt": "2025-12-27T12:35:45Z",
+      "files": [
+        "pkg/indexer/indexer.go"
+      ]
+    },
+    {
       "id": "vignesh-gupta/digibee-marketplace#250",
       "repo": "vignesh-gupta/digibee-marketplace",
       "pr": 250,
@@ -9919,6 +10502,22 @@
       "files": [
         "internal/inspector/inspector.go",
         "internal/inspector/permissions.go"
+      ]
+    },
+    {
+      "id": "wtfutil/wtf#1510",
+      "repo": "wtfutil/wtf",
+      "pr": 1510,
+      "base": "6da6aa042efe6f8fa68c2b24a643a8c7c2fc6cd9",
+      "head": "042b64cd1e7758cd0025f2bde5e567c6911adb7d",
+      "package": "github.com/PagerDuty/go-pagerduty",
+      "ecosystem": "go",
+      "from": "0.0.0-20191002190746-f60f4fc45222",
+      "to": "1.6.0",
+      "license": "MPL-2.0",
+      "mergedAt": "2023-02-27T14:25:12Z",
+      "files": [
+        "modules/pagerduty/client.go"
       ]
     },
     {
