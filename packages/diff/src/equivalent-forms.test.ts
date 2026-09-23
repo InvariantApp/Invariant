@@ -5,7 +5,7 @@
  * and was blocked on 347 breaking changes nobody could see.
  */
 import type { OpenApiDocument } from "@invariant-app/contract";
-import type { JsonObject } from "@invariant-app/ir";
+import type { JsonObject, JsonValue } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import { equivalentForms } from "./equivalent-forms.ts";
 import { diffDocuments } from "./oasdiff.ts";
@@ -122,7 +122,7 @@ describe("two ways of writing one schema", () => {
 describe("a text schema whose values are written as numbers", () => {
   // Plaid's Prism versions, `type: string` with `enum: [4.1, 4, 3]`, written
   // as text a release later.
-  const version = (values: unknown[]) =>
+  const version = (values: JsonValue[]) =>
     api({
       type: "object",
       properties: { cashscore: { type: "string", nullable: true, enum: values } },
