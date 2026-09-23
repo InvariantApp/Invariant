@@ -115,6 +115,71 @@ export function covers(outer: Placed, inner: Placed): Coverage {
   );
 }
 
+/**
+ * Whether every property the first schema names, anywhere inside it, the
+ * second still names at the same place.
+ *
+ * Containment alone cannot tell a field that was renamed from one that was
+ * always absent: a property a schema does not declare is taken never to be
+ * sent, so PayPal's optional `issues`, renamed `details`, was covered both
+ * ways, and a restatement in place of the rename would have dropped every
+ * issue on its way to an old caller. What a restatement may change is how the
+ * values are written, never which names carry them.
+ */
+export function keepsNames(before: Placed, after: Placed): Coverage {
+  const kept = namesIn(after.document, after.schema);
+  for (const name of namesIn(before.document, before.schema)) {
+    if (!kept.has(name)) {
+      return missed(
+        name,
+        "the new schema no longer names it, so a value under it would be lost",
+      );
+    }
+  }
+  return COVERED;
+}
+
+/** How deep `keepsNames` reads. */
+const NAME_DEPTH = 12;
+
+function namesIn(document: OpenApiDocument, schema: JsonValue): Set<string> {
+  const names = new Set<string>();
+  const visit = (
+    value: JsonValue,
+    at: string,
+    depth: number,
+    refs: ReadonlySet<string>,
+  ) => {
+    if (!isJsonObject(value) || depth > NAME_DEPTH) return;
+    const ref = value["$ref"];
+    // A schema that holds itself names nothing new the second time round.
+    if (typeof ref === "string" && refs.has(ref)) return;
+    const through = typeof ref === "string" ? new Set([...refs, ref]) : refs;
+    const here = resolved(document, value);
+    if (!isJsonObject(here)) return;
+    for (const keyword of ["oneOf", "anyOf", "allOf"]) {
+      const branches = here[keyword];
+      if (Array.isArray(branches)) {
+        for (const branch of branches) visit(branch, at, depth + 1, through);
+      }
+    }
+    const properties = here["properties"];
+    if (isJsonObject(properties)) {
+      for (const [name, child] of Object.entries(properties)) {
+        const place = `${at}/${escapeSegment(name)}`;
+        names.add(place);
+        visit(child, place, depth + 1, through);
+      }
+    }
+    if (here["items"] !== undefined) visit(here["items"], `${at}/*`, depth + 1, through);
+    if (isJsonObject(here["additionalProperties"])) {
+      visit(here["additionalProperties"], `${at}/{}`, depth + 1, through);
+    }
+  };
+  visit(schema, "", 0, new Set());
+  return names;
+}
+
 class Prover {
   /** Pairs of named schemas being compared, answered covered while in progress. */
   readonly #inProgress = new Set<string>();

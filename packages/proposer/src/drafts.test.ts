@@ -1911,6 +1911,24 @@ describe("restatements", () => {
     ]);
   });
 
+  it("is not drafted for a rename, which containment alone cannot tell apart (PayPal)", async () => {
+    const problem = (name: string, choice: boolean) =>
+      object({
+        [name]: {
+          type: "array",
+          items: choice
+            ? { anyOf: [object({ issue: { type: "string" } })] }
+            : object({ issue: { type: "string" } }),
+        },
+      });
+    const outcome = await propose(
+      contract({ ...base, Thing: problem("issues", false) }),
+      contract({ ...base, Thing: problem("details", true) }),
+      { judge: new RulesJudge() },
+    );
+    expect(restatementsIn(outcome)).toEqual([]);
+  });
+
   it("stands down where another draft changes a schema the place refers to (PayPal)", async () => {
     // The shared phone schema gained a required country code, which old
     // callers creating a thing must now be given one for; the thing's phone

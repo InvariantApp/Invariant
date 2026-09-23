@@ -5,7 +5,7 @@
  * leaves a place unexplained.
  */
 import { describe, expect, it } from "vitest";
-import { covers } from "./containment.ts";
+import { covers, keepsNames } from "./containment.ts";
 import type { OpenApiDocument } from "./spec.ts";
 
 const doc = (schemas: Record<string, unknown> = {}) =>
@@ -395,5 +395,62 @@ describe("choices", () => {
         { type: "string", not: { enum: ["x"] } },
       ).covered,
     ).toBe(true);
+  });
+});
+
+describe("names kept", () => {
+  const placed = (schema: unknown, schemas: Record<string, unknown> = {}) => ({
+    document: doc(schemas),
+    schema: schema as never,
+  });
+  const issues = (name: string) => ({
+    type: "object",
+    properties: {
+      [name]: { type: "array", items: { type: "object", properties: { issue: string } } },
+    },
+  });
+
+  it("refuses a rename that containment alone cannot see (PayPal)", () => {
+    // Both optional, so either way round every value is allowed; only the
+    // names show that what was sent under `issues` would be lost.
+    expect(holds(issues("issues"), issues("details")).covered).toBe(true);
+    const answer = keepsNames(placed(issues("issues")), placed(issues("details")));
+    expect(answer.covered).toBe(false);
+    if (!answer.covered) expect(answer.at).toBe("/issues");
+  });
+
+  it("finds a name in whichever branch of a choice now holds it (Figma)", () => {
+    const before = {
+      type: "object",
+      properties: {
+        type: string,
+        radius: { type: "number" },
+        offset: { type: "number" },
+      },
+    };
+    const after = {
+      oneOf: [
+        { $ref: "#/components/schemas/Shadow" },
+        { $ref: "#/components/schemas/Blur" },
+      ],
+    };
+    const schemas = {
+      Shadow: before,
+      Blur: { type: "object", properties: { type: string, radius: { type: "number" } } },
+    };
+    expect(keepsNames(placed(before), placed(after, schemas)).covered).toBe(true);
+  });
+
+  it("finishes on a schema that holds itself", () => {
+    const schemas = {
+      Node: {
+        type: "object",
+        properties: {
+          children: { type: "array", items: { $ref: "#/components/schemas/Node" } },
+        },
+      },
+    };
+    const node = { $ref: "#/components/schemas/Node" };
+    expect(keepsNames(placed(node, schemas), placed(node, schemas)).covered).toBe(true);
   });
 });

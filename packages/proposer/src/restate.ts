@@ -15,7 +15,12 @@
  * only where how a choice is written changed, since everywhere else a
  * difference is a field, and a field has its own op.
  */
-import { covers, type OpenApiDocument, schemaDirections } from "@invariant-app/contract";
+import {
+  covers,
+  keepsNames,
+  type OpenApiDocument,
+  schemaDirections,
+} from "@invariant-app/contract";
 import {
   type Change,
   isJsonObject,
@@ -64,6 +69,7 @@ export function restatements(
       const old = { document: oldContract, schema: was };
       const next = { document: newContract, schema: now };
       return (
+        keepsNames(old, next).covered &&
         (!sides.response || covers(old, next).covered) &&
         (!sides.request || covers(next, old).covered)
       );

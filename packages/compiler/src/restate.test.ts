@@ -247,3 +247,26 @@ describe("a request body stated another way", () => {
     );
   });
 });
+
+describe("a field renamed", () => {
+  it("is not a restatement, even where every value is still allowed (PayPal)", () => {
+    const issues = (name: string) => ({
+      Problem: {
+        type: "object",
+        properties: { [name]: { type: "array", items: { type: "string" } } },
+      },
+      Node: {
+        type: "object",
+        properties: { problem: { $ref: "#/components/schemas/Problem" } },
+      },
+    });
+    const prediction = predictDocument(
+      contract(issues("issues")),
+      contract(issues("details")),
+      [restate("Problem")],
+    );
+    expect(prediction.issues.map((issue) => issue.message).join()).toContain(
+      "/issues the new schema no longer names it",
+    );
+  });
+});
