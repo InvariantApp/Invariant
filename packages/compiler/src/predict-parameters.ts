@@ -40,6 +40,7 @@ import {
   operationById,
 } from "./parameters.ts";
 import { mapEndpoint, type PredictionIssue, type RouteMapping } from "./predict.ts";
+import { proveRestated } from "./restate.ts";
 import {
   applyCodecToSchema,
   SchemaOpError,
@@ -49,6 +50,7 @@ import {
   schemaRelax,
   schemaRemove,
   schemaRequiredAt,
+  schemaRestate,
   schemaSetNullable,
   schemaSetRequired,
   schemaWiden,
@@ -296,6 +298,27 @@ function applyToBody(
       // An operation's own body is only ever sent by old callers.
       schemaRelax(document, root, op.path, op.set as Record<string, JsonValue>, true);
       return;
+    case "restate": {
+      // Only ever sent by old callers, so what they send has to be shown to
+      // be what the new contract accepts, as the body stands at this op.
+      const segments = parsePointer(op.path);
+      const next = bodyShapeInNew(newContract, located, segments);
+      const before = bodyShapeInNew(document, located, segments);
+      if (!next || !before) {
+        throw new SchemaOpError(
+          `the ${next ? "old" : "new"} contract's request body has no ${op.path || "schema"}`,
+        );
+      }
+      proveRestated(
+        { document, schema: before.shape },
+        { document: newContract, schema: next.shape },
+        { request: true, response: false },
+        `the request body${op.path ? ` at ${op.path}` : ""}`,
+      );
+      importReferences(document, newContract, next.shape);
+      schemaRestate(document, root, op.path, next.shape);
+      return;
+    }
     case "widen":
       // A request body that accepts one more kind of value breaks nobody,
       // but saying so is still a true account of what changed.
@@ -458,6 +481,27 @@ function applyOne(
       throw new SchemaOpError(
         "a parameter is only ever sent, and a caller never sends a kind of value its contract does not describe",
       );
+    case "restate": {
+      // A parameter is only ever sent: every value old callers send has to be
+      // shown to be one the new declaration accepts.
+      const parameter = existing(address.part, name);
+      const declared = declaredInNew(newContract, located, address.part, name);
+      if (!declared || declared["schema"] === undefined) {
+        throw new SchemaOpError(
+          `the new contract declares no ${address.part} parameter ${name} to restate it as`,
+        );
+      }
+      const next = resolveSchema(newContract, declared["schema"] as JsonValue);
+      proveRestated(
+        { document, schema: parameter["schema"] as JsonValue },
+        { document: newContract, schema: next },
+        { request: true, response: false },
+        `the ${address.part} parameter ${name}`,
+      );
+      importReferences(document, newContract, next);
+      parameter["schema"] = structuredClone(next);
+      return;
+    }
     case "relax": {
       // A parameter is only ever sent, so a bound may widen and never narrow.
       const parameter = existing(address.part, name);

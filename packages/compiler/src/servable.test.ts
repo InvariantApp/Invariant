@@ -841,7 +841,7 @@ function unserved(change: Change, program: unknown): string[] {
           // requests; old callers' responses were never promised it.
           op.op === "remove" && op.restore === undefined
           ? direction === "request"
-          : op.op !== "relax";
+          : op.op !== "relax" && op.op !== "restate";
   };
   const dataOps = change.ops.filter(isDataOp);
   const parameterScoped = (change.scopes ?? []).some((scope) => "location" in scope);
@@ -871,10 +871,12 @@ function unserved(change: Change, program: unknown): string[] {
     // A parameter only exists on the way in, so every op that faces new has
     // to have left a request instruction: in the operation's envelope, or,
     // for a scope on the operation's own body alone, in its body program.
-    // A bound is served by leaving the value alone, so it leaves no work.
+    // A bound, or the same values restated, is served by leaving the value
+    // alone, so it leaves no work.
     const facing = dataOps.filter(
       (op) =>
         op.op !== "relax" &&
+        op.op !== "restate" &&
         !((op.op === "default" || op.op === "dropNull") && op.toward === "old"),
     );
     const requests = Object.values(
@@ -954,6 +956,7 @@ const THREAD_OPS: Change["ops"] = [
   { op: "convert", path: "/replies", codec: { kind: "unwrapSingle" } },
   { op: "add", path: "/label", value: "x" },
   { op: "relax", path: "/count", set: { maximum: null } },
+  { op: "restate", path: "/status" },
   { op: "remove", path: "/title", restore: "x" },
   { op: "default", path: "/title", value: "x", when: "absent", toward: "new" },
   { op: "dropNull", path: "/title", toward: "old" },
@@ -1067,6 +1070,7 @@ describe("L1: a Change the runtime cannot serve never passes the gate", () => {
       "dropNull",
       "widen",
       "relax",
+      "restate",
       "route",
       "retire",
       "behavior",
@@ -1149,6 +1153,7 @@ describe("L1: the op x location x direction matrix", () => {
       show: "id",
     },
     relax: { op: "relax", path: "/count", set: { maximum: null } },
+    restate: { op: "restate", path: "/note" },
   };
   /** The op as it would be written for a body used in this direction. */
   const bodyOp = (op: string, direction: string) =>
@@ -1228,6 +1233,8 @@ describe("L1: the op x location x direction matrix", () => {
         };
       case "relax":
         return { op: "relax", path: `/${n.num}`, set: { maximum: null } };
+      case "restate":
+        return { op: "restate", path: `/${n.num}` };
       default:
         return { op: "dropNull", path: `/${n.enum}`, toward: "new" };
     }

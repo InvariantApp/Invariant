@@ -756,6 +756,31 @@ export function schemaAdd(
   writeSlot(document, root, segments, clone(shape), required);
 }
 
+/**
+ * `restate`: the value at `path`, or the scope itself where the path is empty,
+ * as the new contract states it. Whether a field is present is its parent's
+ * to say and is left as it was; only what the value may be is replaced. The
+ * caller has already proved the new statement allows nothing the old did not
+ * where it matters, which is `proveRestated`'s to do.
+ */
+export function schemaRestate(
+  document: OpenApiDocument,
+  root: JsonObject,
+  path: string,
+  shape: JsonValue,
+): void {
+  const segments = parsePointer(path);
+  if (segments.length === 0) {
+    if (!isJsonObject(shape))
+      throw new SchemaOpError("the new statement is not a schema");
+    for (const key of Object.keys(root)) delete root[key];
+    Object.assign(root, clone(shape));
+    return;
+  }
+  const slot = readSlot(document, root, segments);
+  writeSlot(document, root, segments, clone(shape), slot.required);
+}
+
 export function schemaRemove(
   document: OpenApiDocument,
   root: JsonObject,

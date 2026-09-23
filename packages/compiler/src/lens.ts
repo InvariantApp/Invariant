@@ -92,7 +92,7 @@ function valueCodec(
  * nothing else: not renamed, added, removed, or turned into a list.
  */
 export function servesPathParameter(op: DataOp): boolean {
-  if (op.op === "relax") return true;
+  if (op.op === "relax" || op.op === "restate") return true;
   return (
     op.op === "convert" &&
     op.codec.kind !== "wrapArray" &&
@@ -165,6 +165,10 @@ export function forwardInstrs(op: DataOp, prefix: string, changeId: string): Ins
       return [];
     case "relax":
       // A bound says which values are allowed; no value is changed by it.
+      return [];
+    case "restate":
+      // The same values stated differently, proved when the Change compiled:
+      // what an old caller sends is already what the new contract accepts.
       return [];
   }
   return [];
@@ -307,6 +311,10 @@ export function backwardInstrs(
     case "dropNull":
       return op.toward === "old" ? [dropNull(op, prefix, changeId)] : [];
     case "relax":
+      return [];
+    case "restate":
+      // Proved when the Change compiled: what an old caller is sent is
+      // already what their contract allowed.
       return [];
     case "widen": {
       const guard = variants(op);

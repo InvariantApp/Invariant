@@ -47,7 +47,7 @@ path.
 
 ## 2. The op catalog
 
-Eleven ops. The catalog is closed, and that is the point: a closed catalog is
+Twelve ops. The catalog is closed, and that is the point: a closed catalog is
 what makes "this change cannot be expressed" a machine-detectable state rather
 than a judgement call.
 
@@ -61,6 +61,7 @@ than a judgement call.
 | `dropNull {path, toward}` | toward the new contract, delete a null | toward the old contract, delete a null |
 | `widen {path, variant, show}` | nothing | show a union's new kind of object as its id, left out, or null |
 | `relax {path, set}` | nothing | nothing; the new bounds are a declared loss |
+| `restate {path}` | nothing | nothing; proved to be the same values |
 | `route {from, to}` | rewrite method and path | nothing; responses are keyed by the resolved operation |
 | `retire {endpoint}` | refuse with the provider's guidance | nothing |
 | `behavior {flag, covers?}` | nothing | nothing |
@@ -86,6 +87,25 @@ null` is a field whose values were listed and now are not, such as a model name
 that became any string: there is nothing to fold a new value onto, so it passes
 through, declared. `type: null` is a value that was typed and now is not. A
 type changed to another type is a `convert`, never this.
+
+`restate` says the new contract describes the same values another way:
+properties that became a `oneOf` of the shapes they were always sent in, a
+schema split into named variants, a list of values written as a `const` per
+branch. Nothing is transformed, and nothing is lost, so the Change stays exact;
+that is only true because the compiler proves it, schema against schema. Where
+old callers are answered with the value, every value the new schema admits must
+be one the old schema admitted; where they send it, every value the old schema
+admitted must be one the new schema accepts. Both proofs rest on one
+assumption, stated here once: a property neither schema declares is never
+sent, so a closed `additionalProperties` and an open one describe the same
+values. Because of that assumption containment cannot tell a renamed
+optional field from one that was always absent, so a restatement must also
+keep every property name the old schema declares under the place, in some
+branch if the new schema is a choice: what may change is how the values are
+written, never which names carry them. A `discriminator` names a property
+every branch carries, as OpenAPI requires. A restatement the proof cannot show is refused, naming the place and
+the reason, and is then a `relax`, which declares the difference, or a
+`convert`, which translates it.
 
 `move` covers rename, nest and unnest, because all three are the same
 operation on a pointer. A move whose source is absent does nothing; it must not

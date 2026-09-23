@@ -214,6 +214,13 @@ export function derive(change: Change): Derived {
         );
         break;
       }
+      case "restate":
+        // Nothing is translated and nothing is lost: the compiler refuses a
+        // restatement it cannot prove allows nothing the old one did not.
+        reasons.push(
+          `${op.path || "the value"} is stated differently and allows nothing new to old callers, so it passes through exactly`,
+        );
+        break;
       case "retire":
         runtime = "none";
         source = "manual";

@@ -3265,6 +3265,28 @@ const RelaxOp = Type$1.Object({
 	additionalProperties: false,
 	description: "A bound on a value changed. Values pass through untouched; where a response may now carry values outside the old bound, that is a declared loss."
 });
+/**
+* The same values, stated differently, and nothing to translate.
+*
+* Figma rewrote a node's `Effect` from one object, whose `type` named four
+* kinds, into a choice between a drop shadow, an inner shadow and a blur,
+* each declaring the fields that kind has. Every value the new API sends is
+* one the old contract already allowed, so an old caller is served exactly by
+* passing it through. `relax` would pass it through too, but it admits a loss
+* where there is none.
+*
+* Nothing about it is taken on trust. The compiler proves, schema against
+* schema, that every value the new contract allows where old callers receive
+* it, their contract allowed too, and that every value they send, the new
+* contract accepts; and refuses the Change, naming where, wherever it cannot.
+*/
+const RestateOp = Type$1.Object({
+	op: Type$1.Literal("restate"),
+	path: Pointer$1
+}, {
+	additionalProperties: false,
+	description: "The new contract states the value at this place differently and allows nothing the old one did not. Values pass through untouched and the compiler proves nothing is lost."
+});
 const RouteOp = Type$1.Object({
 	op: Type$1.Literal("route"),
 	from: Endpoint,
@@ -3342,6 +3364,7 @@ const Op = Type$1.Union([
 	DropNullOp,
 	WidenOp,
 	RelaxOp,
+	RestateOp,
 	RouteOp,
 	RetireOp,
 	BehaviorOp
@@ -3434,7 +3457,8 @@ const DATA_OPS = /* @__PURE__ */ new Set([
 	"default",
 	"dropNull",
 	"widen",
-	"relax"
+	"relax",
+	"restate"
 ]);
 function isDataOp(op) {
 	return DATA_OPS.has(op.op);
@@ -15820,7 +15844,7 @@ function responseSchemas$1(document, operation) {
 * through the same view, so they cannot disagree about what a field is.
 */
 /** Deepest `allOf` nesting followed before giving up, which only a cycle reaches. */
-const MAX_DEPTH$4 = 32;
+const MAX_DEPTH$5 = 32;
 /**
 * The schema as it applies to a value: every `$ref` in the chain followed and
 * every `allOf` merged into one object.
@@ -15834,7 +15858,7 @@ function resolveSchema(document, schema) {
 	return resolveAt(document, schema, 0);
 }
 function resolveAt(document, schema, depth) {
-	if (depth > MAX_DEPTH$4) throw new ContractError("allOf nests too deeply to resolve");
+	if (depth > MAX_DEPTH$5) throw new ContractError("allOf nests too deeply to resolve");
 	const target = deref(document, schema);
 	if (!isJsonObject(target)) return target;
 	const branches = target["allOf"];
@@ -15898,6 +15922,536 @@ function mergeSchemas(document, left, right, depth) {
 	}
 	return out;
 }
+//#endregion
+//#region ../contract/src/containment.ts
+/**
+* Whether every value one schema allows, another allows too.
+*
+* This is what lets a Change say "nothing is translated here, and nothing
+* needs to be" and be believed. Figma rewrote a node's `Effect` from one
+* object, whose `type` named four kinds, into a choice between a drop shadow,
+* an inner shadow and a blur, each declaring the fields that kind has. Every
+* value the new API sends is one the old contract already allowed, so an old
+* caller is served exactly by passing it through; but no op could say so, and
+* sixty-odd places stayed unexplained. The claim has to be proved rather than
+* asserted, because an old caller who is sent a value its contract ruled out
+* is exactly what this product exists to prevent. So it is proved here, and
+* the compiler refuses the claim wherever this cannot prove it.
+*
+* Conservative throughout: anything this cannot show is reported as not
+* covered, with where and why. A keyword it does not understand in the outer
+* schema is only covered by the same keyword, stated the same way, in the
+* inner one.
+*
+* One assumption, stated because it is load-bearing: a property a schema does
+* not declare is taken never to be sent. JSON Schema leaves undeclared
+* properties open by default, so without this nothing real could ever be
+* shown; with it, this reads documents the way the differ and every generated
+* client already read them.
+*/
+const COVERED = { covered: true };
+/** Keywords that describe a value without constraining it. */
+const ANNOTATIONS$1 = /* @__PURE__ */ new Set([
+	"title",
+	"description",
+	"example",
+	"examples",
+	"default",
+	"deprecated",
+	"readOnly",
+	"writeOnly",
+	"externalDocs",
+	"xml",
+	"discriminator",
+	"$comment",
+	"$schema",
+	"$id",
+	"$anchor",
+	"contentMediaType",
+	"contentEncoding"
+]);
+/** Keywords this compares by meaning rather than by how they are written. */
+const UNDERSTOOD = /* @__PURE__ */ new Set([
+	"type",
+	"nullable",
+	"enum",
+	"const",
+	"format",
+	"pattern",
+	"minLength",
+	"maxLength",
+	"minimum",
+	"maximum",
+	"exclusiveMinimum",
+	"exclusiveMaximum",
+	"multipleOf",
+	"items",
+	"minItems",
+	"maxItems",
+	"uniqueItems",
+	"properties",
+	"required",
+	"additionalProperties",
+	"minProperties",
+	"oneOf",
+	"anyOf",
+	"allOf",
+	"$ref"
+]);
+const TYPES = [
+	"null",
+	"boolean",
+	"object",
+	"array",
+	"number",
+	"integer",
+	"string"
+];
+/** How deep nested schemas are followed before this gives up and says so. */
+const MAX_DEPTH$4 = 64;
+/**
+* Whether every value `inner` allows, `outer` allows too.
+*
+* For a response, `outer` is the old contract and `inner` the new one: what
+* the API may now send has to be something an old caller accepts. For a
+* request it is the other way round.
+*/
+function covers(outer, inner) {
+	return new Prover(outer.document, inner.document).covers(outer.schema, inner.schema, "", 0);
+}
+/**
+* Whether every property the first schema names, anywhere inside it, the
+* second still names at the same place.
+*
+* Containment alone cannot tell a field that was renamed from one that was
+* always absent: a property a schema does not declare is taken never to be
+* sent, so PayPal's optional `issues`, renamed `details`, was covered both
+* ways, and a restatement in place of the rename would have dropped every
+* issue on its way to an old caller. What a restatement may change is how the
+* values are written, never which names carry them.
+*/
+function keepsNames(before, after) {
+	const kept = namesIn(after.document, after.schema);
+	for (const name of namesIn(before.document, before.schema)) if (!kept.has(name)) return missed(name, "the new schema no longer names it, so a value under it would be lost");
+	return COVERED;
+}
+/** How deep `keepsNames` reads. */
+const NAME_DEPTH = 12;
+function namesIn(document, schema) {
+	const names = /* @__PURE__ */ new Set();
+	const visit = (value, at, depth, refs) => {
+		if (!isJsonObject(value) || depth > NAME_DEPTH) return;
+		const ref = value["$ref"];
+		if (typeof ref === "string" && refs.has(ref)) return;
+		const through = typeof ref === "string" ? /* @__PURE__ */ new Set([...refs, ref]) : refs;
+		const here = resolved(document, value);
+		if (!isJsonObject(here)) return;
+		for (const keyword of [
+			"oneOf",
+			"anyOf",
+			"allOf"
+		]) {
+			const branches = here[keyword];
+			if (Array.isArray(branches)) for (const branch of branches) visit(branch, at, depth + 1, through);
+		}
+		const properties = here["properties"];
+		if (isJsonObject(properties)) for (const [name, child] of Object.entries(properties)) {
+			const place = `${at}/${escapeSegment$1(name)}`;
+			names.add(place);
+			visit(child, place, depth + 1, through);
+		}
+		if (here["items"] !== void 0) visit(here["items"], `${at}/*`, depth + 1, through);
+		if (isJsonObject(here["additionalProperties"])) visit(here["additionalProperties"], `${at}/{}`, depth + 1, through);
+	};
+	visit(schema, "", 0, /* @__PURE__ */ new Set());
+	return names;
+}
+var Prover = class {
+	/** Pairs of named schemas being compared, answered covered while in progress. */
+	#inProgress = /* @__PURE__ */ new Set();
+	/** Pairs of named schemas already compared, and the answer. */
+	#known = /* @__PURE__ */ new Map();
+	outerDocument;
+	innerDocument;
+	constructor(outerDocument, innerDocument) {
+		this.outerDocument = outerDocument;
+		this.innerDocument = innerDocument;
+	}
+	covers(outer, inner, at, depth) {
+		if (depth > MAX_DEPTH$4) return missed(at, "nests too deeply to compare");
+		const key = refPair(outer, inner);
+		if (key !== void 0) {
+			const known = this.#known.get(key);
+			if (known) return known;
+			if (this.#inProgress.has(key)) return COVERED;
+			this.#inProgress.add(key);
+			const answer = this.#compare(outer, inner, at, depth);
+			this.#inProgress.delete(key);
+			this.#known.set(key, answer);
+			return answer;
+		}
+		return this.#compare(outer, inner, at, depth);
+	}
+	#compare(outer, inner, at, depth) {
+		const o = resolved(this.outerDocument, outer);
+		const i = resolved(this.innerDocument, inner);
+		if (o === true || isJsonObject(o) && isOpen(o)) return COVERED;
+		if (i === false) return COVERED;
+		if (!isJsonObject(o)) return missed(at, "the outer schema allows nothing");
+		if (!isJsonObject(i)) return missed(at, "the inner schema allows any value");
+		const innerBranches = branchesOf(i);
+		if (innerBranches) {
+			for (const [index, branch] of innerBranches.entries()) {
+				const merged = withSiblings(this.innerDocument, i, branch);
+				const answer = this.covers(outer, merged, at, depth + 1);
+				if (!answer.covered) return missed(answer.at, `choice ${index + 1} of ${innerBranches.length}: ${answer.reason}`);
+			}
+			return COVERED;
+		}
+		const outerBranches = branchesOf(o);
+		if (outerBranches) {
+			const exclusive = Array.isArray(o["oneOf"]);
+			const merged = outerBranches.map((branch) => withSiblings(this.outerDocument, o, branch));
+			const whole = this.#oneBranch(merged, exclusive, inner, i, at, depth);
+			if (whole.covered) return whole;
+			for (const name of this.#splitsOn(o, i)) {
+				const pieces = piecesOf(this.innerDocument, i, name);
+				if (!pieces) continue;
+				if (!pieces.map((piece) => this.#oneBranch(merged, exclusive, piece, piece, at, depth)).find((answer) => !answer.covered)) return COVERED;
+			}
+			return whole;
+		}
+		const unknown = Object.keys(o).find((keyword) => !ANNOTATIONS$1.has(keyword) && !UNDERSTOOD.has(keyword) && !keyword.startsWith("x-") && JSON.stringify(o[keyword]) !== JSON.stringify(i[keyword]));
+		if (unknown) return missed(at, `\`${unknown}\` is not something this can compare`);
+		const outerTypes = typesOf$2(o);
+		const innerTypes = typesOf$2(i);
+		if (innerTypes === "any" && outerTypes !== "any") return missed(at, "the inner schema does not say what type it is");
+		if (outerTypes !== "any" && innerTypes !== "any") {
+			for (const type of innerTypes) if (!(outerTypes.has(type) || type === "integer" && outerTypes.has("number"))) return missed(at, `it may be ${a(type)}, which was not allowed`);
+		}
+		const innerValues = valuesOf(i);
+		if (innerValues) {
+			for (const value of innerValues) {
+				const refused = refuses(o, value);
+				if (refused) return missed(at, `${JSON.stringify(value)} ${refused}`);
+			}
+			return COVERED;
+		}
+		if (valuesOf(o)) return missed(at, "the outer schema lists its values and the inner does not");
+		const types = innerTypes === "any" ? new Set(TYPES) : innerTypes;
+		if (types.has("string")) {
+			const answer = stringsCovered(o, i, at);
+			if (!answer.covered) return answer;
+		}
+		if (types.has("number") || types.has("integer")) {
+			const answer = numbersCovered(o, i, at);
+			if (!answer.covered) return answer;
+		}
+		if (types.has("array")) {
+			const answer = this.#arraysCovered(o, i, at, depth);
+			if (!answer.covered) return answer;
+		}
+		if (types.has("object")) {
+			const answer = this.#objectsCovered(o, i, at, depth);
+			if (!answer.covered) return answer;
+		}
+		return COVERED;
+	}
+	#arraysCovered(o, i, at, depth) {
+		if (o["items"] !== void 0) {
+			if (i["items"] === void 0) {
+				const open = resolved(this.outerDocument, o["items"]);
+				if (!(open === true || isJsonObject(open) && isOpen(open))) return missed(`${at}/*`, "the inner list does not say what it holds");
+			} else {
+				const answer = this.covers(o["items"], i["items"], `${at}/*`, depth + 1);
+				if (!answer.covered) return answer;
+			}
+		}
+		const bounded = atLeast(o, i, "minItems", at) ?? atMost(o, i, "maxItems", at);
+		if (bounded) return bounded;
+		if (o["uniqueItems"] === true && i["uniqueItems"] !== true) return missed(at, "the outer list holds no value twice, and the inner may");
+		return COVERED;
+	}
+	#objectsCovered(o, i, at, depth) {
+		const outerRequired = stringsIn(o["required"]);
+		const innerRequired = new Set(stringsIn(i["required"]));
+		const dropped = outerRequired.find((name) => !innerRequired.has(name));
+		if (dropped !== void 0) return missed(`${at}/${dropped}`, "the outer schema always has it, and the inner may leave it out");
+		const outerProperties = isJsonObject(o["properties"]) ? o["properties"] : {};
+		const innerProperties = isJsonObject(i["properties"]) ? i["properties"] : {};
+		const outerExtra = o["additionalProperties"];
+		for (const [name, schema] of Object.entries(innerProperties)) {
+			const place = `${at}/${escapeSegment$1(name)}`;
+			const declared = outerProperties[name];
+			if (declared !== void 0) {
+				const answer = this.covers(declared, schema, place, depth + 1);
+				if (!answer.covered) return answer;
+			} else if (outerExtra === false) return missed(place, "the outer schema allows no property it does not declare");
+			else if (isJsonObject(outerExtra)) {
+				const answer = this.covers(outerExtra, schema, place, depth + 1);
+				if (!answer.covered) return answer;
+			}
+		}
+		const innerExtra = i["additionalProperties"];
+		if (innerExtra === true || isJsonObject(innerExtra)) {
+			const values = innerExtra === true ? {} : innerExtra;
+			if (outerExtra === false) return missed(`${at}/{}`, "the inner schema allows properties under any name, and the outer allows none it does not declare");
+			if (isJsonObject(outerExtra)) {
+				const answer = this.covers(outerExtra, values, `${at}/{}`, depth + 1);
+				if (!answer.covered) return answer;
+			}
+			for (const [name, schema] of Object.entries(outerProperties)) {
+				if (innerProperties[name] !== void 0) continue;
+				const answer = this.covers(schema, values, `${at}/${escapeSegment$1(name)}`, depth + 1);
+				if (!answer.covered) return answer;
+			}
+		}
+		if (typeof o["minProperties"] === "number") {
+			const least = Math.max(typeof i["minProperties"] === "number" ? i["minProperties"] : 0, innerRequired.size);
+			if (least < o["minProperties"]) return missed(at, `the outer schema has at least ${o["minProperties"]} properties, and the inner may have ${least}`);
+		}
+		return COVERED;
+	}
+	/** Whether one branch of a choice allows all of `inner`, and only one where it must. */
+	#oneBranch(branches, exclusive, inner, i, at, depth) {
+		const holding = branches.findIndex((branch) => this.covers(branch, inner, at, depth + 1).covered);
+		if (holding === -1) return missed(at, "no branch of the outer choice allows all of it");
+		if (exclusive) for (const [index, branch] of branches.entries()) {
+			if (index === holding) continue;
+			if (!this.#disjoint(branch, i)) return missed(at, `the outer \`oneOf\` could match it twice, as branch ${holding + 1} and ${index + 1}`);
+		}
+		return COVERED;
+	}
+	/**
+	* The properties an object could be taken apart on, one piece per value:
+	* the outer choice's discriminator first, then any the inner object always
+	* has whose values it lists.
+	*/
+	#splitsOn(o, i) {
+		const discriminator = isJsonObject(o["discriminator"]) ? o["discriminator"]["propertyName"] : void 0;
+		const properties = isJsonObject(i["properties"]) ? i["properties"] : {};
+		const listed = stringsIn(i["required"]).filter((name) => valuesOf(resolvedObject(this.innerDocument, properties[name])) !== void 0);
+		return typeof discriminator === "string" && listed.includes(discriminator) ? [discriminator, ...listed.filter((name) => name !== discriminator)] : listed;
+	}
+	/**
+	* Whether no value is allowed by both, shown by a property both require
+	* whose listed values have nothing in common, as a discriminator is.
+	*/
+	#disjoint(left, right) {
+		const l = resolved(this.outerDocument, left);
+		const r = resolved(this.innerDocument, right);
+		if (!isJsonObject(l) || !isJsonObject(r)) return false;
+		const lt = typesOf$2(l);
+		const rt = typesOf$2(r);
+		if (lt !== "any" && rt !== "any") {
+			if (![...rt].some((type) => lt.has(type) || type === "integer" && lt.has("number") || type === "number" && lt.has("integer"))) return true;
+		}
+		const lp = isJsonObject(l["properties"]) ? l["properties"] : {};
+		const rp = isJsonObject(r["properties"]) ? r["properties"] : {};
+		return stringsIn(l["required"]).filter((name) => stringsIn(r["required"]).includes(name)).some((name) => {
+			const lv = valuesOf(resolvedObject(this.outerDocument, lp[name]));
+			const rv = valuesOf(resolvedObject(this.innerDocument, rp[name]));
+			if (!lv || !rv) return false;
+			const seen = new Set(lv.map((value) => JSON.stringify(value)));
+			return rv.every((value) => !seen.has(JSON.stringify(value)));
+		});
+	}
+};
+/** How many values a property may list and still be taken apart value by value. */
+const MOST_PIECES = 64;
+/**
+* An object taken apart on one property it always has, one piece for each
+* value that property lists. Each piece allows at least what the object does
+* with that value, so every piece allowed means the object is.
+*/
+function piecesOf(document, i, name) {
+	const properties = isJsonObject(i["properties"]) ? i["properties"] : {};
+	const values = valuesOf(resolvedObject(document, properties[name]));
+	if (!values || values.length < 2 || values.length > MOST_PIECES) return void 0;
+	return values.map((value) => ({
+		...i,
+		properties: {
+			...properties,
+			[name]: { enum: [value] }
+		}
+	}));
+}
+function stringsCovered(o, i, at) {
+	const bounded = atLeast(o, i, "minLength", at) ?? atMost(o, i, "maxLength", at);
+	if (bounded) return bounded;
+	if (o["pattern"] !== void 0 && o["pattern"] !== i["pattern"]) return missed(at, "the outer schema matches a pattern the inner does not state");
+	if (o["format"] !== void 0 && o["format"] !== i["format"]) return missed(at, `the outer schema is a ${String(o["format"])}, and the inner is not said to be`);
+	return COVERED;
+}
+function numbersCovered(o, i, at) {
+	const outerLow = lowerBound(o);
+	const innerLow = lowerBound(i);
+	if (outerLow && !(innerLow && tighterLow(innerLow, outerLow))) return missed(at, `the outer schema is at least ${outerLow.value}, and the inner may be lower`);
+	const outerHigh = upperBound(o);
+	const innerHigh = upperBound(i);
+	if (outerHigh && !(innerHigh && tighterHigh(innerHigh, outerHigh))) return missed(at, `the outer schema is at most ${outerHigh.value}, and the inner may be higher`);
+	const step = o["multipleOf"];
+	if (typeof step === "number") {
+		const inner = i["multipleOf"];
+		const ratio = typeof inner === "number" ? inner / step : NaN;
+		if (!(Math.abs(ratio - Math.round(ratio)) < 1e-9 && ratio >= 1)) return missed(at, `the outer schema is a multiple of ${step}, and the inner is not said to be`);
+	}
+	return COVERED;
+}
+/** The lowest value allowed, in either way OpenAPI writes it. */
+function lowerBound(schema) {
+	const minimum = schema["minimum"];
+	const exclusive = schema["exclusiveMinimum"];
+	if (typeof exclusive === "number") return typeof minimum === "number" && minimum > exclusive ? {
+		value: minimum,
+		exclusive: false
+	} : {
+		value: exclusive,
+		exclusive: true
+	};
+	if (typeof minimum === "number") return {
+		value: minimum,
+		exclusive: exclusive === true
+	};
+}
+function upperBound(schema) {
+	const maximum = schema["maximum"];
+	const exclusive = schema["exclusiveMaximum"];
+	if (typeof exclusive === "number") return typeof maximum === "number" && maximum < exclusive ? {
+		value: maximum,
+		exclusive: false
+	} : {
+		value: exclusive,
+		exclusive: true
+	};
+	if (typeof maximum === "number") return {
+		value: maximum,
+		exclusive: exclusive === true
+	};
+}
+const tighterLow = (inner, outer) => inner.value > outer.value || inner.value === outer.value && (inner.exclusive || !outer.exclusive);
+const tighterHigh = (inner, outer) => inner.value < outer.value || inner.value === outer.value && (inner.exclusive || !outer.exclusive);
+/** Why the outer schema refuses one listed value, or nothing when it allows it. */
+function refuses(o, value) {
+	const listed = valuesOf(o);
+	if (listed && !listed.some((allowed) => JSON.stringify(allowed) === JSON.stringify(value))) return "is not one of the values allowed";
+	const types = typesOf$2(o);
+	const type = typeOfValue(value);
+	if (types !== "any" && !types.has(type) && !(type === "integer" && types.has("number"))) return `is ${a(type)}, which was not allowed`;
+	if (typeof value === "string") {
+		if (typeof o["maxLength"] === "number" && [...value].length > o["maxLength"]) return "is too long";
+		if (typeof o["minLength"] === "number" && [...value].length < o["minLength"]) return "is too short";
+		if (typeof o["pattern"] === "string") try {
+			if (!new RegExp(o["pattern"], "u").test(value)) return "does not match the pattern";
+		} catch {
+			return "is checked against a pattern this cannot read";
+		}
+		if (o["format"] !== void 0) return `is not shown to be a ${String(o["format"])}`;
+	}
+	if (typeof value === "number") {
+		const low = lowerBound(o);
+		const high = upperBound(o);
+		if (low && (value < low.value || low.exclusive && value === low.value)) return "is too low";
+		if (high && (value > high.value || high.exclusive && value === high.value)) return "is too high";
+		const step = o["multipleOf"];
+		if (typeof step === "number" && Math.abs(value / step - Math.round(value / step)) > 1e-9) return `is not a multiple of ${step}`;
+	}
+	if (value !== null && typeof value === "object") return "is an object or a list, which this compares by schema and not by value";
+}
+/** A lower bound the inner schema has to meet, or why it does not. */
+function atLeast(o, i, keyword, at) {
+	const outer = o[keyword];
+	if (typeof outer !== "number") return void 0;
+	const inner = i[keyword];
+	return typeof inner === "number" && inner >= outer ? void 0 : missed(at, `the outer schema has a ${keyword} of ${outer}, and the inner does not`);
+}
+function atMost(o, i, keyword, at) {
+	const outer = o[keyword];
+	if (typeof outer !== "number") return void 0;
+	const inner = i[keyword];
+	return typeof inner === "number" && inner <= outer ? void 0 : missed(at, `the outer schema has a ${keyword} of ${outer}, and the inner does not`);
+}
+/** The types a schema allows: declared, or read from the values it lists. */
+function typesOf$2(schema) {
+	const declared = schema["type"];
+	const listed = Array.isArray(declared) ? declared.filter((type) => typeof type === "string") : typeof declared === "string" ? [declared] : void 0;
+	let types;
+	if (listed) types = new Set(listed);
+	else {
+		const values = valuesOf(schema);
+		if (!values) return "any";
+		types = new Set(values.map(typeOfValue));
+	}
+	if (schema["nullable"] === true) types.add("null");
+	return types;
+}
+/** The values a schema lists, with null where it is nullable. */
+function valuesOf(schema) {
+	if (!schema) return void 0;
+	const listed = Array.isArray(schema["enum"]) ? schema["enum"] : schema["const"] !== void 0 ? [schema["const"]] : void 0;
+	if (!listed) return void 0;
+	return schema["nullable"] === true && !listed.includes(null) ? [...listed, null] : listed;
+}
+function typeOfValue(value) {
+	if (value === null) return "null";
+	if (Array.isArray(value)) return "array";
+	if (typeof value === "number") return Number.isInteger(value) ? "integer" : "number";
+	return typeof value;
+}
+/** The branches of a choice, where the schema is one. */
+function branchesOf(schema) {
+	for (const keyword of ["oneOf", "anyOf"]) {
+		const branches = schema[keyword];
+		if (Array.isArray(branches) && branches.length > 0) return branches;
+	}
+}
+/**
+* A branch of a choice with what the choice says of every branch: the
+* keywords written beside it, and the property its discriminator reads.
+* OpenAPI requires that property in every value, since the discriminator
+* cannot pick a branch without it, so a branch that forgets to list it as
+* required is still read as requiring it. Figma's inner shadow does forget.
+*/
+function withSiblings(document, union, branch) {
+	const { oneOf: _one, anyOf: _any, discriminator, ...siblings } = union;
+	const parts = [];
+	if (Object.keys(siblings).some((key) => !ANNOTATIONS$1.has(key))) parts.push(siblings);
+	const property = isJsonObject(discriminator) ? discriminator["propertyName"] : void 0;
+	if (typeof property === "string") parts.push({ required: [property] });
+	if (parts.length === 0) return branch;
+	return resolveSchema(document, { allOf: [...parts, branch] });
+}
+/** Whether a schema constrains nothing at all. */
+function isOpen(schema) {
+	return Object.keys(schema).every((keyword) => ANNOTATIONS$1.has(keyword) || keyword.startsWith("x-"));
+}
+function resolved(document, schema) {
+	if (schema === true || schema === false) return schema;
+	return resolveSchema(document, schema);
+}
+function resolvedObject(document, schema) {
+	if (schema === void 0) return void 0;
+	const value = resolved(document, schema);
+	return isJsonObject(value) ? value : void 0;
+}
+function refPair(outer, inner) {
+	const ref = (schema) => isJsonObject(schema) && typeof schema["$ref"] === "string" ? schema["$ref"] : void 0;
+	const left = ref(outer);
+	const right = ref(inner);
+	return left !== void 0 && right !== void 0 ? `${left}\u0000${right}` : void 0;
+}
+function stringsIn(value) {
+	return Array.isArray(value) ? value.filter((entry) => typeof entry === "string") : [];
+}
+function missed(at, reason) {
+	return {
+		covered: false,
+		at,
+		reason
+	};
+}
+const escapeSegment$1 = (segment) => segment.replaceAll("~", "~0").replaceAll("/", "~1");
+const a = (type) => /^[aeiou]/.test(type) ? `an ${type}` : `a ${type}`;
 //#endregion
 //#region ../contract/src/sites.ts
 /**
@@ -16769,7 +17323,7 @@ function valueCodec(codec, path, changeId, direction) {
 * nothing else: not renamed, added, removed, or turned into a list.
 */
 function servesPathParameter(op) {
-	if (op.op === "relax") return true;
+	if (op.op === "relax" || op.op === "restate") return true;
 	return op.op === "convert" && op.codec.kind !== "wrapArray" && op.codec.kind !== "unwrapSingle";
 }
 const PATH_PARAMETER_REFUSAL = "a path parameter can only be converted in place or given new bounds";
@@ -16819,6 +17373,7 @@ function forwardInstrs(op, prefix, changeId) {
 		case "dropNull": return op.toward === "new" ? [dropNull(op, prefix, changeId)] : [];
 		case "widen": return [];
 		case "relax": return [];
+		case "restate": return [];
 	}
 	return [];
 }
@@ -16940,6 +17495,7 @@ function backwardInstrs(op, prefix, changeId, variants = NO_VARIANTS) {
 		case "default": return op.toward === "old" ? [fill(op, prefix, changeId)] : [];
 		case "dropNull": return op.toward === "old" ? [dropNull(op, prefix, changeId)] : [];
 		case "relax": return [];
+		case "restate": return [];
 		case "widen": {
 			const guard = variants(op);
 			if (!guard) return [];
@@ -21279,6 +21835,24 @@ function schemaAdd(document, root, path, shape, required) {
 	refuseWildcardLeaf(segments, "add");
 	writeSlot(document, root, segments, clone$1(shape), required);
 }
+/**
+* `restate`: the value at `path`, or the scope itself where the path is empty,
+* as the new contract states it. Whether a field is present is its parent's
+* to say and is left as it was; only what the value may be is replaced. The
+* caller has already proved the new statement allows nothing the old did not
+* where it matters, which is `proveRestated`'s to do.
+*/
+function schemaRestate(document, root, path, shape) {
+	const segments = parsePointer(path);
+	if (segments.length === 0) {
+		if (!isJsonObject(shape)) throw new SchemaOpError("the new statement is not a schema");
+		for (const key of Object.keys(root)) delete root[key];
+		Object.assign(root, clone$1(shape));
+		return;
+	}
+	const slot = readSlot(document, root, segments);
+	writeSlot(document, root, segments, clone$1(shape), slot.required);
+}
 function schemaRemove(document, root, path) {
 	const segments = parsePointer(path);
 	refuseWildcardLeaf(segments, "remove");
@@ -21349,6 +21923,30 @@ function setNullable(document, schema, nullable, label) {
 	}
 	throw new SchemaOpError(`"${label}" declares no type, so there is no way to write whether it may be null`);
 }
+//#endregion
+//#region ../compiler/src/restate.ts
+/**
+* What makes a `restate` true.
+*
+* A restatement translates nothing, so it is only honest where nothing needs
+* translating: every value old callers may now be sent, their contract
+* allowed, and every value they send, the new contract accepts. Both are
+* proved schema against schema by the shared containment check, and the
+* Change is refused, naming where and why, wherever either cannot be shown.
+*/
+function proveRestated(before, after, directions, place) {
+	const named = keepsNames(before, after);
+	if (!named.covered) throw new SchemaOpError(`${place} is not the same values restated: ${named.at} ${named.reason}`);
+	if (directions.response) {
+		const answer = covers(before, after);
+		if (!answer.covered) throw new SchemaOpError(`${place} is not the same values restated: old callers could be sent one their contract ruled out${where(answer.at)} (${answer.reason})`);
+	}
+	if (directions.request) {
+		const answer = covers(after, before);
+		if (!answer.covered) throw new SchemaOpError(`${place} is not the same values restated: the new contract could refuse one old callers send${where(answer.at)} (${answer.reason})`);
+	}
+}
+const where = (at) => at === "" ? "" : ` at ${at}`;
 //#endregion
 //#region ../compiler/src/predict-parameters.ts
 /**
@@ -21530,6 +22128,25 @@ function applyToBody(document, newContract, located, op) {
 		case "relax":
 			schemaRelax(document, root, op.path, op.set, true);
 			return;
+		case "restate": {
+			const segments = parsePointer(op.path);
+			const next = bodyShapeInNew(newContract, located, segments);
+			const before = bodyShapeInNew(document, located, segments);
+			if (!next || !before) throw new SchemaOpError(`the ${next ? "old" : "new"} contract's request body has no ${op.path || "schema"}`);
+			proveRestated({
+				document,
+				schema: before.shape
+			}, {
+				document: newContract,
+				schema: next.shape
+			}, {
+				request: true,
+				response: false
+			}, `the request body${op.path ? ` at ${op.path}` : ""}`);
+			importReferences(document, newContract, next.shape);
+			schemaRestate(document, root, op.path, next.shape);
+			return;
+		}
 		case "widen":
 			if (resolveRef(newContract, op.variant) === void 0) throw new SchemaOpError(`${op.variant} is not in the new contract`);
 			importReferences(document, newContract, { $ref: op.variant });
@@ -21631,6 +22248,25 @@ function applyOne(document, newContract, located, scope, op) {
 			return;
 		}
 		case "widen": throw new SchemaOpError("a parameter is only ever sent, and a caller never sends a kind of value its contract does not describe");
+		case "restate": {
+			const parameter = existing(address.part, name);
+			const declared = declaredInNew(newContract, located, address.part, name);
+			if (!declared || declared["schema"] === void 0) throw new SchemaOpError(`the new contract declares no ${address.part} parameter ${name} to restate it as`);
+			const next = resolveSchema(newContract, declared["schema"]);
+			proveRestated({
+				document,
+				schema: parameter["schema"]
+			}, {
+				document: newContract,
+				schema: next
+			}, {
+				request: true,
+				response: false
+			}, `the ${address.part} parameter ${name}`);
+			importReferences(document, newContract, next);
+			parameter["schema"] = structuredClone(next);
+			return;
+		}
 		case "relax": {
 			const schema = schemaOf(existing(address.part, name));
 			for (const [keyword, value] of Object.entries(op.set)) {
@@ -21774,6 +22410,25 @@ function applyResponseScope(document, oldContract, newContract, routes, scope, o
 			case "dropNull":
 				schemaSetNullable(document, root, op.path, op.toward === "old");
 				break;
+			case "restate": {
+				const next = shapeInNew(newContract, target.method, target.path, scope.response, op.path);
+				const before = shapeInNew(document, target.method, target.path, scope.response, op.path);
+				if (!next || !before) throw new SchemaOpError(`the ${next ? "old" : "new"} contract's ${scope.response} response has no ${op.path || "body"}`);
+				proveRestated({
+					document,
+					schema: before.shape
+				}, {
+					document: newContract,
+					schema: next.shape
+				}, {
+					request: false,
+					response: true
+				}, `${scope.operation}'s ${scope.response} response${op.path ? ` at ${op.path}` : ""}`);
+				const statement = resolveSchema(newContract, next.shape);
+				importReferences(document, newContract, statement);
+				schemaRestate(document, root, op.path, statement);
+				break;
+			}
 			case "relax":
 				schemaRelax(document, root, op.path, op.set, false);
 				break;
@@ -22018,6 +22673,26 @@ function predictDocument(oldContract, newContract, changes) {
 					case "relax":
 						schemaRelax(document, schema, op.path, op.set, schemaDirections(oldContract, scope.schema).request);
 						break;
+					case "restate": {
+						const site = oldSites[0];
+						const next = shapeByName(newContract, name, op.path) ?? (site ? shapeFromNewContract(newContract, routes, site, op.path) : void 0);
+						if (!next) throw new Error(`the new contract has no ${op.path || name} to restate it as`);
+						const before = navigate(document, schema, parsePointer(op.path));
+						if (before === void 0) throw new Error(`the old contract has no ${op.path} on ${name}`);
+						proveRestated({
+							document,
+							schema: before
+						}, {
+							document: newContract,
+							schema: next.shape
+						}, schemaDirections(oldContract, scope.schema), op.path || name);
+						let statement = next.shape;
+						for (let hops = 0; isJsonObject(statement) && typeof statement["$ref"] === "string" && hops < 16; hops += 1) statement = resolveRef(newContract, statement["$ref"]) ?? null;
+						if (!isJsonObject(statement)) throw new Error(`the new contract's ${op.path || name} is not a schema`);
+						importReferences(document, newContract, statement);
+						schemaRestate(document, schema, op.path, statement);
+						break;
+					}
 					case "widen":
 						if (resolveRef(newContract, op.variant) === void 0) throw new Error(`${op.variant} is not in the new contract`);
 						importReferences(document, newContract, { $ref: op.variant });
@@ -22136,6 +22811,9 @@ function derive(change) {
 		case "relax":
 			runtime = worse(runtime, "declared-lossy");
 			reasons.push(op.set.enum === null || op.set.type === null ? `${op.path || "the body"} no longer states ${op.set.type === null ? "a type" : "the values it holds"}, so an old caller may be sent ${op.set.type === null ? "a kind of value" : "a value"} its contract ruled out, passed through as it is` : "enum" in op.set ? `${op.path || "the body"} no longer holds some values its contract allowed, so an old caller waiting for one of them will never see it` : `${op.path || "the body"} is bounded differently now (${Object.keys(op.set).join(", ")}), so an old caller may be sent values its contract ruled out, passed through as they are`);
+			break;
+		case "restate":
+			reasons.push(`${op.path || "the value"} is stated differently and allows nothing new to old callers, so it passes through exactly`);
 			break;
 		case "retire":
 			runtime = "none";
@@ -23730,7 +24408,7 @@ const RULES = [
 		class: "needs-decision",
 		op: "convert",
 		served: "planned",
-		sentence: "A request field accepts fewer shapes than it did. Translating the shapes old callers send needs the union instructions, which are not served yet."
+		sentence: "A request field's shapes are written differently. Where every value old callers send is still accepted, a `restate` says so, and the compiler proves it before it is taken; a shape that is no longer accepted needs the union instructions, which are not served yet."
 	}),
 	rule(/^request-(body|property)-/, {
 		class: "behavior-only",
@@ -23783,13 +24461,13 @@ const RULES = [
 		class: "needs-decision",
 		op: "widen",
 		served: "yes",
-		sentence: "A response field can now hold a kind of object old callers do not know. A `widen` shows it to them as its id where the field already allowed an id, or leaves it out or sends null where it could be; that is a declared loss you acknowledge."
+		sentence: "A response field can now hold a kind of object old callers do not know. Where each kind is one they were already promised, only written separately, a `restate` says so, and the compiler proves it before it is taken. Otherwise a `widen` shows the new kind to them as its id where the field already allowed an id, or leaves it out or sends null where it could be; that is a declared loss you acknowledge."
 	}),
 	rule(/^response-(body|property)-(any-of-added|one-of-added|all-of-removed|wrapped-in-one-of(-original-preserved)?)$/, {
 		class: "needs-decision",
 		op: "convert",
 		served: "planned",
-		sentence: "A response field can now take shapes old callers do not know. Folding a new shape into one they do needs the union instructions, which are not served yet."
+		sentence: "A response field's shapes are written differently. Where every value it may now hold is one old callers were already promised, as when one object is split into a choice of its kinds, a `restate` says so, and the compiler proves it before it is taken; folding a shape they do not know into one they do needs the union instructions, which are not served yet."
 	}),
 	rule(/^response-(body|property)-(.*-)?(max|min|pattern|exclusive|items|length|properties|multiple-of|unique-items)(-.*)?$/, {
 		class: "needs-decision",
@@ -24694,7 +25372,35 @@ async function changelogFiles(baseFile, revisionFile, options) {
 	if (trimmed === "" || trimmed === "null") return [];
 	const parsed = JSON.parse(trimmed);
 	if (!Array.isArray(parsed)) throw new OasdiffError("oasdiff returned something other than a changelog array");
-	return parsed;
+	return parsed.map(canonical$1);
+}
+/**
+* An entry as one run of the differ would write it every time.
+*
+* oasdiff lists what a change added or removed in the order it walked a Go
+* map, which is different on every run, and its fingerprint is a hash of that
+* text. Figma's discriminator mappings came back as `NOISE, TEXTURE` from one
+* run and `TEXTURE, NOISE` from the next: the same 1448 findings, 240 of them
+* under a different fingerprint, and a comparison refused as not
+* reproducible. The lists are sorted, and the fingerprint is taken from what
+* the entry says rather than from how it happened to be spelled.
+*/
+function canonical$1(entry) {
+	if (typeof entry.text !== "string") return entry;
+	const text = entry.text.replace(/`([^`]*, [^`]*)`/g, (_, list) => `\`${list.split(", ").sort().join(", ")}\``);
+	const fingerprint = createHash("sha256").update(JSON.stringify([
+		entry.id,
+		text,
+		entry.level,
+		entry.operation,
+		entry.path,
+		entry.section
+	])).digest("hex").slice(0, 12);
+	return {
+		...entry,
+		text,
+		fingerprint
+	};
 }
 /**
 * Structural changelog between two in-memory documents.

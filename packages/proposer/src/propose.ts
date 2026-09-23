@@ -21,7 +21,7 @@ import {
 } from "@invariant-app/ir";
 import { type FieldShape, type SchemaDelta, schemaDeltas } from "./candidates.ts";
 import { caseCodec, listCodec, timeCodec } from "./codecs.ts";
-import type { Decision, ValueDecision } from "./decisions.ts";
+import { type Decision, decisionChange, type ValueDecision } from "./decisions.ts";
 import {
   methodMoveChanges,
   methodMoves,
@@ -34,6 +34,7 @@ import {
 import type { AlignmentQuestion, Judge, JudgeId } from "./judge.ts";
 import { questionsFor } from "./judge.ts";
 import { describePrefixMove, detectPrefixMove, prefixChange } from "./prefix.ts";
+import { type Restatement, restatements } from "./restate.ts";
 import { stemOf, UNIT_SUFFIXES } from "./rules.ts";
 import { foldDecisions } from "./vocabulary.ts";
 
@@ -331,9 +332,138 @@ export interface ProposeOptions {
 }
 
 /**
- * Proposes one Change per schema whose fields a judge could pair up.
+ * Proposes one Change per schema whose fields a judge could pair up, and a
+ * restatement wherever a schema provably says the same values another way.
  */
 export async function propose(
+  oldContract: Parameters<typeof schemaDeltas>[0],
+  newContract: Parameters<typeof schemaDeltas>[1],
+  options: ProposeOptions,
+): Promise<ProposeOutcome> {
+  return restated(
+    await drafted(oldContract, newContract, options),
+    restatements(oldContract, newContract),
+  );
+}
+
+/**
+ * What a restatement makes unnecessary, taken out, and the restatements added.
+ *
+ * A place proved to hold nothing old callers were not promised, and to refuse
+ * nothing they send, needs no other op, and one written anyway would act on
+ * the old statement of a place the restatement then replaces. A restatement
+ * under a place another draft moves or rewrites is left out instead: it was
+ * proved against the old contract as it stood, and that draft changes it.
+ */
+function restated(
+  outcome: ProposeOutcome,
+  found: readonly (readonly Restatement[])[],
+): ProposeOutcome {
+  if (found.length === 0) return outcome;
+  const scopeOf = (change: Change) => {
+    const scope = change.scopes?.[0];
+    return change.scopes?.length === 1 && scope && "schema" in scope
+      ? scope.schema.slice(scope.schema.lastIndexOf("/") + 1)
+      : undefined;
+  };
+  const pathsOf = (op: Op): string[] =>
+    "path" in op && typeof op.path === "string"
+      ? [op.path]
+      : op.op === "move"
+        ? [op.from, op.to]
+        : [];
+  const within = (path: string, place: string) =>
+    place === "" || path === place || path.startsWith(`${place}/`);
+  const others = [
+    ...outcome.proposals.map((proposal) => proposal.change),
+    ...outcome.decisions.map(decisionChange),
+  ];
+  // Left out where another draft acts above the place, moves something
+  // across its edge, reaches through a reference under it, or changes a
+  // schema the place refers to. PayPal's wallet restated its phone number
+  // while a decision made the phone schema's country code always present for
+  // old callers, and both cannot hold.
+  const allowed = (restatement: Restatement) =>
+    !others.some((change) => {
+      const scope = scopeOf(change);
+      return scope !== undefined && restatement.reaches.has(scope);
+    }) &&
+    !others.some(
+      (change) =>
+        scopeOf(change) === restatement.schema &&
+        change.ops.some((op) => {
+          const paths = pathsOf(op);
+          const inside = paths.filter((path) => within(path, restatement.path));
+          const above = paths.some(
+            (path) => path !== restatement.path && within(restatement.path, path),
+          );
+          // Through a reference under the place, the draft changes what the
+          // reference names, and the restatement would write the place
+          // back as referring to that name's old statement.
+          const through = inside.some((path) => !restatement.inPlace(path));
+          return above || through || (inside.length > 0 && inside.length < paths.length);
+        }),
+    );
+  // For each change, the outermost place allowed; the rest go with it.
+  const chosen = [...new Set(found.flatMap((options) => options.find(allowed) ?? []))];
+  const kept = chosen.filter(
+    (restatement) =>
+      !chosen.some(
+        (other) =>
+          other !== restatement &&
+          other.schema === restatement.schema &&
+          other.path !== restatement.path &&
+          within(restatement.path, other.path),
+      ),
+  );
+  const covered = (change: Change, op: Op) =>
+    kept.some(
+      (restatement) =>
+        scopeOf(change) === restatement.schema &&
+        pathsOf(op).length > 0 &&
+        pathsOf(op).every(
+          (path) => within(path, restatement.path) && restatement.inPlace(path),
+        ),
+    );
+  const proposals = outcome.proposals.flatMap((proposal) => {
+    const ops = proposal.change.ops.filter((op) => !covered(proposal.change, op));
+    if (ops.length === proposal.change.ops.length) return [proposal];
+    return ops.length === 0 ? [] : [{ ...proposal, change: { ...proposal.change, ops } }];
+  });
+  const decisions = outcome.decisions.filter((decision) => {
+    const change = decisionChange(decision);
+    return !change.ops.every((op) => covered(change, op));
+  });
+  const unresolved = outcome.unresolved.filter(
+    (entry) =>
+      !kept.some(
+        (restatement) =>
+          restatement.schema === entry.schema &&
+          within(`/${entry.field.split(".").join("/")}`, restatement.path),
+      ),
+  );
+  return {
+    proposals: [
+      ...proposals,
+      ...kept.map((restatement) => ({
+        change: restatement.change,
+        judge: "rules" as const,
+        confidence: 1,
+        attention: "normal" as const,
+        notes: [
+          restatement.path === ""
+            ? "proved to allow the same values: nothing old callers are sent was ruled out for them, and nothing they send is refused"
+            : `proved to allow the same values at ${restatement.path}`,
+        ],
+      })),
+    ],
+    unresolved,
+    impasses: impassesIn(unresolved),
+    decisions,
+  };
+}
+
+async function drafted(
   oldContract: Parameters<typeof schemaDeltas>[0],
   newContract: Parameters<typeof schemaDeltas>[1],
   options: ProposeOptions,
