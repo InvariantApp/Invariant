@@ -1,5 +1,5 @@
 {
-  "published": "0.2.0",
+  "published": "0.3.0",
   "compiledBy": "@invariant-app/compiler@0.1.0",
   "cases": 81,
   "same": 73,
