@@ -85,7 +85,9 @@ fold, decided by a person.
 Two settings say the new contract stopped stating something at all. `enum:
 null` is a field whose values were listed and now are not, such as a model name
 that became any string: there is nothing to fold a new value onto, so it passes
-through, declared. `type: null` is a value that was typed and now is not. A
+through, declared. A field that became a choice between the values it listed
+and any other text says the same, and is that `relax` followed by a `restate`
+that writes the choice as the new contract does. `type: null` is a value that was typed and now is not. A
 type changed to another type is a `convert`, never this.
 
 `restate` says the new contract describes the same values another way:
@@ -174,13 +176,17 @@ loss by name, and a declared loss makes the Change `declared-lossy`.
   any length but one is **refused**; with `pick: first`, the first item is
   shown and an empty list leaves the field out, which is declared-lossy.
 - **`unwrapSingle {pick?}`**: the inverse, a list that became one value.
-- **`dropValues {values}`**: a list whose items no longer accept some values
-  an old caller may send. Forward takes those values out of the list and keeps
-  the rest in order; a single value where a list belongs is **refused**.
-  Backward does nothing, since a list an old caller is sent is the new
-  contract's to fill. Always declared-lossy: the caller asked for something it
-  will not get. A single value that is gone is an `enumMap` to one that
-  remains, never this.
+- **`dropValues {values}`**: values a list's items may hold on one side and
+  not the other. Each is left out of the list on its way to the side whose
+  contract does not name it, and the rest is kept in order: forward, what an
+  old caller asks for that the new contract no longer accepts; backward, what
+  the API now sends that the old contract never named. A single value where a
+  list belongs is **refused**. The compiler reads which values are which from
+  the old contract's list: one it held is taken out of the predicted list, and
+  one it did not is added. Always declared-lossy: the caller asked for
+  something it will not get, or is not told something the API sent. A single
+  value that is gone is an `enumMap` to one that remains, and a single new
+  one a fold, never this.
 
 A null passes through every codec unchanged, so a nullable field stays
 nullable on both sides.

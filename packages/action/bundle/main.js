@@ -3082,8 +3082,8 @@ const UnwrapSingleCodec = Type$1.Object({
 	pick: Type$1.Optional(ListPick)
 }, { additionalProperties: false });
 /**
-* Values an old caller may put in a list that the new contract no longer
-* accepts, taken out of it on the way in.
+* Values a list's items may hold on one side and not the other, left out of
+* the list on its way to the side whose contract does not name them.
 *
 * Asana stopped offering a hundred and twenty-six of the fields a caller
 * could ask a portfolio's items to include, and an old caller asking for
@@ -3091,12 +3091,22 @@ const UnwrapSingleCodec = Type$1.Object({
 * so nothing can serve them; what can be served is everything else the
 * caller asked for, which is the request with those values left out.
 *
+* The other way round, Discord's applications listed `event_webhooks_types`
+* as a list of no values at all, and a later release as twelve kinds of
+* event. An old caller was told the list is always empty, and has no value of
+* its own to be shown any of them as, so the list it is sent leaves them out.
+*
+* One list of values serves both, since each is named by one side only: a
+* value the old contract held and the new one does not accept is never sent
+* by the API, and a value only the new one holds is never sent by an old
+* caller. The compiler reads which is which from the old contract's list.
+*
 * Applied to a list, never to a single value: a single value that is gone
 * has no request left without it, and is an `enumMap` to a value that
-* remains, which a person decides. Forward only, since a list an old caller
-* is sent is the new contract's to fill. Always lossy, because the caller
-* asked for something it will not get; the compiler derives
-* `declared-lossy` from it and the gate asks for that in writing.
+* remains, which a person decides; a single new value is a fold. Always
+* lossy, because the caller asked for something it will not get, or is not
+* told something the API sent; the compiler derives `declared-lossy` from it
+* and the gate asks for that in writing.
 */
 const DropValuesCodec = Type$1.Object({
 	kind: Type$1.Literal("dropValues"),
@@ -17736,7 +17746,12 @@ function backwardInstrs(op, prefix, changeId, variants = NO_VARIANTS) {
 				to: op.codec.from,
 				c: changeId
 			}];
-			case "dropValues": return [];
+			case "dropValues": return [{
+				k: "drop",
+				path: prefixed(prefix, op.path),
+				values: op.codec.values,
+				c: changeId
+			}];
 			default: return [valueCodec(op.codec, prefixed(prefix, op.path), changeId, "backward")];
 		}
 		case "add": return [{
@@ -21909,6 +21924,10 @@ function applyScale10(schema, exponent) {
 function applyEnumMap(schema, pairs, fold = []) {
 	const out = clone$1(schema);
 	const forward = new Map(pairs.map(([from, to]) => [from, to]));
+	if (out["enum"] === void 0 && out["const"] !== void 0) {
+		out["enum"] = [out["const"]];
+		delete out["const"];
+	}
 	const values = out["enum"];
 	if (!Array.isArray(values)) throw new SchemaOpError("enumMap applies only to a schema with an enum");
 	out["enum"] = values.map((value) => {
@@ -22078,25 +22097,32 @@ function applyUnwrapSingle(schema) {
 	return out;
 }
 /**
-* A list without the values `dropValues` takes out of it. The items' own
-* vocabulary is written in place in the list's statement, which is where the
-* values are now absent from; the named schema they may refer to is left
-* alone, since other places may still hold those values.
+* The list as the new contract states it, from the values `dropValues` names.
+* A value the old list held is one the new contract no longer accepts, and is
+* taken out, as Asana's `opt_fields` lost `color`; one it never held is one
+* the new contract's list may now hold, and is added, as Discord's webhook
+* event types listed none and then twelve. Either way the value is left out
+* of the list on its way to the side that does not name it.
+*
+* The vocabulary is written where the list's items write their own, beside
+* whatever else they refer to, and otherwise in place of the named schema
+* they refer to, which is left alone, since other places may still hold
+* those values.
 */
 function applyDropValues(schema, values, document) {
 	const types = declaredTypes(schema);
 	const written = schema["items"];
 	if (types.length > 0 && !types.includes("array") || written === void 0) throw new SchemaOpError("dropValues applies only to a list whose items are described");
-	const items = document === void 0 ? written : resolveSchema(document, written);
+	const items = isJsonObject(written) && Array.isArray(written["enum"]) || document === void 0 ? written : resolveSchema(document, written);
 	const listed = isJsonObject(items) ? items["enum"] : void 0;
 	if (!isJsonObject(items) || !Array.isArray(listed)) throw new SchemaOpError("dropValues applies only to a list whose items list their values");
 	const gone = new Set(values);
-	const missing = values.filter((value) => !listed.includes(value));
-	if (missing.length > 0) throw new SchemaOpError(`dropValues names ${missing.map((value) => `"${value}"`).join(", ")}, which the list never held`);
+	const kept = listed.filter((value) => typeof value !== "string" || !gone.has(value));
+	const arrived = values.filter((value) => !listed.includes(value));
 	const out = clone$1(schema);
 	out["items"] = {
 		...clone$1(items),
-		enum: listed.filter((value) => typeof value !== "string" || !gone.has(value))
+		enum: [...kept, ...arrived]
 	};
 	return out;
 }
@@ -23323,8 +23349,10 @@ function derive(change) {
 			}
 			if (op.codec.kind === "dropValues") {
 				runtime = worse(runtime, "declared-lossy");
-				reasons.push(`${op.path} no longer accepts ${op.codec.values.length} value${op.codec.values.length === 1 ? "" : "s"} an old caller may send, which are left out of the list, so what they asked for with them is not given`);
+				const count = op.codec.values.length;
+				reasons.push(`${op.path} leaves ${count} value${count === 1 ? "" : "s"} out of the list wherever one side's contract does not name them, so what an old caller asked for with them is not given, and what the API sent with them is not shown`);
 				lossy.forward.push(op.path);
+				lossy.backward.push(op.path);
 			}
 			if (op.codec.kind === "enumMap") {
 				if (op.codec.fold !== void 0 && op.codec.fold.length > 0) {
@@ -24994,13 +25022,13 @@ const RULES = [
 		class: "needs-decision",
 		op: "convert",
 		served: "yes",
-		sentence: "A response field can now hold a value old callers do not know. An enum map with a `fold` shows them one they do, which you choose; that is a declared loss, and the pull request asks you to acknowledge it."
+		sentence: "A response field can now hold a value old callers do not know. An enum map with a `fold` shows them one they do, which you choose; where the field is a list, `dropValues` can leave the value out of it instead. Either is a declared loss, and the pull request asks you to acknowledge it."
 	}),
 	rule(/^response-(body|property)-enum-value-removed$/, {
 		class: "needs-decision",
 		op: "convert",
 		served: "yes",
-		sentence: "A response field no longer sends a value old callers may be waiting for. If it was renamed, an enum map translates the new value back, which you confirm; if the state is gone, nothing can bring it back, so declare a `behavior` flag and tell the callers who wait for it."
+		sentence: "A response field no longer sends a value old callers may be waiting for. If it was renamed, an enum map translates the new value back, which you confirm; if the state is gone, nothing can bring it back, so declare a `behavior` flag and tell the callers who wait for it. If the field stopped listing its values at all, a `relax` with `enum: null` passes what the API sends through, a declared loss."
 	}),
 	rule(/^response-(body|property)-type-changed$/, {
 		class: "needs-decision",

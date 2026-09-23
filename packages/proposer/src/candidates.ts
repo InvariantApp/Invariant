@@ -55,6 +55,23 @@ export interface FieldShape {
    * not all text. Either way it is not a field that allows any value.
    */
   unlistedValues?: true;
+  /**
+   * The text values of the named schema `unlistedValues` refers to, for
+   * reading where the field stops referring to it or starts to. Okta's custom
+   * role listed `CUSTOM` as its only type in place, and a later release made
+   * it a reference to `RoleType`, which lists thirteen; compared only under
+   * its own name, that vocabulary was never set against the one the field
+   * held before, and twelve values old callers never heard of went unasked.
+   */
+  namedValues?: string[];
+  /**
+   * The field is a choice between text values it names and any text at all,
+   * as Mistral wrote a tool's `name` as one of its built-in connectors or any
+   * other name: it holds any text, and is read as that. What it no longer
+   * lists is a vocabulary that opened, and the choice is how the new contract
+   * writes it.
+   */
+  anyText?: true;
   /** For a union, whether one of its branches is a plain string, as an id is. */
   idBranch?: boolean;
   /** The bounds the schema puts on the value, by keyword. */
@@ -237,6 +254,44 @@ function throughNull(document: OpenApiDocument, value: JsonObject): JsonObject {
   return { ...resolved, ...rest };
 }
 
+/**
+ * Whether a choice holds any text at all: every branch but null is text, and
+ * one of them says nothing about which text. Mistral made a tool's `name`
+ * either one of its built-in connectors or any other name, which the differ
+ * reads as five values removed and a union added, and which is a vocabulary
+ * that opened: nothing is a kind of object, and every value it may now hold
+ * is text.
+ */
+function anyTextChoice(document: OpenApiDocument, value: JsonObject): boolean {
+  for (const key of ["anyOf", "oneOf"] as const) {
+    const branches = value[key];
+    if (!Array.isArray(branches)) continue;
+    const others = branches
+      .filter((branch) => !isNullBranch(branch))
+      .map((branch) => resolvedObject(document, branch));
+    if (others.length < 2) return false;
+    const text = (branch: JsonObject) =>
+      typeOf(branch) === "string" &&
+      Object.keys(branch).every(
+        (keyword) =>
+          keyword === "type" ||
+          keyword === "enum" ||
+          keyword === "const" ||
+          ANNOTATIONS.has(keyword),
+      );
+    const unnamed = (branch: JsonObject) =>
+      branch["enum"] === undefined && branch["const"] === undefined;
+    return others.every(text) && others.some(unnamed);
+  }
+  return false;
+}
+
+/** A choice of text read as the text it allows: the field, without the choice. */
+function asAnyText(value: JsonObject): JsonObject {
+  const { anyOf: _anyOf, oneOf: _oneOf, ...rest } = value;
+  return { ...rest, type: "string" };
+}
+
 function fieldsOf(
   document: OpenApiDocument,
   schema: JsonValue,
@@ -262,7 +317,9 @@ function fieldsOf(
   return Object.entries(properties).flatMap(([name, raw]) => {
     const child = resolveSchema(document, raw);
     const outer: JsonObject = isJsonObject(child) ? child : {};
-    const value = throughNull(document, outer);
+    const through = throughNull(document, outer);
+    const open = anyTextChoice(document, through);
+    const value = open ? asAnyText(through) : through;
     const declared = value["type"];
     const types = Array.isArray(declared)
       ? declared.filter((t): t is string => typeof t === "string")
@@ -291,6 +348,11 @@ function fieldsOf(
         : undefined;
     const enumNull =
       enumValues !== undefined && (declaredEnum as JsonValue[]).includes(null);
+    const namedValues =
+      elsewhere &&
+      (declaredEnum as JsonValue[]).every((v) => typeof v === "string" || v === null)
+        ? (declaredEnum as JsonValue[]).filter((v): v is string => typeof v === "string")
+        : undefined;
 
     const here = {
       name: prefix.name === "" ? name : `${prefix.name}.${name}`,
@@ -309,6 +371,8 @@ function fieldsOf(
       ...(Array.isArray(declaredEnum) && enumValues === undefined
         ? { unlistedValues: true }
         : {}),
+      ...(namedValues ? { namedValues } : {}),
+      ...(open ? { anyText: true as const } : {}),
       // Each way a document can say it: 3.1's type list, 3.0's flag, or a
       // union with a null branch.
       nullable:
@@ -373,15 +437,21 @@ function fieldsOf(
     // its own schema, wherever it is listed.
     const itemSchema = items ? resolvedObject(document, items) : undefined;
     const itemEnum = itemSchema?.["enum"];
+    // Written in the items themselves, even beside a reference: Discord's
+    // webhook event types listed their own values beside `allOf` a schema of
+    // every event there is, and listed none at all until they listed twelve.
     if (
       items &&
       itemSchema &&
-      inline(items) &&
+      (inline(items) || Array.isArray(items["enum"])) &&
       Array.isArray(itemEnum) &&
-      itemEnum.length > 0 &&
       (itemEnum as JsonValue[]).every((v) => typeof v === "string" || v === null)
     ) {
       const itemNull = (itemEnum as JsonValue[]).includes(null);
+      // The values it lists are what an item is, whatever choice it is also
+      // built from: Discord's are one of every event there is, and only the
+      // twelve listed. Read as a choice as well, the item was compared twice.
+      listed.length = 0;
       listed.push({
         name: `${here.name}.*`,
         pointer: `${here.pointer}/*`,
@@ -696,6 +766,41 @@ function shapeOf(
   return fieldsOf(document, schema);
 }
 
+/**
+ * A named vocabulary that stopped listing its values, as the schema's own
+ * value with none listed. Apicurio's `ArtifactType` named eleven kinds of
+ * artifact, and a later release any text: with only listed values compared
+ * at a schema's root, the new one had no root to set the old one against, and
+ * the eleven looked removed from every artifact an old caller is sent. Only
+ * where the value is still the same kind of scalar and nothing else.
+ */
+function unlistedRoot(
+  document: OpenApiDocument,
+  schema: JsonValue,
+  listed: FieldShape,
+): FieldShape[] {
+  const resolved = resolveSchema(document, schema);
+  if (!isJsonObject(resolved) || typeOf(resolved) !== listed.type) return [];
+  const structured = ["enum", "const", "properties", "items", "anyOf", "oneOf", "allOf"];
+  if (structured.some((keyword) => resolved[keyword] !== undefined)) return [];
+  const declared = resolved["type"];
+  return [
+    {
+      name: listed.name,
+      pointer: "",
+      type: listed.type,
+      format: typeof resolved["format"] === "string" ? resolved["format"] : undefined,
+      enumValues: undefined,
+      description:
+        typeof resolved["description"] === "string" ? resolved["description"] : undefined,
+      required: true,
+      nullable:
+        (Array.isArray(declared) && declared.includes("null")) ||
+        resolved["nullable"] === true,
+    },
+  ];
+}
+
 function shapeDiffers(a: FieldShape, b: FieldShape): boolean {
   if (
     a.type !== b.type ||
@@ -840,6 +945,61 @@ function stoppedDescribing(
   };
 }
 
+/**
+ * The fields whose vocabulary moved between being listed in place and being
+ * a named schema's, or between two named schemas, with both vocabularies
+ * listed in place, so the field is compared as holding the values it holds.
+ *
+ * Okta's custom role type listed only `CUSTOM` and came to refer to
+ * `RoleType`, which lists thirteen; Langfuse's evaluator messages went from
+ * `user` alone to a named role that adds `assistant` and `system`. Read as
+ * a reference, neither field listed anything, so twelve and two values old
+ * callers never heard of were never set against what they had been told.
+ *
+ * A field that refers to the same schema on both sides is left alone, since
+ * that schema is compared under its own name. So is one that stopped
+ * referring to a schema that itself changed: that schema's own Change runs
+ * wherever the old contract used it, this field included, and a second one
+ * here would translate the same value twice.
+ */
+function vocabulariesInPlace(
+  oldSchemas: Record<string, JsonValue>,
+  newSchemas: Record<string, JsonValue>,
+  before: FieldShape[],
+  after: FieldShape[],
+): { left: FieldShape[]; right: FieldShape[] } {
+  const afterAt = new Map(after.map((field) => [field.pointer, field]));
+  const moved = new Set<string>();
+  for (const field of before) {
+    const next = afterAt.get(field.pointer);
+    if (next === undefined || field.ref === next.ref) continue;
+    if (field.namedValues === undefined && next.namedValues === undefined) continue;
+    // Only a vocabulary that moved: a field that held any text and came to
+    // name its values, or the other way round, is read as it always was.
+    const listed = (shape: FieldShape) =>
+      shape.enumValues !== undefined || shape.namedValues !== undefined;
+    if (!listed(field) || !listed(next)) continue;
+    if (field.namedValues !== undefined) {
+      const was = field.ref === undefined ? undefined : schemaName(field.ref);
+      if (
+        was === undefined ||
+        !(was in newSchemas) ||
+        JSON.stringify(oldSchemas[was]) !== JSON.stringify(newSchemas[was])
+      ) {
+        continue;
+      }
+    }
+    moved.add(field.pointer);
+  }
+  if (moved.size === 0) return { left: before, right: after };
+  const inPlace = (field: FieldShape): FieldShape => {
+    if (!moved.has(field.pointer) || field.namedValues === undefined) return field;
+    const { unlistedValues: _unlisted, namedValues, ...rest } = field;
+    return { ...rest, enumValues: namedValues };
+  };
+  return { left: before.map(inPlace), right: after.map(inPlace) };
+}
+
 function compareReading(
   oldContract: OpenApiDocument,
   newContract: OpenApiDocument,
@@ -867,8 +1027,12 @@ function compareReading(
     { before, after },
     newRoot,
   );
-  const left = [...before, ...repointed.before, ...written.before];
-  const right = [...after, ...repointed.after, ...written.after];
+  const { left, right } = vocabulariesInPlace(
+    oldSchemas,
+    newSchemas,
+    [...before, ...repointed.before, ...written.before],
+    [...after, ...repointed.after, ...written.after],
+  );
   if (saysNothing(newContract, newRoot) && !saysNothing(oldContract, oldRoot)) {
     return stoppedDescribing(oldContract, oldRoot, name);
   }
@@ -1721,13 +1885,19 @@ export function schemaDeltas(
       continue;
     }
 
+    const before = shapeOf(oldContract, oldSchemas[name] as JsonValue, name);
+    const after = shapeOf(newContract, counterpart.schema, name);
+    const listed = before.find((field) => field.pointer === "");
+    if (listed && !after.some((field) => field.pointer === "")) {
+      after.push(...unlistedRoot(newContract, counterpart.schema, listed));
+    }
     const compared = compareReading(
       oldContract,
       newContract,
       oldSchemas,
       newSchemas,
-      shapeOf(oldContract, oldSchemas[name] as JsonValue, name),
-      shapeOf(newContract, counterpart.schema, name),
+      before,
+      after,
       { name, old: oldSchemas[name] as JsonValue, new: counterpart.schema },
     );
     if (!compared) continue;

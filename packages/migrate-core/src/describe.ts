@@ -22,7 +22,7 @@ export function recoding(codec: Codec): string {
     case "unwrapSingle":
       return "the one item instead of a list";
     case "dropValues":
-      return `a list that no longer accepts ${codec.values
+      return `a list whose values differ by ${codec.values
         .slice(0, 3)
         .map((value) => `\`${value}\``)
         .join(
