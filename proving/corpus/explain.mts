@@ -3,6 +3,7 @@
  * for reading closely: the corpus run keeps only counts.
  *
  *   node --import tsx proving/corpus/explain.mts --provider stripe.com [--limit 3] [--kind <id>]
+ *   node --import tsx proving/corpus/explain.mts --api datadoghq.com:v2/openapi --to 3814970
  *
  * Pairs run one at a time in this process, so keep --limit small on large
  * providers and run it under `capped`.
@@ -18,6 +19,8 @@ const option = (name: string) => {
 const provider = option("provider");
 const api = option("api");
 const kind = option("kind");
+// One pair, by any part of the label it goes to, as a regression names it.
+const to = option("to");
 const limit = Number(option("limit") ?? 5);
 const skip = Number(option("skip") ?? 0);
 
@@ -26,7 +29,8 @@ const pairs = manifest.pairs
   .filter(
     (pair) =>
       (provider === undefined || pair.provider === provider) &&
-      (api === undefined || pair.api === api),
+      (api === undefined || pair.api === api) &&
+      (to === undefined || pair.to.label.includes(to)),
   )
   .slice(skip, skip + limit);
 
