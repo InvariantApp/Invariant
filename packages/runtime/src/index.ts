@@ -925,6 +925,26 @@ export class InvariantRuntime {
       : unmarkConditionals(headers, contract);
   }
 
+  /**
+   * What the provider declared about this contract's end, told to its callers
+   * on every answer: `Deprecation` (RFC 9745), a date as a structured-field
+   * item, and `Sunset` (RFC 8594), an HTTP date. A caller reading its own
+   * responses learns when its contract stops being served without reading a
+   * changelog. A header the provider's own code already set is left as it is.
+   */
+  #markRetirement(headers: Headers, label: string): void {
+    const contract = this.#program.contracts.get(label);
+    if (!contract) return;
+    if (contract.deprecated !== undefined && !headers.has("deprecation")) {
+      const at = Date.parse(contract.deprecated);
+      if (!Number.isNaN(at)) headers.set("deprecation", `@${Math.floor(at / 1000)}`);
+    }
+    if (contract.sunset !== undefined && !headers.has("sunset")) {
+      const at = new Date(contract.sunset);
+      if (!Number.isNaN(at.getTime())) headers.set("sunset", at.toUTCString());
+    }
+  }
+
   /** The request headers that choose a contract, which every response varies on. */
   get varyOn(): readonly string[] {
     return this.#identity.flatMap((strategy) =>
@@ -964,6 +984,7 @@ export class InvariantRuntime {
     // A current caller's answer is left as it was, but for `Vary`: a cache
     // holding it must not hand it to a caller who named an older contract.
     if (adapted) headers.set(CONTRACT_RESPONSE_HEADER, context.contract);
+    if (adapted) this.#markRetirement(headers, context.contract);
     appendVary(headers, this.varyOn);
     const mark = (into: Headers) => {
       const etag = into.get("etag");

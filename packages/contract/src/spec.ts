@@ -711,6 +711,41 @@ export function deref(document: OpenApiDocument, value: JsonValue): JsonValue {
 
 export const FORM_MEDIA_TYPE = "application/x-www-form-urlencoded";
 
+/**
+ * The entry in a `content` map holding a JSON body, whatever the provider
+ * called it.
+ *
+ * JSON is written under more names than one. Kubernetes watches are
+ * `application/json;stream=watch`, a patch body is `application/json-patch+json`
+ * or `application/merge-patch+json`, a hypermedia body is
+ * `application/hal+json`, an error is `application/problem+json`, and
+ * generated documents often name a wildcard and mean whatever the schema
+ * says. The
+ * runtime already reads every one of them, by the same rule the media type
+ * itself gives: `+json` is JSON. Reading only the exact name here left the
+ * bodies of whole APIs invisible to the checker while the adapter would have
+ * served them.
+ *
+ * The exact name wins, then a named JSON form, then a wildcard, so a document
+ * that says both is read as it would be served.
+ */
+export function jsonMedia(
+  content: JsonObject,
+): { type: string; media: JsonObject } | undefined {
+  const named = Object.keys(content);
+  const json = (type: string) => {
+    const [essence = ""] = type.split(";");
+    const trimmed = essence.trim().toLowerCase();
+    return trimmed === "application/json" || trimmed.endsWith("+json");
+  };
+  const found =
+    named.find((type) => type.trim().toLowerCase() === "application/json") ??
+    named.find(json) ??
+    named.find((type) => type.trim() === "*/*" || type.trim() === "application/*");
+  const media = found === undefined ? undefined : content[found];
+  return found !== undefined && isJsonObject(media) ? { type: found, media } : undefined;
+}
+
 export interface RequestBodyMedia {
   /** Which representation the schema came from. */
   media: "json" | "form";
@@ -739,7 +774,7 @@ export function requestBodyMedia(
   const content = body["content"];
   if (!isJsonObject(content)) return undefined;
   const form = content[FORM_MEDIA_TYPE];
-  const json = content["application/json"];
+  const json = jsonMedia(content)?.media;
   if (isJsonObject(json) && json["schema"] !== undefined) {
     return {
       media: "json",
@@ -786,7 +821,7 @@ export function responseSchemas(
     if (!isJsonObject(response)) continue;
     const content = response["content"];
     if (!isJsonObject(content)) continue;
-    const json = content["application/json"];
+    const json = jsonMedia(content)?.media;
     if (!isJsonObject(json)) continue;
     const schema = json["schema"];
     if (schema === undefined) continue;

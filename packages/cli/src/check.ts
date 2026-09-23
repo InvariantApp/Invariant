@@ -333,13 +333,10 @@ export async function check(
 
   // Each step is projected once for every historical contract it lies on the
   // way from, so the same issue arrives several times.
-  const chained = chainProgram(
-    config.api,
-    current.label,
-    current.digest,
-    steps,
-    config.identity ? { identity: config.identity } : {},
-  );
+  const chained = chainProgram(config.api, current.label, current.digest, steps, {
+    ...(config.identity ? { identity: config.identity } : {}),
+    ...(config.retirement.size > 0 ? { retirement: config.retirement } : {}),
+  });
   const unservable = [
     ...new Set(chained.issues.map((issue) => `${issue.changeId}: ${issue.message}`)),
   ];

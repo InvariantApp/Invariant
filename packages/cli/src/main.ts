@@ -17,6 +17,7 @@ import { renderComment } from "./comment.ts";
 import { loadConfig } from "./config.ts";
 import { doctor, renderDoctor } from "./doctor.ts";
 import { type InitOptions, init, renderInit } from "./init.ts";
+import { observe, renderObservation } from "./observe.ts";
 import { renderProposals, runPropose } from "./propose.ts";
 import { rebuildAt, release, renderRelease, verifyRelease } from "./release.ts";
 import { assessRetirement, renderRetirement, retireContracts } from "./retire.ts";
@@ -50,6 +51,8 @@ const USAGE = `invariant <command>
             it already has is not sent twice.
   status    What production is using: each contract, and who is still on it.
   retire    Say which old contracts nobody is using any more.
+  observe   Stand in front of the API, adapt nothing, and report where its
+            answers do not match its own specification. Needs --upstream.
   doctor    Check the toolchain, the configuration, every contract, and that
             the compiled program is what the Changes compile to now.
   contract export --label <c> [--out <path>]
@@ -67,6 +70,10 @@ Options
   --header <name>   init: the header callers name a contract in
   --no-ci           init: do not write a GitHub Actions workflow
   --force           init: replace an existing invariant.yaml
+  --upstream <url>  observe: where the API is listening
+  --port <n>        observe: the port to listen on (default: one that is free)
+  --sample <n>      observe: how many answers in a hundred to check (default: 100)
+  --out <path>      observe: where to write the report as JSON
   --config <path>   Path to invariant.yaml (default: ./invariant.yaml)
   --out <path>      Where compile writes (default: invariant/compiled/program.json)
   --full            check: also start the real builds and compare them
@@ -296,6 +303,40 @@ async function main(argv: string[]): Promise<number> {
         `\nStopped serving ${removed.join(", ")}. Run "invariant compile" and commit both.\n`,
       );
     }
+    return 0;
+  }
+
+  if (command === "observe") {
+    const upstream = flag(argv, "upstream");
+    if (!upstream) {
+      process.stderr.write(
+        "observe needs --upstream <url>, the API it stands in front of\n",
+      );
+      return 1;
+    }
+    const observer = await observe(config, {
+      upstream,
+      port: Number(flag(argv, "port") ?? 0),
+      samplePercent: Number(flag(argv, "sample") ?? 100),
+      maxBodyBytes: Number(flag(argv, "max-body") ?? 1_000_000),
+      ...(flag(argv, "out") === undefined ? {} : { out: flag(argv, "out") }),
+    });
+    process.stderr.write(
+      `observing ${upstream} on ${observer.url}, against ${config.currentLabel ?? "the current contract"}. ` +
+        "Send traffic through it; stop with Ctrl-C.\n",
+    );
+    // The report is what this command is for, so it is written on the way out
+    // however the process is asked to stop.
+    const finish = async () => {
+      const report = await observer.close();
+      process.stdout.write(`${renderObservation(report)}\n`);
+    };
+    await new Promise<void>((resolve) => {
+      for (const signal of ["SIGINT", "SIGTERM"] as const) {
+        process.once(signal, () => resolve());
+      }
+    });
+    await finish();
     return 0;
   }
 

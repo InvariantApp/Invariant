@@ -85,6 +85,14 @@ export interface DecodedContract {
    */
   outbound: Map<string, { instrs: CompiledInstr[]; numeric: boolean }>;
   behaviors: string[];
+  /**
+   * When this contract was deprecated and when it stops being served, as the
+   * provider declared them: a date each, sent to its callers on every answer
+   * as `Deprecation` (RFC 9745) and `Sunset` (RFC 8594), so a caller learns
+   * from the API itself and not only from a changelog it may never read.
+   */
+  deprecated?: string;
+  sunset?: string;
   /** Endpoints this contract had that the current one does not. */
   retired: {
     method: string;
@@ -1061,6 +1069,8 @@ export function decodeProgram(raw: unknown): DecodedProgram {
         "behaviors",
         "retired",
         "basePath",
+        "deprecated",
+        "sunset",
       ],
       where,
     );
@@ -1115,8 +1125,20 @@ export function decodeProgram(raw: unknown): DecodedProgram {
       });
     }
 
+    const when = (key: "deprecated" | "sunset") => {
+      const value = contract[key];
+      if (value === undefined) return {};
+      const text = string(value, `${where}.${key}`);
+      if (Number.isNaN(Date.parse(text))) {
+        throw new ProgramError(`${where}.${key} must be a date, found ${text}`);
+      }
+      return { [key]: text };
+    };
+
     contracts.set(label, {
       ...(ownBase === undefined ? {} : { basePath: ownBase as string }),
+      ...when("deprecated"),
+      ...when("sunset"),
       label: string(contract["label"], `${where}.label`),
       routes: (array(contract["routes"], `${where}.routes`) as unknown[]).map(
         (route, index) => decodeRoute(route, `${where}.routes[${index}]`),

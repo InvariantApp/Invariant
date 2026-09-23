@@ -237,3 +237,35 @@ A Change that serves old callers with something lost, and says so.
 ### `gate.unmigratableWithActiveConsumers`
 
 A Change no codemod can apply, while consumers still use what it changes.
+
+## `retirement`
+
+When each released contract is deprecated and when it stops being served, by
+label. What a provider decides here is told to that contract's callers on every
+answer, as `Deprecation` (RFC 9745) and `Sunset` (RFC 8594), so a caller learns
+it from the API rather than from a changelog it may never read. A header the
+provider's own code already set is left as it is.
+
+```yaml
+retirement:
+  "2026-01-15":
+    deprecated: 2026-06-01
+    sunset: 2026-12-31
+```
+
+Only a contract listed in `spec.released` can be given an end, and both dates
+are optional: a contract may be deprecated long before a date is set for its
+end. Neither date changes what the runtime serves; `invariant retire` is what
+stops serving a contract, and it goes by what callers actually still use.
+
+### `retirement.<label>`
+
+One released contract's end.
+
+### `retirement.<label>.deprecated`
+
+The day this contract was deprecated. A date, or a date and time.
+
+### `retirement.<label>.sunset`
+
+The day this contract stops being served.

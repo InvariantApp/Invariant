@@ -3974,6 +3974,14 @@ const ContractProgram = Type$1.Object({
 	/** Changes on this step that no transform can express. */
 	behaviors: Type$1.Array(Type$1.String()),
 	/**
+	* When the provider declared this contract deprecated, and when it stops
+	* being served. The runtime tells its callers on every answer, as
+	* `Deprecation` (RFC 9745) and `Sunset` (RFC 8594), so what a provider
+	* wrote in `invariant.yaml` reaches the callers who have to act on it.
+	*/
+	deprecated: Type$1.Optional(Type$1.String({ format: "date-time" })),
+	sunset: Type$1.Optional(Type$1.String({ format: "date-time" })),
+	/**
 	* Endpoints this contract had and the current one does not.
 	*
 	* Carried so the runtime can refuse them by name. A caller on an old
@@ -15715,6 +15723,38 @@ function deref(document, value) {
 }
 const FORM_MEDIA_TYPE = "application/x-www-form-urlencoded";
 /**
+* The entry in a `content` map holding a JSON body, whatever the provider
+* called it.
+*
+* JSON is written under more names than one. Kubernetes watches are
+* `application/json;stream=watch`, a patch body is `application/json-patch+json`
+* or `application/merge-patch+json`, a hypermedia body is
+* `application/hal+json`, an error is `application/problem+json`, and
+* generated documents often name a wildcard and mean whatever the schema
+* says. The
+* runtime already reads every one of them, by the same rule the media type
+* itself gives: `+json` is JSON. Reading only the exact name here left the
+* bodies of whole APIs invisible to the checker while the adapter would have
+* served them.
+*
+* The exact name wins, then a named JSON form, then a wildcard, so a document
+* that says both is read as it would be served.
+*/
+function jsonMedia(content) {
+	const named = Object.keys(content);
+	const json = (type) => {
+		const [essence = ""] = type.split(";");
+		const trimmed = essence.trim().toLowerCase();
+		return trimmed === "application/json" || trimmed.endsWith("+json");
+	};
+	const found = named.find((type) => type.trim().toLowerCase() === "application/json") ?? named.find(json) ?? named.find((type) => type.trim() === "*/*" || type.trim() === "application/*");
+	const media = found === void 0 ? void 0 : content[found];
+	return found !== void 0 && isJsonObject(media) ? {
+		type: found,
+		media
+	} : void 0;
+}
+/**
 * The schema of an operation's request body, from its JSON representation or,
 * where it has none, its form one.
 *
@@ -15729,7 +15769,7 @@ function requestBodyMedia(document, operation) {
 	const content = body["content"];
 	if (!isJsonObject(content)) return void 0;
 	const form = content[FORM_MEDIA_TYPE];
-	const json = content["application/json"];
+	const json = jsonMedia(content)?.media;
 	if (isJsonObject(json) && json["schema"] !== void 0) return {
 		media: "json",
 		schema: json["schema"],
@@ -15755,7 +15795,7 @@ function responseSchemas$1(document, operation) {
 		if (!isJsonObject(response)) continue;
 		const content = response["content"];
 		if (!isJsonObject(content)) continue;
-		const json = content["application/json"];
+		const json = jsonMedia(content)?.media;
 		if (!isJsonObject(json)) continue;
 		const schema = json["schema"];
 		if (schema === void 0) continue;
@@ -19745,7 +19785,9 @@ function decodeProgram(raw) {
 			"blocks",
 			"behaviors",
 			"retired",
-			"basePath"
+			"basePath",
+			"deprecated",
+			"sunset"
 		], where);
 		const blocks = decodeBlocks(contract["blocks"], `${where}.blocks`, shared);
 		const ownBase = contract["basePath"];
@@ -19769,8 +19811,17 @@ function decodeProgram(raw) {
 				numeric: needsExactNumbers(instrs)
 			});
 		}
+		const when = (key) => {
+			const value = contract[key];
+			if (value === void 0) return {};
+			const text = string$1(value, `${where}.${key}`);
+			if (Number.isNaN(Date.parse(text))) throw new ProgramError(`${where}.${key} must be a date, found ${text}`);
+			return { [key]: text };
+		};
 		contracts.set(label, {
 			...ownBase === void 0 ? {} : { basePath: ownBase },
+			...when("deprecated"),
+			...when("sunset"),
 			label: string$1(contract["label"], `${where}.label`),
 			routes: array$1(contract["routes"], `${where}.routes`).map((route, index) => decodeRoute(route, `${where}.routes[${index}]`)),
 			sites,
@@ -20424,6 +20475,25 @@ var InvariantRuntime = class {
 	conditionalHeaders(headers, contract, site) {
 		return contract === this.currentLabel || !site ? headers : unmarkConditionals(headers, contract);
 	}
+	/**
+	* What the provider declared about this contract's end, told to its callers
+	* on every answer: `Deprecation` (RFC 9745), a date as a structured-field
+	* item, and `Sunset` (RFC 8594), an HTTP date. A caller reading its own
+	* responses learns when its contract stops being served without reading a
+	* changelog. A header the provider's own code already set is left as it is.
+	*/
+	#markRetirement(headers, label) {
+		const contract = this.#program.contracts.get(label);
+		if (!contract) return;
+		if (contract.deprecated !== void 0 && !headers.has("deprecation")) {
+			const at = Date.parse(contract.deprecated);
+			if (!Number.isNaN(at)) headers.set("deprecation", `@${Math.floor(at / 1e3)}`);
+		}
+		if (contract.sunset !== void 0 && !headers.has("sunset")) {
+			const at = new Date(contract.sunset);
+			if (!Number.isNaN(at.getTime())) headers.set("sunset", at.toUTCString());
+		}
+	}
 	/** The request headers that choose a contract, which every response varies on. */
 	get varyOn() {
 		return this.#identity.flatMap((strategy) => strategy.kind === "header" ? [strategy.name] : []);
@@ -20447,6 +20517,7 @@ var InvariantRuntime = class {
 		const headers = new Headers(response.headers);
 		const adapted = context.contract !== this.currentLabel;
 		if (adapted) headers.set(CONTRACT_RESPONSE_HEADER, context.contract);
+		if (adapted) this.#markRetirement(headers, context.contract);
 		appendVary(headers, this.varyOn);
 		const mark = (into) => {
 			const etag = into.get("etag");
@@ -21361,7 +21432,7 @@ function bodyHolder(document, operation, create) {
 		operation["requestBody"] = body;
 	}
 	const content = body["content"];
-	const holder = isJsonObject(content) ? isJsonObject(content["application/json"]) ? content["application/json"] : content["application/x-www-form-urlencoded"] : void 0;
+	const holder = isJsonObject(content) ? jsonMedia(content)?.media ?? content["application/x-www-form-urlencoded"] : void 0;
 	if (!isJsonObject(holder) || !isJsonObject(holder["schema"])) {
 		if (!create) return void 0;
 		throw new SchemaOpError("the request body is neither JSON nor a form, so nothing can move into it");
@@ -23224,10 +23295,13 @@ function chainProgram(api, currentLabel, currentDigest, steps, options = {}) {
 		const program = contractOf(contractFrame(label, steps, projected, index), link);
 		const served = servedUnder(step.from);
 		const current = servedUnder(steps.at(-1)?.to);
-		contracts[label] = served !== void 0 && current !== void 0 && served !== current ? {
+		const ending = options.retirement?.get(label);
+		contracts[label] = {
 			...program,
-			basePath: served
-		} : program;
+			...served !== void 0 && current !== void 0 && served !== current ? { basePath: served } : {},
+			...ending?.deprecated === void 0 ? {} : { deprecated: ending.deprecated },
+			...ending?.sunset === void 0 ? {} : { sunset: ending.sunset }
+		};
 	}
 	const base = basePathOf(steps.at(-1)?.to);
 	const used = Object.fromEntries(Object.entries(blocks).sort());
@@ -36785,7 +36859,8 @@ function walk(document, raw, value, segments, out) {
 		if (!allowed.some((entry) => entry === value)) {
 			out.push({
 				pointer,
-				message: `${JSON.stringify(value)} is not one of ${allowed.map((entry) => JSON.stringify(entry)).join(", ")}`
+				message: `${JSON.stringify(value)} is not one of ${allowed.map((entry) => JSON.stringify(entry)).join(", ")}`,
+				safe: `not one of the ${allowed.length} values this field allows`
 			});
 			return;
 		}
@@ -36796,7 +36871,8 @@ function walk(document, raw, value, segments, out) {
 		if (!declared.some((entry) => typeSatisfies(actual, entry))) {
 			out.push({
 				pointer,
-				message: `expected ${declared.join(" or ")}, found ${actual}`
+				message: `expected ${declared.join(" or ")}, found ${actual}`,
+				safe: `expected ${declared.join(" or ")}, found ${actual}`
 			});
 			return;
 		}
@@ -36805,17 +36881,20 @@ function walk(document, raw, value, segments, out) {
 		const step = schema["multipleOf"];
 		if (typeof step === "number" && !stepsCleanly(value, step)) out.push({
 			pointer,
-			message: `${value} is not a multiple of ${step}`
+			message: `${value} is not a multiple of ${step}`,
+			safe: `not a multiple of ${step}`
 		});
 		const minimum = schema["minimum"];
 		if (typeof minimum === "number" && value < minimum) out.push({
 			pointer,
-			message: `${value} is below the minimum of ${minimum}`
+			message: `${value} is below the minimum of ${minimum}`,
+			safe: `below the minimum of ${minimum}`
 		});
 		const maximum = schema["maximum"];
 		if (typeof maximum === "number" && value > maximum) out.push({
 			pointer,
-			message: `${value} is above the maximum of ${maximum}`
+			message: `${value} is above the maximum of ${maximum}`,
+			safe: `above the maximum of ${maximum}`
 		});
 	}
 	if (Array.isArray(value)) {
@@ -36829,8 +36908,9 @@ function walk(document, raw, value, segments, out) {
 		const required = schema["required"];
 		if (Array.isArray(required)) {
 			for (const name of required) if (typeof name === "string" && value[name] === void 0) out.push({
-				pointer,
-				message: `required field ${name} is missing`
+				pointer: formatPointer([...segments, name]),
+				message: `required field ${name} is missing`,
+				safe: `required field ${name} is missing`
 			});
 		}
 		const properties = schema["properties"];
@@ -36843,7 +36923,8 @@ function walk(document, raw, value, segments, out) {
 			if (schema["additionalProperties"] === false) {
 				for (const name of Object.keys(value)) if (properties[name] === void 0) out.push({
 					pointer,
-					message: `${name} is not a field of this schema`
+					message: `${name} is not a field of this schema`,
+					safe: "a field this schema does not describe"
 				});
 			}
 		}
@@ -37383,7 +37464,8 @@ async function checkConformance(document, label, scenarios, open) {
 						status: response.status,
 						violations: [{
 							pointer: "/",
-							message: `the contract does not describe a ${response.status} response for this operation`
+							message: `the contract does not describe a ${response.status} response for this operation`,
+							safe: `the contract does not describe a ${response.status} response for this operation`
 						}]
 					});
 					continue;
@@ -39450,7 +39532,10 @@ async function check(config, options = {}) {
 			warnings.push(`Production is failing transforms for contract ${entry.subject}: ${entry.summary}. The operation had already run each time, so those callers were charged for work whose result they never got.`);
 		}
 	}
-	const chained = chainProgram(config.api, current.label, current.digest, steps, config.identity ? { identity: config.identity } : {});
+	const chained = chainProgram(config.api, current.label, current.digest, steps, {
+		...config.identity ? { identity: config.identity } : {},
+		...config.retirement.size > 0 ? { retirement: config.retirement } : {}
+	});
 	const unservable = [...new Set(chained.issues.map((issue) => `${issue.changeId}: ${issue.message}`))];
 	const blocked = reports.some((report) => report.unexplained.length > 0 || report.issues.length > 0 || report.stale.length > 0) || verified.problems.length > 0 || unservable.length > 0 || policy.blocks.length > 0;
 	return {
@@ -46594,6 +46679,26 @@ var invariant_schema_default = {
 					"$ref": "#/$defs/level"
 				}
 			}
+		},
+		"retirement": {
+			"description": "When each released contract is deprecated and when it stops being served, by label. The runtime tells that contract's callers on every answer, as Deprecation (RFC 9745) and Sunset (RFC 8594).",
+			"type": "object",
+			"additionalProperties": {
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"deprecated": {
+						"description": "The day this contract was deprecated. A date, or a date and time.",
+						"type": "string",
+						"minLength": 1
+					},
+					"sunset": {
+						"description": "The day this contract stops being served.",
+						"type": "string",
+						"minLength": 1
+					}
+				}
+			}
 		}
 	},
 	$defs: {
@@ -46663,6 +46768,32 @@ function buildFrom(raw, path) {
 		healthPath: typeof raw["healthPath"] === "string" ? raw["healthPath"] : "/__health",
 		contracts: sourcesFrom(raw["contracts"], path)
 	};
+}
+/**
+* `retirement`: when each released contract is deprecated and when it stops
+* being served. Only a contract the provider still serves can have an end, and
+* a date that is not a date is a mistake worth stopping for rather than a
+* header nobody can read.
+*/
+function retirementFrom(raw, path, released) {
+	const out = /* @__PURE__ */ new Map();
+	if (raw === void 0) return out;
+	if (!isJsonObject(raw)) throw new ConfigError(`${path}: retirement must be a mapping`);
+	for (const [label, entry] of Object.entries(raw)) {
+		if (!released.has(label)) throw new ConfigError(`${path}: retirement names ${label}, which is not one of spec.released`);
+		if (!isJsonObject(entry)) throw new ConfigError(`${path}: retirement.${label} must be a mapping`);
+		const when = (key) => {
+			const value = entry[key];
+			if (value === void 0) return {};
+			if (typeof value !== "string" || Number.isNaN(Date.parse(value))) throw new ConfigError(`${path}: retirement.${label}.${key} must be a date, such as 2026-12-31`);
+			return { [key]: new Date(value).toISOString() };
+		};
+		out.set(label, {
+			...when("deprecated"),
+			...when("sunset")
+		});
+	}
+	return out;
 }
 function scenariosFrom(raw, path) {
 	if (raw === void 0) return {
@@ -46870,6 +47001,7 @@ async function loadConfig(path) {
 		contractHeader: headerStrategy(parsed["identity"]),
 		scenarios: scenariosFrom(parsed["scenarios"], path),
 		identity: identityFrom(parsed["identity"], path),
+		retirement: retirementFrom(parsed["retirement"], path, released),
 		build: buildFrom(parsed["build"], path),
 		gate: {
 			declaredLossy: level(gate["declaredLossy"], "declaredLossy"),

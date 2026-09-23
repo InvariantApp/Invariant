@@ -13,6 +13,8 @@
  */
 import {
   bodySchemaFor,
+  FORM_MEDIA_TYPE,
+  jsonMedia,
   type OpenApiDocument,
   operationsOf,
   resolveRef,
@@ -177,9 +179,7 @@ function bodyHolder(
   // The JSON representation where there is one, otherwise the form: a form
   // describes its fields exactly as JSON does.
   const holder = isJsonObject(content)
-    ? isJsonObject(content["application/json"])
-      ? content["application/json"]
-      : content["application/x-www-form-urlencoded"]
+    ? (jsonMedia(content)?.media ?? content[FORM_MEDIA_TYPE])
     : undefined;
   if (!isJsonObject(holder) || !isJsonObject(holder["schema"])) {
     if (!create) return undefined;

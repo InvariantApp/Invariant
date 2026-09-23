@@ -19,6 +19,12 @@ export interface Violation {
   /** Where in the value, as a JSON Pointer. */
   pointer: string;
   message: string;
+  /**
+   * The same thing said without the value that broke it, so a report made
+   * from real traffic carries nobody's data: the schema's own words, and the
+   * kind of the value at most. `invariant observe` prints this one.
+   */
+  safe: string;
 }
 
 function typesOf(schema: Record<string, JsonValue>): string[] {
@@ -89,6 +95,7 @@ function walk(
         message: `${JSON.stringify(value)} is not one of ${allowed
           .map((entry) => JSON.stringify(entry))
           .join(", ")}`,
+        safe: `not one of the ${allowed.length} values this field allows`,
       });
       return;
     }
@@ -101,6 +108,7 @@ function walk(
       out.push({
         pointer,
         message: `expected ${declared.join(" or ")}, found ${actual}`,
+        safe: `expected ${declared.join(" or ")}, found ${actual}`,
       });
       return;
     }
@@ -109,15 +117,27 @@ function walk(
   if (typeof value === "number") {
     const step = schema["multipleOf"];
     if (typeof step === "number" && !stepsCleanly(value, step)) {
-      out.push({ pointer, message: `${value} is not a multiple of ${step}` });
+      out.push({
+        pointer,
+        message: `${value} is not a multiple of ${step}`,
+        safe: `not a multiple of ${step}`,
+      });
     }
     const minimum = schema["minimum"];
     if (typeof minimum === "number" && value < minimum) {
-      out.push({ pointer, message: `${value} is below the minimum of ${minimum}` });
+      out.push({
+        pointer,
+        message: `${value} is below the minimum of ${minimum}`,
+        safe: `below the minimum of ${minimum}`,
+      });
     }
     const maximum = schema["maximum"];
     if (typeof maximum === "number" && value > maximum) {
-      out.push({ pointer, message: `${value} is above the maximum of ${maximum}` });
+      out.push({
+        pointer,
+        message: `${value} is above the maximum of ${maximum}`,
+        safe: `above the maximum of ${maximum}`,
+      });
     }
   }
 
@@ -136,7 +156,13 @@ function walk(
     if (Array.isArray(required)) {
       for (const name of required) {
         if (typeof name === "string" && value[name] === undefined) {
-          out.push({ pointer, message: `required field ${name} is missing` });
+          // At the field that is missing, not at the object around it: what a
+          // report points at is what a provider goes and looks for.
+          out.push({
+            pointer: formatPointer([...segments, name]),
+            message: `required field ${name} is missing`,
+            safe: `required field ${name} is missing`,
+          });
         }
       }
     }
@@ -152,7 +178,13 @@ function walk(
       if (schema["additionalProperties"] === false) {
         for (const name of Object.keys(value)) {
           if (properties[name] === undefined) {
-            out.push({ pointer, message: `${name} is not a field of this schema` });
+            out.push({
+              pointer,
+              message: `${name} is not a field of this schema`,
+              // The name is a key of the value, and a map's keys can be
+              // anyone's identifiers, so it is not repeated here.
+              safe: "a field this schema does not describe",
+            });
           }
         }
       }

@@ -4,7 +4,14 @@
  */
 import { describe, expect, it } from "vitest";
 import { resolveSchema } from "./resolve.ts";
-import { normalizeDocument, type OpenApiDocument, resolveRef } from "./spec.ts";
+import {
+  normalizeDocument,
+  type OpenApiDocument,
+  operationsOf,
+  requestBodySchema,
+  resolveRef,
+  responseSchemas,
+} from "./spec.ts";
 
 /** What sits at a path of keys, for reading results in assertions. */
 function pick(value: unknown, ...keys: string[]): unknown {
@@ -259,5 +266,81 @@ describe("what providers publish", () => {
       "acknowledge_log_entry",
       "notify_log_entry",
     ]);
+  });
+});
+
+describe("a JSON body under another name", () => {
+  const served = (type: string, extra: Record<string, unknown> = {}) =>
+    ({
+      openapi: "3.0.3",
+      info: { title: "t", version: "1" },
+      paths: {
+        "/x": {
+          post: {
+            operationId: "postX",
+            requestBody: {
+              content: {
+                [type]: {
+                  schema: { type: "object", properties: { a: { type: "string" } } },
+                },
+                ...extra,
+              },
+            },
+            responses: {
+              "200": {
+                description: "ok",
+                content: {
+                  [type]: {
+                    schema: { type: "object", properties: { b: { type: "string" } } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }) as unknown as OpenApiDocument;
+  const only = (document: OpenApiDocument) => {
+    const [found] = operationsOf(document);
+    if (!found) throw new Error("the document has no operations");
+    return found.operation;
+  };
+  const bodies = (document: OpenApiDocument) => ({
+    request: requestBodySchema(document, only(document)),
+    responses: responseSchemas(document, only(document)).length,
+  });
+
+  // Kubernetes watches, patch bodies, hypermedia and problem documents, and
+  // generated documents that name no type at all.
+  for (const type of [
+    "application/json",
+    "application/json;stream=watch",
+    "application/merge-patch+json",
+    "application/hal+json",
+    "application/problem+json",
+    "*/*",
+  ]) {
+    it(`is read for ${type}`, () => {
+      const read = bodies(served(type));
+      expect(read.request).toBeDefined();
+      expect(read.responses).toBe(1);
+    });
+  }
+
+  it("is not read for a body that is not JSON", () => {
+    const read = bodies(served("application/vnd.kubernetes.protobuf"));
+    expect(read.request).toBeUndefined();
+    expect(read.responses).toBe(0);
+  });
+
+  it("prefers the exact name where a document gives several", () => {
+    const document = served("application/hal+json", {
+      "application/json": {
+        schema: { type: "object", properties: { exact: { type: "string" } } },
+      },
+    });
+    expect(JSON.stringify(requestBodySchema(document, only(document)))).toContain(
+      "exact",
+    );
   });
 });

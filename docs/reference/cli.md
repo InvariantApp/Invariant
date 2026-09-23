@@ -90,6 +90,29 @@ quiet for `--days <n>` (default 30). With `--write`, removes them from
 Checks the toolchain, the configuration, every contract, and that the
 compiled program is what the Changes compile to now.
 
+## `invariant observe`
+
+Stands in front of the API at `--upstream <url>`, forwards every request
+untouched, and checks a sample of the answers against the current contract.
+It adapts nothing and changes nothing, so it can be pointed at real traffic
+before a provider has adopted anything else.
+
+```
+invariant observe --upstream http://127.0.0.1:8080 --port 8081 --sample 5 --out observed.json
+```
+
+The report counts, per operation and status, which field did not hold and what
+was wrong with it: `getThing 200 /items/*/price: expected string, found
+integer`. No value from any response is recorded, which is what makes it safe
+to run against production traffic. `--sample` is how many answers in a hundred
+to check (100 by default), `--max-body` the most bytes of one answer to read
+(a megabyte by default), `--port` the port to listen on (one that is free by
+default), and `--out` writes the report as JSON as well as printing it. It stops on Ctrl-C, and reports then.
+
+A specification generated from code and never checked against traffic is the
+common case, and everything built on top of one inherits its errors: this is
+how a provider finds out first.
+
 ## `invariant contract export`
 
 Writes one contract's specification, `--label <c>`, to `--out <path>` or

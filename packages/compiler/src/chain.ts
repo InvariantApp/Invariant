@@ -530,7 +530,11 @@ export function chainProgram(
   currentLabel: string,
   currentDigest: string,
   steps: readonly ContractStep[],
-  options: { identity?: readonly IdentityStrategy[] } = {},
+  options: {
+    identity?: readonly IdentityStrategy[];
+    /** What the provider declared about each contract's end, by label. */
+    retirement?: ReadonlyMap<string, { deprecated?: string; sunset?: string }>;
+  } = {},
 ): ChainResult {
   const projected = projectAll(steps);
   const issues = projected.flatMap((step) => step.issues);
@@ -561,10 +565,15 @@ export function chainProgram(
     // callers use a base path the current contract does not.
     const served = servedUnder(step.from);
     const current = servedUnder(steps.at(-1)?.to);
-    contracts[label] =
-      served !== undefined && current !== undefined && served !== current
-        ? { ...program, basePath: served }
-        : program;
+    const ending = options.retirement?.get(label);
+    contracts[label] = {
+      ...program,
+      ...(served !== undefined && current !== undefined && served !== current
+        ? { basePath: served }
+        : {}),
+      ...(ending?.deprecated === undefined ? {} : { deprecated: ending.deprecated }),
+      ...(ending?.sunset === undefined ? {} : { sunset: ending.sunset }),
+    };
   }
 
   const base = basePathOf(steps.at(-1)?.to);

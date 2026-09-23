@@ -215,6 +215,26 @@
           "$ref": "#/$defs/level"
         }
       }
+    },
+    "retirement": {
+      "description": "When each released contract is deprecated and when it stops being served, by label. The runtime tells that contract's callers on every answer, as Deprecation (RFC 9745) and Sunset (RFC 8594).",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "deprecated": {
+            "description": "The day this contract was deprecated. A date, or a date and time.",
+            "type": "string",
+            "minLength": 1
+          },
+          "sunset": {
+            "description": "The day this contract stops being served.",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
     }
   },
   "$defs": {

@@ -420,6 +420,14 @@ export const ContractProgram = Type.Object(
     /** Changes on this step that no transform can express. */
     behaviors: Type.Array(Type.String()),
     /**
+     * When the provider declared this contract deprecated, and when it stops
+     * being served. The runtime tells its callers on every answer, as
+     * `Deprecation` (RFC 9745) and `Sunset` (RFC 8594), so what a provider
+     * wrote in `invariant.yaml` reaches the callers who have to act on it.
+     */
+    deprecated: Type.Optional(Type.String({ format: "date-time" })),
+    sunset: Type.Optional(Type.String({ format: "date-time" })),
+    /**
      * Endpoints this contract had and the current one does not.
      *
      * Carried so the runtime can refuse them by name. A caller on an old

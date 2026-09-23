@@ -111,6 +111,12 @@ export interface InvariantConfig {
    * binding and the proxy read this one declaration.
    */
   identity: IdentityStrategy[] | undefined;
+  /**
+   * When each released contract is deprecated and when it stops being served,
+   * by label, as the provider declared it. Compiled into the program, and
+   * told to that contract's callers on every answer.
+   */
+  retirement: Map<string, { deprecated?: string; sunset?: string }>;
   build: BuildConfig | undefined;
   gate: { declaredLossy: GateLevel; unmigratableWithActiveConsumers: GateLevel };
 }
@@ -152,6 +158,44 @@ function buildFrom(raw: JsonValue | undefined, path: string): BuildConfig | unde
     healthPath: typeof raw["healthPath"] === "string" ? raw["healthPath"] : "/__health",
     contracts: sourcesFrom(raw["contracts"], path),
   };
+}
+
+/**
+ * `retirement`: when each released contract is deprecated and when it stops
+ * being served. Only a contract the provider still serves can have an end, and
+ * a date that is not a date is a mistake worth stopping for rather than a
+ * header nobody can read.
+ */
+function retirementFrom(
+  raw: JsonValue | undefined,
+  path: string,
+  released: ReadonlyMap<string, string>,
+): InvariantConfig["retirement"] {
+  const out = new Map<string, { deprecated?: string; sunset?: string }>();
+  if (raw === undefined) return out;
+  if (!isJsonObject(raw)) throw new ConfigError(`${path}: retirement must be a mapping`);
+  for (const [label, entry] of Object.entries(raw)) {
+    if (!released.has(label)) {
+      throw new ConfigError(
+        `${path}: retirement names ${label}, which is not one of spec.released`,
+      );
+    }
+    if (!isJsonObject(entry)) {
+      throw new ConfigError(`${path}: retirement.${label} must be a mapping`);
+    }
+    const when = (key: "deprecated" | "sunset") => {
+      const value = entry[key];
+      if (value === undefined) return {};
+      if (typeof value !== "string" || Number.isNaN(Date.parse(value))) {
+        throw new ConfigError(
+          `${path}: retirement.${label}.${key} must be a date, such as 2026-12-31`,
+        );
+      }
+      return { [key]: new Date(value).toISOString() };
+    };
+    out.set(label, { ...when("deprecated"), ...when("sunset") });
+  }
+  return out;
 }
 
 function scenariosFrom(
@@ -451,6 +495,7 @@ export async function loadConfig(path: string): Promise<InvariantConfig> {
     contractHeader: headerStrategy(parsed["identity"]),
     scenarios: scenariosFrom(parsed["scenarios"], path),
     identity: identityFrom(parsed["identity"], path),
+    retirement: retirementFrom(parsed["retirement"], path, released),
     build: buildFrom(parsed["build"], path),
     gate: {
       declaredLossy: level(gate["declaredLossy"], "declaredLossy"),

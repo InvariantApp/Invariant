@@ -145,6 +145,7 @@ export async function checkConformance(
               {
                 pointer: "/",
                 message: `the contract does not describe a ${response.status} response for this operation`,
+                safe: `the contract does not describe a ${response.status} response for this operation`,
               },
             ],
           });
