@@ -25,7 +25,7 @@
  *
  * Every server starts fresh for its arm, so no arm inherits another's state.
  * Heavy: Docker, each suite's toolchain and several minutes per arm. It runs
- * in CI, one job per project, with no secrets, because it executes code this
+ * in CI, one job per release pair, with no secrets, because it executes code this
  * project did not write.
  *
  * Usage:
@@ -86,6 +86,8 @@ type Command = string[];
 interface Project {
   name: string;
   language: string;
+  /** Why the suite is run as it is, where that departs from the project's own CI. */
+  notes?: string;
   repo: string;
   image: string;
   server: {
@@ -643,6 +645,9 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
   let changes = 0;
   try {
     const checked = await gateFor(project, from, to);
+    // The report a provider reads, kept beside the drafts it judged, so a
+    // release too large to check on a laptop can still be answered from one.
+    await writeFile(join(work, "gate.txt"), renderReport(checked.report), "utf8");
     gate = checked.summary;
     changes = checked.report.steps.at(-1)?.changes.length ?? 0;
     log(`  ${changes} Changes (${gate.changesFrom}), the gate says ${gate.result}`);

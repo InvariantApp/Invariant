@@ -159,6 +159,43 @@ function bodyFromSharedParameter(
   }
 }
 
+const SCHEMAS = "#/components/schemas/";
+
+/**
+ * A response that names a definition, where 2.0 wants a response, is a
+ * response whose body is that definition. Gitea answers its four runner
+ * listings with `$ref: "#/definitions/ActionRunnersResponse"`; upgraded as
+ * written, it named a schema where a response belongs, and the differ refused
+ * the whole document. The description is the definition's own, which is what
+ * go-swagger would have written had the reference been to a response.
+ */
+function responseNamingSchema(
+  converted: JsonObject,
+  source: JsonObject,
+  sourceOperation: JsonObject,
+  operation: JsonObject,
+): void {
+  const responses = operation["responses"];
+  if (!isJsonObject(responses)) return;
+  const components = converted["components"];
+  const schemas = isJsonObject(components) ? components["schemas"] : undefined;
+  const types = mediaTypes(sourceOperation["produces"]) ??
+    mediaTypes(source["produces"]) ?? ["application/json"];
+  for (const [status, response] of Object.entries(responses)) {
+    const ref = isJsonObject(response) ? response["$ref"] : undefined;
+    if (typeof ref !== "string" || !ref.startsWith(SCHEMAS)) continue;
+    const schema = isJsonObject(schemas) ? schemas[ref.slice(SCHEMAS.length)] : undefined;
+    const description =
+      isJsonObject(schema) && typeof schema["description"] === "string"
+        ? schema["description"]
+        : "";
+    responses[status] = {
+      description,
+      content: Object.fromEntries(types.map((type) => [type, { schema: { $ref: ref } }])),
+    };
+  }
+}
+
 /** The upgrader's output, corrected against the 2.0 document it came from. Mutates `converted`. */
 export function correctUpgrade(source: JsonObject, converted: JsonObject): void {
   const sourcePaths = source["paths"];
@@ -171,6 +208,7 @@ export function correctUpgrade(source: JsonObject, converted: JsonObject): void 
         const sourceOperation = sourceItem[method];
         const operation = item[method];
         if (!isJsonObject(sourceOperation) || !isJsonObject(operation)) continue;
+        responseNamingSchema(converted, source, sourceOperation, operation);
         responseMediaTypes(sourceOperation, operation);
         requiredForm(parametersOf(sourceItem, sourceOperation), operation);
       }

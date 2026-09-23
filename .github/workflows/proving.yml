@@ -148,15 +148,15 @@ jobs:
           name: swagger-report
           path: proving/swagger/REPORT.md
 
-  # Rig D's projects, one job each, from the manifest, so adding a project is
-  # one edit to projects.json.
+  # Rig D's release pairs, one job each, from the manifest, so adding a
+  # project or a pair is one edit to projects.json.
   servers-plan:
     name: servers (rig D, plan)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
     outputs:
-      projects: ${{ steps.plan.outputs.projects }}
+      pairs: ${{ steps.plan.outputs.pairs }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -166,20 +166,24 @@ jobs:
         env:
           WANTED: ${{ inputs.servers }}
         run: |
-          projects=$(jq -c --arg wanted "$WANTED" '
+          pairs=$(jq -c --arg wanted "$WANTED" '
             ($wanted | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(. != ""))) as $only
-            | [.projects[].name | select(($only | length) == 0 or (. as $n | $only | index($n)))]
+            | [.projects[]
+                | select(($only | length) == 0 or (.name as $n | $only | index($n)))
+                | .name as $project
+                | .pairs[]
+                | { project: $project, pair: "\(.[0]):\(.[1])", id: "\($project)-\(.[0])..\(.[1])" }]
           ' proving/servers/projects.json)
-          echo "projects=$projects" >> "$GITHUB_OUTPUT"
+          echo "pairs=$pairs" >> "$GITHUB_OUTPUT"
 
   servers:
-    name: servers (rig D, ${{ matrix.project }})
+    name: servers (rig D, ${{ matrix.id }})
     needs: servers-plan
-    if: needs.servers-plan.outputs.projects != '[]'
+    if: needs.servers-plan.outputs.pairs != '[]'
     strategy:
       fail-fast: false
       matrix:
-        project: ${{ fromJSON(needs.servers-plan.outputs.projects) }}
+        include: ${{ fromJSON(needs.servers-plan.outputs.pairs) }}
     runs-on: ubuntu-latest
     timeout-minutes: 150
     # Runs the projects' own images and test suites, which this project did
@@ -213,18 +217,21 @@ jobs:
           cache: false
 
       - name: Three arms per release pair
-        run: pnpm proving:servers --project ${{ matrix.project }}
+        run: pnpm proving:servers --project ${{ matrix.project }} --pair ${{ matrix.pair }}
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: servers-${{ matrix.project }}
-          # The results, what each arm's suite reported, and the documents a
-          # server served, which --propose and --gate read on a laptop.
+          name: servers-${{ matrix.id }}
+          # The results, what each arm's suite reported, the documents a
+          # server served, which --propose and --gate read on a laptop, and
+          # the Changes the gate judged with its report.
           path: |
-            .cache/servers/results-${{ matrix.project }}.json
+            .cache/servers/results-${{ matrix.id }}.json
             .cache/servers/${{ matrix.project }}/*/spec.json
             .cache/servers/${{ matrix.project }}/*/*.xml
+            .cache/servers/${{ matrix.project }}/*/gate.txt
+            .cache/servers/${{ matrix.project }}/*/provider/invariant/changes/*.yaml
           # Under .cache, which upload-artifact skips unless told otherwise.
           include-hidden-files: true
           if-no-files-found: ignore

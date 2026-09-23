@@ -234,6 +234,7 @@
     {
       "name": "gitea",
       "language": "Go",
+      "notes": "go-sdk's TestPull panics against its own release, Gitea 1.24.2, in CI (pull_test.go:105 dereferences a pull request the mergeability check did not return), and a panic ends the test binary, so every test after it went unrun in arm a. It is skipped by name; it would fail arm a and be left out anyway.",
       "repo": "go-gitea/gitea",
       "image": "gitea/gitea",
       "server": {
@@ -285,6 +286,8 @@
           "--junitfile",
           "{report}",
           "--",
+          "-skip",
+          "^TestPull$",
           "-count=1",
           "."
         ],
