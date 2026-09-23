@@ -146,7 +146,34 @@ interface Case {
   forward: Instr[];
   backward: Instr[];
   lossy: { forward: string[]; backward: string[] };
+  relaxed: string[];
   blocks: Record<string, Instr[]>;
+}
+
+/**
+ * The violations no `relax` declared: one at or beneath a place a relax lets
+ * values through is the loss that Change names, since the relaxed bound is
+ * exactly what the other contract still states.
+ */
+function undeclared(
+  violations: readonly Violation[],
+  relaxed: readonly string[],
+): Violation[] {
+  if (relaxed.length === 0) return [...violations];
+  const patterns = relaxed.map(parsePointer);
+  return violations.filter((violation) => {
+    const at = parsePointer(violation.pointer);
+    return !patterns.some(
+      (pattern) =>
+        pattern.length <= at.length &&
+        pattern.every(
+          (segment, index) =>
+            segment === at[index] ||
+            (segment === "*" && /^\d+$/.test(at[index] ?? "")) ||
+            segment === "{}",
+        ),
+    );
+  });
 }
 
 /**
@@ -235,10 +262,9 @@ export function checkLaws(
         ? []
         : run(oldContract, entry.scope, runs, options.seed, (value) => {
             const canonical = lens.forward(value);
-            const violations = validateAgainst(
-              predicted,
-              entry.scope,
-              canonical as JsonValue,
+            const violations = undeclared(
+              validateAgainst(predicted, entry.scope, canonical as JsonValue),
+              entry.relaxed,
             );
             if (violations.length > 0) {
               return `forward produced a value the new contract does not allow (${describe(violations)})`;
@@ -271,10 +297,9 @@ export function checkLaws(
         ? []
         : run(predicted, entry.scope, runs, options.seed, (value) => {
             const old = lens.backward(value);
-            const violations = validateAgainst(
-              oldContract,
-              entry.scope,
-              old as JsonValue,
+            const violations = undeclared(
+              validateAgainst(oldContract, entry.scope, old as JsonValue),
+              entry.relaxed,
             );
             if (violations.length > 0) {
               return `backward produced a value the old contract does not allow (${describe(violations)})`;

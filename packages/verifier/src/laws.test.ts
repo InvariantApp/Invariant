@@ -269,6 +269,77 @@ describe("the lens laws", () => {
     expect(report.failures).toEqual([]);
   });
 
+  /**
+   * A `relax` translates nothing. It declares that a value outside the old
+   * bounds passes through as the API produced it, so the old contract refusing
+   * that value is the loss it names, not a fault. Qdrant 1.18 lowered
+   * `max_query_limit`'s minimum on StrictModeConfigOutput from 1 to 0; the
+   * relax drafted for it was refused on `{"max_query_limit":0}`, reported
+   * under no Change at all, because a Change with nothing to run was never
+   * counted as touching the schema.
+   */
+  it("excuse the values a relax passes through outside the old bounds", () => {
+    const { old, head } = contracts();
+    for (const [contract, minimum] of [
+      [old, 1],
+      [head, 0],
+    ] as const) {
+      const create = (contract["paths"] as Record<string, Record<string, unknown>>)[
+        "/v1/payments"
+      ]?.["post"] as Record<string, unknown>;
+      delete create["requestBody"];
+      const schema = (
+        contract["components"] as Record<
+          string,
+          Record<string, Record<string, Record<string, unknown>>>
+        >
+      )["schemas"]?.["Payment"] as Record<string, unknown>;
+      (schema["properties"] as Record<string, unknown>)["limit"] = {
+        type: "integer",
+        minimum,
+        // Few enough values that 0 is sure to be generated.
+        maximum: 3,
+      };
+      schema["required"] = [...(schema["required"] as string[]), "limit"];
+    }
+
+    const report = laws(old, head, [
+      {
+        irVersion: 1,
+        id: "chg_payment_limit_relaxed",
+        summary: "`limit` may now be 0.",
+        scopes: [{ schema: "#/components/schemas/Payment" }],
+        ops: [{ op: "relax", path: "/limit", set: { minimum: 0 } }],
+        assertions: { loss_acknowledged: true },
+      },
+    ]);
+
+    expect(report.failures).toEqual([]);
+    expect(report.evidence.find((entry) => entry.kind === "E4-laws")?.summary).toMatch(
+      /^chg_payment_limit_relaxed round trip/,
+    );
+  });
+
+  it("still catch a value a relax does not cover", () => {
+    const { old, head } = contracts();
+    const report = laws(old, head, [
+      {
+        irVersion: 1,
+        id: "chg_status_restore",
+        summary: "`status` is restored as a value old callers never saw.",
+        scopes: [{ schema: "#/components/schemas/Payment" }],
+        ops: [
+          { op: "relax", path: "/amount", set: { multipleOf: null } },
+          { op: "remove", path: "/status", restore: "refunded" },
+        ],
+      },
+    ]);
+
+    expect(report.failures.map((failure) => failure.detail).join("\n")).toMatch(
+      /\/status/,
+    );
+  });
+
   it("catch a value map that does not cover the vocabulary", () => {
     const { old, head } = contracts();
     const report = laws(old, head, [
