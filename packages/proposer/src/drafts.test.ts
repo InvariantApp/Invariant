@@ -1992,6 +1992,28 @@ describe("restatements", () => {
     expect(ops.filter((op) => op.op === "relax")).not.toEqual([]);
   });
 
+  it("is not drafted where only a description beside a reference changed (Amazon)", async () => {
+    const described = (description: string) =>
+      object({
+        threshold: { allOf: [ref("Threshold"), { description }] },
+        description: { type: "string" },
+      });
+    const outcome = await propose(
+      contract({
+        ...base,
+        Threshold: { type: "integer" },
+        Thing: described("the old words"),
+      }),
+      contract({
+        ...base,
+        Threshold: { type: "integer" },
+        Thing: described("new words"),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(restatementsIn(outcome)).toEqual([]);
+  });
+
   it("stands down where another draft changes a schema the place refers to (PayPal)", async () => {
     // The shared phone schema gained a required country code, which old
     // callers creating a thing must now be given one for; the thing's phone

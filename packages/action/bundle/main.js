@@ -16035,6 +16035,52 @@ function keepsNames(before, after) {
 	for (const name of namesIn(before.document, before.schema)) if (!kept.has(name)) return missed(name, "the new schema no longer names it, so a value under it would be lost");
 	return COVERED;
 }
+/**
+* Whether every named schema a restated place refers to, the old contract
+* either lacks or states the same way.
+*
+* A restatement is proved against the new contract, references and all, and
+* written with the new contract's names. Where the old contract already has a
+* schema of that name and says something else in it, the written place would
+* refer to that old statement, which is not what was proved: Plaid's account
+* identity came to be built from a base whose balances may be null, and
+* written into the old contract it found a base where they never are. Words
+* that only describe a schema are not compared.
+*/
+function referencesAlike(old, next) {
+	const reached = /* @__PURE__ */ new Set();
+	const pending = [next.schema];
+	while (pending.length > 0) {
+		const value = pending.pop();
+		if (Array.isArray(value)) {
+			pending.push(...value);
+			continue;
+		}
+		if (!isJsonObject(value)) continue;
+		const ref = value["$ref"];
+		if (typeof ref === "string" && !reached.has(ref)) {
+			reached.add(ref);
+			const target = resolveRef(next.document, ref);
+			if (target !== void 0) {
+				const before = resolveRef(old, ref);
+				if (before !== void 0 && JSON.stringify(unannotated(before)) !== JSON.stringify(unannotated(target))) return missed(ref, "the old contract states it differently, so the place would refer to that");
+				pending.push(target);
+			}
+		}
+		pending.push(...Object.values(value));
+	}
+	return COVERED;
+}
+/**
+* A schema with what only describes it taken out, for comparing what it
+* allows. A map of properties is keyed by names, and a property may well be
+* called `description`; only the schemas under the names are read.
+*/
+function unannotated(value) {
+	if (Array.isArray(value)) return value.map(unannotated);
+	if (!isJsonObject(value)) return value;
+	return Object.fromEntries(Object.entries(value).filter(([key]) => !ANNOTATIONS$1.has(key) && !key.startsWith("x-")).map(([key, child]) => [key, key === "properties" && isJsonObject(child) ? Object.fromEntries(Object.entries(child).map(([name, schema]) => [name, unannotated(schema)])) : unannotated(child)]));
+}
 /** How deep `keepsNames` reads. */
 const NAME_DEPTH = 12;
 function namesIn(document, schema) {
@@ -17951,17 +17997,30 @@ function responseFailure(errors, error) {
 * precision can turn it on.
 */
 /**
-* A number a double might not hold. `1e400` parses to Infinity and `1e-400`
-* to 0, and Infinity is written back as `null`, so a transform on such a body
-* would change what the caller sent without a word. Found by fuzzing.
+* A number that a double, or writing one back, would not keep as it was sent.
 *
-* A number with fewer than 100 digits in a row and an exponent of at most two
-* digits lies within 1e±198, well inside a double's range, so anything this
-* does not match is safe on the fast path. What it does match, including the
-* odd string holding a hundred digits, pays for an exact parse and loses
-* nothing.
+* `1e400` parses to Infinity and `1e-400` to 0, and Infinity is written back
+* as `null`, so a transform on such a body would change what the caller sent
+* without a word. Found by fuzzing. Nor does a double hold every integer:
+* past 2^53, which has sixteen digits, it rounds. Qdrant's own suite sends a
+* search `limit` of u64::MAX, 18446744073709551615, which came out of the
+* proxy as 18446744073709552000, no longer a u64, and the search was refused.
+*
+* And a double written back is spelled the shortest way: `1.0` comes out as
+* `1`, `1e99` as `1e+99`, `-0` as `0`. The value is the same, but not every
+* server reads only the value. Qdrant tells a list of vectors from other
+* inputs by how its numbers are written, and a multivector sent as
+* `[[1.0, 2.0, 3.0]]` stopped being one on its way through. A proxy changes
+* what it transforms and nothing else, so a body holding any number that
+* would be spelled differently takes the exact path too: a fraction that ends
+* in zero, an exponent, or a negative zero.
+*
+* The regular expression has no lookahead so that the Go engine's test can
+* hold its hand-written scanner to the very same pattern. What it matches
+* inside a string, such as a version called `1.0` or a card number, pays for
+* an exact parse and loses nothing.
 */
-const BEYOND_DOUBLE = /[\d.][eE][+-]?\d{3}|\d{100}/;
+const EXACT_PARSE = /\d{16}|\.\d*0(?:[^\d]|$)|[\d.][eE]|-0(?:[^.\d]|$)/;
 /** Whether a JSON text nests deeper than the limit, found in one pass without parsing. */
 function tooDeep(text, limit) {
 	if (text.length <= limit) return false;
@@ -17984,7 +18043,7 @@ function tooDeep(text, limit) {
 }
 function parseJson(text, fidelity) {
 	if (tooDeep(text, 256)) throw new BodyTooDeepError(256);
-	if (fidelity === "double" && !BEYOND_DOUBLE.test(text)) return JSON.parse(text);
+	if (fidelity === "double" && !EXACT_PARSE.test(text)) return JSON.parse(text);
 	return JSON.parse(text, function preserveNumbers(_key, value, context) {
 		if (typeof value !== "number") return value;
 		const source = context?.source;
@@ -21934,8 +21993,22 @@ function setNullable(document, schema, nullable, label) {
 * proved schema against schema by the shared containment check, and the
 * Change is refused, naming where and why, wherever either cannot be shown.
 */
-function proveRestated(before, after, directions, place) {
-	const named = keepsNames(before, after);
+function proveRestated(before, after, directions, place, written = {
+	before: before.schema,
+	after: after.schema
+}) {
+	const alike = referencesAlike(before.document, {
+		document: after.document,
+		schema: written.after
+	});
+	if (!alike.covered) throw new SchemaOpError(`${place} is not the same values restated: it refers to ${alike.at}, and ${alike.reason}`);
+	const named = keepsNames({
+		document: before.document,
+		schema: written.before
+	}, {
+		document: after.document,
+		schema: written.after
+	});
 	if (!named.covered) throw new SchemaOpError(`${place} is not the same values restated: ${named.at} ${named.reason}`);
 	if (directions.response) {
 		const answer = covers(before, after);
@@ -22424,7 +22497,7 @@ function applyResponseScope(document, oldContract, newContract, routes, scope, o
 					request: false,
 					response: true
 				}, `${scope.operation}'s ${scope.response} response${op.path ? ` at ${op.path}` : ""}`);
-				const statement = resolveSchema(newContract, next.shape);
+				const statement = topOf(newContract, next.shape);
 				importReferences(document, newContract, statement);
 				schemaRestate(document, root, op.path, statement);
 				break;
@@ -22533,6 +22606,32 @@ function navigate(document, schema, segments) {
 		if (next === void 0) return void 0;
 		current = resolveSchema(document, next);
 	}
+	return current;
+}
+/**
+* A schema at a place, as it is written: references followed, and nothing
+* merged. Undefined where the way there runs through a composition, which
+* only a resolved reading can walk.
+*/
+function writtenAt(document, schema, segments) {
+	let current = topOf(document, schema);
+	for (const segment of segments) {
+		if (!isJsonObject(current)) return void 0;
+		const properties = current["properties"];
+		const next = segment === "*" ? current["items"] : segment === "{}" ? current["additionalProperties"] : isJsonObject(properties) ? properties[segment] : void 0;
+		if (next === void 0) return void 0;
+		current = topOf(document, next);
+	}
+	return current;
+}
+/**
+* A schema taken as written at its top: a reference is followed to what it
+* names, since a schema restated as a reference to its own name would state
+* nothing at all.
+*/
+function topOf(document, schema) {
+	let current = schema;
+	for (let hops = 0; isJsonObject(current) && typeof current["$ref"] === "string" && hops < 16; hops += 1) current = resolveRef(document, current["$ref"]) ?? null;
 	return current;
 }
 function sitesForScope(document, scope) {
@@ -22679,16 +22778,18 @@ function predictDocument(oldContract, newContract, changes) {
 						if (!next) throw new Error(`the new contract has no ${op.path || name} to restate it as`);
 						const before = navigate(document, schema, parsePointer(op.path));
 						if (before === void 0) throw new Error(`the old contract has no ${op.path} on ${name}`);
+						const statement = writtenAt(newContract, { $ref: `#/components/schemas/${name}` }, parsePointer(op.path)) ?? topOf(newContract, next.shape);
+						if (!isJsonObject(statement)) throw new Error(`the new contract's ${op.path || name} is not a schema`);
 						proveRestated({
 							document,
 							schema: before
 						}, {
 							document: newContract,
 							schema: next.shape
-						}, schemaDirections(oldContract, scope.schema), op.path || name);
-						let statement = next.shape;
-						for (let hops = 0; isJsonObject(statement) && typeof statement["$ref"] === "string" && hops < 16; hops += 1) statement = resolveRef(newContract, statement["$ref"]) ?? null;
-						if (!isJsonObject(statement)) throw new Error(`the new contract's ${op.path || name} is not a schema`);
+						}, schemaDirections(oldContract, scope.schema), op.path || name, {
+							before: writtenAt(document, schema, parsePointer(op.path)) ?? before,
+							after: statement
+						});
 						importReferences(document, newContract, statement);
 						schemaRestate(document, schema, op.path, statement);
 						break;

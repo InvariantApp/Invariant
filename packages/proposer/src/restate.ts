@@ -19,7 +19,9 @@ import {
   covers,
   keepsNames,
   type OpenApiDocument,
+  referencesAlike,
   schemaDirections,
+  unannotated,
 } from "@invariant-app/contract";
 import {
   type Change,
@@ -80,6 +82,7 @@ export function restatements(
       const old = { document: oldContract, schema: was };
       const next = { document: newContract, schema: now };
       return (
+        referencesAlike(oldContract, next).covered &&
         keepsNames(old, next).covered &&
         (!sides.response || covers(old, next).covered) &&
         (!sides.request || covers(next, old).covered)
@@ -166,7 +169,8 @@ function choicesIn(
   // A reference standing where an object was written out says nothing new:
   // PayPal named its invoice's parts and no value changed.
   const written = CHOICE_KEYWORDS.filter((keyword) => schema[keyword] !== undefined).map(
-    (keyword) => `${keyword}=${JSON.stringify(schema[keyword])}`,
+    (keyword) =>
+      `${keyword}=${JSON.stringify(unannotated(schema[keyword] as JsonValue))}`,
   );
   if (written.length > 0) found.set(pointer, written.join(" "));
   for (const [key, child] of Object.entries(childrenOf(schema))) {
