@@ -1,6 +1,6 @@
 {
   "name": "@invariant-app/telemetry",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Takes a runtime's counters out of the process: to the control plane, a rotating file, or an OpenTelemetry meter",
   "license": "Apache-2.0",
   "type": "module",

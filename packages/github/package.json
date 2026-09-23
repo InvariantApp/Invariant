@@ -1,6 +1,6 @@
 {
   "name": "@invariant-app/github",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Delivers migrations as pull requests: webhook verification, sponsored links, and provenance bodies",
   "license": "Apache-2.0",
   "type": "module",

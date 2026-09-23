@@ -79,7 +79,7 @@ export const FEATURE_SINCE: Readonly<Record<ProgramFeature, string>> = {
   case: "0.1.0",
   wrap: "0.1.0",
   unwrap: "0.1.0",
-  drop: NEXT,
+  drop: "0.2.0",
   set: "0.1.0",
   del: "0.1.0",
   within: "0.1.0",
