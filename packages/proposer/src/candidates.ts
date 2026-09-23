@@ -859,17 +859,20 @@ function compare(
     .map((pair) => pair.old.pointer);
   const ownPlace = (field: FieldShape) =>
     !reshaped.some((pointer) => field.pointer.startsWith(`${pointer}/`));
+  const ownRemoved = removed.filter(ownPlace);
+  const ownAdded = added.filter(ownPlace);
+  const ownAltered = altered.filter((pair) => ownPlace(pair.old));
   if (
-    removed.length === 0 &&
-    added.length === 0 &&
-    altered.length === 0 &&
+    ownRemoved.length === 0 &&
+    ownAdded.length === 0 &&
+    ownAltered.length === 0 &&
     regrouped.length === 0
   )
     return undefined;
   return {
-    removed: removed.filter(ownPlace),
-    added: added.filter(ownPlace),
-    altered: altered.filter((pair) => ownPlace(pair.old)),
+    removed: ownRemoved,
+    added: ownAdded,
+    altered: ownAltered,
     ...(regrouped.length > 0 ? { regrouped } : {}),
     ...(replaced && regrouped.length === 0 ? { replaced: true as const } : {}),
   };
