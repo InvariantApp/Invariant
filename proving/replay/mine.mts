@@ -31,6 +31,19 @@ interface Target {
   ecosystems: Ecosystem[];
   /** Search phrases; each is searched as an exact title phrase. */
   titles: string[];
+  /**
+   * Words a person's own migration pull request has in its title, per
+   * ecosystem: "read Stripe fields that basil relocated". Such a pull request
+   * names no versions, so what it upgraded is read from its manifests' diff,
+   * and it is kept only where that crosses a major version.
+   */
+  searches?: Partial<Record<Ecosystem, string[]>>;
+}
+
+/** One search: a bot's exact title phrase, or words from a person's title. */
+interface Query {
+  text: string;
+  human: boolean;
 }
 
 /** An SDK bumped the usual ways: by Dependabot, or by Renovate. */
@@ -49,6 +62,21 @@ const TARGETS: Target[] = [
     package: "stripe",
     ecosystems: ["npm", "pypi"],
     titles: ["Bump stripe from", "update dependency stripe to"],
+    // Python's contract migrations are mostly made by people rather than on
+    // a bot's bump: PostHog's "read Stripe fields that basil relocated" moved
+    // the SDK across a major and every read of a field the API version moved.
+    searches: {
+      pypi: [
+        "stripe basil",
+        "stripe acacia",
+        "stripe clover",
+        "stripe dahlia",
+        "stripe api version",
+        "upgrade stripe",
+        "update stripe",
+        "stripe sdk",
+      ],
+    },
   },
   {
     package: "github.com/stripe/stripe-go",
@@ -260,6 +288,61 @@ export function parseBump(
   return undefined;
 }
 
+/**
+ * The versions of `name` a pull request's manifests moved between, read from
+ * the diff GitHub shows for each: `-stripe==11.4.0` and `+stripe==12.0.0` in
+ * a requirements file, a Poetry or uv lock's `version =` line under the
+ * package's `name =`, a `package.json` entry, or a `go.mod` line.
+ */
+export function bumpInPatches(
+  files: readonly { filename: string; patch?: string }[],
+  name: string,
+): { from: string; to: string } | undefined {
+  const normal = (raw: string) => raw.toLowerCase().replace(/[-_.]+/g, "-");
+  const target = normal(name);
+  const escaped = name.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+  let from: string | undefined;
+  let to: string | undefined;
+  for (const file of files) {
+    if (
+      !file.patch ||
+      !Object.values(MANIFESTS).some((pattern) => pattern.test(file.filename))
+    )
+      continue;
+    let current = "";
+    for (const line of file.patch.split("\n")) {
+      const sign = line[0];
+      const text = line.slice(1);
+      const named = /^\s*name\s*=\s*"([^"]+)"/.exec(text);
+      if (named) {
+        current = normal(named[1] as string);
+        continue;
+      }
+      if (sign !== "-" && sign !== "+") continue;
+      let version: string | undefined;
+      const locked = /^\s*version\s*=\s*"v?(\d[^"]*)"/.exec(text);
+      if (locked && current === target) version = locked[1];
+      const requirement =
+        /(?:^|["'\s,])([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[^\]]*\])?\s*\(?\s*(?:===|==|~=|>=|\^|~)\s*v?(\d[\w.+-]*)/.exec(
+          text,
+        );
+      if (!version && requirement && normal(requirement[1] as string) === target) {
+        version = requirement[2];
+      }
+      const npm = new RegExp(`"${escaped}"\\s*:\\s*"[\\^~>=v]*(\\d[^"]*)"`).exec(text);
+      if (!version && npm) version = npm[1];
+      const go = new RegExp(
+        `^\\s*(?:require\\s+)?${escaped}(?:/v\\d+)?\\s+v(\\d[^\\s]*)`,
+      ).exec(text);
+      if (!version && go) version = go[1];
+      if (!version) continue;
+      if (sign === "-") from ??= version;
+      else to ??= version;
+    }
+  }
+  return from && to && from !== to ? { from, to } : undefined;
+}
+
 /** Whether a bump crosses a major version, where breaking changes live. */
 export function isMajor(from: string, to: string): boolean {
   const major = (version: string) => {
@@ -430,13 +513,13 @@ async function mine(): Promise<void> {
       // hour's rate limit for eight Python cases.
       const language = ecosystem ? LANGUAGE[ecosystem] : undefined;
       const search = (
-        phrase: string,
+        phrase: Query,
         window: { from: string; to: string },
         page: number,
       ) =>
         github<{ total_count: number; items: SearchItem[] }>(
           `/search/issues?per_page=100&page=${page}&q=${encodeURIComponent(
-            `"${phrase}" in:title is:pr is:merged created:${window.from}..${window.to}${language ? ` language:${language}` : ""}`,
+            `${phrase.human ? phrase.text : `"${phrase.text}"`} in:title is:pr is:merged created:${window.from}..${window.to}${language ? ` language:${language}` : ""}`,
           )}`,
         );
       const monthly = months(monthCount);
@@ -444,7 +527,13 @@ async function mine(): Promise<void> {
         from: (monthly.at(-1) as { from: string }).from,
         to: (monthly[0] as { to: string }).to,
       };
-      phrases: for (const phrase of target.titles) {
+      const queries: Query[] = [
+        ...target.titles.map((text) => ({ text, human: false })),
+        ...(target.searches?.[ecosystem ?? target.ecosystems[0] ?? "npm"] ?? []).map(
+          (text) => ({ text, human: true }),
+        ),
+      ];
+      phrases: for (const phrase of queries) {
         // One query over the whole range where it has no more results than
         // the search API pages through (a thousand), which for most SDKs in
         // one language it does; month by month where it has more. A month a
@@ -473,8 +562,11 @@ async function mine(): Promise<void> {
               );
               const id = `${repo}#${item.number}`;
               if (known.has(id)) continue;
-              const bump = parseBump(item.title, target);
-              if (!bump || !isMajor(bump.from, bump.to)) continue;
+              // A bot's title names the versions; a person's pull request
+              // says what it upgraded in its manifests, read below.
+              let bump = parseBump(item.title, target);
+              if (bump && !isMajor(bump.from, bump.to)) continue;
+              if (!bump && !phrase.human) continue;
 
               let owner = licences.get(repo);
               if (!owner) {
@@ -490,15 +582,17 @@ async function mine(): Promise<void> {
               }
               if (owner.fork || !PERMISSIVE.has(owner.license)) continue;
 
-              const files = await github<{ filename: string }[]>(
+              const files = await github<{ filename: string; patch?: string }[]>(
                 `/repos/${repo}/pulls/${item.number}/files?per_page=100`,
-              ).catch(orElse([] as { filename: string }[]));
+              ).catch(orElse([] as { filename: string; patch?: string }[]));
               const kind = classify(
                 files.map((file) => file.filename),
                 target.ecosystems,
               );
               if (!kind || kind.sources.length === 0 || kind.sources.length > 50)
                 continue;
+              bump ??= bumpInPatches(files, target.package);
+              if (!bump || !isMajor(bump.from, bump.to)) continue;
 
               const pull = await github<{
                 base: { sha: string };

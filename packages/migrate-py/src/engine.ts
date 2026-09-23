@@ -36,6 +36,7 @@ import {
   type PyRole,
   parsePython,
   roleOf,
+  statementAround,
   stringValue,
   type Tree,
   withStringValue,
@@ -71,6 +72,26 @@ export class Sources {
     for (const tree of this.trees.values()) tree.delete();
     this.trees.clear();
   }
+}
+
+/** The most lines a flagged statement may span before only the flagged part is shown. */
+const MOST_LINES_SHOWN = 12;
+
+/**
+ * What a person is shown for a flagged span: the statement around it, since
+ * the fix is to the statement (`record = SubscriptionRecord(...)` spanning
+ * ten lines, around the one argument that reads a moved field), unless the
+ * statement is so long that pointing at the span says more.
+ */
+export function shownExtent(
+  tree: Tree,
+  text: string,
+  start: number,
+  end: number,
+): { start: number; end: number } {
+  const statement = statementAround(tree, start, end);
+  const lines = text.slice(statement.start, statement.end).split("\n").length;
+  return lines <= MOST_LINES_SHOWN ? statement : { start, end };
 }
 
 /** A site shown to a person: `start` to `end` in `file` as it was read. */
@@ -236,10 +257,12 @@ function applyComposed(
   result: EngineResult,
 ): void {
   const changeId = composed.changeIds[0] ?? "";
-  const flag = (reason: string, node: Node = site.node.parent ?? site.node) =>
+  const flag = (reason: string, node: Node = site.node.parent ?? site.node) => {
+    const extent = shownExtent(site.node.tree, site.text, node.startIndex, node.endIndex);
     result.manual.push(
-      manualAt(site.file, site.text, node.startIndex, node.endIndex, changeId, reason),
+      manualAt(site.file, site.text, extent.start, extent.end, changeId, reason),
     );
+  };
 
   if (composed.values.size > 0) renameValues(site, composed, result);
   if (composed.unsupported) {
@@ -385,6 +408,30 @@ async function flagByName(
         role: "subscript",
       });
     }
+    // `data_object.get("current_period_end")` and `getattr(sub, "...")`:
+    // the same read by name, the way webhook handlers usually write it.
+    for (const call of descendantsOfType(tree.rootNode, ["call"])) {
+      const callee = call.childForFieldName("function");
+      const args = call.childForFieldName("arguments")?.namedChildren ?? [];
+      if (
+        callee?.type === "attribute" &&
+        callee.childForFieldName("attribute")?.text === "get"
+      ) {
+        const key = args[0];
+        if (key && stringValue(key) === name) {
+          candidates.push({
+            node: key,
+            receiver: callee.childForFieldName("object"),
+            role: "subscript",
+          });
+        }
+      } else if (callee?.type === "identifier" && callee.text === "getattr") {
+        const key = args[1];
+        if (key && stringValue(key) === name) {
+          candidates.push({ node: key, receiver: args[0] ?? null, role: "subscript" });
+        }
+      }
+    }
     for (const candidate of candidates) {
       if (typed.has(`${file}:${candidate.node.startIndex}`)) continue;
       if (candidate.role === "attribute-read" || candidate.role === "attribute-write") {
@@ -401,12 +448,13 @@ async function flagByName(
       );
       if (evidence === "other") continue;
       const holder = candidate.node.parent ?? candidate.node;
+      const extent = shownExtent(tree, text, holder.startIndex, holder.endIndex);
       result.manual.push(
         manualAt(
           file,
           text,
-          holder.startIndex,
-          holder.endIndex,
+          extent.start,
+          extent.end,
           changeId,
           evidence === "sdk"
             ? `${reason}; read here by name from a ${target.typeName.split(".").at(-1)}`

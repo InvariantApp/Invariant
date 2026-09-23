@@ -23,11 +23,17 @@ import {
   type ManualSite,
   type MigrationPlan,
 } from "@invariant-app/migrate-core";
-import { type EngineResult, manualAt, runTargets, Sources } from "./engine.ts";
+import {
+  type EngineResult,
+  manualAt,
+  runTargets,
+  Sources,
+  shownExtent,
+} from "./engine.ts";
 import { bumpPins } from "./pins.ts";
 import { type Diagnostic, Pyright } from "./pyright.ts";
 import { PyrightReferences } from "./references.ts";
-import { statementAround, type Tree } from "./syntax.ts";
+import type { Tree } from "./syntax.ts";
 
 export { compose, manualAt, Sources } from "./engine.ts";
 export { byteColumnToCharacter, LineIndex } from "./offsets.ts";
@@ -206,7 +212,7 @@ export function broken(
     );
     // A reviewer is shown the whole statement: the checker points at one
     // argument of a call that spans lines, and the fix is to the call.
-    const extent = tree ? statementAround(tree, start, end) : { start, end };
+    const extent = tree ? shownExtent(tree, original, start, end) : { start, end };
     const reason = `this no longer type-checks against the upgraded SDK: ${diagnostic.message.split("\n")[0]}`;
     if (
       sites.some(

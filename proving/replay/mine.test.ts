@@ -1,5 +1,47 @@
 import { describe, expect, it } from "vitest";
-import { classify, isMajor, parseBump } from "./mine.mts";
+import { bumpInPatches, classify, isMajor, parseBump } from "./mine.mts";
+
+describe("what a person's pull request upgraded", () => {
+  it("reads the versions from the manifests' diff", () => {
+    expect(
+      bumpInPatches(
+        [
+          { filename: "app/billing.py", patch: "-stripe.api_version = 'x'\n+y" },
+          {
+            filename: "requirements.txt",
+            patch:
+              "@@ -1,3 +1,3 @@\n Django==5.0\n-stripe==11.4.0\n+stripe==12.0.0\n stripe-mock==2",
+          },
+        ],
+        "stripe",
+      ),
+    ).toEqual({ from: "11.4.0", to: "12.0.0" });
+    expect(
+      bumpInPatches(
+        [
+          {
+            filename: "poetry.lock",
+            patch:
+              '@@ -10,7 +10,7 @@\n [[package]]\n name = "stripe"\n-version = "11.6.0"\n+version = "12.2.0"\n description = "Python bindings"',
+          },
+        ],
+        "stripe",
+      ),
+    ).toEqual({ from: "11.6.0", to: "12.2.0" });
+  });
+
+  it("finds nothing where only the code changed, or the version stayed", () => {
+    expect(
+      bumpInPatches(
+        [{ filename: "pyproject.toml", patch: '-  "stripe>=12"\n+  "stripe>=12"' }],
+        "stripe",
+      ),
+    ).toBeUndefined();
+    expect(
+      bumpInPatches([{ filename: "app.py", patch: "-a\n+b" }], "stripe"),
+    ).toBeUndefined();
+  });
+});
 
 describe("reading a bump's title", () => {
   it("reads Dependabot's and Renovate's forms", () => {
