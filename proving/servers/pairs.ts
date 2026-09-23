@@ -65,8 +65,10 @@ export function readJunit(xml: string): Pick<ArmResult, "outcomes" | "messages">
     const failure = /<(failure|error)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/\1>)/.exec(body);
     if (failure) {
       outcomes[id] = "failed";
-      const message =
-        /\bmessage="([^"]*)"/.exec(failure[2] ?? "")?.[1] ?? failure[3] ?? "";
+      // gotestsum writes every failure's message as "Failed", and what the
+      // test said only in the body; a message that says more is kept.
+      const said = /\bmessage="([^"]*)"/.exec(failure[2] ?? "")?.[1] ?? "";
+      const message = said === "" || /^failed$/i.test(said) ? (failure[3] ?? said) : said;
       messages[id] = unescapeXml(message).trim().slice(0, 400);
     } else {
       outcomes[id] = /<skipped\b/.test(body) ? "skipped" : "passed";
@@ -258,6 +260,12 @@ export function render(
 }
 
 function said(arm: ArmResult, id: string): string {
-  const message = arm.messages?.[id]?.split("\n")[0]?.slice(0, 160);
+  // The first line that says something: Go's reports open with the test's
+  // own name and a timestamped log line.
+  const message = arm.messages?.[id]
+    ?.split("\n")
+    .map((line) => line.trim())
+    .find((line) => line !== "" && !/^(=== RUN|\d{4}\/\d\d\/\d\d )/.test(line))
+    ?.slice(0, 160);
   return message ? `: ${cell(message)}` : "";
 }

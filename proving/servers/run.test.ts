@@ -15,7 +15,7 @@ describe("reading a JUnit report", () => {
       <testcase classname="openapi.test_alias" name="test_rename" time="0.1"><failure message="assert &quot;a&quot; == 1">trace</failure></testcase>
       <testcase classname="openapi.test_query" name="test_x[True]" time="0.1"><error message="setup">trace</error></testcase>
       <testcase classname="openapi.test_query" name="test_y" time="0"><skipped message="no" /></testcase>
-      <testcase classname="gitea" name="TestIssue" time="0"><failure>issue_test.go:40: expected 1</failure></testcase>
+      <testcase classname="gitea" name="TestIssue" time="0"><failure message="Failed" type="">issue_test.go:40: expected 1</failure></testcase>
     </testsuite></testsuites>`;
     expect(readJunit(xml)).toEqual({
       outcomes: {
