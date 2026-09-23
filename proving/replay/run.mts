@@ -821,8 +821,10 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
           `missed ${site.file}:${site.region.oldStart + 1}\n  - ${removed.trim().slice(0, 110)}\n  + ${added.trim().slice(0, 110)}\n`,
         );
       }
+    }
+    if (keep || options.verbose) {
       // Every edit that differs from the humans', whatever its class, to
-      // judge equivalent or wrong.
+      // judge equivalent or wrong: in a CI run's log too.
       for (const { site, outcome } of scored) {
         if (outcome !== "differs") continue;
         const { oldStart, oldEnd } = site.region;
