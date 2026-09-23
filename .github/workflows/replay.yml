@@ -11,12 +11,14 @@ name: Migration replay
 # needs a model key, and happens where the key is, from the sites this run
 # uploads (`run.mts --rescore --classify`).
 on:
-  # Whenever the Python pack or the rig changes, on any branch, so a change to
+  # Whenever a language pack or the rig changes, on any branch, so a change to
   # either is measured before it is merged, not after.
   push:
     paths:
       - "packages/migrate-core/**"
       - "packages/migrate-py/**"
+      - "packages/migrate-go/**"
+      - "engines/go/migrate/**"
       - "proving/replay/**"
       - ".github/workflows/replay.yml"
       # Recording what a run measured is not a change to measure.
@@ -61,16 +63,26 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # The Go pack builds its helper and the consumers' dependencies with the
+      # toolchain that is installed and no other: the newest release, since
+      # the consumers' go.mod files ask for up to it.
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          cache: false
+
       - name: Replay this shard
         env:
           ECOSYSTEM: ${{ inputs.ecosystem || 'pypi' }}
           SHARD: ${{ matrix.shard }}
+          REPLAY_GO_PARALLELISM: "4"
         run: >-
           node --import tsx proving/replay/run.mts
           --ecosystem "$ECOSYSTEM"
           --shard "$SHARD/4"
           --results "replay-$SHARD.json"
           --verbose
+          --minutes 130
 
       - uses: actions/upload-artifact@v4
         if: always()

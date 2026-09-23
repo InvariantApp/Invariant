@@ -190,5 +190,31 @@ gh run download <run> -n replay-report     # results.json and .cache/replay/site
 node --env-file-if-exists=.env --import tsx proving/replay/run.mts --rescore --ecosystem pypi --classify
 ```
 
+Go cases go through the Go pack (`@invariant-app/migrate-go`,
+`replay/go.mts`). Every Go file, go.mod and go.sum is restored at the base;
+the SDK's release comes from the base's go.mod and the release it moved to
+from the head's, which is the bump itself. The pack reads the packages that
+import the SDK and the packages that import those, moves the imports to the
+new major version, renames what the two releases' surfaces show was renamed
+exactly, and type-checks the result against the new release; what still does
+not compile is flagged with everything it reaches, through the consumer's own
+wrappers, interfaces and callers. For go-github the engine is also told which
+operations GitHub retired (`replay/gogithub.mts`): each method's
+`//meta:operation` names what it calls, and the new release's
+`openapi_operations.yaml` marks what GitHub no longer describes. The go command
+runs with the installed toolchain, go.mod read-only, no cgo and modules only
+through the proxy; it compiles dependencies to read their types and runs
+nothing. It replays in the same workflow (`-f ecosystem=go`).
+
+A site the text alone settles is classed by rule (layout, comments, a type
+checker told to look away, a Go import moving to the SDK's next major
+version), and an answer Jev was unsure of is checked with a second,
+independently worded question; `--recheck` applies both to classes recorded
+before they existed:
+
+```console
+node --env-file-if-exists=.env --import tsx proving/replay/run.mts --rescore --ecosystem go --classify --recheck
+```
+
 `replay/sites.mts` reads every case's human hunks from the GitHub API, which
 is the denominator at a glance without cloning anything.

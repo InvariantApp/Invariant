@@ -281,7 +281,10 @@ export function scoreboard(inputs: {
                 (entry) => entry.inScope?.unclassified ?? entry.sites,
               );
               const contested = sum((entry) => entry.inScope?.contested ?? 0);
-              return `${language} ${mine.length} cases: of ${sites} human sites, ${inScope} follow from a contract change; ${identical + flagged} handled (${percent(identical + flagged, inScope)}: ${identical} identical, ${flagged} flagged for a person), ${differs} to adjudicate; ${extraFlags} flags where no human changed anything; ${contested} contested and ${unclassified} not yet classed, counted as neither`;
+              // Every site, the SDK's own changes included, which L8 does not
+              // count but a person upgrading does.
+              const everywhere = sum((entry) => entry.identical + entry.flagged);
+              return `${language} ${mine.length} cases: of ${sites} human sites, ${inScope} follow from a contract change; ${identical + flagged} handled (${percent(identical + flagged, inScope)}: ${identical} identical, ${flagged} flagged for a person), ${differs} to adjudicate; ${extraFlags} flags where no human changed anything; ${contested} contested and ${unclassified} not yet classed, counted as neither; over every human site, the SDK's own changes included, ${everywhere} handled (${percent(everywhere, sites)})`;
             })
             .join("; ")}. ` +
           `${failed.length} could not be replayed. ` +

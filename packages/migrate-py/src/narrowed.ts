@@ -10,7 +10,7 @@
  * So an argument error against a function of the consumer's also reports
  * that function's signature, and any `match` in it on that parameter.
  */
-import { type Edit, type ManualSite } from "@invariant-app/migrate-core";
+import type { Edit, ManualSite } from "@invariant-app/migrate-core";
 import { manualAt } from "./engine.ts";
 import type { Diagnostic } from "./pyright.ts";
 import { isSpan, type ReferenceProvider } from "./references.ts";

@@ -12,7 +12,9 @@ export interface ManualSite {
   reason: string;
   snippet: string;
   /**
-   * Byte offset in the file as it was before any edit.
+   * Offset in the file as it was before any edit, as its text is indexed
+   * here: in UTF-16 code units, not bytes (a pack whose compiler counts bytes
+   * converts with `Offsets`).
    *
    * Kept so the reported line can be moved to where the site ends up. A
    * migration that inserts an import shifts every line below it, and a report

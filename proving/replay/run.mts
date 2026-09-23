@@ -23,10 +23,11 @@
  * Usage:
  *   node --env-file-if-exists=.env --import tsx proving/replay/run.mts [--package stripe]
  *     [--ecosystem npm|pypi|go] [--case owner/repo#1] [--limit 10] [--keep] [--classify]
- *     [--again] [--shard 0/4] [--results shard-0.json] [--verbose]
+ *     [--recheck] [--again] [--shard 0/4] [--results shard-0.json] [--verbose]
+ *     [--minutes 200]
  *   node --import tsx proving/replay/run.mts --merge shard-*.json
  *   node --env-file-if-exists=.env --import tsx proving/replay/run.mts --rescore
- *     [--ecosystem pypi] [--classify]
+ *     [--ecosystem pypi] [--classify] [--recheck]
  *
  * Cases already in the results are skipped, so a run resumes where the last
  * one stopped; `--again` replays them too.
@@ -42,6 +43,15 @@
  * PyPI cases go through the Python pack (`@invariant-app/migrate-py`): the
  * SDK's wheels are unpacked, never built, and pyright reads the files that
  * import it against the old release and checks them against the new one.
+ *
+ * Go cases go through the Go pack (`@invariant-app/migrate-go`, `go.mts`):
+ * modules come through the proxy, dependencies are compiled for their types
+ * and nothing is run, and the consumer is read against the old release and
+ * checked against the new one.
+ *
+ * `--recheck` with `--classify` also settles classes recorded before the
+ * rules and the second question existed; `--minutes` stops starting cases in
+ * time for what was replayed to be kept.
  *
  * `--keep` leaves each case's checkout in place and prints what the engine
  * was told and did, for reading a miss; `--verbose` prints the same and keeps
@@ -71,6 +81,7 @@ import {
   siteKey,
   writeClasses,
 } from "./classify.mts";
+import { replayGo } from "./go.mts";
 import type { ReplayCase, ReplayIndex } from "./mine.mts";
 import {
   importingPython,
@@ -125,6 +136,13 @@ export interface ReplayResult extends Score {
    * changes, or unrelated. Sites not yet classed are counted apart.
    */
   inScope?: ScopedScore;
+  /**
+   * Every site's outcome by its class, `unclassified` for a site not yet
+   * classed: what the engine did for the SDK's own changes and for the sites
+   * the classifier could not settle, which L8 does not count, beside the ones
+   * it does.
+   */
+  byClass?: Record<string, Record<Outcome, number>>;
   /** Sites the engine could not reach for a reason outside it, such as a repository gone. */
   error?: string;
 }
@@ -318,6 +336,40 @@ async function textAt(repo: string, commit: string, file: string): Promise<strin
   }
 }
 
+/** Each path at a commit, to its blob id, which the tree gives before any blob is fetched. */
+async function treeAt(repo: string, commit: string): Promise<Map<string, string>> {
+  const blobs = new Map<string, string>();
+  for (const line of (await git(repo, "ls-tree", "-r", commit)).split("\n")) {
+    const match = /^\d+ blob ([0-9a-f]+)\t(.+)$/.exec(line);
+    if (match) blobs.set(match[2] as string, match[1] as string);
+  }
+  return blobs;
+}
+
+/** Restores paths from a commit into the working tree, their blobs fetched together first. */
+async function restoreAt(
+  repo: string,
+  work: string,
+  commit: string,
+  blobs: ReadonlyMap<string, string>,
+  paths: readonly string[],
+): Promise<void> {
+  const present = paths.filter((path) => blobs.has(path));
+  if (present.length === 0) return;
+  await writeFile(join(work, "paths"), present.join("\n"));
+  await prefetch(
+    repo,
+    present.map((path) => blobs.get(path) as string),
+  );
+  await git(
+    repo,
+    "restore",
+    `--source=${commit}`,
+    "--worktree",
+    `--pathspec-from-file=${join(work, "paths")}`,
+  );
+}
+
 /** The SDK installed at `spec`, once per version, scripts off. */
 async function installed(name: string, spec: string): Promise<string> {
   const dir = join(CACHE, "npm", `${name.replaceAll("/", "+")}@${spec}`);
@@ -456,6 +508,8 @@ interface ReplayOptions {
   verbose?: boolean;
   classes: Record<string, ClassRecord>;
   classifier?: { client: Parameters<typeof classify>[2]; model: string };
+  /** Settle classes recorded before the rules and the second question existed. */
+  recheck?: boolean;
 }
 
 async function replay(entry: ReplayCase, options: ReplayOptions): Promise<ReplayResult> {
@@ -470,13 +524,15 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         ? PYTHON_CONTRACTS[entry.package]
           ? "contract"
           : "verify"
-        : entry.ecosystem !== "npm"
-          ? "none"
-          : STAMPS[entry.package]?.contract
-            ? "contract"
-            : STAMPS[entry.package]
-              ? "pin"
-              : "none",
+        : entry.ecosystem === "go"
+          ? "verify"
+          : entry.ecosystem !== "npm"
+            ? "none"
+            : STAMPS[entry.package]?.contract
+              ? "contract"
+              : STAMPS[entry.package]
+                ? "pin"
+                : "none",
   };
   const work = join(CACHE, "work", entry.id.replace(/[^\w.-]+/g, "_"));
   const repo = join(work, "repo");
@@ -554,6 +610,30 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       for (const [file, ranges] of python.flagged) flagged.set(file, ranges);
       for (const [file, text] of python.files) engineText.set(file, text);
       base.versions = python.versions;
+    }
+    if (entry.ecosystem === "go") {
+      const blobs = await treeAt(repo, entry.base);
+      const go = await replayGo(
+        entry,
+        {
+          repo,
+          paths: [...blobs.keys()],
+          restore: (paths) => restoreAt(repo, work, entry.base, blobs, paths),
+          textAt: (commit, file) => textAt(repo, commit, file),
+        },
+        files,
+        CACHE,
+      );
+      base.engine = go.engine;
+      if (go.versions) base.versions = go.versions;
+      if (keep || options.verbose) {
+        process.stdout.write(`${JSON.stringify(go.notes, null, 2)}\n`);
+      }
+      for (const [file, ranges] of flaggedLines(go.manual, repo, before)) {
+        flagged.set(file, ranges);
+      }
+      for (const [path, text] of go.files)
+        engineText.set(path.slice(repo.length + 1), text);
     }
     if (stamp) {
       // Each file's blob id comes with the tree, before any blob is fetched.
@@ -679,12 +759,14 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       extraFlags: 0,
     };
     const scored: { site: Site; outcome: Outcome }[] = [];
+    const engineRegions = new Map<string, Region[]>();
     for (const file of new Set([...human.keys(), ...engineText.keys()])) {
       const text = before.get(file) ?? (await textAt(repo, entry.base, file));
       const lines = text.split("\n");
       const engine = engineText.has(file)
         ? changedRegions(lines, (engineText.get(file) as string).split("\n"))
         : [];
+      engineRegions.set(file, engine);
       const regions = human.get(file) ?? [];
       const result = score(lines, regions, engine, flagged.get(file) ?? []);
       total.identical += result.identical;
@@ -716,6 +798,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
           options.classes,
           options.classifier.client,
           options.classifier.model,
+          { recheck: options.recheck ?? false },
         );
       } catch (error) {
         // The case is still scored; what could not be classed counts as
@@ -738,8 +821,30 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
           `missed ${site.file}:${site.region.oldStart + 1}\n  - ${removed.trim().slice(0, 110)}\n  + ${added.trim().slice(0, 110)}\n`,
         );
       }
+      // Every edit that differs from the humans', whatever its class, to
+      // judge equivalent or wrong.
+      for (const { site, outcome } of scored) {
+        if (outcome !== "differs") continue;
+        const { oldStart, oldEnd } = site.region;
+        const covering = (engineRegions.get(site.file) ?? []).filter(
+          (region) =>
+            region.oldStart < Math.max(oldEnd, oldStart + 1) &&
+            oldStart < Math.max(region.oldEnd, region.oldStart + 1),
+        );
+        const show = (mark: string, lines: readonly string[]) =>
+          lines.map((line) => `  ${mark} ${line.trim().slice(0, 110)}\n`).join("");
+        process.stdout.write(
+          `differs ${site.file}:${oldStart + 1} (${options.classes[siteKey(site)]?.class ?? "unclassed"})\n${show("-", site.base.slice(oldStart, oldEnd))}${show("+", site.region.lines)}${covering.map((region) => `${show("-", site.base.slice(region.oldStart, region.oldEnd))}${show("=", region.lines)}`).join("")}`,
+        );
+      }
     }
-    return { ...base, sites, ...total, inScope: scopeOf(scored, options.classes) };
+    return {
+      ...base,
+      sites,
+      ...total,
+      inScope: scopeOf(scored, options.classes),
+      byClass: byClassOf(scored, options.classes),
+    };
   } catch (error) {
     return {
       ...base,
@@ -785,6 +890,21 @@ export function scopeOf(
     scope[outcome] += 1;
   }
   return scope;
+}
+
+/** A case's sites by class, by how the engine did on each. */
+export function byClassOf(
+  scored: readonly { site: Site; outcome: Outcome }[],
+  classes: Record<string, ClassRecord>,
+): Record<string, Record<Outcome, number>> {
+  const counts: Record<string, Record<Outcome, number>> = {};
+  for (const { site, outcome } of scored) {
+    const name = classes[siteKey(site)]?.class ?? "unclassified";
+    const bucket = counts[name] ?? { identical: 0, differs: 0, flagged: 0, missed: 0 };
+    counts[name] = bucket;
+    bucket[outcome] += 1;
+  }
+  return counts;
 }
 
 /**
@@ -1071,6 +1191,7 @@ async function main(): Promise<void> {
             classes,
             classifier.client,
             classifier.model,
+            { recheck: args.includes("--recheck") },
           );
         } catch (error) {
           // What could not be classed stays unclassified, and is counted so.
@@ -1081,17 +1202,26 @@ async function main(): Promise<void> {
         await writeClasses(classes);
       }
       result.inScope = scopeOf(scored, classes);
+      result.byClass = byClassOf(scored, classes);
     }
     await save();
     return;
   }
 
+  // Stops starting cases in time for what was replayed to be kept.
+  const deadline =
+    Date.now() + Number(option("minutes") ?? Number.POSITIVE_INFINITY) * 60_000;
   for (const entry of cases) {
+    if (Date.now() > deadline) {
+      process.stdout.write("stopped early: out of time\n");
+      break;
+    }
     // A run picks up where the last one stopped, unless asked to start over.
     if (results.has(entry.id) && !args.includes("--again")) continue;
     const result = await replay(entry, {
       keep: args.includes("--keep"),
       verbose: args.includes("--verbose"),
+      recheck: args.includes("--recheck"),
       classes,
       ...(classifier ? { classifier } : {}),
     });
