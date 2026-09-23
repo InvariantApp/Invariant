@@ -192,6 +192,28 @@ describe("a value that may now be one of several types (Okta)", () => {
     );
   });
 
+  it("reads a choice of nothing but types as those types", () => {
+    // Mistral wrote an agent's version as `anyOf: [integer, null]`, and then
+    // as text, a whole number or null.
+    const nullable = (types: string[]) =>
+      attributes({ anyOf: types.map((type) => ({ type })) });
+    const prediction = predictDocument(
+      nullable(["integer", "null"]),
+      nullable(["string", "integer", "null"]),
+      [change([relaxed, { op: "restate", path: "/enum/*" }])],
+    );
+    expect(prediction.issues).toEqual([]);
+    const schemas = (
+      prediction.document as unknown as {
+        components: { schemas: Record<string, { properties: { enum: unknown } }> };
+      }
+    ).components.schemas;
+    expect(schemas["Attribute"]?.properties.enum).toEqual({
+      type: "array",
+      items: { anyOf: [{ type: "string" }, { type: "integer" }, { type: "null" }] },
+    });
+  });
+
   it("is a declared loss with nothing to run", () => {
     const relax = change([relaxed]);
     expect(derive(relax).runtime).toBe("declared-lossy");

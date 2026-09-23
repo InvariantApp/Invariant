@@ -3672,11 +3672,13 @@ const FEATURE_SINCE = {
 	retired: "0.1.0",
 	behaviors: "0.1.0",
 	identity: "0.1.0",
-	status: NEXT
+	status: NEXT,
+	"move-beneath": NEXT
 };
 function instrFeatures(list, into) {
 	for (const instr of list) {
 		into.add(instr.k);
+		if (instr.k === "move" && instr.to.startsWith(`${instr.from}/`)) into.add("move-beneath");
 		if (instr.k === "within" || instr.k === "has" || instr.k === "is") instrFeatures(instr.block, into);
 		else if (instr.k === "switch") for (const block of Object.values(instr.cases)) instrFeatures(block, into);
 	}
@@ -22482,14 +22484,31 @@ function schemaRelax(document, root, path, set, sentByOldCallers) {
 * the value states holds for every type, and stays where it is.
 */
 function relaxTypes(node, types, path) {
-	const declared = node["type"];
+	const choice = typeChoice(node);
+	const declared = choice ?? node["type"];
 	const was = (Array.isArray(declared) ? declared : [declared]).filter((type) => typeof type === "string" && type !== "null");
 	const kept = (type) => types.includes(type) || type === "integer" && types.includes("number");
 	if (was.length === 0 || !was.every(kept)) throw new SchemaOpError(`${path || "the body"} was ${was.length === 0 ? "of no one type" : was.join(" or ")}, and a type that went is a convert, not a relax`);
-	if (["anyOf", "oneOf"].some((keyword) => node[keyword] !== void 0)) throw new SchemaOpError(`${path || "the body"} is already a choice`);
+	if (choice === void 0 && ["anyOf", "oneOf"].some((keyword) => node[keyword] !== void 0)) throw new SchemaOpError(`${path || "the body"} is already a choice`);
 	const nullable = Array.isArray(declared) && declared.includes("null");
 	delete node["type"];
+	delete node["oneOf"];
 	node["anyOf"] = [...types.map((type) => ({ type })), ...nullable ? [{ type: "null" }] : []];
+}
+/**
+* The types a choice lists, where each of its branches says nothing but a
+* type, and nothing where it is any other kind of choice.
+*/
+function typeChoice(node) {
+	const keyword = ["anyOf", "oneOf"].find((key) => Array.isArray(node[key]));
+	if (keyword === void 0 || node["type"] !== void 0) return void 0;
+	const types = [];
+	for (const branch of node[keyword]) {
+		if (!isJsonObject(branch) || typeof branch["type"] !== "string") return void 0;
+		if (Object.keys(branch).some((key) => key !== "type" && !ANNOTATIONS.includes(key))) return;
+		types.push(branch["type"]);
+	}
+	return types;
 }
 /**
 * A list's items and a map's values are not a field, so neither is added nor
