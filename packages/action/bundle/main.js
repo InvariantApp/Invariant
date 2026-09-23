@@ -23492,10 +23492,10 @@ function shapeByName(newDocument, name, path) {
 * How the new contract writes a place in a schema: under the schema's name,
 * or where the schema reaches the wire when the name is gone.
 */
-function statementInNew(newContract, routes, name, site, path) {
+function statementInNew(newContract, routes, statuses, name, site, path) {
 	const named = writtenAt(newContract, { $ref: `#/components/schemas/${name}` }, parsePointer(path));
 	if (named !== void 0 && named !== null) return named;
-	const found = site ? shapeFromNewContract(newContract, routes, site, path) : void 0;
+	const found = site ? shapeFromNewContract(newContract, routes, statuses, site, path) : void 0;
 	return found && topOf(newContract, found.shape);
 }
 /**
@@ -23604,7 +23604,7 @@ function predictDocument(oldContract, newContract, changes) {
 							break;
 						}
 						if (op.when !== "null") schemaSetRequired(document, schema, op.path, !looser);
-						if (op.when !== "absent") schemaSetNullable(document, schema, op.path, looser, statementInNew(newContract, routes, name, oldSites[0], op.path));
+						if (op.when !== "absent") schemaSetNullable(document, schema, op.path, looser, statementInNew(newContract, routes, statuses, name, oldSites[0], op.path));
 						break;
 					}
 					case "relax":
@@ -23649,7 +23649,7 @@ function predictDocument(oldContract, newContract, changes) {
 							});
 							break;
 						}
-						schemaSetNullable(document, schema, op.path, op.toward === "old", statementInNew(newContract, routes, name, oldSites[0], op.path));
+						schemaSetNullable(document, schema, op.path, op.toward === "old", statementInNew(newContract, routes, statuses, name, oldSites[0], op.path));
 				}
 			} catch (error) {
 				issues.push({
@@ -23740,7 +23740,7 @@ function looserInResponses(document, newContract, routes, entry, issues) {
 			path: `${site.prefix}${op.path}`
 		});
 	}
-	const written = statementInNew(newContract, routes, entry.name, void 0, op.path);
+	const written = statementInNew(newContract, routes, [], entry.name, void 0, op.path);
 	const loosen = (root, path) => {
 		if (op.op === "dropNull") {
 			schemaSetNullable(document, root, path, true, written);

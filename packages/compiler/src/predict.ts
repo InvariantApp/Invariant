@@ -361,6 +361,7 @@ function shapeByName(
 function statementInNew(
   newContract: OpenApiDocument,
   routes: readonly RouteMapping[],
+  statuses: readonly StatusMapping[],
   name: string,
   site: Site | undefined,
   path: string,
@@ -371,7 +372,9 @@ function statementInNew(
     parsePointer(path),
   );
   if (named !== undefined && named !== null) return named;
-  const found = site ? shapeFromNewContract(newContract, routes, site, path) : undefined;
+  const found = site
+    ? shapeFromNewContract(newContract, routes, statuses, site, path)
+    : undefined;
   return found && topOf(newContract, found.shape);
 }
 
@@ -560,7 +563,14 @@ export function predictDocument(
                   schema,
                   op.path,
                   looser,
-                  statementInNew(newContract, routes, name, oldSites[0], op.path),
+                  statementInNew(
+                    newContract,
+                    routes,
+                    statuses,
+                    name,
+                    oldSites[0],
+                    op.path,
+                  ),
                 );
               break;
             }
@@ -668,7 +678,7 @@ export function predictDocument(
                 schema,
                 op.path,
                 op.toward === "old",
-                statementInNew(newContract, routes, name, oldSites[0], op.path),
+                statementInNew(newContract, routes, statuses, name, oldSites[0], op.path),
               );
               break;
           }
@@ -814,7 +824,8 @@ function looserInResponses(
       path: `${site.prefix}${op.path}`,
     });
   }
-  const written = statementInNew(newContract, routes, entry.name, undefined, op.path);
+  // Found by the schema's name alone: no site, so no status to follow.
+  const written = statementInNew(newContract, routes, [], entry.name, undefined, op.path);
   const loosen = (root: JsonObject, path: string) => {
     if (op.op === "dropNull") {
       schemaSetNullable(document, root, path, true, written);
