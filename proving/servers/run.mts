@@ -40,7 +40,7 @@
  * only served, from a previous run's dump in `.cache/servers`.
  */
 import { type ChildProcess, execFile, spawn } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { copyFile, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -109,6 +109,14 @@ interface Project {
      * `capture` keeps what it printed, trimmed, as `{<capture>}`.
      */
     setup?: { run: Command; capture?: string }[];
+    /**
+     * Credentials the server is started with, made when the pair runs and
+     * never written down: random bytes, as hex, or the value the suite itself
+     * calls with, read from its own source by the pattern's first group. Each
+     * is `{<name>}` wherever a placeholder is read, and an environment variable
+     * of that name for a compose file.
+     */
+    secrets?: Record<string, { random: number } | { suite: string; pattern: string }>;
   };
   /**
    * Where the release's OpenAPI document comes from: its repository at the
@@ -311,6 +319,29 @@ async function suiteOf(
   return { dir, env };
 }
 
+/** The credentials a pair's servers are started with, made for this run alone. */
+async function secretsOf(
+  project: Project,
+  suite: { dir: string },
+): Promise<Record<string, string>> {
+  const made: Record<string, string> = {};
+  for (const [name, source] of Object.entries(project.server.secrets ?? {})) {
+    if ("random" in source) {
+      made[name] = randomBytes(source.random).toString("hex");
+      continue;
+    }
+    const text = await readFile(join(suite.dir, source.suite), "utf8");
+    const found = new RegExp(source.pattern).exec(text)?.[1];
+    if (!found) {
+      throw new Error(
+        `${source.suite} has nothing matching ${source.pattern} for ${name}`,
+      );
+    }
+    made[name] = found;
+  }
+  return made;
+}
+
 /** The environment a suite's commands run in: its own tools first on PATH. */
 function suiteEnv(env: string, dir: string): NodeJS.ProcessEnv {
   const out: NodeJS.ProcessEnv = { ...process.env };
@@ -353,6 +384,7 @@ async function startServer(
   project: Project,
   tag: string,
   port: number,
+  secrets: Record<string, string>,
 ): Promise<Record<string, string>> {
   const release = releaseOf(project, tag);
   const image = `${project.image}@${release.digest}`;
@@ -362,6 +394,7 @@ async function startServer(
     await sh("docker", [...composeArgs(project), "up", "-d", "--quiet-pull"], {
       env: {
         ...process.env,
+        ...secrets,
         IMAGE: image,
         PORT: String(port),
         CONTAINER: container,
@@ -370,7 +403,7 @@ async function startServer(
   } else {
     const env = Object.entries(project.server.env ?? {}).flatMap(([name, value]) => [
       "-e",
-      `${name}=${value}`,
+      `${name}=${expand(value, secrets)}`,
     ]);
     await sh("docker", [
       "run",
@@ -384,7 +417,7 @@ async function startServer(
     ]);
   }
   const url = `http://127.0.0.1:${port}`;
-  const vars: Record<string, string> = { url, container };
+  const vars: Record<string, string> = { ...secrets, url, container };
   try {
     await waitFor(
       `${url}${project.server.ready}`,
@@ -622,8 +655,10 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
 
   log(`${project.name} ${from} -> ${to}: installing the old release's suite`);
   let suite: { dir: string; env: string };
+  let secrets: Record<string, string>;
   try {
     suite = await suiteOf(project, from);
+    secrets = await secretsOf(project, suite);
   } catch (error) {
     // Reported as a pair that could not run, beside the ones that could.
     const none = failed(`the suite could not be installed: ${failed(error).error}`);
@@ -659,7 +694,12 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
     );
     let proxy: ChildProcess | undefined;
     try {
-      const vars = await startServer(project, tag, through ? BEHIND_PORT : SUITE_PORT);
+      const vars = await startServer(
+        project,
+        tag,
+        through ? BEHIND_PORT : SUITE_PORT,
+        secrets,
+      );
       await dumpSpec(project, tag, vars);
       if (through) {
         proxy = await startProxy(through.program, from, vars["url"] ?? "", work);

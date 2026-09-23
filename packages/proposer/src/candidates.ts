@@ -226,6 +226,13 @@ function throughNull(document: OpenApiDocument, value: JsonObject): JsonObject {
   if (!lone || !isJsonObject(lone.only)) return value;
   const resolved = resolveSchema(document, lone.only);
   if (!isJsonObject(resolved)) return value;
+  // A named choice is compared as itself, under its own name: read through
+  // here, Qdrant's `stemmer` took on the branches of `StemmingAlgorithm` and
+  // drafted again at the field what the choice's own comparison said.
+  const named = isJsonObject(lone.only) && typeof lone.only["$ref"] === "string";
+  if (named && ["oneOf", "anyOf"].some((key) => resolved[key] !== undefined)) {
+    return value;
+  }
   const { [lone.key]: _union, ...rest } = value;
   return { ...resolved, ...rest };
 }

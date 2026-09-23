@@ -114,12 +114,33 @@
         "port": 8080,
         "ready": "/api/",
         "readySeconds": 600,
-        "compose": "compose/netbox.yaml"
+        "compose": "compose/netbox.yaml",
+        "secrets": {
+          "NETBOX_TOKEN": {
+            "suite": "tests/integration/conftest.py",
+            "pattern": "token=\"([0-9a-f]{40})\""
+          },
+          "NETBOX_DB_PASSWORD": {
+            "random": 16
+          },
+          "NETBOX_REDIS_PASSWORD": {
+            "random": 16
+          },
+          "NETBOX_REDIS_CACHE_PASSWORD": {
+            "random": 16
+          },
+          "NETBOX_SECRET_KEY": {
+            "random": 32
+          },
+          "NETBOX_SUPERUSER_PASSWORD": {
+            "random": 16
+          }
+        }
       },
       "spec": {
         "served": "/api/schema/?format=json",
         "headers": {
-          "Authorization": "Token 0123456789abcdef0123456789abcdef01234567",
+          "Authorization": "Token {NETBOX_TOKEN}",
           "Accept": "application/json"
         }
       },
@@ -180,9 +201,15 @@
         "port": 7700,
         "ready": "/health",
         "env": {
-          "MEILI_MASTER_KEY": "masterKey",
+          "MEILI_MASTER_KEY": "{MEILI_KEY}",
           "MEILI_NO_ANALYTICS": "true",
           "MEILI_EXPERIMENTAL_ALLOWED_IP_NETWORKS": "any"
+        },
+        "secrets": {
+          "MEILI_KEY": {
+            "suite": "tests/utils/meilisearch-test-utils.ts",
+            "pattern": "MASTER_KEY = \"([^\"]+)\""
+          }
         }
       },
       "spec": {
@@ -253,14 +280,19 @@
               "user",
               "create",
               "--username=test01",
-              "--password=test01",
+              "--password={GITEA_PASSWORD}",
               "--email=test01@gitea.io",
               "--admin=true",
               "--must-change-password=false",
               "--access-token"
             ]
           }
-        ]
+        ],
+        "secrets": {
+          "GITEA_PASSWORD": {
+            "random": 16
+          }
+        }
       },
       "spec": {
         "served": "/swagger.v1.json"
@@ -286,7 +318,7 @@
         "env": {
           "GITEA_SDK_TEST_URL": "{url}",
           "GITEA_SDK_TEST_USERNAME": "test01",
-          "GITEA_SDK_TEST_PASSWORD": "test01"
+          "GITEA_SDK_TEST_PASSWORD": "{GITEA_PASSWORD}"
         }
       },
       "releases": {
