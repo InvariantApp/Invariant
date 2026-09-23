@@ -183,6 +183,39 @@ describe("unions on the way to a schema", () => {
     });
   });
 
+  it("tells an object from the null a Rust generator writes beside it as nullable alone", () => {
+    // schemars writes every Option<T> in OpenAPI 3.0 this way, Qdrant's
+    // telemetry 249 times: the object, or a branch that is nothing but
+    // `nullable: true`. Qdrant 1.17's telemetry Changes were refused over it.
+    const scan = findSchemaSites(
+      document({
+        type: "object",
+        properties: {
+          local: { anyOf: [ref("Card"), { nullable: true, description: "absent" }] },
+        },
+      }) as never,
+      "#/components/schemas/Card",
+    );
+    expect(scan.unsupported).toEqual([]);
+    expect(scan.sites[0]).toMatchObject({
+      prefix: "/local",
+      guards: [{ at: "/local", type: "object" }],
+    });
+  });
+
+  it("still refuses a branch that is nullable and says what else it may be", () => {
+    const scan = findSchemaSites(
+      document({
+        type: "object",
+        properties: {
+          local: { anyOf: [ref("Card"), { nullable: true, minProperties: 1 }] },
+        },
+      }) as never,
+      "#/components/schemas/Card",
+    );
+    expect(scan.unsupported).toHaveLength(1);
+  });
+
   it("tells two objects beside an id apart by a field only one requires, as Stripe's deleted objects", () => {
     const scan = findSchemaSites(
       {

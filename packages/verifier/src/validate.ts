@@ -81,6 +81,11 @@ function walk(
   const schema = resolved;
   const pointer = formatPointer(segments) || "/";
 
+  // OpenAPI 3.1 lists null among the types; 3.0 says `nullable: true` beside
+  // them, and allows null whatever else the schema says. The generator reads
+  // both, so a check that read only one refused values it had just produced.
+  if (value === null && schema["nullable"] === true) return;
+
   const allOf = schema["allOf"];
   if (Array.isArray(allOf)) {
     for (const branch of allOf) walk(document, branch as JsonValue, value, segments, out);

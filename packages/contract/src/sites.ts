@@ -70,6 +70,18 @@ export type Guard =
 /** The kinds of value JSON has. */
 export type JsonKind = "object" | "array" | "string" | "number" | "boolean" | "null";
 
+/** Keywords that describe a schema without constraining its values. */
+const ANNOTATIONS = new Set([
+  "title",
+  "description",
+  "example",
+  "examples",
+  "deprecated",
+  "readOnly",
+  "writeOnly",
+  "externalDocs",
+]);
+
 const JSON_KINDS: readonly JsonKind[] = [
   "object",
   "array",
@@ -252,7 +264,15 @@ export function jsonKindOf(
 ): JsonKind | undefined {
   const resolved = resolveSchema(document, schema);
   if (!isJsonObject(resolved)) return undefined;
-  if (resolved["nullable"] === true) return undefined;
+  if (resolved["nullable"] === true) {
+    // A branch that says nothing but that it may be null is how schemars and
+    // utoipa write Option<T> in OpenAPI 3.0, beside the branch for T: Qdrant's
+    // telemetry does it 249 times. Read alone, `nullable` without a type
+    // constrains nothing, but no generator writes it to mean anything but
+    // null, and a union of it with an object is only ever an object or null.
+    const said = Object.keys(resolved).filter((key) => !ANNOTATIONS.has(key));
+    return said.length === 1 ? "null" : undefined;
+  }
   const type = resolved["type"];
   if (typeof type === "string") {
     if (type === "integer") return "number";

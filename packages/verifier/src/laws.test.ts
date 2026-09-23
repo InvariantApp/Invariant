@@ -180,6 +180,46 @@ describe("the lens laws", () => {
     expect(report.failures[0]?.detail).toMatch(/"auto" is not one of/);
   });
 
+  /**
+   * A field added to a schema only responses carry is taken out of old
+   * callers' responses, and the proposer drafts it with a null value because
+   * no request ever needs one. Qdrant 1.17's `uuid` on SegmentInfo was drafted
+   * exactly so, at full confidence, and the gate then refused it for what the
+   * forward half did to a request that cannot exist.
+   */
+  it("check only the directions a schema travels", () => {
+    const { old, head } = contracts();
+    for (const contract of [old, head]) {
+      const create = (contract["paths"] as Record<string, Record<string, unknown>>)[
+        "/v1/payments"
+      ]?.["post"] as Record<string, unknown>;
+      delete create["requestBody"];
+    }
+    const schema = (
+      head["components"] as Record<
+        string,
+        Record<string, Record<string, Record<string, unknown>>>
+      >
+    )["schemas"]?.["Payment"] as Record<string, unknown>;
+    (schema["properties"] as Record<string, unknown>)["uuid"] = { type: "string" };
+    schema["required"] = [...(schema["required"] as string[]), "uuid"];
+
+    const report = laws(old, head, [
+      {
+        irVersion: 1,
+        id: "chg_payment_uuid_added",
+        summary: "`uuid` is new and required on Payment.",
+        scopes: [{ schema: "#/components/schemas/Payment" }],
+        ops: [{ op: "add", path: "/uuid", value: null }],
+      },
+    ]);
+
+    expect(report.failures).toEqual([]);
+    expect(report.evidence.find((entry) => entry.kind === "E4-laws")?.summary).toMatch(
+      /from the new contract to the old/,
+    );
+  });
+
   it("catch a value map that does not cover the vocabulary", () => {
     const { old, head } = contracts();
     const report = laws(old, head, [

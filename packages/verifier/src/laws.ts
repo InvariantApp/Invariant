@@ -32,7 +32,7 @@
  * so rather than implying otherwise.
  */
 import { derive, schemaLens } from "@invariant-app/compiler";
-import type { OpenApiDocument } from "@invariant-app/contract";
+import { type OpenApiDocument, schemaDirections } from "@invariant-app/contract";
 import {
   type Change,
   type Instr,
@@ -215,6 +215,10 @@ export function checkLaws(
     const digest = inputsDigest(entry.changes, entry.scope, runs);
     const found: LawFailure[] = [];
     const label = ids.join(", ");
+    // A half the runtime never runs proves nothing, and can fail on values no
+    // caller can send: a field added to a schema only responses carry is
+    // drafted with no value to send, because none is ever needed.
+    const travels = schemaDirections(oldContract, entry.scope);
 
     try {
       // The composition the compiler projects onto a site, so the lens under
@@ -224,28 +228,30 @@ export function checkLaws(
       // Old shape to canonical and back. The values come from the contract the
       // caller was written against, which is exactly the traffic the adapter
       // will see.
-      const outbound = run(oldContract, entry.scope, runs, options.seed, (value) => {
-        const canonical = lens.forward(value);
-        const violations = validateAgainst(
-          predicted,
-          entry.scope,
-          canonical as JsonValue,
-        );
-        if (violations.length > 0) {
-          return `forward produced a value the new contract does not allow (${describe(violations)})`;
-        }
+      const outbound = !travels.request
+        ? []
+        : run(oldContract, entry.scope, runs, options.seed, (value) => {
+            const canonical = lens.forward(value);
+            const violations = validateAgainst(
+              predicted,
+              entry.scope,
+              canonical as JsonValue,
+            );
+            if (violations.length > 0) {
+              return `forward produced a value the new contract does not allow (${describe(violations)})`;
+            }
 
-        const returned = lens.backward(canonical);
-        if (
-          !sameJson(
-            withoutLossy(returned, entry.lossy.forward),
-            withoutLossy(value, entry.lossy.forward),
-          )
-        ) {
-          return `undoing it did not return the original: ${JSON.stringify(returned)}`;
-        }
-        return undefined;
-      });
+            const returned = lens.backward(canonical);
+            if (
+              !sameJson(
+                withoutLossy(returned, entry.lossy.forward),
+                withoutLossy(value, entry.lossy.forward),
+              )
+            ) {
+              return `undoing it did not return the original: ${JSON.stringify(returned)}`;
+            }
+            return undefined;
+          });
       for (const failure of outbound) {
         found.push({
           ...failure,
@@ -258,24 +264,30 @@ export function checkLaws(
       // Canonical to old shape and back. These are the values the provider's
       // own handler produces today, so a failure here is a response an old
       // consumer cannot be served.
-      const inbound = run(predicted, entry.scope, runs, options.seed, (value) => {
-        const old = lens.backward(value);
-        const violations = validateAgainst(oldContract, entry.scope, old as JsonValue);
-        if (violations.length > 0) {
-          return `backward produced a value the old contract does not allow (${describe(violations)})`;
-        }
+      const inbound = !travels.response
+        ? []
+        : run(predicted, entry.scope, runs, options.seed, (value) => {
+            const old = lens.backward(value);
+            const violations = validateAgainst(
+              oldContract,
+              entry.scope,
+              old as JsonValue,
+            );
+            if (violations.length > 0) {
+              return `backward produced a value the old contract does not allow (${describe(violations)})`;
+            }
 
-        const returned = lens.forward(old);
-        if (
-          !sameJson(
-            withoutLossy(returned, entry.lossy.backward),
-            withoutLossy(value, entry.lossy.backward),
-          )
-        ) {
-          return `re-applying it did not return the original: ${JSON.stringify(returned)}`;
-        }
-        return undefined;
-      });
+            const returned = lens.forward(old);
+            if (
+              !sameJson(
+                withoutLossy(returned, entry.lossy.backward),
+                withoutLossy(value, entry.lossy.backward),
+              )
+            ) {
+              return `re-applying it did not return the original: ${JSON.stringify(returned)}`;
+            }
+            return undefined;
+          });
       for (const failure of inbound) {
         found.push({
           ...failure,
@@ -312,7 +324,7 @@ export function checkLaws(
       summary:
         refused.length > 0
           ? `the transform refused ${refused.length} ${refused.length === 1 ? "value" : "values"} the contract allows`
-          : `no generated value of ${entry.scope} was refused, in either direction`,
+          : `no generated value of ${entry.scope} was refused, in ${travels.request && travels.response ? "either direction" : "the direction it travels"}`,
       ...(refused.length > 0 ? { detail: refused.map((failure) => failure.detail) } : {}),
     });
 
@@ -325,7 +337,15 @@ export function checkLaws(
       summary:
         found.length > 0
           ? `${found.length} of the laws failed on ${entry.scope}`
-          : `${label} round trip on ${runs} generated values of ${entry.scope}, in both directions`,
+          : `${label} round trip on ${runs} generated values of ${entry.scope}, ${
+              travels.request && travels.response
+                ? "in both directions"
+                : travels.request
+                  ? "from the old contract to the new, the only way it travels"
+                  : travels.response
+                    ? "from the new contract to the old, the only way it travels"
+                    : "which no request or response carries"
+            }`,
       ...(found.length > 0
         ? { detail: found.map((failure) => `${failure.law}: ${failure.detail}`) }
         : {}),
