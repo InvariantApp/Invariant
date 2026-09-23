@@ -54,6 +54,42 @@ export interface Prediction {
   issues: PredictionIssue[];
 }
 
+/**
+ * Keys no program may name, the runtime's own list. It refuses a program that
+ * names one at load, since a pointer through `__proto__` or `constructor`
+ * reaches the shared prototype of every object in the process.
+ */
+const UNADDRESSABLE = new Set(["__proto__", "constructor", "prototype"]);
+
+/**
+ * A Change that names one of those keys, refused here rather than compiled
+ * into a program the runtime will not load. `prototype` compiled without a
+ * word and the program failed only when a provider deployed it. Found by the
+ * threat-model tests.
+ */
+export function unaddressableKeys(changes: readonly Change[]): PredictionIssue[] {
+  const issues: PredictionIssue[] = [];
+  for (const change of changes) {
+    change.ops.forEach((op, index) => {
+      for (const field of ["path", "from", "to"] as const) {
+        const pointer = (op as Record<string, unknown>)[field];
+        if (typeof pointer !== "string" || !pointer.startsWith("/")) continue;
+        const named = pointer
+          .slice(1)
+          .split("/")
+          .map((segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~"))
+          .find((segment) => UNADDRESSABLE.has(segment));
+        if (named === undefined) continue;
+        issues.push({
+          changeId: change.id,
+          message: `op ${index + 1} (${op.op}) names "${named}" in ${pointer}, which no program may address: every object shares it`,
+        });
+      }
+    });
+  }
+  return issues;
+}
+
 export interface RouteMapping {
   from: { method: string; path: string };
   to: { method: string; path: string };
@@ -286,7 +322,7 @@ export function predictDocument(
   changes: readonly Change[],
 ): Prediction {
   const document = structuredClone(oldContract);
-  const issues: PredictionIssue[] = [];
+  const issues: PredictionIssue[] = [...unaddressableKeys(changes)];
   const routes = routeMappings(changes);
 
   for (const change of changes) {

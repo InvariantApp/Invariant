@@ -121,17 +121,39 @@ interface WalkContext {
  */
 const MAX_WALK_STEPS = 2_000_000;
 
+/**
+ * How many places one search lists before the schema is served by blocks
+ * instead.
+ *
+ * The step budget bounds how long a search takes, not how much it finds, and
+ * without recursion nothing else stopped it. A document of a few kilobytes,
+ * each level holding two references to the next, puts a schema at 2^depth
+ * places: sixteen levels listed 65,536 of them and the compiler died of a
+ * stack overflow, and fourteen wrote a 6.8 MB program for a one-field rename,
+ * doubling with each level. Found by the threat-model tests. Past this many
+ * places the program is as large as the schemas rather than the paths, which
+ * is what the blocks are for.
+ */
+const MAX_PLACES = 10_000;
+
 /** How many reasons a search keeps; the rest are counted, not listed. */
 const MAX_NOTES = 100;
 
 interface Budget {
   steps: number;
+  /** Places found so far, across every root of the search. */
+  places: number;
   exhausted: boolean;
   /** Reasons beyond `MAX_NOTES`, which are the same problem at more places. */
   dropped: number;
 }
 
-const freshBudget = (): Budget => ({ steps: 0, exhausted: false, dropped: 0 });
+const freshBudget = (): Budget => ({
+  steps: 0,
+  places: 0,
+  exhausted: false,
+  dropped: 0,
+});
 
 /** Records why the schema cannot be placed somewhere, keeping the list bounded. */
 function note(ctx: WalkContext, message: string): void {
@@ -433,6 +455,15 @@ function walk(ctx: WalkContext, schema: JsonValue, segments: string[]): void {
   const ref = schema["$ref"];
   if (typeof ref === "string") {
     if (ref === ctx.target) {
+      ctx.budget.places += 1;
+      if (ctx.budget.places > MAX_PLACES) {
+        ctx.budget.exhausted = true;
+        note(
+          ctx,
+          `the schema sits in more than ${MAX_PLACES} places, too many to place a transform on each`,
+        );
+        return;
+      }
       ctx.found.push({ prefix: formatPointer(segments), guards: [] });
       return;
     }
