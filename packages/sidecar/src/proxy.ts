@@ -294,9 +294,13 @@ export function createProxy(options: ProxyOptions): FetchHandler {
  * choose a different host, which turns a proxy into an open relay.
  */
 export function targetFor(upstream: URL, path: string, search: string): URL | undefined {
-  if (hidesTraversal(path)) return undefined;
-  const target = new URL(upstream.href);
   const base = upstream.pathname.replace(/\/+$/, "");
+  // Only a base path can be left. In front of a whole server there is nothing
+  // outside it to reach, and the server answers such a path itself: Qdrant's
+  // own suite sends `..%2F..%2Fetc%2Fpasswd` for a snapshot and expects its
+  // 404, which a refusal here turned into this proxy's 400.
+  if (base !== "" && hidesTraversal(path)) return undefined;
+  const target = new URL(upstream.href);
   target.pathname = `${base}${path.startsWith("/") ? path : `/${path}`}`;
   target.search = search;
   if (target.origin !== upstream.origin) return undefined;
@@ -318,8 +322,8 @@ export function targetFor(upstream: URL, path: string, search: string): URL | un
  * because to a URL an escaped slash is part of a segment's name. Plenty of
  * servers decode it before they route, and to them `/api/..%2fadmin` is
  * `/admin`: outside the base path this proxy fronts, reached through it. No
- * API names a resource that way, so such a path is refused as leaving the
- * API. Found by the threat-model tests.
+ * API names a resource that way, so where there is a base path such a path is
+ * refused as leaving the API. Found by the threat-model tests.
  */
 export function hidesTraversal(path: string): boolean {
   for (const segment of path.split("/")) {

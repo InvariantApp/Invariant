@@ -355,6 +355,20 @@ describe("what the proxy will not let through", () => {
     expect(targetFor(base, "/../admin", "")).toBeUndefined();
   });
 
+  it("refuses a step up that decoding reveals only where there is a base path to leave (Qdrant)", () => {
+    const hidden = "/snapshots/..%2F..%2Fetc%2Fpasswd";
+    // Under a base path, a server that decodes before it routes would read
+    // this as leaving the API.
+    expect(
+      targetFor(new URL("http://api.internal:8080/api"), hidden, ""),
+    ).toBeUndefined();
+    // In front of the whole server there is nothing outside to reach, and the
+    // server's own answer is the one its callers expect.
+    expect(targetFor(new URL("http://api.internal:8080"), hidden, "")?.pathname).toBe(
+      hidden,
+    );
+  });
+
   it("drops headers claiming to be internal before the provider sees them", async () => {
     const { fetchImpl, calls } = upstream(() => jsonAnswer({}));
     await proxyWith(fetchImpl)(
