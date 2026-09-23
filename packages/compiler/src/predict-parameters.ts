@@ -43,6 +43,7 @@ import { mapEndpoint, type PredictionIssue, type RouteMapping } from "./predict.
 import { proveRestated } from "./restate.ts";
 import {
   applyCodecToSchema,
+  relaxTypes,
   SchemaOpError,
   schemaAdd,
   schemaConvert,
@@ -507,6 +508,10 @@ function applyOne(
       const parameter = existing(address.part, name);
       const schema = schemaOf(parameter);
       for (const [keyword, value] of Object.entries(op.set) as [string, JsonValue][]) {
+        if (keyword === "type" && Array.isArray(value)) {
+          relaxTypes(schema, value as string[], name);
+          continue;
+        }
         if (narrows(keyword, schema[keyword], value)) {
           throw new SchemaOpError(
             `${name} now allows less (${keyword}), so old callers would be refused for what their contract allowed`,

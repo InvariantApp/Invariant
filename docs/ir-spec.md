@@ -89,7 +89,12 @@ that became any string: there is nothing to fold a new value onto, so it passes
 through, declared. A field that became a choice between the values it listed
 and any other text says the same, and is that `relax` followed by a `restate`
 that writes the choice as the new contract does. `type: null` is a value that was typed and now is not. A
-type changed to another type is a `convert`, never this.
+type changed to another type is a `convert`, never this. `type` may instead
+list the types a value may now be, where every type it was is among them, as
+Okta's user schema attributes came to list an enum's values as text or whole
+numbers: it is written as a choice of those types, a declared loss wherever
+old callers are sent it, and a `restate` that follows writes the choice as the
+new contract does. A list that leaves out a type the value was is refused.
 
 `restate` says the new contract describes the same values another way:
 properties that became a `oneOf` of the shapes they were always sent in, a

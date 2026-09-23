@@ -426,8 +426,28 @@ export const RelaxOp = Type.Object(
          * free-form objects. The value passes through as the API produced
          * it; a caller that checks the type may be sent one it did not
          * expect. A type changed to another is a `convert`, not this.
+         *
+         * Or the types it may now be, where it may be more than one and every
+         * type it was is among them: Okta's user schema attributes listed an
+         * enum's values as text, and a later release as text or whole
+         * numbers. A value of a type it never was passes through too.
          */
-        type: Type.Optional(Type.Null()),
+        type: Type.Optional(
+          Type.Union([
+            Type.Null(),
+            Type.Array(
+              Type.Union([
+                Type.Literal("string"),
+                Type.Literal("number"),
+                Type.Literal("integer"),
+                Type.Literal("boolean"),
+                Type.Literal("object"),
+                Type.Literal("array"),
+              ]),
+              { minItems: 2, uniqueItems: true },
+            ),
+          ]),
+        ),
       },
       { additionalProperties: false, minProperties: 1 },
     ),

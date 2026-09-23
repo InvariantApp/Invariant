@@ -809,6 +809,10 @@ export function schemaRelax(
         `${path || "the body"} can now hold values old callers never heard of, which a fold decides; relax only takes values away`,
       );
     }
+    if (keyword === "type" && Array.isArray(value)) {
+      relaxTypes(node, value as string[], path);
+      continue;
+    }
     if (sentByOldCallers && narrows(keyword, node[keyword], value)) {
       throw new SchemaOpError(
         `${path || "the body"} now allows less (${keyword}) and old callers send it, so they would be refused for what their contract allowed`,
@@ -817,6 +821,39 @@ export function schemaRelax(
     if (value === null) delete node[keyword];
     else node[keyword] = value;
   }
+}
+
+/**
+ * A value that may now be one of several types, every one it was among them,
+ * written as a choice of them: the one spelling both versions of OpenAPI
+ * read, and the one a restatement that follows can prove against. What else
+ * the value states holds for every type, and stays where it is.
+ */
+export function relaxTypes(
+  node: JsonObject,
+  types: readonly string[],
+  path: string,
+): void {
+  const declared = node["type"];
+  const was = (Array.isArray(declared) ? declared : [declared]).filter(
+    (type): type is string => typeof type === "string" && type !== "null",
+  );
+  const kept = (type: string) =>
+    types.includes(type) || (type === "integer" && types.includes("number"));
+  if (was.length === 0 || !was.every(kept)) {
+    throw new SchemaOpError(
+      `${path || "the body"} was ${was.length === 0 ? "of no one type" : was.join(" or ")}, and a type that went is a convert, not a relax`,
+    );
+  }
+  if (["anyOf", "oneOf"].some((keyword) => node[keyword] !== undefined)) {
+    throw new SchemaOpError(`${path || "the body"} is already a choice`);
+  }
+  const nullable = Array.isArray(declared) && declared.includes("null");
+  delete node["type"];
+  node["anyOf"] = [
+    ...types.map((type) => ({ type })),
+    ...(nullable ? [{ type: "null" }] : []),
+  ];
 }
 
 /**

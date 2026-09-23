@@ -264,3 +264,96 @@ describe("a vocabulary that grew inside an optional object (Figma)", () => {
     expect(result.breakingAfterDecided).toBe(0);
   });
 });
+
+describe("a list whose items stopped saying what they are (Twilio)", () => {
+  // Twilio's builds listed their asset versions as objects of any shape, and
+  // a later release as values of any kind. A list's items were never read
+  // unless they named values or a choice, so nothing said so.
+  const version = (items: Schema) =>
+    api(ref("Build"), {
+      Build: {
+        type: "object",
+        properties: { asset_versions: { type: "array", items, nullable: true } },
+      },
+    });
+
+  it("is declared, and nothing is left", async () => {
+    const result = await analyse(
+      "asset-versions",
+      version({ type: "object" }),
+      version({}),
+    );
+    expect(result.compileIssues).toEqual([]);
+    expect(result.breakingBefore).toBeGreaterThan(0);
+    expect(result.decisions).toBe(0);
+    expect(result.breakingAfter).toBe(0);
+  });
+});
+
+describe("a list that became another kind of value (Cloudflare)", () => {
+  // Cloudflare's failure responses answered `result` as a list of rules, and
+  // later as an object or null. Each rule's fields read as removed from a
+  // list that was no longer there, and answering those asked the compiler to
+  // walk into items an object does not have.
+  const rule = {
+    type: "object",
+    required: ["id", "mode"],
+    properties: { id: string, mode: string, notes: ref("Notes") },
+  };
+
+  it("does not ask about what the list's items held", async () => {
+    const result = await analyse(
+      "result-kind",
+      api(
+        {
+          type: "object",
+          required: ["result"],
+          properties: { result: { type: "array", items: rule } },
+        },
+        { Notes: string },
+      ),
+      api(
+        {
+          type: "object",
+          required: ["result"],
+          properties: { result: { type: "object", nullable: true } },
+        },
+        { Notes: string },
+      ),
+    );
+    expect(result.compileIssues).toEqual([]);
+    expect(result.decidedError).toBeUndefined();
+  });
+});
+
+describe("list items that may now be one of several types (Okta)", () => {
+  // Okta's user schema attributes listed an enum's values as text, and a
+  // later release as text or whole numbers, in a schema old callers both
+  // send and are sent.
+  const version = (items: Schema) => ({
+    ...api(ref("Attribute"), {
+      Attribute: { type: "object", properties: { enum: { type: "array", items } } },
+    }),
+    paths: {
+      "/things": {
+        post: {
+          operationId: "updateAttribute",
+          requestBody: json(ref("Attribute")),
+          responses: { "200": { description: "updated", ...json(ref("Attribute")) } },
+        },
+      },
+    },
+  });
+
+  it("is declared as the types it may be, and nothing is left", async () => {
+    const result = await analyse(
+      "enum-types",
+      version({ type: "string" }),
+      version({ anyOf: [{ type: "string" }, { type: "integer" }] }),
+    );
+    expect(result.compileIssues).toEqual([]);
+    expect(result.breakingBefore).toBeGreaterThan(0);
+    expect(result.decisions).toBe(0);
+    expect(result.breakingAfter).toBe(0);
+  });
+});

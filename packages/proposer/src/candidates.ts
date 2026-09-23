@@ -72,6 +72,17 @@ export interface FieldShape {
    * writes it.
    */
   anyText?: true;
+  /**
+   * A choice written in place, whatever its branches are: a value that
+   * became one of several types did not stop stating its type.
+   */
+  choice?: true;
+  /**
+   * For a choice between plain types and nothing else, those types: Okta's
+   * user schema attributes came to list an enum's values as text or whole
+   * numbers.
+   */
+  types?: string[];
   /** For a union, whether one of its branches is a plain string, as an id is. */
   idBranch?: boolean;
   /** The bounds the schema puts on the value, by keyword. */
@@ -110,6 +121,33 @@ function resolvedObject(
 function refOf(raw: JsonValue | undefined): Pick<FieldShape, "ref"> {
   if (!isJsonObject(raw)) return {};
   if (typeof raw["$ref"] === "string") return { ref: raw["$ref"] };
+  // A reference written as the one part of an `allOf` beside nothing that
+  // constrains, as PayPal's later releases write every reference, is that
+  // reference: `{ allOf: [{ $ref: error_details }, {}] }`.
+  const parts = raw["allOf"];
+  if (
+    Array.isArray(parts) &&
+    Object.keys(raw).every(
+      (keyword) => keyword === "allOf" || DESCRIBES_NOTHING.has(keyword),
+    )
+  ) {
+    const named = parts.filter(
+      (part) => isJsonObject(part) && typeof part["$ref"] === "string",
+    );
+    const rest = parts.filter((part) => !named.includes(part));
+    const [only] = named;
+    if (
+      named.length === 1 &&
+      isJsonObject(only) &&
+      rest.every(
+        (part) =>
+          isJsonObject(part) &&
+          Object.keys(part).every((keyword) => DESCRIBES_NOTHING.has(keyword)),
+      )
+    ) {
+      return { ref: only["$ref"] as string };
+    }
+  }
   // The schema a field names beside null is the schema it names.
   const lone = besideNull(raw)?.only;
   return isJsonObject(lone) && typeof lone["$ref"] === "string"
@@ -311,6 +349,40 @@ function anyTextChoice(document: OpenApiDocument, value: JsonObject): boolean {
   return false;
 }
 
+/**
+ * The types a choice is between, where each branch but null says nothing
+ * but its type, and there are at least two.
+ */
+function plainTypes(document: OpenApiDocument, value: JsonObject): string[] | undefined {
+  for (const key of ["anyOf", "oneOf"] as const) {
+    const branches = value[key];
+    if (!Array.isArray(branches)) continue;
+    const types = branches
+      .filter((branch) => !isNullBranch(branch))
+      .map((branch) => {
+        const resolved = resolvedObject(document, branch);
+        const plain = Object.keys(resolved).every(
+          (keyword) => keyword === "type" || ANNOTATIONS.has(keyword),
+        );
+        return plain && typeof resolved["type"] === "string"
+          ? resolved["type"]
+          : undefined;
+      });
+    if (types.length < 2 || types.some((type) => type === undefined)) return undefined;
+    return [...new Set(types as string[])];
+  }
+  return undefined;
+}
+
+/** A choice between plain types, as the shape of a field records it. */
+function typesOfChoice(
+  document: OpenApiDocument,
+  value: JsonObject,
+): Pick<FieldShape, "choice" | "types"> {
+  const types = plainTypes(document, value);
+  return types ? { choice: true, types } : {};
+}
+
 /** A choice of text read as the text it allows: the field, without the choice. */
 function asAnyText(value: JsonObject): JsonObject {
   const { anyOf: _anyOf, oneOf: _oneOf, ...rest } = value;
@@ -410,6 +482,7 @@ function fieldsOf(
         ),
       ...(value["default"] === undefined ? {} : { default: value["default"] }),
       ...(value["readOnly"] === true ? { readOnly: true } : {}),
+      ...typesOfChoice(document, value),
       ...unionOf(value),
       ...boundsOf(value),
       ...refOf(raw),
@@ -453,6 +526,8 @@ function fieldsOf(
               enumValues: undefined,
               required: true,
               nullable: false,
+              choice: true as const,
+              ...typesOfChoice(document, itemChoice),
               ...itemUnion,
             },
           ];
@@ -491,6 +566,36 @@ function fieldsOf(
         description: undefined,
         required: true,
         nullable: itemNull || itemSchema["nullable"] === true,
+      });
+    }
+    // A list of plain values, or of values it says nothing about: each item
+    // is a field, so what it may hold is compared like any field's. Twilio's
+    // builds listed their asset versions as objects of any shape, and a
+    // later release as values of any kind at all.
+    if (
+      listed.length === 0 &&
+      items &&
+      itemSchema &&
+      typeof items["$ref"] !== "string" &&
+      writtenHere(items) &&
+      !["properties", "enum", "const", "anyOf", "oneOf", "allOf", "items"].some(
+        (keyword) => itemSchema[keyword] !== undefined,
+      )
+    ) {
+      const declared = itemSchema["type"];
+      listed.push({
+        name: `${here.name}.*`,
+        pointer: `${here.pointer}/*`,
+        type: typeOf(itemSchema),
+        format:
+          typeof itemSchema["format"] === "string" ? itemSchema["format"] : undefined,
+        enumValues: undefined,
+        description: undefined,
+        required: true,
+        nullable:
+          (Array.isArray(declared) && declared.includes("null")) ||
+          itemSchema["nullable"] === true,
+        ...boundsOf(itemSchema),
       });
     }
     if (depth >= NESTING || !writtenHere(raw)) return [field, ...listed];
@@ -739,6 +844,21 @@ function compare(
     .filter((field) => afterAt.has(field.pointer))
     .map((field) => ({ old: field, new: afterAt.get(field.pointer) as FieldShape }))
     .filter((pair) => shapeDiffers(pair.old, pair.new));
+  // What a list held, or an object, is not removed or added one field at a
+  // time where the place became another kind of value: that is one change,
+  // compared where it happened. Cloudflare's failure responses answered a
+  // list of rules as `result` and came to answer an object or null there,
+  // and each rule's fields read as removed from a list no longer there.
+  const containers = new Set(["array", "object"]);
+  const reshaped = altered
+    .filter(
+      (pair) =>
+        pair.old.type !== pair.new.type &&
+        (containers.has(pair.old.type ?? "") || containers.has(pair.new.type ?? "")),
+    )
+    .map((pair) => pair.old.pointer);
+  const ownPlace = (field: FieldShape) =>
+    !reshaped.some((pointer) => field.pointer.startsWith(`${pointer}/`));
   if (
     removed.length === 0 &&
     added.length === 0 &&
@@ -747,9 +867,9 @@ function compare(
   )
     return undefined;
   return {
-    removed,
-    added,
-    altered,
+    removed: removed.filter(ownPlace),
+    added: added.filter(ownPlace),
+    altered: altered.filter((pair) => ownPlace(pair.old)),
     ...(regrouped.length > 0 ? { regrouped } : {}),
     ...(replaced && regrouped.length === 0 ? { replaced: true as const } : {}),
   };
@@ -851,6 +971,7 @@ function shapeDiffers(a: FieldShape, b: FieldShape): boolean {
   // stopped referring to any list at all changed here.
   if (Boolean(a.unlistedValues) !== Boolean(b.unlistedValues)) return true;
   if (a.variants?.join("|") !== b.variants?.join("|")) return true;
+  if (a.types?.join("|") !== b.types?.join("|")) return true;
   return JSON.stringify(a.bounds ?? {}) !== JSON.stringify(b.bounds ?? {});
 }
 
@@ -1436,16 +1557,19 @@ function referencesInPlace(
 ): FieldShape[] {
   const found: FieldShape[] = [];
   const read = new Set<string>();
-  // Where the old contract refers to the same schema, both sides name it and
-  // it is compared under its name: PayPal's refund wrote its breakdown in
-  // place and later named it, and each amount in it referred to `money` all
-  // along. Read on the new side alone, every amount's currency looked added.
+  // Where the old contract refers to the same schema and reads nothing under
+  // it, both sides name it and it is compared under its name: PayPal's refund
+  // wrote its breakdown in place and later named it, and each amount in it
+  // referred to `money` all along. Read on the new side alone, every
+  // amount's currency looked added.
   const named = new Map<string, string | undefined>();
   for (const field of before) {
     if (field.ref !== undefined) named.set(field.pointer, schemaName(field.ref));
     if (field.items?.ref !== undefined)
       named.set(`${field.pointer}/*`, schemaName(field.items.ref));
   }
+  const readUnder = (pointer: string) =>
+    before.some((field) => field.pointer.startsWith(`${pointer}/`));
   // Read again through what was just read: PayPal nested its references, an
   // invoice's `detail` referring to one whose `attachments` refer to another.
   for (let pending = [...fields]; pending.length > 0; ) {
@@ -1461,7 +1585,7 @@ function referencesInPlace(
           target === undefined ||
           !(target in newSchemas) ||
           read.has(pointer) ||
-          named.get(pointer) === target
+          (named.get(pointer) === target && !readUnder(pointer))
         )
           continue;
         // Only the outermost of what went is listed: the field itself,

@@ -2628,6 +2628,27 @@ describe("a response vocabulary that opened, moved or grew from nothing", () => 
     ]);
   });
 
+  // Okta's user schema attributes listed their enum's values as text, and a
+  // later release as text or whole numbers: a value that became one of two
+  // types still states its type, and is not declared as having none.
+  it("declares a list's items that became a choice of types as those types, restated", async () => {
+    const values = (items: Schema) =>
+      object({ id: { type: "string" }, values: { type: "array", items } }, ["id"]);
+    const outcome = await propose(
+      contract({ ...base, Thing: values({ type: "string" }) }),
+      contract({
+        ...base,
+        Thing: values({ anyOf: [{ type: "string" }, { type: "integer" }] }),
+      }),
+      { judge: new RulesJudge() },
+    );
+    expect(opsOf(outcome)).toEqual([
+      { op: "relax", path: "/values/*", set: { type: ["string", "integer"] } },
+      { op: "restate", path: "/values/*" },
+    ]);
+    expect(outcome.unresolved).toEqual([]);
+  });
+
   it("asks nothing where only old callers send a list that gained values", async () => {
     const outcome = await propose(
       contract({

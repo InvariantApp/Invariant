@@ -82,7 +82,11 @@ const MINOR_UNIT_EXPONENTS: ReadonlyMap<string, number> = new Map([
 ]);
 
 function slug(text: string): string {
+  // A list's items and a map's values are named, as a restatement names
+  // them, so a Change to a list and one to what it holds keep apart.
   return text
+    .replaceAll("*", "items")
+    .replaceAll("{}", "values")
     .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
@@ -1211,6 +1215,7 @@ function alteredProposals(
         narrowed.ops.length === 0 &&
         !foldCovers(pair, sides ?? NEITHER) &&
         !onlyUnstated(pair.old, pair.new) &&
+        typesWidened(pair.old, pair.new).type === undefined &&
         !retiredAsked &&
         !onlyGrewForRequests(pair, sides ?? NEITHER)
       ) {
@@ -1258,6 +1263,14 @@ function alteredProposals(
       // A vocabulary that opened into a choice of text is written as that
       // choice, which allows nothing the relaxed field does not, and the
       // compiler proves it before it writes it.
+      // A value that may now be one of several types is written as the choice
+      // the new contract states, proved to allow nothing more than the types.
+      if (relaxed.ops.some((op) => op.op === "relax" && Array.isArray(op.set.type))) {
+        relaxed.ops.push({ op: "restate", path: pair.new.pointer });
+        relaxed.notes.push(
+          `\`${pair.old.name}\` is written as a choice between the types it may now be`,
+        );
+      }
       if (
         pair.new.anyText &&
         relaxed.ops.some((op) => op.op === "relax" && op.set.enum === null)
@@ -1346,7 +1359,10 @@ export function relaxOps(
 ): { ops: Op[]; notes: string[]; unresolved?: string } {
   const before = old.bounds ?? {};
   const after = next.bounds ?? {};
-  const set: Record<string, JsonValue> = { ...unstated(old, next) };
+  const set: Record<string, JsonValue> = {
+    ...unstated(old, next),
+    ...typesWidened(old, next),
+  };
   for (const keyword of new Set([...Object.keys(before), ...Object.keys(after)])) {
     const value = after[keyword] ?? null;
     if (JSON.stringify(before[keyword] ?? null) !== JSON.stringify(value))
@@ -1355,7 +1371,11 @@ export function relaxOps(
   const changed = Object.keys(set);
   if (changed.length === 0) return { ops: [], notes: [] };
   const narrowed = changed.filter((keyword) =>
-    narrows(keyword, before[keyword], set[keyword] as JsonValue),
+    narrows(
+      keyword,
+      keyword === "type" ? old.type : before[keyword],
+      set[keyword] as JsonValue,
+    ),
   );
   // A bound that narrowed on something old callers send cannot be served, and
   // is reported. It says nothing about the bounds beside it that widened,
@@ -1583,7 +1603,12 @@ export function widenOps(
  * states something else, and is not this.
  */
 function unstated(old: FieldShape, next: FieldShape): { enum?: null; type?: null } {
-  if (next.variants !== undefined || next.unlistedValues || next.ref !== undefined)
+  if (
+    next.variants !== undefined ||
+    next.choice ||
+    next.unlistedValues ||
+    next.ref !== undefined
+  )
     return {};
   // Listed in place, or in a named schema the field referred to: Mistral's
   // `model` was a reference to `FineTuneableModel` and became a plain string.
@@ -1595,6 +1620,21 @@ function unstated(old: FieldShape, next: FieldShape): { enum?: null; type?: null
 }
 
 /** Whether all that changed about its values is what it stopped stating. */
+/**
+ * A value of one type that may now be one of several, the one it was among
+ * them: Okta's user schema attributes listed an enum's values as text, and
+ * a later release as text or whole numbers.
+ */
+function typesWidened(old: FieldShape, next: FieldShape): { type?: string[] } {
+  if (old.type === undefined || old.types !== undefined || next.types === undefined) {
+    return {};
+  }
+  const kept =
+    next.types.includes(old.type) ||
+    (old.type === "integer" && next.types.includes("number"));
+  return kept ? { type: next.types } : {};
+}
+
 function onlyUnstated(old: FieldShape, next: FieldShape): boolean {
   if (Object.keys(unstated(old, next)).length === 0) return false;
   return (

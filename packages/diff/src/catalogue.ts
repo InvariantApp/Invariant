@@ -335,6 +335,13 @@ const RULES: Rule[] = [
     sentence:
       "A response field's type changed. A conversion translates it back for old callers, which you confirm: `cast` or `scale10` for a number, `dateFormat` for a time, `wrapArray` or `unwrapSingle` for a value that became a list or stopped being one.",
   }),
+  rule(/^response-property-list-of-types-widened$/, {
+    class: "needs-decision",
+    op: "relax",
+    served: "yes",
+    sentence:
+      "A response field may now be of a type old callers were never promised, beside the one it was. A `relax` lists the types it may now be and a `restate` writes them as the new contract does; values pass through as the API produced them, a declared loss you acknowledge. Where the field became only another type, that is a conversion instead.",
+  }),
   rule(/^response-required-property-removed$/, {
     class: "needs-decision",
     op: "remove",

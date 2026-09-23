@@ -218,13 +218,16 @@ export function derive(change: Change): Derived {
         // the API produced. What an old caller may now see is a value its
         // contract said could not happen.
         runtime = worse(runtime, "declared-lossy");
+        const types = Array.isArray(op.set.type) ? op.set.type : undefined;
         reasons.push(
-          op.set.enum === null || op.set.type === null
-            ? `${op.path || "the body"} no longer states ${op.set.type === null ? "a type" : "the values it holds"}, so an old caller may be sent ${op.set.type === null ? "a kind of value" : "a value"} its contract ruled out, passed through as it is`
-            : "enum" in op.set
-              ? `${op.path || "the body"} no longer holds some values its contract allowed, so an old caller waiting for one of them will never see it`
-              : `${op.path || "the body"} is bounded differently now (${Object.keys(op.set).join(", ")}), ` +
-                "so an old caller may be sent values its contract ruled out, passed through as they are",
+          types !== undefined
+            ? `${op.path || "the body"} may now be ${types.join(" or ")}, so an old caller may be sent a kind of value its contract ruled out, passed through as it is`
+            : op.set.enum === null || op.set.type === null
+              ? `${op.path || "the body"} no longer states ${op.set.type === null ? "a type" : "the values it holds"}, so an old caller may be sent ${op.set.type === null ? "a kind of value" : "a value"} its contract ruled out, passed through as it is`
+              : "enum" in op.set
+                ? `${op.path || "the body"} no longer holds some values its contract allowed, so an old caller waiting for one of them will never see it`
+                : `${op.path || "the body"} is bounded differently now (${Object.keys(op.set).join(", ")}), ` +
+                  "so an old caller may be sent values its contract ruled out, passed through as they are",
         );
         break;
       }
