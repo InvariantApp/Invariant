@@ -191,10 +191,48 @@ export function siteState(site: Site): Record<string, JsonValue> {
   return {
     file: site.file,
     lines_before: base.slice(Math.max(0, region.oldStart - CONTEXT), region.oldStart),
-    removed_lines: base.slice(region.oldStart, region.oldEnd),
-    added_lines: region.lines,
+    removed_lines: shown(base.slice(region.oldStart, region.oldEnd)),
+    added_lines: shown(region.lines),
     lines_after: base.slice(region.oldEnd, region.oldEnd + CONTEXT),
   };
+}
+
+/** The most lines of one side of a site the judge is shown. */
+const MOST_LINES = 60;
+
+/**
+ * A side of a site as the judge reads it: whole, or its first lines and how
+ * many more there are. SabaTech's QA-FRAMEWORK added a 251-line test file in
+ * one hunk, and a batch holding it was refused as too long for the model.
+ */
+function shown(lines: readonly string[]): string[] {
+  if (lines.length <= MOST_LINES) return [...lines];
+  return [...lines.slice(0, MOST_LINES), `... ${lines.length - MOST_LINES} more lines`];
+}
+
+/** The characters of state a batch may carry, well inside what the judge accepts. */
+const BATCH_CHARACTERS = 24_000;
+
+/** Sites in batches of at most `BATCH`, and at most `BATCH_CHARACTERS` of state. */
+export function batches(sites: readonly Site[]): Site[][] {
+  const out: Site[][] = [];
+  let current: Site[] = [];
+  let size = 0;
+  for (const site of sites) {
+    const length = JSON.stringify(siteState(site)).length;
+    if (
+      current.length > 0 &&
+      (current.length >= BATCH || size + length > BATCH_CHARACTERS)
+    ) {
+      out.push(current);
+      current = [];
+      size = 0;
+    }
+    current.push(site);
+    size += length;
+  }
+  if (current.length > 0) out.push(current);
+  return out;
 }
 
 const EMBEDDED_TEXT =
@@ -271,8 +309,7 @@ export async function classify(
       !classes[siteKey(site)] &&
       sites.findIndex((other) => siteKey(other) === siteKey(site)) === at,
   );
-  for (let start = 0; start < open.length; start += BATCH) {
-    const batch = open.slice(start, start + BATCH);
+  for (const batch of batches(open)) {
     const first = batch[0] as Site;
     const response = await client.systemOne({
       model,

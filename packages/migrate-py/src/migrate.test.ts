@@ -224,10 +224,16 @@ describe("a Python migration", () => {
       ),
     ).toBe(true);
     const migrated = result.files.get(app) ?? "";
-    expect(migrated).toContain('acme.api_version = "2025-01-01"');
     expect(migrated).toContain('if sub.status == "overdue":');
     expect(migrated).toContain("print(sub.cancels_at)");
-    expect(migrated).toContain('acme_version="2025-01-01"');
+    // The pins, module-wide and per client, are shown and left as written.
+    expect(migrated).toContain('acme.api_version = "2024-01-01"');
+    expect(migrated).toContain('acme_version="2024-01-01"');
+    expect(
+      result.manual
+        .filter((site) => site.reason.startsWith("this pins API version 2024-01-01"))
+        .map((site) => site.line),
+    ).toEqual([3, 26]);
     // The Django-like model's own `status` is not the SDK's, and stays.
     expect(migrated).toContain('return order.status == "past_due"');
 
@@ -274,7 +280,7 @@ describe("a Python migration", () => {
 });
 
 describe("the API version a consumer pins", () => {
-  it("is moved where it followed the SDK, through a settings module, and shown where it was chosen", async () => {
+  it("is shown where it is written, through a settings module, and never moved", async () => {
     const repo = join(root, "pins");
     await writeTree(repo, {
       "settings.py": 'ACME_VERSION = "2024-01-01"\nOTHER = "2023-06-01"\n',
@@ -313,15 +319,20 @@ describe("the API version a consumer pins", () => {
         },
       }),
     });
-    // The settings module is edited where the version is written, once.
-    expect(result.files.get(join(repo, "settings.py"))).toBe(
-      'ACME_VERSION = "2025-01-01"\nOTHER = "2023-06-01"\n',
-    );
-    // The consumer's own function that takes the same keyword is not the SDK's.
-    expect(result.files.has(join(repo, "client.py"))).toBe(false);
+    // Nothing is moved; the settings module is shown where each version is
+    // written, once, and the consumer's own function that takes the same
+    // keyword is not the SDK's.
+    expect(result.edits).toEqual([]);
     expect(
-      result.manual.map((site) => [site.file.slice(repo.length + 1), site.line]),
-    ).toEqual([["settings.py", 2]]);
+      result.manual.map((site) => [
+        site.file.slice(repo.length + 1),
+        site.line,
+        site.reason.slice(0, 32),
+      ]),
+    ).toEqual([
+      ["settings.py", 1, "this pins API version 2024-01-01"],
+      ["settings.py", 2, "this pins API version 2023-06-01"],
+    ]);
   }, 60_000);
 });
 

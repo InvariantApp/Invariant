@@ -1065,12 +1065,19 @@ async function main(): Promise<void> {
         continue;
       }
       if (classifier) {
-        await classify(
-          scored.map((each) => each.site),
-          classes,
-          classifier.client,
-          classifier.model,
-        );
+        try {
+          await classify(
+            scored.map((each) => each.site),
+            classes,
+            classifier.client,
+            classifier.model,
+          );
+        } catch (error) {
+          // What could not be classed stays unclassified, and is counted so.
+          process.stderr.write(
+            `${id}: classification stopped: ${(error instanceof Error ? error.message : String(error)).slice(0, 200)}\n`,
+          );
+        }
         await writeClasses(classes);
       }
       result.inScope = scopeOf(scored, classes);

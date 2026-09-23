@@ -1,5 +1,5 @@
 /**
- * The API version a Python consumer pins, moved with the SDK.
+ * The API version a Python consumer pins, and where it is written.
  *
  * stripe-python sends `stripe.api_version` with every request when it is set,
  * and `stripe_version=` on a client or a single call does the same. Each
@@ -10,21 +10,19 @@
  * any import of the module, and every keyword it resolves to the SDK's own
  * parameter.
  *
- * Only a pin equal to the old release's own version is rewritten: that pin
- * was following the SDK. A pin to some other version was chosen on purpose,
- * and moving it is the consumer's decision, so it is shown to them instead,
- * as is a version that comes from anywhere but a literal in their code.
+ * Every pin is shown to a person, never moved. In TypeScript the SDK's types
+ * make the old version a compile error, so moving it is the only edit that
+ * compiles; in Python `api_version` is a `str`, and a pin left where it was
+ * keeps working against the version it names. Moving it changes the shape of
+ * every request and response at once, which learning-unlimited's
+ * ESP-Website chose not to do when it took stripe-python from 2 to 7: the
+ * engine moved its two pins and the humans had kept them. Where the version
+ * is written, through a constant or a settings module, is what is reported.
  */
 import type { SymbolMap } from "@invariant-app/migrate-core";
 import { type EngineResult, manualAt, type Sources } from "./engine.ts";
 import { isSpan, type ReferenceProvider, type Span } from "./references.ts";
-import {
-  descendantsOfType,
-  type Node,
-  nodeAt,
-  stringValue,
-  withStringValue,
-} from "./syntax.ts";
+import { descendantsOfType, type Node, nodeAt, stringValue } from "./syntax.ts";
 
 const CHANGE = "sdk-upgrade";
 /** How many names a version is followed through before it is shown to a person instead. */
@@ -84,7 +82,7 @@ async function nodeFor(sources: Sources, span: Span): Promise<Node | undefined> 
   return tree && nodeAt(tree, span.start, span.end);
 }
 
-/** Rewrites the literal a pin's value comes down to, or reports where it comes from. */
+/** Reports the literal a pin's value comes down to, or where else it comes from. */
 async function moveLiteral(
   references: ReferenceProvider,
   sources: Sources,
@@ -102,28 +100,18 @@ async function moveLiteral(
   const literal = stringValue(value);
   if (literal !== undefined) {
     if (literal === pin.label) return;
-    if (pin.from !== undefined && literal !== pin.from) {
-      result.manual.push(
-        manualAt(
-          file,
-          text,
-          value.startIndex,
-          value.endIndex,
-          CHANGE,
-          `this pins API version ${literal}; the upgraded SDK is built for ${pin.label}, and its types describe that version's objects`,
-        ),
-      );
-      return;
-    }
-    result.edits.push({
-      file,
-      start: value.startIndex,
-      end: value.endIndex,
-      replacement: withStringValue(value, pin.label),
-      changeId: CHANGE,
-      author: "codemod",
-      reason: `moved the API version to ${pin.label}, the one the upgraded SDK speaks`,
-    });
+    result.manual.push(
+      manualAt(
+        file,
+        text,
+        value.startIndex,
+        value.endIndex,
+        CHANGE,
+        literal === pin.from
+          ? `this pins API version ${literal}, the one the old release was built for; the upgraded SDK is built for ${pin.label}. Move it once the contract changes reported with it are handled: every request changes shape when it moves`
+          : `this pins API version ${literal}; the upgraded SDK is built for ${pin.label}, and its types describe that version's objects`,
+      ),
+    );
     return;
   }
   // A name: the literal is wherever the consumer assigned it.
