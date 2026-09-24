@@ -261,10 +261,12 @@ jobs:
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
+      # No package or Go caches: this job builds Veyrum from its main branch, and nothing it installs
+      # may reach the caches other jobs (the release among them) restore.
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 24
-          cache: pnpm
+          package-manager-cache: false
 
       - run: pnpm install --frozen-lockfile
 
@@ -272,9 +274,7 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: engines/go/migrate/go.mod
-          cache-dependency-path: |
-            engines/go/go.mod
-            engines/go/migrate/go.sum
+          cache: false
 
       - name: Fetch the pinned oasdiff release
         run: node --import tsx scripts/fetch-oasdiff.mts --host
