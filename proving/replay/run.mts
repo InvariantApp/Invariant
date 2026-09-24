@@ -188,15 +188,19 @@ const STAMPS: Record<string, StampReader> = {
   stripe: Object.assign(
     (dir: string): SdkStamp | undefined => {
       const apiVersion = findFile(dir, /^apiVersion\.js$/);
+      const declarations = existsSync(join(dir, "types/lib.d.ts"))
+        ? readFileSync(join(dir, "types/lib.d.ts"), "utf8")
+        : "";
+      // Before 12 the version was recorded only in the declarations, as the
+      // one `LatestApiVersion` allows.
       const label =
-        apiVersion &&
-        /ApiVersion = ['"]([^'"]+)['"]/.exec(readFileSync(apiVersion, "utf8"))?.[1];
+        (apiVersion &&
+          /ApiVersion = ['"]([^'"]+)['"]/.exec(readFileSync(apiVersion, "utf8"))?.[1]) ||
+        /type LatestApiVersion = ['"]([^'"]+)['"]/.exec(declarations)?.[1];
       if (!label) return undefined;
       // Up to 21 the options sit in `namespace Stripe` inside `declare module
       // "stripe"`; from 22 they are a top-level export of the compiled source.
-      const namespaced = existsSync(join(dir, "types/lib.d.ts"))
-        ? /interface StripeConfig/.test(readFileSync(join(dir, "types/lib.d.ts"), "utf8"))
-        : false;
+      const namespaced = /interface StripeConfig/.test(declarations);
       return {
         pinType: namespaced ? "Stripe.StripeConfig" : "StripeConfig",
         pinProperty: "apiVersion",
@@ -729,12 +733,22 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       // says which contracts they speak.
       const contract =
         stamp?.contract && old && next
-          ? await stamp.contract(
-              versionOf(oldSdk),
-              versionOf(newSdk),
-              oldSdk,
-              old.pinType.includes("."),
-            )
+          ? await stamp
+              .contract(
+                versionOf(oldSdk),
+                versionOf(newSdk),
+                oldSdk,
+                old.pinType.includes("."),
+              )
+              .catch((error: unknown) => {
+                // A release too old to say which contract it was built from
+                // is replayed with its pin alone.
+                process.stderr.write(
+                  `${entry.id}: no contract for ${versionOf(oldSdk)}: ${(error instanceof Error ? error.message : String(error)).slice(0, 160)}\n`,
+                );
+                base.engine = "pin";
+                return undefined;
+              })
           : undefined;
       const symbols: SymbolMap = {
         package: entry.package,
