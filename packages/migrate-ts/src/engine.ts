@@ -694,6 +694,69 @@ function suppliesField(op: DataOp): op is AddOp | DefaultOp {
   );
 }
 
+/**
+ * Uses of a field's name that nothing types: a key of an object literal with
+ * no type to fit, a read or a subscript of a value typed `any`. A test's
+ * stand-in for a subscription, `{ current_period_end: 123 }` handed to a
+ * mock, is invisible to the checker, and is the ordinary way a consumer's
+ * tests hold a response. There is no evidence it is the field the Change is
+ * about, only its name, so each is shown to a person and never rewritten,
+ * as the Python pack does with a dictionary's keys. A use typed as anything
+ * at all is the checker's to decide, and is left to it.
+ */
+function flagUntyped(
+  project: Project,
+  target: TargetSymbol,
+  composed: Composed,
+  typed: ReadonlySet<string>,
+  scope: EditScope,
+  result: EngineResult,
+): void {
+  const name = target.property;
+  const what =
+    composed.unsupported ?? `the contract changed it: ${composed.reasons.join("; ")}`;
+  const reason = `nothing types this \`${name}\`, so it is shown rather than rewritten; if it is the contract's field, ${what}`;
+  const untyped = (type: Type | undefined) =>
+    type === undefined || type.isAny() || type.isUnknown();
+  for (const source of project.getSourceFiles()) {
+    if (!editable(source, scope)) continue;
+    const text = source.getFullText();
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // Only where the name is written, rather than every node of every file.
+    for (const match of text.matchAll(new RegExp(`\\b${escaped}\\b`, "g"))) {
+      const node = source.getDescendantAtPos(match.index);
+      const named =
+        node !== undefined &&
+        (Node.isIdentifier(node) || Node.isStringLiteral(node)) &&
+        node.getText().replace(/^['"`]|['"`]$/g, "") === name;
+      if (!named) continue;
+      if (typed.has(`${source.getFilePath()}:${node.getStart()}`)) continue;
+      const parent = node.getParent();
+      let shown = false;
+      if (
+        (Node.isPropertyAssignment(parent) ||
+          Node.isShorthandPropertyAssignment(parent)) &&
+        parent.getNameNode() === node
+      ) {
+        const literal = parent.getParent();
+        shown =
+          Node.isObjectLiteralExpression(literal) && untyped(literal.getContextualType());
+      } else if (
+        Node.isPropertyAccessExpression(parent) &&
+        parent.getNameNode() === node
+      ) {
+        shown = untyped(parent.getExpression().getType());
+      } else if (
+        Node.isElementAccessExpression(parent) &&
+        parent.getArgumentExpression() === node
+      ) {
+        shown = untyped(parent.getExpression().getType());
+      }
+      if (shown) result.manual.push(manualFrom(node, target.changeId, reason));
+    }
+  }
+}
+
 export function runEngine(
   project: Project,
   plan: MigrationPlan,
@@ -725,6 +788,7 @@ export function runEngine(
     if (!declaration) continue;
 
     const composed = compose(targets, plan.symbols.helpers);
+    const typed = new Set<string>();
     const enums = targets.filter(
       (target) => target.op.op === "convert" && target.op.codec.kind === "enumMap",
     );
@@ -741,6 +805,7 @@ export function runEngine(
 
     for (const node of declaration.findReferencesAsNodes()) {
       if (!editable(node, scope)) continue;
+      typed.add(`${node.getSourceFile().getFilePath()}:${node.getStart()}`);
       const role = roleOf(node);
       if (role === "type-reference") continue;
 
@@ -766,6 +831,15 @@ export function runEngine(
         continue;
       }
       applyComposed(node, role, composed, result);
+    }
+
+    if (
+      composed.path.length !== 1 ||
+      composed.path[0] !== first.property ||
+      composed.wrapRead ||
+      composed.unsupported
+    ) {
+      flagUntyped(project, first, composed, typed, scope, result);
     }
   }
 

@@ -79,6 +79,32 @@ describe("a field the contract dropped", () => {
     ]);
   });
 
+  it("is shown by name where nothing types it, and never where something does", async () => {
+    const types = { subscription: "Pay.Subscription" };
+    const result = await migrate({
+      repoDir: CONSUMER,
+      generated: [`${CONSUMER}sdk/`],
+      sources: [`${CONSUMER}src/stubs.ts`],
+      plan: buildPlan([gone], {
+        package: "paysdk",
+        upgradeTo: { package: "paysdk", version: "2.0.0", types },
+        types,
+        accessors: [],
+      }),
+    });
+    expect(result.edits).toEqual([]);
+    // The mock's stand-in and both reads of the payload; the consumer's own
+    // row, typed as something else, is not the contract's field.
+    expect(result.manual.map((site) => `${site.line} ${site.snippet}`)).toEqual([
+      '5 discount: { coupon: "HALF" }',
+      "11 payload.discount",
+      '11 payload["discount"]',
+    ]);
+    expect(result.manual[0]?.reason).toBe(
+      "nothing types this `discount`, so it is shown rather than rewritten; if it is the contract's field, `discount` is no longer in the contract, and nothing was declared in its place",
+    );
+  });
+
   const nested = (change: Change, file: string) => {
     const types = { subscription: "Pay.Subscription" };
     return migrate({
