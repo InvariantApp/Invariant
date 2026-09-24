@@ -7,7 +7,7 @@
  * that has to refuse it. `decode` means the program itself must be refused
  * before any request is seen.
  */
-import type { EnvelopeProgram, FormProgram } from "@invariant-app/ir";
+import type { EnvelopeProgram, FormProgram, XmlBody } from "@invariant-app/ir";
 
 export interface EnvelopeVector {
   name: string;
@@ -17,6 +17,8 @@ export interface EnvelopeVector {
   envelope: EnvelopeProgram;
   /** The site's form declaration, for a body that may arrive form-encoded. */
   form?: FormProgram;
+  /** The site's description of its request body, for a body that may arrive as XML. */
+  xml?: XmlBody;
   request: {
     path: string;
     search: string;
@@ -24,6 +26,8 @@ export interface EnvelopeVector {
     body?: string;
     /** True when the body is form-encoded rather than JSON. */
     form?: boolean;
+    /** True when the body is XML. */
+    xml?: boolean;
   };
   expect:
     | {
@@ -473,6 +477,93 @@ export const ENVELOPE_VECTORS: EnvelopeVector[] = [
         search: "expand=x",
         headers: [["content-type", "application/x-www-form-urlencoded"]],
         body: "description=a+b&metadata[order_id]=6735&amount=1500&currency=usd",
+      },
+    },
+  },
+  {
+    name: "a query parameter is renamed beside a change inside an XML body",
+    why:
+      "CloudSearch's DefineIndexField takes its version in the query and its " +
+      "field in an XML body, and a release changed both at once.",
+    template: "/domain",
+    xml: {
+      read: {
+        type: "object",
+        properties: {
+          IndexField: {
+            type: "object",
+            properties: { IndexFieldType: { type: "string" } },
+          },
+        },
+      },
+      write: {
+        type: "object",
+        properties: {
+          IndexField: {
+            type: "object",
+            properties: { IndexFieldType: { type: "string" } },
+          },
+        },
+      },
+    },
+    envelope: {
+      instrs: [
+        { k: "move", from: "/@query/Version", to: "/@query/ApiVersion", c: "chg_a" },
+        {
+          k: "enum",
+          path: "/@body/IndexField/IndexFieldType",
+          map: { uint: "int", text: "text" },
+          c: "chg_b",
+        },
+      ],
+      params: { old: [query("Version")], new: [query("ApiVersion")] },
+      body: true,
+    },
+    request: {
+      path: "/domain",
+      search: "Version=2011-02-01&x=1",
+      headers: [["content-type", "text/xml"]],
+      body: "<DefineIndexField>\n  <IndexField><IndexFieldType>uint</IndexFieldType></IndexField>\n</DefineIndexField>",
+      xml: true,
+    },
+    expect: {
+      request: {
+        path: "/domain",
+        search: "x=1&ApiVersion=2011-02-01",
+        headers: [["content-type", "text/xml"]],
+        body: "<DefineIndexField>\n  <IndexField><IndexFieldType>int</IndexFieldType></IndexField>\n</DefineIndexField>",
+      },
+    },
+  },
+  {
+    name: "a query parameter moves into an XML body under the name its contract gives it",
+    why: "A value that moves into an XML body is written as the element the current contract describes, after everything the caller wrote.",
+    template: "/notes",
+    xml: {
+      read: { type: "object" },
+      write: {
+        type: "object",
+        properties: { Comment: { type: "string", name: "Remark" } },
+      },
+    },
+    envelope: {
+      instrs: [{ k: "move", from: "/@query/comment", to: "/@body/Comment", c: "chg_a" }],
+      params: { old: [query("comment")], new: [] },
+      body: true,
+    },
+    request: {
+      path: "/notes",
+      search: "comment=hi%20there",
+      headers: [["content-type", "application/xml"]],
+      body: "<Note><Id>1</Id></Note>",
+      xml: true,
+    },
+    expect: {
+      request: {
+        path: "/notes",
+        search: "",
+        headers: [["content-type", "application/xml"]],
+        body: "<Note><Id>1</Id><Remark>hi there</Remark></Note>",
       },
     },
   },

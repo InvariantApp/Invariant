@@ -13,9 +13,9 @@
 import { BodyTooLargeError, UnsupportedEncodingError } from "./errors.ts";
 
 /**
- * Whether a body of this type is one a compiled program describes.
+ * Whether a body of this type is JSON, which every program describes.
  *
- * Programs are compiled from a document's JSON representations, so anything
+ * A form or an XML body is read only where the site describes one; anything
  * else, an HTML error page, a file, an event stream, is outside what the
  * program says and passes through untouched rather than being guessed at.
  */

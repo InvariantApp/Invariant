@@ -252,9 +252,9 @@ export function adapt(options: HonoBindingOptions): MiddlewareHandler {
       return undefined;
     }
 
-    // Only a JSON body is something the program describes. Anything else, a
-    // form, an upload, is passed on as it came, and the provider's own handler
-    // answers it as it would for any caller.
+    // A JSON body, and a form or XML one the site describes, is something the
+    // program describes. Anything else, an upload, is passed on as it came,
+    // and the provider's own handler answers it as it would for any caller.
     const request = c.req.raw;
     if (runtime.readsRequestBody(site) || site.envelope) {
       try {

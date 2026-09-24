@@ -258,6 +258,114 @@ describe("an XML body", () => {
   });
 });
 
+describe("an XML body in a request that changed its parameters too", () => {
+  // CloudSearch's DefineIndexField takes its version in the query and its
+  // field in the body; one release retired a version and a field type. The
+  // document names the operation `/#Action=DefineIndexField`, as apis.guru
+  // writes Amazon's query protocol, and the site is found as it is written.
+  const search = (types: string[], version: string[]) =>
+    ({
+      openapi: "3.0.0",
+      info: { title: "Amazon CloudSearch", version: "1" },
+      paths: {
+        "/#Action=DefineIndexField": {
+          post: {
+            operationId: "POST_DefineIndexField",
+            parameters: [
+              {
+                name: "Version",
+                in: "query",
+                required: true,
+                schema: { type: "string", enum: version },
+              },
+            ],
+            requestBody: {
+              content: {
+                "text/xml": {
+                  schema: { $ref: "#/components/schemas/DefineIndexFieldRequest" },
+                },
+              },
+            },
+            responses: { "200": { description: "Success" } },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          DefineIndexFieldRequest: {
+            type: "object",
+            properties: { IndexField: { $ref: "#/components/schemas/IndexField" } },
+          },
+          IndexField: {
+            type: "object",
+            properties: { IndexFieldType: { type: "string", enum: types } },
+          },
+        },
+      },
+    }) as unknown as OpenApiDocument;
+
+  it("is read and written back inside the envelope, parameters and all", async () => {
+    const before = search(["uint", "text"], ["2011-02-01"]);
+    const after = search(["int", "text"], ["2013-01-01"]);
+    const changes = [
+      change("chg_uint", "IndexField", [
+        {
+          op: "convert",
+          path: "/IndexFieldType",
+          codec: {
+            kind: "enumMap",
+            pairs: [
+              ["uint", "int"],
+              ["text", "text"],
+            ],
+          },
+        },
+      ]),
+      parseChange({
+        irVersion: 1,
+        id: "chg_version",
+        summary: "The version is the new one.",
+        scopes: [{ operation: "POST_DefineIndexField", location: "query" }],
+        ops: [
+          {
+            op: "convert",
+            path: "/Version",
+            codec: { kind: "enumMap", pairs: [["2011-02-01", "2013-01-01"]] },
+          },
+        ],
+      }),
+    ];
+    const { program, issues } = chainProgram("cloudsearch", "new", "sha256:1", [
+      { label: "new", parent: "old", from: before, to: after, changes },
+    ]);
+    expect(issues).toEqual([]);
+    const site = program.contracts["old"]?.sites["post /#Action=DefineIndexField"];
+    expect(site?.envelope?.body).toBe(true);
+    expect(site?.xml?.request).toBeDefined();
+    const runtime = createRuntime({
+      program,
+      identity: [{ kind: "default", label: "old" }],
+    });
+    const found = runtime.siteFor("old", "post", "/#Action=DefineIndexField");
+    if (!found) throw new Error("no site");
+    const body =
+      "<DefineIndexFieldRequest><IndexField><IndexFieldType>uint</IndexFieldType></IndexField></DefineIndexFieldRequest>";
+    const sent = runtime.transformEnvelope(
+      found,
+      {
+        path: "/#Action=DefineIndexField",
+        search: "Version=2011-02-01",
+        headers: [["content-type", "text/xml"]],
+        body,
+        xml: true,
+      },
+      { contract: "old", operation: "POST_DefineIndexField" },
+    );
+    expect(sent.search).toBe("Version=2013-01-01");
+    expect(sent.body).toBe(body.replace(">uint<", ">int<"));
+  });
+});
+
 describe("what an XML body cannot carry", () => {
   const change1 = (schema: string, ops: unknown[]) => change("chg_refused", schema, ops);
   const compile = (before: OpenApiDocument, after: OpenApiDocument, changes: Change[]) =>

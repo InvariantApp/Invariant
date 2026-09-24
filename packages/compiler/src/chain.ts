@@ -589,6 +589,12 @@ export function chainProgram(
   const blocks: Record<string, Instr[]> = {};
   for (const step of projected) Object.assign(blocks, step.blocks);
 
+  // Nearly every chain has no XML in it, and nothing to describe.
+  const head = steps.at(-1)?.to;
+  const xml =
+    head !== undefined &&
+    steps.some((step) => declaresXml(step.from) || declaresXml(step.to));
+
   // Newest first, so each contract is its own step and then the next.
   let tail: Link | undefined;
   for (let index = steps.length - 1; index >= 0; index -= 1) {
@@ -608,13 +614,10 @@ export function chainProgram(
     const linked = contractOf(frame, link);
     // Bodies written in XML are described once the chain is whole, from the
     // contract this one's callers wrote against and the current one.
-    const described = describeXmlSites(
-      linked.sites,
-      step.from,
-      steps.at(-1)?.to ?? step.to,
-      frame.routes,
-      blocks,
-    );
+    const described =
+      xml && head !== undefined
+        ? describeXmlSites(linked.sites, step.from, head, frame.routes, blocks)
+        : { sites: linked.sites, issues: [] };
     issues.push(...described.issues);
     const program = { ...linked, sites: described.sites };
     // Versioned in the server URL rather than the paths: this contract's

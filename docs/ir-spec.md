@@ -472,7 +472,7 @@ to a warning rather than clearing it.
 
 ## 8. Conformance
 
-`conformance/vectors.json` holds cases as data: 75 over bodies, 20 over whole
+`conformance/vectors.json` holds cases as data: 75 over bodies, 22 over whole
 requests, 10 over form-encoded bodies, 8 over success statuses and 54 over XML
 bodies, each a program, an input, and either an expected output or the
 refusal that must happen. 22 of the body cases and 18 of the XML ones are

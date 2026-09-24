@@ -18732,17 +18732,8 @@ var FanOutExceeded = class extends Error {
 		this.limit = limit;
 	}
 };
-/**
-* Marks a value in a tree that is a leaf whatever it is made of: an XML
-* element kept whole, which no pointer may walk into or write inside.
-*/
-const OPAQUE = Symbol("opaque");
-/** Whether a value is a leaf that holds something other than JSON. */
-function isOpaque(value) {
-	return typeof value === "object" && value !== null && OPAQUE in value;
-}
 function isContainer(value) {
-	return typeof value === "object" && value !== null && !JSON.isRawJSON(value) && !(OPAQUE in value);
+	return typeof value === "object" && value !== null && !JSON.isRawJSON(value);
 }
 /**
 * Keys that would reach outside the document being transformed.
@@ -18972,7 +18963,6 @@ const MAX_CALL_DEPTH = 512;
 /** The JSON kind of a parsed value. */
 function kindOf$2(value) {
 	if (value === null) return "null";
-	if (isOpaque(value)) return void 0;
 	if (isNumberLike(value)) return "number";
 	if (Array.isArray(value)) return "array";
 	switch (typeof value) {
@@ -19958,9 +19948,9 @@ function isFormMediaType(contentType) {
 * web-standard globals, so it runs wherever the runtime does.
 */
 /**
-* Whether a body of this type is one a compiled program describes.
+* Whether a body of this type is JSON, which every program describes.
 *
-* Programs are compiled from a document's JSON representations, so anything
+* A form or an XML body is read only where the site describes one; anything
 * else, an HTML error page, a file, an event stream, is outside what the
 * program says and passes through untouched rather than being guessed at.
 */
@@ -20172,6 +20162,30 @@ function responseOf(body, status, headers) {
 const VERSION = "0.3.0";
 //#endregion
 //#region ../runtime/src/xml.ts
+/**
+* XML bodies, as a tree and back.
+*
+* Amazon's CloudFront and CloudSearch, and every SOAP-era API described in
+* OpenAPI, send and take `text/xml`. A program describes fields, not
+* encodings, so the same instructions run whether a body arrived as JSON, as
+* a form or as XML: the XML is decoded into a tree, the instructions run, and
+* the tree is written back.
+*
+* Only the places the program names are decoded, as the site's description
+* says they are written: element or attribute, list wrapped or not, what each
+* holds. Every element on the way that the description does not name is kept
+* whole, bytes and all, and written back where it was, so a document the
+* instructions leave as it was comes out byte for byte as it went in, and one
+* they change differs only where they changed it.
+*
+* The parser is written for hostile input. A document type declaration is
+* refused outright, so there are no entities beyond XML's five and character
+* references, nothing external is ever fetched and nothing expands; nesting is
+* capped as a JSON body's is, and the whole body is capped before it is read.
+* Anything this cannot write back exactly, text mixed in among elements,
+* attributes on a value the contract describes as text, an encoding other than
+* UTF-8, is refused rather than guessed at.
+*/
 /** A body that is not XML this runtime will read, or will not write back. */
 var XmlBodyError = class extends SyntaxError {
 	constructor(message) {
@@ -20562,30 +20576,23 @@ function resolve$1(parser, scope, prefix, element, qname) {
 }
 /** Keys a document's elements that the description does not name are kept under. */
 const KEPT = "\0";
-/** An element the description does not name, kept whole and written back as it came. */
-var Kept = class {
-	[OPAQUE] = true;
-	#element;
-	#key;
-	#item;
-	constructor(element, key, item) {
-		this.#element = element;
-		this.#key = key;
-		this.#item = item;
-		Object.freeze(this);
-	}
-	get element() {
-		return this.#element;
-	}
-	/** Where it was decoded from, and under which key. */
-	get from() {
-		return {
-			element: this.#element,
-			key: this.#key,
-			item: this.#item
-		};
-	}
-};
+/** What each kept element is, and where it was decoded from. */
+const KEPT_ELEMENTS = /* @__PURE__ */ new WeakMap();
+function keep(element, key, item) {
+	const token = Object.freeze(() => {
+		throw new TypeError("a kept XML element is not called");
+	});
+	KEPT_ELEMENTS.set(token, {
+		element,
+		key,
+		item
+	});
+	return token;
+}
+/** The element a kept value stands for, if it is one. */
+function keptOf(value) {
+	return typeof value === "function" ? KEPT_ELEMENTS.get(value) : void 0;
+}
 const JSON_NUMBER = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/;
 function typed(text, type, fidelity) {
 	if ((type === "integer" || type === "number") && JSON_NUMBER.test(text)) return parseJson(text, fidelity);
@@ -20644,7 +20651,7 @@ var Reader = class {
 			if (found === void 0) {
 				const key = `${KEPT}${kept}`;
 				kept += 1;
-				out[key] = new Kept(child, key, false);
+				out[key] = keep(child, key, false);
 				origin.placed.set(child, { key });
 				continue;
 			}
@@ -20705,7 +20712,7 @@ var Reader = class {
 	}
 	value(element, node, key, item) {
 		if (node.type === "object") return this.object(element, node, key, item);
-		if (node.type === "any") return new Kept(element, key, item);
+		if (node.type === "any") return keep(element, key, item);
 		if (node.type === "array") throw new XmlBodyError(`<${element.qname}> is described as a list of lists`);
 		if (element.attributes.some((attribute) => !attribute.declares)) throw new XmlBodyError(`<${element.qname}> carries attributes its contract does not describe`);
 		let text = "";
@@ -20788,7 +20795,7 @@ function declaring(scope, declarations) {
 	for (const [prefix, uri] of declarations) out.set(prefix, uri);
 	return out;
 }
-const isTree = (value) => typeof value === "object" && value !== null && !Array.isArray(value) && !JSON.isRawJSON(value) && !(value instanceof Kept);
+const isTree = (value) => typeof value === "object" && value !== null && !Array.isArray(value) && !JSON.isRawJSON(value);
 var Writer = class {
 	opened;
 	text;
@@ -21071,7 +21078,8 @@ var Writer = class {
 	}
 	/** One field of an object, as the element or elements that write it. */
 	field(key, value, node, scope, from, decoded) {
-		if (value instanceof Kept) return this.kept(value, key, node, scope, false);
+		const held = keptOf(value);
+		if (held) return this.kept(held, key, node, scope, false);
 		if (Array.isArray(value)) {
 			const list = this.opened.lists.get(value) ?? (from === void 0 || from.item ? void 0 : this.opened.wrappers.get(from.element));
 			if (node !== void 0 && node.type === "array" ? node.wrapped === true : list !== void 0) return this.wrapped(key, value, node, scope, list);
@@ -21140,7 +21148,8 @@ var Writer = class {
 	}
 	/** One item of a list, named as the list's items are. */
 	item(key, value, node, scope, from, decoded) {
-		if (value instanceof Kept) return this.kept(value, key, node, scope, true);
+		const held = keptOf(value);
+		if (held) return this.kept(held, key, node, scope, true);
 		if (Array.isArray(value)) this.refuse(`${this.where()} is a list inside a list, which XML cannot write`);
 		if (isTree(value)) {
 			const items = node?.type === "array" ? node.items : void 0;
@@ -21152,7 +21161,7 @@ var Writer = class {
 	kept(value, key, node, scope, item) {
 		const element = value.element;
 		if (key.startsWith(KEPT)) return this.raw(element.from, element.to);
-		const target = this.targetFor(key, node, item, value.from);
+		const target = this.targetFor(key, node, item, value);
 		const restored = this.restoring(element, scope);
 		const renamed = !this.named(element, target);
 		if (!renamed && restored.declarations.length === 0) return this.raw(element.from, element.to);
@@ -22351,6 +22360,19 @@ function readParameters(codecs, template, request) {
 }
 //#endregion
 //#region ../runtime/src/index.ts
+/**
+* The provider-side compatibility runtime.
+*
+* It runs inside the provider's own process, in two stages. Path rewriting has
+* to happen before routing so an old URL reaches the canonical handler; body
+* rewriting has to happen after authentication so that a signature computed
+* over the bytes the client sent is still verified against those bytes. Putting
+* both in one place would break one of the two.
+*
+* Nothing here reaches the network, reads a file, or consults a model. The
+* compiled program ships inside the provider's build, so an adapter deploys and
+* rolls back with the code it belongs to.
+*/
 function pathsOfInstr(instr) {
 	return touchedPaths(instr);
 }
@@ -22909,8 +22931,8 @@ var InvariantRuntime = class {
 	* callers' included, since a cache keyed on the URL alone would hand one
 	* contract's shape to another's callers, and one served under an older
 	* contract names it. A body is
-	* read only where the site has work for its status and it is JSON;
-	* anything else passes through as a stream. An adapted body's entity tag
+	* read only where the site has work for its status and it is JSON, or XML
+	* the site describes; anything else passes through as a stream. An adapted body's entity tag
 	* is marked with the contract, and so is a `304`'s or a `HEAD`'s for a
 	* site whose bodies are adapted, whose length is dropped because it
 	* describes bytes the caller is never sent. A body that cannot be
@@ -22985,8 +23007,9 @@ var InvariantRuntime = class {
 	* place every binding adapts a request, so they cannot disagree about it.
 	*
 	* `parts` is the path, query string and headers as the binding would pass
-	* them on, after routing and after its own header hygiene. Only a JSON body
-	* is ever read, and only when the site's program reaches into it. Anything
+	* them on, after routing and after its own header hygiene. Only a JSON body,
+	* or a form or XML one the site describes, is ever read, and only when the
+	* site's program reaches into it. Anything
 	* else a program would have to write a body into is refused rather than
 	* replaced, because a form or an upload rewritten as JSON is a request the
 	* provider never agreed to receive.
@@ -23014,7 +23037,7 @@ var InvariantRuntime = class {
 			};
 		}
 		const envelope = site.envelope;
-		if (envelope.body && request.body && !json && !form) throw new TransformError(envelope.instrs.find((instr) => pathsOfInstr(instr).some((path) => path[0] === "@body"))?.c ?? "", "This operation's program writes into the request body, and the body sent is not JSON.");
+		if (envelope.body && request.body && !json && !form && !xml) throw new TransformError(envelope.instrs.find((instr) => pathsOfInstr(instr).some((path) => path[0] === "@body"))?.c ?? "", "This operation's program writes into the request body, and the body sent is not JSON.");
 		const original = envelope.body && request.body ? await readBodyText(request, {
 			limit: this.#maxBodyBytes,
 			encoded: true
@@ -23024,7 +23047,8 @@ var InvariantRuntime = class {
 			search: parts.search.startsWith("?") ? parts.search.slice(1) : parts.search,
 			headers: [...parts.headers],
 			body: original?.text,
-			...form ? { form: true } : {}
+			...form ? { form: true } : {},
+			...xml ? { xml: true } : {}
 		}, context);
 		let headers = new Headers(result.headers);
 		let body = request.body;
@@ -23065,6 +23089,26 @@ var InvariantRuntime = class {
 				path: local
 			};
 			const form = request.form === true && envelope.body ? site.form : void 0;
+			const xml = request.xml === true && envelope.body ? site.xml?.request : void 0;
+			if (xml) {
+				const parameters = {
+					...envelope,
+					body: false
+				};
+				const text = request.body ?? "";
+				const contentType = request.headers.find(([name]) => name.toLowerCase() === "content-type")?.[1];
+				const tree = openEnvelope(parameters, site.template, values, opened, fidelity);
+				const decoded = openXml(xml, text, fidelity, contentType);
+				tree["@body"] = decoded.tree;
+				this.#counted(execute(tree, envelope.instrs, this.#limits), context);
+				const closed = closeEnvelope(parameters, site.template, values, opened, tree);
+				if (tree["@body"] !== decoded.tree) throw new TransformError(envelope.instrs[0]?.c ?? "", "The program replaced the whole XML body, which has nowhere to be written back.");
+				return {
+					...closed,
+					path: `${this.#program.basePath}${closed.path}`,
+					body: closeXml(decoded, xml.write, envelope.instrs, 1)
+				};
+			}
 			if (!form) {
 				const tree = openEnvelope(envelope, site.template, values, opened, fidelity);
 				this.#counted(execute(tree, envelope.instrs, this.#limits), context);
@@ -24399,7 +24443,7 @@ function statusMappings(changes) {
 function statusNow(mappings, method, path, status) {
 	return mappings.find((mapping) => mapping.method === method.toLowerCase() && mapping.path === path && mapping.from === status)?.to ?? status;
 }
-function operationAt$1(document, endpoint) {
+function operationAt(document, endpoint) {
 	return operationsOf(document).find((candidate) => !candidate.webhook && candidate.method === endpoint.method && candidate.path === endpoint.path)?.operation;
 }
 /** The response an operation declares at an exact status, with a shared one followed to what it names. */
@@ -24422,13 +24466,13 @@ const label = (op) => `${op.endpoint.method.toUpperCase()} ${op.endpoint.path}`;
 */
 function statusProblem(oldContract, newContract, routes, op) {
 	if (op.from === op.to) return `${label(op)} answers ${op.from} either way, so nothing changed`;
-	const old = operationAt$1(oldContract, op.endpoint);
+	const old = operationAt(oldContract, op.endpoint);
 	if (!old) return `${label(op)} is not an operation of the old contract`;
 	const promised = responseAt(oldContract, old, op.from);
 	if (!promised) return `${label(op)} never answered ${op.from} in the old contract, so no old caller was promised it`;
 	if (!newContract) return void 0;
 	const target = mapEndpoint(routes, op.endpoint.method, op.endpoint.path);
-	const now = operationAt$1(newContract, target);
+	const now = operationAt(newContract, target);
 	if (!now) return `${target.method.toUpperCase()} ${target.path} is not an operation of the new contract`;
 	const answered = responseAt(newContract, now, op.to);
 	if (!answered) return `${target.method.toUpperCase()} ${target.path} does not answer ${op.to} in the new contract`;
@@ -24448,7 +24492,7 @@ function applyStatus(document, oldContract, newContract, routes, op, issues, cha
 		});
 		return;
 	}
-	const responses = operationAt$1(document, mapEndpoint(routes, op.endpoint.method, op.endpoint.path))?.["responses"];
+	const responses = operationAt(document, mapEndpoint(routes, op.endpoint.method, op.endpoint.path))?.["responses"];
 	if (!isJsonObject(responses) || responses[op.from] === void 0) {
 		issues.push({
 			changeId,
@@ -24462,7 +24506,7 @@ function applyStatus(document, oldContract, newContract, routes, op, issues, cha
 /** The rule an old caller's answers are given, where the op can be served. */
 function statusRule(oldContract, newContract, routes, op, changeId) {
 	if (statusProblem(oldContract, newContract, routes, op) !== void 0) return void 0;
-	const promised = responseAt(oldContract, operationAt$1(oldContract, op.endpoint), op.from);
+	const promised = responseAt(oldContract, operationAt(oldContract, op.endpoint), op.from);
 	return {
 		from: Number(op.to),
 		to: Number(op.from),
@@ -25758,7 +25802,7 @@ function sitesOf(change, oldContract, issues, shared) {
 		});
 		found.push(...scan.sites);
 	}
-	if (change.ops.some((op) => isDataOp(op) && op.op !== "relax" && (op.op === "move" ? op.from === "" || op.to === "" : op.path === ""))) for (const site of found.filter((each) => each.prefix === "")) issues.push({
+	if (change.ops.some((op) => isDataOp(op) && op.op !== "relax" && op.op !== "restate" && (op.op === "move" ? op.from === "" || op.to === "" : op.path === ""))) for (const site of found.filter((each) => each.prefix === "")) issues.push({
 		changeId: change.id,
 		message: `${site.operationId} ${site.direction}${site.status ? ` ${site.status}` : ""}: the value is the whole body there, which the runtime cannot replace`
 	});
@@ -26181,6 +26225,29 @@ function stepsOf(instrs, blocks, prefix = [], entered = /* @__PURE__ */ new Set(
 	}
 	return out;
 }
+/**
+* A request envelope's steps as they reach its body: every place under
+* `/@body`, from the body's root. A value moved between a parameter and the
+* body is a place written, or read, in the body alone.
+*/
+function inBody(steps) {
+	const body = (path) => path[0] === "@body" ? [path.slice(1)] : [];
+	return steps.map((step) => {
+		const out = {
+			c: step.c,
+			touched: step.touched.flatMap(body),
+			reads: step.reads.flatMap(body)
+		};
+		if (step.shared !== void 0) out.shared = step.shared;
+		const from = step.move ? body(step.move.from)[0] : void 0;
+		const to = step.move ? body(step.move.to)[0] : void 0;
+		if (from !== void 0 && to !== void 0) out.move = {
+			from,
+			to
+		};
+		return out;
+	});
+}
 const startsWith = (path, prefix) => prefix.length <= path.length && prefix.every((segment, index) => segment === path[index]);
 /** Where a place read at a later step was in the body as it arrived. */
 function traceBack(path, earlier) {
@@ -26401,8 +26468,8 @@ function collisions(node, path, found) {
 * writes it, written as `write` does. Issues name the Change that could not
 * be described, for the release gate.
 */
-function describeXmlBody(read, write, instrs, blocks, where) {
-	const steps = stepsOf(instrs, blocks);
+function describeXmlBody(read, write, instrs, blocks, where, envelope = false) {
+	const steps = envelope ? inBody(stepsOf(instrs, blocks)) : stepsOf(instrs, blocks);
 	const reading = new Describer(read.document, read.schema, true, where);
 	const writing = new Describer(write.document, write.schema, false, where);
 	for (const [side, describer] of [["arrives", reading], ["leaves", writing]]) if (kindOf$1(describer.document, describer.schema) !== "object") describer.issue(instrs[0]?.c ?? "", `the body it ${side} as is not an object, which XML writes as an element holding fields`);
@@ -26439,9 +26506,11 @@ function describeXmlBody(read, write, instrs, blocks, where) {
 		issues
 	};
 }
-/** The operation of `document` at a method and path. */
-function operationAt(document, method, path) {
-	return operationsOf(document).find((each) => !each.webhook && each.method === method && each.path === path)?.operation;
+/** A document's operations by method and path. */
+function operationsByKey(document) {
+	const found = /* @__PURE__ */ new Map();
+	for (const each of operationsOf(document)) if (!each.webhook) found.set(siteKey(each.method, each.path), each.operation);
+	return found;
 }
 /** The XML schema a response list keyed `key` answers with: the status, its class, then `default`. */
 function responseFor(document, operation, key) {
@@ -26465,14 +26534,17 @@ function responseFor(document, operation, key) {
 */
 function describeXmlSites(sites, historical, current, routes, blocks) {
 	const issues = [];
+	const operationsNow = operationsByKey(current);
+	const operationsThen = operationsByKey(historical);
+	const cameFrom = /* @__PURE__ */ new Map();
+	for (const route of routes) {
+		const to = siteKey(route.to.method, route.to.path);
+		if (!cameFrom.has(to)) cameFrom.set(to, siteKey(route.from.method, route.from.path));
+	}
 	const out = {};
 	for (const [key, site] of Object.entries(sites)) {
-		const separator = key.indexOf(" ");
-		const method = key.slice(0, separator);
-		const path = key.slice(separator + 1);
-		const routed = routes.find((route) => siteKey(route.to.method, route.to.path) === key);
-		const now = operationAt(current, method, path);
-		const then = operationAt(historical, routed?.from.method ?? method, routed?.from.path ?? path);
+		const now = operationsNow.get(key);
+		const then = operationsThen.get(cameFrom.get(key) ?? key);
 		if (now === void 0 || then === void 0) {
 			out[key] = site;
 			continue;
@@ -26480,14 +26552,10 @@ function describeXmlSites(sites, historical, current, routes, blocks) {
 		const xml = {};
 		const requestThen = requestXmlSchema(historical, then);
 		const requestNow = requestXmlSchema(current, now);
-		if (requestThen !== void 0 && site.envelope?.body === true) issues.push({
-			changeId: site.envelope.instrs[0]?.c ?? "",
-			message: `${key} request: the program reaches a parameter and an XML body at once, which is not served`,
-			xml: true
-		});
-		else if (requestThen !== void 0 && site.request && site.request.length > 0) {
+		const requestWork = site.envelope?.body === true ? site.envelope.instrs : site.request;
+		if (requestThen !== void 0 && requestWork !== void 0 && requestWork.length > 0) {
 			if (requestNow === void 0) issues.push({
-				changeId: site.request[0]?.c ?? "",
+				changeId: requestWork[0]?.c ?? "",
 				message: `${key} request: an old caller's body is XML and the current contract takes none, so it cannot be written for it`,
 				xml: true
 			});
@@ -26498,7 +26566,7 @@ function describeXmlSites(sites, historical, current, routes, blocks) {
 				}, {
 					document: current,
 					schema: requestNow
-				}, site.request, blocks, `${key} request`);
+				}, requestWork, blocks, `${key} request`, site.envelope !== void 0);
 				issues.push(...described.issues);
 				if (described.body) xml.request = described.body;
 			}
@@ -26533,6 +26601,38 @@ function describeXmlSites(sites, historical, current, routes, blocks) {
 		sites: out,
 		issues
 	};
+}
+const isXmlType = (type) => {
+	const essence = (type.split(";")[0] ?? "").trim().toLowerCase();
+	return essence === "application/xml" || essence === "text/xml" || essence.endsWith("+xml");
+};
+/**
+* Whether a document declares any request or response body as XML: any
+* `content` of an operation's request or responses, or of a shared one, that
+* names an XML type. Read without resolving anything, since it is asked of
+* every contract in a chain and nearly all of them say no.
+*/
+function declaresXml(document) {
+	const holders = [];
+	const paths = document["paths"];
+	for (const item of isJsonObject(paths) ? Object.values(paths) : []) {
+		if (!isJsonObject(item)) continue;
+		for (const operation of Object.values(item)) {
+			if (!isJsonObject(operation)) continue;
+			holders.push(operation["requestBody"] ?? null);
+			const responses = operation["responses"];
+			if (isJsonObject(responses)) holders.push(...Object.values(responses));
+		}
+	}
+	const components = document["components"];
+	if (isJsonObject(components)) for (const kind of ["requestBodies", "responses"]) {
+		const shared = components[kind];
+		if (isJsonObject(shared)) holders.push(...Object.values(shared));
+	}
+	return holders.some((holder) => {
+		const content = isJsonObject(holder) ? holder["content"] : void 0;
+		return isJsonObject(content) && Object.keys(content).some(isXmlType);
+	});
 }
 //#endregion
 //#region ../compiler/src/chain.ts
@@ -26895,6 +26995,8 @@ function chainProgram(api, currentLabel, currentDigest, steps, options = {}) {
 	const contracts = {};
 	const blocks = {};
 	for (const step of projected) Object.assign(blocks, step.blocks);
+	const head = steps.at(-1)?.to;
+	const xml = head !== void 0 && steps.some((step) => declaresXml(step.from) || declaresXml(step.to));
 	let tail;
 	for (let index = steps.length - 1; index >= 0; index -= 1) {
 		const step = steps[index];
@@ -26905,7 +27007,10 @@ function chainProgram(api, currentLabel, currentDigest, steps, options = {}) {
 		if (label === currentLabel) continue;
 		const frame = contractFrame(label, steps, projected, index);
 		const linked = contractOf(frame, link);
-		const described = describeXmlSites(linked.sites, step.from, steps.at(-1)?.to ?? step.to, frame.routes, blocks);
+		const described = xml && head !== void 0 ? describeXmlSites(linked.sites, step.from, head, frame.routes, blocks) : {
+			sites: linked.sites,
+			issues: []
+		};
 		issues.push(...described.issues);
 		const program = {
 			...linked,

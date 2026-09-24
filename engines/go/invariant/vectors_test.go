@@ -158,6 +158,7 @@ type envelopeRequest struct {
 	Headers [][2]string `json:"headers"`
 	Body    *string     `json:"body,omitempty"`
 	Form    bool        `json:"form,omitempty"`
+	XML     bool        `json:"xml,omitempty"`
 }
 
 type envelopeVector struct {
@@ -165,6 +166,7 @@ type envelopeVector struct {
 	Template string          `json:"template"`
 	Envelope json.RawMessage `json:"envelope"`
 	Form     json.RawMessage `json:"form,omitempty"`
+	XML      json.RawMessage `json:"xml,omitempty"`
 	Request  envelopeRequest `json:"request"`
 	Expect   struct {
 		Request *envelopeRequest `json:"request,omitempty"`
@@ -178,6 +180,9 @@ func runEnvelopeVector(v envelopeVector) (*envelopeRequest, string) {
 	site := map[string]any{"envelope": v.Envelope}
 	if len(v.Form) > 0 {
 		site["form"] = v.Form
+	}
+	if len(v.XML) > 0 {
+		site["xml"] = map[string]any{"request": v.XML}
 	}
 	program, _ := json.Marshal(map[string]any{
 		"irVersion":    2,
@@ -202,6 +207,7 @@ func runEnvelopeVector(v envelopeVector) (*envelopeRequest, string) {
 		Headers: v.Request.Headers,
 		Body:    v.Request.Body,
 		Form:    v.Request.Form,
+		XML:     v.Request.XML,
 	})
 	if err != nil {
 		var transform *TransformError

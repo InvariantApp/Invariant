@@ -537,11 +537,14 @@ function sitesOf(
   // A value that is the whole body has nowhere to be written back into, so
   // the runtime leaves it as it came. A vocabulary that is a schema of its own
   // is always some object's field in practice; where one is a body by itself,
-  // the gate says so rather than ship a translation that never happens.
+  // the gate says so rather than ship a translation that never happens. A
+  // bound or a restatement writes nothing, so it is served wherever it is:
+  // CloudSearch restates each request body whole.
   const itself = change.ops.some(
     (op) =>
       isDataOp(op) &&
       op.op !== "relax" &&
+      op.op !== "restate" &&
       (op.op === "move" ? op.from === "" || op.to === "" : op.path === ""),
   );
   if (itself) {

@@ -12,7 +12,6 @@
  * rolls back with the code it belongs to.
  */
 
-import type { XmlBody } from "@invariant-app/ir";
 import { closeEnvelope, type EnvelopeRequest, openEnvelope } from "./envelope.ts";
 import {
   BodyTooLargeError,
@@ -58,7 +57,7 @@ import {
   ProgramError,
   ProgramTooNewError,
 } from "./program.ts";
-import { closeXml, isXmlMediaType, openXml } from "./xml.ts";
+import { closeXml, isXmlMediaType, openXml, type XmlBody } from "./xml.ts";
 
 export {
   CodecRefusal,
@@ -97,7 +96,13 @@ export {
 export { type ParameterValues, readParameters, writeParameters } from "./parameters.ts";
 /** This runtime's version, which a program's `minRuntime` is compared against. */
 export { VERSION as RUNTIME_VERSION } from "./version.ts";
-export { isNcName, isXmlMediaType, XmlBodyError } from "./xml.ts";
+export {
+  isNcName,
+  isXmlMediaType,
+  type XmlBody,
+  XmlBodyError,
+  type XmlNode,
+} from "./xml.ts";
 export type { DecodedProgram, DecodedSite };
 // matchTemplate is the rule the runtime routes by, for anything that has to agree with it.
 export {
@@ -1026,8 +1031,8 @@ export class InvariantRuntime {
    * callers' included, since a cache keyed on the URL alone would hand one
    * contract's shape to another's callers, and one served under an older
    * contract names it. A body is
-   * read only where the site has work for its status and it is JSON;
-   * anything else passes through as a stream. An adapted body's entity tag
+   * read only where the site has work for its status and it is JSON, or XML
+   * the site describes; anything else passes through as a stream. An adapted body's entity tag
    * is marked with the contract, and so is a `304`'s or a `HEAD`'s for a
    * site whose bodies are adapted, whose length is dropped because it
    * describes bytes the caller is never sent. A body that cannot be
@@ -1149,8 +1154,9 @@ export class InvariantRuntime {
    * place every binding adapts a request, so they cannot disagree about it.
    *
    * `parts` is the path, query string and headers as the binding would pass
-   * them on, after routing and after its own header hygiene. Only a JSON body
-   * is ever read, and only when the site's program reaches into it. Anything
+   * them on, after routing and after its own header hygiene. Only a JSON body,
+   * or a form or XML one the site describes, is ever read, and only when the
+   * site's program reaches into it. Anything
    * else a program would have to write a body into is refused rather than
    * replaced, because a form or an upload rewritten as JSON is a request the
    * provider never agreed to receive.
@@ -1192,7 +1198,7 @@ export class InvariantRuntime {
     }
 
     const envelope = site.envelope;
-    if (envelope.body && request.body && !json && !form) {
+    if (envelope.body && request.body && !json && !form && !xml) {
       throw new TransformError(
         envelope.instrs.find((instr) =>
           pathsOfInstr(instr).some((path) => path[0] === "@body"),
@@ -1212,6 +1218,7 @@ export class InvariantRuntime {
         headers: [...parts.headers],
         body: original?.text,
         ...(form ? { form: true } : {}),
+        ...(xml ? { xml: true } : {}),
       },
       context,
     );
@@ -1259,6 +1266,32 @@ export class InvariantRuntime {
       const fidelity = site.numeric ? this.#fidelity : "double";
       const opened = { ...request, path: local };
       const form = request.form === true && envelope.body ? site.form : undefined;
+      const xml = request.xml === true && envelope.body ? site.xml?.request : undefined;
+      if (xml) {
+        // An XML body is decoded and written back by its description; the
+        // rest of the envelope is what it always is.
+        const parameters = { ...envelope, body: false };
+        const text = request.body ?? "";
+        const contentType = request.headers.find(
+          ([name]) => name.toLowerCase() === "content-type",
+        )?.[1];
+        const tree = openEnvelope(parameters, site.template, values, opened, fidelity);
+        const decoded = openXml(xml, text, fidelity, contentType);
+        tree["@body"] = decoded.tree;
+        this.#counted(execute(tree, envelope.instrs, this.#limits), context);
+        const closed = closeEnvelope(parameters, site.template, values, opened, tree);
+        if (tree["@body"] !== decoded.tree) {
+          throw new TransformError(
+            envelope.instrs[0]?.c ?? "",
+            "The program replaced the whole XML body, which has nowhere to be written back.",
+          );
+        }
+        return {
+          ...closed,
+          path: `${this.#program.basePath}${closed.path}`,
+          body: closeXml(decoded, xml.write, envelope.instrs, 1),
+        };
+      }
       if (!form) {
         const tree = openEnvelope(envelope, site.template, values, opened, fidelity);
         this.#counted(execute(tree, envelope.instrs, this.#limits), context);

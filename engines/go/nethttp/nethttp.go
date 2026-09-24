@@ -175,8 +175,8 @@ type adaptedRequest struct {
 }
 
 // adaptRequest is the request as the provider's handler should see it. Only
-// a JSON or declared form body is ever read, and only when the site's program
-// reaches into it.
+// a JSON body, or a form or XML one the site describes, is ever read, and
+// only when the site's program reaches into it.
 func adaptRequest(runtime *invariant.Runtime, site *invariant.Site, r *http.Request, decision invariant.RouteDecision, headers http.Header, contract, operation, consumer string) (adaptedRequest, error) {
 	out := adaptedRequest{path: decision.Path, search: r.URL.RawQuery, headers: headers}
 	contentType := headers.Get("Content-Type")
@@ -209,7 +209,7 @@ func adaptRequest(runtime *invariant.Runtime, site *invariant.Site, r *http.Requ
 		return out, nil
 	}
 
-	if site.Envelope.Body && hasBody && !isJSON && !form {
+	if site.Envelope.Body && hasBody && !isJSON && !form && !xml {
 		return out, &invariant.TransformError{
 			ChangeID: bodyWriter(site),
 			Message:  "This operation's program writes into the request body, and the body sent is not JSON.",
@@ -232,6 +232,7 @@ func adaptRequest(runtime *invariant.Runtime, site *invariant.Site, r *http.Requ
 		Headers: headerList(headers),
 		Body:    original,
 		Form:    form,
+		XML:     xml,
 	}, contract, operation, consumer)
 	if err != nil {
 		return out, err

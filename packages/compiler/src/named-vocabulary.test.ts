@@ -164,4 +164,39 @@ describe("a named vocabulary that is a whole body by itself", () => {
       "getDefaultMethod response 200: the value is the whole body there, which the runtime cannot replace",
     );
   });
+
+  // CloudSearch 2013 restates each request body whole, and a restatement
+  // writes nothing, so there is nothing to write back and nothing to refuse.
+  it("is served where the Change writes nothing into it", () => {
+    const before = addresses(["get", "post"]);
+    const after = addresses(["get", "post"]);
+    for (const document of [before, after]) {
+      (document["paths"] as Record<string, unknown>)["/methods/default"] = {
+        get: {
+          operationId: "getDefaultMethod",
+          responses: {
+            "200": {
+              description: "ok",
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/Method" } },
+              },
+            },
+          },
+        },
+      };
+    }
+    const changes: Change[] = [
+      {
+        irVersion: 1,
+        id: "chg_method_restated",
+        summary: "Methods are stated another way.",
+        scopes: [{ schema: "#/components/schemas/Method" }],
+        ops: [{ op: "restate", path: "" }],
+      },
+    ];
+    const { issues } = chainProgram("addresses", "new", "sha256:new", [
+      { label: "new", parent: "old", from: before, to: after, changes },
+    ]);
+    expect(issues.map((issue) => issue.message).join()).not.toContain("whole body");
+  });
 });

@@ -123,6 +123,28 @@ function stepsOf(
   return out;
 }
 
+/**
+ * A request envelope's steps as they reach its body: every place under
+ * `/@body`, from the body's root. A value moved between a parameter and the
+ * body is a place written, or read, in the body alone.
+ */
+function inBody(steps: readonly Step[]): Step[] {
+  const body = (path: readonly string[]) =>
+    path[0] === "@body" ? [path.slice(1)] : ([] as string[][]);
+  return steps.map((step) => {
+    const out: Step = {
+      c: step.c,
+      touched: step.touched.flatMap(body),
+      reads: step.reads.flatMap(body),
+    };
+    if (step.shared !== undefined) out.shared = step.shared;
+    const from = step.move ? body(step.move.from)[0] : undefined;
+    const to = step.move ? body(step.move.to)[0] : undefined;
+    if (from !== undefined && to !== undefined) out.move = { from, to };
+    return out;
+  });
+}
+
 const startsWith = (path: readonly string[], prefix: readonly string[]) =>
   prefix.length <= path.length &&
   prefix.every((segment, index) => segment === path[index]);
@@ -441,8 +463,9 @@ export function describeXmlBody(
   instrs: readonly Instr[],
   blocks: Readonly<Record<string, Instr[]>>,
   where: string,
+  envelope = false,
 ): { body?: XmlBody; issues: ProjectionIssue[] } {
-  const steps = stepsOf(instrs, blocks);
+  const steps = envelope ? inBody(stepsOf(instrs, blocks)) : stepsOf(instrs, blocks);
   const reading = new Describer(read.document, read.schema, true, where);
   const writing = new Describer(write.document, write.schema, false, where);
   for (const [side, describer] of [
@@ -496,15 +519,13 @@ export function describeXmlBody(
     : { body: { read: reading.root, write: writing.root }, issues };
 }
 
-/** The operation of `document` at a method and path. */
-function operationAt(
-  document: OpenApiDocument,
-  method: string,
-  path: string,
-): JsonObject | undefined {
-  return operationsOf(document).find(
-    (each) => !each.webhook && each.method === method && each.path === path,
-  )?.operation;
+/** A document's operations by method and path. */
+function operationsByKey(document: OpenApiDocument): Map<string, JsonObject> {
+  const found = new Map<string, JsonObject>();
+  for (const each of operationsOf(document)) {
+    if (!each.webhook) found.set(siteKey(each.method, each.path), each.operation);
+  }
+  return found;
 }
 
 /** The XML schema a response list keyed `key` answers with: the status, its class, then `default`. */
@@ -544,20 +565,18 @@ export function describeXmlSites(
   blocks: Readonly<Record<string, Instr[]>>,
 ): { sites: Record<string, SiteProgram>; issues: ProjectionIssue[] } {
   const issues: ProjectionIssue[] = [];
+  const operationsNow = operationsByKey(current);
+  const operationsThen = operationsByKey(historical);
+  // Where each site's calls come from, when a route brought them there.
+  const cameFrom = new Map<string, string>();
+  for (const route of routes) {
+    const to = siteKey(route.to.method, route.to.path);
+    if (!cameFrom.has(to)) cameFrom.set(to, siteKey(route.from.method, route.from.path));
+  }
   const out: Record<string, SiteProgram> = {};
   for (const [key, site] of Object.entries(sites)) {
-    const separator = key.indexOf(" ");
-    const method = key.slice(0, separator);
-    const path = key.slice(separator + 1);
-    const routed = routes.find(
-      (route) => siteKey(route.to.method, route.to.path) === key,
-    );
-    const now = operationAt(current, method, path);
-    const then = operationAt(
-      historical,
-      routed?.from.method ?? method,
-      routed?.from.path ?? path,
-    );
+    const now = operationsNow.get(key);
+    const then = operationsThen.get(cameFrom.get(key) ?? key);
     if (now === undefined || then === undefined) {
       out[key] = site;
       continue;
@@ -565,16 +584,18 @@ export function describeXmlSites(
     const xml: XmlProgram = {};
     const requestThen = requestXmlSchema(historical, then);
     const requestNow = requestXmlSchema(current, now);
-    if (requestThen !== undefined && site.envelope?.body === true) {
-      issues.push({
-        changeId: site.envelope.instrs[0]?.c ?? "",
-        message: `${key} request: the program reaches a parameter and an XML body at once, which is not served`,
-        xml: true,
-      });
-    } else if (requestThen !== undefined && site.request && site.request.length > 0) {
+    // The request's work, over the body alone or over the whole request where
+    // a Change reaches a parameter too.
+    const requestWork =
+      site.envelope?.body === true ? site.envelope.instrs : site.request;
+    if (
+      requestThen !== undefined &&
+      requestWork !== undefined &&
+      requestWork.length > 0
+    ) {
       if (requestNow === undefined) {
         issues.push({
-          changeId: site.request[0]?.c ?? "",
+          changeId: requestWork[0]?.c ?? "",
           message: `${key} request: an old caller's body is XML and the current contract takes none, so it cannot be written for it`,
           xml: true,
         });
@@ -582,9 +603,10 @@ export function describeXmlSites(
         const described = describeXmlBody(
           { document: historical, schema: requestThen },
           { document: current, schema: requestNow },
-          site.request,
+          requestWork,
           blocks,
           `${key} request`,
+          site.envelope !== undefined,
         );
         issues.push(...described.issues);
         if (described.body) xml.request = described.body;
@@ -619,11 +641,40 @@ export function describeXmlSites(
   return { sites: out, issues };
 }
 
-/** Whether a document declares any request or response body as XML. */
-export function declaresXml(document: OpenApiDocument): boolean {
-  return operationsOf(document).some(
-    ({ operation }) =>
-      requestXmlSchema(document, operation) !== undefined ||
-      responseXmlSchemas(document, operation).length > 0,
+const isXmlType = (type: string) => {
+  const essence = (type.split(";")[0] ?? "").trim().toLowerCase();
+  return (
+    essence === "application/xml" || essence === "text/xml" || essence.endsWith("+xml")
   );
+};
+
+/**
+ * Whether a document declares any request or response body as XML: any
+ * `content` of an operation's request or responses, or of a shared one, that
+ * names an XML type. Read without resolving anything, since it is asked of
+ * every contract in a chain and nearly all of them say no.
+ */
+export function declaresXml(document: OpenApiDocument): boolean {
+  const holders: JsonValue[] = [];
+  const paths = document["paths"];
+  for (const item of isJsonObject(paths) ? Object.values(paths) : []) {
+    if (!isJsonObject(item)) continue;
+    for (const operation of Object.values(item)) {
+      if (!isJsonObject(operation)) continue;
+      holders.push(operation["requestBody"] ?? null);
+      const responses = operation["responses"];
+      if (isJsonObject(responses)) holders.push(...Object.values(responses));
+    }
+  }
+  const components = document["components"];
+  if (isJsonObject(components)) {
+    for (const kind of ["requestBodies", "responses"]) {
+      const shared = components[kind];
+      if (isJsonObject(shared)) holders.push(...Object.values(shared));
+    }
+  }
+  return holders.some((holder) => {
+    const content = isJsonObject(holder) ? holder["content"] : undefined;
+    return isJsonObject(content) && Object.keys(content).some(isXmlType);
+  });
 }

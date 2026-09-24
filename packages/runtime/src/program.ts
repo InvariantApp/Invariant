@@ -7,7 +7,6 @@
  * refusal to load rather than something to skip over at request time.
  */
 
-import type { XmlBody, XmlNode } from "@invariant-app/ir";
 import type { StringCase, TimeFormat } from "./codecs.ts";
 import {
   codecKey,
@@ -28,7 +27,7 @@ import {
 import type { Json } from "./json.ts";
 import { isUnsafeKey, isWildcard } from "./pointer.ts";
 import { VERSION } from "./version.ts";
-import { isNcName } from "./xml.ts";
+import { isNcName, type XmlBody, type XmlNode } from "./xml.ts";
 
 export class ProgramError extends Error {
   constructor(message: string) {

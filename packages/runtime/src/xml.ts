@@ -23,7 +23,6 @@
  * UTF-8, is refused rather than guessed at.
  */
 
-import type { XmlBody, XmlNode } from "@invariant-app/ir";
 import { BodyTooDeepError } from "./errors.ts";
 import { type CompiledInstr, TransformError, touchedPaths } from "./interpreter.ts";
 import {
@@ -34,7 +33,29 @@ import {
   numberTextOf,
   parseJson,
 } from "./json.ts";
-import { OPAQUE } from "./pointer.ts";
+
+/**
+ * How one place in an XML body is written, as a program's site describes it:
+ * an element named `name`, or the field's own name, or with `attribute` an
+ * attribute of its parent; a list's items repeated in place, or `wrapped`
+ * in an element of the list's own; and what the place holds.
+ */
+export interface XmlNode {
+  type: "object" | "array" | "string" | "integer" | "number" | "boolean" | "any";
+  name?: string;
+  namespace?: string;
+  prefix?: string;
+  attribute?: true;
+  wrapped?: true;
+  properties?: Record<string, XmlNode>;
+  items?: XmlNode;
+}
+
+/** A body read as `read` describes it, with the places written as `write` does. */
+export interface XmlBody {
+  read: XmlNode;
+  write: XmlNode;
+}
 
 /** A body that is not XML this runtime will read, or will not write back. */
 export class XmlBodyError extends SyntaxError {
@@ -575,29 +596,28 @@ function resolve(
 /** Keys a document's elements that the description does not name are kept under. */
 const KEPT = "\u0000";
 
-/** An element the description does not name, kept whole and written back as it came. */
-class Kept {
-  readonly [OPAQUE] = true;
-  // Private, so no pointer into the tree can read or write what it holds.
-  readonly #element: XmlElement;
-  readonly #key: string;
-  readonly #item: boolean;
+/**
+ * An element the description does not name, kept whole and written back as
+ * it came: a function, so that to every step that walks the tree it is a leaf
+ * that is no kind of JSON value, and no pointer can read into it or write
+ * inside it, at no cost to the steps that walk JSON.
+ */
+type Kept = () => never;
 
-  constructor(element: XmlElement, key: string, item: boolean) {
-    this.#element = element;
-    this.#key = key;
-    this.#item = item;
-    Object.freeze(this);
-  }
+/** What each kept element is, and where it was decoded from. */
+const KEPT_ELEMENTS = new WeakMap<Kept, From>();
 
-  get element(): XmlElement {
-    return this.#element;
-  }
+function keep(element: XmlElement, key: string, item: boolean): Kept {
+  const token: Kept = Object.freeze(() => {
+    throw new TypeError("a kept XML element is not called");
+  });
+  KEPT_ELEMENTS.set(token, { element, key, item });
+  return token;
+}
 
-  /** Where it was decoded from, and under which key. */
-  get from(): From {
-    return { element: this.#element, key: this.#key, item: this.#item };
-  }
+/** The element a kept value stands for, if it is one. */
+function keptOf(value: unknown): From | undefined {
+  return typeof value === "function" ? KEPT_ELEMENTS.get(value as Kept) : undefined;
 }
 
 interface Placed {
@@ -730,7 +750,7 @@ class Reader {
       if (found === undefined) {
         const key = `${KEPT}${kept}`;
         kept += 1;
-        out[key] = new Kept(child, key, false) as unknown as Json;
+        out[key] = keep(child, key, false);
         origin.placed.set(child, { key });
         continue;
       }
@@ -796,7 +816,7 @@ class Reader {
   value(element: XmlElement, node: XmlNode, key: string, item: boolean): unknown {
     if (node.type === "object") return this.object(element, node, key, item);
     // What no instruction reads by value is moved or removed whole, as it came.
-    if (node.type === "any") return new Kept(element, key, item);
+    if (node.type === "any") return keep(element, key, item);
     if (node.type === "array") {
       // Checked when the program is read; a list of lists has no XML form.
       throw new XmlBodyError(`<${element.qname}> is described as a list of lists`);
@@ -962,8 +982,7 @@ const isTree = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" &&
   value !== null &&
   !Array.isArray(value) &&
-  !JSON.isRawJSON(value) &&
-  !(value instanceof Kept);
+  !JSON.isRawJSON(value);
 
 class Writer {
   readonly opened: OpenedXml;
@@ -1332,7 +1351,8 @@ class Writer {
     from?: From,
     decoded?: unknown,
   ): string {
-    if (value instanceof Kept) return this.kept(value, key, node, scope, false);
+    const held = keptOf(value);
+    if (held) return this.kept(held, key, node, scope, false);
     if (Array.isArray(value)) {
       const list =
         this.opened.lists.get(value) ??
@@ -1468,7 +1488,8 @@ class Writer {
     from?: From,
     decoded?: unknown,
   ): string {
-    if (value instanceof Kept) return this.kept(value, key, node, scope, true);
+    const held = keptOf(value);
+    if (held) return this.kept(held, key, node, scope, true);
     if (Array.isArray(value)) {
       this.refuse(`${this.where()} is a list inside a list, which XML cannot write`);
     }
@@ -1492,7 +1513,7 @@ class Writer {
 
   /** An element nothing names: exactly as it came, unless it has to be renamed or moved. */
   kept(
-    value: Kept,
+    value: From,
     key: string,
     node: XmlNode | undefined,
     scope: Scope,
@@ -1500,7 +1521,7 @@ class Writer {
   ): string {
     const element = value.element;
     if (key.startsWith(KEPT)) return this.raw(element.from, element.to);
-    const target = this.targetFor(key, node, item, value.from);
+    const target = this.targetFor(key, node, item, value);
     const restored = this.restoring(element, scope);
     const renamed = !this.named(element, target);
     if (!renamed && restored.declarations.length === 0) {

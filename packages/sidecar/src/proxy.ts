@@ -199,8 +199,9 @@ export function createProxy(options: ProxyOptions): FetchHandler {
     const operation = `${decision.method.toLowerCase()} ${decision.path}`;
     const context = { contract, operation, consumer: undefined };
 
-    // Only a JSON body is something the program describes. A form or an
-    // upload goes on as it came, and the provider answers it as it would.
+    // A JSON body, and a form or XML one the site describes, is something the
+    // program describes. An upload goes on as it came, and the provider
+    // answers it as it would.
     let adapted: AdaptedRequest = {
       path: decision.path,
       search: url.search,

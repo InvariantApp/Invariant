@@ -57,6 +57,8 @@ type EnvelopeRequest struct {
 	Body *string
 	// Form is true when the body is form-encoded rather than JSON.
 	Form bool
+	// XML is true when the body is XML, which the site describes.
+	XML bool
 }
 
 var parts = map[string]string{
@@ -916,6 +918,9 @@ func runEnvelope(site *Site, request EnvelopeRequest, limits Limits) (EnvelopeRe
 		return request, &Result{Applied: map[string]int{}, Folded: map[string]bool{}}, nil
 	}
 	values, _ := matchTemplate(template, request.Path)
+	if request.XML && envelope.Body && site.XML != nil && site.XML.Request != nil {
+		return runEnvelopeXML(site, request, values, limits)
+	}
 	if !request.Form || !envelope.Body || site.Form == nil {
 		tree, err := openEnvelope(envelope, template, values, request)
 		if err != nil {
@@ -968,5 +973,55 @@ func runEnvelope(site *Site, request EnvelopeRequest, limits Limits) (EnvelopeRe
 		return request, nil, err
 	}
 	out.Body = &form
+	return out, result, nil
+}
+
+// runEnvelopeXML runs an envelope whose body is XML: the body is decoded and
+// written back by its description, and the rest of the envelope is what it
+// always is.
+func runEnvelopeXML(site *Site, request EnvelopeRequest, values []string, limits Limits) (EnvelopeRequest, *Result, error) {
+	envelope, template := site.Envelope, site.Template
+	parameters := *envelope
+	parameters.Body = false
+	text := ""
+	if request.Body != nil {
+		text = *request.Body
+	}
+	contentType := ""
+	for _, line := range request.Headers {
+		if strings.EqualFold(line[0], "content-type") {
+			contentType = line[1]
+			break
+		}
+	}
+	tree, err := openEnvelope(&parameters, template, values, request)
+	if err != nil {
+		return request, nil, err
+	}
+	decoded, err := openXML(site.XML.Request, text, contentType)
+	if err != nil {
+		return request, nil, err
+	}
+	tree.Set("@body", decoded.tree)
+	result, err := Execute(tree, envelope.Instrs, limits)
+	if err != nil {
+		return request, nil, err
+	}
+	out, err := closeEnvelope(&parameters, template, values, request, tree)
+	if err != nil {
+		return request, nil, err
+	}
+	if written, _ := tree.Get("@body"); written != any(decoded.tree) {
+		changeID := ""
+		if len(envelope.Instrs) > 0 {
+			changeID = envelope.Instrs[0].C
+		}
+		return request, nil, &TransformError{ChangeID: changeID, Message: "The program replaced the whole XML body, which has nowhere to be written back.", Kind: "transform"}
+	}
+	body, err := closeXML(decoded, site.XML.Request.Write, envelope.Instrs, 1)
+	if err != nil {
+		return request, nil, err
+	}
+	out.Body = &body
 	return out, result, nil
 }
