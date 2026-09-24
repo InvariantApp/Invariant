@@ -284,11 +284,15 @@ export function scoreboard(inputs: {
               const unclassified = sum(
                 (entry) => entry.inScope?.unclassified ?? entry.sites,
               );
+              // A site the judge could not settle counts as neither, and the
+              // rate is given again as if each were a contract change left
+              // unhandled, so a classifier that grows more unsure cannot make
+              // the headline look better than the worst it could be.
               const contested = sum((entry) => entry.inScope?.contested ?? 0);
               // Every site, the SDK's own changes included, which L8 does not
               // count but a person upgrading does.
               const everywhere = sum((entry) => entry.identical + entry.flagged);
-              return `${language} ${mine.length} cases: of ${sites} human sites, ${inScope} follow from a contract change; ${identical + flagged} handled (${percent(identical + flagged, inScope)}: ${identical} identical, ${flagged} flagged for a person), ${differs} to adjudicate; ${extraFlags} flags where no human changed anything; ${contested} contested and ${unclassified} not yet classed, counted as neither; over every human site, the SDK's own changes included, ${everywhere} handled (${percent(everywhere, sites)})`;
+              return `${language} ${mine.length} cases: of ${sites} human sites, ${inScope} follow from a contract change; ${identical + flagged} handled (${percent(identical + flagged, inScope)}: ${identical} identical, ${flagged} flagged for a person${contested > 0 ? `; ${percent(identical + flagged, inScope + contested)} at worst, were every contested site a contract change nothing handled` : ""}), ${differs} to adjudicate; ${extraFlags} flags where no human changed anything; ${contested} contested and ${unclassified} not yet classed, counted as neither; over every human site, the SDK's own changes included, ${everywhere} handled (${percent(everywhere, sites)})`;
             })
             .join("; ")}. ` +
           `${failed.length} could not be replayed. ` +
