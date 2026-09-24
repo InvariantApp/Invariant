@@ -713,9 +713,11 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       // where its contracts are known, the Changes; every other one is still
       // checked against both releases, and each place the upgrade breaks is
       // reported.
+      // A release from before the SDK recorded its version (stripe-node
+      // before 12) is checked against the other all the same.
       const old = stamp?.(oldSdk);
       const next = stamp?.(newSdk);
-      if (stamp && (!old || !next)) throw new Error("the SDK records no API version");
+      if (!old || !next) base.engine = "verify";
 
       // A scoped package's link sits in its scope's directory.
       await mkdir(dirname(join(repo, "node_modules", entry.package)), {
@@ -725,7 +727,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       // What changed in the contract between the two releases, where the SDK
       // says which contracts they speak.
       const contract =
-        stamp?.contract && old
+        stamp?.contract && old && next
           ? await stamp.contract(
               versionOf(oldSdk),
               versionOf(newSdk),
