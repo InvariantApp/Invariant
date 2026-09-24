@@ -18,6 +18,22 @@
       ]
     },
     {
+      "id": "23prime/sync-upstream#20",
+      "repo": "23prime/sync-upstream",
+      "pr": 20,
+      "base": "b45c6f989baf32bca6d71df7677cc3c16114d20c",
+      "head": "167b58b6a08065f8fa7c2180db16c35f0c049cb1",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "6.0.1",
+      "to": "9.1.1",
+      "license": "MIT",
+      "mergedAt": "2026-06-06T02:54:30Z",
+      "files": [
+        "src/index.test.js"
+      ]
+    },
+    {
       "id": "2gis/k8s-handle#143",
       "repo": "2gis/k8s-handle",
       "pr": 143,
@@ -129,6 +145,22 @@
       ]
     },
     {
+      "id": "5monkeys/cobertura-action#106",
+      "repo": "5monkeys/cobertura-action",
+      "pr": 106,
+      "base": "8c08e6ce33a4b37b0c8b28e3e9839f61343186c3",
+      "head": "8d14d79e01825042592194b356580da73c15c753",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "5.1.1",
+      "to": "6.0.0",
+      "license": "MIT",
+      "mergedAt": "2024-03-25T19:23:26Z",
+      "files": [
+        "src/action.test.js"
+      ]
+    },
+    {
       "id": "abtris/hugo-netlify-autoupdater#180",
       "repo": "abtris/hugo-netlify-autoupdater",
       "pr": 180,
@@ -162,6 +194,86 @@
         "github.go",
         "github_test.go",
         "main.go"
+      ]
+    },
+    {
+      "id": "actions/deploy-pages#261",
+      "repo": "actions/deploy-pages",
+      "pr": 261,
+      "base": "ccfe503c3fab681629b26eefd8f1d62ed28c9b51",
+      "head": "1050c5c646997c9f7e3436fa3be3d2a3f7d810a3",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "5.1.1",
+      "to": "6.0.0",
+      "license": "MIT",
+      "mergedAt": "2023-12-06T21:00:45Z",
+      "files": [
+        "src/__tests__/internal/deployment.test.js"
+      ]
+    },
+    {
+      "id": "adyen-examples/adyen-node-online-payments#172",
+      "repo": "adyen-examples/adyen-node-online-payments",
+      "pr": 172,
+      "base": "d48a71787d2a91d73a3c812ce2cf7c62681030a3",
+      "head": "f87fdbbb84dc9a03027c438fb32cf5db900b7ccc",
+      "package": "@adyen/api-library",
+      "ecosystem": "npm",
+      "from": "13.1.2",
+      "to": "14.0.0",
+      "license": "MIT",
+      "mergedAt": "2023-08-16T20:34:06Z",
+      "files": [
+        "subscription-example/index.js"
+      ]
+    },
+    {
+      "id": "adyen-examples/adyen-node-online-payments#173",
+      "repo": "adyen-examples/adyen-node-online-payments",
+      "pr": 173,
+      "base": "a2c7931c4ec39e12f126d31328f94048c25162de",
+      "head": "d6842df6b248fae3eb9d6db04845c23b42e97905",
+      "package": "@adyen/api-library",
+      "ecosystem": "npm",
+      "from": "13.1.3",
+      "to": "14.0.0",
+      "license": "MIT",
+      "mergedAt": "2023-08-16T13:41:39Z",
+      "files": [
+        "paybylink-example/index.js"
+      ]
+    },
+    {
+      "id": "adyen-examples/adyen-node-online-payments#174",
+      "repo": "adyen-examples/adyen-node-online-payments",
+      "pr": 174,
+      "base": "76e35d8f82a0f1e6668e4d5b05dd382e601f5d5a",
+      "head": "27fb2764749e47a21bb75a15cec0d941298e514f",
+      "package": "@adyen/api-library",
+      "ecosystem": "npm",
+      "from": "13.1.2",
+      "to": "14.0.0",
+      "license": "MIT",
+      "mergedAt": "2023-08-16T14:22:51Z",
+      "files": [
+        "giftcard-example/index.js"
+      ]
+    },
+    {
+      "id": "adyen-examples/adyen-node-online-payments#175",
+      "repo": "adyen-examples/adyen-node-online-payments",
+      "pr": 175,
+      "base": "abdc535f357d616aa392a526bf1586c266039c49",
+      "head": "61823bed18b6496e555d9be59deaa44c9aa97044",
+      "package": "@adyen/api-library",
+      "ecosystem": "npm",
+      "from": "13.1.2",
+      "to": "14.0.0",
+      "license": "MIT",
+      "mergedAt": "2023-08-16T14:08:37Z",
+      "files": [
+        "checkout-example/index.js"
       ]
     },
     {
@@ -466,6 +578,81 @@
       "mergedAt": "2023-11-11T05:41:09Z",
       "files": [
         "ai/ai.py"
+      ]
+    },
+    {
+      "id": "angular/dev-infra#3359",
+      "repo": "angular/dev-infra",
+      "pr": 3359,
+      "base": "977bc9d747d9ddfe610fc96009212dd14c645ef6",
+      "head": "24b41bcf8b164e414617ea91e96488e36c3ac14c",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "",
+      "to": "7",
+      "license": "MIT",
+      "mergedAt": "2026-01-12T16:30:09Z",
+      "files": [
+        ".github/local-actions/branch-manager/main.js",
+        ".github/local-actions/labels-sync/main.js",
+        ".github/local-actions/lock-closed/main.js",
+        "github-actions/branch-manager/main.js",
+        "github-actions/feature-request/main.js",
+        "github-actions/google-internal-tests/main.js",
+        "github-actions/org-file-sync/main.js",
+        "github-actions/post-approval-changes/main.js",
+        "github-actions/pull-request-labeling/main.js",
+        "github-actions/unified-status-check/main.js"
+      ]
+    },
+    {
+      "id": "angular/dev-infra#3392",
+      "repo": "angular/dev-infra",
+      "pr": 3392,
+      "base": "8757d815eb39854621b7a42ed742fd34e1c448d9",
+      "head": "77a8a2a82ebb80efb28bbfba4a5f191490851bfc",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "",
+      "to": "8",
+      "license": "MIT",
+      "mergedAt": "2026-01-28T13:29:31Z",
+      "files": [
+        ".github/local-actions/branch-manager/main.js",
+        ".github/local-actions/labels-sync/main.js",
+        ".github/local-actions/lock-closed/main.js",
+        "github-actions/branch-manager/main.js",
+        "github-actions/feature-request/main.js",
+        "github-actions/google-internal-tests/main.js",
+        "github-actions/org-file-sync/main.js",
+        "github-actions/post-approval-changes/main.js",
+        "github-actions/pull-request-labeling/main.js",
+        "github-actions/unified-status-check/main.js"
+      ]
+    },
+    {
+      "id": "angular/dev-infra#3400",
+      "repo": "angular/dev-infra",
+      "pr": 3400,
+      "base": "33c0727f913a4a4e717127ca86ebcaecba76a4b6",
+      "head": "9c811a30355e2fee7261267fb7bc372b46ea16f9",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "",
+      "to": "9",
+      "license": "MIT",
+      "mergedAt": "2026-02-02T11:05:19Z",
+      "files": [
+        ".github/local-actions/branch-manager/main.js",
+        ".github/local-actions/labels-sync/main.js",
+        ".github/local-actions/lock-closed/main.js",
+        "github-actions/branch-manager/main.js",
+        "github-actions/feature-request/main.js",
+        "github-actions/google-internal-tests/main.js",
+        "github-actions/org-file-sync/main.js",
+        "github-actions/post-approval-changes/main.js",
+        "github-actions/pull-request-labeling/main.js",
+        "github-actions/unified-status-check/main.js"
       ]
     },
     {
@@ -854,6 +1041,38 @@
       ]
     },
     {
+      "id": "babbel/assign-to-repository-projects#217",
+      "repo": "babbel/assign-to-repository-projects",
+      "pr": 217,
+      "base": "6578aa17a1100e86efe9e68695f1233d0cf571ba",
+      "head": "f8976cf13717c45c403e7bf7b8ea2e212f6f3aac",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-02-18T11:27:47Z",
+      "files": [
+        "index.js"
+      ]
+    },
+    {
+      "id": "babbel/sync-repository-projects#208",
+      "repo": "babbel/sync-repository-projects",
+      "pr": 208,
+      "base": "9304ff7b6c36dd0061332dfcaed1f841061832af",
+      "head": "7317edc9aec9a9e0a6db70201d1537ad687dc29c",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-02-18T13:02:37Z",
+      "files": [
+        "index.js"
+      ]
+    },
+    {
       "id": "BakArchive/wordcraft#15",
       "repo": "BakArchive/wordcraft",
       "pr": 15,
@@ -1093,6 +1312,23 @@
       ]
     },
     {
+      "id": "canton-network/splice-shared-gha#29",
+      "repo": "canton-network/splice-shared-gha",
+      "pr": 29,
+      "base": "fdc1aa05cc23a6b4a1cb29d7dffe7eb9d4fd7ecc",
+      "head": "deb9194234d323214b01d6fe265119d8fae5535c",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "6.0.1",
+      "to": "9.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-04-17T13:09:06Z",
+      "files": [
+        "actions/backport_reminder/index.js",
+        "actions/parse_backport_comments/index.js"
+      ]
+    },
+    {
       "id": "cartography-cncf/cartography#980",
       "repo": "cartography-cncf/cartography",
       "pr": 980,
@@ -1299,6 +1535,26 @@
         "cmd/sync-secrets-action/github_repository.go",
         "cmd/sync-secrets-action/github_search.go",
         "cmd/sync-secrets-action/github_util.go"
+      ]
+    },
+    {
+      "id": "Cerlancism/chatgpt-subtitle-translator#7",
+      "repo": "Cerlancism/chatgpt-subtitle-translator",
+      "pr": 7,
+      "base": "7b92943341f06b7894ef245ec9702c055f2e12d9",
+      "head": "c6829f95ea86304e9ea8b299387b69674590c61a",
+      "package": "openai",
+      "ecosystem": "npm",
+      "from": "3.2.1",
+      "to": "4.3.0",
+      "license": "MIT",
+      "mergedAt": "2023-08-27T11:13:07Z",
+      "files": [
+        "src/axios.mjs",
+        "src/moderator.mjs",
+        "src/openai.mjs",
+        "src/subtitle.mjs",
+        "src/translator.mjs"
       ]
     },
     {
@@ -2412,6 +2668,57 @@
       ]
     },
     {
+      "id": "electron/build-tools#838",
+      "repo": "electron/build-tools",
+      "pr": 838,
+      "base": "ab003ca50bc70c89971d07a7eb68c03721e7509c",
+      "head": "1e66fcbbf15c4b979c20f0ac6065c704e7f452a3",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "18.5.2",
+      "to": "22.0.1",
+      "license": "MIT",
+      "mergedAt": "2026-04-07T17:58:18Z",
+      "files": [
+        "scripts/copy-assets.js",
+        "src/download.ts",
+        "src/e-auto-update.ts",
+        "src/e-backport.ts",
+        "src/e-build.ts",
+        "src/e-cherry-pick.ts",
+        "src/e-debug.ts",
+        "src/e-depot-tools.ts",
+        "src/e-gh-auth.ts",
+        "src/e-init.ts",
+        "src/e-open.ts",
+        "src/e-patches.ts",
+        "src/e-pr.ts",
+        "src/e-rcv.ts",
+        "src/e-show.ts",
+        "src/e-sync.ts",
+        "src/e-test.ts",
+        "src/e.ts",
+        "src/evm-config.ts",
+        "src/gen-schema.ts",
+        "src/utils/cookie-cdp-borrow.ts",
+        "src/utils/crbug.ts",
+        "src/utils/depot-tools.ts",
+        "src/utils/gerrit.ts",
+        "src/utils/git.ts",
+        "src/utils/github-auth.ts",
+        "src/utils/headers.ts",
+        "src/utils/maybe-auto-fix.ts",
+        "src/utils/paths.ts",
+        "src/utils/prereqs.ts",
+        "src/utils/reclient.ts",
+        "src/utils/refresh-path.ts",
+        "src/utils/sdk.ts",
+        "src/utils/setup-reclient-chromium.ts",
+        "src/utils/siso.ts",
+        "src/utils/which.ts"
+      ]
+    },
+    {
       "id": "elicify-ai/omnipus#7",
       "repo": "elicify-ai/omnipus",
       "pr": 7,
@@ -2425,6 +2732,38 @@
       "mergedAt": "2026-04-21T05:42:14Z",
       "files": [
         "pkg/channels/slack/slack.go"
+      ]
+    },
+    {
+      "id": "elisa-actions/jira-issue#119",
+      "repo": "elisa-actions/jira-issue",
+      "pr": 119,
+      "base": "4a4e5190f5aa3bbc28bc78d616d69899a008e2ce",
+      "head": "1bd9958f7d17de2ebf7f1f1b96a0880f4767163b",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "9.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-02-09T13:46:49Z",
+      "files": [
+        "__mocks__/jira-client.js",
+        "__mocks__/moment-timezone.js",
+        "commitlint.config.js",
+        "index.js",
+        "jest.config.js",
+        "src/action.js",
+        "src/config.js",
+        "src/create-issue.js",
+        "src/gh.js",
+        "src/jira.js",
+        "src/resolve-issue.js",
+        "tests/action.test.js",
+        "tests/config.test.js",
+        "tests/create-issue.test.js",
+        "tests/jira.test.js",
+        "tests/resolve-issue.test.js",
+        "tests/test-utils.js"
       ]
     },
     {
@@ -2665,6 +3004,22 @@
       ]
     },
     {
+      "id": "flow-typed/flow-typed#4197",
+      "repo": "flow-typed/flow-typed",
+      "pr": 4197,
+      "base": "b074eb3e38277274f9acff62c75821019c03ecc6",
+      "head": "026a4d687b6e961f9845b5f321b81420735fd7b1",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "16.43.1",
+      "to": "18.12.0",
+      "license": "MIT",
+      "mergedAt": "2021-12-18T21:21:09Z",
+      "files": [
+        "cli/flow-typed/npm/@octokit/rest_vx.x.x.js"
+      ]
+    },
+    {
       "id": "foks-proj/go-foks#29",
       "repo": "foks-proj/go-foks",
       "pr": 29,
@@ -2746,6 +3101,22 @@
       ]
     },
     {
+      "id": "freerangebytes/action-docs-generator#23",
+      "repo": "freerangebytes/action-docs-generator",
+      "pr": 23,
+      "base": "16ab7d4f534bb6171f36331b87e27ad5c6e2bbde",
+      "head": "5a2407979e5c40d4edc5773de9b770e152994532",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "6.0.1",
+      "to": "9.1.1",
+      "license": "MIT",
+      "mergedAt": "2026-07-01T07:29:36Z",
+      "files": [
+        "action/index.js"
+      ]
+    },
+    {
       "id": "gainy-app/gainy#669",
       "repo": "gainy-app/gainy",
       "pr": 669,
@@ -2780,6 +3151,56 @@
         "src/hasura/hasura_tests/trading/common.py",
         "src/hasura/hasura_tests/trading/test_common.py",
         "src/hasura/hasura_tests/trading/test_kyc.py"
+      ]
+    },
+    {
+      "id": "gardener/dashboard#1130",
+      "repo": "gardener/dashboard",
+      "pr": 1130,
+      "base": "f58dd91239cef4c7915111b50b7782fed8ea7022",
+      "head": "2c0cb3a60bb6508c81c578c0500e392a4b23019b",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "16.28.1",
+      "to": "18.12.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2021-11-05T14:40:04Z",
+      "files": [
+        ".pnp.js",
+        "backend/lib/github/octokit.js"
+      ]
+    },
+    {
+      "id": "gardener/dashboard#1131",
+      "repo": "gardener/dashboard",
+      "pr": 1131,
+      "base": "78e70cfada33a19e0013530e1c6344aa0bc1013a",
+      "head": "135fbe9a68ecafc8c234423dfff7c75d3ef4970a",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "16.28.1",
+      "to": "18.12.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2021-11-05T14:39:39Z",
+      "files": [
+        ".pnp.js",
+        "backend/lib/github/octokit.js"
+      ]
+    },
+    {
+      "id": "gazebo-tooling/pr-collection-labeler#41",
+      "repo": "gazebo-tooling/pr-collection-labeler",
+      "pr": 41,
+      "base": "9c1b71c952933faa61825df15063e781783edcad",
+      "head": "076896ad7cdf44d04a8565128f9929513984f84e",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "2.1.1",
+      "to": "6.0.0",
+      "license": "MIT",
+      "mergedAt": "2024-12-05T22:13:11Z",
+      "files": [
+        "index.js"
       ]
     },
     {
@@ -3006,6 +3427,22 @@
       "files": [
         "pkg/idp/provider/github/github.go",
         "pkg/idp/provider/github/manifest/flow.go"
+      ]
+    },
+    {
+      "id": "giantswarm/gapps-automation#345",
+      "repo": "giantswarm/gapps-automation",
+      "pr": 345,
+      "base": "01ad916776e9231c7dddc4ad741ac4a067727f6c",
+      "head": "c2152459e9fae7b777b15db5d97bcc18048acec4",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "",
+      "to": "9",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-01-29T16:51:17Z",
+      "files": [
+        ".github/actions/run-js-tests/index.mjs"
       ]
     },
     {
@@ -3695,6 +4132,22 @@
       ]
     },
     {
+      "id": "hakwerk/gha-git-repo-tags#100",
+      "repo": "hakwerk/gha-git-repo-tags",
+      "pr": 100,
+      "base": "746981aa8731f7ab049c75e0d91cc3d089e51cbf",
+      "head": "c1b250798aa384f948364f99e96434df443f3190",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-02-11T19:19:50Z",
+      "files": [
+        "src/main.js"
+      ]
+    },
+    {
       "id": "Hannah-Sten/TeXiFy-IDEA#3641",
       "repo": "Hannah-Sten/TeXiFy-IDEA",
       "pr": 3641,
@@ -3961,6 +4414,38 @@
       ]
     },
     {
+      "id": "IgorGanapolsky/ThumbGate#3280",
+      "repo": "IgorGanapolsky/ThumbGate",
+      "pr": 3280,
+      "base": "ee94d2cff8bc595a83baec1a925f099762a230bb",
+      "head": "ef85aa4969c5d17244891285c292477696729e13",
+      "package": "stripe",
+      "ecosystem": "npm",
+      "from": "20.4.1",
+      "to": "22.4.0",
+      "license": "MIT",
+      "mergedAt": "2026-08-10T22:44:36Z",
+      "files": [
+        "workers/src/billing.ts"
+      ]
+    },
+    {
+      "id": "IgorKowalczyk/tweet-ai#110",
+      "repo": "IgorKowalczyk/tweet-ai",
+      "pr": 110,
+      "base": "e7bfb677fb2bbe53fb5fcaf49059e6a8120e54b4",
+      "head": "05ff7b79c676695ef99a72c23d1368229312da0d",
+      "package": "openai",
+      "ecosystem": "npm",
+      "from": "",
+      "to": "4",
+      "license": "MIT",
+      "mergedAt": "2023-08-17T12:46:39Z",
+      "files": [
+        "index.js"
+      ]
+    },
+    {
       "id": "IINemo/lm-polygraph#240",
       "repo": "IINemo/lm-polygraph",
       "pr": 240,
@@ -4053,6 +4538,22 @@
         "isic/core/models/image.py",
         "isic/core/search.py",
         "isic/ingest/models/lesion.py"
+      ]
+    },
+    {
+      "id": "imjszhang/js-evolution-agent#102",
+      "repo": "imjszhang/js-evolution-agent",
+      "pr": 102,
+      "base": "35d78824a332ecec7e1d611a991bd7b321584122",
+      "head": "322c4894ae9e53c05c0de83e9c5c6490d6a20065",
+      "package": "openai",
+      "ecosystem": "npm",
+      "from": "4.73.0",
+      "to": "7.4.0",
+      "license": "MIT",
+      "mergedAt": "2026-08-15T08:52:17Z",
+      "files": [
+        "test/ai-tools-client.test.mjs"
       ]
     },
     {
@@ -4322,6 +4823,23 @@
       "files": [
         "packages/varmint/__tests__/agents.ts",
         "packages/varmint/__tests__/ferret.test.ts"
+      ]
+    },
+    {
+      "id": "joao-zanutto/get-selected#21",
+      "repo": "joao-zanutto/get-selected",
+      "pr": 21,
+      "base": "0c65549c9c7d85bc18ba18cf3bfdd13e052f64b4",
+      "head": "27b841d7e30d5a88877ed42e79c77482829ea6f3",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "6.0.0",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-04-04T15:57:27Z",
+      "files": [
+        "src/index.js",
+        "src/main.js"
       ]
     },
     {
@@ -4725,6 +5243,22 @@
       "mergedAt": "2024-07-06T23:55:40Z",
       "files": [
         "lib/fetch-ci-status.js"
+      ]
+    },
+    {
+      "id": "Kikobeats/tom#255",
+      "repo": "Kikobeats/tom",
+      "pr": 255,
+      "base": "1764e7f951d6ae7adc4c9400e1fadd61d19d5d06",
+      "head": "6c454a19c06221ef60298c53fe6e431882af0205",
+      "package": "stripe",
+      "ecosystem": "npm",
+      "from": "12",
+      "to": "13",
+      "license": "MIT",
+      "mergedAt": "2023-08-19T13:12:20Z",
+      "files": [
+        "test/commands/payment/update.js"
       ]
     },
     {
@@ -5719,6 +6253,45 @@
       ]
     },
     {
+      "id": "measurement-factory/anubis#73",
+      "repo": "measurement-factory/anubis",
+      "pr": 73,
+      "base": "3ea99514d0d0b8236500b1ef9c9a6ac9dac7233a",
+      "head": "429c4eac74896a43ef771cdbc10fcdca2c2df9a6",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "18.12.0",
+      "to": "21.1.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2025-05-22T18:08:53Z",
+      "files": [
+        "src/Config.js",
+        "src/GitHubUtil.js",
+        "src/Logger.js",
+        "src/Main.js",
+        "src/MergeContext.js",
+        "src/PrMerger.js",
+        "src/RepoMerger.js",
+        "src/Util.js"
+      ]
+    },
+    {
+      "id": "meilisearch/mini-dashboard#553",
+      "repo": "meilisearch/mini-dashboard",
+      "pr": 553,
+      "base": "ce5e4f3ca57b9a844af206083c1bee1865c274d1",
+      "head": "cf26aa06935e4567fec626647e9117eae442f0d2",
+      "package": "meilisearch",
+      "ecosystem": "npm",
+      "from": "0.38.0",
+      "to": "0.44.1",
+      "license": "MIT",
+      "mergedAt": "2024-10-15T14:24:34Z",
+      "files": [
+        "src/utils/hasAnApiKeySet.js"
+      ]
+    },
+    {
       "id": "microsoft/deep-language-networks#51",
       "repo": "microsoft/deep-language-networks",
       "pr": 51,
@@ -6598,6 +7171,23 @@
       ]
     },
     {
+      "id": "pinojs/pino-elasticsearch#158",
+      "repo": "pinojs/pino-elasticsearch",
+      "pr": 158,
+      "base": "6deb633905a863bcb3d1d71926dea35511ca29ac",
+      "head": "236575413922a5af23602a3de73a3d43f65911c8",
+      "package": "@elastic/elasticsearch",
+      "ecosystem": "npm",
+      "from": "7.7.1",
+      "to": "8.2.1",
+      "license": "MIT",
+      "mergedAt": "2022-08-21T19:29:08Z",
+      "files": [
+        "lib.js",
+        "test/acceptance.test.js"
+      ]
+    },
+    {
       "id": "Pocket/pocket-monorepo#299",
       "repo": "Pocket/pocket-monorepo",
       "pr": 299,
@@ -7199,6 +7789,86 @@
       ]
     },
     {
+      "id": "remal-github-actions/bump-repository-activity#2784",
+      "repo": "remal-github-actions/bump-repository-activity",
+      "pr": 2784,
+      "base": "0f51d8b2eddabc97a02c61d5d05c236f7cbae07b",
+      "head": "70800bc056ee7f068840c1da2709148b54219d9e",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "",
+      "to": "9",
+      "license": "MIT",
+      "mergedAt": "2026-07-10T21:39:53Z",
+      "files": [
+        "src/internal/octokit.ts"
+      ]
+    },
+    {
+      "id": "remal-github-actions/cancel-pr-actions#2537",
+      "repo": "remal-github-actions/cancel-pr-actions",
+      "pr": 2537,
+      "base": "e019ac86f6e19faf77be9da14376cc53f50ee3d9",
+      "head": "0411129df6b1e52d2e3dd544fab1fadb59c88a8a",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "",
+      "to": "9",
+      "license": "MIT",
+      "mergedAt": "2026-07-10T21:40:19Z",
+      "files": [
+        "src/internal/octokit.ts"
+      ]
+    },
+    {
+      "id": "remal-github-actions/get-rate-limits#2868",
+      "repo": "remal-github-actions/get-rate-limits",
+      "pr": 2868,
+      "base": "bc671eb1a7c547f6e9e3d5d88879d335a7f224a2",
+      "head": "054c186193d4819d186fbed782af90cd63fbea03",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "",
+      "to": "9",
+      "license": "MIT",
+      "mergedAt": "2026-07-10T21:40:32Z",
+      "files": [
+        "src/internal/octokit.ts"
+      ]
+    },
+    {
+      "id": "remal-github-actions/rebase-dependabot-pull-requests#2060",
+      "repo": "remal-github-actions/rebase-dependabot-pull-requests",
+      "pr": 2060,
+      "base": "8ab8793e7c95e1fcf376d92edfd975783a1db263",
+      "head": "9e12e367e7487ac0bf98df9ee1783c54ff5739c7",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "",
+      "to": "9",
+      "license": "MIT",
+      "mergedAt": "2026-07-10T21:41:27Z",
+      "files": [
+        "src/internal/octokit.ts"
+      ]
+    },
+    {
+      "id": "remal-github-actions/template-typescript#3080",
+      "repo": "remal-github-actions/template-typescript",
+      "pr": 3080,
+      "base": "b7170ab149967d67a0f205c05167e02dd42f2fa3",
+      "head": "dafcccbd80bf8df918882b5840e9fa94de9263ae",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "",
+      "to": "9",
+      "license": "MIT",
+      "mergedAt": "2026-07-10T21:31:52Z",
+      "files": [
+        "src/internal/octokit.ts"
+      ]
+    },
+    {
       "id": "remal/github-repository-token-issuer#132",
       "repo": "remal/github-repository-token-issuer",
       "pr": 132,
@@ -7316,6 +7986,25 @@
       "files": [
         "function/github.go",
         "function/github_test.go"
+      ]
+    },
+    {
+      "id": "revdancatt/basic-kitty-journaling#1",
+      "repo": "revdancatt/basic-kitty-journaling",
+      "pr": 1,
+      "base": "1540e68ad80fc3c8d43ec37b6ff52351681d34de",
+      "head": "d205e6d694ffd84af1d7949911fc58bc84b703dc",
+      "package": "openai",
+      "ecosystem": "npm",
+      "from": "3.2.1",
+      "to": "4.62.1",
+      "license": "MIT",
+      "mergedAt": "2024-09-23T07:19:02Z",
+      "files": [
+        "gmTweet.js",
+        "index.js",
+        "suggestion.js",
+        "summary7.js"
       ]
     },
     {
@@ -7548,6 +8237,25 @@
       "mergedAt": "2025-01-21T17:07:51Z",
       "files": [
         "setup.py"
+      ]
+    },
+    {
+      "id": "sanidhyy/3d-website#31",
+      "repo": "sanidhyy/3d-website",
+      "pr": 31,
+      "base": "da4e2e95627058b03ec715607a5e891af35b8f6b",
+      "head": "3543868f4db8bae2b42ee43ee7572f8d8fa0f204",
+      "package": "openai",
+      "ecosystem": "npm",
+      "from": "3.2.1",
+      "to": "6.21.0",
+      "license": "MIT",
+      "mergedAt": "2026-02-12T09:24:32Z",
+      "files": [
+        "client/src/App.jsx",
+        "client/src/canvas/index.jsx",
+        "client/src/main.jsx",
+        "server/routes/dalle.routes.js"
       ]
     },
     {
@@ -7821,6 +8529,45 @@
         "src/helm/proxy/clients/moderation_api_client.py",
         "src/helm/proxy/clients/openai_client.py",
         "src/helm/proxy/services/server_service.py"
+      ]
+    },
+    {
+      "id": "streetsidesoftware/cspell-action#1404",
+      "repo": "streetsidesoftware/cspell-action",
+      "pr": 1404,
+      "base": "326c0817fdee8962d81b1f7894e5b0f86a4a9051",
+      "head": "f627084160c1822ceff97bd81c9b59e013a6f88f",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "19.0.13",
+      "to": "20.0.2",
+      "license": "MIT",
+      "mergedAt": "2023-10-17T13:21:33Z",
+      "files": [
+        "action-src/src/action.ts",
+        "action-src/src/getActionParams.ts",
+        "action-src/src/github.ts",
+        "action-src/src/main.test.ts",
+        "action-src/src/main.ts",
+        "action-src/src/reporter.ts",
+        "action-src/src/spell.ts",
+        "action/lib/main_root.js"
+      ]
+    },
+    {
+      "id": "streetsidesoftware/cspell-action#2573",
+      "repo": "streetsidesoftware/cspell-action",
+      "pr": 2573,
+      "base": "0d9fe36eb65d3935077f62121271379c328ec6ea",
+      "head": "9670b7716b39651cd8cb8bac6391708f8cc31344",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "6.0.1",
+      "to": "7.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-01-22T08:21:13Z",
+      "files": [
+        "action/lib/main_root.cjs"
       ]
     },
     {
@@ -9392,6 +10139,55 @@
       ]
     },
     {
+      "id": "tanaabased/prepare-release-action#16",
+      "repo": "tanaabased/prepare-release-action",
+      "pr": 16,
+      "base": "9c0da8cb5457a3b9c56b173389ceba37785d5880",
+      "head": "1e9fc640682001a29e6ee7562417591c6cc6b177",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "6.0.1",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-04-10T20:53:25Z",
+      "files": [
+        "utils/create-verified-sync-commit.js"
+      ]
+    },
+    {
+      "id": "taskcluster/taskcluster#8365",
+      "repo": "taskcluster/taskcluster",
+      "pr": 8365,
+      "base": "a4e37a33d1760be820977f3b7f3d0328e822557c",
+      "head": "760f7941083a9705434e71240feb2fb012904006",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "18.0.0",
+      "to": "21.0.0",
+      "license": "MPL-2.0",
+      "mergedAt": "2026-03-13T13:45:44Z",
+      "files": [
+        "services/github/src/github-auth.js"
+      ]
+    },
+    {
+      "id": "Tech-Haven/rupert#5",
+      "repo": "Tech-Haven/rupert",
+      "pr": 5,
+      "base": "71e3253a0d02cb3c2b48fe25b5f3d318176ea37b",
+      "head": "81a3e16d6f2a347495c9a2b43b8d20885c741811",
+      "package": "openai",
+      "ecosystem": "npm",
+      "from": "3.3.0",
+      "to": "4.26.1",
+      "license": "MIT",
+      "mergedAt": "2024-02-06T21:05:32Z",
+      "files": [
+        "commands/dalle.js",
+        "commands/gpt.js"
+      ]
+    },
+    {
       "id": "teemow/patty#30",
       "repo": "teemow/patty",
       "pr": 30,
@@ -9405,6 +10201,55 @@
       "mergedAt": "2026-09-15T10:01:04Z",
       "files": [
         "internal/github/client.go"
+      ]
+    },
+    {
+      "id": "terraform-linters/setup-tflint#184",
+      "repo": "terraform-linters/setup-tflint",
+      "pr": 184,
+      "base": "6314b8fb4b6a705077356103cfbe98081d90243a",
+      "head": "33645ebcf9a6a6e1468791012a448dedf1e0992c",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "19.0.13",
+      "to": "20.0.1",
+      "license": "MIT",
+      "mergedAt": "2023-08-03T00:15:19Z",
+      "files": [
+        "src/setup-tflint.js"
+      ]
+    },
+    {
+      "id": "terraform-linters/tflint-load-config-action#124",
+      "repo": "terraform-linters/tflint-load-config-action",
+      "pr": 124,
+      "base": "352a70471d015db6cca011bba61253660e995e4d",
+      "head": "aaaadf00f4d88b7fac5e29ef81510be13e1df5ad",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "19.0.13",
+      "to": "20.0.1",
+      "license": "MPL-2.0",
+      "mergedAt": "2023-08-02T23:49:52Z",
+      "files": [
+        "src/copy.ts"
+      ]
+    },
+    {
+      "id": "terraform-linters/tflint-load-config-action#202",
+      "repo": "terraform-linters/tflint-load-config-action",
+      "pr": 202,
+      "base": "6e151959c5e38239d33612d5f4c46c39bc563800",
+      "head": "9681d124d6eb2ed08bf248d858e69cb384f7921b",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "20.1.1",
+      "to": "21.1.1",
+      "license": "MPL-2.0",
+      "mergedAt": "2026-03-14T01:43:01Z",
+      "files": [
+        "__tests__/copy.test.ts",
+        "jest.config.js"
       ]
     },
     {
@@ -9657,6 +10502,24 @@
       ]
     },
     {
+      "id": "travi/github-scaffolder#883",
+      "repo": "travi/github-scaffolder",
+      "pr": 883,
+      "base": "38355e7ad2b2dd1c8baefdbfd82ad3f0c994f959",
+      "head": "a5f057eca95253392bd538d0ae3326bbc4280dd5",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "",
+      "to": "20",
+      "license": "MIT",
+      "mergedAt": "2024-01-19T23:30:28Z",
+      "files": [
+        "cucumber.js",
+        "test/integration/features/step_definitions/common-steps.js",
+        "test/integration/features/step_definitions/github-steps.js"
+      ]
+    },
+    {
       "id": "truvity/github-roster#72",
       "repo": "truvity/github-roster",
       "pr": 72,
@@ -9671,6 +10534,28 @@
       "files": [
         "pkg/orgstate/orgstate.go",
         "pkg/reconciler/github.go"
+      ]
+    },
+    {
+      "id": "TryGhost/Actions#63",
+      "repo": "TryGhost/Actions",
+      "pr": 63,
+      "base": "c567a1c76e8fb6e9319dffad82d6ffa7132d3bb0",
+      "head": "33e90146b04dabfbd89cd7a4110ea3df5b435966",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "",
+      "to": "9",
+      "license": "MIT",
+      "mergedAt": "2026-03-17T19:54:15Z",
+      "files": [
+        "actions/ghost-release/index.js",
+        "actions/label-actions/scripts/label-existing-prs.js",
+        "actions/label-actions/src/actions-github.js",
+        "actions/label-actions/src/helpers.js",
+        "actions/label-actions/src/index.js",
+        "actions/label-actions/test/helpers.test.js",
+        "actions/label-actions/test/pr-labeling.test.js"
       ]
     },
     {
@@ -9749,6 +10634,22 @@
         "tests/moru/test_moru.py",
         "tests/moru/test_scorer.py",
         "tests/utils/test_load_dataset.py"
+      ]
+    },
+    {
+      "id": "United-for-Accountability/mass-tort-platform#47",
+      "repo": "United-for-Accountability/mass-tort-platform",
+      "pr": 47,
+      "base": "2295beb7e06c346086e7a2c4b19249ea0d032b4f",
+      "head": "ea03c84a66acfec6ca30f603741736bd9572f69b",
+      "package": "openai",
+      "ecosystem": "npm",
+      "from": "4.104.0",
+      "to": "7.4.0",
+      "license": "MIT",
+      "mergedAt": "2026-08-04T18:50:10Z",
+      "files": [
+        "postcss.config.js"
       ]
     },
     {
@@ -9880,6 +10781,25 @@
         "github/user/fs.go",
         "github/user/fs_test.go",
         "github/user/user_suite_test.go"
+      ]
+    },
+    {
+      "id": "vercel/next.js#41550",
+      "repo": "vercel/next.js",
+      "pr": 41550,
+      "base": "2d1f72995bd4632a3bc452799cff7b73cd541fe7",
+      "head": "909355009edbb0e8ba12310ac4507a66fae9551a",
+      "package": "stripe",
+      "ecosystem": "npm",
+      "from": "8.200.0",
+      "to": "10.14.0",
+      "license": "MIT",
+      "mergedAt": "2022-10-19T09:22:51Z",
+      "files": [
+        "examples/with-stripe-typescript/components/Cart.tsx",
+        "examples/with-stripe-typescript/components/CartSummary.tsx",
+        "examples/with-stripe-typescript/components/ClearCart.tsx",
+        "examples/with-stripe-typescript/components/Products.tsx"
       ]
     },
     {
@@ -10653,6 +11573,23 @@
         "pkg/github/handlers_test.go",
         "pkg/github/mocks_test.go",
         "pkg/github/validator.go"
+      ]
+    },
+    {
+      "id": "zgosalvez/github-actions-report-lcov#369",
+      "repo": "zgosalvez/github-actions-report-lcov",
+      "pr": 369,
+      "base": "05501c8f53b817a1c83e0e3380f853d2fbaeb21f",
+      "head": "748ee54b375d20ba75a7a7441d3b3d17c7260767",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "6.0.1",
+      "to": "7.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-02-14T06:04:02Z",
+      "files": [
+        "src/main.js",
+        "src/post.js"
       ]
     }
   ]

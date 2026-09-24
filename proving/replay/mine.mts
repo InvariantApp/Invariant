@@ -82,6 +82,14 @@ const TARGETS: Target[] = [
         "update stripe",
         "stripe sdk",
       ],
+      // The same people's pull requests in JavaScript and TypeScript.
+      npm: [
+        "stripe basil",
+        "stripe clover",
+        "stripe acacia",
+        "stripe api version",
+        "upgrade stripe",
+      ],
     },
   },
   {
@@ -117,7 +125,10 @@ const TARGETS: Target[] = [
     package: "@octokit/rest",
     ecosystems: ["npm"],
     titles: ["Bump @octokit/rest from", "update dependency @octokit/rest to"],
+    searches: { npm: ["upgrade octokit", "octokit v20", "octokit v21"] },
   },
+  // GitHub's API through Actions' own client, which wraps Octokit.
+  sdk("@actions/github", "npm"),
   {
     package: "github.com/google/go-github",
     ecosystems: ["go"],
@@ -132,7 +143,10 @@ const TARGETS: Target[] = [
     package: "openai",
     ecosystems: ["npm", "pypi"],
     titles: ["Bump openai from", "update dependency openai to"],
-    searches: { pypi: ["upgrade openai", "migrate openai", "openai v1", "openai sdk"] },
+    searches: {
+      pypi: ["upgrade openai", "migrate openai", "openai v1", "openai sdk"],
+      npm: ["openai v4", "upgrade openai", "migrate openai"],
+    },
   },
   {
     package: "@slack/web-api",
