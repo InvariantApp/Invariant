@@ -90,6 +90,7 @@ import {
 import { replayGo } from "./go.mts";
 import type { ReplayCase, ReplayIndex } from "./mine.mts";
 import {
+  importersPython,
   importingPython,
   PYTHON_PINS,
   pinnedPython,
@@ -1223,6 +1224,7 @@ async function replayPython(
     package: entry.package,
     upgradeTo: { package: entry.package, version: next.version, types },
     types,
+    ...(contract?.wire ? { wire: contract.wire } : {}),
     ...(contract
       ? {
           tags: withLabel(
@@ -1235,7 +1237,21 @@ async function replayPython(
     accessors: [],
     ...(pin ? { pin } : {}),
   };
-  const sources = importingPython(repo, readable, topLevelModules(old.site));
+  const direct = importingPython(repo, readable, topLevelModules(old.site));
+  // The names of the fields the upgrade took away, for the files that read
+  // them from what the consumer's own SDK code hands them.
+  const gone = [
+    ...new Set(
+      changes.flatMap((change) =>
+        change.ops.flatMap((op) =>
+          op.op === "remove" || op.op === "move"
+            ? [(op.op === "move" ? op.from : op.path).split("/").at(-1) ?? ""]
+            : [],
+        ),
+      ),
+    ),
+  ].filter((name) => /^[a-z]\w{3,}$/.test(name));
+  const sources = [...direct, ...importersPython(repo, readable, direct, gone)];
   const result = await migratePython({
     repoDir: repo,
     sources,

@@ -21,7 +21,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type OpenApiDocument, readDocument } from "@invariant-app/contract";
 import type { Change } from "@invariant-app/ir";
-import type { WireTags } from "@invariant-app/migrate-core";
+import type { WireOperation, WireTags } from "@invariant-app/migrate-core";
 import type { GoSymbol, SurfaceObject } from "@invariant-app/migrate-go";
 import { type Decision, propose, RulesJudge } from "@invariant-app/proposer";
 import { ROOT } from "../corpus/manifest.mts";
@@ -146,6 +146,8 @@ function operationsOf(
 
 export interface ContractPlan {
   changes: Change[];
+  /** The API as a plain HTTP client reaches it, from the old specification. */
+  wire?: { servers: string[]; operations: WireOperation[] };
   /**
    * How Stripe's objects name their schema, `"object": "invoice"`, read from
    * both specifications, and the API version the upgraded SDK speaks.
@@ -247,6 +249,42 @@ export function wireTags(before: OpenApiDocument, after: OpenApiDocument): WireT
     ...(from && label && schemas["event"]
       ? { version: { schema: "event", property: "api_version", from, label } }
       : {}),
+  };
+}
+
+/**
+ * Each operation of a specification as a URL reaches it, with the schema its
+ * success response is, where it names one.
+ */
+export function wireOf(document: OpenApiDocument): {
+  servers: string[];
+  operations: WireOperation[];
+} {
+  const spec = document as {
+    servers?: { url?: string }[];
+    paths?: Record<string, Record<string, unknown>>;
+  };
+  const operations: WireOperation[] = [];
+  for (const [path, item] of Object.entries(spec.paths ?? {})) {
+    for (const [method, value] of Object.entries(item ?? {})) {
+      const operation = value as {
+        operationId?: string;
+        responses?: Record<string, { content?: Record<string, { schema?: unknown }> }>;
+      };
+      if (!operation?.operationId) continue;
+      const success = operation.responses?.["200"] ?? operation.responses?.["201"];
+      const response = refOf(success?.content?.["application/json"]?.schema);
+      operations.push({
+        id: operation.operationId,
+        method: method.toLowerCase(),
+        path,
+        ...(response ? { response } : {}),
+      });
+    }
+  }
+  return {
+    servers: (spec.servers ?? []).flatMap((server) => (server.url ? [server.url] : [])),
+    operations,
   };
 }
 
@@ -430,6 +468,7 @@ export async function stripePlan(
       changes,
       tags,
       types,
+      wire: wireOf(before),
       // Retired operations are found through stripe-node's resource files;
       // stripe-python's are not read yet, and nothing is reported for them.
       operations: {},

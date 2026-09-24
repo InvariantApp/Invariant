@@ -39,9 +39,10 @@ interface Target {
   titles: string[];
   /**
    * Words a person's own migration pull request has in its title, per
-   * ecosystem: "read Stripe fields that basil relocated". Such a pull request
-   * names no versions, so what it upgraded is read from its manifests' diff,
-   * and it is kept only where that crosses a major version.
+   * ecosystem: "read Stripe fields that basil relocated", or in its
+   * description, where the words end `in:body`. Such a pull request names no
+   * versions, so what it upgraded is read from its manifests' diff, and it is
+   * kept only where that crosses a major version.
    */
   searches?: Partial<Record<Ecosystem, string[]>>;
 }
@@ -81,6 +82,26 @@ const TARGETS: Target[] = [
         "upgrade stripe",
         "update stripe",
         "stripe sdk",
+        // People name the release they move to, or the field it moved:
+        // "billing: fall back to item current_period_end (v15 API)".
+        "current_period_end",
+        "stripe items period",
+        "stripe python",
+        "bump stripe",
+        "stripe v12",
+        "stripe 12",
+        "stripe 13",
+        "stripe 14",
+        "stripe v15",
+        "stripe 15",
+        // What a pull request says it did, where its title does not: the
+        // API version it moved to, or the field that moved with it.
+        "stripe basil in:body",
+        "stripe acacia in:body",
+        "stripe clover in:body",
+        "stripe dahlia in:body",
+        "stripe 2025-03-31 in:body",
+        "current_period_end in:body",
       ],
       // The same people's pull requests in JavaScript and TypeScript.
       npm: [
@@ -108,6 +129,7 @@ const TARGETS: Target[] = [
     package: "twilio",
     ecosystems: ["npm", "pypi"],
     titles: ["Bump twilio from", "update dependency twilio to"],
+    searches: { pypi: ["upgrade twilio", "update twilio", "bump twilio", "twilio sdk"] },
   },
   {
     package: "plaid",
@@ -590,7 +612,7 @@ async function mine(): Promise<void> {
       ) =>
         github<{ total_count: number; items: SearchItem[] }>(
           `/search/issues?per_page=100&page=${page}&q=${encodeURIComponent(
-            `${phrase.human ? phrase.text : `"${phrase.text}"`} in:title is:pr is:merged created:${window.from}..${window.to}${language ? ` language:${language}` : ""}`,
+            `${phrase.human ? phrase.text : `"${phrase.text}"`}${/\bin:/.test(phrase.text) ? "" : " in:title"} is:pr is:merged created:${window.from}..${window.to}${language ? ` language:${language}` : ""}`,
           )}`,
         );
       const monthly = months(monthCount);

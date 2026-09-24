@@ -6690,6 +6690,22 @@
       ]
     },
     {
+      "id": "mblayman/homeschool#1380",
+      "repo": "mblayman/homeschool",
+      "pr": 1380,
+      "base": "0f293b16e41b2d8a50ce2fff9497abcd02ae6244",
+      "head": "7c21218a505a6fda47f8ec54a757df8cb0604a80",
+      "package": "stripe",
+      "ecosystem": "pypi",
+      "from": "4.2.0",
+      "to": "11.6.0",
+      "license": "MIT",
+      "mergedAt": "2026-05-17T01:18:50Z",
+      "files": [
+        "homeschool/accounts/models.py"
+      ]
+    },
+    {
       "id": "mdn/yari#9888",
       "repo": "mdn/yari",
       "pr": 9888,
@@ -8208,6 +8224,64 @@
       ]
     },
     {
+      "id": "rapid7/insightconnect-plugins#3033",
+      "repo": "rapid7/insightconnect-plugins",
+      "pr": 3033,
+      "base": "63ba10a9ec3ccfc0efd018710c7b176340c809b2",
+      "head": "acf6146602c1b516fc150638f49dcf044f53841e",
+      "package": "twilio",
+      "ecosystem": "pypi",
+      "from": "6.19.1",
+      "to": "9.4.2",
+      "license": "MIT",
+      "mergedAt": "2025-01-13T12:27:01Z",
+      "files": [
+        "plugins/twilio/komand_twilio/actions/__init__.py",
+        "plugins/twilio/komand_twilio/actions/send_sms/__init__.py",
+        "plugins/twilio/komand_twilio/actions/send_sms/action.py",
+        "plugins/twilio/komand_twilio/actions/send_sms/schema.py",
+        "plugins/twilio/komand_twilio/connection/__init__.py",
+        "plugins/twilio/komand_twilio/connection/connection.py",
+        "plugins/twilio/komand_twilio/connection/schema.py",
+        "plugins/twilio/komand_twilio/tasks/__init__.py",
+        "plugins/twilio/komand_twilio/triggers/__init__.py",
+        "plugins/twilio/komand_twilio/util/utils.py",
+        "plugins/twilio/setup.py",
+        "plugins/twilio/unit_test/__init__.py",
+        "plugins/twilio/unit_test/test_send_sms.py",
+        "plugins/twilio/unit_test/utils.py"
+      ]
+    },
+    {
+      "id": "rapid7/insightconnect-plugins#3042",
+      "repo": "rapid7/insightconnect-plugins",
+      "pr": 3042,
+      "base": "0cc667b4ce717dc5c31b2483db4fb2a33bf297d8",
+      "head": "66f85023bc2ed470d9bc812040a4c8e2ca4dff5d",
+      "package": "twilio",
+      "ecosystem": "pypi",
+      "from": "6.19.1",
+      "to": "9.4.2",
+      "license": "MIT",
+      "mergedAt": "2025-01-14T13:12:02Z",
+      "files": [
+        "plugins/twilio/komand_twilio/actions/__init__.py",
+        "plugins/twilio/komand_twilio/actions/send_sms/__init__.py",
+        "plugins/twilio/komand_twilio/actions/send_sms/action.py",
+        "plugins/twilio/komand_twilio/actions/send_sms/schema.py",
+        "plugins/twilio/komand_twilio/connection/__init__.py",
+        "plugins/twilio/komand_twilio/connection/connection.py",
+        "plugins/twilio/komand_twilio/connection/schema.py",
+        "plugins/twilio/komand_twilio/tasks/__init__.py",
+        "plugins/twilio/komand_twilio/triggers/__init__.py",
+        "plugins/twilio/komand_twilio/util/utils.py",
+        "plugins/twilio/setup.py",
+        "plugins/twilio/unit_test/__init__.py",
+        "plugins/twilio/unit_test/test_send_sms.py",
+        "plugins/twilio/unit_test/utils.py"
+      ]
+    },
+    {
       "id": "raystack/frontier#698",
       "repo": "raystack/frontier",
       "pr": 698,
@@ -9078,6 +9152,22 @@
       "mergedAt": "2026-06-22T23:32:23Z",
       "files": [
         "src/auth.ts"
+      ]
+    },
+    {
+      "id": "signalwire/signalwire-python-old#110",
+      "repo": "signalwire/signalwire-python-old",
+      "pr": 110,
+      "base": "bf1006c34138aecb24e9b47b8dc5708ad0e923ff",
+      "head": "770f5333234c261920dd8106f825d1e16ae51f72",
+      "package": "twilio",
+      "ecosystem": "pypi",
+      "from": "6.54.0",
+      "to": "7.0.0",
+      "license": "MIT",
+      "mergedAt": "2025-04-02T12:50:32Z",
+      "files": [
+        "setup.py"
       ]
     },
     {
@@ -11053,6 +11143,29 @@
         "tests/test_github.py",
         "tests/test_utils.py",
         "tests/utils.py"
+      ]
+    },
+    {
+      "id": "TheoGoudout/greensecops#325",
+      "repo": "TheoGoudout/greensecops",
+      "pr": 325,
+      "base": "51067114405cbd7a91337c3d80811fe9e14bee06",
+      "head": "2b2d07e6eb8b2b2fc319b8c2a5f2a66e56563d8a",
+      "package": "stripe",
+      "ecosystem": "pypi",
+      "from": "10.0.0",
+      "to": "15.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-09-05T12:31:53Z",
+      "files": [
+        "backend/app/api/routes/billing.py",
+        "backend/app/core/config.py",
+        "backend/app/models/__init__.py",
+        "backend/app/models/schemas/__init__.py",
+        "backend/app/models/schemas/billing.py",
+        "backend/app/services/billing/stripe_gateway.py",
+        "backend/tests/api/routes/test_billing.py",
+        "backend/tests/services/billing/test_stripe_gateway.py"
       ]
     },
     {
