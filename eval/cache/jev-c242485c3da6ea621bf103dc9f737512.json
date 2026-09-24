@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": "upstream_timeout",
+    "confidence": 1,
+    "scores": {
+      "upstream_timeout": 1,
+      "idle_timeout": 0.01,
+      "connect_timeout": 0.12
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 127.08034099999713,
+  "inputTokens": 1654,
+  "costUsd": 0.000069468
+}

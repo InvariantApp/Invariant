@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "temperature_c",
+    "confidence": 0.9,
+    "scores": {
+      "temperature_c": 0.945,
+      "ambient_c": 0.065
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 125.61708200000021,
+  "inputTokens": 1308,
+  "costUsd": 0.000054936
+}

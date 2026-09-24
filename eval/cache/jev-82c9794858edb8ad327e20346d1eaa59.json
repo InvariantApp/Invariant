@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "limit_per_second",
+    "confidence": 0.46,
+    "scores": {
+      "limit_per_second": 0.565,
+      "burst_limit": 0.03
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 194.82992400000012,
+  "inputTokens": 1313,
+  "costUsd": 0.000055146000000000004
+}

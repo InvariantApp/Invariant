@@ -59,6 +59,8 @@ export interface RunResult {
   missing: string[];
   fromCache: number;
   recorded: number;
+  /** The recorded answers this run is keyed on, whether or not they exist yet. */
+  files: string[];
 }
 
 export async function runJudge(
@@ -136,5 +138,6 @@ export async function runJudge(
     missing,
     fromCache: cases.length - recorded - missing.length,
     recorded,
+    files: paths,
   };
 }

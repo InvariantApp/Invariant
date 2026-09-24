@@ -1,0 +1,18 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.88,
+    "scores": {
+      "spec.listeners": 0.02,
+      "spec.listeners.*.portMapping": 0.005,
+      "spec.listeners.*.portMapping.port": 0.005,
+      "spec.listeners.*.portMapping.protocol": 0.005
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 138.63806900000054,
+  "inputTokens": 2025,
+  "costUsd": 0.00008505000000000001
+}

@@ -1,0 +1,25 @@
+{
+  "answer": {
+    "successor": "KeyConditionExpression",
+    "confidence": 0.86,
+    "scores": {
+      "IndexName": 0.03,
+      "Select": 0.04,
+      "KeyConditions": 0.835,
+      "QueryFilter": 0.14,
+      "ConditionalOperator": 0.095,
+      "ReturnConsumedCapacity": 0.005,
+      "ProjectionExpression": 0.02,
+      "FilterExpression": 0.09,
+      "KeyConditionExpression": 0.885,
+      "ExpressionAttributeNames": 0.155,
+      "ExpressionAttributeValues": 0.385
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 175.30692799999997,
+  "inputTokens": 7737,
+  "costUsd": 0.000324954
+}

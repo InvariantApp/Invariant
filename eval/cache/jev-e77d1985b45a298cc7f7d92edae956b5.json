@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "authorizations_url_template",
+    "confidence": 0.29,
+    "scores": {
+      "authorizations_url_template": 0.87,
+      "user_url": 0.005
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 127.55841599999985,
+  "inputTokens": 1334,
+  "costUsd": 0.000056028
+}

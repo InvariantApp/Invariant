@@ -1,0 +1,20 @@
+{
+  "answer": {
+    "successor": "ContainerSpec.Healthcheck",
+    "confidence": 1,
+    "scores": {
+      "ContainerSpec.Healthcheck": 0.8388888888888889,
+      "ContainerSpec.Healthcheck.Test": 0.25161290322580643,
+      "ContainerSpec.Healthcheck.Interval": 0.22285714285714286,
+      "ContainerSpec.Healthcheck.Timeout": 0.22941176470588232,
+      "ContainerSpec.Healthcheck.Retries": 0.22941176470588232,
+      "ContainerSpec.Healthcheck.StartPeriod": 0,
+      "ContainerSpec.Healthcheck.StartInterval": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.07424700000001394,
+  "inputTokens": 0,
+  "costUsd": 0
+}

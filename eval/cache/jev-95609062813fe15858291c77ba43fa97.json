@@ -1,0 +1,28 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.89,
+    "scores": {
+      "company.administrative_address": 0.03,
+      "company.principal_place_of_business": 0.055,
+      "company.administrative_address.city": 0.015,
+      "company.administrative_address.country": 0.025,
+      "company.administrative_address.line1": 0.02,
+      "company.administrative_address.line2": 0.015,
+      "company.administrative_address.postal_code": 0.02,
+      "company.administrative_address.state": 0.03,
+      "company.principal_place_of_business.city": 0.03,
+      "company.principal_place_of_business.country": 0.04,
+      "company.principal_place_of_business.line1": 0.02,
+      "company.principal_place_of_business.line2": 0.01,
+      "company.principal_place_of_business.postal_code": 0.02,
+      "company.principal_place_of_business.state": 0.025
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 159.77375100000063,
+  "inputTokens": 5089,
+  "costUsd": 0.000213738
+}

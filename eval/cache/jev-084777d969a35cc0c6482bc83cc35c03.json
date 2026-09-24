@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": "host_id",
+    "confidence": 1,
+    "scores": {
+      "host_id": 1,
+      "hostname": 0.425,
+      "host_region": 0.085
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 137.9367259999999,
+  "inputTokens": 1631,
+  "costUsd": 0.000068502
+}

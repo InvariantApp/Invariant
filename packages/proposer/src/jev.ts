@@ -53,6 +53,23 @@ const ALIGNMENT_LEVELS: ScoreCriteria = [
   "They describe one and the same piece of information, renamed, moved, or re-encoded.",
 ] as const;
 
+/**
+ * What the successor is chosen from, and what choosing none means.
+ *
+ * Both name nesting, because the candidates do: a field inside an object the
+ * change added is offered by its dotted path, and a value that moved into a
+ * new wrapper went to that field rather than to the wrapper. Before the
+ * candidates included them, every such move was answered as nothing
+ * replacing the field, since the wrapper alone plainly does not hold it.
+ */
+const SUCCESSOR_QUESTION = {
+  question: "Which entry in `candidate_fields`, if any, is what `removed_field` became?",
+  decide_from:
+    "The names, types, and descriptions of the fields themselves. A name with dots, such as `data.attributes.scope`, is a field inside an object the change added: when the removed value moved into that object, it is the field inside it that holds the value, not the object around it.",
+} as const;
+const NONE_OPTION =
+  "None of them. The information `removed_field` carried is simply gone, not moved into any candidate at any depth.";
+
 /** Highest level index, so a raw score reads back as 0 to 1 with no magic number. */
 const TOP_LEVEL = ALIGNMENT_LEVELS.length - 1;
 
@@ -139,6 +156,8 @@ export class JevJudge implements Judge {
 
   /**
    * The model and the wording, which are the two things that move its answers.
+   * All of the wording: the successor question's own was left out once, so a
+   * change to it would have replayed answers to the question it replaced.
    *
    * The wording matters as much as the version: narrowing one sentence about
    * embedded instructions moved overall accuracy on the corpus by two points,
@@ -162,6 +181,8 @@ export class JevJudge implements Judge {
           model: this.#model,
           framing: EMBEDDED_TEXT_RULE,
           ALIGNMENT_LEVELS,
+          SUCCESSOR_QUESTION,
+          NONE_OPTION,
         }),
       )
       .digest("hex")
@@ -231,12 +252,7 @@ export class JevJudge implements Judge {
 
     const questions: Record<string, Question> = {
       successor: choice(
-        {
-          question:
-            "Which entry in `candidate_fields`, if any, is what `removed_field` became?",
-          decide_from: "The names, types, and descriptions of the fields themselves.",
-          about_the_text: EMBEDDED_TEXT_RULE,
-        },
+        { ...SUCCESSOR_QUESTION, about_the_text: EMBEDDED_TEXT_RULE },
         {
           ...Object.fromEntries(
             question.candidates.map((candidate, index) => [
@@ -244,7 +260,7 @@ export class JevJudge implements Judge {
               optionLabel(candidate, candidateKey(index)),
             ]),
           ),
-          none: "None of them. The information `removed_field` carried is simply gone.",
+          none: NONE_OPTION,
         },
       ),
       stated: noul({

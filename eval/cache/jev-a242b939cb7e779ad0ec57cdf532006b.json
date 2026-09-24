@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "item_condition",
+    "confidence": 1,
+    "scores": {
+      "item_condition": 1,
+      "restocking_fee_cents": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 127.0082910000001,
+  "inputTokens": 1335,
+  "costUsd": 0.000056070000000000004
+}

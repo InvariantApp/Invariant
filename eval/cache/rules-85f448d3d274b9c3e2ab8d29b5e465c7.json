@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "conditions.entityRisk",
+    "confidence": 0.8149999999999998,
+    "scores": {
+      "conditions.entityRisk": 0.7,
+      "conditions.entityRisk.level": 0.2357142857142857
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.017887999999970816,
+  "inputTokens": 0,
+  "costUsd": 0
+}

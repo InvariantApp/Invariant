@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "selected_repository_ids",
+    "confidence": 0.68,
+    "scores": {
+      "selected_repository_ids": 0.97,
+      "selected_repository_names": 0.48
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 142.40732600000047,
+  "inputTokens": 1313,
+  "costUsd": 0.000055146000000000004
+}

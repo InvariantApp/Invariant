@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "ttl_ms",
+    "confidence": 1,
+    "scores": {
+      "ttl_ms": 1,
+      "eviction_interval_ms": 0.005
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 134.56887099999994,
+  "inputTokens": 1325,
+  "costUsd": 0.000055650000000000004
+}

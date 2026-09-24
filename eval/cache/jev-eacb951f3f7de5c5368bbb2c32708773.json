@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "venue",
+    "confidence": 0.99,
+    "scores": {
+      "venue": 0.995,
+      "conference_link": 0.18
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 124.87790200000018,
+  "inputTokens": 1329,
+  "costUsd": 0.00005581800000000001
+}

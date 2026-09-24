@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "client_secret_last_four",
+    "confidence": 0.26,
+    "scores": {
+      "client_secret_last_four": 0.5,
+      "redirect_uris": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 178.50342600000022,
+  "inputTokens": 1328,
+  "costUsd": 0.000055776
+}

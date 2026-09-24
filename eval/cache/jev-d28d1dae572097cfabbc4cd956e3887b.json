@@ -1,0 +1,18 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 1,
+    "scores": {
+      "email_address": 0,
+      "phone_number": 0,
+      "phone_number.country_code": 0,
+      "phone_number.national_number": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 153.00374100000045,
+  "inputTokens": 2255,
+  "costUsd": 0.00009471
+}

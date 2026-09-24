@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.57,
+    "scores": {
+      "supplier_note": 0.17,
+      "reference": 0.165
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 129.1808400000009,
+  "inputTokens": 1320,
+  "costUsd": 0.000055440000000000005
+}

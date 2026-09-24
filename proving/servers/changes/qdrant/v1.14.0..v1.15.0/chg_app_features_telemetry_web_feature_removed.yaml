@@ -1,7 +1,9 @@
 # Decided for the proving ground, as Qdrant's maintainers would:
-# web_feature said whether the web UI was compiled into the build; every image
-# Qdrant publishes serves it, and 1.15 dropped the flag because it no longer
-# varies.
+# web_feature said whether the build had the `web` feature, the actix-web
+# server every REST call is answered by, so every image Qdrant publishes has
+# it, and 1.15 dropped the flag because it no longer varies. 1.14 sent it as
+# true inside `features`, which it sends only from details_level 1 up; asked
+# for no detail it sent no `features`, and nothing is put back there.
 irVersion: 1
 id: chg_app_features_telemetry_web_feature_removed
 summary: "`web_feature` was removed from AppFeaturesTelemetry."

@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "bundle_url",
+    "confidence": 0.8,
+    "scores": {
+      "bundle_url": 0.8,
+      "repository_id": 0.005
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 127.72088499999973,
+  "inputTokens": 1313,
+  "costUsd": 0.000055146000000000004
+}

@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": "uriPattern",
+    "confidence": 0.995,
+    "scores": {
+      "name": 0.015,
+      "reportingDimensionId": 0.045,
+      "uriPattern": 0.995
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 186.2641139999996,
+  "inputTokens": 1708,
+  "costUsd": 0.000071736
+}

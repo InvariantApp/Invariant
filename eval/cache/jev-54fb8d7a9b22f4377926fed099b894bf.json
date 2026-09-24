@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": "jurisdiction_code",
+    "confidence": 0.985,
+    "scores": {
+      "jurisdiction_code": 0.985,
+      "country": 0.33,
+      "inclusive": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 131.19963199999984,
+  "inputTokens": 1637,
+  "costUsd": 0.000068754
+}

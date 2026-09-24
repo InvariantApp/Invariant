@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "emails",
+    "confidence": 0.79,
+    "scores": {
+      "emails": 0.98,
+      "email": 0.4
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 168.30171000000064,
+  "inputTokens": 1321,
+  "costUsd": 0.000055482
+}

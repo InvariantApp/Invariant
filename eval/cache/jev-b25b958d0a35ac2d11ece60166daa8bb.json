@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "site_code",
+    "confidence": 0.995,
+    "scores": {
+      "site_code": 0.995,
+      "zone": 0.02
+    },
+    "stated": true,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 158.76226399999996,
+  "inputTokens": 1346,
+  "costUsd": 0.000056532
+}

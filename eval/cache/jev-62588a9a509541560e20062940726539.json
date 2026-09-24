@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "channelInformation",
+    "confidence": 0.36,
+    "scores": {
+      "channelInformation": 0.86,
+      "publication": 0.315
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 134.799352,
+  "inputTokens": 1315,
+  "costUsd": 0.000055230000000000005
+}

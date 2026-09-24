@@ -1,0 +1,39 @@
+{
+  "answer": {
+    "successor": "startTimeMillis",
+    "confidence": 0.995,
+    "scores": {
+      "cancelReason": 0.005,
+      "cancelSurveyResult": 0,
+      "countryCode": 0.01,
+      "developerPayload": 0,
+      "emailAddress": 0.005,
+      "expiryTimeMillis": 0.03,
+      "familyName": 0.005,
+      "givenName": 0.005,
+      "linkedPurchaseToken": 0.025,
+      "orderId": 0.035,
+      "paymentState": 0.005,
+      "priceAmountMicros": 0.005,
+      "priceChange": 0.005,
+      "priceCurrencyCode": 0,
+      "profileId": 0.01,
+      "profileName": 0.005,
+      "purchaseType": 0.01,
+      "startTimeMillis": 0.995,
+      "userCancellationTimeMillis": 0.035,
+      "cancelSurveyResult.cancelSurveyReason": 0.005,
+      "cancelSurveyResult.userInputCancelReason": 0.015,
+      "priceChange.newPrice": 0,
+      "priceChange.newPrice.currency": 0,
+      "priceChange.newPrice.priceMicros": 0.005,
+      "priceChange.state": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 172.2224610000012,
+  "inputTokens": 9639,
+  "costUsd": 0.00040483800000000003
+}

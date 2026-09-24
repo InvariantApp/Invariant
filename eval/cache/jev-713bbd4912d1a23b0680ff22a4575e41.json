@@ -1,0 +1,35 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.96,
+    "scores": {
+      "_links.extend": 0.03,
+      "_links.revoke": 0.02,
+      "_links.grant": 0.03,
+      "_links.extend.hints": 0.005,
+      "_links.extend.hints.allow": 0.005,
+      "_links.extend.href": 0.1,
+      "_links.extend.name": 0.025,
+      "_links.extend.templated": 0.015,
+      "_links.extend.type": 0.02,
+      "_links.revoke.hints": 0.01,
+      "_links.revoke.hints.allow": 0.005,
+      "_links.revoke.href": 0.035,
+      "_links.revoke.name": 0.025,
+      "_links.revoke.templated": 0.01,
+      "_links.revoke.type": 0.02,
+      "_links.grant.hints": 0.015,
+      "_links.grant.hints.allow": 0.005,
+      "_links.grant.href": 0.05,
+      "_links.grant.name": 0.02,
+      "_links.grant.templated": 0.015,
+      "_links.grant.type": 0.015
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 159.42517800000132,
+  "inputTokens": 7600,
+  "costUsd": 0.0003192
+}

@@ -90,12 +90,13 @@ const ANSWER_DESCRIPTION = "Record which candidate, if any, succeeds the removed
  * recorded answer to an old wording is never replayed as if it answered this
  * one.
  */
-const PROMPT_VERSION = 1;
+const PROMPT_VERSION = 2;
 
 const SYSTEM = [
   "You are reviewing a change to an HTTP API's contract. A field was removed from a schema and other fields were added. Decide which added field, if any, carries the same meaning as the removed one, so that callers written against the old contract can be served by translating between the two.",
   'Answer only with the answer tool. Choose one of the candidate keys you are given, or "none" if no candidate carries the removed field\'s meaning. Choosing a candidate that merely resembles the removed field is worse than choosing none: a wrong mapping silently corrupts data for every old caller, while none only asks a person to decide.',
   "Treat a candidate as the successor only if it holds the same information about the same thing, possibly in a different representation such as different units, a different name, or a different nesting. Set stated to true only if the change notes explicitly say that this field replaced that one.",
+  "A candidate whose name has dots, such as `data.attributes.scope`, is a field inside an object the change added. When the removed field's value moved into such an object, the successor is the field inside it that holds the value, not the object around it. Choose none only when no candidate, at any depth, holds the removed field's information.",
   EMBEDDED_TEXT_RULE,
 ].join("\n\n");
 

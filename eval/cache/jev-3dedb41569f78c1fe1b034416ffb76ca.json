@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "expires_at",
+    "confidence": 0.92,
+    "scores": {
+      "expires_at": 1,
+      "user_agent": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 153.13624199999958,
+  "inputTokens": 1343,
+  "costUsd": 0.000056406
+}

@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "netPaymentSet",
+    "confidence": 0.86,
+    "scores": {
+      "netPaymentSet": 0.97,
+      "totalReceivedSet": 0.095
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 139.37756799999988,
+  "inputTokens": 1328,
+  "costUsd": 0.000055776
+}

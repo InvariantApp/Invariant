@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "kycCheckDescription",
+    "confidence": 1,
+    "scores": {
+      "kycCheckCode": 0.015,
+      "kycCheckDescription": 1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 124.22909299999992,
+  "inputTokens": 1371,
+  "costUsd": 0.000057582000000000005
+}

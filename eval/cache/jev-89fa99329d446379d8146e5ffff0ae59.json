@@ -1,0 +1,21 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.94,
+    "scores": {
+      "payments": 0.025,
+      "payments.*.amount": 0,
+      "payments.*.date": 0,
+      "payments.*.date.day": 0,
+      "payments.*.date.month": 0,
+      "payments.*.date.year": 0,
+      "payments.*.name": 0.015
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 145.3136970000014,
+  "inputTokens": 3303,
+  "costUsd": 0.000138726
+}

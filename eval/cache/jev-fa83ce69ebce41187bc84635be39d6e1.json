@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": "ReturnEnabled",
+    "confidence": 0.705,
+    "scores": {
+      "SourceField": 0.05,
+      "ReturnEnabled": 0.705,
+      "SortEnabled": 0.055
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 134.389768,
+  "inputTokens": 1858,
+  "costUsd": 0.00007803600000000001
+}

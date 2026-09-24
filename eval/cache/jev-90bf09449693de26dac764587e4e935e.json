@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.81,
+    "scores": {
+      "sender_ids": 0.22,
+      "smart_encoding": 0,
+      "fallback_url": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 139.80500500000016,
+  "inputTokens": 1653,
+  "costUsd": 0.00006942600000000001
+}

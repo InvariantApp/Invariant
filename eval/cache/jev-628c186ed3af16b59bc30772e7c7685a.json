@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "national_phone",
+    "confidence": 0.96,
+    "scores": {
+      "national_phone": 0.985,
+      "international_phone": 0.565
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 135.64439499999935,
+  "inputTokens": 1345,
+  "costUsd": 0.00005649
+}

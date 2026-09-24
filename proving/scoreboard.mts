@@ -512,8 +512,11 @@ function judgeLine(
 ): Line {
   const claim =
     "Judge precision of at least 99% per family, and no semantically wrong Change surviving the gate.";
+  // The mined labels were read by Claude agents, the family S2 is from, so
+  // S2's agreement with them is the figure most likely to flatter; the line
+  // says so wherever it is read.
   const evidence =
-    "eval/results.json (eval/measure.mts, from recorded answers on every commit); proving/servers/results.json for false closure";
+    "eval/results.json (eval/measure.mts, from recorded answers on every commit), against labels read by Claude agents, the model family S2 is from (eval/mined/labels.json); proving/servers/results.json for false closure";
   if (!results || results.judges.length === 0) {
     return { id: "L4b", claim, status: "not measured", value: "", evidence };
   }

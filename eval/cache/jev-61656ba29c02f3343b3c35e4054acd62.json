@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "text",
+    "confidence": 1,
+    "scores": {
+      "attachments": 0.005,
+      "text": 1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 143.89208800000006,
+  "inputTokens": 1346,
+  "costUsd": 0.000056532
+}

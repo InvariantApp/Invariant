@@ -239,6 +239,13 @@ export interface SchemaDelta {
    * each the same field in a new place. Not in `removed` or `added`.
    */
   regrouped?: Regrouped[];
+  /**
+   * The fields inside objects this delta added, read through the schemas
+   * they name: where a removed value may have gone when it moved into a new
+   * wrapper on its own. Offered to a judge beside `added`, and never drafted
+   * as added themselves, since the object that holds them is.
+   */
+  within?: FieldShape[];
 }
 
 /**
@@ -256,6 +263,14 @@ export interface Regrouped {
 
 /** How far below the schema's own properties nested inline objects are followed. */
 const NESTING = 3;
+
+/**
+ * How many levels inside an added object its fields are offered, and how
+ * many fields at most: the deepest level that keeps every level above it
+ * within the limit.
+ */
+const WITHIN_DEPTH = 3;
+const WITHIN_MOST = 30;
 
 const escapePointer = (segment: string) =>
   segment.replaceAll("~", "~0").replaceAll("/", "~1");
@@ -2168,6 +2183,99 @@ function kindChange(
   return { old: { ...root, type: from }, new: { ...root, type: to } };
 }
 
+/**
+ * The fields inside one added object, or inside each item of an added list
+ * of objects, through the schemas they name.
+ *
+ * A value that moved into a new wrapper on its own, rather than with its
+ * siblings, is not a regrouping: Datadog's cost recommendation search took
+ * `scope`, `sort` and `view` at the top and came to take a JSON:API `data`
+ * holding them in `attributes`, one named schema inside another. Asked with
+ * only `data` on offer, every judge answered that nothing replaced them,
+ * which was the best answer the question allowed. With the field inside the
+ * wrapper on offer too, the question can be answered with the place the
+ * value went, which is also the only answer a `move` can be drafted from.
+ */
+function fieldsWithin(
+  document: OpenApiDocument,
+  raw: JsonValue,
+  prefix: { name: string; pointer: string },
+  depth: number,
+  seen: ReadonlySet<string>,
+): (FieldShape & { depth: number })[] {
+  if (depth >= WITHIN_DEPTH) return [];
+  const named = isJsonObject(raw) ? refOf(raw).ref : undefined;
+  if (named !== undefined && seen.has(named)) return [];
+  const through = new Set(seen);
+  if (named !== undefined) through.add(named);
+  const value = throughNull(document, resolvedObject(document, raw));
+  const items = value["items"];
+  if (isJsonObject(items)) {
+    return fieldsWithin(
+      document,
+      items,
+      { name: `${prefix.name}.*`, pointer: `${prefix.pointer}/*` },
+      depth,
+      through,
+    );
+  }
+  const properties = value["properties"];
+  if (!isJsonObject(properties)) return [];
+  const own = fieldsOf(document, value, prefix, NESTING);
+  return Object.entries(properties).flatMap(([name, child]) => {
+    const pointer = `${prefix.pointer}/${escapePointer(name)}`;
+    const field = own.find((candidate) => candidate.pointer === pointer);
+    if (!field) return [];
+    return [
+      { ...field, depth },
+      ...fieldsWithin(document, child, { name: field.name, pointer }, depth + 1, through),
+    ];
+  });
+}
+
+/** What each delta's added objects hold, for the questions asked about it. */
+function offerWithin(
+  newContract: OpenApiDocument,
+  newSchemas: Record<string, JsonValue>,
+  deltas: SchemaDelta[],
+  movedAway: (delta: SchemaDelta) => boolean,
+): void {
+  for (const delta of deltas) {
+    if (delta.removed.length === 0 || movedAway(delta)) continue;
+    const root = delta.roots?.new ?? newSchemas[delta.newSchema];
+    if (root === undefined) continue;
+    const taken = new Set(delta.added.map((field) => field.pointer));
+    const found = delta.added
+      .filter(
+        (field) =>
+          field.type === "object" ||
+          field.ref !== undefined ||
+          field.items?.type === "object" ||
+          field.items?.ref !== undefined,
+      )
+      .flatMap((field) => {
+        const statement = statementAt(newContract, root, field.pointer);
+        return statement === undefined
+          ? []
+          : fieldsWithin(newContract, statement, field, 0, new Set());
+      })
+      .filter((field) => !taken.has(field.pointer));
+    // As deep as the limit allows, a whole level at a time. Adyen's
+    // transaction rule restrictions are fifteen objects, each an operation
+    // and a value: the fifteen are a question, and the forty-five fields
+    // beneath them a search, each one a question of its own to Jev.
+    let deepest = -1;
+    for (let depth = 0; depth < WITHIN_DEPTH; depth += 1) {
+      if (found.filter((field) => field.depth <= depth).length > WITHIN_MOST) break;
+      deepest = depth;
+    }
+    const within = found
+      .filter((field) => field.depth <= deepest)
+      .map(({ depth: _depth, ...field }) => field);
+    if (within.length > 0) delta.within = within;
+  }
+}
+
 export function schemaDeltas(
   oldContract: OpenApiDocument,
   newContract: OpenApiDocument,
@@ -2418,5 +2526,37 @@ export function schemaDeltas(
     }
   }
 
+  // A schema whose every use is now filled by a schema of another name went
+  // there, and the one left under its name is another record: PayPal's
+  // payout item became `payout_item_request` in the batch a caller sends,
+  // and the `payout_item` a response reports now holds a `payout_item` of
+  // its own, whose `amount` is not the amount a caller used to send. Nothing
+  // inside its objects is where the old fields went. Its uses are the
+  // operations that name it and the properties of other schemas that do.
+  let oldReferences: Map<string, Map<string, string>> | undefined;
+  const movedAway = (delta: SchemaDelta): boolean => {
+    if (delta.roots !== undefined) return false;
+    const now: (string | undefined)[] = (oldUses.get(delta.schema) ?? []).map((use) => {
+      const [operationId, ...rest] = use.split(" ");
+      const mapped = operationRenames.get(operationId as string) ?? operationId;
+      return newByUse.get([mapped, ...rest].join(" "));
+    });
+    oldReferences ??= referencesIn(oldContract, oldSchemas);
+    for (const [parent, references] of oldReferences) {
+      const counterpart = counterparts.get(parent);
+      if (!counterpart) continue;
+      for (const [pointer, child] of references) {
+        if (child !== delta.schema) continue;
+        const there = schemaAt(newContract, counterpart.schema, pointer);
+        const ref = isJsonObject(there) ? refOf(there).ref : undefined;
+        now.push(ref === undefined ? undefined : schemaName(ref));
+      }
+    }
+    return (
+      now.length > 0 &&
+      now.every((name) => name !== undefined && name !== delta.newSchema)
+    );
+  };
+  offerWithin(newContract, newSchemas, deltas, movedAway);
   return deltas;
 }

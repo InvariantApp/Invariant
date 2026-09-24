@@ -3,7 +3,8 @@
  * rather than from the judge, and that an unsure pairing says so.
  */
 import { describe, expect, it } from "vitest";
-import type { FieldShape } from "./candidates.ts";
+import { type FieldShape, schemaDeltas } from "./candidates.ts";
+import { questionsFor } from "./judge.ts";
 import { opsFor } from "./propose.ts";
 
 function field(name: string, type: string, extra: Partial<FieldShape> = {}): FieldShape {
@@ -103,5 +104,80 @@ describe("deriving ops from the shapes", () => {
 
     expect(ops).toEqual([]);
     expect(notes.join(" ")).toContain("reshaping rather than a re-encoding");
+  });
+});
+
+describe("the candidates a judge is offered", () => {
+  const document = (schemas: Record<string, unknown>) =>
+    ({
+      openapi: "3.1.0",
+      info: { title: "t", version: "1" },
+      paths: {},
+      components: { schemas },
+    }) as never;
+
+  it("offers the fields inside a new wrapper, through the schemas it names", () => {
+    const before = document({
+      Filter: {
+        type: "object",
+        properties: { scope: { type: "string" }, view: { type: "string" } },
+      },
+    });
+    const after = document({
+      Filter: {
+        type: "object",
+        properties: { data: { $ref: "#/components/schemas/FilterData" } },
+      },
+      FilterData: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          attributes: { $ref: "#/components/schemas/FilterAttributes" },
+        },
+      },
+      FilterAttributes: {
+        type: "object",
+        properties: { scope: { type: "string" }, view: { type: "string" } },
+      },
+    });
+    const questions = schemaDeltas(before, after).flatMap((delta) => questionsFor(delta));
+    expect(questions.map((question) => question.removed.name)).toEqual(["scope", "view"]);
+    expect(
+      questions[0]?.candidates.map((candidate) => [candidate.name, candidate.pointer]),
+    ).toEqual([
+      ["data", "/data"],
+      ["data.id", "/data/id"],
+      ["data.attributes", "/data/attributes"],
+      ["data.attributes.scope", "/data/attributes/scope"],
+      ["data.attributes.view", "/data/attributes/view"],
+    ]);
+  });
+
+  it("offers a large wrapper only as deep as a whole level stays within reason", () => {
+    const restrictions = Object.fromEntries(
+      Array.from({ length: 20 }, (_, index) => [
+        `rule${index}`,
+        {
+          type: "object",
+          properties: { operation: { type: "string" }, value: { type: "string" } },
+        },
+      ]),
+    );
+    const before = document({
+      Rule: { type: "object", properties: { rule3: { type: "string" } } },
+    });
+    const after = document({
+      Rule: {
+        type: "object",
+        properties: { restrictions: { type: "object", properties: restrictions } },
+      },
+    });
+    const [question] = schemaDeltas(before, after).flatMap((delta) =>
+      questionsFor(delta),
+    );
+    expect(question?.candidates).toHaveLength(21);
+    expect(question?.candidates.map((candidate) => candidate.name)).toContain(
+      "restrictions.rule3",
+    );
   });
 });

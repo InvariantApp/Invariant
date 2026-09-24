@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "tracking_number",
+    "confidence": 0.97,
+    "scores": {
+      "tracking_number": 0.98,
+      "carrier_code": 0.01
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 422.70421899999997,
+  "inputTokens": 1273,
+  "costUsd": 0.000053466000000000006
+}

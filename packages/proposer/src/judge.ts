@@ -70,15 +70,21 @@ export interface Judge {
   align(questions: readonly AlignmentQuestion[]): Promise<JudgeResult[]>;
 }
 
-/** Turns a schema delta into one question per removed field. */
+/**
+ * Turns a schema delta into one question per removed field. The candidates
+ * are the fields added, and the fields inside the objects added, since a
+ * value that moved into a new wrapper went to a field in it rather than to
+ * the wrapper.
+ */
 export function questionsFor(delta: SchemaDelta, context?: string): AlignmentQuestion[] {
   if (delta.added.length === 0) return [];
+  const candidates = [...delta.added, ...(delta.within ?? [])];
   return delta.removed.map((removed) => ({
     kind: "alignment" as const,
     schema: delta.schema,
     operations: delta.operations,
     removed,
-    candidates: delta.added,
+    candidates,
     ...(context === undefined ? {} : { context }),
   }));
 }

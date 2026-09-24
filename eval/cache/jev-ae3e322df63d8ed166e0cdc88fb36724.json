@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "interest_rate_bps",
+    "confidence": 1,
+    "scores": {
+      "interest_rate_bps": 1,
+      "fee_rate_bps": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 126.67208099999993,
+  "inputTokens": 1336,
+  "costUsd": 0.000056112
+}

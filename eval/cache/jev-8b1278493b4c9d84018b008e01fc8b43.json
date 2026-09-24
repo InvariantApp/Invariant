@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.98,
+    "scores": {
+      "savedReports": 0.005,
+      "savedReports.*.name": 0,
+      "savedReports.*.title": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 131.17351600000075,
+  "inputTokens": 1679,
+  "costUsd": 0.000070518
+}

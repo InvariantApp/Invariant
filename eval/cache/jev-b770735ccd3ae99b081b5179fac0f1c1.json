@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.61,
+    "scores": {
+      "web_commit_signoff_required": 0,
+      "two_factor_audit_url": 0.25,
+      "members_can_create_repositories": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 154.43750499999987,
+  "inputTokens": 1673,
+  "costUsd": 0.00007026600000000001
+}

@@ -1,0 +1,12 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0,
+    "scores": {},
+    "stated": false,
+    "abstained": true
+  },
+  "latencyMs": 0.06915200000003097,
+  "inputTokens": 0,
+  "costUsd": 0
+}

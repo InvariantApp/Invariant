@@ -1,0 +1,24 @@
+{
+  "answer": {
+    "successor": "links.*.href",
+    "confidence": 0.315,
+    "scores": {
+      "details": 0.03,
+      "links": 0.475,
+      "details.*.field": 0.005,
+      "details.*.value": 0.005,
+      "details.*.location": 0.005,
+      "details.*.issue": 0.015,
+      "details.*.description": 0.025,
+      "links.*.href": 0.315,
+      "links.*.rel": 0.26,
+      "links.*.method": 0.045
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 139.81115399999908,
+  "inputTokens": 4123,
+  "costUsd": 0.00017316600000000002
+}

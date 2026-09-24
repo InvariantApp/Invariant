@@ -1,0 +1,19 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.99,
+    "scores": {
+      "id": 0,
+      "last_digits": 0,
+      "card_type": 0,
+      "type": 0,
+      "brand": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 222.26277599999958,
+  "inputTokens": 2388,
+  "costUsd": 0.000100296
+}

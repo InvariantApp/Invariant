@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "endpoint_url",
+    "confidence": 1,
+    "scores": {
+      "endpoint_url": 1,
+      "callback_url": 0.01
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 117.12731099999996,
+  "inputTokens": 1327,
+  "costUsd": 0.000055734000000000005
+}

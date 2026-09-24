@@ -1,0 +1,26 @@
+{
+  "answer": {
+    "successor": "releases.*.userFraction",
+    "confidence": 0.97,
+    "scores": {
+      "releases": 0.46,
+      "releases.*.countryTargeting": 0.005,
+      "releases.*.countryTargeting.countries": 0.005,
+      "releases.*.countryTargeting.includeRestOfWorld": 0.02,
+      "releases.*.inAppUpdatePriority": 0.015,
+      "releases.*.name": 0.015,
+      "releases.*.releaseNotes": 0.01,
+      "releases.*.releaseNotes.*.language": 0.005,
+      "releases.*.releaseNotes.*.text": 0.005,
+      "releases.*.status": 0.035,
+      "releases.*.userFraction": 0.97,
+      "releases.*.versionCodes": 0.015
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 160.52950599999895,
+  "inputTokens": 4929,
+  "costUsd": 0.00020701800000000003
+}

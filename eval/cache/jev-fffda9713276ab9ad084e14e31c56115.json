@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "consented_at",
+    "confidence": 0.92,
+    "scores": {
+      "revoked_at": 0.065,
+      "consented_at": 0.995
+    },
+    "stated": true,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 130.77130700000043,
+  "inputTokens": 1364,
+  "costUsd": 0.000057288000000000004
+}

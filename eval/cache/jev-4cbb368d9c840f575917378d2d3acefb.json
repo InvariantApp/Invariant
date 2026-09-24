@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "totalCapturableSet",
+    "confidence": 0.95,
+    "scores": {
+      "totalCapturableSet": 0.985,
+      "totalReceivedSet": 0.025
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 163.81680999999935,
+  "inputTokens": 1334,
+  "costUsd": 0.000056028
+}
