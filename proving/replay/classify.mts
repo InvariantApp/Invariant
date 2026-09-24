@@ -107,10 +107,12 @@ export async function cacheSite(
   );
 }
 
-/** Every cached site, as it was scored, with the outcome where one was kept. */
-export function cachedOutcomes(dir = SITE_CACHE): { site: Site; outcome?: Outcome }[] {
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir).map((name) => {
+/** The cached sites in `names`, as they were scored, with the outcome where one was kept. */
+export function readCached(
+  names: readonly string[],
+  dir = SITE_CACHE,
+): { site: Site; outcome?: Outcome }[] {
+  return names.map((name) => {
     const { site, skip, outcome } = JSON.parse(readFileSync(join(dir, name), "utf8")) as {
       site: Site;
       skip: number;
@@ -121,6 +123,29 @@ export function cachedOutcomes(dir = SITE_CACHE): { site: Site; outcome?: Outcom
       ...(outcome ? { outcome } : {}),
     };
   });
+}
+
+/**
+ * Each case's cached sites, by file name, read one case at a time rather
+ * than all at once: the cache of every ecosystem's sites is hundreds of
+ * megabytes once each site is laid back at its place in its file.
+ */
+export function cachedCases(dir = SITE_CACHE): Map<string, string[]> {
+  const cases = new Map<string, string[]>();
+  if (!existsSync(dir)) return cases;
+  for (const name of readdirSync(dir)) {
+    const { site } = JSON.parse(readFileSync(join(dir, name), "utf8")) as {
+      site: { caseId: string };
+    };
+    cases.set(site.caseId, [...(cases.get(site.caseId) ?? []), name]);
+  }
+  return cases;
+}
+
+/** Every cached site, as it was scored, with the outcome where one was kept. */
+export function cachedOutcomes(dir = SITE_CACHE): { site: Site; outcome?: Outcome }[] {
+  if (!existsSync(dir)) return [];
+  return readCached(readdirSync(dir), dir);
 }
 
 /** Every cached site, as it was scored. */

@@ -4,9 +4,11 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   type ClassRecord,
+  cachedCases,
   cachedSites,
   cacheSite,
   classify,
+  readCached,
   ruleClass,
   type Site,
   siteKey,
@@ -376,5 +378,17 @@ describe("classing a human site", () => {
     const [back] = cachedSites(dir);
     expect(back && siteKey(back)).toBe(siteKey(far));
     expect(back && siteState(back)).toEqual(siteState(far));
+  });
+
+  it("is read back a case at a time, with the outcome it was scored with", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "sites-"));
+    const other = { ...site, caseId: "acme/other#2" };
+    await cacheSite(site, dir, "flagged");
+    await cacheSite(other, dir, "missed");
+    const cases = cachedCases(dir);
+    expect([...cases.keys()].sort()).toEqual(["acme/other#2", "acme/shop#1"]);
+    const [back] = readCached(cases.get("acme/shop#1") ?? [], dir);
+    expect(back?.outcome).toBe("flagged");
+    expect(back && siteKey(back.site)).toBe(siteKey(site));
   });
 });

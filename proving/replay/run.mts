@@ -78,9 +78,10 @@ import { ROOT } from "../corpus/manifest.mts";
 import { workerChecker } from "./check.mts";
 import {
   type ClassRecord,
-  cachedOutcomes,
+  cachedCases,
   cacheSite,
   classify,
+  readCached,
   readClasses,
   type Site,
   siteKey,
@@ -1354,12 +1355,11 @@ async function main(): Promise<void> {
   // are now: a CI run replays without a key, and its sites are classed here.
   if (args.includes("--rescore")) {
     const wanted = new Set(cases.map((entry) => entry.id));
-    const byCase = new Map<string, { site: Site; outcome: Outcome }[]>();
-    for (const { site, outcome } of cachedOutcomes()) {
-      if (!outcome || !wanted.has(site.caseId)) continue;
-      byCase.set(site.caseId, [...(byCase.get(site.caseId) ?? []), { site, outcome }]);
-    }
-    for (const [id, scored] of byCase) {
+    for (const [id, names] of cachedCases()) {
+      if (!wanted.has(id)) continue;
+      const scored = readCached(names).flatMap(({ site, outcome }) =>
+        outcome ? [{ site, outcome }] : [],
+      );
       const result = results.get(id);
       if (!result || result.error !== undefined) continue;
       if (scored.length !== result.sites) {
