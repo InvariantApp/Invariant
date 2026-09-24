@@ -706,31 +706,38 @@ function suppliesField(op: DataOp): op is AddOp | DefaultOp {
  */
 function flagUntyped(
   project: Project,
-  target: TargetSymbol,
-  composed: Composed,
-  typed: ReadonlySet<string>,
+  fields: ReadonlyMap<string, { changeId: string; reason: string; typed: Set<string> }>,
+  sdk: string,
   scope: EditScope,
   result: EngineResult,
 ): void {
-  const name = target.property;
-  const what =
-    composed.unsupported ?? `the contract changed it: ${composed.reasons.join("; ")}`;
-  const reason = `nothing types this \`${name}\`, so it is shown rather than rewritten; if it is the contract's field, ${what}`;
+  if (fields.size === 0) return;
+  const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // Only the files that use the SDK: a name alone is weak evidence, and
+  // weaker still in a file that never touches the SDK at all.
+  const imports = new RegExp(
+    `(?:from|import|require\\()\\s*['"]${escape(sdk)}(?:/[^'"]*)?['"]`,
+  );
+  const names = new RegExp(`\\b(?:${[...fields.keys()].map(escape).join("|")})\\b`, "g");
   const untyped = (type: Type | undefined) =>
     type === undefined || type.isAny() || type.isUnknown();
   for (const source of project.getSourceFiles()) {
     if (!editable(source, scope)) continue;
     const text = source.getFullText();
-    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    // Only where the name is written, rather than every node of every file.
-    for (const match of text.matchAll(new RegExp(`\\b${escaped}\\b`, "g"))) {
+    if (!imports.test(text)) continue;
+    // Only where a name is written, rather than every node of the file.
+    for (const match of text.matchAll(names)) {
+      const field = fields.get(match[0]);
       const node = source.getDescendantAtPos(match.index);
-      const named =
-        node !== undefined &&
-        (Node.isIdentifier(node) || Node.isStringLiteral(node)) &&
-        node.getText().replace(/^['"`]|['"`]$/g, "") === name;
-      if (!named) continue;
-      if (typed.has(`${source.getFilePath()}:${node.getStart()}`)) continue;
+      if (
+        !field ||
+        node === undefined ||
+        !(Node.isIdentifier(node) || Node.isStringLiteral(node)) ||
+        node.getText().replace(/^['"`]|['"`]$/g, "") !== match[0] ||
+        field.typed.has(`${source.getFilePath()}:${node.getStart()}`)
+      ) {
+        continue;
+      }
       const parent = node.getParent();
       let shown = false;
       if (
@@ -752,7 +759,7 @@ function flagUntyped(
       ) {
         shown = untyped(parent.getExpression().getType());
       }
-      if (shown) result.manual.push(manualFrom(node, target.changeId, reason));
+      if (shown) result.manual.push(manualFrom(node, field.changeId, field.reason));
     }
   }
 }
@@ -773,6 +780,11 @@ export function runEngine(
 
   // One group per field, so every op that touches it composes into one edit.
   const groups = new Map<string, TargetSymbol[]>();
+  /** Each moved or removed field's name, for the places nothing types. */
+  const untypedFields = new Map<
+    string,
+    { changeId: string; reason: string; typed: Set<string> }
+  >();
   for (const target of plan.targets) {
     // Neither edits an existing reference: a field that must now be sent is
     // written into the literals below, and one that may now be missing or
@@ -839,9 +851,23 @@ export function runEngine(
       composed.wrapRead ||
       composed.unsupported
     ) {
-      flagUntyped(project, first, composed, typed, scope, result);
+      const name = first.property;
+      const seen = untypedFields.get(name);
+      if (seen) {
+        for (const position of typed) seen.typed.add(position);
+      } else {
+        const what =
+          composed.unsupported ??
+          `the contract changed it: ${composed.reasons.join("; ")}`;
+        untypedFields.set(name, {
+          changeId: first.changeId,
+          reason: `nothing types this \`${name}\`, so it is shown rather than rewritten; if it is the contract's field, ${what}`,
+          typed,
+        });
+      }
     }
   }
+  flagUntyped(project, untypedFields, plan.symbols.package, scope, result);
 
   // A newly required field has no existing reference to anchor to, so the
   // object literals that write the type are found through its other properties.
