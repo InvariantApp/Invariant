@@ -10,16 +10,32 @@
  * which; whether that is a rename, a unit change or an enum remapping, and
  * what the scale factor is, comes from the declared shapes.
  */
-import { covers, type OpenApiDocument, schemaDirections } from "@invariant-app/contract";
+import {
+  covers,
+  keepsNames,
+  type OpenApiDocument,
+  referencesAlike,
+  resolveRef,
+  resolveSchema,
+  schemaDirections,
+  unannotated,
+} from "@invariant-app/contract";
 import {
   type Change,
+  isJsonObject,
   type JsonValue,
+  movesBothWays,
   narrows,
   type Op,
   type ScalarType,
   type Scope,
 } from "@invariant-app/ir";
-import { type FieldShape, type SchemaDelta, schemaDeltas } from "./candidates.ts";
+import {
+  type FieldShape,
+  type SchemaDelta,
+  schemaDeltas,
+  statementAt,
+} from "./candidates.ts";
 import { caseCodec, listCodec, timeCodec } from "./codecs.ts";
 import { type Decision, decisionChange, type ValueDecision } from "./decisions.ts";
 import {
@@ -37,6 +53,7 @@ import { questionsFor } from "./judge.ts";
 import { describePrefixMove, detectPrefixMove, prefixChange } from "./prefix.ts";
 import { type Restatement, restatements } from "./restate.ts";
 import { stemOf, UNIT_SUFFIXES } from "./rules.ts";
+import { inlineVariantChanges } from "./variants.ts";
 import { foldDecisions, retiredValueDecisions, retiredValues } from "./vocabulary.ts";
 
 /**
@@ -595,11 +612,24 @@ async function drafted(
     };
   });
 
-  const altered = alteredProposals(deltas, oldContract);
+  // A union written in place that gained kinds written in place, which no
+  // field comparison sees: the branches have no names to compare.
+  const widenedInPlace: Proposal[] = inlineVariantChanges(oldContract, newContract).map(
+    ({ change, notes }) => ({
+      change,
+      judge: "rules" as const,
+      confidence: 1,
+      attention: "normal" as const,
+      notes,
+    }),
+  );
+
+  const altered = alteredProposals(deltas, oldContract, newContract);
   const added = additions(deltas, oldContract);
   const gone = removals(deltas, oldContract);
   const regrouped = regroupedProposals(deltas, oldContract);
   const valueDecisions = [
+    ...parameterWork.decisions,
     ...altered.decisions,
     ...added.decisions,
     ...gone.decisions,
@@ -615,6 +645,7 @@ async function drafted(
     ...regrouped.proposals,
     ...added.proposals,
     ...gone.proposals,
+    ...widenedInPlace,
   );
   const unresolved: Unresolved[] = [
     ...altered.unresolved,
@@ -639,6 +670,7 @@ async function drafted(
         ),
         ...retiredValueDecisions(
           deltas.filter((delta) => sidesOfDelta(oldContract, delta).request),
+          (delta) => sidesOfDelta(oldContract, delta).response,
         ),
       ],
     };
@@ -780,6 +812,7 @@ async function drafted(
       ),
       ...retiredValueDecisions(
         deltas.filter((delta) => sidesOfDelta(oldContract, delta).request),
+        (delta) => sidesOfDelta(oldContract, delta).response,
       ),
     ],
   };
@@ -1244,10 +1277,38 @@ function onlyGrewForRequests(
 function alteredProposals(
   deltas: readonly SchemaDelta[],
   oldContract: Parameters<typeof schemaDeltas>[0],
+  newContract: Parameters<typeof schemaDeltas>[1],
 ): Drafted {
   const proposals: Proposal[] = [];
   const unresolved: Unresolved[] = [];
   const decisions: ValueDecision[] = [];
+  // A field written differently that holds the same values, proved: drafted
+  // as a `restate` where nothing else was.
+  const restatedField = (
+    delta: SchemaDelta,
+    pair: SchemaDelta["altered"][number],
+    sides: { request: boolean; response: boolean },
+    only?: "choice",
+  ): boolean => {
+    if (!sameValues(oldContract, newContract, delta, pair, sides, only)) return false;
+    proposals.push({
+      change: {
+        irVersion: 1,
+        id: `chg_${slug(delta.schema)}_${slug(pair.old.name)}`,
+        summary: `\`${pair.old.name}\` on ${delta.schema} states the same values another way.`,
+        scopes: [scopeOf(delta)],
+        ops: [{ op: "restate", path: pair.new.pointer }],
+        provenance: { proposed_by: { judge: "rules", confidence: 1 } },
+      },
+      judge: "rules",
+      confidence: 1,
+      attention: "normal",
+      notes: [
+        `\`${pair.old.name}\` is written differently, and every value old callers ${sides.request && sides.response ? "send or are sent" : sides.request ? "send" : "are sent"} is one both contracts allow`,
+      ],
+    });
+    return true;
+  };
 
   for (const delta of deltas) {
     const sides = delta.altered.length > 0 ? sidesOfDelta(oldContract, delta) : undefined;
@@ -1268,7 +1329,8 @@ function alteredProposals(
       // A single value only old callers send that lost values is asked about
       // as one decision, `retiredValueDecisions`, rather than left open.
       const retiredAsked =
-        (sides ?? NEITHER).request && retiredValues(pair) !== undefined;
+        (sides ?? NEITHER).request &&
+        retiredValues(pair, !(sides ?? NEITHER).response) !== undefined;
       const reshaped = valuesDiffer(pair.old, pair.new);
       // A vocabulary that grew is asked about as a fold decision, and the
       // rest of what changed about the field is still drafted below.
@@ -1282,6 +1344,7 @@ function alteredProposals(
         !retiredAsked &&
         !onlyGrewForRequests(pair, sides ?? NEITHER)
       ) {
+        if (restatedField(delta, pair, sides ?? NEITHER)) continue;
         unresolved.push({
           schema: delta.schema,
           field: pair.old.name,
@@ -1359,8 +1422,13 @@ function alteredProposals(
         ...relaxed.ops,
       ];
       // Whether a field may be left out or null changed only in the direction
-      // no old caller is hurt by, which the gate does not report either.
-      if (ops.length === 0) continue;
+      // no old caller is hurt by, which the gate does not report either. A
+      // choice written another way is still read as changed, and is written
+      // as the new contract writes it, where that is proved to say the same.
+      if (ops.length === 0) {
+        restatedField(delta, pair, sides ?? NEITHER, "choice");
+        continue;
+      }
 
       // One value that went and one that arrived is a pairing the documents
       // make possible, not one they state: Adyen dropped `alma` and added
@@ -1410,6 +1478,86 @@ function alteredProposals(
 const NEITHER = { request: false, response: false };
 
 /**
+ * Whether a field that is written differently holds the same values, in each
+ * direction it travels: every value old callers send, the new contract
+ * accepts, and where they are sent it, it holds exactly what it held.
+ *
+ * PayPal's JSON patch `value` was a choice of every kind of JSON value, then
+ * a value that states nothing, then a list of every type: three spellings of
+ * any value, which the differ reads as a choice that lost its branches and a
+ * type that changed. Proved on the schemas as each contract writes them,
+ * with the same containment the compiler proves the `restate` with again.
+ * Only a value: a field that holds an object is compared field by field.
+ * With `only: "choice"`, only where how its choice or its types are written
+ * moved, which is all the differ reads as a change where nothing old callers
+ * send or are sent was ruled out.
+ */
+function sameValues(
+  oldContract: OpenApiDocument,
+  newContract: OpenApiDocument,
+  delta: SchemaDelta,
+  pair: SchemaDelta["altered"][number],
+  sides: { request: boolean; response: boolean },
+  only?: "choice",
+): boolean {
+  if (!sides.request && !sides.response) return false;
+  // A place compared under a name of its own making, as a field written out
+  // where a named schema was, has no root to read here, and is not restated.
+  const root = (document: OpenApiDocument, name: string) => {
+    const ref = `#/components/schemas/${name.replaceAll("~", "~0").replaceAll("/", "~1")}`;
+    return resolveRef(document, ref) === undefined ? undefined : { $ref: ref };
+  };
+  const oldRoot = delta.roots?.old ?? root(oldContract, delta.schema);
+  const newRoot = delta.roots?.new ?? root(newContract, delta.newSchema);
+  if (oldRoot === undefined || newRoot === undefined) return false;
+  let was: JsonValue | undefined;
+  let now: JsonValue | undefined;
+  try {
+    // Written into the old contract where the place stands, so reached
+    // there without passing through another schema, whose own Changes would
+    // then miss the copy the restatement writes.
+    was = statementAt(oldContract, oldRoot, pair.old.pointer, { inPlace: true });
+    now = statementAt(newContract, newRoot, pair.new.pointer);
+  } catch {
+    // A reference on the way that leads nowhere: nothing to prove it on.
+    return false;
+  }
+  if (was === undefined || now === undefined) return false;
+  // A place that refers to a named schema is that schema's to change: its
+  // own Change runs here too, and a restatement would act beside it.
+  if (JSON.stringify(was).includes('"$ref"')) return false;
+  if (JSON.stringify(unannotated(was)) === JSON.stringify(unannotated(now))) return false;
+  if (only === "choice") {
+    const written = (document: OpenApiDocument, schema: JsonValue) => {
+      const resolved = resolveSchema(document, schema);
+      if (!isJsonObject(resolved)) return "";
+      return JSON.stringify(
+        ["anyOf", "oneOf", "type"].map((keyword) =>
+          unannotated(resolved[keyword] ?? null),
+        ),
+      );
+    };
+    if (written(oldContract, was) === written(newContract, now)) return false;
+  }
+  const holdsObject = (document: OpenApiDocument, schema: JsonValue) => {
+    const resolved = resolveSchema(document, schema);
+    return isJsonObject(resolved) && resolved["properties"] !== undefined;
+  };
+  if (holdsObject(oldContract, was) || holdsObject(newContract, now)) return false;
+  const before = { document: oldContract, schema: was };
+  const after = { document: newContract, schema: now };
+  // Toward old callers, the same values both ways: a response that can no
+  // longer hold some of what it could is a loss to declare, which `relax`
+  // does, and never a restatement.
+  return (
+    referencesAlike(oldContract, after).covered &&
+    keepsNames(before, after).covered &&
+    covers(after, before).covered &&
+    (!sides.response || covers(before, after).covered)
+  );
+}
+
+/**
  * Bounds on a value that moved, drafted as a `relax` where a response may now
  * carry values old callers were told could not happen. A bound that narrowed
  * on something old callers send is not drafted: nothing can serve it, and it
@@ -1448,7 +1596,15 @@ export function relaxOps(
     sides.request && narrowed.length > 0
       ? `\`${old.name}\` now allows less (${narrowed.join(", ")}) in requests, so old callers will be refused for values their contract allowed; no Change can hide that`
       : undefined;
-  const widened = changed.filter((keyword) => !narrowed.includes(keyword));
+  // A pattern or format replaced by one nothing can compare it with narrows
+  // and widens at once: declared on a response old callers only receive,
+  // and reported, as any narrowing is, where they send it too.
+  const widened = changed.filter(
+    (keyword) =>
+      !narrowed.includes(keyword) ||
+      (!sides.request &&
+        movesBothWays(keyword, before[keyword], set[keyword] as JsonValue)),
+  );
   const declared = unresolved === undefined ? changed : widened;
   if (!sides.response || widened.length === 0) {
     return { ops: [], notes: [], ...(unresolved ? { unresolved } : {}) };
@@ -1762,7 +1918,7 @@ export function presenceOps(
   if (sides.response) {
     // Old callers were promised the field, or a value in it.
     const absent = old.required && !next.required;
-    const nulled = !old.nullable && next.nullable;
+    const nulled = !old.nullable && !old.anyKind && next.nullable;
     if (absent || (nulled && old.required)) {
       if (declared === undefined) {
         questions.push({
@@ -1790,7 +1946,13 @@ export function presenceOps(
     }
   }
 
-  if (sides.request && !sides.response && !old.nullable && next.nullable) {
+  if (
+    sides.request &&
+    !sides.response &&
+    !old.nullable &&
+    !old.anyKind &&
+    next.nullable
+  ) {
     // Nothing an old caller sends changes, and there is no response to keep a
     // null out of, so this only records the change.
     ops.push({ op: "dropNull", path: next.pointer, toward: "old" });
@@ -1800,7 +1962,7 @@ export function presenceOps(
   if (sides.request) {
     // Old callers may leave out, or send null in, what the server now needs.
     const absent = !old.required && next.required;
-    const nulled = old.nullable && !next.nullable;
+    const nulled = old.nullable && !next.nullable && !next.anyKind;
     if (absent || (nulled && next.required)) {
       if (next.default === undefined) {
         questions.push({

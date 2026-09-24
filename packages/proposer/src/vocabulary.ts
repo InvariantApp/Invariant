@@ -34,7 +34,11 @@ export interface FoldDecision {
   gained: string[];
   /** Values the old contract names that the new one no longer does. */
   lost: string[];
-  /** Values the old contract names. Each gained value folds onto one of these. */
+  /**
+   * What an answer may name. For a response field, the values the old
+   * contract names, which each gained value folds onto. For `request`, the
+   * values the new contract accepts, which each lost value is sent as.
+   */
   choices: string[];
   /**
    * The likeliest choice for each gained value, and for each lost value the
@@ -46,8 +50,10 @@ export interface FoldDecision {
   /** Why this is a decision rather than something derivable. */
   why: string;
   /**
-   * `request` for a field only old callers send whose values shrank: each
-   * value that went is sent as one that remains, and nothing is folded.
+   * `request` for a field old callers send that no longer accepts some of
+   * their values: each value that went is sent as one the API still accepts,
+   * and nothing is folded, since an old caller is never sent a value by it.
+   * `gained` then lists what a value that went may have been renamed to.
    */
   direction?: "request";
 }
@@ -183,8 +189,8 @@ export function foldDecisions(deltas: readonly SchemaDelta[]): FoldDecision[] {
 
 /**
  * The single values a field only requests carry that no longer accepts some
- * of what old callers send, and nothing arrived in their place: one decision
- * per field, which remaining value each that went is sent as.
+ * of what old callers send: one decision per field, which value the API
+ * still accepts each that went is sent as.
  *
  * Adyen, Plaid and PayPal each retired request values this way, a hundred
  * and twenty-odd places left as open questions because pairing them is a
@@ -196,56 +202,115 @@ export function foldDecisions(deltas: readonly SchemaDelta[]): FoldDecision[] {
  * the value an old one is sent as is shown to them as itself, since the API
  * no longer produces the one that went. A list's items are not asked about,
  * since `dropValues` serves those.
+ *
+ * Values that arrived as others went are asked about only where old callers
+ * are never answered with the field (`responds` says where they are): Plaid's
+ * processor token request stopped taking `paynote` as two new processors
+ * arrived, and an old caller never sends either, so which value `paynote` is
+ * sent as, one that stayed or one that arrived, is the same question. Where
+ * they are answered with it, what arrived needs a fold as well, which
+ * `foldDecisions` asks together with the pairing.
  */
-export function retiredValueDecisions(deltas: readonly SchemaDelta[]): FoldDecision[] {
+export function retiredValueDecisions(
+  deltas: readonly SchemaDelta[],
+  responds: (delta: SchemaDelta) => boolean = () => true,
+): FoldDecision[] {
   const out: FoldDecision[] = [];
   for (const delta of deltas) {
+    const onlySent = !responds(delta);
     for (const pair of delta.altered) {
-      const lost = retiredValues(pair);
+      const lost = retiredValues(pair, onlySent);
       if (lost === undefined) continue;
-      const from = pair.old.enumValues as string[];
-      const kept = from.filter((value) => !lost.includes(value));
-      if (kept.length === 0) continue;
-      out.push({
-        kind: "vocabulary",
-        direction: "request",
+      const decision = retiredValueDecision({
         schema: delta.schema,
         ...(delta.scope ? { scope: delta.scope } : {}),
         field: pair.old.name,
         pointer: pair.old.pointer,
-        gained: [],
-        lost,
-        choices: from,
-        suggested: {
-          fold: [],
-          pairs: lost.map((value) => [value, likeliest(value, kept) ?? CHOOSE_ONE]),
-        },
-        why:
-          `\`${pair.old.name}\` no longer accepts ` +
-          `${lost.map((value) => `\`${value}\``).join(", ")}, which old callers may ` +
-          "send, and nothing arrived in place of it. Which value the API still " +
-          "accepts an old caller's should be sent as is a decision about meaning, " +
-          "so it is not derivable from the two documents.",
+        from: pair.old.enumValues as string[],
+        to: pair.new.enumValues as string[],
       });
+      if (decision !== undefined) out.push(decision);
     }
   }
   return out;
 }
 
 /**
- * The values a single field's vocabulary lost with nothing gained, or nothing
- * where that is not what happened. A list's items are left to `dropValues`.
+ * The decision for one value that no longer accepts some of what old callers
+ * send, whether a body field or a parameter: which value each that went is
+ * sent as, among the ones the API accepts now. Nothing where it accepts none.
  */
-export function retiredValues(pair: {
-  old: { pointer: string; enumValues?: string[] | undefined };
-  new: { enumValues?: string[] | undefined };
-}): string[] | undefined {
+export function retiredValueDecision(field: {
+  schema: string;
+  scope?: SchemaDelta["scope"];
+  field: string;
+  pointer: string;
+  /** The values the old contract names. */
+  from: readonly string[];
+  /** The values the new contract names. */
+  to: readonly string[];
+}): FoldDecision | undefined {
+  const lost = field.from.filter((value) => !field.to.includes(value));
+  const gained = field.to.filter((value) => !field.from.includes(value));
+  const kept = field.from.filter((value) => field.to.includes(value));
+  if (lost.length === 0 || field.to.length === 0) return undefined;
+  return {
+    kind: "vocabulary",
+    direction: "request",
+    schema: field.schema,
+    ...(field.scope ? { scope: field.scope } : {}),
+    field: field.field,
+    pointer: field.pointer,
+    gained,
+    lost,
+    choices: [...field.to],
+    suggested: {
+      fold: [],
+      pairs: lost.map((value) => [
+        value,
+        likeliest(value, gained) ?? likeliest(value, kept) ?? CHOOSE_ONE,
+      ]),
+    },
+    why:
+      `\`${field.field}\` no longer accepts ` +
+      `${lost.map((value) => `\`${value}\``).join(", ")}, which old callers may ` +
+      "send" +
+      (gained.length > 0
+        ? `, and now accepts ${gained.map((value) => `\`${value}\``).join(", ")}, which they never send`
+        : ", and nothing arrived in place of it") +
+      ". Which value the API still accepts an old caller's should be sent as " +
+      "is a decision about meaning, so it is not derivable from the two documents.",
+  };
+}
+
+/**
+ * The values a single field's vocabulary lost, or nothing where that is not
+ * what happened. A list's items are left to `dropValues`.
+ *
+ * With `withGained`, for a field old callers only send, values may have
+ * arrived as well; unless exactly one went as one arrived, which is drafted
+ * as a rename for a person to confirm, or every value was recased, which
+ * `stringCase` serves.
+ */
+export function retiredValues(
+  pair: {
+    old: { pointer: string; enumValues?: string[] | undefined };
+    new: { enumValues?: string[] | undefined };
+  },
+  withGained = false,
+): string[] | undefined {
   const from = pair.old.enumValues;
   const to = pair.new.enumValues;
   if (!from || !to || pair.old.pointer.endsWith("/*")) return undefined;
-  if (to.some((value) => !from.includes(value))) return undefined;
   const lost = from.filter((value) => !to.includes(value));
-  return lost.length > 0 ? lost : undefined;
+  const gained = to.filter((value) => !from.includes(value));
+  if (lost.length === 0) return undefined;
+  if (gained.length > 0) {
+    if (!withGained) return undefined;
+    if (lost.length === 1 && gained.length === 1) return undefined;
+    if (caseCodec(from, to) !== undefined) return undefined;
+  }
+  return lost;
 }
 
 /**
@@ -262,7 +327,11 @@ export function vocabularyChange(decision: FoldDecision): Change {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "_")
       .replace(/^_+|_+$/g, "");
-  const kept = decision.choices.filter((value) => !decision.lost.includes(value));
+  // The old values that stayed, each sent and shown as itself.
+  const kept =
+    decision.direction === "request"
+      ? decision.choices.filter((value) => !decision.gained.includes(value))
+      : decision.choices.filter((value) => !decision.lost.includes(value));
   return {
     irVersion: 1,
     id: `chg_${slug(decision.schema)}_${slug(decision.field)}_vocabulary`.slice(0, 120),
@@ -281,7 +350,7 @@ export function vocabularyChange(decision: FoldDecision): Change {
             ...kept.map((value) => [value, value] as [string, string]),
             ...decision.lost.map((value) => [value, CHOOSE_ONE] as [string, string]),
           ],
-          ...(decision.gained.length > 0
+          ...(decision.gained.length > 0 && decision.direction !== "request"
             ? {
                 fold: decision.suggested.fold.map(
                   ([value]) => [value, CHOOSE_ONE] as [string, string],

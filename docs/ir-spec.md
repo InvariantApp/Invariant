@@ -113,10 +113,21 @@ branch if the new schema is a choice: what may change is how the values are
 written, never which names carry them. A `discriminator` names a property
 every branch carries, as OpenAPI requires. An `int32` or `int64` format is the
 range of whole numbers it holds, so a page size bounded to 1 and 1000 that
-comes to state `int64` is the same values; any other format is kept only where
-both schemas state it. A restatement the proof cannot show is refused, naming the place and
+comes to state `int64` is the same values; `password`, which OpenAPI defines as
+a hint to a form and not a claim about the value, holds every string; any other
+format is kept only where both schemas state it. A list of every JSON type, a
+choice with a branch for each kind of value, and a schema that states no type
+all hold any value. A restatement the proof cannot show is refused, naming the place and
 the reason, and is then a `relax`, which declares the difference, or a
 `convert`, which translates it.
+
+`widen` names the new kind as the new contract names it: a named schema, or,
+for a branch written out in the union itself, a reference to where it is
+written, as `#/components/schemas/Eligibility/properties/validation_errors/items/oneOf/1`.
+The compiler finds the branch written that way in the union and tells it apart
+from the others as it does a named one, or refuses the Change where nothing
+does; the prediction writes the branch out in place, since the old contract has
+nothing at that address.
 
 `move` covers rename, nest and unnest, because all three are the same
 operation on a pointer. A move whose source is absent does nothing; it must not

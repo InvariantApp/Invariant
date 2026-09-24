@@ -69,6 +69,23 @@ describe("a schema that says less than another", () => {
     expect(holds(string, {}).covered).toBe(false);
     expect(holds({}, string).covered).toBe(true);
   });
+
+  it("reads a list of every kind of value, or a choice of each, as any value (PayPal's patch)", () => {
+    const every = ["number", "integer", "string", "boolean", "null", "array", "object"];
+    expect(holds({ type: every }, {}).covered).toBe(true);
+    expect(holds({ anyOf: every.map((type) => ({ type })) }, {}).covered).toBe(true);
+    expect(holds({}, { type: every }).covered).toBe(true);
+    // One kind short is not every kind; a whole number is not every number.
+    const noNull = every.filter((type) => type !== "null");
+    expect(holds({ type: noNull }, {}).covered).toBe(false);
+    expect(holds({ anyOf: noNull.map((type) => ({ type })) }, {}).covered).toBe(false);
+    const wholeOnly = every.filter((type) => type !== "number");
+    expect(holds({ type: wholeOnly }, {}).covered).toBe(false);
+    // Nor is any value that says more than its kind.
+    expect(
+      holds({ anyOf: every.map((type) => ({ type })) }, { minLength: 1 }).covered,
+    ).toBe(false);
+  });
 });
 
 describe("bounds and formats", () => {
@@ -92,6 +109,17 @@ describe("bounds and formats", () => {
     ).toBe(true);
     expect(
       holds({ type: "string", pattern: "^a" }, { type: "string", pattern: "^b" }).covered,
+    ).toBe(false);
+  });
+
+  it("reads `password` as the hint to a form it is, which every string satisfies (CloudFront)", () => {
+    expect(holds({ type: "string", format: "password" }, string).covered).toBe(true);
+    expect(
+      holds({ type: "string", format: "password" }, { type: "string", enum: ["a"] })
+        .covered,
+    ).toBe(true);
+    expect(
+      holds({ type: "string", format: "password", maxLength: 3 }, string).covered,
     ).toBe(false);
   });
 

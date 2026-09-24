@@ -301,4 +301,166 @@ describe("a union that gained a kind of object", () => {
       ),
     ).toEqual({ data: [{ id: "ch_1", owners: [{ object: "customer", id: "cus_2" }] }] });
   });
+
+  it("leaves out of the list a kind written out in place, named by where it is written (Supabase)", () => {
+    // Supabase's upgrade eligibility lists what blocks an upgrade as a `oneOf`
+    // written into the list, each kind told apart by the one `type` it names,
+    // and a release added a ninth kind with no name of its own.
+    const kind = (type: string, field: string) => ({
+      type: "object",
+      required: ["type", field],
+      properties: { type: { type: "string", enum: [type] }, [field]: { type: "string" } },
+    });
+    const eligibility = (withIndexes: boolean): OpenApiDocument =>
+      ({
+        openapi: "3.0.3",
+        info: { title: "projects", version: "1" },
+        paths: {
+          "/upgrade/eligibility": {
+            get: {
+              operationId: "getEligibility",
+              responses: {
+                "200": {
+                  description: "ok",
+                  content: {
+                    "application/json": {
+                      schema: { $ref: "#/components/schemas/Eligibility" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        components: {
+          schemas: {
+            Eligibility: {
+              type: "object",
+              properties: {
+                validation_errors: {
+                  type: "array",
+                  items: {
+                    oneOf: [
+                      kind("unsupported_extension", "extension_name"),
+                      ...(withIndexes
+                        ? [kind("indexes_referencing_ll_to_earth", "index_name")]
+                        : []),
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        },
+      }) as unknown as OpenApiDocument;
+    const variant =
+      "#/components/schemas/Eligibility/properties/validation_errors/items/oneOf/1";
+    const widened = parseChange({
+      irVersion: 1,
+      id: "chg_eligibility_validation_errors_items_widened",
+      summary: "A validation error can be of a kind old callers never saw.",
+      scopes: [{ schema: "#/components/schemas/Eligibility" }],
+      ops: [{ op: "widen", path: "/validation_errors/*", variant, show: "absent" }],
+      assertions: { loss_acknowledged: true },
+    });
+
+    // Written in place in the prediction, as the new contract writes it.
+    const prediction = predictDocument(eligibility(false), eligibility(true), [widened]);
+    expect(prediction.issues).toEqual([]);
+    const schemas = (
+      prediction.document as unknown as {
+        components: { schemas: Record<string, unknown> };
+      }
+    ).components.schemas;
+    expect(schemas["Eligibility"]).toEqual(
+      (
+        eligibility(true) as unknown as typeof prediction.document & {
+          components: { schemas: Record<string, unknown> };
+        }
+      ).components.schemas["Eligibility"],
+    );
+    expect(derive(widened).reasons.join()).toMatch(/kind written out at/);
+
+    const { program, issues } = chainProgram("projects", "v2", "sha256:2", [
+      {
+        label: "v2",
+        parent: "v1",
+        from: eligibility(false),
+        to: eligibility(true),
+        changes: [widened],
+      },
+    ]);
+    expect(issues).toEqual([]);
+    const runtime = createRuntime({
+      program,
+      identity: [{ kind: "default", label: "v1" }],
+    });
+    const site = runtime.siteFor("v1", "get", "/upgrade/eligibility");
+    if (!site) throw new Error("no site");
+    const errors = [
+      { type: "indexes_referencing_ll_to_earth", index_name: "ix_1" },
+      { type: "unsupported_extension", extension_name: "postgis" },
+    ];
+    expect(
+      JSON.parse(
+        runtime.transformResponse(
+          site,
+          200,
+          JSON.stringify({ validation_errors: errors }),
+          { contract: "v1", operation: "getEligibility" },
+        ),
+      ),
+    ).toEqual({
+      validation_errors: [{ type: "unsupported_extension", extension_name: "postgis" }],
+    });
+  });
+
+  it("refuses a variant written in place that nothing tells apart from the others", () => {
+    const loose = (withSecond: boolean): OpenApiDocument =>
+      ({
+        ...charges(false),
+        components: {
+          schemas: {
+            Charge: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                notes: {
+                  type: "array",
+                  items: {
+                    anyOf: [
+                      { type: "object", properties: { text: { type: "string" } } },
+                      ...(withSecond
+                        ? [{ type: "object", properties: { html: { type: "string" } } }]
+                        : []),
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        },
+      }) as unknown as OpenApiDocument;
+    const widened = parseChange({
+      ...change,
+      ops: [
+        {
+          op: "widen",
+          path: "/notes/*",
+          variant: "#/components/schemas/Charge/properties/notes/items/anyOf/1",
+          show: "absent",
+        },
+      ],
+    });
+    const { issues } = chainProgram("charges", "v2", "sha256:2", [
+      {
+        label: "v2",
+        parent: "v1",
+        from: loose(false),
+        to: loose(true),
+        changes: [widened],
+      },
+    ]);
+    expect(issues.map((issue) => issue.message).join()).toMatch(/cannot be told apart/);
+  });
 });

@@ -31,7 +31,7 @@ import {
   type ParameterScope,
   parsePointer,
 } from "@invariant-app/ir";
-import { importReferences } from "./import.ts";
+import { importReferences, widenedBranch } from "./import.ts";
 import { PATH_PARAMETER_REFUSAL, servesPathParameter } from "./lens.ts";
 import {
   addressOf,
@@ -209,9 +209,17 @@ function bodyShapeInNew(
   let parent: JsonValue | undefined;
   for (const segment of segments) {
     parent = current;
-    if (!isJsonObject(current) || !isJsonObject(current["properties"])) return undefined;
-    const next = (current["properties"] as JsonObject)[segment];
-    if (next === undefined) return undefined;
+    if (!isJsonObject(current)) return undefined;
+    // A list's items and a map's values, as a pointer names them.
+    const next =
+      segment === "*"
+        ? current["items"]
+        : segment === "{}"
+          ? current["additionalProperties"]
+          : isJsonObject(current["properties"])
+            ? (current["properties"] as JsonObject)[segment]
+            : undefined;
+    if (next === undefined || typeof next === "boolean") return undefined;
     current = resolveSchema(newContract, next);
   }
   if (current === undefined) return undefined;
@@ -323,11 +331,14 @@ function applyToBody(
     case "widen":
       // A request body that accepts one more kind of value breaks nobody,
       // but saying so is still a true account of what changed.
-      if (resolveRef(newContract, op.variant) === undefined) {
-        throw new SchemaOpError(`${op.variant} is not in the new contract`);
-      }
-      importReferences(document, newContract, { $ref: op.variant });
-      schemaWiden(document, root, op.path, op.variant, op.show);
+      schemaWiden(
+        document,
+        root,
+        op.path,
+        op.variant,
+        op.show,
+        widenedBranch(document, newContract, op.variant),
+      );
       return;
   }
 }

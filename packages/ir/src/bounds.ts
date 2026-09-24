@@ -72,6 +72,31 @@ export function narrows(
 }
 
 /**
+ * Whether a bound that moved could both rule out a value it allowed and allow
+ * one it ruled out: a pattern or a format replaced by another that nothing
+ * here can compare with it, as Twilio's phone number `capabilities` went from
+ * a `string-map` to `phone-number-capabilities`. Read as narrowing alone, a
+ * response that may now carry values outside the old claim was not declared.
+ */
+export function movesBothWays(
+  keyword: string,
+  before: JsonValue | undefined,
+  after: JsonValue,
+): boolean {
+  if (keyword !== "pattern" && keyword !== "format") return false;
+  if (typeof before !== "string" || typeof after !== "string" || before === after) {
+    return false;
+  }
+  if (keyword === "format") {
+    return !(
+      (WIDER_FORMATS[before] ?? []).includes(after) ||
+      (WIDER_FORMATS[after] ?? []).includes(before)
+    );
+  }
+  return true;
+}
+
+/**
  * Whether a vocabulary gained a value. A response that can hold a value its
  * old callers never heard of is a fold decision, which shows them one they
  * know, and never something `relax` may wave through.

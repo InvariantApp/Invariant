@@ -3220,7 +3220,12 @@ const DropNullOp = Type$1.Object({
 const WidenOp = Type$1.Object({
 	op: Type$1.Literal("widen"),
 	path: Pointer$1,
-	/** The new variant, as the new contract names it. */
+	/**
+	* The new variant, as the new contract names it: a named schema, or a
+	* reference to a branch written out in the union itself, as Supabase
+	* writes each kind of upgrade blocker into its `validation_errors` list,
+	* `#/components/schemas/Eligibility/properties/validation_errors/items/oneOf/8`.
+	*/
 	variant: Type$1.String({ pattern: "^#/components/schemas/" }),
 	show: Type$1.Union([
 		Type$1.Literal("id"),
@@ -16304,6 +16309,15 @@ const TYPES = [
 	"integer",
 	"string"
 ];
+/** The kinds of JSON value, one each: every integer is a number. */
+const KINDS = [
+	"null",
+	"boolean",
+	"object",
+	"array",
+	"number",
+	"string"
+];
 /** How deep nested schemas are followed before this gives up and says so. */
 const MAX_DEPTH$4 = 64;
 /**
@@ -16466,6 +16480,12 @@ var Prover = class {
 				if (!pieces) continue;
 				if (!pieces.map((piece) => this.#oneBranch(merged, exclusive, piece, piece, at, depth)).find((answer) => !answer.covered)) return COVERED;
 			}
+			if (typesOf$2(i) === "any" && !this.#constrains(i)) {
+				if (!KINDS.map((type) => ({
+					...i,
+					type
+				})).map((piece) => this.#oneBranch(merged, exclusive, piece, piece, at, depth)).find((answer) => !answer.covered)) return COVERED;
+			}
 			return whole;
 		}
 		const unknown = Object.keys(o).find((keyword) => !ANNOTATIONS$2.has(keyword) && !UNDERSTOOD.has(keyword) && !keyword.startsWith("x-") && JSON.stringify(o[keyword]) !== JSON.stringify(i[keyword]));
@@ -16608,6 +16628,10 @@ var Prover = class {
 	* the outer choice's discriminator first, then any the inner object always
 	* has whose values it lists.
 	*/
+	/** Whether a schema says anything about a value beyond what describes it. */
+	#constrains(schema) {
+		return Object.keys(schema).some((keyword) => !ANNOTATIONS$2.has(keyword) && !keyword.startsWith("x-"));
+	}
 	#splitsOn(o, i) {
 		const discriminator = isJsonObject(o["discriminator"]) ? o["discriminator"]["propertyName"] : void 0;
 		const properties = isJsonObject(i["properties"]) ? i["properties"] : {};
@@ -16662,9 +16686,16 @@ function stringsCovered(o, i, at) {
 	const bounded = atLeast(o, i, "minLength", at) ?? atMost(o, i, "maxLength", at);
 	if (bounded) return bounded;
 	if (o["pattern"] !== void 0 && o["pattern"] !== i["pattern"]) return missed(at, "the outer schema matches a pattern the inner does not state");
-	if (o["format"] !== void 0 && o["format"] !== i["format"]) return missed(at, `the outer schema is a ${String(o["format"])}, and the inner is not said to be`);
+	if (o["format"] !== void 0 && o["format"] !== i["format"] && !HINT_FORMATS.has(String(o["format"]))) return missed(at, `the outer schema is a ${String(o["format"])}, and the inner is not said to be`);
 	return COVERED;
 }
+/**
+* Formats OpenAPI defines as a hint and not a claim about the value, so
+* every string is one. `password` asks a form to hide what is typed:
+* CloudFront came to state it on a distribution's comment and on the value
+* of an origin's custom header, and any text old callers sent is still one.
+*/
+const HINT_FORMATS = /* @__PURE__ */ new Set(["password"]);
 /**
 * Numeric formats that bound a whole number, by the lowest and highest value
 * each holds. 2 ** 63 - 1 is not a double, so int64 is bounded by the
@@ -16770,7 +16801,7 @@ function refuses(o, value) {
 		} catch {
 			return "is checked against a pattern this cannot read";
 		}
-		if (o["format"] !== void 0) return `is not shown to be a ${String(o["format"])}`;
+		if (o["format"] !== void 0 && !HINT_FORMATS.has(String(o["format"]))) return `is not shown to be a ${String(o["format"])}`;
 	}
 	if (typeof value === "number") {
 		const format = o["format"];
@@ -16811,6 +16842,7 @@ function typesOf$2(schema) {
 		types = new Set(values.map(typeOfValue));
 	}
 	if (schema["nullable"] === true) types.add("null");
+	if (KINDS.every((type) => types.has(type))) return "any";
 	return types;
 }
 /** The values a schema lists, with null where it is nullable. */
@@ -17433,7 +17465,8 @@ function variantGuard(document, schemaRef, pointer, variantRef) {
 	if (!isJsonObject(union)) return void 0;
 	const branches = union["anyOf"] ?? union["oneOf"];
 	if (!Array.isArray(branches)) return void 0;
-	const index = branches.findIndex((branch) => isJsonObject(branch) && branch["$ref"] === variantRef);
+	const written = resolveRef(document, variantRef);
+	const index = branches.findIndex((branch) => isJsonObject(branch) && (branch["$ref"] === variantRef || typeof branch["$ref"] !== "string" && written !== void 0 && JSON.stringify(branch) === JSON.stringify(written)));
 	return index < 0 ? void 0 : guardFor(document, union, branches, index, "");
 }
 const unescapeSegment$1 = (segment) => segment.replaceAll("~1", "/").replaceAll("~0", "~");
@@ -17714,6 +17747,24 @@ function importReferences(document, source, declaration) {
 		bucket[name] = copy;
 		refsIn(copy, pending);
 	}
+}
+/**
+* The branch a `widen` adds, as the new contract writes it, with whatever it
+* refers to brought over. A named schema is referred to by name; a branch
+* written in place, which the variant names by where it is written, is
+* written in place here too, since the old contract has nothing at that
+* address.
+*/
+function widenedBranch(document, source, variant) {
+	const found = resolveRef(source, variant);
+	if (found === void 0) throw new Error(`${variant} is not in the new contract`);
+	if (LOCAL.test(variant)) {
+		importReferences(document, source, { $ref: variant });
+		return { $ref: variant };
+	}
+	const copy = structuredClone(found);
+	importReferences(document, source, copy);
+	return copy;
 }
 //#endregion
 //#region ../compiler/src/lens.ts
@@ -23793,18 +23844,19 @@ function schemaConvert(document, root, path, codec) {
 * that is a string, null needs a union that allows null, and a field left out
 * needs a field that may be left out.
 */
-function schemaWiden(document, root, path, variant, show) {
+function schemaWiden(document, root, path, variant, show, branch = { $ref: variant }) {
 	const slot = readSlot(document, root, parsePointer(path));
 	const union = own(document, WILDCARD_KEYWORD[slot.last] ? slot.parent : slot.parent["properties"], WILDCARD_KEYWORD[slot.last] ?? slot.last);
 	const key = Array.isArray(union["anyOf"]) ? "anyOf" : Array.isArray(union["oneOf"]) ? "oneOf" : void 0;
 	if (!key) throw new SchemaOpError(`${path} is not a union`);
 	const branches = union[key];
-	if (branches.some((branch) => isJsonObject(branch) && branch["$ref"] === variant)) throw new SchemaOpError(`${path} already holds ${variant}`);
+	const written = JSON.stringify(branch);
+	if (branches.some((each) => JSON.stringify(each) === written)) throw new SchemaOpError(`${path} already holds ${variant}`);
 	const kinds = branches.map((branch) => jsonKindOf(document, branch));
 	if (show === "id" && !kinds.includes("string")) throw new SchemaOpError(`old callers cannot be shown an id at ${path}: no branch of the union is a string`);
 	if (show === "null" && union["nullable"] !== true && !kinds.includes("null")) throw new SchemaOpError(`old callers cannot be shown null at ${path}: it is never null`);
 	if (show === "absent" && slot.required) throw new SchemaOpError(`old callers cannot be sent ${path} left out: it is required`);
-	union[key] = [...branches, { $ref: variant }];
+	union[key] = [...branches, branch];
 }
 /**
 * `relax`: the bounds at `path`, or on the scope itself where the path is
@@ -23984,6 +24036,10 @@ function setNullable(document, schema, nullable, label, written) {
 	if (typeof version === "string" && version.startsWith("3.0")) {
 		if (nullable) schema["nullable"] = true;
 		else delete schema["nullable"];
+		return;
+	}
+	if (nullable && isJsonObject(written) && written["nullable"] === true && !Array.isArray(written["type"])) {
+		schema["nullable"] = true;
 		return;
 	}
 	const declared = schema["type"];
@@ -24174,9 +24230,9 @@ function bodyShapeInNew(newContract, located, segments) {
 	let parent;
 	for (const segment of segments) {
 		parent = current;
-		if (!isJsonObject(current) || !isJsonObject(current["properties"])) return void 0;
-		const next = current["properties"][segment];
-		if (next === void 0) return void 0;
+		if (!isJsonObject(current)) return void 0;
+		const next = segment === "*" ? current["items"] : segment === "{}" ? current["additionalProperties"] : isJsonObject(current["properties"]) ? current["properties"][segment] : void 0;
+		if (next === void 0 || typeof next === "boolean") return void 0;
 		current = resolveSchema(newContract, next);
 	}
 	if (current === void 0) return void 0;
@@ -24260,9 +24316,7 @@ function applyToBody(document, newContract, located, op) {
 			return;
 		}
 		case "widen":
-			if (resolveRef(newContract, op.variant) === void 0) throw new SchemaOpError(`${op.variant} is not in the new contract`);
-			importReferences(document, newContract, { $ref: op.variant });
-			schemaWiden(document, root, op.path, op.variant, op.show);
+			schemaWiden(document, root, op.path, op.variant, op.show, widenedBranch(document, newContract, op.variant));
 			return;
 	}
 }
@@ -24666,10 +24720,7 @@ function applyResponseScope(document, oldContract, newContract, routes, scope, o
 			case "relax":
 				schemaRelax(document, root, op.path, op.set, false);
 				break;
-			case "widen":
-				if (resolveRef(newContract, op.variant) === void 0) throw new SchemaOpError(`${op.variant} is not in the new contract`);
-				importReferences(document, newContract, { $ref: op.variant });
-				schemaWiden(document, root, op.path, op.variant, op.show);
+			case "widen": schemaWiden(document, root, op.path, op.variant, op.show, widenedBranch(document, newContract, op.variant));
 		}
 	} catch (error) {
 		refuse(`${op.op} on ${scope.operation}'s ${scope.response} response: ${error instanceof Error ? error.message : String(error)}`);
@@ -25012,9 +25063,7 @@ function predictDocument(oldContract, newContract, changes) {
 						break;
 					}
 					case "widen":
-						if (resolveRef(newContract, op.variant) === void 0) throw new Error(`${op.variant} is not in the new contract`);
-						importReferences(document, newContract, { $ref: op.variant });
-						schemaWiden(document, schema, op.path, op.variant, op.show);
+						schemaWiden(document, schema, op.path, op.variant, op.show, widenedBranch(document, newContract, op.variant));
 						break;
 					case "dropNull":
 						if (oldSites.some((site) => site.direction === (op.toward === "new" ? "request" : "response")) && schemaRequiredAt(document, schema, op.path)) throw new Error(`${op.path} is required, so a null cannot be sent as the field left out`);
@@ -25238,7 +25287,7 @@ function derive(change) {
 		case "widen": {
 			runtime = worse(runtime, "declared-lossy");
 			source = "assisted";
-			const variant = op.variant.slice(op.variant.lastIndexOf("/") + 1);
+			const variant = /^#\/components\/schemas\/[^/]+$/.test(op.variant) ? op.variant.slice(op.variant.lastIndexOf("/") + 1) : `kind written out at ${op.variant.slice(1)}`;
 			reasons.push(`${op.path} can now hold a ${variant}, which old callers never heard of, so it is shown to them ${op.show === "id" ? "as its id" : op.show === "null" ? "as null" : "left out"} instead`);
 			lossy.backward.push(op.path);
 			break;

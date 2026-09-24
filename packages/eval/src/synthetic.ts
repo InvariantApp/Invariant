@@ -105,9 +105,10 @@ function vocabularyAnswer(decision: FoldDecision): Change {
     return [from, kept[0] ?? from];
   });
 
+  // A value old callers send is never folded: nothing sends it to them.
   const target = kept[0] ?? decision.choices[0];
   const fold: Pair[] =
-    target === undefined
+    target === undefined || decision.direction === "request"
       ? []
       : decision.gained
           .filter((value) => !renamed.has(value))

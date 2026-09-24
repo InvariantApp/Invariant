@@ -11,7 +11,9 @@
  * an endpoint that no longer exists must not be reported at all.
  */
 import type { OpenApiDocument } from "@invariant-app/contract";
+import { CHOOSE_ONE } from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
+import { decisionChange } from "./decisions.ts";
 import {
   type ParameterDelta,
   parameterDeltas,
@@ -272,7 +274,105 @@ describe("parameter drafts that need no decision", () => {
     expect(opsOf(withDefault)).toEqual([{ op: "add", path: "/tier", value: "basic" }]);
     const without = drafted([], [{ ...param("tier", "query"), required: true }]);
     expect(opsOf(without)).toEqual([]);
-    expect(without.questions.map((question) => question.field)).toEqual(["tier"]);
+    expect(without.questions).toEqual([]);
+    // Asked as the decision a new required body field is, the op written
+    // around the answer.
+    expect(without.decisions.map(decisionChange)).toEqual([
+      {
+        irVersion: 1,
+        id: "chg_param_get_v1_orders_tier_add",
+        summary: "The `tier` query parameter of get_v1_orders is new and required.",
+        scopes: [{ operation: "get_v1_orders", location: "query" }],
+        ops: [{ op: "add", path: "/tier", value: CHOOSE_ONE }],
+      },
+    ]);
+  });
+
+  it("asks what old callers send for a parameter that became required (Asana's `workspace`)", () => {
+    const result = drafted(
+      [param("workspace", "query")],
+      [{ ...param("workspace", "query"), required: true }],
+    );
+    expect(opsOf(result)).toEqual([]);
+    expect(result.questions).toEqual([]);
+    expect(result.decisions.map(decisionChange)).toEqual([
+      {
+        irVersion: 1,
+        id: "chg_param_get_v1_orders_workspace_default_new",
+        summary: "The `workspace` query parameter of get_v1_orders is now required.",
+        scopes: [{ operation: "get_v1_orders", location: "query" }],
+        ops: [
+          {
+            op: "default",
+            path: "/workspace",
+            when: "absent",
+            toward: "new",
+            value: CHOOSE_ONE,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("asks which accepted value each that went is sent as (Sentry's release `sort`)", () => {
+    const sort = (values: string[]) => param("sort", "query", { enum: values });
+    const result = drafted(
+      [sort(["date", "sessions", "users", "crash_free_users"])],
+      [sort(["date", "crash_free_sessions"])],
+    );
+    expect(opsOf(result)).toEqual([]);
+    expect(result.questions).toEqual([]);
+    const [decision] = result.decisions;
+    expect(decision).toMatchObject({
+      kind: "vocabulary",
+      direction: "request",
+      lost: ["sessions", "users", "crash_free_users"],
+      gained: ["crash_free_sessions"],
+      choices: ["date", "crash_free_sessions"],
+      suggested: {
+        fold: [],
+        pairs: [
+          ["sessions", "crash_free_sessions"],
+          ["users", CHOOSE_ONE],
+          ["crash_free_users", "crash_free_sessions"],
+        ],
+      },
+    });
+    expect(result.decisions.map(decisionChange)).toEqual([
+      {
+        irVersion: 1,
+        id: "chg_get_v1_orders_query_parameters_sort_vocabulary",
+        summary:
+          "`sort` on get_v1_orders query parameters no longer accepts values old callers may send.",
+        scopes: [{ operation: "get_v1_orders", location: "query" }],
+        ops: [
+          {
+            op: "convert",
+            path: "/sort",
+            codec: {
+              kind: "enumMap",
+              pairs: [
+                ["date", "date"],
+                ["sessions", CHOOSE_ONE],
+                ["users", CHOOSE_ONE],
+                ["crash_free_users", CHOOSE_ONE],
+              ],
+            },
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("still asks a person where more than the values changed", () => {
+    const status = (values: string[], type: string) =>
+      param("status", "query", { enum: values, type });
+    const result = drafted(
+      [status(["open", "closed"], "string")],
+      [status(["open"], "integer")],
+    );
+    expect(result.decisions).toEqual([]);
+    expect(result.questions.map((question) => question.field)).toEqual(["status"]);
   });
 
   it("leaves out of a list what it no longer accepts, and asks where others arrived (Asana)", () => {

@@ -24,7 +24,7 @@ import {
   parsePointer,
   type ResponseScope,
 } from "@invariant-app/ir";
-import { importReferences } from "./import.ts";
+import { importReferences, widenedBranch } from "./import.ts";
 import { operationById } from "./parameters.ts";
 import {
   mapEndpoint,
@@ -294,11 +294,14 @@ export function applyResponseScope(
           );
           break;
         case "widen":
-          if (resolveRef(newContract, op.variant) === undefined) {
-            throw new SchemaOpError(`${op.variant} is not in the new contract`);
-          }
-          importReferences(document, newContract, { $ref: op.variant });
-          schemaWiden(document, root, op.path, op.variant, op.show);
+          schemaWiden(
+            document,
+            root,
+            op.path,
+            op.variant,
+            op.show,
+            widenedBranch(document, newContract, op.variant),
+          );
           break;
       }
     } catch (error) {

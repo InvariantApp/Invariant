@@ -65,3 +65,26 @@ export function importReferences(
     refsIn(copy, pending);
   }
 }
+
+/**
+ * The branch a `widen` adds, as the new contract writes it, with whatever it
+ * refers to brought over. A named schema is referred to by name; a branch
+ * written in place, which the variant names by where it is written, is
+ * written in place here too, since the old contract has nothing at that
+ * address.
+ */
+export function widenedBranch(
+  document: OpenApiDocument,
+  source: OpenApiDocument,
+  variant: string,
+): JsonValue {
+  const found = resolveRef(source, variant);
+  if (found === undefined) throw new Error(`${variant} is not in the new contract`);
+  if (LOCAL.test(variant)) {
+    importReferences(document, source, { $ref: variant });
+    return { $ref: variant };
+  }
+  const copy = structuredClone(found);
+  importReferences(document, source, copy);
+  return copy;
+}

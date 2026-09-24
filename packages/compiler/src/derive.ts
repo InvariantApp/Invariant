@@ -205,7 +205,10 @@ export function derive(change: Change): Derived {
         // something they can, and they cannot tell that it was not.
         runtime = worse(runtime, "declared-lossy");
         source = "assisted";
-        const variant = op.variant.slice(op.variant.lastIndexOf("/") + 1);
+        // Named by its schema, or where it is written out in place by where.
+        const variant = /^#\/components\/schemas\/[^/]+$/.test(op.variant)
+          ? op.variant.slice(op.variant.lastIndexOf("/") + 1)
+          : `kind written out at ${op.variant.slice(1)}`;
         reasons.push(
           `${op.path} can now hold a ${variant}, which old callers never heard of, ` +
             `so it is shown to them ${op.show === "id" ? "as its id" : op.show === "null" ? "as null" : "left out"} instead`,
