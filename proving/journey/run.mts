@@ -184,6 +184,11 @@ try {
       check_runs: { name: string; status: string; conclusion: string | null }[];
     }>("GET", `/repos/${REPO}/commits/${sha}/check-runs?check_name=check`);
     const check = runs.check_runs[0];
+    // When a runner took the check up: what comes before it is GitHub's
+    // queue, not the product, and the report can tell the two apart.
+    if (check !== undefined && check.status !== "queued" && !("check started" in steps)) {
+      mark("check started");
+    }
     if (check?.status === "completed") {
       result.conclusion = check.conclusion ?? undefined;
       break;
