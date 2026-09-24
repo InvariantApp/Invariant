@@ -35,6 +35,7 @@ import type { FieldShape } from "./candidates.ts";
 import {
   type AlignmentQuestion,
   abstention,
+  failureOf,
   type Judge,
   type JudgeResult,
 } from "./judge.ts";
@@ -304,10 +305,14 @@ export class JevJudge implements Judge {
       model = response.model;
       answers = response.answers as Record<string, Answer>;
       inputTokens = response.usage.input_tokens;
-    } catch {
+    } catch (error) {
       // A judge that cannot answer abstains. The pipeline falls through to the
       // next stage rather than treating an outage as a negative answer.
-      return { ...abstention("jev"), latencyMs: performance.now() - started };
+      return {
+        ...abstention("jev"),
+        latencyMs: performance.now() - started,
+        failure: failureOf(error),
+      };
     }
 
     // Built from entries, so a field named `__proto__` is a score like any

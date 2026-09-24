@@ -103,6 +103,8 @@ for (const { label, judge, record } of judges) {
   if (run.missing.length > 0) {
     console.log(`${label}: ${run.missing.length} cases have no recorded answer`);
   }
+  for (const failure of run.failures)
+    console.log(`${label}: a request failed: ${failure}`);
   const outcomes = outcomesOf(cases, run.results);
   const metrics = summarize(outcomes);
   console.log(renderMetrics(label, metrics));

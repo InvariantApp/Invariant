@@ -20,7 +20,12 @@ import { createHash } from "node:crypto";
 import type { JsonValue } from "@invariant-app/ir";
 import type { FieldShape } from "./candidates.ts";
 import { EMBEDDED_TEXT_RULE } from "./jev.ts";
-import type { AlignmentQuestion, Judge, JudgeResult } from "./judge.ts";
+import {
+  type AlignmentQuestion,
+  failureOf,
+  type Judge,
+  type JudgeResult,
+} from "./judge.ts";
 
 /** The part of Anthropic's client this judge uses. */
 export interface MessagesClient {
@@ -242,10 +247,10 @@ export class S2Judge implements Judge {
         ],
         tool_choice: { type: "tool", name: ANSWER_TOOL },
       });
-    } catch {
+    } catch (error) {
       // An API failure is not an answer. The question goes to a person, and
-      // the evaluation counts it as an abstention it can see.
-      return abstain();
+      // the evaluation records nothing for it, and says why.
+      return { ...abstain(), failure: failureOf(error) };
     }
 
     const model = response.model ?? this.#model;

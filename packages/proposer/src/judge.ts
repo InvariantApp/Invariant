@@ -47,6 +47,19 @@ export interface JudgeResult {
   latencyMs: number;
   inputTokens: number;
   costUsd: number;
+  /**
+   * Why the judge could not answer, when a request failed. The answer is an
+   * abstention either way, which is right for drafting; an evaluation must
+   * not record it as the judge's answer, since it says nothing about the
+   * question and everything about the request.
+   */
+  failure?: string;
+}
+
+/** A failure's message, short and on one line, for a report. */
+export function failureOf(error: unknown): string {
+  const text = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  return text.replace(/\s+/g, " ").slice(0, 300);
 }
 
 export interface Judge {
