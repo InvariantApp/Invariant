@@ -1559,6 +1559,32 @@ describe("a value written another way", () => {
     });
   });
 
+  // Adyen's balance platform wrote an account holder's `status` as `Active`
+  // and then as `active`. Asked as a vocabulary as well, the answer's map
+  // ran after the case codec, found `active` where it expected `Active`, and
+  // did not apply, so the pair could not be measured with decisions answered.
+  it("asks nothing about a vocabulary the case codec already serves", async () => {
+    const thing = (values: string[]) => ({
+      ...base,
+      Thing: object(
+        { id: { type: "string" }, status: { type: "string", enum: values } },
+        ["id"],
+      ),
+    });
+    const outcome = await propose(
+      contract(thing(["Active", "Closed", "Suspended"])),
+      contract(thing(["active", "closed", "suspended"])),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.proposals.flatMap((proposal) => proposal.change.ops)).toContainEqual({
+      op: "convert",
+      path: "/status",
+      codec: { kind: "stringCase", from: "pascal", to: "snake" },
+    });
+    expect(outcome.decisions).toEqual([]);
+    expect(outcome.unresolved).toEqual([]);
+  });
+
   it("leaves a duration that changed unit to the scale, not the clock", async () => {
     const ops = await opsOf(
       { timeout_ms: { type: "integer" } },

@@ -21,6 +21,7 @@
  */
 import { CHOOSE_ONE, type Change } from "@invariant-app/ir";
 import type { SchemaDelta } from "./candidates.ts";
+import { caseCodec } from "./codecs.ts";
 
 export interface FoldDecision {
   kind: "vocabulary";
@@ -127,6 +128,13 @@ export function foldDecisions(deltas: readonly SchemaDelta[]): FoldDecision[] {
       // One out and one in is drafted as a rename elsewhere, for a person to
       // confirm; asking again here would ask twice.
       if (lost.length === 1 && gained.length === 1) continue;
+      // Every value rewritten in another case is drafted as `stringCase`,
+      // which already shows old callers their own spelling. Adyen's account
+      // holder `status` went from `Active` to `active` and Twilio's operator
+      // types from `pii_extract` to `pii-extract`; asked here as well, the
+      // answer's map ran after the case codec, met values it had already
+      // rewritten, and did not apply, so neither pair could be measured.
+      if (lost.length > 0 && caseCodec(from, to) !== undefined) continue;
       // A list that holds no value twice only grew: what it gained is left
       // out of what old callers are sent, since folded onto a value the list
       // may already hold it would show them that value twice.
