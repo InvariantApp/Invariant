@@ -1,0 +1,33 @@
+# Written by hand, as Semaphore's maintainers would. A survey variable's
+# type was always one of the values the server takes ("" for text, "int"),
+# which 2.10 described only in an example and 2.11 lists, adding the kinds
+# 2.11 introduces ("enum", "secret"). An inventory can now be a Terraform
+# workspace. Neither new kind can reach an old caller unless a caller of 2.11
+# made it, and it is shown as it is. The 201 of creating a template no
+# longer states a minimum for repository_id, for the text/plain body the
+# relax beside this one does not cover. Acknowledged, not transformed.
+irVersion: 1
+id: chg_survey_and_inventory_kinds
+summary: "Survey variable types are listed, and new survey and inventory kinds exist that only 2.11 callers can make."
+scopes: []
+ops:
+  - op: behavior
+    flag: survey_and_inventory_kinds
+    covers:
+      - "response-property-enum-value-added at GET /project/{project_id}/inventory: added the new `terraform-workspace` enum value to the `items/type` response property for the response status `200` (media type: application/json)"
+      - "response-property-enum-value-added at GET /project/{project_id}/inventory: added the new `terraform-workspace` enum value to the `items/type` response property for the response status `200` (media type: text/plain; charset=utf-8)"
+      - "response-property-enum-value-added at POST /project/{project_id}/inventory: added the new `terraform-workspace` enum value to the `type` response property for the response status `201` (media type: application/json)"
+      - "response-property-enum-value-added at POST /project/{project_id}/inventory: added the new `terraform-workspace` enum value to the `type` response property for the response status `201` (media type: text/plain; charset=utf-8)"
+      - "request-property-became-enum at POST /project/{project_id}/templates: request property `survey_vars/items/type` was restricted to a list of enum values"
+      - "response-property-enum-value-added at POST /project/{project_id}/templates: added the new `` enum value to the `survey_vars/items/type` response property for the response status `201` (media type: text/plain; charset=utf-8)"
+      - "response-property-enum-value-added at POST /project/{project_id}/templates: added the new `` enum value to the `survey_vars/items/type` response property for the response status `201` (media type: application/json)"
+      - "response-property-enum-value-added at POST /project/{project_id}/templates: added the new `enum` enum value to the `survey_vars/items/type` response property for the response status `201` (media type: application/json)"
+      - "response-property-enum-value-added at POST /project/{project_id}/templates: added the new `enum` enum value to the `survey_vars/items/type` response property for the response status `201` (media type: text/plain; charset=utf-8)"
+      - "response-property-enum-value-added at POST /project/{project_id}/templates: added the new `int` enum value to the `survey_vars/items/type` response property for the response status `201` (media type: text/plain; charset=utf-8)"
+      - "response-property-enum-value-added at POST /project/{project_id}/templates: added the new `int` enum value to the `survey_vars/items/type` response property for the response status `201` (media type: application/json)"
+      - "response-property-enum-value-added at POST /project/{project_id}/templates: added the new `secret` enum value to the `survey_vars/items/type` response property for the response status `201` (media type: application/json)"
+      - "response-property-enum-value-added at POST /project/{project_id}/templates: added the new `secret` enum value to the `survey_vars/items/type` response property for the response status `201` (media type: text/plain; charset=utf-8)"
+      - "response-property-min-unset at POST /project/{project_id}/templates: the `repository_id` response property's min was unset from `1.00` for the response status `201` (media type: text/plain; charset=utf-8)"
+      - "request-property-became-enum at PUT /project/{project_id}/templates/{template_id}: request property `survey_vars/items/type` was restricted to a list of enum values"
+assertions:
+  side_effects_unchanged: true

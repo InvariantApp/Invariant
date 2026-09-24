@@ -1,0 +1,43 @@
+# Semaphore UI on PostgreSQL, as its own integration job runs it, with the
+# database also published on this machine: the release's Dredd hooks write
+# the fixtures each transaction needs straight into it, as they do in
+# Semaphore's CI. Every credential is made when the pair runs (projects.json,
+# `server.secrets`), and every container is thrown away with its volumes
+# after each arm.
+services:
+  semaphore:
+    image: ${IMAGE}
+    container_name: ${CONTAINER}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${PORT}:3000"
+    environment:
+      SEMAPHORE_DB_DIALECT: postgres
+      SEMAPHORE_DB_HOST: postgres
+      SEMAPHORE_DB_PORT: "5432"
+      SEMAPHORE_DB_USER: semaphore
+      SEMAPHORE_DB_PASS: ${SEMAPHORE_DB_PASSWORD}
+      SEMAPHORE_DB: semaphore
+      SEMAPHORE_DB_OPTIONS: '{"sslmode":"disable"}'
+      SEMAPHORE_ADMIN: admin
+      SEMAPHORE_ADMIN_PASSWORD: ${SEMAPHORE_ADMIN_PASSWORD}
+      SEMAPHORE_ADMIN_NAME: Admin
+      SEMAPHORE_ADMIN_EMAIL: admin@localhost
+      SEMAPHORE_ACCESS_KEY_ENCRYPTION: ${SEMAPHORE_ACCESS_KEY_ENCRYPTION}
+      SEMAPHORE_MAX_TASKS_PER_TEMPLATE: "300"
+
+  postgres:
+    image: postgres:15.14-alpine@sha256:64583b3cb4f2010277bdd9749456de78e5c36f8956466ba14b0b96922e510950
+    ports:
+      - "127.0.0.1:15432:5432"
+    environment:
+      POSTGRES_DB: semaphore
+      POSTGRES_USER: semaphore
+      POSTGRES_PASSWORD: ${SEMAPHORE_DB_PASSWORD}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "semaphore"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
