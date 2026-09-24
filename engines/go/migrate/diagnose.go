@@ -43,7 +43,11 @@ type Diagnostic struct {
 // DiagnoseResponse is what does not compile, and everything it reaches.
 type DiagnoseResponse struct {
 	Diagnostics []Diagnostic `json:"diagnostics"`
-	Errors      []string     `json:"errors,omitempty"`
+	// Files are the files type-checked from source, so a check that read
+	// none of what the first pass read is not taken for one that found
+	// nothing wrong.
+	Files  []string `json:"files"`
+	Errors []string `json:"errors,omitempty"`
 }
 
 // diagnosticsOf is each type error in a file under `within`, once.
@@ -95,13 +99,18 @@ func diagnosticsOf(fset *token.FileSet, loaded []*packages.Package, within strin
 // that function's signature, the interface methods it implements, and every
 // call to either, repeated for as long as the value is passed through.
 func diagnose(request Request) (DiagnoseResponse, error) {
-	fset, loaded, err := load(request)
+	fset, loaded, err := loadConsumer(request)
 	if err != nil {
 		return DiagnoseResponse{}, err
 	}
 	response := DiagnoseResponse{Diagnostics: diagnosticsOf(fset, loaded, request.Within)}
 	response.Errors = loadErrors(loaded)
-	graph := newCallGraph(fset, filesOf(loaded, request.Within))
+	checked := filesOf(loaded, request.Within)
+	response.Files = make([]string, 0, len(checked))
+	for _, entry := range checked {
+		response.Files = append(response.Files, entry.path)
+	}
+	graph := newCallGraph(fset, checked)
 	graph.targets = request.Targets
 	graph.replaced = request.Replaced
 	for index := range response.Diagnostics {

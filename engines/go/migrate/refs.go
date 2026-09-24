@@ -265,7 +265,7 @@ func kindOf(object types.Object) string {
 
 // references finds every use of the targets' objects in the loaded files.
 func references(request Request) (RefsResponse, error) {
-	fset, loaded, err := load(request)
+	fset, loaded, err := loadConsumer(request)
 	if err != nil {
 		return RefsResponse{}, err
 	}
