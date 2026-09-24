@@ -21,10 +21,12 @@ import { join } from "node:path";
 import {
   applyEdits,
   type Edit,
+  goneFields,
   groupByFile,
   type ManualSite,
   type MigrationPlan,
   originalOffset,
+  taggedObjectSites,
 } from "@invariant-app/migrate-core";
 import {
   type EngineResult,
@@ -110,6 +112,16 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
     const references = new PyrightReferences(server, repoDir, texts);
     targets = await runTargets(references, sources, options.plan, result);
     await bumpPins(references, sources, options.plan.symbols, result);
+    // Fixtures nothing types, found by the tag each of the API's objects carries.
+    const tags = options.plan.symbols.tags;
+    if (tags) {
+      const gone = goneFields(options.plan.changes);
+      for (const [file, text] of texts) {
+        result.manual.push(
+          ...taggedObjectSites(file, text, options.plan.changes, tags, gone),
+        );
+      }
+    }
     if (options.upgraded) before = await references.errors(read);
   } finally {
     await server.stop();

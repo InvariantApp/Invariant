@@ -5,6 +5,7 @@ import (
 	"go/token"
 	"go/types"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -40,6 +41,40 @@ func load(request Request) (*token.FileSet, []*packages.Package, error) {
 		return nil, nil, fmt.Errorf("loading %s: %w", strings.Join(request.Packages, " "), err)
 	}
 	return fset, loaded, nil
+}
+
+// loadConsumer is load for the consumer's own packages, which a question
+// about them cannot be answered without. Reading export data means building,
+// and go/packages takes a go command that fails before listing anything for a
+// build that failed: foks-proj/go-foks's check against stripe-go 82 read no
+// file at all and found nothing wrong. The go command says why. An SDK's
+// surface is read with load: a release too old to have a go.mod lists
+// nothing, and has nothing to say.
+func loadConsumer(request Request) (*token.FileSet, []*packages.Package, error) {
+	fset, loaded, err := load(request)
+	if err == nil && len(loaded) == 0 && len(request.Packages) > 0 {
+		err = fmt.Errorf("loading %s found no packages: %s",
+			strings.Join(request.Packages, " "), listFailure(request))
+	}
+	return fset, loaded, err
+}
+
+// listFailure is what the go command says when it lists the packages the way
+// the loader does, without building anything.
+func listFailure(request Request) string {
+	args := append([]string{"list", "-e", "-deps", "-f", "{{.ImportPath}}"}, request.BuildFlags...)
+	command := exec.Command("go", append(args, request.Packages...)...)
+	command.Dir = request.Dir
+	command.Env = os.Environ()
+	output, err := command.CombinedOutput()
+	said := strings.TrimSpace(string(output))
+	if err == nil {
+		return "the go command lists them, so building their dependencies failed"
+	}
+	if len(said) > 2000 {
+		said = said[:2000]
+	}
+	return said
 }
 
 // fileOrder is every syntax tree once, in a stable order. With tests loaded,

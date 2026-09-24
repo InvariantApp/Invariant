@@ -14,6 +14,7 @@
  * release is the one it becomes.
  */
 import type { Change } from "@invariant-app/ir";
+import type { WireTags } from "@invariant-app/migrate-core";
 import {
   diffSurfaces,
   type GoSymbol,
@@ -34,6 +35,12 @@ export interface GoSymbolMap {
    * contract spells it (`delete /repos/{owner}/{repo}`).
    */
   operations?: Record<string, GoSymbol[]>;
+  /**
+   * How the API's objects name their own schema, as Stripe's `"object":
+   * "invoice"`, so a fixture in a string or a map nothing types is read as
+   * the schema it says it is.
+   */
+  tags?: WireTags;
 }
 
 /** Roles a reference can have, as the helper reports them. */

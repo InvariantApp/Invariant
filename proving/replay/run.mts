@@ -25,11 +25,11 @@
  * Usage:
  *   node --env-file-if-exists=.env --import tsx proving/replay/run.mts [--package stripe]
  *     [--ecosystem npm|pypi|go] [--case owner/repo#1] [--limit 10] [--keep] [--classify]
- *     [--recheck] [--settle] [--again] [--shard 0/4] [--results shard-0.json] [--verbose]
+ *     [--recheck] [--settle] [--narrow] [--again] [--shard 0/4] [--results shard-0.json] [--verbose]
  *     [--minutes 200]
  *   node --import tsx proving/replay/run.mts --merge shard-*.json
  *   node --env-file-if-exists=.env --import tsx proving/replay/run.mts --rescore
- *     [--ecosystem pypi] [--classify] [--recheck] [--settle]
+ *     [--ecosystem pypi] [--classify] [--recheck] [--settle] [--narrow]
  *
  * Cases already in the results are skipped, so a run resumes where the last
  * one stopped; `--again` replays them too.
@@ -53,7 +53,8 @@
  *
  * `--recheck` with `--classify` also settles classes recorded before the
  * rules and the second question existed; `--settle` asks the third question
- * of each site the first two disagreed about (`classify.mts`); `--minutes`
+ * of each site the first two disagreed about, and `--narrow` the narrow ones
+ * of each site still contested after it (`classify.mts`); `--minutes`
  * stops starting cases in time for what was replayed to be kept.
  *
  * `--keep` leaves each case's checkout in place and prints what the engine
@@ -66,7 +67,7 @@ import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import type { Change } from "@invariant-app/ir";
-import type { ManualSite } from "@invariant-app/migrate-core";
+import type { ManualSite, WireTags } from "@invariant-app/migrate-core";
 import {
   installWithDependencies,
   migrate as migratePython,
@@ -77,9 +78,10 @@ import { ROOT } from "../corpus/manifest.mts";
 import { workerChecker } from "./check.mts";
 import {
   type ClassRecord,
-  cachedOutcomes,
+  cachedCases,
   cacheSite,
   classify,
+  readCached,
   readClasses,
   type Site,
   siteKey,
@@ -289,6 +291,46 @@ async function prefetch(repo: string, blobs: readonly string[]): Promise<void> {
  * constant they pass comes in through their own imports, which the engine
  * follows. Reading every file of a monorepo instead ran out of memory.
  */
+/**
+ * The files that import one of `sources` by a relative path and write one of
+ * `names`: a test of the consumer's own module holding a stand-in for a
+ * response the upgrade reshaped. hiroppy's web-app-template tests its
+ * subscription handler in a file that never imports the SDK, with
+ * `current_period_end` in the stand-in it passes; read only as the files
+ * that import the SDK, the replay never showed the engine that file.
+ */
+export function importers(
+  repo: string,
+  paths: readonly string[],
+  sources: readonly string[],
+  names: readonly string[],
+): string[] {
+  if (names.length === 0) return [];
+  const escaped = names.map((name) => name.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&"));
+  const named = new RegExp(`\\b(?:${escaped.join("|")})\\b`);
+  const stem = (path: string) => path.replace(/(\/index)?\.[cm]?[jt]sx?$/, "");
+  const imported = new Set(sources.map(stem));
+  const given = new Set(sources);
+  const specifier = /(?:from|import|require\()\s*['"](\.{1,2}\/[^'"]+)['"]/g;
+  return paths
+    .map((path) => join(repo, path))
+    .filter((path) => {
+      if (given.has(path)) return false;
+      let text: string;
+      try {
+        text = readFileSync(path, "utf8");
+      } catch {
+        return false;
+      }
+      if (!named.test(text)) return false;
+      for (const match of text.matchAll(specifier)) {
+        const target = stem(join(dirname(path), match[1] as string));
+        if (imported.has(target)) return true;
+      }
+      return false;
+    });
+}
+
 export function importing(
   repo: string,
   paths: readonly string[],
@@ -526,6 +568,8 @@ interface ReplayOptions {
   recheck?: boolean;
   /** Ask the third question of sites the first two disagreed about. */
   settle?: boolean;
+  /** Ask the narrow questions of sites still contested after the third. */
+  narrow?: boolean;
 }
 
 async function replay(entry: ReplayCase, options: ReplayOptions): Promise<ReplayResult> {
@@ -760,13 +804,36 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         },
         types: contract?.types ?? {},
         ...(contract ? { operations: contract.operations } : {}),
+        ...(contract
+          ? {
+              tags: withLabel(
+                contract.tags,
+                { from: old?.label, label: next?.label },
+                entry.package,
+              ),
+            }
+          : {}),
         accessors: [],
         ...(old && next
           ? { pin: { type: old.pinType, property: old.pinProperty, label: next.label } }
           : {}),
       };
       const resolution = await pathsOf(repo, entry.base);
-      const sources = importing(repo, readable, entry.package);
+      const direct = importing(repo, readable, entry.package);
+      // The names of the fields the upgrade took away, for the files that
+      // hand the SDK's modules a stand-in holding one.
+      const gone = [
+        ...new Set(
+          (contract?.changes ?? []).flatMap((change) =>
+            change.ops.flatMap((op) =>
+              op.op === "remove" || op.op === "move"
+                ? [(op.op === "move" ? op.from : op.path).split("/").at(-1) ?? ""]
+                : [],
+            ),
+          ),
+        ),
+      ].filter((name) => /^[a-z]\w{3,}$/.test(name));
+      const sources = [...direct, ...importers(repo, readable, direct, gone)];
       const began = Date.now();
       const result = await migrate({
         repoDir: `${repo}/`,
@@ -851,7 +918,11 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
           options.classes,
           options.classifier.client,
           options.classifier.model,
-          { recheck: options.recheck ?? false, settle: options.settle ?? false },
+          {
+            recheck: options.recheck ?? false,
+            settle: options.settle ?? false,
+            narrow: options.narrow ?? false,
+          },
         );
       } catch (error) {
         // The case is still scored; what could not be classed counts as
@@ -915,6 +986,28 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
   } finally {
     if (!keep) await rm(work, { recursive: true, force: true });
   }
+}
+
+/**
+ * A contract's tags with the versions the SDK's two releases themselves
+ * speak, where they say, rather than the ones their specifications
+ * describe, and the SDK named.
+ */
+function withLabel(
+  tags: WireTags,
+  versions: { from?: string | undefined; label?: string | undefined },
+  sdk: string,
+): WireTags {
+  if (!tags.version) return tags;
+  return {
+    ...tags,
+    version: {
+      ...tags.version,
+      from: versions.from ?? tags.version.from,
+      label: versions.label ?? tags.version.label,
+      sdk,
+    },
+  };
 }
 
 /** A case's sites that follow from a contract change, by how the engine did on each. */
@@ -1130,6 +1223,15 @@ async function replayPython(
     package: entry.package,
     upgradeTo: { package: entry.package, version: next.version, types },
     types,
+    ...(contract
+      ? {
+          tags: withLabel(
+            contract.tags,
+            { from: pin?.from, label: pin?.label },
+            `stripe-python ${next.version}`,
+          ),
+        }
+      : {}),
     accessors: [],
     ...(pin ? { pin } : {}),
   };
@@ -1253,12 +1355,11 @@ async function main(): Promise<void> {
   // are now: a CI run replays without a key, and its sites are classed here.
   if (args.includes("--rescore")) {
     const wanted = new Set(cases.map((entry) => entry.id));
-    const byCase = new Map<string, { site: Site; outcome: Outcome }[]>();
-    for (const { site, outcome } of cachedOutcomes()) {
-      if (!outcome || !wanted.has(site.caseId)) continue;
-      byCase.set(site.caseId, [...(byCase.get(site.caseId) ?? []), { site, outcome }]);
-    }
-    for (const [id, scored] of byCase) {
+    for (const [id, names] of cachedCases()) {
+      if (!wanted.has(id)) continue;
+      const scored = readCached(names).flatMap(({ site, outcome }) =>
+        outcome ? [{ site, outcome }] : [],
+      );
       const result = results.get(id);
       if (!result || result.error !== undefined) continue;
       if (scored.length !== result.sites) {
@@ -1274,7 +1375,11 @@ async function main(): Promise<void> {
             classes,
             classifier.client,
             classifier.model,
-            { recheck: args.includes("--recheck"), settle: args.includes("--settle") },
+            {
+              recheck: args.includes("--recheck"),
+              settle: args.includes("--settle"),
+              narrow: args.includes("--narrow"),
+            },
           );
         } catch (error) {
           // What could not be classed stays unclassified, and is counted so.
@@ -1306,6 +1411,7 @@ async function main(): Promise<void> {
       verbose: args.includes("--verbose"),
       recheck: args.includes("--recheck"),
       settle: args.includes("--settle"),
+      narrow: args.includes("--narrow"),
       classes,
       ...(classifier ? { classifier } : {}),
     });

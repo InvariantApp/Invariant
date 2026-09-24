@@ -4,9 +4,11 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   type ClassRecord,
+  cachedCases,
   cachedSites,
   cacheSite,
   classify,
+  readCached,
   ruleClass,
   type Site,
   siteKey,
@@ -275,6 +277,82 @@ describe("classing a human site", () => {
     expect(classes[siteKey(asked)]?.model).toBe("jev-1.13.0+settle");
   });
 
+  it("settles a contested site by the narrow questions only outside the contract", async () => {
+    const refactor = { ...site, file: "src/refactor.ts" };
+    const alias = { ...site, file: "src/alias.ts" };
+    const pin = { ...site, file: "src/pin.ts" };
+    const asked = { ...site, file: "src/asked.ts" };
+    const contested = (model: string): ClassRecord => ({
+      class: "contested",
+      confidence: 0.6,
+      model,
+    });
+    const classes: Record<string, ClassRecord> = {
+      [siteKey(refactor)]: contested("jev-1.13.0+settle"),
+      [siteKey(alias)]: contested("jev-1.13.0+settle"),
+      [siteKey(pin)]: contested("jev-1.13.0+settle"),
+      [siteKey(asked)]: contested("jev-1.13.0+wire"),
+    };
+    // Each site's answers, by file: nothing on the wire, a wire name reached
+    // another way, and a pin the judge is sure is on the wire but not that
+    // the API needed it.
+    const answers: Record<string, Record<string, number>> = {
+      "src/refactor.ts": { wire: 0.07, api: 0.1, sdk: 0.2, unrelated: 0.9 },
+      "src/alias.ts": { wire: 0.86, api: 0.4, sdk: 0.6, unrelated: 0.3 },
+      "src/pin.ts": { wire: 0.98, api: 0.39, sdk: 0.19, unrelated: 0.16 },
+    };
+    const requests: { state: { site: { file: string } }; questions: object }[] = [];
+    const client = {
+      systemOne: async (request: { state: unknown; questions: object }) => {
+        const asked = request as { state: { site: { file: string } }; questions: object };
+        requests.push(asked);
+        const given = answers[asked.state.site.file] ?? {};
+        return {
+          model: "jev-1.13.0",
+          answers: Object.fromEntries(
+            Object.entries(given).map(([key, noul]) => [key, { type: "noul", noul }]),
+          ),
+        };
+      },
+    };
+    await classify([refactor, alias, pin, asked], classes, client, "jev-1.13.0", {
+      narrow: true,
+    });
+    // One site to a request, and none asked twice.
+    expect(requests.map((request) => request.state.site.file).sort()).toEqual([
+      "src/alias.ts",
+      "src/pin.ts",
+      "src/refactor.ts",
+    ]);
+    expect(Object.keys(requests[0]?.questions ?? {})).toEqual([
+      "wire",
+      "api",
+      "sdk",
+      "unrelated",
+    ]);
+    expect(classes[siteKey(refactor)]).toEqual({
+      class: "unrelated",
+      confidence: 0.9,
+      model: "jev-1.13.0+settle+wire",
+    });
+    // Neither is settled: one might be the contract, and none is ever
+    // settled as the contract by these questions.
+    expect(classes[siteKey(alias)]).toEqual(contested("jev-1.13.0+settle+wire"));
+    expect(classes[siteKey(pin)]).toEqual(contested("jev-1.13.0+settle+wire"));
+
+    // Asked everything once, nothing is asked again, whatever else is asked
+    // for: an answer asked for twice could come back different.
+    const before = JSON.stringify(classes);
+    requests.length = 0;
+    await classify([refactor, alias, pin, asked], classes, client, "jev-1.13.0", {
+      recheck: true,
+      settle: true,
+      narrow: true,
+    });
+    expect(requests).toEqual([]);
+    expect(JSON.stringify(classes)).toBe(before);
+  });
+
   it("waits out a busy service rather than leaving sites unclassed", async () => {
     const classes: Record<string, ClassRecord> = {};
     let calls = 0;
@@ -312,5 +390,17 @@ describe("classing a human site", () => {
     const [back] = cachedSites(dir);
     expect(back && siteKey(back)).toBe(siteKey(far));
     expect(back && siteState(back)).toEqual(siteState(far));
+  });
+
+  it("is read back a case at a time, with the outcome it was scored with", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "sites-"));
+    const other = { ...site, caseId: "acme/other#2" };
+    await cacheSite(site, dir, "flagged");
+    await cacheSite(other, dir, "missed");
+    const cases = cachedCases(dir);
+    expect([...cases.keys()].sort()).toEqual(["acme/other#2", "acme/shop#1"]);
+    const [back] = readCached(cases.get("acme/shop#1") ?? [], dir);
+    expect(back?.outcome).toBe("flagged");
+    expect(back && siteKey(back.site)).toBe(siteKey(site));
   });
 });

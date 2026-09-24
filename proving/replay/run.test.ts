@@ -1,9 +1,9 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { importing, lineOf, lockedVersion, pathsOf } from "./run.mts";
+import { importers, importing, lineOf, lockedVersion, pathsOf } from "./run.mts";
 
 describe("the version a commit installed", () => {
   it("is read from npm's, pnpm's and yarn's lockfiles", () => {
@@ -92,6 +92,33 @@ describe("the files the engine reads", () => {
         path.slice(repo.length + 1),
       ),
     ).toEqual(["a.ts", "b.js", "c.ts"]);
+  });
+});
+
+describe("the files that hand the SDK's users a stand-in", () => {
+  it("are those that import one of them by path and write a field the upgrade took away", () => {
+    const repo = mkdtempSync(join(tmpdir(), "importers-"));
+    mkdirSync(join(repo, "src/utils"), { recursive: true });
+    const files: Record<string, string> = {
+      "src/utils/payment.ts": "import type Stripe from 'stripe';",
+      "src/utils/payment.test.ts":
+        "import { handle } from './payment';\nconst s = { current_period_end: 1 };",
+      "src/utils/other.test.ts":
+        "import { handle } from './payment';\nconst s = { id: 1 };",
+      "src/elsewhere.test.ts":
+        "import { x } from './lib';\nconst s = { current_period_end: 1 };",
+      "src/index.test.ts":
+        "import { handle } from './utils/payment.js';\n// current_period_end",
+    };
+    for (const [name, text] of Object.entries(files))
+      writeFileSync(join(repo, name), text);
+    const sources = importing(repo, Object.keys(files), "stripe");
+    expect(
+      importers(repo, Object.keys(files), sources, ["current_period_end"]).map((path) =>
+        path.slice(repo.length + 1),
+      ),
+    ).toEqual(["src/utils/payment.test.ts", "src/index.test.ts"]);
+    expect(importers(repo, Object.keys(files), sources, [])).toEqual([]);
   });
 });
 

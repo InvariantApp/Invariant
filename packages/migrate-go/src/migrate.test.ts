@@ -74,6 +74,7 @@ describe.skipIf(!hasGo)("migrating a Go consumer", () => {
         module: { path: "example.com/sdk", version: "v1.0.0" },
         upgradeTo: { path: "example.com/sdk/v2", version: "v2.0.0" },
         types: { secret: { package: "", key: "Secret" } },
+        tags: { property: "object", schemas: { secret: "secret", event: "event" } },
         operations: {
           [`delete ${RETIRED}`]: [{ package: "", key: "ActionsService.DeleteEnvSecret" }],
         },
@@ -140,6 +141,21 @@ describe.skipIf(!hasGo)("migrating a Go consumer", () => {
       "chg_secret_name",
       ...Array<string>(10).fill("sdk-upgrade"),
     ]);
+  });
+
+  it("shows a fixture's field the Change moved, found by its object's tag", () => {
+    const fixture = `${CONSUMER}/webhook_fixture.go`;
+    const text = readFileSync(fixture, "utf8");
+    const line = text.slice(0, text.indexOf('"name"')).split("\n").length;
+    expect(linesOf(result, fixture)).toEqual([
+      {
+        from: line,
+        to: line,
+        changeId: "chg_secret_name",
+        reason: expect.stringContaining("`name` moved to `secret_name` on `secret`"),
+      },
+    ]);
+    expect(result.files.has(fixture)).toBe(false);
   });
 
   it("rewrites a call the SDK marks //go:fix inline into what it does", () => {

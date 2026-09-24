@@ -21,9 +21,11 @@ import { join } from "node:path";
 import {
   applyEdits,
   type Edit,
+  goneFields,
   groupByFile,
   type ManualSite,
   Offsets,
+  taggedObjectSites,
 } from "@invariant-app/migrate-core";
 import { askHelper, type GoOptions, goCommand } from "./helper.ts";
 import type { GoMigrationPlan, GoRole } from "./plan.ts";
@@ -85,6 +87,7 @@ interface RefsResponse {
 
 interface DiagnoseResponse {
   diagnostics: GoDiagnostic[];
+  files?: string[];
   errors?: string[];
 }
 
@@ -114,6 +117,8 @@ export interface GoMigrationResult {
   diagnosticsBefore: GoDiagnostic[];
   /** What does not compile after the edits, against the new release. */
   diagnosticsAfter: GoDiagnostic[];
+  /** The files each pass type-checked from source. */
+  filesChecked: { before: number; after: number };
   /** go.mod and go.sum moved to the new release, when it was checked. */
   goMod?: { mod: string; sum: string };
   /** Problems loading met that are not type errors. */
@@ -248,6 +253,17 @@ export async function migrate(options: GoMigrateOptions): Promise<GoMigrationRes
     }
   }
 
+  // Fixtures nothing types, found by the tag each of the API's objects carries.
+  const tags = plan.symbols.tags;
+  if (tags) {
+    const gone = goneFields(plan.changes);
+    for (const file of refs.files) {
+      manual.push(
+        ...taggedObjectSites(file, await textOf(file), plan.changes, tags, gone),
+      );
+    }
+  }
+
   const files = new Map<string, string>();
   for (const [file, fileEdits] of groupByFile(edits)) {
     files.set(file, applyEdits(file, await textOf(file), fileEdits));
@@ -260,6 +276,7 @@ export async function migrate(options: GoMigrateOptions): Promise<GoMigrationRes
     files,
     diagnosticsBefore: refs.diagnostics,
     diagnosticsAfter: [],
+    filesChecked: { before: refs.files.length, after: 0 },
     errors: refs.errors ?? [],
   };
   if (options.verify !== false) {
@@ -452,7 +469,11 @@ async function verify(
         within: options.repoDir,
         tests: options.tests ?? true,
         overlay: Object.fromEntries(result.files),
-        buildFlags: [`-modfile=${modfile}`],
+        // The copy may be changed as the go command needs: stripe-go 82 left
+        // foks-proj/go-foks's go.mod wanting updates `go get` had not made,
+        // and with the consumer's own -mod=readonly the check listed no
+        // package and read no file.
+        buildFlags: [`-modfile=${modfile}`, "-mod=mod"],
         replaced: Object.fromEntries(
           (plan.surface?.replacements ?? []).map((replacement) => [
             `${replacement.from.package}:${replacement.from.key}`,
@@ -463,6 +484,7 @@ async function verify(
       options.go,
     );
     result.diagnosticsAfter = checked.diagnostics;
+    result.filesChecked.after = checked.files?.length ?? 0;
     result.errors.push(...(checked.errors ?? []));
     const known = new Set(
       result.diagnosticsBefore.map((diagnostic) => diagnosticKey(diagnostic, plan)),

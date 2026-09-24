@@ -21,14 +21,16 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type OpenApiDocument, readDocument } from "@invariant-app/contract";
 import type { Change } from "@invariant-app/ir";
-import { propose, RulesJudge } from "@invariant-app/proposer";
+import type { WireTags } from "@invariant-app/migrate-core";
+import type { GoSymbol, SurfaceObject } from "@invariant-app/migrate-go";
+import { type Decision, propose, RulesJudge } from "@invariant-app/proposer";
 import { ROOT } from "../corpus/manifest.mts";
 
 const SPECS = join(ROOT, ".cache/replay/specs");
 const TAGS = join(SPECS, "stripe-openapi-tags.json");
 
 /** Which of Stripe's SDKs a release number belongs to. */
-export type StripeSdk = "stripe-node" | "stripe-python";
+export type StripeSdk = "stripe-node" | "stripe-python" | "stripe-go";
 
 /**
  * The stripe/openapi release an SDK release was built from. stripe-python
@@ -42,8 +44,10 @@ async function openapiRelease(version: string, sdk: StripeSdk): Promise<string> 
   const key = sdk === "stripe-node" ? version : `${sdk}@${version}`;
   const cached = known[key];
   if (cached) return cached;
+  // stripe-go's versions are its module's, tagged as they are spelled.
+  const tag = version.startsWith("v") ? version : `v${version}`;
   const response = await fetch(
-    `https://raw.githubusercontent.com/stripe/${sdk}/v${version}/OPENAPI_VERSION`,
+    `https://raw.githubusercontent.com/stripe/${sdk}/${tag}/OPENAPI_VERSION`,
   );
   if (!response.ok) {
     throw new Error(`${sdk} ${version} records no OpenAPI release (${response.status})`);
@@ -142,6 +146,11 @@ function operationsOf(
 
 export interface ContractPlan {
   changes: Change[];
+  /**
+   * How Stripe's objects name their schema, `"object": "invoice"`, read from
+   * both specifications, and the API version the upgraded SDK speaks.
+   */
+  tags: WireTags;
   /** Schema name to the old SDK's type for it. */
   types: Record<string, string>;
   /** Each operation to the SDK method that calls it. */
@@ -197,17 +206,100 @@ const pythonTypeOf = (schema: string) => {
   return ["stripe", ...parts.slice(0, -1), pascal(parts.at(-1) ?? "")].join(".");
 };
 
+type Schemas = Record<string, { properties?: Record<string, unknown> }>;
+
+const schemasOf = (document: OpenApiDocument): Schemas =>
+  ((
+    (document as Record<string, unknown>)["components"] as
+      | { schemas?: Schemas }
+      | undefined
+  )?.schemas ?? {}) as Schemas;
+
 /**
- * The Changes and types for an upgrade from `from` to `to` of stripe-node, or
- * of stripe-python, whose `sdk` is the unpacked wheel's `site-packages`.
+ * Each schema's tag, from the one value its `object` property may take, in
+ * either specification, and the version the newer one describes.
  */
-export async function stripePlan(
+export function wireTags(before: OpenApiDocument, after: OpenApiDocument): WireTags {
+  // Several schemas can carry one tag: `deleted_invoice` is tagged `invoice`
+  // too. The schema named as its tag is the one it names; a tag no schema is
+  // named after, shared by more than one, names none of them.
+  const candidates = new Map<string, Set<string>>();
+  for (const document of [before, after]) {
+    for (const [name, schema] of Object.entries(schemasOf(document))) {
+      const tag = schema.properties?.["object"] as { enum?: unknown[] } | undefined;
+      const value = tag?.enum?.length === 1 ? tag.enum[0] : undefined;
+      if (typeof value !== "string") continue;
+      candidates.set(value, (candidates.get(value) ?? new Set()).add(name));
+    }
+  }
+  const schemas: Record<string, string> = {};
+  for (const [value, names] of candidates) {
+    if (names.has(value)) schemas[value] = value;
+    else if (names.size === 1) schemas[value] = [...names][0] as string;
+  }
+  const versionOf = (document: OpenApiDocument) =>
+    (document as { info?: { version?: string } }).info?.version;
+  const from = versionOf(before);
+  const label = versionOf(after);
+  return {
+    property: "object",
+    schemas,
+    ...(from && label && schemas["event"]
+      ? { version: { schema: "event", property: "api_version", from, label } }
+      : {}),
+  };
+}
+
+/**
+ * The removals the proposer left as decisions, as Changes. A field a response
+ * always carried and no longer does is left to the provider to decide what
+ * old callers are given instead: a decision, not a draft. For a consumer the
+ * field is gone all the same. basil's `subscription.current_period_end` is
+ * one; read only from the drafts and the unpaired removals, hiroppy's
+ * web-app-template replayed as though it were still there.
+ */
+export function decidedRemovals(
+  decisions: readonly Decision[],
+  drafted: readonly Change[],
+): Change[] {
+  const scoped = (scopes: unknown, path: string) => `${JSON.stringify(scopes)}${path}`;
+  const known = new Set(
+    drafted.flatMap((change) =>
+      change.ops.flatMap((op) =>
+        op.op === "remove" ? [scoped(change.scopes, op.path)] : [],
+      ),
+    ),
+  );
+  return decisions.flatMap((decision): Change[] => {
+    if (decision.kind !== "value" || decision.op.op !== "remove") return [];
+    const scopes = [
+      decision.scope ?? { schema: `#/components/schemas/${decision.schema}` },
+    ];
+    if (known.has(scoped(scopes, decision.pointer))) return [];
+    return [
+      {
+        irVersion: 1,
+        id: decision.id,
+        summary: `${decision.summary} ${decision.why}`,
+        scopes,
+        ops: [{ op: "remove", path: decision.pointer, restore: null }],
+      },
+    ];
+  });
+}
+
+/** The Changes the rules judge drafts between two releases' specifications, and the removals it could not pair. */
+async function changesBetween(
   from: string,
   to: string,
-  sdk: string,
-  namespaced: boolean,
-  flavour: StripeSdk = "stripe-node",
-): Promise<ContractPlan> {
+  flavour: StripeSdk,
+): Promise<{
+  before: OpenApiDocument;
+  after: OpenApiDocument;
+  changes: Change[];
+  drafted: number;
+  removed: number;
+}> {
   // One after the other: each records what it found in the same file.
   const oldRelease = await openapiRelease(from, flavour);
   const newRelease = await openapiRelease(to, flavour);
@@ -228,7 +320,75 @@ export async function stripePlan(
         { op: "remove", path: `/${entry.field.split(".").join("/")}`, restore: null },
       ],
     }));
+  const decided = decidedRemovals(outcome.decisions, [
+    ...outcome.proposals.map((proposal) => proposal.change),
+    ...removals,
+  ]);
+  return {
+    before,
+    after,
+    changes: [
+      ...outcome.proposals.map((proposal) => proposal.change),
+      ...removals,
+      ...decided,
+    ],
+    drafted: outcome.proposals.length,
+    removed: removals.length + decided.length,
+  };
+}
 
+/**
+ * The Changes, tags and types for an upgrade of stripe-go, whose types are
+ * read from the old release's surface: a schema is the type its name spells
+ * in the module's root package (`checkout.session` is `CheckoutSession`)
+ * only where that type's wire names are the schema's, since stripe-go's
+ * `LineItem` is a checkout session's item and an invoice's is
+ * `InvoiceLineItem`.
+ */
+export async function stripeGoPlan(
+  from: string,
+  to: string,
+  surface: readonly SurfaceObject[],
+): Promise<{ changes: Change[]; types: Record<string, GoSymbol>; tags: WireTags }> {
+  const { before, after, changes } = await changesBetween(from, to, "stripe-go");
+  const fields = new Map<string, Set<string>>();
+  for (const object of surface) {
+    if (object.kind !== "field" || object.package !== "" || !object.json) continue;
+    const holder = object.key.split(".")[0] as string;
+    if (object.key.split(".").length !== 2) continue;
+    fields.set(holder, (fields.get(holder) ?? new Set()).add(object.json));
+  }
+  const types: Record<string, GoSymbol> = {};
+  for (const [schema, definition] of Object.entries(schemasOf(before))) {
+    const name = schema.split(".").map(pascal).join("");
+    const declared = fields.get(name);
+    const properties = Object.keys(definition.properties ?? {});
+    if (!declared || properties.length === 0) continue;
+    const shared = properties.filter((property) => declared.has(property)).length;
+    if (shared / new Set([...properties, ...declared]).size >= 0.8) {
+      types[schema] = { package: "", key: name };
+    }
+  }
+  return { changes, types, tags: wireTags(before, after) };
+}
+
+/**
+ * The Changes and types for an upgrade from `from` to `to` of stripe-node, or
+ * of stripe-python, whose `sdk` is the unpacked wheel's `site-packages`.
+ */
+export async function stripePlan(
+  from: string,
+  to: string,
+  sdk: string,
+  namespaced: boolean,
+  flavour: StripeSdk = "stripe-node",
+): Promise<ContractPlan> {
+  const { before, changes, drafted, removed, after } = await changesBetween(
+    from,
+    to,
+    flavour,
+  );
+  const tags = wireTags(before, after);
   const schemas = Object.keys(
     (
       (before as Record<string, unknown>)["components"] as
@@ -267,13 +427,14 @@ export async function stripePlan(
       }
     }
     return {
-      changes: [...outcome.proposals.map((proposal) => proposal.change), ...removals],
+      changes,
+      tags,
       types,
       // Retired operations are found through stripe-node's resource files;
       // stripe-python's are not read yet, and nothing is reported for them.
       operations: {},
-      drafted: outcome.proposals.length,
-      removed: removals.length,
+      drafted,
+      removed,
     };
   }
   const declared = declaredInterfaces(sdk);
@@ -285,10 +446,11 @@ export async function stripePlan(
     }
   }
   return {
-    changes: [...outcome.proposals.map((proposal) => proposal.change), ...removals],
+    changes,
+    tags,
     types,
     operations: operationsOf(sdk, namespaced),
-    drafted: outcome.proposals.length,
-    removed: removals.length,
+    drafted,
+    removed,
   };
 }

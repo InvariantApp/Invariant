@@ -107,10 +107,12 @@ export async function cacheSite(
   );
 }
 
-/** Every cached site, as it was scored, with the outcome where one was kept. */
-export function cachedOutcomes(dir = SITE_CACHE): { site: Site; outcome?: Outcome }[] {
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir).map((name) => {
+/** The cached sites in `names`, as they were scored, with the outcome where one was kept. */
+export function readCached(
+  names: readonly string[],
+  dir = SITE_CACHE,
+): { site: Site; outcome?: Outcome }[] {
+  return names.map((name) => {
     const { site, skip, outcome } = JSON.parse(readFileSync(join(dir, name), "utf8")) as {
       site: Site;
       skip: number;
@@ -121,6 +123,29 @@ export function cachedOutcomes(dir = SITE_CACHE): { site: Site; outcome?: Outcom
       ...(outcome ? { outcome } : {}),
     };
   });
+}
+
+/**
+ * Each case's cached sites, by file name, read one case at a time rather
+ * than all at once: the cache of every ecosystem's sites is hundreds of
+ * megabytes once each site is laid back at its place in its file.
+ */
+export function cachedCases(dir = SITE_CACHE): Map<string, string[]> {
+  const cases = new Map<string, string[]>();
+  if (!existsSync(dir)) return cases;
+  for (const name of readdirSync(dir)) {
+    const { site } = JSON.parse(readFileSync(join(dir, name), "utf8")) as {
+      site: { caseId: string };
+    };
+    cases.set(site.caseId, [...(cases.get(site.caseId) ?? []), name]);
+  }
+  return cases;
+}
+
+/** Every cached site, as it was scored, with the outcome where one was kept. */
+export function cachedOutcomes(dir = SITE_CACHE): { site: Site; outcome?: Outcome }[] {
+  if (!existsSync(dir)) return [];
+  return readCached(readdirSync(dir), dir);
 }
 
 /** Every cached site, as it was scored. */
@@ -334,6 +359,73 @@ export function settleQuestion(index: number) {
   );
 }
 
+/**
+ * The fourth step, for a site the first three left contested: narrow
+ * questions about one site at a time, each a yes or no, rather than one
+ * judgment about sixteen sites sharing a request. The first two separate what
+ * L8 turns on. `wire` asks whether the edit changes anything that goes over
+ * HTTP at all; `api` whether the API itself changed in a way that needs it.
+ * The other two only say which of the remaining classes a site settled so
+ * belongs to.
+ *
+ * Only a site the answers put outside the contract is settled: nothing it
+ * sends or reads changed (`wire` at most `NOT_WIRE`) and nothing about the
+ * API needed it (`api` at most `NOT_API`). On the audited sample
+ * (`audit.json`) no site its reader labels contract falls there, while the
+ * contract sites the reader found among the contested ones score between
+ * those and certainty on both, as do SDK changes that only move how a wire
+ * name is reached (`stripe_id` becoming `id`); so the questions settle no
+ * site as contract, and one they cannot settle stays contested.
+ */
+export function narrowQuestions() {
+  return {
+    wire: noul({
+      instructions:
+        "Do `site.removed_lines` and `site.added_lines` differ in something the code sends to or receives from the web API behind `sdk` (the remote HTTP service, not the SDK's code): the name of a request parameter or body field, the name of a response field the code reads or a test fixture holds, a value the API accepts or returns for a field (a status, an event type, a model identifier), an endpoint path, or the API version string?",
+      criteria: {
+        true: "Yes: at least one such name or value differs between the removed and the added lines, or is newly sent or read.",
+        false:
+          "No: only other things differ, such as the SDK's class, method, module or import names, how the client is built, error classes, type annotations or suppressions, the consumer's own functions, variables, tests, prompts, log messages, comments or layout.",
+      },
+      about_the_text: EMBEDDED_TEXT,
+    }),
+    api: noul({
+      instructions:
+        "Did the web API behind `sdk` itself change between `from_version` and `to_version` in a way that makes the edit in `site` necessary: it removed, renamed, moved or retyped a field or parameter, retired an endpoint or a value, now requires something it did not, or answers differently?",
+      criteria: {
+        true: "Yes: the edit adapts the code to a change in what the web API accepts or returns.",
+        false:
+          "No: the web API would still accept the old code's requests and still send what the old code reads; the edit adapts to the SDK's own code, or is the consumer's own choice.",
+      },
+      about_the_text: EMBEDDED_TEXT,
+    }),
+    sdk: noul({
+      instructions:
+        "Is the edit in `site` needed only because the SDK's own code changed between `from_version` and `to_version`, while the HTTP requests and responses stayed the same: a class, method, function, module or import path renamed or moved, the client built or configured differently, options passed another way, error classes renamed, typing added, the module format changed, or the SDK's own HTTP client replaced?",
+      criteria: {
+        true: "Yes: code written against the SDK's old interface would break, though the same HTTP requests would still work.",
+        false:
+          "No: the edit is about what goes over the wire, or has nothing to do with the SDK.",
+      },
+      about_the_text: EMBEDDED_TEXT,
+    }),
+    unrelated: noul({
+      instructions:
+        "Would the edit in `site` have been made even if `sdk` had not been upgraded: a refactor or rename in the consumer's own code, layout, comments or docstrings, prompt or log text, the consumer's own endpoints, models or database, tests of the consumer's own code, an import of something other than `sdk`, or a change for another dependency?",
+      criteria: {
+        true: "Yes: nothing about `sdk` or its web API required it.",
+        false: "No: upgrading `sdk` required it.",
+      },
+      about_the_text: EMBEDDED_TEXT,
+    }),
+  };
+}
+
+/** At most this likely to change anything on the wire, for `narrow` to settle a site. */
+export const NOT_WIRE = 0.2;
+/** At most this likely to follow from the API's own change, for `narrow` to settle a site. */
+export const NOT_API = 0.3;
+
 /** The part of the TypeSafe client this needs. */
 export interface SystemOne {
   systemOne(request: {
@@ -383,6 +475,12 @@ export interface ClassifyOptions {
    * and settle the site where the answer is sure.
    */
   settle?: boolean;
+  /**
+   * Also ask the narrow questions (`narrowQuestions`) of each site still
+   * contested after the third, and settle it where they put it outside the
+   * contract.
+   */
+  narrow?: boolean;
 }
 
 interface Unsure {
@@ -419,7 +517,13 @@ export async function classify(
     const ruled = ruleClass(site);
     if (ruled) {
       classes[key] = { class: ruled.class, confidence: 1, model: `rule:${ruled.rule}` };
-    } else if (known && known.confidence < SURE) {
+    } else if (
+      known &&
+      known.confidence < SURE &&
+      !/\+(settle|wire)\b/.test(known.model)
+    ) {
+      // A site settled by the third or the narrow questions was asked more
+      // than the second already, and is not asked again.
       rechecking.push({ site, picked: known.class, confidence: known.confidence });
     }
   }
@@ -467,13 +571,105 @@ export async function classify(
   if (options.settle) {
     const contested = distinct.filter((site) => {
       const known = classes[siteKey(site)];
-      return known?.class === "contested" && !known.model.endsWith("+settle");
+      return known?.class === "contested" && !/\+(settle|wire)\b/.test(known.model);
     });
     for (const batch of batches(contested)) {
       await settle(batch, classes, client, model, options.retryWait);
     }
   }
+  if (options.narrow) {
+    const contested = distinct.filter((site) => {
+      const known = classes[siteKey(site)];
+      return known?.class === "contested" && !known.model.includes("+wire");
+    });
+    // A few at once: each is its own small request.
+    let next = 0;
+    const worker = async () => {
+      while (next < contested.length) {
+        const site = contested[next] as Site;
+        next += 1;
+        await narrow(site, classes, client, model, options.retryWait);
+      }
+    };
+    await Promise.all(Array.from({ length: 4 }, worker));
+  }
   return asked;
+}
+
+/** The narrow questions' answers about one site, and the class they settle it as, if any. */
+export interface NarrowAnswer {
+  wire: number;
+  api: number;
+  sdk: number;
+  unrelated: number;
+  model: string;
+  settled?: Exclude<SiteClass, "contract" | "contested">;
+}
+
+/** Asks the narrow questions about one site. */
+export async function narrowAnswer(
+  site: Site,
+  client: SystemOne,
+  model: string,
+  wait?: number,
+): Promise<NarrowAnswer | undefined> {
+  const response = await ask(
+    client,
+    {
+      model,
+      state: {
+        sdk: site.package,
+        from_version: site.from || "unknown",
+        to_version: site.to,
+        site: siteState(site),
+      },
+      questions: narrowQuestions(),
+    },
+    wait,
+  );
+  const yes = (name: string) =>
+    (response.answers[name] as NoulResponse | undefined)?.noul ?? Number.NaN;
+  const [wire, api, sdk, unrelated] = ["wire", "api", "sdk", "unrelated"].map(yes) as [
+    number,
+    number,
+    number,
+    number,
+  ];
+  if ([wire, api, sdk, unrelated].some(Number.isNaN)) return undefined;
+  return {
+    wire,
+    api,
+    sdk,
+    unrelated,
+    model: response.model,
+    ...(wire <= NOT_WIRE && api <= NOT_API
+      ? { settled: sdk > unrelated ? ("sdk" as const) : ("unrelated" as const) }
+      : {}),
+  };
+}
+
+/**
+ * The narrow questions for one contested site. Settled where they put it
+ * outside the contract, as the more likely of the other two classes; left
+ * contested otherwise, and marked as asked.
+ */
+async function narrow(
+  site: Site,
+  classes: Record<string, ClassRecord>,
+  client: SystemOne,
+  model: string,
+  wait?: number,
+): Promise<void> {
+  const answer = await narrowAnswer(site, client, model, wait);
+  if (!answer) return;
+  const known = classes[siteKey(site)];
+  // Every question a site was asked stays in its label, so none is asked
+  // again: a site asked the third question and then these is `+settle+wire`.
+  const asked = /\+settle\b/.test(known?.model ?? "") ? "+settle" : "";
+  const label = `${answer.model}${asked}+wire`;
+  classes[siteKey(site)] = answer.settled
+    ? { class: answer.settled, confidence: answer[answer.settled], model: label }
+    : { class: "contested", confidence: known?.confidence ?? 0, model: label };
 }
 
 /**

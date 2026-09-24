@@ -7,6 +7,7 @@
  * everything it does follows from those two.
  */
 import type { Change, DataOp } from "@invariant-app/ir";
+import type { WireTags } from "./tagged.ts";
 
 /** How a generated SDK names the things a contract describes. */
 export interface SymbolMap {
@@ -45,6 +46,12 @@ export interface SymbolMap {
    * can be found wherever the consumer calls it.
    */
   operations?: Record<string, { type: string; method: string }>;
+  /**
+   * How the API's objects name their own schema, as Stripe's `"object":
+   * "invoice"`, so a fixture nothing types is still read as the schema it
+   * says it is (`tagged.ts`).
+   */
+  tags?: WireTags;
   /** Resource accessor paths that moved, for example charges.create to payments.create. */
   accessors: { from: string[]; to: string[] }[];
   /**
