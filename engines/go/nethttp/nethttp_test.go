@@ -30,6 +30,14 @@ const program = `{
           "form": {"fields": {"metadata": {"style": "deepObject", "explode": true}}, "types": {}},
           "request": [{"k": "move", "from": "/metadata/order", "to": "/metadata/order_id", "c": "chg_order"}]
         },
+        "put /config": {
+          "xml": {
+            "request": {"read": {"type": "object", "properties": {"S": {"type": "string"}}}, "write": {"type": "object", "properties": {"S": {"type": "string"}}}},
+            "response": {"200": {"read": {"type": "object", "properties": {"S": {"type": "string"}}}, "write": {"type": "object", "properties": {"S": {"type": "string"}}}}}
+          },
+          "request": [{"k": "enum", "path": "/S", "map": {"on": "enabled"}, "c": "chg_state"}],
+          "response": {"200": [{"k": "enum", "path": "/S", "map": {"enabled": "on"}, "c": "chg_state"}]}
+        },
         "get /items": {"envelope": {
           "instrs": [{"k": "move", "from": "/@query/limit", "to": "/@query/page_size", "c": "chg_page"}],
           "params": {
@@ -165,5 +173,29 @@ func TestRefusalsAreThereQuoteableAndShaped(t *testing.T) {
 			!strings.HasPrefix(response.Header.Get(invariant.ErrorIDHeader), "err_") {
 			t.Fatalf("%s: %d %s %v", test.name, response.StatusCode, text, response.Header)
 		}
+	}
+}
+
+func TestAnXMLBodyIsAdaptedBothWaysWhereTheOperationDescribesOne(t *testing.T) {
+	runtime, err := invariant.Load([]byte(program), invariant.Options{MaxBodyBytes: 64})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var received string
+	echo := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		received = string(body)
+		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+		_, _ = w.Write(body)
+	})
+	server := httptest.NewServer(Handler(echo, Options{Runtime: runtime}))
+	t.Cleanup(server.Close)
+	response, text := send(t, server, "PUT", "/config", "text/xml", strings.NewReader(`<C id="1"><S>on</S></C>`))
+	if response.StatusCode != 200 || received != `<C id="1"><S>enabled</S></C>` || text != `<C id="1"><S>on</S></C>` {
+		t.Fatalf("%d %q %q", response.StatusCode, received, text)
+	}
+	response, text = send(t, server, "PUT", "/config", "text/xml", strings.NewReader(`<!DOCTYPE C><C/>`))
+	if response.StatusCode != 400 || !strings.Contains(text, invariant.CodeRequestNotTranslatable) {
+		t.Fatalf("%d %s", response.StatusCode, text)
 	}
 }

@@ -57,7 +57,10 @@ function schemaFor(
     if (operation.method !== method.toLowerCase()) continue;
     if (!matches(operation.path, path)) continue;
 
-    const declared = responseSchemas(document, operation.operation);
+    // A body is checked as JSON, so only what the contract declares as JSON.
+    const declared = responseSchemas(document, operation.operation).filter(
+      (entry) => entry.media === "json",
+    );
     const exact = declared.find((entry) => entry.status === String(status));
     const byClass = declared.find(
       (entry) =>

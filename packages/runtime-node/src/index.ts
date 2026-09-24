@@ -471,10 +471,11 @@ function intercept(
     if (mode) return mode;
     const status = response.statusCode;
     const bodyless = method.toUpperCase() === "HEAD" || status === 304;
-    const adaptsBody =
-      site !== undefined &&
-      runtime.respondsTo(site, status) &&
-      isJsonMediaType(String(response.getHeader("content-type") ?? ""));
+    const adaptsBody = runtime.adaptsResponseBody(
+      site,
+      status,
+      String(response.getHeader("content-type") ?? ""),
+    );
     const adaptsHead =
       site !== undefined &&
       bodyless &&

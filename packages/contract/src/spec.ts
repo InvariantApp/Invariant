@@ -750,9 +750,30 @@ export function jsonMedia(
   return found !== undefined && isJsonObject(media) ? { type: found, media } : undefined;
 }
 
+/**
+ * The entry in a `content` map holding an XML body: `application/xml`, then
+ * `text/xml`, then any `+xml` type, as the runtime reads each.
+ *
+ * Amazon's CloudFront and CloudSearch declare nothing else. Where an
+ * operation also has a JSON representation, JSON is what the contract is
+ * read from, and the XML one is described to the runtime alongside it.
+ */
+export function xmlMedia(
+  content: JsonObject,
+): { type: string; media: JsonObject } | undefined {
+  const named = Object.keys(content);
+  const essence = (type: string) => (type.split(";")[0] ?? "").trim().toLowerCase();
+  const found =
+    named.find((type) => essence(type) === "application/xml") ??
+    named.find((type) => essence(type) === "text/xml") ??
+    named.find((type) => essence(type).endsWith("+xml"));
+  const media = found === undefined ? undefined : content[found];
+  return found !== undefined && isJsonObject(media) ? { type: found, media } : undefined;
+}
+
 export interface RequestBodyMedia {
   /** Which representation the schema came from. */
-  media: "json" | "form";
+  media: "json" | "form" | "xml";
   schema: JsonValue;
   /** A form's OpenAPI `encoding` object, per top-level property. */
   encoding?: JsonObject;
@@ -762,7 +783,7 @@ export interface RequestBodyMedia {
 
 /**
  * The schema of an operation's request body, from its JSON representation or,
- * where it has none, its form one.
+ * where it has none, its form one, and otherwise its XML one.
  *
  * A form body describes fields exactly as a JSON body does; only the wire
  * encoding differs, and the runtime decodes it before any instruction runs.
@@ -796,7 +817,21 @@ export function requestBodyMedia(
       ...(isJsonObject(form["encoding"]) ? { encoding: form["encoding"] } : {}),
     };
   }
+  const xml = xmlMedia(content)?.media;
+  if (isJsonObject(xml) && xml["schema"] !== undefined) {
+    return { media: "xml", schema: xml["schema"] };
+  }
   return undefined;
+}
+
+/** The schema of an operation's request body as XML, where it declares one. */
+export function requestXmlSchema(
+  document: OpenApiDocument,
+  operation: JsonObject,
+): JsonValue | undefined {
+  const body = deref(document, operation["requestBody"] ?? null);
+  if (!isJsonObject(body) || !isJsonObject(body["content"])) return undefined;
+  return xmlMedia(body["content"])?.media["schema"];
 }
 
 /** The schema of an operation's request body, JSON or form. */
@@ -810,6 +845,11 @@ export function requestBodySchema(
 export interface ResponseSchema {
   status: string;
   schema: JsonValue;
+  /**
+   * Which representation it came from: JSON where the response has one,
+   * otherwise XML, which the runtime reads by the site's description.
+   */
+  media: "json" | "xml";
 }
 
 export function responseSchemas(
@@ -826,10 +866,28 @@ export function responseSchemas(
     const content = response["content"];
     if (!isJsonObject(content)) continue;
     const json = jsonMedia(content)?.media;
-    if (!isJsonObject(json)) continue;
-    const schema = json["schema"];
-    if (schema === undefined) continue;
-    out.push({ status, schema });
+    const xml = xmlMedia(content)?.media;
+    const media = isJsonObject(json) ? "json" : isJsonObject(xml) ? "xml" : undefined;
+    const schema = (media === "json" ? json : xml)?.["schema"];
+    if (media === undefined || schema === undefined) continue;
+    out.push({ status, schema, media });
+  }
+  return out;
+}
+
+/** The schema of each response an operation declares as XML, by status. */
+export function responseXmlSchemas(
+  document: OpenApiDocument,
+  operation: JsonObject,
+): ResponseSchema[] {
+  const responses = operation["responses"];
+  if (!isJsonObject(responses)) return [];
+  const out: ResponseSchema[] = [];
+  for (const status of Object.keys(responses).sort()) {
+    const response = deref(document, responses[status] as JsonValue);
+    if (!isJsonObject(response) || !isJsonObject(response["content"])) continue;
+    const schema = xmlMedia(response["content"])?.media["schema"];
+    if (schema !== undefined) out.push({ status, schema, media: "xml" });
   }
   return out;
 }

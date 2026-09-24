@@ -383,6 +383,75 @@ export const FormProgram = Type.Object(
 );
 
 /**
+ * How one place in an XML body is written, from the schema's OpenAPI `xml`
+ * object, for the places a site's instructions reach and the elements on the
+ * way to them.
+ *
+ * An element is named `name`, or the field's own name where that is left
+ * out; `attribute` writes a value as an attribute of its parent instead. A
+ * list is written as its items repeated in place, or, `wrapped`, inside an
+ * element of its own, and `items.name` is what each item is called.
+ * `namespace` and `prefix` are the schema's; with no `namespace`, an element
+ * is matched by its local name in whatever namespace the document puts it,
+ * and an attribute only when it has none.
+ *
+ * `type` is what the place holds, so a value written as text reaches an
+ * instruction typed, as it does in a form; `any` is a place no instruction
+ * reads by value, moved or removed whole as it came. Everything a node does
+ * not name is kept exactly as it came, bytes and all, wherever its parent
+ * goes.
+ */
+export const XmlNode = Type.Recursive(
+  (Self) =>
+    Type.Object(
+      {
+        type: Type.Union([
+          Type.Literal("object"),
+          Type.Literal("array"),
+          Type.Literal("string"),
+          Type.Literal("integer"),
+          Type.Literal("number"),
+          Type.Literal("boolean"),
+          Type.Literal("any"),
+        ]),
+        name: Type.Optional(Type.String({ minLength: 1 })),
+        namespace: Type.Optional(Type.String({ minLength: 1 })),
+        prefix: Type.Optional(Type.String({ minLength: 1 })),
+        attribute: Type.Optional(Type.Literal(true)),
+        wrapped: Type.Optional(Type.Literal(true)),
+        properties: Type.Optional(Type.Record(Type.String(), Self)),
+        items: Type.Optional(Self),
+      },
+      { additionalProperties: false },
+    ),
+  { $id: "XmlNode" },
+);
+
+/**
+ * One XML body: how the body the instructions read is written, and how the
+ * places they write are to be written. A request is read as the caller's
+ * contract writes it and written as the current one does; a response the
+ * other way round. The root element is kept as it came, whatever its name.
+ */
+export const XmlBody = Type.Object(
+  { read: XmlNode, write: XmlNode },
+  { additionalProperties: false },
+);
+
+/**
+ * Present where an operation's body may arrive as XML, for each body the
+ * site has instructions for: the request, and each status the response work
+ * is keyed by, under the same keys.
+ */
+export const XmlProgram = Type.Object(
+  {
+    request: Type.Optional(XmlBody),
+    response: Type.Optional(Type.Record(Type.String(), XmlBody)),
+  },
+  { additionalProperties: false },
+);
+
+/**
  * A success status an old caller is answered with in place of the one the
  * provider answered: `from` becomes `to`. `empty` sends no body, where the old
  * contract promised none with `to`; a `204` is always sent without one.
@@ -404,6 +473,11 @@ export const SiteProgram = Type.Object(
      * same instructions then run over the form, decoded and written back.
      */
     form: Type.Optional(FormProgram),
+    /**
+     * Present when a body the site has work for may arrive as XML. The same
+     * instructions then run over the XML, decoded and written back.
+     */
+    xml: Type.Optional(XmlProgram),
     /** Old shape to canonical, applied to a request body. */
     request: Type.Optional(Type.Array(Instr)),
     /**
@@ -575,6 +649,9 @@ export type RouteRule = Static<typeof RouteRule>;
 export type ParamCodec = Static<typeof ParamCodec>;
 export type EnvelopeProgram = Static<typeof EnvelopeProgram>;
 export type FormProgram = Static<typeof FormProgram>;
+export type XmlNode = Static<typeof XmlNode>;
+export type XmlBody = Static<typeof XmlBody>;
+export type XmlProgram = Static<typeof XmlProgram>;
 export type StatusRule = Static<typeof StatusRule>;
 export type SiteProgram = Static<typeof SiteProgram>;
 export type ContractProgram = Static<typeof ContractProgram>;

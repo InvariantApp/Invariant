@@ -3673,7 +3673,8 @@ const FEATURE_SINCE = {
 	behaviors: "0.1.0",
 	identity: "0.1.0",
 	status: NEXT,
-	"move-beneath": NEXT
+	"move-beneath": NEXT,
+	xml: NEXT
 };
 function instrFeatures(list, into) {
 	for (const instr of list) {
@@ -3706,6 +3707,7 @@ function featuresOf(program) {
 		}
 		for (const site of Object.values(contract.sites)) {
 			if (site.form) used.add("form");
+			if (site.xml) used.add("xml");
 			if (site.status) used.add("status");
 			if (site.request) instrFeatures(site.request, used);
 			if (site.envelope) {
@@ -4079,6 +4081,62 @@ const FormProgram = Type$1.Object({
 	]))
 }, { additionalProperties: false });
 /**
+* How one place in an XML body is written, from the schema's OpenAPI `xml`
+* object, for the places a site's instructions reach and the elements on the
+* way to them.
+*
+* An element is named `name`, or the field's own name where that is left
+* out; `attribute` writes a value as an attribute of its parent instead. A
+* list is written as its items repeated in place, or, `wrapped`, inside an
+* element of its own, and `items.name` is what each item is called.
+* `namespace` and `prefix` are the schema's; with no `namespace`, an element
+* is matched by its local name in whatever namespace the document puts it,
+* and an attribute only when it has none.
+*
+* `type` is what the place holds, so a value written as text reaches an
+* instruction typed, as it does in a form; `any` is a place no instruction
+* reads by value, moved or removed whole as it came. Everything a node does
+* not name is kept exactly as it came, bytes and all, wherever its parent
+* goes.
+*/
+const XmlNode = Type$1.Recursive((Self) => Type$1.Object({
+	type: Type$1.Union([
+		Type$1.Literal("object"),
+		Type$1.Literal("array"),
+		Type$1.Literal("string"),
+		Type$1.Literal("integer"),
+		Type$1.Literal("number"),
+		Type$1.Literal("boolean"),
+		Type$1.Literal("any")
+	]),
+	name: Type$1.Optional(Type$1.String({ minLength: 1 })),
+	namespace: Type$1.Optional(Type$1.String({ minLength: 1 })),
+	prefix: Type$1.Optional(Type$1.String({ minLength: 1 })),
+	attribute: Type$1.Optional(Type$1.Literal(true)),
+	wrapped: Type$1.Optional(Type$1.Literal(true)),
+	properties: Type$1.Optional(Type$1.Record(Type$1.String(), Self)),
+	items: Type$1.Optional(Self)
+}, { additionalProperties: false }), { $id: "XmlNode" });
+/**
+* One XML body: how the body the instructions read is written, and how the
+* places they write are to be written. A request is read as the caller's
+* contract writes it and written as the current one does; a response the
+* other way round. The root element is kept as it came, whatever its name.
+*/
+const XmlBody = Type$1.Object({
+	read: XmlNode,
+	write: XmlNode
+}, { additionalProperties: false });
+/**
+* Present where an operation's body may arrive as XML, for each body the
+* site has instructions for: the request, and each status the response work
+* is keyed by, under the same keys.
+*/
+const XmlProgram = Type$1.Object({
+	request: Type$1.Optional(XmlBody),
+	response: Type$1.Optional(Type$1.Record(Type$1.String(), XmlBody))
+}, { additionalProperties: false });
+/**
 * A success status an old caller is answered with in place of the one the
 * provider answered: `from` becomes `to`. `empty` sends no body, where the old
 * contract promised none with `to`; a `204` is always sent without one.
@@ -4101,6 +4159,11 @@ const SiteProgram = Type$1.Object({
 	* same instructions then run over the form, decoded and written back.
 	*/
 	form: Type$1.Optional(FormProgram),
+	/**
+	* Present when a body the site has work for may arrive as XML. The same
+	* instructions then run over the XML, decoded and written back.
+	*/
+	xml: Type$1.Optional(XmlProgram),
 	/** Old shape to canonical, applied to a request body. */
 	request: Type$1.Optional(Type$1.Array(Instr)),
 	/**
@@ -15965,8 +16028,26 @@ function jsonMedia(content) {
 	} : void 0;
 }
 /**
+* The entry in a `content` map holding an XML body: `application/xml`, then
+* `text/xml`, then any `+xml` type, as the runtime reads each.
+*
+* Amazon's CloudFront and CloudSearch declare nothing else. Where an
+* operation also has a JSON representation, JSON is what the contract is
+* read from, and the XML one is described to the runtime alongside it.
+*/
+function xmlMedia(content) {
+	const named = Object.keys(content);
+	const essence = (type) => (type.split(";")[0] ?? "").trim().toLowerCase();
+	const found = named.find((type) => essence(type) === "application/xml") ?? named.find((type) => essence(type) === "text/xml") ?? named.find((type) => essence(type).endsWith("+xml"));
+	const media = found === void 0 ? void 0 : content[found];
+	return found !== void 0 && isJsonObject(media) ? {
+		type: found,
+		media
+	} : void 0;
+}
+/**
 * The schema of an operation's request body, from its JSON representation or,
-* where it has none, its form one.
+* where it has none, its form one, and otherwise its XML one.
 *
 * A form body describes fields exactly as a JSON body does; only the wire
 * encoding differs, and the runtime decodes it before any instruction runs.
@@ -15991,6 +16072,17 @@ function requestBodyMedia(document, operation) {
 		schema: form["schema"],
 		...isJsonObject(form["encoding"]) ? { encoding: form["encoding"] } : {}
 	};
+	const xml = xmlMedia(content)?.media;
+	if (isJsonObject(xml) && xml["schema"] !== void 0) return {
+		media: "xml",
+		schema: xml["schema"]
+	};
+}
+/** The schema of an operation's request body as XML, where it declares one. */
+function requestXmlSchema(document, operation) {
+	const body = deref(document, operation["requestBody"] ?? null);
+	if (!isJsonObject(body) || !isJsonObject(body["content"])) return void 0;
+	return xmlMedia(body["content"])?.media["schema"];
 }
 /** The schema of an operation's request body, JSON or form. */
 function requestBodySchema(document, operation) {
@@ -16006,12 +16098,31 @@ function responseSchemas$1(document, operation) {
 		const content = response["content"];
 		if (!isJsonObject(content)) continue;
 		const json = jsonMedia(content)?.media;
-		if (!isJsonObject(json)) continue;
-		const schema = json["schema"];
-		if (schema === void 0) continue;
+		const xml = xmlMedia(content)?.media;
+		const media = isJsonObject(json) ? "json" : isJsonObject(xml) ? "xml" : void 0;
+		const schema = (media === "json" ? json : xml)?.["schema"];
+		if (media === void 0 || schema === void 0) continue;
 		out.push({
 			status,
-			schema
+			schema,
+			media
+		});
+	}
+	return out;
+}
+/** The schema of each response an operation declares as XML, by status. */
+function responseXmlSchemas(document, operation) {
+	const responses = operation["responses"];
+	if (!isJsonObject(responses)) return [];
+	const out = [];
+	for (const status of Object.keys(responses).sort()) {
+		const response = deref(document, responses[status]);
+		if (!isJsonObject(response) || !isJsonObject(response["content"])) continue;
+		const schema = xmlMedia(response["content"])?.media["schema"];
+		if (schema !== void 0) out.push({
+			status,
+			schema,
+			media: "xml"
 		});
 	}
 	return out;
@@ -17521,7 +17632,7 @@ function takesForm(media) {
 * typed once, when the form is decoded, so a field an earlier step moved has
 * to be typed where the caller wrote it.
 */
-function traceBack(pointer, earlier) {
+function traceBack$1(pointer, earlier) {
 	let segments = parsePointer(pointer);
 	for (const instr of [...earlier].reverse()) {
 		if (instr.k !== "move") continue;
@@ -17537,7 +17648,7 @@ function mergeForms(earlier, later, earlierInstrs) {
 	if (!later) return earlier;
 	const types = { ...earlier.types };
 	for (const [pointer, type] of Object.entries(later.types)) {
-		const original = traceBack(pointer, earlierInstrs);
+		const original = traceBack$1(pointer, earlierInstrs);
 		if (!(original in types)) types[original] = type;
 	}
 	return {
@@ -17997,7 +18108,7 @@ function movedTo(change, field) {
 * wire, read from its declaration: the old contract's for decoding what an old
 * caller sends, the current one's for encoding what the provider receives.
 */
-const SCALARS$2 = /* @__PURE__ */ new Set([
+const SCALARS$3 = /* @__PURE__ */ new Set([
 	"string",
 	"integer",
 	"number",
@@ -18114,7 +18225,7 @@ function codecOf(document, parameter) {
 	if (type === "array" && isJsonObject(schema)) {
 		const item = resolveSchema(document, schema["items"] ?? {});
 		const itemType = isJsonObject(item) ? item["type"] : void 0;
-		if (typeof itemType === "string" && SCALARS$2.has(itemType)) items = itemType;
+		if (typeof itemType === "string" && SCALARS$3.has(itemType)) items = itemType;
 	}
 	return {
 		in: location,
@@ -18573,7 +18684,7 @@ function wordsOf(text, style) {
 			return text.split(/(?=[A-Z])/).map((part) => part.toLowerCase());
 	}
 }
-function written(words, style) {
+function written$1(words, style) {
 	const capital = (word) => word.charAt(0).toUpperCase() + word.slice(1);
 	switch (style) {
 		case "snake": return words.join("_");
@@ -18598,9 +18709,9 @@ function convertCase(value, from, to) {
 	if (from === to) return value;
 	const words = wordsOf(value, from);
 	if (words === void 0) throw new CodecRefusal(`"${value}" is not written in ${from} case`);
-	const out = written(words, to);
+	const out = written$1(words, to);
 	const back = wordsOf(out, to);
-	if (back === void 0 || written(back, from) !== value) throw new CodecRefusal(`"${value}" cannot be written in ${to} case and read back`);
+	if (back === void 0 || written$1(back, from) !== value) throw new CodecRefusal(`"${value}" cannot be written in ${to} case and read back`);
 	return out;
 }
 function isWildcard(segment) {
@@ -18850,7 +18961,7 @@ function pruneEmptyAncestors(root, segments, captures) {
 */
 const MAX_CALL_DEPTH = 512;
 /** The JSON kind of a parsed value. */
-function kindOf$1(value) {
+function kindOf$2(value) {
 	if (value === null) return "null";
 	if (isNumberLike(value)) return "number";
 	if (Array.isArray(value)) return "array";
@@ -19242,7 +19353,7 @@ function step(root, instr, limits, result, calls, here) {
 			break;
 		case "is": {
 			const value = instr.path.length === 0 ? current(root, here) : readOne(root, instr.path, limits.maxMatches);
-			if (value !== void 0 && kindOf$1(value) === instr.type) run(root, instr.block);
+			if (value !== void 0 && kindOf$2(value) === instr.type) run(root, instr.block);
 			break;
 		}
 		case "call":
@@ -19280,7 +19391,7 @@ const PART = {
 	body: "@body"
 };
 const codecKey$1 = (location, name) => `${location} ${location === "header" ? name.toLowerCase() : name}`;
-const JSON_NUMBER$1 = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/;
+const JSON_NUMBER$2 = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/;
 function decodeComponent$1(text) {
 	try {
 		return decodeURIComponent(text.replace(/\+/g, " "));
@@ -19326,7 +19437,7 @@ function cookiePairs(headers) {
 }
 /** A scalar written as text, typed the way its declaration says it is. */
 function scalar(text, type, fidelity) {
-	if ((type === "integer" || type === "number") && JSON_NUMBER$1.test(text)) return parseJson(text, fidelity);
+	if ((type === "integer" || type === "number") && JSON_NUMBER$2.test(text)) return parseJson(text, fidelity);
 	if (type === "boolean" && (text === "true" || text === "false")) return text === "true";
 	return text;
 }
@@ -19461,7 +19572,7 @@ const FALLBACK$1 = {
 	}
 };
 /** The change that last wrote under a pointer prefix, for naming a refusal. */
-function writerOf$1(instrs, part, name) {
+function writerOf$2(instrs, part, name) {
 	for (let index = instrs.length - 1; index >= 0; index -= 1) {
 		const instr = instrs[index];
 		if (touchedPaths(instr).some((path) => path[0] === part && path[1] === name)) return instr.c;
@@ -19500,7 +19611,7 @@ function closeEnvelope(envelope, template, pathValues, request, tree) {
 		const filled = names.map((name, index) => {
 			if (!pathNamed.has(name)) return pathValues[index];
 			const value = values[name];
-			const changeId = writerOf$1(envelope.instrs, PART.path, name);
+			const changeId = writerOf$2(envelope.instrs, PART.path, name);
 			if (value === void 0 || value === null) throw new TransformError(changeId, `path parameter ${name} was left without a value`);
 			return encodeURIComponent(encodeValue(value, codecFor("path", name), changeId)[0] ?? "");
 		});
@@ -19519,7 +19630,7 @@ function closeEnvelope(envelope, template, pathValues, request, tree) {
 		for (const [name, value] of Object.entries(partOf("query"))) {
 			if (value === void 0) continue;
 			const codec = codecFor("query", name);
-			const changeId = writerOf$1(envelope.instrs, PART.query, name);
+			const changeId = writerOf$2(envelope.instrs, PART.query, name);
 			if (codec.style === "deepObject" && typeof value === "object" && value !== null && !Array.isArray(value) && !numberLike(value)) {
 				for (const [key, entry] of Object.entries(value)) written.push(`${encodeURIComponent(name)}[${encodeURIComponent(key)}]=${encodeURIComponent(text$2(entry, changeId, `query parameter ${name}`))}`);
 				continue;
@@ -19545,7 +19656,7 @@ function closeEnvelope(envelope, template, pathValues, request, tree) {
 		});
 		for (const [name, value] of Object.entries(partOf("header"))) {
 			if (value === void 0) continue;
-			const changeId = writerOf$1(envelope.instrs, PART.header, name);
+			const changeId = writerOf$2(envelope.instrs, PART.header, name);
 			const written = encodeValue(value, codecFor("header", name), changeId)[0] ?? "";
 			if (UNSAFE_HEADER.test(written)) throw new TransformError(changeId, `header ${name} would carry a line break`);
 			headers.push([name.toLowerCase(), written]);
@@ -19555,7 +19666,7 @@ function closeEnvelope(envelope, template, pathValues, request, tree) {
 			const written = [];
 			for (const [name, value] of Object.entries(partOf("cookie"))) {
 				if (value === void 0) continue;
-				const changeId = writerOf$1(envelope.instrs, PART.cookie, name);
+				const changeId = writerOf$2(envelope.instrs, PART.cookie, name);
 				for (const part of encodeValue(value, codecFor("cookie", name), changeId)) {
 					if (UNSAFE_COOKIE.test(part)) throw new TransformError(changeId, `cookie ${name} would carry a separator`);
 					written.push([name, part]);
@@ -19596,7 +19707,7 @@ const PLAIN = {
 	style: "form",
 	explode: true
 };
-const JSON_NUMBER = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/;
+const JSON_NUMBER$1 = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/;
 function decodeComponent(text) {
 	try {
 		return decodeURIComponent(text.replace(/\+/g, " "));
@@ -19683,7 +19794,7 @@ function bracketed(pairs, root) {
 }
 function typeAt(value, type, fidelity) {
 	if (typeof value !== "string" || type === void 0) return value;
-	if ((type === "integer" || type === "number") && JSON_NUMBER.test(value)) return parseJson(value, fidelity);
+	if ((type === "integer" || type === "number") && JSON_NUMBER$1.test(value)) return parseJson(value, fidelity);
 	if (type === "boolean" && (value === "true" || value === "false")) return value === "true";
 	return value;
 }
@@ -19788,7 +19899,7 @@ function encodeField(root, value, field, changeId) {
 	return out;
 }
 /** The change that last wrote under a root, for naming a refusal. */
-function writerOf(instrs, root, depth) {
+function writerOf$1(instrs, root, depth) {
 	for (let index = instrs.length - 1; index >= 0; index -= 1) {
 		const instr = instrs[index];
 		if (touchedPaths(instr).some((path) => path[depth] === root)) return instr.c;
@@ -19804,7 +19915,7 @@ function closeForm(form, roots, original, tree, instrs, depth) {
 	const written = [];
 	for (const [root, value] of Object.entries(tree)) {
 		if (value === void 0 || !roots.has(root)) continue;
-		written.push(...encodeField(root, value, form.fields.get(root) ?? PLAIN, writerOf(instrs, root, depth)));
+		written.push(...encodeField(root, value, form.fields.get(root) ?? PLAIN, writerOf$1(instrs, root, depth)));
 	}
 	return [...kept, ...written].join("&");
 }
@@ -19837,9 +19948,9 @@ function isFormMediaType(contentType) {
 * web-standard globals, so it runs wherever the runtime does.
 */
 /**
-* Whether a body of this type is one a compiled program describes.
+* Whether a body of this type is JSON, which every program describes.
 *
-* Programs are compiled from a document's JSON representations, so anything
+* A form or an XML body is read only where the site describes one; anything
 * else, an HTML error page, a file, an event stream, is outside what the
 * program says and passes through untouched rather than being guessed at.
 */
@@ -20050,6 +20161,1064 @@ function responseOf(body, status, headers) {
 //#region ../runtime/src/version.ts
 const VERSION = "0.3.0";
 //#endregion
+//#region ../runtime/src/xml.ts
+/**
+* XML bodies, as a tree and back.
+*
+* Amazon's CloudFront and CloudSearch, and every SOAP-era API described in
+* OpenAPI, send and take `text/xml`. A program describes fields, not
+* encodings, so the same instructions run whether a body arrived as JSON, as
+* a form or as XML: the XML is decoded into a tree, the instructions run, and
+* the tree is written back.
+*
+* Only the places the program names are decoded, as the site's description
+* says they are written: element or attribute, list wrapped or not, what each
+* holds. Every element on the way that the description does not name is kept
+* whole, bytes and all, and written back where it was, so a document the
+* instructions leave as it was comes out byte for byte as it went in, and one
+* they change differs only where they changed it.
+*
+* The parser is written for hostile input. A document type declaration is
+* refused outright, so there are no entities beyond XML's five and character
+* references, nothing external is ever fetched and nothing expands; nesting is
+* capped as a JSON body's is, and the whole body is capped before it is read.
+* Anything this cannot write back exactly, text mixed in among elements,
+* attributes on a value the contract describes as text, an encoding other than
+* UTF-8, is refused rather than guessed at.
+*/
+/** A body that is not XML this runtime will read, or will not write back. */
+var XmlBodyError = class extends SyntaxError {
+	constructor(message) {
+		super(`The body is not XML this operation can translate: ${message}`);
+		this.name = "XmlBodyError";
+	}
+};
+const XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace";
+const XMLNS_NAMESPACE = "http://www.w3.org/2000/xmlns/";
+const ROOT_SCOPE = /* @__PURE__ */ new Map([["xml", XML_NAMESPACE]]);
+function isChar(code) {
+	return code === 9 || code === 10 || code === 13 || code >= 32 && code <= 55295 || code >= 57344 && code <= 65533 || code >= 65536 && code <= 1114111;
+}
+function isNameStart(code) {
+	return code >= 97 && code <= 122 || code >= 65 && code <= 90 || code === 95 || code === 58 || code >= 192 && code <= 214 || code >= 216 && code <= 246 || code >= 248 && code <= 767 || code >= 880 && code <= 893 || code >= 895 && code <= 8191 || code >= 8204 && code <= 8205 || code >= 8304 && code <= 8591 || code >= 11264 && code <= 12271 || code >= 12289 && code <= 55295 || code >= 63744 && code <= 64975 || code >= 65008 && code <= 65533 || code >= 65536 && code <= 983039;
+}
+function isNameChar(code) {
+	return isNameStart(code) || code === 45 || code === 46 || code >= 48 && code <= 57 || code === 183 || code >= 768 && code <= 879 || code >= 8255 && code <= 8256;
+}
+const isSpace = (code) => code === 32 || code === 9 || code === 10 || code === 13;
+/** Whether text is a name with no colon in it, as an element or attribute's local part is. */
+function isNcName(text) {
+	if (text === "") return false;
+	let first = true;
+	for (const char of text) {
+		const code = char.codePointAt(0);
+		if (code === 58 || !(first ? isNameStart(code) : isNameChar(code))) return false;
+		first = false;
+	}
+	return true;
+}
+/** Every character is one XML allows, so an unpaired surrogate or a control character is not. */
+function checkChars(text) {
+	for (let index = 0; index < text.length; index += 1) {
+		const code = text.charCodeAt(index);
+		if (code >= 55296 && code <= 56319) {
+			const next = text.charCodeAt(index + 1);
+			if (next >= 56320 && next <= 57343) {
+				index += 1;
+				continue;
+			}
+			throw new XmlBodyError(`an unpaired surrogate at offset ${index}`);
+		}
+		if (!isChar(code)) throw new XmlBodyError(`the character U+${code.toString(16).toUpperCase().padStart(4, "0")} at offset ${index}, which XML does not allow`);
+	}
+}
+/**
+* The XML declaration this reads: version 1.0, and any encoding it names is
+* checked after. Written without back references so the Go engine holds its
+* declarations to the very same pattern.
+*/
+const DECLARATION = /^<\?xml[ \t\r\n]+version[ \t\r\n]*=[ \t\r\n]*(?:"1\.0"|'1\.0')(?:[ \t\r\n]+encoding[ \t\r\n]*=[ \t\r\n]*(?:"([A-Za-z][A-Za-z0-9._-]*)"|'([A-Za-z][A-Za-z0-9._-]*)'))?(?:[ \t\r\n]+standalone[ \t\r\n]*=[ \t\r\n]*(?:"(?:yes|no)"|'(?:yes|no)'))?[ \t\r\n]*\?>/;
+const NAMED_REFERENCES = {
+	lt: "<",
+	gt: ">",
+	amp: "&",
+	apos: "'",
+	quot: "\""
+};
+/**
+* How many namespace declarations one document may make. Each element that
+* declares one copies the namespaces in scope, so a document of thousands of
+* declarations under hundreds of nested elements would cost their product.
+* Real documents make a handful.
+*/
+const MAX_DECLARATIONS = 1024;
+var Parser = class {
+	text;
+	at = 0;
+	declarations = 0;
+	constructor(text) {
+		this.text = text;
+	}
+	fail(message) {
+		throw new XmlBodyError(`${message} at offset ${this.at}`);
+	}
+	startsWith(literal) {
+		return this.text.startsWith(literal, this.at);
+	}
+	code() {
+		return this.text.codePointAt(this.at) ?? -1;
+	}
+	spaces() {
+		while (this.at < this.text.length && isSpace(this.text.charCodeAt(this.at))) this.at += 1;
+	}
+	name() {
+		const start = this.at;
+		const first = this.code();
+		if (first === -1 || !isNameStart(first)) this.fail("expected a name");
+		this.at += first > 65535 ? 2 : 1;
+		for (;;) {
+			const code = this.code();
+			if (code === -1 || !isNameChar(code)) break;
+			this.at += code > 65535 ? 2 : 1;
+		}
+		return this.text.slice(start, this.at);
+	}
+	/** A `&...;` reference at the cursor, resolved. */
+	reference() {
+		const end = this.text.indexOf(";", this.at);
+		if (end === -1 || end - this.at > 16) this.fail("an unterminated reference");
+		const body = this.text.slice(this.at + 1, end);
+		let resolved;
+		if (body.startsWith("#x")) {
+			if (/^#x[0-9A-Fa-f]{1,6}$/.test(body)) resolved = this.charRef(parseInt(body.slice(2), 16));
+		} else if (body.startsWith("#")) {
+			if (/^#[0-9]{1,7}$/.test(body)) resolved = this.charRef(parseInt(body.slice(1), 10));
+		} else if (Object.hasOwn(NAMED_REFERENCES, body)) resolved = NAMED_REFERENCES[body];
+		if (resolved === void 0) this.fail(`the reference &${body}; which XML does not define`);
+		this.at = end + 1;
+		return resolved;
+	}
+	charRef(code) {
+		if (!isChar(code)) this.fail(`a reference to a character XML does not allow`);
+		return String.fromCodePoint(code);
+	}
+	/** Character data up to the next `<`, references resolved and line ends read as XML reads them. */
+	charData() {
+		let value = "";
+		let blank = true;
+		while (this.at < this.text.length) {
+			const code = this.text.charCodeAt(this.at);
+			if (code === 60) break;
+			if (code === 38) {
+				value += this.reference();
+				blank = false;
+				continue;
+			}
+			if (code === 93 && this.startsWith("]]>")) this.fail("`]]>` in text");
+			if (code === 13) {
+				value += "\n";
+				this.at += this.text.charCodeAt(this.at + 1) === 10 ? 2 : 1;
+				continue;
+			}
+			if (!isSpace(code)) blank = false;
+			value += this.text[this.at];
+			this.at += 1;
+		}
+		return {
+			value,
+			blank
+		};
+	}
+	/** An attribute's quoted value, normalised as XML reads it. */
+	attributeValue() {
+		const quote = this.text[this.at];
+		if (quote !== "\"" && quote !== "'") this.fail("expected a quoted value");
+		this.at += 1;
+		let value = "";
+		for (;;) {
+			if (this.at >= this.text.length) this.fail("an unterminated attribute value");
+			const char = this.text[this.at];
+			if (char === quote) {
+				this.at += 1;
+				return value;
+			}
+			if (char === "<") this.fail("`<` in an attribute value");
+			if (char === "&") {
+				value += this.reference();
+				continue;
+			}
+			if (char === "\r") {
+				value += " ";
+				this.at += this.text[this.at + 1] === "\n" ? 2 : 1;
+				continue;
+			}
+			value += char === "\n" || char === "	" ? " " : char;
+			this.at += 1;
+		}
+	}
+	comment() {
+		const end = this.text.indexOf("--", this.at + 4);
+		if (end === -1) this.fail("an unterminated comment");
+		if (this.text[end + 2] !== ">") this.fail("`--` inside a comment");
+		this.at = end + 3;
+	}
+	instruction() {
+		this.at += 2;
+		if (this.name().toLowerCase() === "xml") this.fail("an XML declaration that is not at the start");
+		const end = this.text.indexOf("?>", this.at);
+		if (end === -1) this.fail("an unterminated processing instruction");
+		if (end > this.at && !isSpace(this.text.charCodeAt(this.at))) this.fail("a processing instruction with no space after its target");
+		this.at = end + 2;
+	}
+	/** Comments, processing instructions and white space, before or after the root. */
+	misc() {
+		for (;;) {
+			this.spaces();
+			if (this.startsWith("<!--")) this.comment();
+			else if (this.startsWith("<?")) this.instruction();
+			else return;
+		}
+	}
+};
+function splitName(parser, qname) {
+	const colon = qname.indexOf(":");
+	if (colon === -1) return {
+		prefix: "",
+		local: qname
+	};
+	const prefix = qname.slice(0, colon);
+	const local = qname.slice(colon + 1);
+	if (prefix === "" || local === "" || local.includes(":")) parser.fail(`the name ${qname}, which namespaces do not allow`);
+	return {
+		prefix,
+		local
+	};
+}
+/**
+* The document, refused unless it is well-formed XML 1.0 with namespaces, in
+* UTF-8, with no document type declaration.
+*/
+function parseXml(text) {
+	checkChars(text);
+	const parser = new Parser(text);
+	if (text.charCodeAt(0) === 65279) parser.at = 1;
+	if (parser.startsWith("<?xml") && /^[ \t\r\n?]/.test(text.slice(parser.at + 5, parser.at + 6))) {
+		const match = DECLARATION.exec(text.slice(parser.at));
+		if (match === null) return parser.fail("an XML declaration this runtime does not read");
+		const encoding = match[1] ?? match[2];
+		if (encoding !== void 0 && encoding.toLowerCase() !== "utf-8") parser.fail(`the encoding ${encoding}; only UTF-8 is read`);
+		parser.at += match[0].length;
+	}
+	parser.misc();
+	if (parser.startsWith("<!DOCTYPE")) parser.fail("a document type declaration, which is refused");
+	if (parser.startsWith("<!")) parser.fail("a declaration before the root element");
+	if (!parser.startsWith("<")) parser.fail("expected the root element");
+	const root = startTag(parser, void 0);
+	const open = root.empty ? [] : [root];
+	while (open.length > 0) {
+		const parent = open.at(-1);
+		if (!parser.startsWith("<")) {
+			const from = parser.at;
+			const { value, blank } = parser.charData();
+			if (parser.at >= text.length) parser.fail("an element that is never closed");
+			parent.children.push({
+				kind: "text",
+				from,
+				to: parser.at,
+				value,
+				blank
+			});
+		} else if (parser.startsWith("</")) {
+			parent.endFrom = parser.at;
+			parser.at += 2;
+			const qname = parser.name();
+			if (qname !== parent.qname) parser.fail(`the end tag </${qname}> where </${parent.qname}> was open`);
+			parser.spaces();
+			if (!parser.startsWith(">")) parser.fail("an unterminated end tag");
+			parser.at += 1;
+			parent.to = parser.at;
+			open.pop();
+		} else if (parser.startsWith("<!--")) {
+			const from = parser.at;
+			parser.comment();
+			parent.children.push({
+				kind: "other",
+				from,
+				to: parser.at
+			});
+		} else if (parser.startsWith("<![CDATA[")) {
+			const from = parser.at;
+			const end = text.indexOf("]]>", from + 9);
+			if (end === -1) parser.fail("an unterminated CDATA section");
+			const value = text.slice(from + 9, end).replace(/\r\n?/g, "\n");
+			parser.at = end + 3;
+			parent.children.push({
+				kind: "text",
+				from,
+				to: parser.at,
+				value,
+				blank: !/[^ \t\r\n]/.test(value)
+			});
+		} else if (parser.startsWith("<?")) {
+			const from = parser.at;
+			parser.instruction();
+			parent.children.push({
+				kind: "other",
+				from,
+				to: parser.at
+			});
+		} else if (parser.startsWith("<!")) parser.fail("a declaration inside the document");
+		else {
+			if (open.length >= 256) throw new BodyTooDeepError(256);
+			const element = startTag(parser, parent);
+			parent.children.push(element);
+			if (!element.empty) open.push(element);
+		}
+	}
+	parser.misc();
+	if (parser.at < text.length) parser.fail("content after the root element");
+	return {
+		text,
+		root
+	};
+}
+/** A start tag at the cursor, its namespaces resolved against its parent's. */
+function startTag(parser, parent) {
+	const from = parser.at;
+	parser.at += 1;
+	const qname = parser.name();
+	const { prefix, local } = splitName(parser, qname);
+	const attributes = [];
+	for (;;) {
+		const before = parser.at;
+		parser.spaces();
+		if (parser.startsWith("/>") || parser.startsWith(">")) break;
+		if (parser.at >= parser.text.length) parser.fail("an unterminated start tag");
+		if (parser.at === before) parser.fail("expected a space before an attribute");
+		const name = parser.name();
+		parser.spaces();
+		if (!parser.startsWith("=")) parser.fail("expected `=` after an attribute's name");
+		parser.at += 1;
+		parser.spaces();
+		const value = parser.attributeValue();
+		const parts = splitName(parser, name);
+		attributes.push({
+			from: before,
+			to: parser.at,
+			qname: name,
+			prefix: parts.prefix,
+			local: parts.local,
+			namespace: "",
+			value,
+			declares: name === "xmlns" || parts.prefix === "xmlns"
+		});
+	}
+	const empty = parser.startsWith("/>");
+	parser.at += empty ? 2 : 1;
+	const inherited = parent?.scope ?? ROOT_SCOPE;
+	const scope = declare$1(parser, inherited, attributes);
+	const namespace = resolve$1(parser, scope, prefix, true, qname);
+	const seen = /* @__PURE__ */ new Set();
+	for (const attribute of attributes) {
+		if (seen.has(attribute.qname)) parser.fail(`the attribute ${attribute.qname} twice`);
+		seen.add(attribute.qname);
+		if (attribute.declares) {
+			attribute.namespace = XMLNS_NAMESPACE;
+			continue;
+		}
+		if (attribute.prefix === "") continue;
+		attribute.namespace = resolve$1(parser, scope, attribute.prefix, false, attribute.qname);
+		const expanded = `{${attribute.namespace}}${attribute.local}`;
+		if (seen.has(expanded)) parser.fail(`the attribute ${attribute.qname} twice`);
+		seen.add(expanded);
+	}
+	return {
+		kind: "element",
+		from,
+		to: parser.at,
+		startTo: parser.at,
+		endFrom: parser.at,
+		empty,
+		qname,
+		prefix,
+		local,
+		namespace,
+		attributes,
+		children: [],
+		inherited,
+		scope
+	};
+}
+function declare$1(parser, inherited, attributes) {
+	let scope;
+	for (const attribute of attributes) {
+		if (!attribute.declares) continue;
+		const prefix = attribute.qname === "xmlns" ? "" : attribute.local;
+		const uri = attribute.value;
+		if (prefix === "xmlns") parser.fail("a declaration of the prefix xmlns");
+		if (prefix === "xml" && uri !== XML_NAMESPACE) parser.fail("the prefix xml bound to another namespace");
+		if (prefix !== "xml" && uri === XML_NAMESPACE) parser.fail("the XML namespace bound to another prefix");
+		if (uri === XMLNS_NAMESPACE) parser.fail("the xmlns namespace declared");
+		if (prefix !== "" && uri === "") parser.fail(`the prefix ${prefix} declared empty`);
+		parser.declarations += 1;
+		if (parser.declarations > MAX_DECLARATIONS) parser.fail(`more than ${MAX_DECLARATIONS} namespace declarations`);
+		scope ??= new Map(inherited);
+		scope.set(prefix, uri);
+	}
+	return scope ?? inherited;
+}
+function resolve$1(parser, scope, prefix, element, qname) {
+	if (prefix === "") return element ? scope.get("") ?? "" : "";
+	if (prefix === "xmlns") parser.fail(`the name ${qname}, which is reserved`);
+	const uri = scope.get(prefix);
+	if (uri === void 0) parser.fail(`the prefix of ${qname}, which is not declared`);
+	return uri;
+}
+/** Keys a document's elements that the description does not name are kept under. */
+const KEPT = "\0";
+/** What each kept element is, and where it was decoded from. */
+const KEPT_ELEMENTS = /* @__PURE__ */ new WeakMap();
+function keep(element, key, item) {
+	const token = Object.freeze(() => {
+		throw new TypeError("a kept XML element is not called");
+	});
+	KEPT_ELEMENTS.set(token, {
+		element,
+		key,
+		item
+	});
+	return token;
+}
+/** The element a kept value stands for, if it is one. */
+function keptOf(value) {
+	return typeof value === "function" ? KEPT_ELEMENTS.get(value) : void 0;
+}
+const JSON_NUMBER = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/;
+function typed(text, type, fidelity) {
+	if ((type === "integer" || type === "number") && JSON_NUMBER.test(text)) return parseJson(text, fidelity);
+	if (type === "boolean" && (text === "true" || text === "false")) return text === "true";
+	return text;
+}
+/** The name an element for `key` has under `node`, and whether it holds one item of a list. */
+function elementName(key, node) {
+	if (node.type === "array" && node.wrapped !== true) return node.items?.name ?? key;
+	return node.name ?? key;
+}
+function matches$1(element, name, node) {
+	return element.local === name && (node.namespace === void 0 || element.namespace === node.namespace);
+}
+function attributeMatches(attribute, name, node) {
+	return !attribute.declares && attribute.local === name && attribute.namespace === (node.namespace ?? "");
+}
+var Reader = class {
+	objects = /* @__PURE__ */ new WeakMap();
+	lists = /* @__PURE__ */ new WeakMap();
+	wrappers = /* @__PURE__ */ new Map();
+	fidelity;
+	constructor(fidelity) {
+		this.fidelity = fidelity;
+	}
+	object(element, node, at = "", item = false) {
+		const out = {};
+		const origin = {
+			element,
+			key: at,
+			item,
+			placed: /* @__PURE__ */ new Map(),
+			attributes: /* @__PURE__ */ new Map(),
+			counts: /* @__PURE__ */ new Map()
+		};
+		const properties = Object.entries(node.properties ?? {});
+		for (const attribute of element.attributes) for (const [key, property] of properties) {
+			if (property.attribute !== true) continue;
+			if (!attributeMatches(attribute, property.name ?? key, property)) continue;
+			const value = typed(attribute.value, property.type, this.fidelity);
+			out[key] = value;
+			origin.attributes.set(key, {
+				attribute,
+				value
+			});
+			break;
+		}
+		let kept = 0;
+		for (const child of element.children) {
+			if (child.kind === "other") continue;
+			if (child.kind === "text") {
+				if (!child.blank) throw new XmlBodyError(`<${element.qname}> holds text among its elements, which a tree cannot carry`);
+				continue;
+			}
+			const found = properties.find(([key, property]) => property.attribute !== true && matches$1(child, elementName(key, property), property));
+			if (found === void 0) {
+				const key = `${KEPT}${kept}`;
+				kept += 1;
+				out[key] = keep(child, key, false);
+				origin.placed.set(child, { key });
+				continue;
+			}
+			const [key, property] = found;
+			if (property.type === "array" && property.wrapped !== true) {
+				const items = property.items;
+				let list = out[key];
+				if (list === void 0) {
+					list = [];
+					out[key] = list;
+				}
+				const value = this.value(child, items, key, true);
+				const index = list.length;
+				list.push(value);
+				origin.placed.set(child, {
+					key,
+					index,
+					value: scalarOf(value)
+				});
+				origin.counts.set(key, index + 1);
+				continue;
+			}
+			if (Object.hasOwn(out, key)) throw new XmlBodyError(`<${element.qname}> holds <${child.qname}> twice, where its contract has one`);
+			const value = property.type === "array" ? this.wrapped(child, property, key) : this.value(child, property, key, false);
+			out[key] = value;
+			origin.placed.set(child, {
+				key,
+				value: scalarOf(value)
+			});
+		}
+		this.objects.set(out, origin);
+		return out;
+	}
+	wrapped(wrapper, node, key) {
+		const items = node.items;
+		const name = items.name;
+		const list = [];
+		const values = [];
+		for (const child of wrapper.children) {
+			if (child.kind === "other") continue;
+			if (child.kind === "text") {
+				if (!child.blank) throw new XmlBodyError(`<${wrapper.qname}> holds text among its items`);
+				continue;
+			}
+			if (!matches$1(child, name, items)) throw new XmlBodyError(`<${wrapper.qname}> holds <${child.qname}>, which is not one of its items`);
+			const value = this.value(child, items, key, true);
+			list.push(value);
+			values.push(scalarOf(value));
+		}
+		const origin = {
+			wrapper,
+			values,
+			key
+		};
+		this.lists.set(list, origin);
+		this.wrappers.set(wrapper, origin);
+		return list;
+	}
+	value(element, node, key, item) {
+		if (node.type === "object") return this.object(element, node, key, item);
+		if (node.type === "any") return keep(element, key, item);
+		if (node.type === "array") throw new XmlBodyError(`<${element.qname}> is described as a list of lists`);
+		if (element.attributes.some((attribute) => !attribute.declares)) throw new XmlBodyError(`<${element.qname}> carries attributes its contract does not describe`);
+		let text = "";
+		for (const child of element.children) {
+			if (child.kind === "element") throw new XmlBodyError(`<${element.qname}> holds elements where its contract has a value`);
+			if (child.kind === "text") text += child.value;
+		}
+		return typed(text, node.type, this.fidelity);
+	}
+};
+/** A decoded value's own text, kept for telling whether it was left alone. */
+function scalarOf(value) {
+	return typeof value === "object" && value !== null && !JSON.isRawJSON(value) ? void 0 : value;
+}
+/** Whether `value` is still what was decoded, so the element can go back as it came. */
+function unchanged(value, decoded) {
+	if (decoded === void 0) return false;
+	if (isNumberLike(value) && isNumberLike(decoded)) return numberTextOf(value) === numberTextOf(decoded);
+	return value === decoded;
+}
+/** Whether a media type is XML: `application/xml`, `text/xml` or anything `+xml`. */
+function isXmlMediaType(contentType) {
+	if (!contentType) return false;
+	const media = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
+	return media === "application/xml" || media === "text/xml" || media.endsWith("+xml");
+}
+/**
+* The charset a content type declares, where it declares one that is not
+* UTF-8, which is the only one read.
+*/
+function foreignCharset(contentType) {
+	const charset = /;\s*charset\s*=\s*"?([^";\s]+)"?/i.exec(contentType ?? "")?.[1];
+	return charset === void 0 || charset.toLowerCase() === "utf-8" ? void 0 : charset;
+}
+/** The places the description names, decoded from the document into a tree. */
+function openXml(body, text, fidelity, contentType) {
+	const charset = foreignCharset(contentType);
+	if (charset !== void 0) throw new XmlBodyError(`it is declared as ${charset}; only UTF-8 is read`);
+	const document = parseXml(text);
+	const reader = new Reader(fidelity);
+	return {
+		document,
+		tree: reader.object(document.root, body.read),
+		objects: reader.objects,
+		lists: reader.lists,
+		wrappers: reader.wrappers
+	};
+}
+function escapeText(text) {
+	return text.replace(/[&<>\r]/g, (char) => char === "&" ? "&amp;" : char === "<" ? "&lt;" : char === ">" ? "&gt;" : "&#13;");
+}
+function escapeAttribute(text) {
+	return text.replace(/[&<"\t\n\r]/g, (char) => {
+		switch (char) {
+			case "&": return "&amp;";
+			case "<": return "&lt;";
+			case "\"": return "&quot;";
+			case "	": return "&#9;";
+			case "\n": return "&#10;";
+			default: return "&#13;";
+		}
+	});
+}
+/** Two strings by code point, which is how the Go engine orders them too. */
+function byCodePoint(a, b) {
+	const left = [...a];
+	const right = [...b];
+	for (let index = 0; index < Math.min(left.length, right.length); index += 1) {
+		const difference = left[index].codePointAt(0) - right[index].codePointAt(0);
+		if (difference !== 0) return difference;
+	}
+	return left.length - right.length;
+}
+function written(declarations) {
+	return declarations.map(([prefix, uri]) => prefix === "" ? ` xmlns="${escapeAttribute(uri)}"` : ` xmlns:${prefix}="${escapeAttribute(uri)}"`).join("");
+}
+function declaring(scope, declarations) {
+	if (declarations.length === 0) return scope;
+	const out = new Map(scope);
+	for (const [prefix, uri] of declarations) out.set(prefix, uri);
+	return out;
+}
+const isTree = (value) => typeof value === "object" && value !== null && !Array.isArray(value) && !JSON.isRawJSON(value);
+var Writer = class {
+	opened;
+	text;
+	instrs;
+	depth;
+	/** The keys from the root to what is being written, for naming a refusal. */
+	path = [];
+	constructor(opened, instrs, depth) {
+		this.opened = opened;
+		this.text = opened.document.text;
+		this.instrs = instrs;
+		this.depth = depth;
+	}
+	refuse(message) {
+		throw new TransformError(writerOf(this.instrs, this.path, this.depth), message);
+	}
+	where() {
+		return this.path.length === 0 ? "the body" : `/${this.path.join("/")}`;
+	}
+	raw(from, to) {
+		return this.text.slice(from, to);
+	}
+	/** Runs `write` with `key` on the path, so a refusal inside it names where. */
+	at(key, write) {
+		this.path.push(key);
+		const out = write();
+		this.path.pop();
+		return out;
+	}
+	scalarText(value) {
+		let text;
+		if (typeof value === "string") text = value;
+		else if (typeof value === "boolean") text = String(value);
+		else if (isNumberLike(value)) text = numberTextOf(value);
+		else if (value === null) this.refuse(`${this.where()} is null, which XML has no way to write`);
+		else this.refuse(`${this.where()} holds a value XML cannot write as text`);
+		try {
+			checkChars(text);
+		} catch {
+			this.refuse(`${this.where()} holds a character XML does not allow`);
+		}
+		return text;
+	}
+	/** How `target` is written in `scope`, with any declaration that takes. */
+	naming(target, scope, attribute) {
+		if (!isNcName(target.local)) this.refuse(`${this.where()} would be written as ${target.local}, which is not a name`);
+		const prefix = target.prefix;
+		const namespace = target.namespace;
+		if (prefix !== void 0) {
+			if (!isNcName(prefix) || prefix === "xmlns") this.refuse(`${this.where()} has the prefix ${prefix}, which is not one XML allows`);
+			const bound = scope.get(prefix);
+			if (namespace === void 0) {
+				if (bound === void 0) this.refuse(`${this.where()} has the prefix ${prefix}, which is not declared`);
+				return {
+					qname: `${prefix}:${target.local}`,
+					declarations: []
+				};
+			}
+			return {
+				qname: `${prefix}:${target.local}`,
+				declarations: bound === namespace ? [] : [[prefix, namespace]]
+			};
+		}
+		if (namespace === void 0) return {
+			qname: target.local,
+			declarations: []
+		};
+		if (attribute) {
+			const bound = [...scope].filter(([key, uri]) => key !== "" && uri === namespace).map(([key]) => key).sort(byCodePoint)[0];
+			if (bound === void 0) this.refuse(`${this.where()} is in a namespace no prefix is declared for`);
+			return {
+				qname: `${bound}:${target.local}`,
+				declarations: []
+			};
+		}
+		return {
+			qname: target.local,
+			declarations: (scope.get("") ?? "") === namespace ? [] : [["", namespace]]
+		};
+	}
+	/**
+	* Declarations that give an element written under `scope` the namespaces it
+	* had where it came from, so what it holds means what it meant; and the
+	* scope inside it. Nothing, for an element that stayed where it was.
+	*/
+	restoring(element, scope) {
+		const own = new Set(element.attributes.filter((attribute) => attribute.declares).map((attribute) => attribute.qname === "xmlns" ? "" : attribute.local));
+		const declarations = [];
+		const prefixes = [.../* @__PURE__ */ new Set([...element.inherited.keys(), ...scope.keys()])].sort(byCodePoint);
+		for (const prefix of prefixes) {
+			if (own.has(prefix) || prefix === "xml") continue;
+			const was = element.inherited.get(prefix);
+			const now = scope.get(prefix);
+			if (prefix === "") {
+				if ((was ?? "") !== (now ?? "")) declarations.push(["", was ?? ""]);
+			} else if (was !== void 0 && was !== now) declarations.push([prefix, was]);
+		}
+		const inner = new Map(declaring(scope, declarations));
+		for (const attribute of element.attributes) if (attribute.declares) inner.set(attribute.qname === "xmlns" ? "" : attribute.local, attribute.value);
+		return {
+			declarations,
+			scope: inner
+		};
+	}
+	targetFor(key, node, item, from) {
+		const kept = from !== void 0 && from.key === key && from.item === item;
+		if (item) {
+			const items = node?.type === "array" ? node.items : void 0;
+			if (items === void 0 && kept) return {
+				local: from.element.local,
+				prefix: from.element.prefix || void 0
+			};
+			return {
+				local: items?.name ?? (node?.wrapped === true ? node.name ?? key : key),
+				prefix: items?.prefix,
+				namespace: items?.namespace
+			};
+		}
+		if (node === void 0 && kept) return {
+			local: from.element.local,
+			prefix: from.element.prefix || void 0
+		};
+		return {
+			local: node?.name ?? key,
+			prefix: node?.prefix,
+			namespace: node?.namespace
+		};
+	}
+	/** Where an object was decoded from, if it was. */
+	fromOf(value) {
+		const origin = this.opened.objects.get(value);
+		return origin === void 0 ? void 0 : {
+			element: origin.element,
+			key: origin.key,
+			item: origin.item
+		};
+	}
+	/** Whether an element already stands for `target`, so it need not be renamed. */
+	named(element, target) {
+		return element.local === target.local && (target.prefix === void 0 || element.prefix === target.prefix) && (target.namespace === void 0 || element.namespace === target.namespace);
+	}
+	attribute(value, target, scope) {
+		const naming = this.naming(target, scope, true);
+		return {
+			text: ` ${naming.qname}="${escapeAttribute(this.scalarText(value))}"`,
+			naming
+		};
+	}
+	/**
+	* An object as an element. Where it was decoded from one, that element's
+	* start tag, the children it held that nothing names and everything between
+	* them are written as they came, and each field where it was.
+	*/
+	object(value, target, node, scope, root = false) {
+		const origin = this.opened.objects.get(value);
+		if (origin === void 0) return this.fresh(value, target, node, scope);
+		const element = origin.element;
+		const properties = node?.properties ?? {};
+		const isAttribute = (key) => properties[key]?.attribute === true;
+		const renamed = !root && !this.named(element, target);
+		const restored = root ? {
+			declarations: [],
+			scope: element.scope
+		} : this.restoring(element, scope);
+		const naming = renamed ? this.naming(target, restored.scope, false) : {
+			qname: element.qname,
+			declarations: []
+		};
+		let inner = declaring(restored.scope, naming.declarations);
+		const heldBy = /* @__PURE__ */ new Map();
+		for (const [key, held] of origin.attributes) heldBy.set(held.attribute, key);
+		let attributes = "";
+		let changed = false;
+		const added = [];
+		for (const attribute of element.attributes) {
+			const key = heldBy.get(attribute);
+			if (key === void 0) {
+				attributes += this.raw(attribute.from, attribute.to);
+				continue;
+			}
+			if (!Object.hasOwn(value, key) || !isAttribute(key)) {
+				changed = true;
+				continue;
+			}
+			const now = value[key];
+			if (unchanged(now, origin.attributes.get(key)?.value)) {
+				attributes += this.raw(attribute.from, attribute.to);
+				continue;
+			}
+			changed = true;
+			attributes += this.at(key, () => ` ${attribute.qname}="${escapeAttribute(this.scalarText(now))}"`);
+		}
+		for (const key of Object.keys(value)) {
+			if (!isAttribute(key) || origin.attributes.has(key)) continue;
+			changed = true;
+			const made = this.at(key, () => this.attribute(value[key], this.targetFor(key, properties[key], false), inner));
+			attributes += made.text;
+			added.push(...made.naming.declarations);
+			inner = declaring(inner, made.naming.declarations);
+		}
+		let content = "";
+		const done = /* @__PURE__ */ new Set();
+		for (const child of element.children) {
+			if (child.kind !== "element") {
+				content += this.raw(child.from, child.to);
+				continue;
+			}
+			const placed = origin.placed.get(child);
+			const key = placed.key;
+			if (!Object.hasOwn(value, key) || isAttribute(key)) continue;
+			const now = value[key];
+			const property = properties[key];
+			const from = {
+				element: child,
+				key,
+				item: placed.index !== void 0
+			};
+			content += this.at(key, () => {
+				if (placed.index === void 0) {
+					done.add(key);
+					return this.field(key, now, property, inner, from, placed.value);
+				}
+				const wrapped = property?.type === "array" && property.wrapped === true;
+				if (Array.isArray(now) && !wrapped) {
+					done.add(key);
+					let out = "";
+					if (placed.index < now.length) out += this.at(String(placed.index), () => this.item(key, now[placed.index], property, inner, from, placed.value));
+					if (placed.index === (origin.counts.get(key) ?? 0) - 1) for (let index = placed.index + 1; index < now.length; index += 1) out += this.at(String(index), () => this.item(key, now[index], property, inner));
+					return out;
+				}
+				if (placed.index !== 0) return "";
+				done.add(key);
+				return this.field(key, now, property, inner, from, placed.value);
+			});
+		}
+		let fresh = "";
+		for (const key of Object.keys(value)) {
+			if (done.has(key) || isAttribute(key)) continue;
+			fresh += this.at(key, () => this.field(key, value[key], properties[key], inner));
+		}
+		if (fresh !== "") {
+			const tail = trailingSpace(element, this.text);
+			content = content.slice(0, content.length - tail.length) + fresh + tail;
+		}
+		const declarations = [
+			...restored.declarations,
+			...naming.declarations,
+			...added
+		];
+		const same = !renamed && !changed && declarations.length === 0;
+		const head = `<${naming.qname}${attributes}${written(declarations)}`;
+		if (element.empty && content === "") return same ? this.raw(element.from, element.to) : `${head}/>`;
+		const start = same && !element.empty ? this.raw(element.from, element.startTo) : `${head}>`;
+		const end = !renamed && !element.empty ? this.raw(element.endFrom, element.to) : `</${naming.qname}>`;
+		return start + content + end;
+	}
+	/** An object no element was decoded to, as a new element: attributes first, then fields. */
+	fresh(value, target, node, scope) {
+		const naming = this.naming(target, scope, false);
+		let inner = declaring(scope, naming.declarations);
+		const declarations = [...naming.declarations];
+		const properties = node?.properties ?? {};
+		let attributes = "";
+		for (const key of Object.keys(value)) {
+			const property = properties[key];
+			if (property?.attribute !== true) continue;
+			const made = this.at(key, () => this.attribute(value[key], this.targetFor(key, property, false), inner));
+			attributes += made.text;
+			declarations.push(...made.naming.declarations);
+			inner = declaring(inner, made.naming.declarations);
+		}
+		let content = "";
+		for (const key of Object.keys(value)) {
+			const property = properties[key];
+			if (property?.attribute === true) continue;
+			content += this.at(key, () => this.field(key, value[key], property, inner));
+		}
+		const head = `<${naming.qname}${attributes}${written(declarations)}`;
+		return content === "" ? `${head}/>` : `${head}>${content}</${naming.qname}>`;
+	}
+	/** One field of an object, as the element or elements that write it. */
+	field(key, value, node, scope, from, decoded) {
+		const held = keptOf(value);
+		if (held) return this.kept(held, key, node, scope, false);
+		if (Array.isArray(value)) {
+			const list = this.opened.lists.get(value) ?? (from === void 0 || from.item ? void 0 : this.opened.wrappers.get(from.element));
+			if (node !== void 0 && node.type === "array" ? node.wrapped === true : list !== void 0) return this.wrapped(key, value, node, scope, list);
+			let out = "";
+			for (const [index, item] of value.entries()) out += this.at(String(index), () => this.item(key, item, node, scope));
+			return out;
+		}
+		if (isTree(value)) return this.object(value, this.targetFor(key, node, false, this.fromOf(value)), node, scope);
+		return this.scalar(value, this.targetFor(key, node, false, from), scope, from, decoded);
+	}
+	/** A list inside an element of its own: the wrapper it came in, where it came in one. */
+	wrapped(key, value, node, scope, list) {
+		const target = this.targetFor(key, node, false, list === void 0 ? void 0 : {
+			element: list.wrapper,
+			key: list.key,
+			item: false
+		});
+		if (list === void 0) {
+			const naming = this.naming(target, scope, false);
+			const inner = declaring(scope, naming.declarations);
+			let items = "";
+			for (const [index, item] of value.entries()) items += this.at(String(index), () => this.item(key, item, node, inner));
+			const head = `<${naming.qname}${written(naming.declarations)}`;
+			return items === "" ? `${head}/>` : `${head}>${items}</${naming.qname}>`;
+		}
+		const wrapper = list.wrapper;
+		const renamed = !this.named(wrapper, target);
+		const restored = this.restoring(wrapper, scope);
+		const naming = renamed ? this.naming(target, restored.scope, false) : {
+			qname: wrapper.qname,
+			declarations: []
+		};
+		const inner = declaring(restored.scope, naming.declarations);
+		let last = -1;
+		for (const [at, child] of wrapper.children.entries()) if (child.kind === "element") last = at;
+		let content = "";
+		let index = 0;
+		for (const [at, child] of wrapper.children.entries()) {
+			if (child.kind !== "element") {
+				content += this.raw(child.from, child.to);
+				continue;
+			}
+			const position = index;
+			if (position < value.length) content += this.at(String(position), () => this.item(key, value[position], node, inner, {
+				element: child,
+				key: list.key,
+				item: true
+			}, list.values[position]));
+			index += 1;
+			if (at === last) for (let extra = index; extra < value.length; extra += 1) content += this.at(String(extra), () => this.item(key, value[extra], node, inner));
+		}
+		if (last === -1 && value.length > 0) {
+			let items = "";
+			for (const [position, item] of value.entries()) items += this.at(String(position), () => this.item(key, item, node, inner));
+			const tail = trailingSpace(wrapper, this.text);
+			content = content.slice(0, content.length - tail.length) + items + tail;
+		}
+		const declarations = [...restored.declarations, ...naming.declarations];
+		const same = !renamed && declarations.length === 0;
+		const attributes = wrapper.attributes.map((attribute) => this.raw(attribute.from, attribute.to)).join("");
+		const head = `<${naming.qname}${attributes}${written(declarations)}`;
+		if (wrapper.empty && content === "") return same ? this.raw(wrapper.from, wrapper.to) : `${head}/>`;
+		const start = same && !wrapper.empty ? this.raw(wrapper.from, wrapper.startTo) : `${head}>`;
+		const end = !renamed && !wrapper.empty ? this.raw(wrapper.endFrom, wrapper.to) : `</${naming.qname}>`;
+		return start + content + end;
+	}
+	/** One item of a list, named as the list's items are. */
+	item(key, value, node, scope, from, decoded) {
+		const held = keptOf(value);
+		if (held) return this.kept(held, key, node, scope, true);
+		if (Array.isArray(value)) this.refuse(`${this.where()} is a list inside a list, which XML cannot write`);
+		if (isTree(value)) {
+			const items = node?.type === "array" ? node.items : void 0;
+			return this.object(value, this.targetFor(key, node, true, this.fromOf(value)), items, scope);
+		}
+		return this.scalar(value, this.targetFor(key, node, true, from), scope, from, decoded);
+	}
+	/** An element nothing names: exactly as it came, unless it has to be renamed or moved. */
+	kept(value, key, node, scope, item) {
+		const element = value.element;
+		if (key.startsWith(KEPT)) return this.raw(element.from, element.to);
+		const target = this.targetFor(key, node, item, value);
+		const restored = this.restoring(element, scope);
+		const renamed = !this.named(element, target);
+		if (!renamed && restored.declarations.length === 0) return this.raw(element.from, element.to);
+		const naming = renamed ? this.naming(target, restored.scope, false) : {
+			qname: element.qname,
+			declarations: []
+		};
+		const attributes = element.attributes.map((attribute) => this.raw(attribute.from, attribute.to)).join("");
+		const head = `<${naming.qname}${attributes}${written([...restored.declarations, ...naming.declarations])}`;
+		if (element.empty) return `${head}/>`;
+		return `${head}>${this.raw(element.startTo, element.endFrom)}</${naming.qname}>`;
+	}
+	/** A value as an element holding its text, in the element it came from where it can be. */
+	scalar(value, target, scope, from, decoded) {
+		const text = this.scalarText(value);
+		const origin = from?.element;
+		if (origin !== void 0 && decoded !== void 0 && this.named(origin, target)) {
+			if (unchanged(value, decoded)) return this.raw(origin.from, origin.to);
+			const start = origin.empty ? `${this.raw(origin.from, origin.startTo - 2)}>` : this.raw(origin.from, origin.startTo);
+			const end = origin.empty ? `</${origin.qname}>` : this.raw(origin.endFrom, origin.to);
+			return start + escapeText(text) + end;
+		}
+		const naming = this.naming(target, scope, false);
+		const head = `<${naming.qname}${written(naming.declarations)}`;
+		return text === "" ? `${head}/>` : `${head}>${escapeText(text)}</${naming.qname}>`;
+	}
+};
+/** The white space that indents an element's end tag, where its content ends in some. */
+function trailingSpace(element, text) {
+	const last = element.children.at(-1);
+	if (last === void 0 || last.kind !== "text" || !last.blank) return "";
+	const raw = text.slice(last.from, last.to);
+	return raw.startsWith("<") ? "" : raw;
+}
+/** The change that last wrote at or under the first key of `path`, for naming a refusal. */
+function writerOf(instrs, path, depth) {
+	const first = path[0];
+	for (let index = instrs.length - 1; index >= 0; index -= 1) {
+		const instr = instrs[index];
+		if (first === void 0) return instr.c;
+		if (touchedPaths(instr).some((touched) => touched[depth] === first)) return instr.c;
+	}
+	return instrs[0]?.c ?? "";
+}
+/**
+* The tree written back into the document it was read from. `depth` is how
+* many segments lead to the body in the instructions' paths: none for a
+* body's own list, one for `/@body` in a request's envelope.
+*/
+function closeXml(opened, write, instrs, depth) {
+	const writer = new Writer(opened, instrs, depth);
+	const { document, tree } = opened;
+	const root = document.root;
+	const body = writer.object(tree, { local: root.local }, write, root.inherited, true);
+	return writer.raw(0, root.from) + body + writer.raw(root.to, document.text.length);
+}
+//#endregion
 //#region ../runtime/src/program.ts
 var ProgramError = class extends Error {
 	constructor(message) {
@@ -20134,7 +21303,7 @@ function decodeIdentity(raw) {
 		}
 	});
 }
-const SCALARS$1 = /* @__PURE__ */ new Set([
+const SCALARS$2 = /* @__PURE__ */ new Set([
 	"string",
 	"integer",
 	"number",
@@ -20373,7 +21542,7 @@ function decodeInstr(raw, where, depth = 0, blocks = NO_BLOCKS, descended = fals
 				"c"
 			], where);
 			const to = string$1(value["to"], `${where}.to`);
-			if (!SCALARS$1.has(to)) throw new ProgramError(`${where}.to is not a scalar type`);
+			if (!SCALARS$2.has(to)) throw new ProgramError(`${where}.to is not a scalar type`);
 			return {
 				k: "cast",
 				path: segmentsOf$2(string$1(value["path"], `${where}.path`), `${where}.path`),
@@ -20653,7 +21822,7 @@ function decodeCodec(raw, where) {
 	if (type === "object" && explode && style === "form") throw new ProgramError(`${where} is an exploded form object, which is not served`);
 	if (style === "deepObject" && type !== "object") throw new ProgramError(`${where} is a deepObject that is not an object`);
 	const items = value["items"];
-	if (items !== void 0 && (type !== "array" || !SCALARS$1.has(items))) throw new ProgramError(`${where}.items must be a scalar type, on an array`);
+	if (items !== void 0 && (type !== "array" || !SCALARS$2.has(items))) throw new ProgramError(`${where}.items must be a scalar type, on an array`);
 	return {
 		in: location,
 		name,
@@ -20742,16 +21911,119 @@ function decodeForm(raw, where) {
 		types
 	};
 }
+const XML_TYPES = /* @__PURE__ */ new Set([
+	"object",
+	"array",
+	"string",
+	"integer",
+	"number",
+	"boolean",
+	"any"
+]);
+const XML_SCALARS = /* @__PURE__ */ new Set([
+	"string",
+	"integer",
+	"number",
+	"boolean"
+]);
+function decodeXmlNode(raw, where, depth) {
+	if (depth > 256) throw new ProgramError(`${where} nests too deeply`);
+	const value = object$1(raw, where);
+	expectKeys(value, [
+		"type",
+		"name",
+		"namespace",
+		"prefix",
+		"attribute",
+		"wrapped",
+		"properties",
+		"items"
+	], where);
+	const type = value["type"];
+	if (typeof type !== "string" || !XML_TYPES.has(type)) throw new ProgramError(`${where}.type is not a type`);
+	const node = { type };
+	for (const key of ["name", "prefix"]) {
+		if (value[key] === void 0) continue;
+		const name = string$1(value[key], `${where}.${key}`);
+		if (!isNcName(name) || key === "prefix" && name === "xmlns") throw new ProgramError(`${where}.${key} is not a name XML allows`);
+		node[key] = name;
+	}
+	if (value["namespace"] !== void 0) {
+		const namespace = string$1(value["namespace"], `${where}.namespace`);
+		if (namespace === "") throw new ProgramError(`${where}.namespace is empty`);
+		node.namespace = namespace;
+	}
+	if (onlyTrue(value["attribute"], `${where}.attribute`)) {
+		if (!XML_SCALARS.has(type)) throw new ProgramError(`${where} is an attribute, which only holds a value`);
+		node.attribute = true;
+	}
+	if (onlyTrue(value["wrapped"], `${where}.wrapped`)) {
+		if (type !== "array") throw new ProgramError(`${where} is wrapped, which only a list is`);
+		node.wrapped = true;
+	}
+	if (value["properties"] !== void 0) {
+		if (type !== "object") throw new ProgramError(`${where} has properties, which only an object has`);
+		const properties = {};
+		const elements = /* @__PURE__ */ new Set();
+		const attributes = /* @__PURE__ */ new Set();
+		for (const [key, entry] of Object.entries(object$1(value["properties"], `${where}.properties`))) {
+			if (isUnsafeKey(key) || key.includes("\0")) throw new ProgramError(`${where}.properties may not name "${key}"`);
+			const property = decodeXmlNode(entry, `${where}.properties.${key}`, depth + 1);
+			const name = property.type === "array" && property.wrapped !== true ? property.items?.name ?? key : property.name ?? key;
+			const seen = property.attribute === true ? attributes : elements;
+			const identity = `${property.namespace ?? ""} ${name}`;
+			if (seen.has(identity)) throw new ProgramError(`${where}.properties write two fields as ${name}`);
+			seen.add(identity);
+			properties[key] = property;
+		}
+		node.properties = properties;
+	}
+	if (value["items"] !== void 0) {
+		if (type !== "array") throw new ProgramError(`${where} has items, which only a list has`);
+		const items = decodeXmlNode(value["items"], `${where}.items`, depth + 1);
+		if (items.type === "array") throw new ProgramError(`${where} is a list of lists, which XML has no form for`);
+		if (items.attribute === true) throw new ProgramError(`${where}.items cannot be an attribute`);
+		if (items.name === void 0) throw new ProgramError(`${where}.items must be named`);
+		node.items = items;
+	} else if (type === "array") throw new ProgramError(`${where} is a list with no items described`);
+	return node;
+}
+function decodeXmlBody(raw, where) {
+	const value = object$1(raw, where);
+	expectKeys(value, ["read", "write"], where);
+	const read = decodeXmlNode(value["read"], `${where}.read`, 0);
+	const write = decodeXmlNode(value["write"], `${where}.write`, 0);
+	if (read.type !== "object" || write.type !== "object") throw new ProgramError(`${where} must describe an object at the root`);
+	return {
+		read,
+		write
+	};
+}
+function decodeXml(raw, where) {
+	const value = object$1(raw, where);
+	expectKeys(value, ["request", "response"], where);
+	const response = /* @__PURE__ */ new Map();
+	for (const [status, body] of Object.entries(object$1(value["response"] ?? {}, `${where}.response`))) {
+		if (!/^([1-5]\d\d|[1-5][xX][xX]|default)$/.test(status)) throw new ProgramError(`${where}.response has an invalid status key "${status}"`);
+		response.set(status.toLowerCase(), decodeXmlBody(body, `${where}.response.${status}`));
+	}
+	return {
+		...value["request"] === void 0 ? {} : { request: decodeXmlBody(value["request"], `${where}.request`) },
+		response
+	};
+}
 function decodeSite(raw, where, template, blocks) {
 	const value = object$1(raw, where);
 	expectKeys(value, [
 		"form",
+		"xml",
 		"request",
 		"envelope",
 		"response",
 		"status"
 	], where);
 	const form = value["form"] === void 0 ? void 0 : decodeForm(value["form"], `${where}.form`);
+	const xml = value["xml"] === void 0 ? void 0 : decodeXml(value["xml"], `${where}.xml`);
 	if (value["request"] !== void 0 && value["envelope"] !== void 0) throw new ProgramError(`${where} has both request and envelope; one list keeps the order`);
 	const envelope = value["envelope"] === void 0 ? void 0 : decodeEnvelope(value["envelope"], `${where}.envelope`, blocks);
 	const request = array$1(value["request"] ?? [], `${where}.request`).map((instr, index) => decodeInstr(instr, `${where}.request[${index}]`, 0, blocks));
@@ -20763,14 +22035,23 @@ function decodeSite(raw, where, template, blocks) {
 		response.set(key, array$1(list, `${where}.response.${status}`).map((instr, index) => decodeInstr(instr, `${where}.response.${status}[${index}]`, 0, blocks)));
 	}
 	const numeric = needsExactNumbers(request) || envelope !== void 0 && needsExactNumbers(envelope.instrs) || [...response.values()].some((list) => needsExactNumbers(list));
+	const status = value["status"] === void 0 ? [] : decodeStatusRules(value["status"], `${where}.status`);
+	if (xml !== void 0) {
+		if ([
+			request,
+			...response.values(),
+			envelope?.instrs ?? []
+		].some((list) => list.some((instr) => touchedPaths(instr).some((path) => path.includes("{}"))))) throw new ProgramError(`${where} reads a map's values in an XML body, which has none`);
+	}
 	return {
 		request,
 		response,
-		status: value["status"] === void 0 ? [] : decodeStatusRules(value["status"], `${where}.status`),
+		status,
 		numeric,
 		template,
 		...envelope === void 0 ? {} : { envelope },
-		...form === void 0 ? {} : { form }
+		...form === void 0 ? {} : { form },
+		...xml === void 0 ? {} : { xml }
 	};
 }
 function decodeRoute(raw, where) {
@@ -21546,6 +22827,45 @@ var InvariantRuntime = class {
 			return closeForm(form, roots, text, tree, site.request, 0);
 		});
 	}
+	/**
+	* An XML request body rewritten by the site's program: the places it names
+	* decoded, transformed and written back, and every element it does not
+	* name passed on exactly as it came.
+	*/
+	transformRequestXml(site, text, context, contentType) {
+		const body = site.xml?.request;
+		if (!body || site.request.length === 0) return text;
+		return this.#reporting("request", context, () => this.#runXml(site.request, body, site.numeric, text, context, contentType)).body;
+	}
+	#runXml(instrs, body, numeric, text, context, contentType) {
+		if (instrs.length === 0) return {
+			body: text,
+			folded: []
+		};
+		if (text.length > this.#maxBodyBytes) throw new BodyTooLargeError(this.#maxBodyBytes);
+		const opened = openXml(body, text, numeric ? this.#fidelity : "double", contentType);
+		const result = execute(opened.tree, instrs, this.#limits);
+		this.#counted(result, context);
+		return {
+			body: closeXml(opened, body.write, instrs, 0),
+			folded: [...result.folded].sort()
+		};
+	}
+	/**
+	* Whether an answer with this status and type is one the site adapts the
+	* body of: JSON, or XML where the site describes the body it answered with.
+	* A binding that holds a response back to adapt it holds one this names.
+	*/
+	adaptsResponseBody(site, status, contentType) {
+		if (site === void 0 || !this.respondsTo(site, status)) return false;
+		if (isJsonMediaType(contentType)) return true;
+		return isXmlMediaType(contentType) && this.xmlResponseFor(site, status) !== void 0;
+	}
+	/** The description of the body the provider answered `status` with, where it may be XML. */
+	xmlResponseFor(site, status) {
+		const key = statusKeysFor(status).find((each) => site.response.has(each));
+		return key === void 0 ? void 0 : site.xml?.response.get(key);
+	}
 	#counted(result, context) {
 		if (this.#onUsage && result.applied.size > 0) this.#onUsage({
 			contract: context.contract,
@@ -21611,8 +22931,8 @@ var InvariantRuntime = class {
 	* callers' included, since a cache keyed on the URL alone would hand one
 	* contract's shape to another's callers, and one served under an older
 	* contract names it. A body is
-	* read only where the site has work for its status and it is JSON;
-	* anything else passes through as a stream. An adapted body's entity tag
+	* read only where the site has work for its status and it is JSON, or XML
+	* the site describes; anything else passes through as a stream. An adapted body's entity tag
 	* is marked with the contract, and so is a `304`'s or a `HEAD`'s for a
 	* site whose bodies are adapted, whose length is dropped because it
 	* describes bytes the caller is never sent. A body that cannot be
@@ -21654,13 +22974,15 @@ var InvariantRuntime = class {
 				headers
 			});
 		}
-		if (!site || !response.body || !this.respondsTo(site, response.status) || !isJsonMediaType(response.headers.get("content-type"))) return responseOf(response.body, shown, headers);
+		const contentType = response.headers.get("content-type");
+		const xml = site !== void 0 && !isJsonMediaType(contentType) && isXmlMediaType(contentType) && this.xmlResponseFor(site, response.status) !== void 0;
+		if (!site || !response.body || !this.respondsTo(site, response.status) || !(xml || isJsonMediaType(contentType))) return responseOf(response.body, shown, headers);
 		try {
 			const original = await readBodyText(response, {
 				limit: this.#maxBodyBytes,
 				encoded: options.encoded
 			});
-			const transformed = this.transformResponseDetailed(site, response.status, original.text, context);
+			const transformed = xml ? this.transformResponseXml(site, response.status, original.text, context, contentType) : this.transformResponseDetailed(site, response.status, original.text, context);
 			const rebuilt = headersForText(headers, transformed.body, original.decoded);
 			if (transformed.body !== original.text) mark(rebuilt);
 			if (transformed.folded.length > 0) rebuilt.set(FOLDED_HEADER, transformed.folded.join(", "));
@@ -21685,8 +23007,9 @@ var InvariantRuntime = class {
 	* place every binding adapts a request, so they cannot disagree about it.
 	*
 	* `parts` is the path, query string and headers as the binding would pass
-	* them on, after routing and after its own header hygiene. Only a JSON body
-	* is ever read, and only when the site's program reaches into it. Anything
+	* them on, after routing and after its own header hygiene. Only a JSON body,
+	* or a form or XML one the site describes, is ever read, and only when the
+	* site's program reaches into it. Anything
 	* else a program would have to write a body into is refused rather than
 	* replaced, because a form or an upload rewritten as JSON is a request the
 	* provider never agreed to receive.
@@ -21699,13 +23022,14 @@ var InvariantRuntime = class {
 		const contentType = request.headers.get("content-type");
 		const json = isJsonMediaType(contentType);
 		const form = !json && isFormMediaType(contentType) && site.form !== void 0;
+		const xml = !json && !form && isXmlMediaType(contentType) && site.xml?.request !== void 0;
 		if (!site.envelope) {
-			if (site.request.length === 0 || !request.body || !(json || form)) return unchanged;
+			if (site.request.length === 0 || !request.body || !(json || form || xml)) return unchanged;
 			const original = await readBodyText(request, {
 				limit: this.#maxBodyBytes,
 				encoded: true
 			});
-			const body = form ? this.transformRequestForm(site, original.text, context) : this.transformRequest(site, original.text, context);
+			const body = form ? this.transformRequestForm(site, original.text, context) : xml ? this.transformRequestXml(site, original.text, context, contentType) : this.transformRequest(site, original.text, context);
 			return {
 				...parts,
 				headers: headersForText(parts.headers, body, original.decoded),
@@ -21713,7 +23037,7 @@ var InvariantRuntime = class {
 			};
 		}
 		const envelope = site.envelope;
-		if (envelope.body && request.body && !json && !form) throw new TransformError(envelope.instrs.find((instr) => pathsOfInstr(instr).some((path) => path[0] === "@body"))?.c ?? "", "This operation's program writes into the request body, and the body sent is not JSON.");
+		if (envelope.body && request.body && !json && !form && !xml) throw new TransformError(envelope.instrs.find((instr) => pathsOfInstr(instr).some((path) => path[0] === "@body"))?.c ?? "", "This operation's program writes into the request body, and the body sent is not JSON.");
 		const original = envelope.body && request.body ? await readBodyText(request, {
 			limit: this.#maxBodyBytes,
 			encoded: true
@@ -21723,7 +23047,8 @@ var InvariantRuntime = class {
 			search: parts.search.startsWith("?") ? parts.search.slice(1) : parts.search,
 			headers: [...parts.headers],
 			body: original?.text,
-			...form ? { form: true } : {}
+			...form ? { form: true } : {},
+			...xml ? { xml: true } : {}
 		}, context);
 		let headers = new Headers(result.headers);
 		let body = request.body;
@@ -21764,6 +23089,26 @@ var InvariantRuntime = class {
 				path: local
 			};
 			const form = request.form === true && envelope.body ? site.form : void 0;
+			const xml = request.xml === true && envelope.body ? site.xml?.request : void 0;
+			if (xml) {
+				const parameters = {
+					...envelope,
+					body: false
+				};
+				const text = request.body ?? "";
+				const contentType = request.headers.find(([name]) => name.toLowerCase() === "content-type")?.[1];
+				const tree = openEnvelope(parameters, site.template, values, opened, fidelity);
+				const decoded = openXml(xml, text, fidelity, contentType);
+				tree["@body"] = decoded.tree;
+				this.#counted(execute(tree, envelope.instrs, this.#limits), context);
+				const closed = closeEnvelope(parameters, site.template, values, opened, tree);
+				if (tree["@body"] !== decoded.tree) throw new TransformError(envelope.instrs[0]?.c ?? "", "The program replaced the whole XML body, which has nowhere to be written back.");
+				return {
+					...closed,
+					path: `${this.#program.basePath}${closed.path}`,
+					body: closeXml(decoded, xml.write, envelope.instrs, 1)
+				};
+			}
 			if (!form) {
 				const tree = openEnvelope(envelope, site.template, values, opened, fidelity);
 				this.#counted(execute(tree, envelope.instrs, this.#limits), context);
@@ -21814,6 +23159,21 @@ var InvariantRuntime = class {
 			operation: context.operation,
 			consumer: context.consumer
 		}));
+	}
+	/**
+	* An XML response body in the caller's shape, and where a value was folded
+	* to get it: as `transformResponseDetailed`, over the XML the site
+	* describes for the status.
+	*/
+	transformResponseXml(site, status, text, context, contentType) {
+		const key = statusKeysFor(status).find((each) => site.response.has(each));
+		const instrs = key === void 0 ? void 0 : site.response.get(key);
+		const body = key === void 0 ? void 0 : site.xml?.response.get(key);
+		if (!instrs || !body) return {
+			body: text,
+			folded: []
+		};
+		return this.#reporting("response", context, () => this.#runXml(instrs, body, site.numeric, text, context, contentType));
 	}
 	/**
 	* A payload the provider sends of its own accord, a webhook or a callback,
@@ -24442,7 +25802,7 @@ function sitesOf(change, oldContract, issues, shared) {
 		});
 		found.push(...scan.sites);
 	}
-	if (change.ops.some((op) => isDataOp(op) && op.op !== "relax" && (op.op === "move" ? op.from === "" || op.to === "" : op.path === ""))) for (const site of found.filter((each) => each.prefix === "")) issues.push({
+	if (change.ops.some((op) => isDataOp(op) && op.op !== "relax" && op.op !== "restate" && (op.op === "move" ? op.from === "" || op.to === "" : op.path === ""))) for (const site of found.filter((each) => each.prefix === "")) issues.push({
 		changeId: change.id,
 		message: `${site.operationId} ${site.direction}${site.status ? ` ${site.status}` : ""}: the value is the whole body there, which the runtime cannot replace`
 	});
@@ -24758,6 +26118,521 @@ function collectErrorParams(oldContract, newContract, changes, routes, sites) {
 			c: list[0]?.changeId ?? ""
 		});
 	}
+}
+//#endregion
+//#region ../compiler/src/xml.ts
+/**
+* The description an XML body carries to the runtime.
+*
+* A program's instructions name fields; XML writes them as elements or
+* attributes, a list inside a wrapper or repeated in place, each named as the
+* schema's OpenAPI `xml` object says. The runtime cannot know any of that
+* from the instructions, so every body a site has work for, where the
+* operation declares it as XML, carries a description of the places the
+* instructions reach: read from the contract the body arrives in, written as
+* the contract it leaves for does.
+*
+* Only places an instruction reaches are described, and the elements on the
+* way to them. Everything else in the body is kept exactly as it came. A
+* place is found where it was in the body as it arrived, by undoing earlier
+* moves, and where it ends up, by following later ones, so a chain of
+* releases is described as one.
+*
+* What the runtime could not read back exactly is a compile issue, and the
+* release gate blocks on it: a map, which XML has no form for; a schema that
+* contains itself, which no finite description reaches the bottom of; a value
+* an instruction reads whose schema says nothing of what it is; a body that
+* is a value rather than an object. Amazon's CloudFront and CloudSearch are
+* the real cases; neither needs any of these.
+*/
+/** Marks a chain's link blocks, as `chain.ts` names them. */
+const LINK$1 = ">";
+/** The instructions as they run, every block written out where it is entered. */
+function stepsOf(instrs, blocks, prefix = [], entered = /* @__PURE__ */ new Set()) {
+	const at = (pointer) => [...prefix, ...parsePointer(pointer)];
+	const out = [];
+	for (const instr of instrs) switch (instr.k) {
+		case "move":
+			out.push({
+				c: instr.c,
+				touched: [at(instr.from), at(instr.to)],
+				reads: [],
+				move: {
+					from: at(instr.from),
+					to: at(instr.to)
+				}
+			});
+			break;
+		case "within":
+			out.push({
+				c: instr.c,
+				touched: [at(instr.path)],
+				reads: []
+			});
+			out.push(...stepsOf(instr.block, blocks, at(instr.path), entered));
+			break;
+		case "switch":
+			out.push({
+				c: instr.c,
+				touched: [at(instr.path)],
+				reads: [at(instr.path)]
+			});
+			for (const block of Object.values(instr.cases)) out.push(...stepsOf(block, blocks, prefix, entered));
+			break;
+		case "has":
+			out.push({
+				c: instr.c,
+				touched: [at(instr.path)],
+				reads: []
+			});
+			out.push(...stepsOf(instr.block, blocks, prefix, entered));
+			break;
+		case "is":
+			out.push({
+				c: instr.c,
+				touched: [at(instr.path)],
+				reads: [at(instr.path)]
+			});
+			out.push(...stepsOf(instr.block, blocks, prefix, entered));
+			break;
+		case "call":
+			if (!instr.block.includes(LINK$1)) {
+				out.push({
+					c: instr.c,
+					touched: [],
+					reads: [],
+					shared: instr.block
+				});
+				break;
+			}
+			if (entered.has(instr.block)) break;
+			out.push(...stepsOf(blocks[instr.block] ?? [], blocks, prefix, new Set(entered).add(instr.block)));
+			break;
+		case "wrap":
+		case "set":
+		case "del":
+			out.push({
+				c: instr.c,
+				touched: [at(instr.path)],
+				reads: []
+			});
+			break;
+		default: out.push({
+			c: instr.c,
+			touched: [at(instr.path)],
+			reads: [at(instr.path)]
+		});
+	}
+	return out;
+}
+/**
+* A request envelope's steps as they reach its body: every place under
+* `/@body`, from the body's root. A value moved between a parameter and the
+* body is a place written, or read, in the body alone.
+*/
+function inBody(steps) {
+	const body = (path) => path[0] === "@body" ? [path.slice(1)] : [];
+	return steps.map((step) => {
+		const out = {
+			c: step.c,
+			touched: step.touched.flatMap(body),
+			reads: step.reads.flatMap(body)
+		};
+		if (step.shared !== void 0) out.shared = step.shared;
+		const from = step.move ? body(step.move.from)[0] : void 0;
+		const to = step.move ? body(step.move.to)[0] : void 0;
+		if (from !== void 0 && to !== void 0) out.move = {
+			from,
+			to
+		};
+		return out;
+	});
+}
+const startsWith = (path, prefix) => prefix.length <= path.length && prefix.every((segment, index) => segment === path[index]);
+/** Where a place read at a later step was in the body as it arrived. */
+function traceBack(path, earlier) {
+	let segments = path;
+	for (const step of [...earlier].reverse()) if (step.move && startsWith(segments, step.move.to)) segments = [...step.move.from, ...segments.slice(step.move.to.length)];
+	return segments;
+}
+/** Where a place written at an earlier step ends up in the body as it leaves. */
+function traceForward(path, later) {
+	let segments = path;
+	for (const step of later) if (step.move && startsWith(segments, step.move.from)) segments = [...step.move.to, ...segments.slice(step.move.from.length)];
+	return segments;
+}
+/**
+* A schema's `xml` object, the one nearest the place winning field by field:
+* written beside a reference, as CloudFront writes an item's name in an
+* `allOf` with the reference, over the referenced schema's own.
+*/
+function xmlOf(document, schema, depth = 0) {
+	if (!isJsonObject(schema) || depth > 32) return {};
+	let found = {};
+	const ref = schema["$ref"];
+	if (typeof ref === "string") {
+		const target = resolveRef(document, ref);
+		if (target !== void 0) found = xmlOf(document, target, depth + 1);
+	}
+	const members = Array.isArray(schema["allOf"]) ? schema["allOf"] : [];
+	for (const member of members.filter((each) => isJsonObject(each) && "$ref" in each)) found = {
+		...found,
+		...xmlOf(document, member, depth + 1)
+	};
+	for (const member of members.filter((each) => !(isJsonObject(each) && "$ref" in each))) found = {
+		...found,
+		...xmlOf(document, member, depth + 1)
+	};
+	const own = schema["xml"];
+	if (isJsonObject(own)) {
+		const info = {};
+		if (typeof own["name"] === "string") info.name = own["name"];
+		if (typeof own["namespace"] === "string" && own["namespace"] !== "") info.namespace = own["namespace"];
+		if (typeof own["prefix"] === "string" && own["prefix"] !== "") info.prefix = own["prefix"];
+		if (typeof own["attribute"] === "boolean") info.attribute = own["attribute"];
+		if (typeof own["wrapped"] === "boolean") info.wrapped = own["wrapped"];
+		found = {
+			...found,
+			...info
+		};
+	}
+	return found;
+}
+function kindOf$1(document, schema, depth = 0) {
+	const resolved = resolveSchema(document, schema);
+	if (!isJsonObject(resolved) || depth > 32) return "any";
+	const declared = resolved["type"];
+	const types = (Array.isArray(declared) ? declared : [declared]).filter((type) => typeof type === "string" && type !== "null");
+	if (types.length === 1) {
+		const [type] = types;
+		if (type === "object" || type === "array" || type === "string" || type === "integer" || type === "number" || type === "boolean") return type;
+		return "any";
+	}
+	if (types.length > 1) return "any";
+	if (isJsonObject(resolved["properties"])) return "object";
+	if (resolved["items"] !== void 0) return "array";
+	const branches = [...Array.isArray(resolved["oneOf"]) ? resolved["oneOf"] : [], ...Array.isArray(resolved["anyOf"]) ? resolved["anyOf"] : []];
+	const kinds = new Set(branches.map((branch) => kindOf$1(document, branch, depth + 1)));
+	const [only] = kinds;
+	return kinds.size === 1 && only !== void 0 ? only : "any";
+}
+const SCALARS$1 = /* @__PURE__ */ new Set([
+	"string",
+	"integer",
+	"number",
+	"boolean"
+]);
+/** The description of one side of a body, built place by place. */
+var Describer = class {
+	root = { type: "object" };
+	issues = [];
+	document;
+	schema;
+	reading;
+	where;
+	constructor(document, schema, reading, where) {
+		this.document = document;
+		this.schema = schema;
+		this.reading = reading;
+		this.where = where;
+	}
+	issue(changeId, message) {
+		if (this.issues.some((each) => each.changeId === changeId && each.message === message)) return;
+		this.issues.push({
+			changeId,
+			message: `${this.where}: ${message}`,
+			xml: true
+		});
+	}
+	/** The property `key` of an object schema, through its choices where they agree. */
+	property(schema, key, changeId, depth = 0) {
+		const resolved = resolveSchema(this.document, schema);
+		if (!isJsonObject(resolved) || depth > 32) return void 0;
+		const properties = resolved["properties"];
+		if (isJsonObject(properties) && Object.hasOwn(properties, key)) return properties[key];
+		const found = [...Array.isArray(resolved["oneOf"]) ? resolved["oneOf"] : [], ...Array.isArray(resolved["anyOf"]) ? resolved["anyOf"] : []].map((branch) => this.property(branch, key, changeId, depth + 1)).filter((each) => each !== void 0);
+		const [first] = found;
+		if (first === void 0) return void 0;
+		const written = (each) => JSON.stringify([xmlOf(this.document, each), kindOf$1(this.document, each)]);
+		if (found.some((each) => written(each) !== written(first))) {
+			this.issue(changeId, `${key} is written differently in the branches of a choice, so which element it is would be a guess`);
+			return;
+		}
+		return first;
+	}
+	/** A node for the field `key` holding `schema`, or nothing where it cannot be described. */
+	node(key, schema, changeId, item) {
+		const xml = xmlOf(this.document, schema);
+		const type = kindOf$1(this.document, schema);
+		const node = { type };
+		const name = item ?? xml.name ?? key;
+		if (!isNcName(name)) {
+			this.issue(changeId, `${key} would be written as <${name}>, which is not a name XML allows`);
+			return;
+		}
+		if (item !== void 0 || name !== key) node.name = name;
+		if (xml.namespace !== void 0) node.namespace = xml.namespace;
+		if (xml.prefix !== void 0) {
+			if (!isNcName(xml.prefix) || xml.prefix === "xmlns") {
+				this.issue(changeId, `${key} has the prefix ${xml.prefix}, which is not one XML allows`);
+				return;
+			}
+			node.prefix = xml.prefix;
+		}
+		if (xml.attribute === true && item === void 0) {
+			if (!SCALARS$1.has(type)) {
+				this.issue(changeId, `${key} is an attribute holding more than a value`);
+				return;
+			}
+			node.attribute = true;
+		}
+		if (type === "array") {
+			if (xml.wrapped === true) node.wrapped = true;
+			const resolved = resolveSchema(this.document, schema);
+			const itemsSchema = isJsonObject(resolved) ? resolved["items"] ?? {} : {};
+			const itemsXml = xmlOf(this.document, itemsSchema);
+			const items = this.node(key, itemsSchema, changeId, itemsXml.name ?? (xml.wrapped === true ? xml.name ?? key : key));
+			if (items === void 0) return void 0;
+			if (items.type === "array") {
+				this.issue(changeId, `${key} is a list of lists, which XML has no form for`);
+				return;
+			}
+			node.items = items;
+		}
+		return node;
+	}
+	/** Describes every place on the way to `path`, as far as the schema goes. */
+	describe(path, changeId) {
+		let schema = this.schema;
+		let node = this.root;
+		for (const [index, segment] of path.entries()) {
+			const where = `/${path.slice(0, index + 1).join("/")}`;
+			if (segment === "{}") {
+				this.issue(changeId, `${where} reads a map's values, which XML has no form for`);
+				return;
+			}
+			if (node.type === "object") {
+				if (segment === "*") return;
+				const child = this.property(schema, segment, changeId);
+				if (child === void 0) return;
+				node.properties ??= {};
+				let next = node.properties[segment];
+				if (next === void 0) {
+					const made = this.node(segment, child, changeId, void 0);
+					if (made === void 0) return;
+					next = made;
+					node.properties[segment] = next;
+				}
+				schema = child;
+				node = next;
+				continue;
+			}
+			if (node.type === "array") {
+				if (segment !== "*" || node.items === void 0) return;
+				const resolved = resolveSchema(this.document, schema);
+				schema = isJsonObject(resolved) ? resolved["items"] ?? {} : {};
+				node = node.items;
+				continue;
+			}
+			if (node.type === "any" && this.reading) this.issue(changeId, `${where} is inside a value its contract says nothing of, which XML cannot be read into`);
+			return;
+		}
+	}
+	/** The node at `path`, where one is described. */
+	at(path) {
+		let node = this.root;
+		for (const segment of path) {
+			if (node === void 0) return void 0;
+			node = segment === "*" ? node.items : node.properties?.[segment];
+		}
+		return node;
+	}
+};
+/** Two fields an object's description writes as one element are refused, as the runtime refuses them. */
+function collisions(node, path, found) {
+	const elements = /* @__PURE__ */ new Map();
+	const attributes = /* @__PURE__ */ new Map();
+	for (const [key, property] of Object.entries(node.properties ?? {})) {
+		const name = property.type === "array" && property.wrapped !== true ? property.items?.name ?? key : property.name ?? key;
+		const seen = property.attribute === true ? attributes : elements;
+		const identity = `${property.namespace ?? ""} ${name}`;
+		const other = seen.get(identity);
+		if (other !== void 0) found.push(`${path}/${other} and ${path}/${key} are both written as ${name}`);
+		seen.set(identity, key);
+		collisions(property, `${path}/${key}`, found);
+	}
+	if (node.items) collisions(node.items, `${path}/*`, found);
+}
+/**
+* The description of one body a site's `instrs` run over: read as `read`
+* writes it, written as `write` does. Issues name the Change that could not
+* be described, for the release gate.
+*/
+function describeXmlBody(read, write, instrs, blocks, where, envelope = false) {
+	const steps = envelope ? inBody(stepsOf(instrs, blocks)) : stepsOf(instrs, blocks);
+	const reading = new Describer(read.document, read.schema, true, where);
+	const writing = new Describer(write.document, write.schema, false, where);
+	for (const [side, describer] of [["arrives", reading], ["leaves", writing]]) if (kindOf$1(describer.document, describer.schema) !== "object") describer.issue(instrs[0]?.c ?? "", `the body it ${side} as is not an object, which XML writes as an element holding fields`);
+	for (const [index, step] of steps.entries()) {
+		if (step.shared !== void 0) {
+			reading.issue(step.c, `the value is served by the shared block ${step.shared}, as a schema that contains itself or sits in too many places is, and an XML body's description has to name every place`);
+			continue;
+		}
+		const earlier = steps.slice(0, index);
+		const later = steps.slice(index + 1);
+		for (const path of step.touched) {
+			reading.describe(traceBack(path, earlier), step.c);
+			writing.describe(traceForward(path, later), step.c);
+		}
+		for (const path of step.reads) {
+			const at = traceBack(path, earlier);
+			if (reading.at(at)?.type === "any") reading.issue(step.c, `/${at.join("/")} is read by value, and its contract does not say what it holds, so it cannot be read from XML`);
+		}
+	}
+	const issues = [...reading.issues, ...writing.issues];
+	const found = [];
+	collisions(reading.root, "", found);
+	collisions(writing.root, "", found);
+	for (const message of found) issues.push({
+		changeId: instrs[0]?.c ?? "",
+		message: `${where}: ${message}`,
+		xml: true
+	});
+	return issues.length > 0 ? { issues } : {
+		body: {
+			read: reading.root,
+			write: writing.root
+		},
+		issues
+	};
+}
+/** A document's operations by method and path. */
+function operationsByKey(document) {
+	const found = /* @__PURE__ */ new Map();
+	for (const each of operationsOf(document)) if (!each.webhook) found.set(siteKey(each.method, each.path), each.operation);
+	return found;
+}
+/** The XML schema a response list keyed `key` answers with: the status, its class, then `default`. */
+function responseFor(document, operation, key) {
+	const declared = responseXmlSchemas(document, operation);
+	const byStatus = new Map(declared.map((entry) => [entry.status.toLowerCase(), entry.schema]));
+	const wanted = /^\d{3}$/.test(key) ? [
+		key,
+		`${key[0]}xx`,
+		"default"
+	] : [key.toLowerCase()];
+	for (const status of wanted) {
+		const found = byStatus.get(status);
+		if (found !== void 0) return found;
+	}
+}
+/**
+* The XML each site of one contract's program reads and writes, where its
+* operation declares XML bodies: requests from `historical`, the contract its
+* callers wrote against, to `current`; responses the other way. `routes`
+* says which historical operation each site's calls come from.
+*/
+function describeXmlSites(sites, historical, current, routes, blocks) {
+	const issues = [];
+	const operationsNow = operationsByKey(current);
+	const operationsThen = operationsByKey(historical);
+	const cameFrom = /* @__PURE__ */ new Map();
+	for (const route of routes) {
+		const to = siteKey(route.to.method, route.to.path);
+		if (!cameFrom.has(to)) cameFrom.set(to, siteKey(route.from.method, route.from.path));
+	}
+	const out = {};
+	for (const [key, site] of Object.entries(sites)) {
+		const now = operationsNow.get(key);
+		const then = operationsThen.get(cameFrom.get(key) ?? key);
+		if (now === void 0 || then === void 0) {
+			out[key] = site;
+			continue;
+		}
+		const xml = {};
+		const requestThen = requestXmlSchema(historical, then);
+		const requestNow = requestXmlSchema(current, now);
+		const requestWork = site.envelope?.body === true ? site.envelope.instrs : site.request;
+		if (requestThen !== void 0 && requestWork !== void 0 && requestWork.length > 0) {
+			if (requestNow === void 0) issues.push({
+				changeId: requestWork[0]?.c ?? "",
+				message: `${key} request: an old caller's body is XML and the current contract takes none, so it cannot be written for it`,
+				xml: true
+			});
+			else {
+				const described = describeXmlBody({
+					document: historical,
+					schema: requestThen
+				}, {
+					document: current,
+					schema: requestNow
+				}, requestWork, blocks, `${key} request`, site.envelope !== void 0);
+				issues.push(...described.issues);
+				if (described.body) xml.request = described.body;
+			}
+		}
+		for (const [status, instrs] of Object.entries(site.response ?? {})) {
+			if (instrs.length === 0) continue;
+			const arrives = responseFor(current, now, status);
+			if (arrives === void 0) continue;
+			let shown = status;
+			for (const rule of site.status ?? []) if (String(rule.from) === shown) shown = String(rule.to);
+			const leaves = responseFor(historical, then, shown);
+			if (leaves === void 0) continue;
+			const described = describeXmlBody({
+				document: current,
+				schema: arrives
+			}, {
+				document: historical,
+				schema: leaves
+			}, instrs, blocks, `${key} response ${status}`);
+			issues.push(...described.issues);
+			if (described.body) {
+				xml.response ??= {};
+				xml.response[status] = described.body;
+			}
+		}
+		out[key] = xml.request || xml.response ? {
+			...site,
+			xml
+		} : site;
+	}
+	return {
+		sites: out,
+		issues
+	};
+}
+const isXmlType = (type) => {
+	const essence = (type.split(";")[0] ?? "").trim().toLowerCase();
+	return essence === "application/xml" || essence === "text/xml" || essence.endsWith("+xml");
+};
+/**
+* Whether a document declares any request or response body as XML: any
+* `content` of an operation's request or responses, or of a shared one, that
+* names an XML type. Read without resolving anything, since it is asked of
+* every contract in a chain and nearly all of them say no.
+*/
+function declaresXml(document) {
+	const holders = [];
+	const paths = document["paths"];
+	for (const item of isJsonObject(paths) ? Object.values(paths) : []) {
+		if (!isJsonObject(item)) continue;
+		for (const operation of Object.values(item)) {
+			if (!isJsonObject(operation)) continue;
+			holders.push(operation["requestBody"] ?? null);
+			const responses = operation["responses"];
+			if (isJsonObject(responses)) holders.push(...Object.values(responses));
+		}
+	}
+	const components = document["components"];
+	if (isJsonObject(components)) for (const kind of ["requestBodies", "responses"]) {
+		const shared = components[kind];
+		if (isJsonObject(shared)) holders.push(...Object.values(shared));
+	}
+	return holders.some((holder) => {
+		const content = isJsonObject(holder) ? holder["content"] : void 0;
+		return isJsonObject(content) && Object.keys(content).some(isXmlType);
+	});
 }
 //#endregion
 //#region ../compiler/src/chain.ts
@@ -25120,6 +26995,8 @@ function chainProgram(api, currentLabel, currentDigest, steps, options = {}) {
 	const contracts = {};
 	const blocks = {};
 	for (const step of projected) Object.assign(blocks, step.blocks);
+	const head = steps.at(-1)?.to;
+	const xml = head !== void 0 && steps.some((step) => declaresXml(step.from) || declaresXml(step.to));
 	let tail;
 	for (let index = steps.length - 1; index >= 0; index -= 1) {
 		const step = steps[index];
@@ -25128,7 +27005,17 @@ function chainProgram(api, currentLabel, currentDigest, steps, options = {}) {
 		const link = index > 0 ? called(own, blocks) : own;
 		tail = link;
 		if (label === currentLabel) continue;
-		const program = contractOf(contractFrame(label, steps, projected, index), link);
+		const frame = contractFrame(label, steps, projected, index);
+		const linked = contractOf(frame, link);
+		const described = xml && head !== void 0 ? describeXmlSites(linked.sites, step.from, head, frame.routes, blocks) : {
+			sites: linked.sites,
+			issues: []
+		};
+		issues.push(...described.issues);
+		const program = {
+			...linked,
+			sites: described.sites
+		};
 		const served = servedUnder(step.from);
 		const current = servedUnder(steps.at(-1)?.to);
 		const ending = options.retirement?.get(label);
@@ -39311,7 +41198,7 @@ function schemaFor(document, method, path, status) {
 	for (const operation of operationsOf(document)) {
 		if (operation.method !== method.toLowerCase()) continue;
 		if (!matches(operation.path, path)) continue;
-		const declared = responseSchemas$1(document, operation.operation);
+		const declared = responseSchemas$1(document, operation.operation).filter((entry) => entry.media === "json");
 		const exact = declared.find((entry) => entry.status === String(status));
 		const byClass = declared.find((entry) => entry.status === `${Math.floor(status / 100)}XX`.toLowerCase() || entry.status === `${Math.floor(status / 100)}xx`);
 		const fallback = declared.find((entry) => entry.status === "default");
@@ -40160,7 +42047,7 @@ function stepFor(document, operation, id, known, options) {
 }
 /** Whether a successful answer to this operation carries a top-level `id`. */
 function returnsId(document, operation) {
-	return responseSchemas$1(document, operation.operation).filter((entry) => entry.status.startsWith("2")).some((entry) => {
+	return responseSchemas$1(document, operation.operation).filter((entry) => entry.media === "json" && entry.status.startsWith("2")).some((entry) => {
 		const schema = resolveSchema(document, entry.schema);
 		return isJsonObject(schema) && isJsonObject(schema["properties"]) && "id" in schema["properties"];
 	});

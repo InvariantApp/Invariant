@@ -56,6 +56,7 @@ export interface VectorCounts {
   vectors: unknown[];
   envelopes: unknown[];
   forms: unknown[];
+  xml?: unknown[];
 }
 
 function read<T>(path: string): T | undefined {
@@ -323,7 +324,7 @@ export function scoreboard(inputs: {
       // vector they do not pass, so the counts are the file's own.
       status: inputs.vectors ? "met" : "not measured",
       value: inputs.vectors
-        ? `all ${inputs.vectors.vectors.length} body, ${inputs.vectors.envelopes.length} request-envelope and ${inputs.vectors.forms.length} form vectors pass`
+        ? `all ${inputs.vectors.vectors.length} body, ${inputs.vectors.envelopes.length} request-envelope, ${inputs.vectors.forms.length} form and ${inputs.vectors.xml?.length ?? 0} XML vectors pass`
         : "",
       evidence: "engines/go/invariant/vectors_test.go, in CI on every commit",
     },

@@ -50,11 +50,18 @@
     {
       "threat": "Malicious payloads and transformation bombs",
       "status": "covered",
-      "here": "Body cap, depth cap (256 levels, where DESIGN 11.1 says 64), wildcard fan-out cap and time budget, through the proxy and the runtime; a specification whose schema sits at 2^depth places compiles to a program the size of the schemas; YAML alias expansion is refused before it is built; programs that nest or call forever are refused at load.",
+      "here": "Body cap, depth cap (256 levels, where DESIGN 11.1 says 64), wildcard fan-out cap and time budget, through the proxy and the runtime; a specification whose schema sits at 2^depth places compiles to a program the size of the schemas; YAML alias expansion is refused before it is built; programs that nest or call forever are refused at load; an XML body declaring a document type, and so any entity to expand, file to read or URL to fetch, is refused before anything is read, and nesting, attributes and namespace declarations cannot make its parsing grow faster than the body.",
       "tests": [
         {
           "file": "proving/threats/proxy.test.ts",
           "titles": ["bodies built to make the proxy work"]
+        },
+        {
+          "file": "proving/threats/xml.test.ts",
+          "titles": [
+            "XML that would make the runtime expand, fetch or read",
+            "XML attacks through the proxy"
+          ]
         },
         {
           "file": "proving/threats/bombs.test.ts",

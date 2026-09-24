@@ -481,6 +481,108 @@ describe("rewriting a form body", () => {
   });
 });
 
+const XML = (
+  JSON.parse(
+    readFileSync(new URL("../../conformance/vectors.json", import.meta.url), "utf8"),
+  ) as { xml: { xml: unknown; instrs: unknown[]; input: string }[] }
+).xml.flatMap((vector) => {
+  try {
+    const runtime = createRuntime({
+      program: {
+        irVersion: 2,
+        api: "fuzz",
+        currentLabel: "new",
+        current: "sha256:fuzz",
+        contracts: {
+          old: {
+            label: "old",
+            routes: [],
+            sites: {
+              "post /xml": { xml: { request: vector.xml }, request: vector.instrs },
+            },
+            behaviors: [],
+            retired: [],
+          },
+        },
+      },
+      identity: [{ kind: "default", label: "old" }],
+      maxBodyBytes: 64 * 1024,
+    });
+    return [{ runtime, input: vector.input }];
+  } catch {
+    return [];
+  }
+});
+
+const xmlFragment = fc.oneof(
+  fc.constantFrom(
+    "<",
+    ">",
+    "/>",
+    "</",
+    "<S>",
+    "</S>",
+    "<R>",
+    "</R>",
+    "<p:S>",
+    ' xmlns:p="urn:p"',
+    ' xmlns=""',
+    ' a="1"',
+    "&amp;",
+    "&#x41;",
+    "&#0;",
+    "&lt",
+    "<![CDATA[",
+    "]]>",
+    "<!--",
+    "-->",
+    "<?pi ?>",
+    '<?xml version="1.0"?>',
+    '<!DOCTYPE R [<!ENTITY x "y">]>',
+    "&x;",
+    "\uD800",
+    "\uFEFF",
+    "\r\n",
+    "__proto__",
+  ),
+  fc.string({ maxLength: 4 }),
+);
+
+describe("rewriting an XML body", () => {
+  it("returns XML or refuses with a typed error, the same way twice", () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom(...XML),
+        fc.array(xmlFragment, { maxLength: 16 }).map((parts) => parts.join("")),
+        fc.nat(),
+        ({ runtime, input }, noise, at) => {
+          const site = runtime.siteFor("old", "POST", "/xml");
+          expect(site).toBeDefined();
+          if (!site) return;
+          // A vector's own document with noise spliced in somewhere, so the
+          // parser meets it deep inside something it otherwise reads.
+          const cut = input.length === 0 ? 0 : at % (input.length + 1);
+          const body = input.slice(0, cut) + noise + input.slice(cut);
+          const attempt = () => {
+            try {
+              return runtime.transformRequestXml(site, body, {
+                contract: "old",
+                operation: "post /xml",
+              });
+            } catch (error) {
+              if (!typed(error)) throw error;
+              return `refused: ${(error as Error).name}`;
+            }
+          };
+          expect(attempt()).toBe(attempt());
+          prototypeUntouched();
+        },
+      ),
+      settings,
+    );
+  });
+});
+
 describe("matching a path template", () => {
   const literal = fc.stringMatching(/^[a-z0-9._:-]{1,6}$/);
   const segment = fc.oneof(

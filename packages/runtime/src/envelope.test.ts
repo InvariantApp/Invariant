@@ -25,6 +25,7 @@ function run(vector: EnvelopeVector): { request?: unknown; refusedBy?: string } 
               [`post ${vector.template}`]: {
                 envelope: vector.envelope,
                 ...(vector.form ? { form: vector.form } : {}),
+                ...(vector.xml ? { xml: { request: vector.xml } } : {}),
               },
             },
             behaviors: [],

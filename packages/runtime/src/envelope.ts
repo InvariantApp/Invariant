@@ -64,6 +64,8 @@ export interface EnvelopeRequest {
   body: string | undefined;
   /** True when the body is form-encoded rather than JSON. */
   form?: boolean;
+  /** True when the body is XML, which the site describes. */
+  xml?: boolean;
 }
 
 export const PART = {

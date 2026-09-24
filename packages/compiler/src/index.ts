@@ -6,3 +6,4 @@ export * from "./parameters.ts";
 export * from "./predict.ts";
 export * from "./project.ts";
 export * from "./schema.ts";
+export * from "./xml.ts";

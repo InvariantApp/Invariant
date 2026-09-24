@@ -43,6 +43,7 @@ import {
   templateNames,
   underBody,
 } from "./project.ts";
+import { declaresXml, describeXmlSites } from "./xml.ts";
 
 export interface ContractStep {
   /** Label of the contract this step produces. */
@@ -588,6 +589,12 @@ export function chainProgram(
   const blocks: Record<string, Instr[]> = {};
   for (const step of projected) Object.assign(blocks, step.blocks);
 
+  // Nearly every chain has no XML in it, and nothing to describe.
+  const head = steps.at(-1)?.to;
+  const xml =
+    head !== undefined &&
+    steps.some((step) => declaresXml(step.from) || declaresXml(step.to));
+
   // Newest first, so each contract is its own step and then the next.
   let tail: Link | undefined;
   for (let index = steps.length - 1; index >= 0; index -= 1) {
@@ -603,7 +610,16 @@ export function chainProgram(
     // edit made without naming a new contract is caught, but there is nothing
     // to serve: a caller on the current contract never reaches a program.
     if (label === currentLabel) continue;
-    const program = contractOf(contractFrame(label, steps, projected, index), link);
+    const frame = contractFrame(label, steps, projected, index);
+    const linked = contractOf(frame, link);
+    // Bodies written in XML are described once the chain is whole, from the
+    // contract this one's callers wrote against and the current one.
+    const described =
+      xml && head !== undefined
+        ? describeXmlSites(linked.sites, step.from, head, frame.routes, blocks)
+        : { sites: linked.sites, issues: [] };
+    issues.push(...described.issues);
+    const program = { ...linked, sites: described.sites };
     // Versioned in the server URL rather than the paths: this contract's
     // callers use a base path the current contract does not.
     const served = servedUnder(step.from);
@@ -639,4 +655,28 @@ export function chainProgram(
     },
     issues,
   };
+}
+
+/**
+ * What describing XML bodies raises for `changes`, compiled as one step from
+ * `oldContract` to `newContract`: the Changes the runtime could not serve
+ * over an XML body, which the release gate blocks and the proving ground
+ * does not count as explaining anything. Nothing, for contracts with no XML.
+ */
+export function xmlIssues(
+  oldContract: OpenApiDocument,
+  newContract: OpenApiDocument,
+  changes: readonly Change[],
+): ProjectionIssue[] {
+  if (!declaresXml(oldContract) && !declaresXml(newContract)) return [];
+  const { issues } = chainProgram("xml", "new", "sha256:0", [
+    {
+      label: "new",
+      parent: "old",
+      from: oldContract,
+      to: newContract,
+      changes: [...changes],
+    },
+  ]);
+  return issues.filter((issue) => issue.xml === true);
 }
