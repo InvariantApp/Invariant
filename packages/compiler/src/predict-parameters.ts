@@ -209,9 +209,17 @@ function bodyShapeInNew(
   let parent: JsonValue | undefined;
   for (const segment of segments) {
     parent = current;
-    if (!isJsonObject(current) || !isJsonObject(current["properties"])) return undefined;
-    const next = (current["properties"] as JsonObject)[segment];
-    if (next === undefined) return undefined;
+    if (!isJsonObject(current)) return undefined;
+    // A list's items and a map's values, as a pointer names them.
+    const next =
+      segment === "*"
+        ? current["items"]
+        : segment === "{}"
+          ? current["additionalProperties"]
+          : isJsonObject(current["properties"])
+            ? (current["properties"] as JsonObject)[segment]
+            : undefined;
+    if (next === undefined || typeof next === "boolean") return undefined;
     current = resolveSchema(newContract, next);
   }
   if (current === undefined) return undefined;

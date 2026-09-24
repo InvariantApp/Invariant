@@ -96,6 +96,9 @@ const UNDERSTOOD = new Set([
 
 const TYPES = ["null", "boolean", "object", "array", "number", "integer", "string"];
 
+/** The kinds of JSON value, one each: every integer is a number. */
+const KINDS = ["null", "boolean", "object", "array", "number", "string"];
+
 /** How deep nested schemas are followed before this gives up and says so. */
 const MAX_DEPTH = 64;
 
@@ -328,6 +331,16 @@ class Prover {
         const pieces = piecesOf(this.innerDocument, i, name);
         if (!pieces) continue;
         const split = pieces
+          .map((piece) => this.#oneBranch(merged, exclusive, piece, piece, at, depth))
+          .find((answer) => !answer.covered);
+        if (!split) return COVERED;
+      }
+      // A value of any kind, held by a choice with a branch for each kind:
+      // PayPal wrote its JSON patch `value` as a choice of every type there
+      // is, and later as a value that says nothing about its type.
+      if (typesOf(i) === "any" && !this.#constrains(i)) {
+        const kinds = KINDS.map((type): JsonObject => ({ ...i, type }));
+        const split = kinds
           .map((piece) => this.#oneBranch(merged, exclusive, piece, piece, at, depth))
           .find((answer) => !answer.covered);
         if (!split) return COVERED;
@@ -565,6 +578,13 @@ class Prover {
    * the outer choice's discriminator first, then any the inner object always
    * has whose values it lists.
    */
+  /** Whether a schema says anything about a value beyond what describes it. */
+  #constrains(schema: JsonObject): boolean {
+    return Object.keys(schema).some(
+      (keyword) => !ANNOTATIONS.has(keyword) && !keyword.startsWith("x-"),
+    );
+  }
+
   #splitsOn(o: JsonObject, i: JsonObject): string[] {
     const discriminator = isJsonObject(o["discriminator"])
       ? o["discriminator"]["propertyName"]
@@ -649,7 +669,11 @@ function stringsCovered(o: JsonObject, i: JsonObject, at: string): Coverage {
   if (o["pattern"] !== undefined && o["pattern"] !== i["pattern"]) {
     return missed(at, "the outer schema matches a pattern the inner does not state");
   }
-  if (o["format"] !== undefined && o["format"] !== i["format"]) {
+  if (
+    o["format"] !== undefined &&
+    o["format"] !== i["format"] &&
+    !HINT_FORMATS.has(String(o["format"]))
+  ) {
     return missed(
       at,
       `the outer schema is a ${String(o["format"])}, and the inner is not said to be`,
@@ -657,6 +681,14 @@ function stringsCovered(o: JsonObject, i: JsonObject, at: string): Coverage {
   }
   return COVERED;
 }
+
+/**
+ * Formats OpenAPI defines as a hint and not a claim about the value, so
+ * every string is one. `password` asks a form to hide what is typed:
+ * CloudFront came to state it on a distribution's comment and on the value
+ * of an origin's custom header, and any text old callers sent is still one.
+ */
+const HINT_FORMATS: ReadonlySet<string> = new Set(["password"]);
 
 /**
  * Numeric formats that bound a whole number, by the lowest and highest value
@@ -814,7 +846,8 @@ function refuses(o: JsonObject, value: JsonValue): string | undefined {
     // A format is a claim about the value that a listed value either makes
     // good or does not; nothing here can check every format, so only an
     // outer format the inner states too is taken as kept.
-    if (o["format"] !== undefined) return `is not shown to be a ${String(o["format"])}`;
+    if (o["format"] !== undefined && !HINT_FORMATS.has(String(o["format"])))
+      return `is not shown to be a ${String(o["format"])}`;
   }
   if (typeof value === "number") {
     const format = o["format"];
@@ -888,6 +921,8 @@ function typesOf(schema: JsonObject): Set<string> | "any" {
     types = new Set(values.map(typeOfValue));
   }
   if (schema["nullable"] === true) types.add("null");
+  // A list of every kind of value says no more than no type at all.
+  if (KINDS.every((type) => types.has(type))) return "any";
   return types;
 }
 

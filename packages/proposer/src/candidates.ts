@@ -47,6 +47,13 @@ export interface FieldShape {
   default?: JsonValue;
   /** Declared `readOnly`: it appears in responses and never in requests. */
   readOnly?: boolean;
+  /**
+   * The field says nothing of what kind of value it holds, so it may hold
+   * any, null among them, whether or not it says it may be null: PayPal's
+   * JSON patch `value` went from a choice of every type, null included, to
+   * a value that states nothing, and still takes a null.
+   */
+  anyKind?: true;
   /** For a union, the named schemas it can hold, as references. */
   variants?: string[];
   /**
@@ -97,6 +104,23 @@ export interface FieldShape {
    * already hold that one: it is left out of what they are sent instead.
    */
   inSet?: true;
+}
+
+/** Whether a schema allows a value of every kind: no type, values, choice or shape. */
+function saysNothingOfKind(value: JsonObject): boolean {
+  return [
+    "type",
+    "enum",
+    "const",
+    "anyOf",
+    "oneOf",
+    "allOf",
+    "not",
+    "properties",
+    "additionalProperties",
+    "items",
+    "$ref",
+  ].every((keyword) => value[keyword] === undefined);
 }
 
 /** The first non-null type a schema declares. */
@@ -200,6 +224,11 @@ export interface SchemaDelta {
   scope?: Scope;
   /** Which way it travels, when that is known without scanning for sites. */
   sides?: { request: boolean; response: boolean };
+  /**
+   * The schemas compared, where they are not the named schemas: a body
+   * written in place, on each side. Fields' pointers are read from these.
+   */
+  roots?: { old: JsonValue; new: JsonValue };
   /**
    * Most of its fields gone and others in their place: a different schema
    * under the old name, so nothing in it is drafted as dropped.
@@ -482,6 +511,7 @@ function fieldsOf(
         ),
       ...(value["default"] === undefined ? {} : { default: value["default"] }),
       ...(value["readOnly"] === true ? { readOnly: true } : {}),
+      ...(saysNothingOfKind(value) ? { anyKind: true as const } : {}),
       ...typesOfChoice(document, value),
       ...unionOf(value),
       ...boundsOf(value),
@@ -622,6 +652,52 @@ function fieldsOf(
           : [];
     return [field, ...listed, ...nested];
   });
+}
+
+/**
+ * The fields of a body compared where it stands. A body that is a list has
+ * its items' fields, under `*`: Sentry lists its dashboards as a list written
+ * into the operation, and a field each came to carry was compared nowhere.
+ * Items that name a schema are read through it, since a body is only
+ * compared here where one side writes it out: PayPal's JSON patch requests
+ * wrote each patch out and came to name `patch`.
+ */
+function bodyFieldsOf(document: OpenApiDocument, schema: JsonValue): FieldShape[] {
+  const resolved = resolveSchema(document, schema);
+  if (!isJsonObject(resolved)) return [];
+  const items = resolved["items"];
+  if (resolved["properties"] !== undefined || !isJsonObject(items)) {
+    return fieldsOf(document, schema);
+  }
+  return fieldsOf(document, items, { name: "*", pointer: "/*" }, 1);
+}
+
+/**
+ * The schema written at a field's pointer under `root`, as it is written
+ * there: references followed and `allOf` merged on the way, as `fieldsOf`
+ * reads them, and the field's own schema as it stands.
+ */
+export function statementAt(
+  document: OpenApiDocument,
+  root: JsonValue,
+  pointer: string,
+): JsonValue | undefined {
+  let current: JsonValue | undefined = root;
+  for (const segment of pointer === "" ? [] : pointer.slice(1).split("/")) {
+    const resolved = resolveSchema(document, current ?? {});
+    if (!isJsonObject(resolved)) return undefined;
+    const properties = resolved["properties"];
+    current =
+      segment === "*"
+        ? resolved["items"]
+        : segment === "{}"
+          ? resolved["additionalProperties"]
+          : isJsonObject(properties)
+            ? properties[segment.replaceAll("~1", "/").replaceAll("~0", "~")]
+            : undefined;
+    if (current === undefined) return undefined;
+  }
+  return current;
 }
 
 /** Where each schema is used, so a judge can be told what the field is part of. */
@@ -2200,8 +2276,8 @@ export function schemaDeltas(
       newContract,
       oldSchemas,
       newSchemas,
-      sent(fieldsOf(oldContract, body)),
-      sent(fieldsOf(newContract, after)),
+      sent(bodyFieldsOf(oldContract, body)),
+      sent(bodyFieldsOf(newContract, after)),
       { name: `${operation.operationId} request body`, old: body, new: after, unmatched },
     );
     if (!compared) continue;
@@ -2216,6 +2292,7 @@ export function schemaDeltas(
         ],
         scope: { operation: operation.operationId, location: "body" },
         sides: { request: true, response: false },
+        roots: { old: body, new: after },
       },
       named === undefined ? places : [{ pointer: "", schema: named }, ...(places ?? [])],
     );
@@ -2255,8 +2332,8 @@ export function schemaDeltas(
         newContract,
         oldSchemas,
         newSchemas,
-        fieldsOf(oldContract, schema),
-        fieldsOf(newContract, next),
+        bodyFieldsOf(oldContract, schema),
+        bodyFieldsOf(newContract, next),
         {
           name: `${operation.operationId} ${status} response`,
           old: schema,
@@ -2274,6 +2351,7 @@ export function schemaDeltas(
         ],
         scope: { operation: operation.operationId, response: status },
         sides: { request: false, response: true },
+        roots: { old: schema, new: next },
       });
     }
   }

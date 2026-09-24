@@ -33,6 +33,8 @@ import {
   type JsonValue,
 } from "@invariant-app/ir";
 import { listCodec, timeCodec } from "./codecs.ts";
+import type { Decision, ValueDecision } from "./decisions.ts";
+import { retiredValueDecision } from "./vocabulary.ts";
 
 export interface RetiredEndpoint {
   method: HttpMethod;
@@ -610,6 +612,13 @@ const sameShape = (a: ParameterShape, b: ParameterShape): boolean =>
   a.enumValues?.join("|") === b.enumValues?.join("|") &&
   a.items?.enumValues?.join("|") === b.items?.enumValues?.join("|");
 
+/** Whether two declarations of a parameter differ in nothing but the values listed. */
+function onlyValuesChanged(before: ParameterShape, after: ParameterShape): boolean {
+  const { enumValues: _before, description: _was, default: _had, ...rest } = before;
+  const { enumValues: _after, description: _is, default: _has, ...next } = after;
+  return JSON.stringify(rest) === JSON.stringify(next);
+}
+
 function slugOf(...parts: string[]): string {
   return parts
     .join("_")
@@ -626,15 +635,20 @@ function slugOf(...parts: string[]): string {
  * or is the only one that went and the only one that arrived with the same
  * shape, is moved; a value appears only where the specification declares a
  * default; a type changes by a cast; a null that is no longer allowed is sent
- * as the parameter left out. Anything else is a question for a person, and
- * is returned as one.
+ * as the parameter left out. Where only a value is missing, the decision a
+ * body field would get is returned with the op written around it: what an
+ * old caller sends for a parameter that became required or arrived required
+ * with no default, and which accepted value each it may send that went is
+ * sent as. Anything else is a question for a person, and is returned as one.
  */
 export function parameterDrafts(deltas: readonly ParameterDelta[]): {
   drafts: ParameterDraft[];
   questions: ParameterQuestion[];
+  decisions: Decision[];
 } {
   const drafts: ParameterDraft[] = [];
   const questions: ParameterQuestion[] = [];
+  const decisions: Decision[] = [];
   const draft = (
     delta: ParameterDelta,
     name: string,
@@ -666,6 +680,42 @@ export function parameterDrafts(deltas: readonly ParameterDelta[]): {
       field: name,
       reason,
       side,
+    });
+
+  // What an old caller should send where the specification says nothing:
+  // asked as the decision a body field's is, with the op written around the
+  // answer. The parameter as the new contract declares it is what the
+  // answer has to satisfy.
+  const decide = (
+    delta: ParameterDelta,
+    parameter: ParameterShape,
+    op: ValueDecision["op"],
+    summary: string,
+    why: string,
+  ) =>
+    decisions.push({
+      kind: "value",
+      id: `chg_param_${slugOf(delta.operation, parameter.name)}_${op.op === "add" ? "add" : "default_new"}`.slice(
+        0,
+        128,
+      ),
+      schema: `${delta.operation} ${delta.location} parameters`,
+      scope: { operation: delta.operation, location: delta.location },
+      field: parameter.name,
+      pointer: `/${parameter.name}`,
+      op,
+      shape: {
+        name: parameter.name,
+        pointer: `/${parameter.name}`,
+        type: parameter.type,
+        format: parameter.format,
+        enumValues: parameter.enumValues,
+        description: parameter.description,
+        required: parameter.required,
+        nullable: parameter.nullable,
+      },
+      summary,
+      why,
     });
 
   // A parameter that left one location and arrived in another under the same
@@ -738,11 +788,13 @@ export function parameterDrafts(deltas: readonly ParameterDelta[]): {
     }
     for (const parameter of added.filter((entry) => entry.required)) {
       if (parameter.default === undefined) {
-        ask(
+        decide(
           delta,
-          parameter.name,
-          "newly required, and the value a caller who predates it should send is not in the specification",
-          "added",
+          parameter,
+          { op: "add" },
+          `The \`${parameter.name}\` ${delta.location} parameter of ${delta.operation} is new and required.`,
+          `Old callers never send \`${parameter.name}\`, and it is now required. ` +
+            "What their requests should carry instead is not in the specification.",
         );
         continue;
       }
@@ -775,12 +827,28 @@ export function parameterDrafts(deltas: readonly ParameterDelta[]): {
             pairs.push([dropped[0] as string, gained[0] as string]);
           }
           if (pairs.length !== from.length) {
-            ask(
-              delta,
-              before.name,
-              `the allowed values changed (${dropped.join(", ")} went), and which old value maps to which new one is a decision`,
-              "removed",
-            );
+            // Where nothing else about the parameter changed, which value
+            // each that went is sent as is asked, as for a body field.
+            const retired = onlyValuesChanged(before, after)
+              ? retiredValueDecision({
+                  schema: `${delta.operation} ${delta.location} parameters`,
+                  scope: { operation: delta.operation, location: delta.location },
+                  field: before.name,
+                  pointer: path,
+                  from,
+                  to,
+                })
+              : undefined;
+            if (retired !== undefined) {
+              decisions.push(retired);
+            } else {
+              ask(
+                delta,
+                before.name,
+                `the allowed values changed (${dropped.join(", ")} went), and which old value maps to which new one is a decision`,
+                "removed",
+              );
+            }
             continue;
           }
           ops.push({ op: "convert", path, codec: { kind: "enumMap", pairs } });
@@ -861,21 +929,35 @@ export function parameterDrafts(deltas: readonly ParameterDelta[]): {
       const nowRequired = !inPath && !before.required && after.required;
       const nullGone = !inPath && before.nullable && !after.nullable;
       if (nowRequired || (nullGone && after.required)) {
+        const when =
+          nowRequired && nullGone ? "absent-or-null" : nowRequired ? "absent" : "null";
         if (after.default === undefined) {
-          ask(
-            delta,
-            before.name,
-            "old callers could leave it out, it is now required, and the value they should send is not in the specification",
-            "added",
-          );
+          // Asked where nothing else was drafted for it, so the answer is
+          // the one Change on this parameter and nothing runs before it.
+          if (ops.length === 0) {
+            decide(
+              delta,
+              after,
+              { op: "default", when, toward: "new" },
+              `The \`${before.name}\` ${delta.location} parameter of ${delta.operation} is now required.`,
+              `Old callers could leave \`${before.name}\` out, and it is now required. ` +
+                "What their requests should carry in its place is not in the specification.",
+            );
+          } else {
+            ask(
+              delta,
+              before.name,
+              "old callers could leave it out, it is now required, and the value they should send is not in the specification",
+              "added",
+            );
+          }
           continue;
         }
         ops.push({
           op: "default",
           path,
           value: after.default,
-          when:
-            nowRequired && nullGone ? "absent-or-null" : nowRequired ? "absent" : "null",
+          when,
           toward: "new",
         });
         notes.push(
@@ -909,5 +991,5 @@ export function parameterDrafts(deltas: readonly ParameterDelta[]): {
     }
   }
 
-  return { drafts, questions };
+  return { drafts, questions, decisions };
 }
