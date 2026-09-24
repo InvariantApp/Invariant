@@ -20944,6 +20944,16 @@
     "confidence": 1,
     "model": "rule:comments"
   },
+  "mblayman/homeschool#1380|homeschool/accounts/models.py|6|ac0ac32995866280": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "mblayman/homeschool#1380|homeschool/accounts/models.py|75|1b9380ac6c8beb1c": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
   "mdn/yari#9888|client/src/plus/ai-help/use-ai.ts|12|56f0f0516c17f502": {
     "class": "sdk",
     "confidence": 0.73,
@@ -25754,6 +25764,436 @@
     "confidence": 1,
     "model": "rule:module-version"
   },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/actions/__init__.py|0|8366656b1460016d": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/actions/__init__.py|2|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/actions/send_sms/__init__.py|0|0a3d658d1cc03d19": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/actions/send_sms/action.py|0|f8994780b028a802": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/actions/send_sms/action.py|14|c2f6f1c85de0699a": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/actions/send_sms/action.py|21|4000ec6903e7d26b": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/actions/send_sms/action.py|4|805d93455b36b5e3": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/actions/send_sms/action.py|8|636dd12764807e56": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/actions/send_sms/schema.py|0|b44a8b41a1246225": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/actions/send_sms/schema.py|12|766a90366e6cac31": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/actions/send_sms/schema.py|14|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/actions/send_sms/schema.py|16|766a90366e6cac31": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/actions/send_sms/schema.py|18|d408ab1d14502782": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/actions/send_sms/schema.py|40|dd3a90b750a605a9": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/actions/send_sms/schema.py|48|1f7cfd001db5aef9": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/actions/send_sms/schema.py|60|58fb559f7c5d95f5": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/connection/__init__.py|0|0a3d658d1cc03d19": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/connection/connection.py|0|ef9638dd1af347ff": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/connection/connection.py|10|c89f3bb72534689b": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/connection/connection.py|11|cb54f9886be488ec": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/connection/connection.py|15|5b0ec861a825fe85": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/connection/connection.py|17|de7174dc9a0fc39d": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/connection/connection.py|5|1d9428411a307087": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/connection/connection.py|7|491ba7acf9053493": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/connection/schema.py|0|b44a8b41a1246225": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/connection/schema.py|10|2bc5a793702ddf3d": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/connection/schema.py|24|763b2f401e4e8a48": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/connection/schema.py|36|34e6ef9c8264fca5": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/connection/schema.py|39|db58ed2fd1798c41": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/connection/schema.py|40|6ceea60635e9dace": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/connection/schema.py|43|36e74c7843305d78": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/connection/schema.py|45|3c05b739c0815a62": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/connection/schema.py|8|766a90366e6cac31": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/tasks/__init__.py|0|56daa6a999de040b": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/triggers/__init__.py|0|8366656b1460016d": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/komand_twilio/util/utils.py|0|185f7f80c9d12a53": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/setup.py|0|0a3d658d1cc03d19": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/setup.py|11|9a6fa264fcd3c917": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/setup.py|4|6444c0e68302a25f": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/unit_test/__init__.py|0|37efcc5c28c10a5e": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/unit_test/__init__.py|1|7a998e8f71b916a4": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/unit_test/test_send_sms.py|0|90b4c2f30e84ddc1": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3033|plugins/twilio/unit_test/utils.py|0|78699f347b810e97": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/actions/__init__.py|0|8366656b1460016d": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/actions/__init__.py|2|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/actions/send_sms/__init__.py|0|0a3d658d1cc03d19": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/actions/send_sms/action.py|0|f8994780b028a802": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/actions/send_sms/action.py|14|c2f6f1c85de0699a": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/actions/send_sms/action.py|21|4000ec6903e7d26b": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/actions/send_sms/action.py|4|805d93455b36b5e3": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/actions/send_sms/action.py|8|636dd12764807e56": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/actions/send_sms/schema.py|0|b44a8b41a1246225": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/actions/send_sms/schema.py|12|766a90366e6cac31": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/actions/send_sms/schema.py|14|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/actions/send_sms/schema.py|16|766a90366e6cac31": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/actions/send_sms/schema.py|18|d408ab1d14502782": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/actions/send_sms/schema.py|40|dd3a90b750a605a9": {
+    "class": "unrelated",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/actions/send_sms/schema.py|48|1f7cfd001db5aef9": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/actions/send_sms/schema.py|60|58fb559f7c5d95f5": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/connection/__init__.py|0|0a3d658d1cc03d19": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/connection/connection.py|0|ef9638dd1af347ff": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/connection/connection.py|10|c89f3bb72534689b": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/connection/connection.py|11|cb54f9886be488ec": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/connection/connection.py|15|5b0ec861a825fe85": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/connection/connection.py|17|de7174dc9a0fc39d": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/connection/connection.py|5|1d9428411a307087": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/connection/connection.py|7|491ba7acf9053493": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/connection/schema.py|0|b44a8b41a1246225": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/connection/schema.py|10|2bc5a793702ddf3d": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/connection/schema.py|24|763b2f401e4e8a48": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/connection/schema.py|36|34e6ef9c8264fca5": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/connection/schema.py|39|db58ed2fd1798c41": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/connection/schema.py|40|6ceea60635e9dace": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/connection/schema.py|43|36e74c7843305d78": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/connection/schema.py|45|3c05b739c0815a62": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/connection/schema.py|8|766a90366e6cac31": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/tasks/__init__.py|0|56daa6a999de040b": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/triggers/__init__.py|0|8366656b1460016d": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/komand_twilio/util/utils.py|0|185f7f80c9d12a53": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/setup.py|0|0a3d658d1cc03d19": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/setup.py|11|9a6fa264fcd3c917": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/setup.py|4|6444c0e68302a25f": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/unit_test/__init__.py|0|37efcc5c28c10a5e": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/unit_test/__init__.py|1|7a998e8f71b916a4": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/unit_test/test_send_sms.py|0|90b4c2f30e84ddc1": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "rapid7/insightconnect-plugins#3042|plugins/twilio/unit_test/utils.py|0|78699f347b810e97": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
   "raystack/frontier#698|billing/checkout/service.go|11|a985eb8cc6424b72": {
     "class": "unrelated",
     "confidence": 0.47000000000000003,
@@ -30493,6 +30933,431 @@
     "class": "sdk",
     "confidence": 0.88,
     "model": "jev-1.13.0"
+  },
+  "TheoGoudout/greensecops#325|backend/app/api/routes/billing.py|279|63bd5afa467dc9ae": {
+    "class": "unrelated",
+    "confidence": 0.89,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/api/routes/billing.py|281|30cf7a322ec84814": {
+    "class": "contested",
+    "confidence": 0.43,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/api/routes/billing.py|287|94257ae4b424e1d8": {
+    "class": "contested",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/api/routes/billing.py|290|f2479f6f09511020": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "TheoGoudout/greensecops#325|backend/app/api/routes/billing.py|295|6fb9f03c85164e57": {
+    "class": "unrelated",
+    "confidence": 0.76,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/api/routes/billing.py|299|b53b6640f383afa4": {
+    "class": "contested",
+    "confidence": 0.4,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/api/routes/billing.py|302|0748618a7f9e52a9": {
+    "class": "contested",
+    "confidence": 0.39,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/api/routes/billing.py|303|3ff14e32016d45e7": {
+    "class": "contested",
+    "confidence": 0.37,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/api/routes/billing.py|305|d5ca3ef2a594f5d4": {
+    "class": "contested",
+    "confidence": 0.42,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/api/routes/billing.py|315|752e3c267ff7f607": {
+    "class": "contract",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "TheoGoudout/greensecops#325|backend/app/api/routes/billing.py|321|08901c28dffbdc12": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/api/routes/billing.py|363|6c2fc9841e172f63": {
+    "class": "contested",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/api/routes/billing.py|48|b01169f911a7f43b": {
+    "class": "contested",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/api/routes/billing.py|551|6ef1cc917c1c67f3": {
+    "class": "contract",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "TheoGoudout/greensecops#325|backend/app/api/routes/billing.py|651|9415d4fb20b1af5c": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/core/config.py|236|90164136274f8325": {
+    "class": "contested",
+    "confidence": 0.6799999999999999,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/models/__init__.py|127|b01169f911a7f43b": {
+    "class": "unrelated",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/models/__init__.py|289|c387305ecf3bb3f1": {
+    "class": "contested",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/models/schemas/__init__.py|142|c387305ecf3bb3f1": {
+    "class": "unrelated",
+    "confidence": 0.81,
+    "model": "jev-1.13.0+settle"
+  },
+  "TheoGoudout/greensecops#325|backend/app/models/schemas/__init__.py|38|b01169f911a7f43b": {
+    "class": "contested",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/models/schemas/billing.py|138|a69dfd9f1b7be52b": {
+    "class": "unrelated",
+    "confidence": 0.87,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/models/schemas/billing.py|140|38709820c9c38850": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/models/schemas/billing.py|157|dccedf546267d0cd": {
+    "class": "contested",
+    "confidence": 0.44,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|162|91cb34a2cc580342": {
+    "class": "unrelated",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|19|1cc282d4b0be341e": {
+    "class": "unrelated",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|191|3ae6163578c50954": {
+    "class": "contested",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|197|108115f9b4d2c23c": {
+    "class": "unrelated",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|200|af04ae34b717426f": {
+    "class": "contested",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|212|2620d24f9dad03cf": {
+    "class": "unrelated",
+    "confidence": 0.83,
+    "model": "jev-1.13.0+settle"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|213|6e06903a67008939": {
+    "class": "unrelated",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|216|27dcedc3fd312dfc": {
+    "class": "unrelated",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|221|6bd8410fab5dffb8": {
+    "class": "contested",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|227|90ffb0a2d729c516": {
+    "class": "unrelated",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|230|67428227bccab63f": {
+    "class": "unrelated",
+    "confidence": 0.81,
+    "model": "jev-1.13.0+settle"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|234|3f3c503258ba5cff": {
+    "class": "contested",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|247|b419d4d55649c8fa": {
+    "class": "contract",
+    "confidence": 0.87,
+    "model": "jev-1.13.0+settle"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|26|108229e96f9f5b2e": {
+    "class": "unrelated",
+    "confidence": 0.86,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|266|bb2d8fc1cac85c8a": {
+    "class": "unrelated",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|271|2b5e0b95561a939e": {
+    "class": "contested",
+    "confidence": 0.4,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|274|438e5b6714606f83": {
+    "class": "unrelated",
+    "confidence": 0.85,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|276|ac1dcb5615942381": {
+    "class": "contested",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|285|fde1d7283db04fd7": {
+    "class": "contract",
+    "confidence": 0.87,
+    "model": "jev-1.13.0+settle"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|298|d1a7f66c92f8d8b1": {
+    "class": "contested",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/app/services/billing/stripe_gateway.py|315|c14696b00ce85d04": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/api/routes/test_billing.py|275|6cb90f8649bc57b7": {
+    "class": "unrelated",
+    "confidence": 0.87,
+    "model": "jev-1.13.0+settle"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/api/routes/test_billing.py|284|8a8d816251a164ce": {
+    "class": "unrelated",
+    "confidence": 0.88,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/api/routes/test_billing.py|292|da7565200e48d9ef": {
+    "class": "contested",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/api/routes/test_billing.py|304|292ad167c345a63d": {
+    "class": "contract",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+check"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/api/routes/test_billing.py|318|f44a9e5aca709053": {
+    "class": "unrelated",
+    "confidence": 0.87,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/api/routes/test_billing.py|323|1001546262069b2d": {
+    "class": "unrelated",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/api/routes/test_billing.py|324|52dd6d26ba3b8128": {
+    "class": "unrelated",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/api/routes/test_billing.py|329|b7a5881580da2604": {
+    "class": "contested",
+    "confidence": 0.45,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/api/routes/test_billing.py|342|0620d0197621f797": {
+    "class": "contested",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/api/routes/test_billing.py|352|28f6c86101b62efd": {
+    "class": "unrelated",
+    "confidence": 0.95,
+    "model": "jev-1.13.0+settle"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/api/routes/test_billing.py|354|cedcec1f2c785d3f": {
+    "class": "unrelated",
+    "confidence": 0.86,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/api/routes/test_billing.py|364|0e0cadd8e86a6bb5": {
+    "class": "contested",
+    "confidence": 0.39,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/api/routes/test_billing.py|402|05dab933bd6684bf": {
+    "class": "contested",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|10|91e08ed51fe2fb3c": {
+    "class": "unrelated",
+    "confidence": 0.81,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|243|042e22dafe1d25ca": {
+    "class": "unrelated",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|264|37ad2a9ef9e71e8c": {
+    "class": "unrelated",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|273|9a224902ab0d3fe6": {
+    "class": "contested",
+    "confidence": 0.45,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|276|d41fe3332af0f11d": {
+    "class": "contested",
+    "confidence": 0.41,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|288|4cb88b3378b4cc6c": {
+    "class": "contested",
+    "confidence": 0.45,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|290|d72d8c984f42ab1e": {
+    "class": "contested",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|296|76871844200fc7b1": {
+    "class": "contested",
+    "confidence": 0.49,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|299|801e8ff18952fc2a": {
+    "class": "unrelated",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|302|84f542f5f6b5cbc2": {
+    "class": "contested",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|306|bd21cdb953b100ee": {
+    "class": "sdk",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|308|46b4c5d172ac3aa8": {
+    "class": "contested",
+    "confidence": 0.45,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|312|9ee534cfbe2b4ba8": {
+    "class": "contested",
+    "confidence": 0.58,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|319|73d471432d0251e1": {
+    "class": "unrelated",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|323|dba859fe778afe88": {
+    "class": "contested",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|328|bff435d86ea26c95": {
+    "class": "contested",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|332|350fc4699744e537": {
+    "class": "contested",
+    "confidence": 0.47,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|342|a460039c88d850d6": {
+    "class": "contested",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|347|a38d413cf312a4c8": {
+    "class": "contested",
+    "confidence": 0.49,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|348|9d5ac74e1b0e10e9": {
+    "class": "contested",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|351|cc5a24c0d2904667": {
+    "class": "contested",
+    "confidence": 0.43,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|353|e6aa77d1e45a3f94": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|357|fca98cfa4a6192ae": {
+    "class": "contested",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|365|0e2b18511570da2b": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|367|fb65ffdc5e941202": {
+    "class": "contested",
+    "confidence": 0.43,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|371|237ccd4841945f3f": {
+    "class": "contested",
+    "confidence": 0.47,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|374|f4e0c9ebe395d4d6": {
+    "class": "unrelated",
+    "confidence": 0.91,
+    "model": "jev-1.13.0+settle"
+  },
+  "TheoGoudout/greensecops#325|backend/tests/services/billing/test_stripe_gateway.py|379|c7d23607240d282b": {
+    "class": "contested",
+    "confidence": 0.45,
+    "model": "jev-1.13.0+settle+wire"
   },
   "theopenlane/core#1314|cmd/catalog/main_test.go|19|f205f5cca0a0bc18": {
     "class": "sdk",

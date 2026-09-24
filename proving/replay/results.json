@@ -778,7 +778,7 @@
     "flagged": 9,
     "missed": 82,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 1,
     "inScope": {
       "sites": 1,
       "identical": 0,
@@ -2687,8 +2687,8 @@
     "sites": 3,
     "identical": 0,
     "differs": 0,
-    "flagged": 1,
-    "missed": 2,
+    "flagged": 2,
+    "missed": 1,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -2703,8 +2703,8 @@
       "sdk": {
         "identical": 0,
         "differs": 0,
-        "flagged": 1,
-        "missed": 2
+        "flagged": 2,
+        "missed": 1
       }
     }
   },
@@ -4618,8 +4618,8 @@
     "sites": 46,
     "identical": 0,
     "differs": 0,
-    "flagged": 0,
-    "missed": 46,
+    "flagged": 5,
+    "missed": 41,
     "extra": 0,
     "extraFlags": 1,
     "inScope": {
@@ -4635,8 +4635,8 @@
       "sdk": {
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 29
+        "flagged": 4,
+        "missed": 25
       },
       "unrelated": {
         "identical": 0,
@@ -4647,8 +4647,8 @@
       "contested": {
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 7
+        "flagged": 1,
+        "missed": 6
       }
     }
   },
@@ -4667,7 +4667,7 @@
     "flagged": 2,
     "missed": 1,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 3,
     "inScope": {
       "sites": 0,
       "identical": 0,
@@ -6168,7 +6168,7 @@
     "flagged": 1,
     "missed": 142,
     "extra": 0,
-    "extraFlags": 2,
+    "extraFlags": 5,
     "inScope": {
       "sites": 9,
       "identical": 0,
@@ -12398,6 +12398,39 @@
     "error": "plaid-python 7.1.0 publishes no pure-Python wheel; a source distribution is never built"
   },
   {
+    "id": "mblayman/homeschool#1380",
+    "language": "python",
+    "package": "stripe",
+    "engine": "contract",
+    "versions": [
+      "4.2.0",
+      "11.6.0"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2
+      }
+    }
+  },
+  {
     "id": "mdn/yari#9888",
     "language": "typescript",
     "package": "openai",
@@ -13333,7 +13366,7 @@
     "flagged": 0,
     "missed": 35,
     "extra": 0,
-    "extraFlags": 1,
+    "extraFlags": 3,
     "inScope": {
       "sites": 4,
       "identical": 0,
@@ -14043,10 +14076,10 @@
     "sites": 2,
     "identical": 0,
     "differs": 0,
-    "flagged": 1,
-    "missed": 1,
+    "flagged": 2,
+    "missed": 0,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 1,
     "inScope": {
       "sites": 0,
       "identical": 0,
@@ -14059,8 +14092,8 @@
       "sdk": {
         "identical": 0,
         "differs": 0,
-        "flagged": 1,
-        "missed": 1
+        "flagged": 2,
+        "missed": 0
       }
     }
   },
@@ -14178,7 +14211,7 @@
     "flagged": 7,
     "missed": 36,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 1,
     "inScope": {
       "sites": 0,
       "identical": 0,
@@ -14481,7 +14514,7 @@
     "flagged": 6,
     "missed": 7,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 1,
     "inScope": {
       "sites": 0,
       "identical": 0,
@@ -15136,6 +15169,84 @@
         "differs": 0,
         "flagged": 0,
         "missed": 0
+      }
+    }
+  },
+  {
+    "id": "rapid7/insightconnect-plugins#3033",
+    "language": "python",
+    "package": "twilio",
+    "engine": "verify",
+    "versions": [
+      "6.19.1",
+      "9.4.2"
+    ],
+    "sites": 43,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 43,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 11
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 32
+      }
+    }
+  },
+  {
+    "id": "rapid7/insightconnect-plugins#3042",
+    "language": "python",
+    "package": "twilio",
+    "engine": "verify",
+    "versions": [
+      "6.19.1",
+      "9.4.2"
+    ],
+    "sites": 43,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 43,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 12
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 31
       }
     }
   },
@@ -16269,7 +16380,7 @@
     "flagged": 1,
     "missed": 22,
     "extra": 0,
-    "extraFlags": 19,
+    "extraFlags": 24,
     "inScope": {
       "sites": 0,
       "identical": 0,
@@ -16774,6 +16885,19 @@
     }
   },
   {
+    "id": "signalwire/signalwire-python-old#110",
+    "language": "python",
+    "package": "twilio",
+    "engine": "verify",
+    "sites": 0,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 0,
+    "extra": 0,
+    "error": "twilio 6.54.0 publishes no pure-Python wheel; a source distribution is never built"
+  },
+  {
     "id": "siro103/OpSyne#2",
     "language": "python",
     "package": "openai",
@@ -17030,29 +17154,29 @@
     "engine": "verify",
     "versions": [
       "0.27.10",
-      "0.27.10"
+      "1.109.1"
     ],
     "sites": 32,
     "identical": 0,
     "differs": 0,
-    "flagged": 0,
-    "missed": 32,
+    "flagged": 8,
+    "missed": 24,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
       "sites": 2,
       "identical": 0,
       "differs": 0,
-      "flagged": 0,
-      "missed": 2,
+      "flagged": 2,
+      "missed": 0,
       "unclassified": 0
     },
     "byClass": {
       "sdk": {
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 28
+        "flagged": 6,
+        "missed": 22
       },
       "unrelated": {
         "identical": 0,
@@ -17063,8 +17187,8 @@
       "contract": {
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 2
+        "flagged": 2,
+        "missed": 0
       }
     }
   },
@@ -20611,6 +20735,58 @@
     }
   },
   {
+    "id": "TheoGoudout/greensecops#325",
+    "language": "python",
+    "package": "stripe",
+    "engine": "contract",
+    "versions": [
+      "10.12.0",
+      "15.6.1"
+    ],
+    "sites": 85,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 2,
+    "missed": 83,
+    "extra": 0,
+    "extraFlags": 9,
+    "inScope": {
+      "sites": 5,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 5,
+      "unclassified": 0,
+      "contested": 48
+    },
+    "byClass": {
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 46
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 5
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 30
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2
+      }
+    }
+  },
+  {
     "id": "theopenlane/core#1314",
     "language": "go",
     "package": "github.com/stripe/stripe-go",
@@ -22627,16 +22803,16 @@
     "sites": 32,
     "identical": 0,
     "differs": 0,
-    "flagged": 7,
-    "missed": 25,
+    "flagged": 26,
+    "missed": 6,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
       "sites": 1,
       "identical": 0,
       "differs": 0,
-      "flagged": 0,
-      "missed": 1,
+      "flagged": 1,
+      "missed": 0,
       "unclassified": 0,
       "contested": 1
     },
@@ -22644,20 +22820,20 @@
       "sdk": {
         "identical": 0,
         "differs": 0,
-        "flagged": 7,
-        "missed": 22
+        "flagged": 24,
+        "missed": 5
       },
       "contract": {
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 1
+        "flagged": 1,
+        "missed": 0
       },
       "contested": {
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 1
+        "flagged": 1,
+        "missed": 0
       },
       "unrelated": {
         "identical": 0,
@@ -22679,8 +22855,8 @@
     "sites": 32,
     "identical": 0,
     "differs": 0,
-    "flagged": 7,
-    "missed": 25,
+    "flagged": 26,
+    "missed": 6,
     "extra": 0,
     "extraFlags": 0,
     "inScope": {
@@ -22702,14 +22878,14 @@
       "sdk": {
         "identical": 0,
         "differs": 0,
-        "flagged": 7,
-        "missed": 22
+        "flagged": 24,
+        "missed": 5
       },
       "contested": {
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 2
+        "flagged": 2,
+        "missed": 0
       }
     }
   },
