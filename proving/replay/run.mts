@@ -761,6 +761,14 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         plan: buildPlan(contract?.changes ?? [], symbols),
         current: { package: entry.package, from: oldRelease.prefix },
         upgraded: { package: entry.package, from: newRelease.prefix },
+        ...(keep || options.verbose
+          ? {
+              trace: (step: string) =>
+                process.stderr.write(
+                  `${entry.id} ${Math.round((Date.now() - began) / 1000)}s: ${step}\n`,
+                ),
+            }
+          : {}),
       });
       base.versions = [versionOf(oldSdk), versionOf(newSdk)];
       for (const [file, ranges] of flaggedLines(result.manual, repo, before)) {

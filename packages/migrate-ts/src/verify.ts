@@ -51,6 +51,7 @@ export interface UpgradeCheck {
   /** The release read today, where it does not resolve through the repository itself. */
   current?: Release;
   upgraded: Release;
+  trace?: (step: string) => void;
 }
 
 const UPGRADE = "sdk-upgrade";
@@ -62,6 +63,7 @@ const UPGRADE = "sdk-upgrade";
 export function upgradeBreaks(check: UpgradeCheck): ManualSite[] {
   const files = [...check.original.keys()];
   const before = diagnosticsOf(check, files, check.original, check.current);
+  check.trace?.(`checked ${files.length} files against the current release`);
   const now = new Map(
     files.map((file) => [
       file,

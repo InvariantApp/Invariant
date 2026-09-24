@@ -78,6 +78,8 @@ export interface MigrateOptions {
   current?: Release;
   /** Write the result to disk. Off by default, so a dry run stays a dry run. */
   write?: boolean;
+  /** Told each step as it finishes, for seeing where a large repository's time goes. */
+  trace?: (step: string) => void;
 }
 
 export interface MigrationResult {
@@ -348,8 +350,11 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
       [repositoryPath(options.repoDir, entry.path, "a regenerated file"), entry] as const,
   );
 
+  const trace = options.trace ?? (() => {});
   const project = projectFor(options);
+  trace(`read ${project.getSourceFiles().length} files`);
   const diagnosticsBefore = diagnosticsOf(project);
+  trace(`checked them: ${diagnosticsBefore.length} errors`);
   // The consumer's own files as they were read, for the check against the
   // upgraded release, which compares them with what the edits leave.
   const original = new Map<string, string>();
@@ -375,6 +380,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
   renameTypes(project, options.plan, scope, result);
   bumpPins(project, options.plan.symbols, scope, result);
   flagRetired(project, options.plan, scope, result);
+  trace(`planned ${result.edits.length} edits and ${result.manual.length} flags`);
 
   const files = new Map<string, string>();
   for (const [file, edits] of groupByFile(result.edits)) {
@@ -445,9 +451,11 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
       compilerOptions: project.getCompilerOptions(),
       upgraded: options.upgraded,
       ...(options.current ? { current: options.current } : {}),
+      trace,
     })) {
       if (!flagged.has(`${site.file}:${site.offset}`)) result.manual.push(site);
     }
+    trace(`checked ${checked.size} files against the upgraded release`);
   }
 
   // Manual sites were located in the source as it was read. Every edit above
