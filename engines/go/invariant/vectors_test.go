@@ -326,3 +326,89 @@ func TestFormVectors(t *testing.T) {
 		})
 	}
 }
+
+type xmlVector struct {
+	Name   string          `json:"name"`
+	XML    json.RawMessage `json:"xml"`
+	Instrs json.RawMessage `json:"instrs"`
+	Input  string          `json:"input"`
+	Expect struct {
+		Output  *string `json:"output,omitempty"`
+		Refuses string  `json:"refuses,omitempty"`
+	} `json:"expect"`
+}
+
+// runXMLVector builds the program the TypeScript harness builds: one site
+// with the vector's description of its request body and its instructions.
+// A refusal is named as the harness names it: decode, body, too-large or the
+// change that refused.
+func runXMLVector(v xmlVector) (string, string) {
+	program, _ := json.Marshal(map[string]any{
+		"irVersion":    2,
+		"api":          "conformance",
+		"current":      "sha256:0",
+		"currentLabel": "current",
+		"contracts": map[string]any{"old": map[string]any{
+			"label":  "old",
+			"routes": []any{},
+			"sites": map[string]any{"post /v": map[string]any{
+				"xml":     map[string]any{"request": v.XML},
+				"request": v.Instrs,
+			}},
+			"behaviors": []any{},
+			"retired":   []any{},
+		}},
+	})
+	runtime, err := Load(program, Options{Identity: oldByDefault})
+	if err != nil {
+		return "", "decode"
+	}
+	out, _, err := runtime.TransformRequestXML("old", "post /v", v.Input, "application/xml")
+	if err != nil {
+		var transform *TransformError
+		var syntax *SyntaxError
+		switch {
+		case errors.As(err, &transform):
+			return "", transform.ChangeID
+		case errors.As(err, &syntax):
+			return "", "body"
+		case errors.Is(err, ErrTooDeep):
+			return "", "too-large"
+		}
+		return "", "error: " + err.Error()
+	}
+	return out, ""
+}
+
+func TestXMLVectors(t *testing.T) {
+	text, err := os.ReadFile(filepath.Join("..", "..", "..", "conformance", "vectors.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var file struct {
+		XML []xmlVector `json:"xml"`
+	}
+	if err := json.Unmarshal(text, &file); err != nil {
+		t.Fatal(err)
+	}
+	if len(file.XML) == 0 {
+		t.Fatal("no XML vectors")
+	}
+	for _, v := range file.XML {
+		t.Run(v.Name, func(t *testing.T) {
+			got, refusedBy := runXMLVector(v)
+			if v.Expect.Refuses != "" {
+				if refusedBy != v.Expect.Refuses {
+					t.Fatalf("expected a refusal by %s, got %q with %q", v.Expect.Refuses, refusedBy, got)
+				}
+				return
+			}
+			if refusedBy != "" {
+				t.Fatalf("refused by %s", refusedBy)
+			}
+			if got != *v.Expect.Output {
+				t.Fatalf("got  %q\nwant %q", got, *v.Expect.Output)
+			}
+		})
+	}
+}

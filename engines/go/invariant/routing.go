@@ -746,6 +746,77 @@ func (r *Runtime) AdaptRequestBody(site *Site, body []byte, form bool, contract,
 	return out, err
 }
 
+// AdaptRequestXML rewrites an XML request body for a caller, where the
+// site describes its request body as XML: the places its program names are
+// decoded, transformed and written back, and every element it does not name
+// is passed on as it came.
+func (r *Runtime) AdaptRequestXML(site *Site, body []byte, contentType, contract, operation, consumer string) ([]byte, error) {
+	var out []byte
+	err := r.reporting("request", contract, operation, consumer, func() error {
+		if len(body) > r.maxBody {
+			return &BodyTooLargeError{Limit: r.maxBody}
+		}
+		if site.XML == nil || site.XML.Request == nil || len(site.Request) == 0 {
+			out = body
+			return nil
+		}
+		text, _, err := runXML(site.Request, site.XML.Request, string(body), contentType, r.limits)
+		out = []byte(text)
+		return err
+	})
+	return out, err
+}
+
+// XMLResponseFor says whether the site describes the body the provider
+// answered status with as XML, so a binding reads it.
+func (r *Runtime) XMLResponseFor(site *Site, status int) bool {
+	if site == nil || site.XML == nil {
+		return false
+	}
+	for _, key := range statusKeys(status) {
+		if _, ok := site.Response[key]; ok {
+			return site.XML.Response[key] != nil
+		}
+	}
+	return false
+}
+
+// TransformResponseXML is an XML response body in the caller's shape, and
+// where a value was folded to get it, as TransformResponseBody is for JSON.
+func (r *Runtime) TransformResponseXML(site *Site, status int, body []byte, contentType, contract, operation, consumer string) (Transformed, error) {
+	var instrs []*Instr
+	var described *XMLBody
+	for _, key := range statusKeys(status) {
+		if list, ok := site.Response[key]; ok {
+			instrs = list
+			if site.XML != nil {
+				described = site.XML.Response[key]
+			}
+			break
+		}
+	}
+	if instrs == nil || described == nil {
+		return Transformed{Body: body}, nil
+	}
+	var out Transformed
+	err := r.reporting("response", contract, operation, consumer, func() error {
+		if len(body) > r.maxBody {
+			return &BodyTooLargeError{Limit: r.maxBody}
+		}
+		text, result, err := runXML(instrs, described, string(body), contentType, r.limits)
+		if err != nil {
+			return err
+		}
+		out.Body = []byte(text)
+		for path := range result.Folded {
+			out.Folded = append(out.Folded, path)
+		}
+		sortStrings(out.Folded)
+		return nil
+	})
+	return out, err
+}
+
 // AdaptEnvelope rewrites a whole request whose program reaches its
 // parameters. request.Path is the routed path, base path included.
 func (r *Runtime) AdaptEnvelope(site *Site, request EnvelopeRequest, contract, operation, consumer string) (EnvelopeRequest, error) {

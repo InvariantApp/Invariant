@@ -72,6 +72,8 @@ import { type StatusMapping, statusMappings, statusNow, statusRule } from "./sta
 export interface ProjectionIssue {
   changeId: string;
   message: string;
+  /** Raised describing an XML body, which the proving ground counts apart. */
+  xml?: true;
 }
 
 export interface Projection {

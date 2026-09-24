@@ -12,6 +12,7 @@
  * rolls back with the code it belongs to.
  */
 
+import type { XmlBody } from "@invariant-app/ir";
 import { closeEnvelope, type EnvelopeRequest, openEnvelope } from "./envelope.ts";
 import {
   BodyTooLargeError,
@@ -57,6 +58,7 @@ import {
   ProgramError,
   ProgramTooNewError,
 } from "./program.ts";
+import { closeXml, isXmlMediaType, openXml } from "./xml.ts";
 
 export {
   CodecRefusal,
@@ -95,6 +97,7 @@ export {
 export { type ParameterValues, readParameters, writeParameters } from "./parameters.ts";
 /** This runtime's version, which a program's `minRuntime` is compared against. */
 export { VERSION as RUNTIME_VERSION } from "./version.ts";
+export { isNcName, isXmlMediaType, XmlBodyError } from "./xml.ts";
 export type { DecodedProgram, DecodedSite };
 // matchTemplate is the rule the runtime routes by, for anything that has to agree with it.
 export {
@@ -866,6 +869,64 @@ export class InvariantRuntime {
     });
   }
 
+  /**
+   * An XML request body rewritten by the site's program: the places it names
+   * decoded, transformed and written back, and every element it does not
+   * name passed on exactly as it came.
+   */
+  transformRequestXml(
+    site: DecodedSite,
+    text: string,
+    context: { contract: string; operation: string; consumer?: string | undefined },
+    contentType?: string | null,
+  ): string {
+    const body = site.xml?.request;
+    if (!body || site.request.length === 0) return text;
+    return this.#reporting("request", context, () =>
+      this.#runXml(site.request, body, site.numeric, text, context, contentType),
+    ).body;
+  }
+
+  #runXml(
+    instrs: readonly CompiledInstr[],
+    body: XmlBody,
+    numeric: boolean,
+    text: string,
+    context: { contract: string; operation: string; consumer?: string | undefined },
+    contentType: string | null | undefined,
+  ): Transformed {
+    if (instrs.length === 0) return { body: text, folded: [] };
+    if (text.length > this.#maxBodyBytes) throw new BodyTooLargeError(this.#maxBodyBytes);
+    const opened = openXml(body, text, numeric ? this.#fidelity : "double", contentType);
+    const result = execute(opened.tree, instrs, this.#limits);
+    this.#counted(result, context);
+    return {
+      body: closeXml(opened, body.write, instrs, 0),
+      folded: [...result.folded].sort(),
+    };
+  }
+
+  /**
+   * Whether an answer with this status and type is one the site adapts the
+   * body of: JSON, or XML where the site describes the body it answered with.
+   * A binding that holds a response back to adapt it holds one this names.
+   */
+  adaptsResponseBody(
+    site: DecodedSite | undefined,
+    status: number,
+    contentType: string | null | undefined,
+  ): boolean {
+    if (site === undefined || !this.respondsTo(site, status)) return false;
+    if (isJsonMediaType(contentType)) return true;
+    return isXmlMediaType(contentType) && this.xmlResponseFor(site, status) !== undefined;
+  }
+
+  /** The description of the body the provider answered `status` with, where it may be XML. */
+  xmlResponseFor(site: DecodedSite, status: number): XmlBody | undefined {
+    const key = statusKeysFor(status).find((each) => site.response.has(each));
+    return key === undefined ? undefined : site.xml?.response.get(key);
+  }
+
   #counted(
     result: ReturnType<typeof execute>,
     context: { contract: string; operation: string; consumer?: string | undefined },
@@ -1028,11 +1089,19 @@ export class InvariantRuntime {
       if (!EMPTY_STATUSES.has(shown)) headers.set("content-length", "0");
       return new Response(null, { status: shown, headers });
     }
+    const contentType = response.headers.get("content-type");
+    // An XML body is read where the site describes the one it answered with;
+    // anything else it holds no description for passes through as it came.
+    const xml =
+      site !== undefined &&
+      !isJsonMediaType(contentType) &&
+      isXmlMediaType(contentType) &&
+      this.xmlResponseFor(site, response.status) !== undefined;
     if (
       !site ||
       !response.body ||
       !this.respondsTo(site, response.status) ||
-      !isJsonMediaType(response.headers.get("content-type"))
+      !(xml || isJsonMediaType(contentType))
     ) {
       return responseOf(response.body, shown, headers);
     }
@@ -1042,12 +1111,15 @@ export class InvariantRuntime {
         limit: this.#maxBodyBytes,
         encoded: options.encoded,
       });
-      const transformed = this.transformResponseDetailed(
-        site,
-        response.status,
-        original.text,
-        context,
-      );
+      const transformed = xml
+        ? this.transformResponseXml(
+            site,
+            response.status,
+            original.text,
+            context,
+            contentType,
+          )
+        : this.transformResponseDetailed(site, response.status, original.text, context);
       const rebuilt = headersForText(headers, transformed.body, original.decoded);
       if (transformed.body !== original.text) mark(rebuilt);
       if (transformed.folded.length > 0) {
@@ -1095,16 +1167,23 @@ export class InvariantRuntime {
     // A form is something a program describes only where the operation
     // declares one; anywhere else it is passed on as it came.
     const form = !json && isFormMediaType(contentType) && site.form !== undefined;
+    // XML likewise, where the operation declares its request body as XML.
+    const xml =
+      !json && !form && isXmlMediaType(contentType) && site.xml?.request !== undefined;
 
     if (!site.envelope) {
-      if (site.request.length === 0 || !request.body || !(json || form)) return unchanged;
+      if (site.request.length === 0 || !request.body || !(json || form || xml)) {
+        return unchanged;
+      }
       const original = await readBodyText(request, {
         limit: this.#maxBodyBytes,
         encoded: true,
       });
       const body = form
         ? this.transformRequestForm(site, original.text, context)
-        : this.transformRequest(site, original.text, context);
+        : xml
+          ? this.transformRequestXml(site, original.text, context, contentType)
+          : this.transformRequest(site, original.text, context);
       return {
         ...parts,
         headers: headersForText(parts.headers, body, original.decoded),
@@ -1246,6 +1325,27 @@ export class InvariantRuntime {
         operation: context.operation,
         consumer: context.consumer,
       }),
+    );
+  }
+
+  /**
+   * An XML response body in the caller's shape, and where a value was folded
+   * to get it: as `transformResponseDetailed`, over the XML the site
+   * describes for the status.
+   */
+  transformResponseXml(
+    site: DecodedSite,
+    status: number,
+    text: string,
+    context: { contract: string; operation: string; consumer?: string | undefined },
+    contentType?: string | null,
+  ): Transformed {
+    const key = statusKeysFor(status).find((each) => site.response.has(each));
+    const instrs = key === undefined ? undefined : site.response.get(key);
+    const body = key === undefined ? undefined : site.xml?.response.get(key);
+    if (!instrs || !body) return { body: text, folded: [] };
+    return this.#reporting("response", context, () =>
+      this.#runXml(instrs, body, site.numeric, text, context, contentType),
     );
   }
 

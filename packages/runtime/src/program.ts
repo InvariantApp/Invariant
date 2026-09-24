@@ -7,6 +7,7 @@
  * refusal to load rather than something to skip over at request time.
  */
 
+import type { XmlBody, XmlNode } from "@invariant-app/ir";
 import type { StringCase, TimeFormat } from "./codecs.ts";
 import {
   codecKey,
@@ -27,6 +28,7 @@ import {
 import type { Json } from "./json.ts";
 import { isUnsafeKey, isWildcard } from "./pointer.ts";
 import { VERSION } from "./version.ts";
+import { isNcName } from "./xml.ts";
 
 export class ProgramError extends Error {
   constructor(message: string) {
@@ -43,6 +45,8 @@ export interface DecodedSite {
   template: string[];
   /** How the request body is written when it arrives form-encoded. */
   form?: DecodedForm;
+  /** How each body is written when it arrives as XML: the request's, and each status's. */
+  xml?: DecodedXml;
   /** Keyed by the status the provider answered with. */
   response: Map<string, CompiledInstr[]>;
   /**
@@ -63,6 +67,11 @@ export interface StatusRule {
   to: number;
   empty: boolean;
   c: string;
+}
+
+export interface DecodedXml {
+  request?: XmlBody;
+  response: Map<string, XmlBody>;
 }
 
 /** Success statuses whose answer never carries a body, whatever a rule says. */
@@ -919,6 +928,141 @@ function decodeForm(raw: unknown, where: string): DecodedForm {
   return { fields, types };
 }
 
+const XML_TYPES = new Set([
+  "object",
+  "array",
+  "string",
+  "integer",
+  "number",
+  "boolean",
+  "any",
+]);
+const XML_SCALARS = new Set(["string", "integer", "number", "boolean"]);
+
+function decodeXmlNode(raw: unknown, where: string, depth: number): XmlNode {
+  if (depth > 256) throw new ProgramError(`${where} nests too deeply`);
+  const value = object(raw, where);
+  expectKeys(
+    value,
+    [
+      "type",
+      "name",
+      "namespace",
+      "prefix",
+      "attribute",
+      "wrapped",
+      "properties",
+      "items",
+    ],
+    where,
+  );
+  const type = value["type"];
+  if (typeof type !== "string" || !XML_TYPES.has(type)) {
+    throw new ProgramError(`${where}.type is not a type`);
+  }
+  const node: XmlNode = { type: type as XmlNode["type"] };
+  for (const key of ["name", "prefix"] as const) {
+    if (value[key] === undefined) continue;
+    const name = string(value[key], `${where}.${key}`);
+    if (!isNcName(name) || (key === "prefix" && name === "xmlns")) {
+      throw new ProgramError(`${where}.${key} is not a name XML allows`);
+    }
+    node[key] = name;
+  }
+  if (value["namespace"] !== undefined) {
+    const namespace = string(value["namespace"], `${where}.namespace`);
+    if (namespace === "") throw new ProgramError(`${where}.namespace is empty`);
+    node.namespace = namespace;
+  }
+  if (onlyTrue(value["attribute"], `${where}.attribute`)) {
+    if (!XML_SCALARS.has(type)) {
+      throw new ProgramError(`${where} is an attribute, which only holds a value`);
+    }
+    node.attribute = true;
+  }
+  if (onlyTrue(value["wrapped"], `${where}.wrapped`)) {
+    if (type !== "array")
+      throw new ProgramError(`${where} is wrapped, which only a list is`);
+    node.wrapped = true;
+  }
+  if (value["properties"] !== undefined) {
+    if (type !== "object")
+      throw new ProgramError(`${where} has properties, which only an object has`);
+    const properties: Record<string, XmlNode> = {};
+    const elements = new Set<string>();
+    const attributes = new Set<string>();
+    for (const [key, entry] of Object.entries(
+      object(value["properties"], `${where}.properties`),
+    )) {
+      // Elements nothing names are kept under keys that begin with NUL.
+      if (isUnsafeKey(key) || key.includes("\u0000")) {
+        throw new ProgramError(`${where}.properties may not name "${key}"`);
+      }
+      const property = decodeXmlNode(entry, `${where}.properties.${key}`, depth + 1);
+      const name =
+        property.type === "array" && property.wrapped !== true
+          ? (property.items?.name ?? key)
+          : (property.name ?? key);
+      const seen = property.attribute === true ? attributes : elements;
+      const identity = `${property.namespace ?? ""} ${name}`;
+      if (seen.has(identity)) {
+        throw new ProgramError(`${where}.properties write two fields as ${name}`);
+      }
+      seen.add(identity);
+      properties[key] = property;
+    }
+    node.properties = properties;
+  }
+  if (value["items"] !== undefined) {
+    if (type !== "array")
+      throw new ProgramError(`${where} has items, which only a list has`);
+    const items = decodeXmlNode(value["items"], `${where}.items`, depth + 1);
+    if (items.type === "array")
+      throw new ProgramError(`${where} is a list of lists, which XML has no form for`);
+    if (items.attribute === true)
+      throw new ProgramError(`${where}.items cannot be an attribute`);
+    if (items.name === undefined) throw new ProgramError(`${where}.items must be named`);
+    node.items = items;
+  } else if (type === "array") {
+    throw new ProgramError(`${where} is a list with no items described`);
+  }
+  return node;
+}
+
+function decodeXmlBody(raw: unknown, where: string): XmlBody {
+  const value = object(raw, where);
+  expectKeys(value, ["read", "write"], where);
+  const read = decodeXmlNode(value["read"], `${where}.read`, 0);
+  const write = decodeXmlNode(value["write"], `${where}.write`, 0);
+  if (read.type !== "object" || write.type !== "object") {
+    throw new ProgramError(`${where} must describe an object at the root`);
+  }
+  return { read, write };
+}
+
+function decodeXml(raw: unknown, where: string): DecodedXml {
+  const value = object(raw, where);
+  expectKeys(value, ["request", "response"], where);
+  const response = new Map<string, XmlBody>();
+  for (const [status, body] of Object.entries(
+    object(value["response"] ?? {}, `${where}.response`),
+  )) {
+    if (!/^([1-5]\d\d|[1-5][xX][xX]|default)$/.test(status)) {
+      throw new ProgramError(`${where}.response has an invalid status key "${status}"`);
+    }
+    response.set(
+      status.toLowerCase(),
+      decodeXmlBody(body, `${where}.response.${status}`),
+    );
+  }
+  return {
+    ...(value["request"] === undefined
+      ? {}
+      : { request: decodeXmlBody(value["request"], `${where}.request`) }),
+    response,
+  };
+}
+
 function decodeSite(
   raw: unknown,
   where: string,
@@ -926,9 +1070,11 @@ function decodeSite(
   blocks: Blocks,
 ): DecodedSite {
   const value = object(raw, where);
-  expectKeys(value, ["form", "request", "envelope", "response", "status"], where);
+  expectKeys(value, ["form", "xml", "request", "envelope", "response", "status"], where);
   const form =
     value["form"] === undefined ? undefined : decodeForm(value["form"], `${where}.form`);
+  const xml =
+    value["xml"] === undefined ? undefined : decodeXml(value["xml"], `${where}.xml`);
   if (value["request"] !== undefined && value["envelope"] !== undefined) {
     throw new ProgramError(
       `${where} has both request and envelope; one list keeps the order`,
@@ -974,6 +1120,20 @@ function decodeSite(
     value["status"] === undefined
       ? []
       : decodeStatusRules(value["status"], `${where}.status`);
+  if (xml !== undefined) {
+    // An XML body has no maps: what a map's wildcard would reach there are the
+    // elements nothing names, kept whole.
+    const lists = [request, ...response.values(), envelope?.instrs ?? []];
+    if (
+      lists.some((list) =>
+        list.some((instr) => touchedPaths(instr).some((path) => path.includes("{}"))),
+      )
+    ) {
+      throw new ProgramError(
+        `${where} reads a map's values in an XML body, which has none`,
+      );
+    }
+  }
   return {
     request,
     response,
@@ -982,6 +1142,7 @@ function decodeSite(
     template,
     ...(envelope === undefined ? {} : { envelope }),
     ...(form === undefined ? {} : { form }),
+    ...(xml === undefined ? {} : { xml }),
   };
 }
 

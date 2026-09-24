@@ -333,6 +333,51 @@ sent empty.
 `param` in a validation error. An unfamiliar name there is harmless; failing the
 whole response over it is not.
 
+### XML bodies
+
+A site may carry `xml`, for a body its operation declares as XML
+(`application/xml`, `text/xml` or anything `+xml`): `request`, and
+`response` keyed as the site's `response` work is. Each is `{read, write}`,
+two descriptions of the body: how the one the instructions run on is
+written, and how the places they write are to be written. A request is read
+as the caller's contract writes it and written as the current one does; a
+response the other way round. The instructions are the same ones a JSON body
+runs; the body is decoded into a tree, they run, and it is written back.
+
+A description is a tree of nodes, each `{type, name?, namespace?, prefix?,
+attribute?, wrapped?, properties?, items?}`, from the schema's OpenAPI `xml`
+object, for the places the instructions reach and the elements on the way:
+
+- An object's `properties` are its fields, each an element named `name`, or
+  the field's own name, or with `attribute` an attribute of it.
+- A list is its items repeated in place, each named `items.name`, or with
+  `wrapped` inside an element named `name`.
+- `type` is what the place holds, so text reaches an instruction typed:
+  `integer`, `number` or `boolean` text that reads as one becomes one, and
+  anything else stays text. `any` is a place no instruction reads by value,
+  moved or removed whole as it came.
+- With `namespace`, an element matches only in that namespace; without one,
+  in whatever namespace the document puts it. An attribute without one
+  matches only when it has none.
+
+The root element is kept whatever its name. Every element no node names is
+kept exactly as it came, bytes and all, wherever its parent goes, and so is
+everything between elements. A value an instruction left as it was is written
+back as it came, references and all, so a document nothing changed comes out
+byte for byte. A field the program adds is written before the white space
+that indents its parent's end tag; an element written under a new name keeps
+its attributes and contents, and takes along any namespace declaration the
+place it lands lacks. Text a program writes is escaped.
+
+The parser reads XML 1.0 with namespaces, in UTF-8, and nothing else: a
+document type declaration is refused outright, so there are no entities but
+XML's five and character references, nothing external is read and nothing
+expands; an encoding or a charset other than UTF-8, a character XML does not
+allow, text among an object's elements, attributes on a value the description
+calls text, a field written twice where the description has one, and
+anything not well formed are refused, as a body that is not JSON is. Nesting
+is capped as a JSON body's is.
+
 ### What the provider sends
 
 A contract may carry `outbound`, keyed `method webhook:<name>` for an entry
@@ -388,6 +433,11 @@ rounds where this one rejects is not compatible; it is dangerous.
 - A status rule outside 200 to 299, one that answers a status as itself, or
   one that answers a `204` or `205` without `empty`, at load.
 - A body larger than the configured cap, on a site that has work to do.
+- An XML body that is not well formed, declares a document type, is not
+  UTF-8, or holds what its description cannot carry back exactly (see
+  XML bodies); a null or a list of lists written into one; and, at load, a
+  description with a list of lists, two fields written as one element, or an
+  instruction reaching a map's values in an XML body.
 
 On a request, a refusal happens **before** the handler, so there is no side
 effect. On a response, the canonical body is never emitted in the wrong shape.
@@ -422,10 +472,11 @@ to a warning rather than clearing it.
 
 ## 8. Conformance
 
-`conformance/vectors.json` holds cases as data: 73 over bodies, 20 over whole
-requests, 10 over form-encoded bodies and 8 over success statuses, each a
-program, an input, and either an expected output or the refusal that must
-happen. 22 of the body cases are refusals. An engine claiming to run this IR must reproduce all of them.
+`conformance/vectors.json` holds cases as data: 75 over bodies, 20 over whole
+requests, 10 over form-encoded bodies, 8 over success statuses and 54 over XML
+bodies, each a program, an input, and either an expected output or the
+refusal that must happen. 22 of the body cases and 18 of the XML ones are
+refusals. An engine claiming to run this IR must reproduce all of them.
 
 The file is generated from the same source the reference engine is tested
 against, and the build fails if the two drift, because a port certified against

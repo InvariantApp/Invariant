@@ -49,11 +49,27 @@ export class FanOutExceeded extends Error {
   }
 }
 
+/**
+ * Marks a value in a tree that is a leaf whatever it is made of: an XML
+ * element kept whole, which no pointer may walk into or write inside.
+ */
+export const OPAQUE: unique symbol = Symbol("opaque");
+
+/** Whether a value is a leaf that holds something other than JSON. */
+export function isOpaque(value: unknown): boolean {
+  return typeof value === "object" && value !== null && OPAQUE in value;
+}
+
 function isContainer(value: unknown): value is Record<string, unknown> | unknown[] {
   // A number kept with its original digits is held as a frozen raw-JSON
   // object. It is a leaf, and treating it as an object once threw on a write
   // into it. Found by fuzzing.
-  return typeof value === "object" && value !== null && !JSON.isRawJSON(value);
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !JSON.isRawJSON(value) &&
+    !(OPAQUE in value)
+  );
 }
 
 /**

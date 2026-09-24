@@ -182,18 +182,25 @@ func adaptRequest(runtime *invariant.Runtime, site *invariant.Site, r *http.Requ
 	contentType := headers.Get("Content-Type")
 	isJSON := invariant.IsJSONMediaType(contentType)
 	form := !isJSON && invariant.IsFormMediaType(contentType) && site.Form != nil
+	// XML likewise, where the operation declares its request body as XML.
+	xml := !isJSON && !form && invariant.IsXMLMediaType(contentType) && site.XML != nil && site.XML.Request != nil
 	hasBody := runtime.ReadsRequestBody(site) && r.Method != http.MethodGet && r.Method != http.MethodHead &&
 		r.Body != nil && r.Body != http.NoBody && r.ContentLength != 0
 
 	if site.Envelope == nil {
-		if len(site.Request) == 0 || !hasBody || !(isJSON || form) {
+		if len(site.Request) == 0 || !hasBody || !(isJSON || form || xml) {
 			return out, nil
 		}
 		text, decoded, err := readBody(r.Body, headers, runtime.MaxBodyBytes())
 		if err != nil {
 			return out, err
 		}
-		adapted, err := runtime.AdaptRequestBody(site, text, form, contract, operation, consumer)
+		var adapted []byte
+		if xml {
+			adapted, err = runtime.AdaptRequestXML(site, text, contentType, contract, operation, consumer)
+		} else {
+			adapted, err = runtime.AdaptRequestBody(site, text, form, contract, operation, consumer)
+		}
 		if err != nil {
 			return out, err
 		}
@@ -359,7 +366,7 @@ func (w *interceptor) choose(status int) {
 	if status == http.StatusNotModified {
 		stands = http.StatusOK
 	}
-	adaptsBody := w.site != nil && w.runtime.RespondsTo(w.site, status) && invariant.IsJSONMediaType(headers.Get("Content-Type"))
+	adaptsBody := w.site != nil && w.runtime.RespondsTo(w.site, status) && w.readsBody(headers.Get("Content-Type"), status)
 	adaptsHead := w.site != nil && bodyless && w.runtime.RespondsTo(w.site, stands)
 	// A status the caller's contract promised differently is answered as it
 	// promised, whatever the body.
@@ -479,8 +486,9 @@ func (w *interceptor) finish() {
 		return
 	}
 	body := w.held.Bytes()
+	contentType := headers.Get("Content-Type")
 	if w.status == http.StatusNoContent || w.status == http.StatusNotModified || len(body) == 0 ||
-		!w.runtime.RespondsTo(w.site, w.status) || !invariant.IsJSONMediaType(headers.Get("Content-Type")) {
+		!w.runtime.RespondsTo(w.site, w.status) || !w.readsBody(contentType, w.status) {
 		w.ResponseWriter.WriteHeader(shown)
 		_, _ = w.ResponseWriter.Write(body)
 		return
@@ -489,7 +497,11 @@ func (w *interceptor) finish() {
 	text, decoded, err := readBody(bytes.NewReader(body), headers, w.runtime.MaxBodyBytes())
 	var transformed invariant.Transformed
 	if err == nil {
-		transformed, err = w.runtime.TransformResponseBody(w.site, w.status, text, w.contract, w.operation, w.consumer)
+		if invariant.IsJSONMediaType(contentType) {
+			transformed, err = w.runtime.TransformResponseBody(w.site, w.status, text, w.contract, w.operation, w.consumer)
+		} else {
+			transformed, err = w.runtime.TransformResponseXML(w.site, w.status, text, contentType, w.contract, w.operation, w.consumer)
+		}
 	}
 	if err != nil {
 		shaped, ok := invariant.ResponseFailure(w.errors, err)
@@ -522,6 +534,15 @@ func (w *interceptor) finish() {
 	}
 	w.ResponseWriter.WriteHeader(shown)
 	_, _ = w.ResponseWriter.Write(transformed.Body)
+}
+
+// readsBody says whether an answer of this type is one the site describes:
+// JSON, or XML where the site describes the body it answered status with.
+func (w *interceptor) readsBody(contentType string, status int) bool {
+	if invariant.IsJSONMediaType(contentType) {
+		return true
+	}
+	return invariant.IsXMLMediaType(contentType) && w.runtime.XMLResponseFor(w.site, status)
 }
 
 // withoutBody takes off every header that describes a body not sent on.

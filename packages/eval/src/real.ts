@@ -15,7 +15,7 @@
  * Every stage is wrapped, because a harness that stops at the first unreadable
  * document measures nothing except how far it got.
  */
-import { predictDocument } from "@invariant-app/compiler";
+import { predictDocument, xmlIssues } from "@invariant-app/compiler";
 import { loadContract } from "@invariant-app/contract";
 import {
   breakingEntries,
@@ -445,16 +445,35 @@ export async function analysePair(
     impasses: drafted.value.impasses.length,
   };
 
-  const predicted = await stage(() =>
-    predictDocument(loaded.value.from.document, loaded.value.to.document, changes),
-  );
+  // A Change the runtime could not serve over an XML body blocks the release,
+  // so it explains nothing here either: the prediction is made without it.
+  const servable = (drafted: readonly Change[]) => {
+    const refused = xmlIssues(
+      loaded.value.from.document,
+      loaded.value.to.document,
+      drafted,
+    );
+    const named = new Set(refused.map((issue) => issue.changeId));
+    return { changes: drafted.filter((change) => !named.has(change.id)), refused };
+  };
+  const predicted = await stage(() => {
+    const served = servable(changes);
+    return {
+      ...predictDocument(
+        loaded.value.from.document,
+        loaded.value.to.document,
+        served.changes,
+      ),
+      refused: served.refused,
+    };
+  });
   timed("compile");
   if (!predicted.ok) return finish({ ...afterPropose, error: predicted.error });
 
   const afterCompile: PairResult = {
     ...afterPropose,
     reached: "compile",
-    compileIssues: predicted.value.issues.map(
+    compileIssues: [...predicted.value.issues, ...predicted.value.refused].map(
       (issue) => `${issue.changeId}: ${issue.message}`,
     ),
   };
@@ -511,7 +530,7 @@ export async function analysePair(
     const answered = predictDocument(
       loaded.value.from.document,
       loaded.value.to.document,
-      [...changes, ...drafted.value.decisions.map(syntheticAnswer)],
+      servable([...changes, ...drafted.value.decisions.map(syntheticAnswer)]).changes,
     );
     if (answered.issues.length > 0) {
       const [first] = answered.issues;

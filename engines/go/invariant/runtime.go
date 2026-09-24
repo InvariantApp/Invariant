@@ -24,6 +24,9 @@ type Site struct {
 	Template []string
 	// Form is how the request body is written when it arrives form-encoded.
 	Form *Form
+	// XML is how each body is written when it arrives as XML: the request's,
+	// and each status's.
+	XML *XMLProgram
 	// Status holds the success statuses an old caller is answered as
 	// another, applied in turn to the status the provider answered with.
 	Status []StatusRule
@@ -618,7 +621,7 @@ func decodeSite(raw any, where, path string, named blocks) (*Site, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := expectKeys(site, []string{"form", "request", "envelope", "response", "status"}, where); err != nil {
+	if err := expectKeys(site, []string{"form", "xml", "request", "envelope", "response", "status"}, where); err != nil {
 		return nil, err
 	}
 	_, hasRequest := site.Get("request")
@@ -629,6 +632,11 @@ func decodeSite(raw any, where, path string, named blocks) (*Site, error) {
 	out := &Site{Response: map[string][]*Instr{}, Template: strings.Split(path, "/")}
 	if form, present := site.Get("form"); present {
 		if out.Form, err = decodeForm(form, where+".form"); err != nil {
+			return nil, err
+		}
+	}
+	if xml, present := site.Get("xml"); present {
+		if out.XML, err = decodeXMLProgram(xml, where+".xml"); err != nil {
 			return nil, err
 		}
 	}
@@ -666,6 +674,20 @@ func decodeSite(raw any, where, path string, named blocks) (*Site, error) {
 	if rules, present := site.Get("status"); present {
 		if out.Status, err = decodeStatusRules(rules, where+".status"); err != nil {
 			return nil, err
+		}
+	}
+	if out.XML != nil {
+		// An XML body has no maps: what a map's wildcard would reach there are
+		// the elements nothing names, kept whole.
+		lists := [][]*Instr{out.Request}
+		for _, list := range out.Response {
+			lists = append(lists, list)
+		}
+		if out.Envelope != nil {
+			lists = append(lists, out.Envelope.Instrs)
+		}
+		if readsMapValues(lists...) {
+			return nil, programError("%s reads a map's values in an XML body, which has none", where)
 		}
 	}
 	return out, nil
@@ -774,6 +796,20 @@ func (r *Runtime) TransformRequestForm(contract, siteKey, text string) (string, 
 		return text, nil, err
 	}
 	return out, result, nil
+}
+
+// TransformRequestXML rewrites an XML request body for a caller on
+// contract: the places the site's program names are decoded, transformed and
+// written back, and every element it does not name is passed on as it came.
+func (r *Runtime) TransformRequestXML(contract, siteKey, text, contentType string) (string, *Result, error) {
+	site, err := r.site(contract, siteKey)
+	if err != nil {
+		return text, nil, err
+	}
+	if site.XML == nil || site.XML.Request == nil || len(site.Request) == 0 {
+		return text, &Result{Applied: map[string]int{}, Folded: map[string]bool{}}, nil
+	}
+	return runXML(site.Request, site.XML.Request, text, contentType, r.limits)
 }
 
 func (r *Runtime) site(contract, siteKey string) (*Site, error) {

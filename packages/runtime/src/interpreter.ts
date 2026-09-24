@@ -23,6 +23,7 @@ import {
   createSlot,
   deleteSlot,
   FanOutExceeded,
+  isOpaque,
   isWildcard,
   pruneEmptyAncestors,
   readSlot,
@@ -101,6 +102,8 @@ const MAX_CALL_DEPTH = 512;
 /** The JSON kind of a parsed value. */
 function kindOf(value: unknown): JsonKind | undefined {
   if (value === null) return "null";
+  // An XML element kept whole is no kind of JSON value.
+  if (isOpaque(value)) return undefined;
   if (isNumberLike(value)) return "number";
   if (Array.isArray(value)) return "array";
   switch (typeof value) {

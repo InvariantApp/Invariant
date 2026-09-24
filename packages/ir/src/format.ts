@@ -37,7 +37,8 @@ export type ProgramFeature =
   | "behaviors"
   | "identity"
   | "status"
-  | "move-beneath";
+  | "move-beneath"
+  | "xml";
 
 /**
  * A feature added since the last release, which the next one will carry.
@@ -104,6 +105,10 @@ export const FEATURE_SINCE: Readonly<Record<ProgramFeature, string>> = {
   // the `move` instruction every runtime reads, and 0.3.0 reads it and then
   // fails at the first request, so a program that needs it says so.
   "move-beneath": NEXT,
+  // A body written in XML, decoded, transformed and written back. An older
+  // runtime passes XML through untouched, which is a response in a shape
+  // nobody promised, so a program that needs it says so.
+  xml: NEXT,
 };
 
 function instrFeatures(list: readonly Instr[], into: Set<ProgramFeature>): void {
@@ -143,6 +148,7 @@ export function featuresOf(program: Omit<CompiledProgram, "minRuntime" | "compil
     }
     for (const site of Object.values(contract.sites)) {
       if (site.form) used.add("form");
+      if (site.xml) used.add("xml");
       if (site.status) used.add("status");
       if (site.request) instrFeatures(site.request, used);
       if (site.envelope) {

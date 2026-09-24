@@ -87,10 +87,9 @@ function endpointsOf(document: OpenApiDocument): Endpoint[] {
     operationId: operation.operationId,
     segments: operation.path.split("/").filter((segment) => segment !== ""),
     responses: new Map(
-      responseSchemas(document, operation.operation).map((entry) => [
-        entry.status,
-        entry.schema,
-      ]),
+      responseSchemas(document, operation.operation)
+        .filter((entry) => entry.media === "json")
+        .map((entry) => [entry.status, entry.schema]),
     ),
   }));
 }

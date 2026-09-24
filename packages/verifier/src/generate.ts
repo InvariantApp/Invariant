@@ -263,7 +263,7 @@ function stepFor(
 /** Whether a successful answer to this operation carries a top-level `id`. */
 function returnsId(document: OpenApiDocument, operation: OperationRef): boolean {
   return responseSchemas(document, operation.operation)
-    .filter((entry) => entry.status.startsWith("2"))
+    .filter((entry) => entry.media === "json" && entry.status.startsWith("2"))
     .some((entry) => {
       const schema = resolveSchema(document, entry.schema);
       return (

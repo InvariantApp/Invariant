@@ -3742,5 +3742,2110 @@
         "refuses": "decode"
       }
     }
+  ],
+  "xml": [
+    {
+      "name": "a document nothing changes comes out byte for byte",
+      "why": "Re-encoding what no Change touched would change bytes someone may depend on: the declaration, comments, quotes, references and indentation all stay.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Status": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Status": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/Status",
+          "map": {
+            "done": "done",
+            "queued": "accepted"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<?xml version='1.0' encoding='UTF-8'?>\n<!-- a comment -->\n<Order id='7' note=\"a &amp; b\">\n  <Status>done</Status>\n  <Note><![CDATA[<b>x</b>]]></Note>\n  <?keep me?>\n</Order>\n",
+      "expect": {
+        "output": "<?xml version='1.0' encoding='UTF-8'?>\n<!-- a comment -->\n<Order id='7' note=\"a &amp; b\">\n  <Status>done</Status>\n  <Note><![CDATA[<b>x</b>]]></Note>\n  <?keep me?>\n</Order>\n"
+      }
+    },
+    {
+      "name": "a value is mapped in place",
+      "why": "An enum rename is the same instruction in XML as in JSON, and only the element's text changes.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Status": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Status": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/Status",
+          "map": {
+            "queued": "accepted"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Order>\n  <Status>queued</Status>\n  <Total>10</Total>\n</Order>",
+      "expect": {
+        "output": "<Order>\n  <Status>accepted</Status>\n  <Total>10</Total>\n</Order>"
+      }
+    },
+    {
+      "name": "a value in every item of a wrapped list is mapped",
+      "why": "CloudFront lists distributions inside an <Items> wrapper, each item named for its type, and a vocabulary change reaches each one.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "DistributionList": {
+              "type": "object",
+              "properties": {
+                "Items": {
+                  "type": "array",
+                  "wrapped": true,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "Status": {
+                        "type": "string"
+                      }
+                    },
+                    "name": "DistributionSummary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "DistributionList": {
+              "type": "object",
+              "properties": {
+                "Items": {
+                  "type": "array",
+                  "wrapped": true,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "Status": {
+                        "type": "string"
+                      }
+                    },
+                    "name": "DistributionSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "within",
+          "path": "/DistributionList/Items/*",
+          "block": [
+            {
+              "k": "enum",
+              "path": "/Status",
+              "map": {
+                "Deployed": "Deployed",
+                "InProgress": "Deploying"
+              },
+              "c": "chg_vector"
+            }
+          ],
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<ListDistributionsResult xmlns=\"http://cloudfront.amazonaws.com/doc/2020-05-31/\"><DistributionList><Marker/><Items><DistributionSummary><Id>E1</Id><Status>InProgress</Status></DistributionSummary><DistributionSummary><Id>E2</Id><Status>Deployed</Status></DistributionSummary></Items></DistributionList></ListDistributionsResult>",
+      "expect": {
+        "output": "<ListDistributionsResult xmlns=\"http://cloudfront.amazonaws.com/doc/2020-05-31/\"><DistributionList><Marker/><Items><DistributionSummary><Id>E1</Id><Status>Deploying</Status></DistributionSummary><DistributionSummary><Id>E2</Id><Status>Deployed</Status></DistributionSummary></Items></DistributionList></ListDistributionsResult>"
+      }
+    },
+    {
+      "name": "items of a list written in place keep their places among other elements",
+      "why": "An unwrapped list's items are siblings of other fields, and each is written back where it stood.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Tag": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "name": "Tag"
+              }
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Tag": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "name": "Tag"
+              }
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/Tag/*",
+          "map": {
+            "a": "A",
+            "b": "B"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Post><Tag>a</Tag><Title>t</Title><Tag>b</Tag></Post>",
+      "expect": {
+        "output": "<Post><Tag>A</Tag><Title>t</Title><Tag>B</Tag></Post>"
+      }
+    },
+    {
+      "name": "a field a new contract requires is supplied before the end tag's indent",
+      "why": "A default an old caller never sent, written where the document's own layout puts a last child.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "EventType": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "EventType": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "set",
+          "path": "/EventType",
+          "value": "viewer-request",
+          "ifAbsent": true,
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Association>\n  <Arn>arn:1</Arn>\n</Association>",
+      "expect": {
+        "output": "<Association>\n  <Arn>arn:1</Arn><EventType>viewer-request</EventType>\n</Association>"
+      }
+    },
+    {
+      "name": "a default is not written over a value the caller sent",
+      "why": "`ifAbsent` is the same promise in XML: what the caller wrote stays.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "EventType": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "EventType": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "set",
+          "path": "/EventType",
+          "value": "viewer-request",
+          "ifAbsent": true,
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Association><EventType>origin-request</EventType></Association>",
+      "expect": {
+        "output": "<Association><EventType>origin-request</EventType></Association>"
+      }
+    },
+    {
+      "name": "a field is written into an element that was empty",
+      "why": "`<Config/>` has no end tag to write before, so it gains one.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Enabled": {
+              "type": "boolean"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Enabled": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "set",
+          "path": "/Enabled",
+          "value": false,
+          "ifAbsent": true,
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Config id=\"1\"/>",
+      "expect": {
+        "output": "<Config id=\"1\"><Enabled>false</Enabled></Config>"
+      }
+    },
+    {
+      "name": "an object is written with the names its contract gives it",
+      "why": "A default that is an object is written as elements, each named as the contract names it.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Forwarded": {
+              "type": "object",
+              "properties": {
+                "QueryString": {
+                  "type": "boolean",
+                  "name": "QS"
+                }
+              }
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Forwarded": {
+              "type": "object",
+              "properties": {
+                "QueryString": {
+                  "type": "boolean",
+                  "name": "QS"
+                }
+              }
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "set",
+          "path": "/Forwarded",
+          "value": {
+            "QueryString": false
+          },
+          "ifAbsent": true,
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Behavior><Path>*</Path></Behavior>",
+      "expect": {
+        "output": "<Behavior><Path>*</Path><Forwarded><QS>false</QS></Forwarded></Behavior>"
+      }
+    },
+    {
+      "name": "a field an old contract does not have is removed with what it holds",
+      "why": "Removing a field removes its element, whatever is inside it; the indentation around it stays.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Staging": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Staging": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "del",
+          "path": "/Staging",
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Distribution>\n  <Id>E1</Id>\n  <Staging>false</Staging>\n</Distribution>",
+      "expect": {
+        "output": "<Distribution>\n  <Id>E1</Id>\n  \n</Distribution>"
+      }
+    },
+    {
+      "name": "a renamed field is written under its new name, attributes and contents as they came",
+      "why": "A rename is the commonest change there is; an element's attributes and every child nothing names travel with it untouched.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Old": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "New": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "move",
+          "from": "/Old",
+          "to": "/New",
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Root><Old kind=\"a\"><X>1</X><!-- kept --><Y/></Old><Z/></Root>",
+      "expect": {
+        "output": "<Root><Z/><New kind=\"a\"><X>1</X><!-- kept --><Y/></New></Root>"
+      }
+    },
+    {
+      "name": "a value moved into an object that was not there is written inside it",
+      "why": "A field that moved beneath a new parent creates the parent, named as the contract names it.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "City": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Address": {
+              "type": "object",
+              "properties": {
+                "City": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "move",
+          "from": "/City",
+          "to": "/Address/City",
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Customer><Name>Ada</Name><City>Paris</City></Customer>",
+      "expect": {
+        "output": "<Customer><Name>Ada</Name><Address><City>Paris</City></Address></Customer>"
+      }
+    },
+    {
+      "name": "an attribute's value is mapped",
+      "why": "A field the contract writes as an attribute is read and written as one.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "attribute": true
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "attribute": true
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/status",
+          "map": {
+            "on": "enabled"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Item id='1' status='on'><Name>n</Name></Item>",
+      "expect": {
+        "output": "<Item id='1' status=\"enabled\"><Name>n</Name></Item>"
+      }
+    },
+    {
+      "name": "a new attribute is added to the start tag",
+      "why": "A default the contract writes as an attribute goes where attributes go.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "integer",
+              "attribute": true
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "integer",
+              "attribute": true
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "set",
+          "path": "/version",
+          "value": 2,
+          "ifAbsent": true,
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Item id='1'/>",
+      "expect": {
+        "output": "<Item id='1' version=\"2\"/>"
+      }
+    },
+    {
+      "name": "a number written as text is scaled exactly",
+      "why": "A value the contract types as a number reaches the instruction as one, digits and all.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Amount": {
+              "type": "number"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Amount": {
+              "type": "number"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "scale",
+          "path": "/Amount",
+          "exp": 2,
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Charge><Amount>49.99</Amount></Charge>",
+      "expect": {
+        "output": "<Charge><Amount>4999</Amount></Charge>"
+      }
+    },
+    {
+      "name": "a new element takes the default namespace it is written in",
+      "why": "Amazon writes every element in the namespace its root declares; a field the program adds is in it too, without a declaration of its own.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Comment": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Comment": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "set",
+          "path": "/Comment",
+          "value": "",
+          "ifAbsent": true,
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Config xmlns=\"http://cloudfront.amazonaws.com/doc/2019-03-26/\"><Enabled>true</Enabled></Config>",
+      "expect": {
+        "output": "<Config xmlns=\"http://cloudfront.amazonaws.com/doc/2019-03-26/\"><Enabled>true</Enabled><Comment/></Config>"
+      }
+    },
+    {
+      "name": "a new element in a declared namespace uses the prefix bound to it",
+      "why": "A description with a prefix and a namespace writes the prefix, declaring it only where it is not already bound.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Note": {
+              "type": "string",
+              "prefix": "n",
+              "namespace": "urn:notes"
+            },
+            "Tag": {
+              "type": "string",
+              "prefix": "t",
+              "namespace": "urn:tags"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Note": {
+              "type": "string",
+              "prefix": "n",
+              "namespace": "urn:notes"
+            },
+            "Tag": {
+              "type": "string",
+              "prefix": "t",
+              "namespace": "urn:tags"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "set",
+          "path": "/Note",
+          "value": "hi",
+          "ifAbsent": true,
+          "c": "chg_vector"
+        },
+        {
+          "k": "set",
+          "path": "/Tag",
+          "value": "x",
+          "ifAbsent": true,
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Doc xmlns:n=\"urn:notes\"><Id>1</Id></Doc>",
+      "expect": {
+        "output": "<Doc xmlns:n=\"urn:notes\"><Id>1</Id><n:Note>hi</n:Note><t:Tag xmlns:t=\"urn:tags\">x</t:Tag></Doc>"
+      }
+    },
+    {
+      "name": "an element matches its description only in the namespace it names",
+      "why": "Two elements with one local name in different namespaces are different fields; the one in another namespace is kept as it came.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Status": {
+              "type": "string",
+              "namespace": "urn:a"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Status": {
+              "type": "string",
+              "namespace": "urn:a"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/Status",
+          "map": {
+            "x": "y"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Doc xmlns:a=\"urn:a\" xmlns:b=\"urn:b\"><b:Status>x</b:Status><a:Status>x</a:Status></Doc>",
+      "expect": {
+        "output": "<Doc xmlns:a=\"urn:a\" xmlns:b=\"urn:b\"><b:Status>x</b:Status><a:Status>y</a:Status></Doc>"
+      }
+    },
+    {
+      "name": "an element moved out of a namespace's scope keeps its namespace",
+      "why": "Moving an element from under a declaration to where the prefix is not bound would change what its contents mean, so the declaration goes with it.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Inner": {
+              "type": "object",
+              "properties": {
+                "Part": {
+                  "type": "object",
+                  "properties": {}
+                }
+              }
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Part": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "move",
+          "from": "/Inner/Part",
+          "to": "/Part",
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Doc><Inner xmlns:p=\"urn:p\"><Part><p:x>1</p:x></Part><Other/></Inner></Doc>",
+      "expect": {
+        "output": "<Doc><Inner xmlns:p=\"urn:p\"><Other/></Inner><Part xmlns:p=\"urn:p\"><p:x>1</p:x></Part></Doc>"
+      }
+    },
+    {
+      "name": "text a program writes is escaped",
+      "why": "A value holding markup characters must stay a value, never become markup.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Comment": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Comment": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "set",
+          "path": "/Comment",
+          "value": "a < b & c > d]]>",
+          "ifAbsent": false,
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Config><Comment>old</Comment></Config>",
+      "expect": {
+        "output": "<Config><Comment>a &lt; b &amp; c &gt; d]]&gt;</Comment></Config>"
+      }
+    },
+    {
+      "name": "references are read as the characters they stand for",
+      "why": "`&#x41;` and `&amp;` are the text `A&`, which is what a map compares.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "A&": "B"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R><S>&#x41;&amp;</S></R>",
+      "expect": {
+        "output": "<R><S>B</S></R>"
+      }
+    },
+    {
+      "name": "a value an instruction leaves as it was keeps how it was written",
+      "why": "A map that sends a value to itself changes nothing, so the reference it was written with stays.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "x": "x"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R><S>&#120;</S></R>",
+      "expect": {
+        "output": "<R><S>&#120;</S></R>"
+      }
+    },
+    {
+      "name": "a line break is read as XML reads one",
+      "why": "A carriage return and line feed in text is one line feed to an XML reader, whatever the bytes.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "a\nb": "c"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R><S>a\r\nb</S></R>",
+      "expect": {
+        "output": "<R><S>c</S></R>"
+      }
+    },
+    {
+      "name": "a CDATA section is read as its text",
+      "why": "CDATA is text written without escaping, and means the same as the escaped text.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "<b>": "bold"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R><S><![CDATA[<b>]]></S></R>",
+      "expect": {
+        "output": "<R><S>bold</S></R>"
+      }
+    },
+    {
+      "name": "a byte order mark stays where it was",
+      "why": "Some servers write one; it is not part of the root element.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "a": "b"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "﻿<R><S>a</S></R>",
+      "expect": {
+        "output": "﻿<R><S>b</S></R>"
+      }
+    },
+    {
+      "name": "a value becomes a list of one written in place",
+      "why": "`wrap` makes a list, and a list written in place is its item repeated under the list's item name.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Email": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Email": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "name": "Email"
+              }
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "wrap",
+          "path": "/Email",
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<User><Email>a@x</Email></User>",
+      "expect": {
+        "output": "<User><Email>a@x</Email></User>"
+      }
+    },
+    {
+      "name": "a list of one becomes its item",
+      "why": "`unwrap` stands the item where the list's first item stood.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Email": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "name": "Email"
+              }
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Email": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "unwrap",
+          "path": "/Email",
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<User><Email>a@x</Email><Name>n</Name></User>",
+      "expect": {
+        "output": "<User><Email>a@x</Email><Name>n</Name></User>"
+      }
+    },
+    {
+      "name": "values the new contract refuses are taken out of a wrapped list",
+      "why": "`drop` removes items and leaves the others, and the wrapper's layout, as they were.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Fields": {
+              "type": "array",
+              "wrapped": true,
+              "items": {
+                "type": "string",
+                "name": "Field"
+              }
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Fields": {
+              "type": "array",
+              "wrapped": true,
+              "items": {
+                "type": "string",
+                "name": "Field"
+              }
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "drop",
+          "path": "/Fields",
+          "values": [
+            "legacy"
+          ],
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Q><Fields>\n  <Field>id</Field>\n  <Field>legacy</Field>\n  <Field>name</Field>\n</Fields></Q>",
+      "expect": {
+        "output": "<Q><Fields>\n  <Field>id</Field>\n  <Field>name</Field>\n  \n</Fields></Q>"
+      }
+    },
+    {
+      "name": "an item a list gains follows its last item",
+      "why": "A list written in place that grew keeps its items where they were and writes the new ones after the last.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Tag": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "name": "Tag"
+              }
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Tag": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "name": "Tag"
+              }
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "set",
+          "path": "/Tag",
+          "value": [
+            "a",
+            "new"
+          ],
+          "ifAbsent": false,
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Post><Tag>a</Tag><Title>t</Title></Post>",
+      "expect": {
+        "output": "<Post><Tag>a</Tag><Tag>new</Tag><Title>t</Title></Post>"
+      }
+    },
+    {
+      "name": "a place the writing description does not name keeps the names it had",
+      "why": "Only what a description names is renamed; a list read and left where it was keeps its items' names, found by the round-trip property.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Items": {
+              "type": "array",
+              "wrapped": true,
+              "items": {
+                "type": "string",
+                "name": "S"
+              }
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "A": {
+              "type": "object",
+              "properties": {
+                "S": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "within",
+          "path": "/Items/*",
+          "block": [],
+          "c": "chg_vector"
+        },
+        {
+          "k": "set",
+          "path": "/A/S",
+          "value": "",
+          "ifAbsent": false,
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Doc><Items><S/></Items></Doc>",
+      "expect": {
+        "output": "<Doc><Items><S/></Items><A><S/></A></Doc>"
+      }
+    },
+    {
+      "name": "a place no instruction reads is moved whole, whatever it holds",
+      "why": "A field whose contract says nothing of what it holds is moved as it came, text, elements and attributes alike, under its new name.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Detail": {
+              "type": "any"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Details": {
+              "type": "any"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "move",
+          "from": "/Detail",
+          "to": "/Details",
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Error><Code>X</Code><Detail lang=\"en\">see <b>this</b></Detail></Error>",
+      "expect": {
+        "output": "<Error><Code>X</Code><Details lang=\"en\">see <b>this</b></Details></Error>"
+      }
+    },
+    {
+      "name": "an attribute the old contract does not have is taken off the start tag",
+      "why": "Removing a field written as an attribute removes the attribute and leaves the element's other attributes as they came.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "staging": {
+              "type": "boolean",
+              "attribute": true
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "staging": {
+              "type": "boolean",
+              "attribute": true
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "del",
+          "path": "/staging",
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Distribution id='E1' staging=\"true\" kind='web'><Id>E1</Id></Distribution>",
+      "expect": {
+        "output": "<Distribution id='E1' kind='web'><Id>E1</Id></Distribution>"
+      }
+    },
+    {
+      "name": "an attribute a program writes is escaped",
+      "why": "Quotes, markup characters and line breaks in an attribute's value must stay its value, and a line break must survive being read again.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "note": {
+              "type": "string",
+              "attribute": true
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "note": {
+              "type": "string",
+              "attribute": true
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "set",
+          "path": "/note",
+          "value": "a \"b\" <c> & d\ne",
+          "ifAbsent": true,
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Item/>",
+      "expect": {
+        "output": "<Item note=\"a &quot;b&quot; &lt;c> &amp; d&#10;e\"/>"
+      }
+    },
+    {
+      "name": "a wrapped list that held nothing gains its items inside its wrapper",
+      "why": "The wrapper stays where it was and keeps its layout; the items go before the indent of its end tag.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Fields": {
+              "type": "array",
+              "wrapped": true,
+              "items": {
+                "type": "string",
+                "name": "Field"
+              }
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Fields": {
+              "type": "array",
+              "wrapped": true,
+              "items": {
+                "type": "string",
+                "name": "Field"
+              }
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "set",
+          "path": "/Fields",
+          "value": [
+            "id"
+          ],
+          "ifAbsent": false,
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Q><Fields>\n</Fields></Q>",
+      "expect": {
+        "output": "<Q><Fields><Field>id</Field>\n</Fields></Q>"
+      }
+    },
+    {
+      "name": "a list written in place becomes a wrapped one under a new name",
+      "why": "A contract that started wrapping a list writes the wrapper its description names around the items.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Tag": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "name": "Tag"
+              }
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Tags": {
+              "type": "array",
+              "wrapped": true,
+              "items": {
+                "type": "string",
+                "name": "Tag"
+              }
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "move",
+          "from": "/Tag",
+          "to": "/Tags",
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Post><Tag>a</Tag><Title>t</Title><Tag>b</Tag></Post>",
+      "expect": {
+        "output": "<Post><Title>t</Title><Tags><Tag>a</Tag><Tag>b</Tag></Tags></Post>"
+      }
+    },
+    {
+      "name": "a renamed wrapped list keeps its layout, its items renamed with it",
+      "why": "The wrapper and each item are written under the names the new description gives them, and everything between them stays.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Items": {
+              "type": "array",
+              "wrapped": true,
+              "items": {
+                "type": "string",
+                "name": "Item"
+              }
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Entries": {
+              "type": "array",
+              "wrapped": true,
+              "items": {
+                "type": "string",
+                "name": "Entry"
+              }
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "move",
+          "from": "/Items",
+          "to": "/Entries",
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R><Items>\n  <Item>a</Item>\n  <!-- b -->\n</Items></R>",
+      "expect": {
+        "output": "<R><Entries>\n  <Entry>a</Entry>\n  <!-- b -->\n</Entries></R>"
+      }
+    },
+    {
+      "name": "a number is written back with the digits it has",
+      "why": "Scaling down writes the exact decimal, never a rounded double.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "Amount": {
+              "type": "integer"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "Amount": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "scale",
+          "path": "/Amount",
+          "exp": -2,
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<Charge><Amount>4999</Amount></Charge>",
+      "expect": {
+        "output": "<Charge><Amount>49.99</Amount></Charge>"
+      }
+    },
+    {
+      "name": "a document type declaration is refused",
+      "why": "Entities are how XML bombs and external fetches get in; with no declaration there are none, so one is refused outright.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "a": "b"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<?xml version=\"1.0\"?><!DOCTYPE R [<!ENTITY x \"a\">]><R><S>&x;</S></R>",
+      "expect": {
+        "refuses": "body"
+      }
+    },
+    {
+      "name": "an external entity is refused",
+      "why": "A document that names a file or a URL to read in must never make the runtime read it.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "a": "b"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<!DOCTYPE R SYSTEM \"file:///etc/passwd\"><R><S>a</S></R>",
+      "expect": {
+        "refuses": "body"
+      }
+    },
+    {
+      "name": "a reference to an entity XML does not define is refused",
+      "why": "Without a declaration, `&nbsp;` names nothing, and guessing what it meant is not reading XML.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "a": "b"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R><S>a&nbsp;</S></R>",
+      "expect": {
+        "refuses": "body"
+      }
+    },
+    {
+      "name": "text among an object's elements is refused",
+      "why": "Mixed content has no place in a tree of fields, and dropping it would lose it.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "a": "b"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R>hello<S>a</S></R>",
+      "expect": {
+        "refuses": "body"
+      }
+    },
+    {
+      "name": "attributes on a value the contract describes as text are refused",
+      "why": "A value is written back as text, and attributes nothing describes would be lost on the way.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "a": "b"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R><S unit=\"x\">a</S></R>",
+      "expect": {
+        "refuses": "body"
+      }
+    },
+    {
+      "name": "an encoding other than UTF-8 is refused",
+      "why": "The body was read as UTF-8, so one that says otherwise was not read as it was written.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "a": "b"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?><R><S>a</S></R>",
+      "expect": {
+        "refuses": "body"
+      }
+    },
+    {
+      "name": "an attribute written twice is refused",
+      "why": "Well-formed XML names each attribute once, and which one to believe is a guess.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "a": "b"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R a=\"1\" a=\"2\"><S>a</S></R>",
+      "expect": {
+        "refuses": "body"
+      }
+    },
+    {
+      "name": "a prefix nothing declares is refused",
+      "why": "An element's namespace is part of its name, and an undeclared prefix leaves it unknown.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "a": "b"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R><p:S>a</p:S></R>",
+      "expect": {
+        "refuses": "body"
+      }
+    },
+    {
+      "name": "an end tag that does not match is refused",
+      "why": "A document that is not well-formed is not XML.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "a": "b"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R><S>a</T></R>",
+      "expect": {
+        "refuses": "body"
+      }
+    },
+    {
+      "name": "content after the root element is refused",
+      "why": "A document has one root; a second is a second document.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "a": "b"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R><S>a</S></R><R/>",
+      "expect": {
+        "refuses": "body"
+      }
+    },
+    {
+      "name": "a field written twice where the contract has one is refused",
+      "why": "Which of the two an instruction should read is a guess.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "a": "b"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R><S>a</S><S>a</S></R>",
+      "expect": {
+        "refuses": "body"
+      }
+    },
+    {
+      "name": "a character XML does not allow is refused",
+      "why": "A control character cannot appear in XML, even written as a reference.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "a": "b"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R><S>a&#1;</S></R>",
+      "expect": {
+        "refuses": "body"
+      }
+    },
+    {
+      "name": "a body nested past the limit is refused as too large",
+      "why": "Every step follows the nesting, and a body of a hundred thousand open tags must not exhaust the stack.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "a": "b"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a><a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a></a>",
+      "expect": {
+        "refuses": "too-large"
+      }
+    },
+    {
+      "name": "a document of more namespace declarations than any real one is refused",
+      "why": "Each element that declares a namespace copies the ones in scope, so thousands of declarations under deep nesting would cost their product.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "enum",
+          "path": "/S",
+          "map": {
+            "a": "b"
+          },
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R xmlns:p0=\"urn:0\" xmlns:p1=\"urn:1\" xmlns:p2=\"urn:2\" xmlns:p3=\"urn:3\" xmlns:p4=\"urn:4\" xmlns:p5=\"urn:5\" xmlns:p6=\"urn:6\" xmlns:p7=\"urn:7\" xmlns:p8=\"urn:8\" xmlns:p9=\"urn:9\" xmlns:p10=\"urn:10\" xmlns:p11=\"urn:11\" xmlns:p12=\"urn:12\" xmlns:p13=\"urn:13\" xmlns:p14=\"urn:14\" xmlns:p15=\"urn:15\" xmlns:p16=\"urn:16\" xmlns:p17=\"urn:17\" xmlns:p18=\"urn:18\" xmlns:p19=\"urn:19\" xmlns:p20=\"urn:20\" xmlns:p21=\"urn:21\" xmlns:p22=\"urn:22\" xmlns:p23=\"urn:23\" xmlns:p24=\"urn:24\" xmlns:p25=\"urn:25\" xmlns:p26=\"urn:26\" xmlns:p27=\"urn:27\" xmlns:p28=\"urn:28\" xmlns:p29=\"urn:29\" xmlns:p30=\"urn:30\" xmlns:p31=\"urn:31\" xmlns:p32=\"urn:32\" xmlns:p33=\"urn:33\" xmlns:p34=\"urn:34\" xmlns:p35=\"urn:35\" xmlns:p36=\"urn:36\" xmlns:p37=\"urn:37\" xmlns:p38=\"urn:38\" xmlns:p39=\"urn:39\" xmlns:p40=\"urn:40\" xmlns:p41=\"urn:41\" xmlns:p42=\"urn:42\" xmlns:p43=\"urn:43\" xmlns:p44=\"urn:44\" xmlns:p45=\"urn:45\" xmlns:p46=\"urn:46\" xmlns:p47=\"urn:47\" xmlns:p48=\"urn:48\" xmlns:p49=\"urn:49\" xmlns:p50=\"urn:50\" xmlns:p51=\"urn:51\" xmlns:p52=\"urn:52\" xmlns:p53=\"urn:53\" xmlns:p54=\"urn:54\" xmlns:p55=\"urn:55\" xmlns:p56=\"urn:56\" xmlns:p57=\"urn:57\" xmlns:p58=\"urn:58\" xmlns:p59=\"urn:59\" xmlns:p60=\"urn:60\" xmlns:p61=\"urn:61\" xmlns:p62=\"urn:62\" xmlns:p63=\"urn:63\" xmlns:p64=\"urn:64\" xmlns:p65=\"urn:65\" xmlns:p66=\"urn:66\" xmlns:p67=\"urn:67\" xmlns:p68=\"urn:68\" xmlns:p69=\"urn:69\" xmlns:p70=\"urn:70\" xmlns:p71=\"urn:71\" xmlns:p72=\"urn:72\" xmlns:p73=\"urn:73\" xmlns:p74=\"urn:74\" xmlns:p75=\"urn:75\" xmlns:p76=\"urn:76\" xmlns:p77=\"urn:77\" xmlns:p78=\"urn:78\" xmlns:p79=\"urn:79\" xmlns:p80=\"urn:80\" xmlns:p81=\"urn:81\" xmlns:p82=\"urn:82\" xmlns:p83=\"urn:83\" xmlns:p84=\"urn:84\" xmlns:p85=\"urn:85\" xmlns:p86=\"urn:86\" xmlns:p87=\"urn:87\" xmlns:p88=\"urn:88\" xmlns:p89=\"urn:89\" xmlns:p90=\"urn:90\" xmlns:p91=\"urn:91\" xmlns:p92=\"urn:92\" xmlns:p93=\"urn:93\" xmlns:p94=\"urn:94\" xmlns:p95=\"urn:95\" xmlns:p96=\"urn:96\" xmlns:p97=\"urn:97\" xmlns:p98=\"urn:98\" xmlns:p99=\"urn:99\" xmlns:p100=\"urn:100\" xmlns:p101=\"urn:101\" xmlns:p102=\"urn:102\" xmlns:p103=\"urn:103\" xmlns:p104=\"urn:104\" xmlns:p105=\"urn:105\" xmlns:p106=\"urn:106\" xmlns:p107=\"urn:107\" xmlns:p108=\"urn:108\" xmlns:p109=\"urn:109\" xmlns:p110=\"urn:110\" xmlns:p111=\"urn:111\" xmlns:p112=\"urn:112\" xmlns:p113=\"urn:113\" xmlns:p114=\"urn:114\" xmlns:p115=\"urn:115\" xmlns:p116=\"urn:116\" xmlns:p117=\"urn:117\" xmlns:p118=\"urn:118\" xmlns:p119=\"urn:119\" xmlns:p120=\"urn:120\" xmlns:p121=\"urn:121\" xmlns:p122=\"urn:122\" xmlns:p123=\"urn:123\" xmlns:p124=\"urn:124\" xmlns:p125=\"urn:125\" xmlns:p126=\"urn:126\" xmlns:p127=\"urn:127\" xmlns:p128=\"urn:128\" xmlns:p129=\"urn:129\" xmlns:p130=\"urn:130\" xmlns:p131=\"urn:131\" xmlns:p132=\"urn:132\" xmlns:p133=\"urn:133\" xmlns:p134=\"urn:134\" xmlns:p135=\"urn:135\" xmlns:p136=\"urn:136\" xmlns:p137=\"urn:137\" xmlns:p138=\"urn:138\" xmlns:p139=\"urn:139\" xmlns:p140=\"urn:140\" xmlns:p141=\"urn:141\" xmlns:p142=\"urn:142\" xmlns:p143=\"urn:143\" xmlns:p144=\"urn:144\" xmlns:p145=\"urn:145\" xmlns:p146=\"urn:146\" xmlns:p147=\"urn:147\" xmlns:p148=\"urn:148\" xmlns:p149=\"urn:149\" xmlns:p150=\"urn:150\" xmlns:p151=\"urn:151\" xmlns:p152=\"urn:152\" xmlns:p153=\"urn:153\" xmlns:p154=\"urn:154\" xmlns:p155=\"urn:155\" xmlns:p156=\"urn:156\" xmlns:p157=\"urn:157\" xmlns:p158=\"urn:158\" xmlns:p159=\"urn:159\" xmlns:p160=\"urn:160\" xmlns:p161=\"urn:161\" xmlns:p162=\"urn:162\" xmlns:p163=\"urn:163\" xmlns:p164=\"urn:164\" xmlns:p165=\"urn:165\" xmlns:p166=\"urn:166\" xmlns:p167=\"urn:167\" xmlns:p168=\"urn:168\" xmlns:p169=\"urn:169\" xmlns:p170=\"urn:170\" xmlns:p171=\"urn:171\" xmlns:p172=\"urn:172\" xmlns:p173=\"urn:173\" xmlns:p174=\"urn:174\" xmlns:p175=\"urn:175\" xmlns:p176=\"urn:176\" xmlns:p177=\"urn:177\" xmlns:p178=\"urn:178\" xmlns:p179=\"urn:179\" xmlns:p180=\"urn:180\" xmlns:p181=\"urn:181\" xmlns:p182=\"urn:182\" xmlns:p183=\"urn:183\" xmlns:p184=\"urn:184\" xmlns:p185=\"urn:185\" xmlns:p186=\"urn:186\" xmlns:p187=\"urn:187\" xmlns:p188=\"urn:188\" xmlns:p189=\"urn:189\" xmlns:p190=\"urn:190\" xmlns:p191=\"urn:191\" xmlns:p192=\"urn:192\" xmlns:p193=\"urn:193\" xmlns:p194=\"urn:194\" xmlns:p195=\"urn:195\" xmlns:p196=\"urn:196\" xmlns:p197=\"urn:197\" xmlns:p198=\"urn:198\" xmlns:p199=\"urn:199\" xmlns:p200=\"urn:200\" xmlns:p201=\"urn:201\" xmlns:p202=\"urn:202\" xmlns:p203=\"urn:203\" xmlns:p204=\"urn:204\" xmlns:p205=\"urn:205\" xmlns:p206=\"urn:206\" xmlns:p207=\"urn:207\" xmlns:p208=\"urn:208\" xmlns:p209=\"urn:209\" xmlns:p210=\"urn:210\" xmlns:p211=\"urn:211\" xmlns:p212=\"urn:212\" xmlns:p213=\"urn:213\" xmlns:p214=\"urn:214\" xmlns:p215=\"urn:215\" xmlns:p216=\"urn:216\" xmlns:p217=\"urn:217\" xmlns:p218=\"urn:218\" xmlns:p219=\"urn:219\" xmlns:p220=\"urn:220\" xmlns:p221=\"urn:221\" xmlns:p222=\"urn:222\" xmlns:p223=\"urn:223\" xmlns:p224=\"urn:224\" xmlns:p225=\"urn:225\" xmlns:p226=\"urn:226\" xmlns:p227=\"urn:227\" xmlns:p228=\"urn:228\" xmlns:p229=\"urn:229\" xmlns:p230=\"urn:230\" xmlns:p231=\"urn:231\" xmlns:p232=\"urn:232\" xmlns:p233=\"urn:233\" xmlns:p234=\"urn:234\" xmlns:p235=\"urn:235\" xmlns:p236=\"urn:236\" xmlns:p237=\"urn:237\" xmlns:p238=\"urn:238\" xmlns:p239=\"urn:239\" xmlns:p240=\"urn:240\" xmlns:p241=\"urn:241\" xmlns:p242=\"urn:242\" xmlns:p243=\"urn:243\" xmlns:p244=\"urn:244\" xmlns:p245=\"urn:245\" xmlns:p246=\"urn:246\" xmlns:p247=\"urn:247\" xmlns:p248=\"urn:248\" xmlns:p249=\"urn:249\" xmlns:p250=\"urn:250\" xmlns:p251=\"urn:251\" xmlns:p252=\"urn:252\" xmlns:p253=\"urn:253\" xmlns:p254=\"urn:254\" xmlns:p255=\"urn:255\" xmlns:p256=\"urn:256\" xmlns:p257=\"urn:257\" xmlns:p258=\"urn:258\" xmlns:p259=\"urn:259\" xmlns:p260=\"urn:260\" xmlns:p261=\"urn:261\" xmlns:p262=\"urn:262\" xmlns:p263=\"urn:263\" xmlns:p264=\"urn:264\" xmlns:p265=\"urn:265\" xmlns:p266=\"urn:266\" xmlns:p267=\"urn:267\" xmlns:p268=\"urn:268\" xmlns:p269=\"urn:269\" xmlns:p270=\"urn:270\" xmlns:p271=\"urn:271\" xmlns:p272=\"urn:272\" xmlns:p273=\"urn:273\" xmlns:p274=\"urn:274\" xmlns:p275=\"urn:275\" xmlns:p276=\"urn:276\" xmlns:p277=\"urn:277\" xmlns:p278=\"urn:278\" xmlns:p279=\"urn:279\" xmlns:p280=\"urn:280\" xmlns:p281=\"urn:281\" xmlns:p282=\"urn:282\" xmlns:p283=\"urn:283\" xmlns:p284=\"urn:284\" xmlns:p285=\"urn:285\" xmlns:p286=\"urn:286\" xmlns:p287=\"urn:287\" xmlns:p288=\"urn:288\" xmlns:p289=\"urn:289\" xmlns:p290=\"urn:290\" xmlns:p291=\"urn:291\" xmlns:p292=\"urn:292\" xmlns:p293=\"urn:293\" xmlns:p294=\"urn:294\" xmlns:p295=\"urn:295\" xmlns:p296=\"urn:296\" xmlns:p297=\"urn:297\" xmlns:p298=\"urn:298\" xmlns:p299=\"urn:299\" xmlns:p300=\"urn:300\" xmlns:p301=\"urn:301\" xmlns:p302=\"urn:302\" xmlns:p303=\"urn:303\" xmlns:p304=\"urn:304\" xmlns:p305=\"urn:305\" xmlns:p306=\"urn:306\" xmlns:p307=\"urn:307\" xmlns:p308=\"urn:308\" xmlns:p309=\"urn:309\" xmlns:p310=\"urn:310\" xmlns:p311=\"urn:311\" xmlns:p312=\"urn:312\" xmlns:p313=\"urn:313\" xmlns:p314=\"urn:314\" xmlns:p315=\"urn:315\" xmlns:p316=\"urn:316\" xmlns:p317=\"urn:317\" xmlns:p318=\"urn:318\" xmlns:p319=\"urn:319\" xmlns:p320=\"urn:320\" xmlns:p321=\"urn:321\" xmlns:p322=\"urn:322\" xmlns:p323=\"urn:323\" xmlns:p324=\"urn:324\" xmlns:p325=\"urn:325\" xmlns:p326=\"urn:326\" xmlns:p327=\"urn:327\" xmlns:p328=\"urn:328\" xmlns:p329=\"urn:329\" xmlns:p330=\"urn:330\" xmlns:p331=\"urn:331\" xmlns:p332=\"urn:332\" xmlns:p333=\"urn:333\" xmlns:p334=\"urn:334\" xmlns:p335=\"urn:335\" xmlns:p336=\"urn:336\" xmlns:p337=\"urn:337\" xmlns:p338=\"urn:338\" xmlns:p339=\"urn:339\" xmlns:p340=\"urn:340\" xmlns:p341=\"urn:341\" xmlns:p342=\"urn:342\" xmlns:p343=\"urn:343\" xmlns:p344=\"urn:344\" xmlns:p345=\"urn:345\" xmlns:p346=\"urn:346\" xmlns:p347=\"urn:347\" xmlns:p348=\"urn:348\" xmlns:p349=\"urn:349\" xmlns:p350=\"urn:350\" xmlns:p351=\"urn:351\" xmlns:p352=\"urn:352\" xmlns:p353=\"urn:353\" xmlns:p354=\"urn:354\" xmlns:p355=\"urn:355\" xmlns:p356=\"urn:356\" xmlns:p357=\"urn:357\" xmlns:p358=\"urn:358\" xmlns:p359=\"urn:359\" xmlns:p360=\"urn:360\" xmlns:p361=\"urn:361\" xmlns:p362=\"urn:362\" xmlns:p363=\"urn:363\" xmlns:p364=\"urn:364\" xmlns:p365=\"urn:365\" xmlns:p366=\"urn:366\" xmlns:p367=\"urn:367\" xmlns:p368=\"urn:368\" xmlns:p369=\"urn:369\" xmlns:p370=\"urn:370\" xmlns:p371=\"urn:371\" xmlns:p372=\"urn:372\" xmlns:p373=\"urn:373\" xmlns:p374=\"urn:374\" xmlns:p375=\"urn:375\" xmlns:p376=\"urn:376\" xmlns:p377=\"urn:377\" xmlns:p378=\"urn:378\" xmlns:p379=\"urn:379\" xmlns:p380=\"urn:380\" xmlns:p381=\"urn:381\" xmlns:p382=\"urn:382\" xmlns:p383=\"urn:383\" xmlns:p384=\"urn:384\" xmlns:p385=\"urn:385\" xmlns:p386=\"urn:386\" xmlns:p387=\"urn:387\" xmlns:p388=\"urn:388\" xmlns:p389=\"urn:389\" xmlns:p390=\"urn:390\" xmlns:p391=\"urn:391\" xmlns:p392=\"urn:392\" xmlns:p393=\"urn:393\" xmlns:p394=\"urn:394\" xmlns:p395=\"urn:395\" xmlns:p396=\"urn:396\" xmlns:p397=\"urn:397\" xmlns:p398=\"urn:398\" xmlns:p399=\"urn:399\" xmlns:p400=\"urn:400\" xmlns:p401=\"urn:401\" xmlns:p402=\"urn:402\" xmlns:p403=\"urn:403\" xmlns:p404=\"urn:404\" xmlns:p405=\"urn:405\" xmlns:p406=\"urn:406\" xmlns:p407=\"urn:407\" xmlns:p408=\"urn:408\" xmlns:p409=\"urn:409\" xmlns:p410=\"urn:410\" xmlns:p411=\"urn:411\" xmlns:p412=\"urn:412\" xmlns:p413=\"urn:413\" xmlns:p414=\"urn:414\" xmlns:p415=\"urn:415\" xmlns:p416=\"urn:416\" xmlns:p417=\"urn:417\" xmlns:p418=\"urn:418\" xmlns:p419=\"urn:419\" xmlns:p420=\"urn:420\" xmlns:p421=\"urn:421\" xmlns:p422=\"urn:422\" xmlns:p423=\"urn:423\" xmlns:p424=\"urn:424\" xmlns:p425=\"urn:425\" xmlns:p426=\"urn:426\" xmlns:p427=\"urn:427\" xmlns:p428=\"urn:428\" xmlns:p429=\"urn:429\" xmlns:p430=\"urn:430\" xmlns:p431=\"urn:431\" xmlns:p432=\"urn:432\" xmlns:p433=\"urn:433\" xmlns:p434=\"urn:434\" xmlns:p435=\"urn:435\" xmlns:p436=\"urn:436\" xmlns:p437=\"urn:437\" xmlns:p438=\"urn:438\" xmlns:p439=\"urn:439\" xmlns:p440=\"urn:440\" xmlns:p441=\"urn:441\" xmlns:p442=\"urn:442\" xmlns:p443=\"urn:443\" xmlns:p444=\"urn:444\" xmlns:p445=\"urn:445\" xmlns:p446=\"urn:446\" xmlns:p447=\"urn:447\" xmlns:p448=\"urn:448\" xmlns:p449=\"urn:449\" xmlns:p450=\"urn:450\" xmlns:p451=\"urn:451\" xmlns:p452=\"urn:452\" xmlns:p453=\"urn:453\" xmlns:p454=\"urn:454\" xmlns:p455=\"urn:455\" xmlns:p456=\"urn:456\" xmlns:p457=\"urn:457\" xmlns:p458=\"urn:458\" xmlns:p459=\"urn:459\" xmlns:p460=\"urn:460\" xmlns:p461=\"urn:461\" xmlns:p462=\"urn:462\" xmlns:p463=\"urn:463\" xmlns:p464=\"urn:464\" xmlns:p465=\"urn:465\" xmlns:p466=\"urn:466\" xmlns:p467=\"urn:467\" xmlns:p468=\"urn:468\" xmlns:p469=\"urn:469\" xmlns:p470=\"urn:470\" xmlns:p471=\"urn:471\" xmlns:p472=\"urn:472\" xmlns:p473=\"urn:473\" xmlns:p474=\"urn:474\" xmlns:p475=\"urn:475\" xmlns:p476=\"urn:476\" xmlns:p477=\"urn:477\" xmlns:p478=\"urn:478\" xmlns:p479=\"urn:479\" xmlns:p480=\"urn:480\" xmlns:p481=\"urn:481\" xmlns:p482=\"urn:482\" xmlns:p483=\"urn:483\" xmlns:p484=\"urn:484\" xmlns:p485=\"urn:485\" xmlns:p486=\"urn:486\" xmlns:p487=\"urn:487\" xmlns:p488=\"urn:488\" xmlns:p489=\"urn:489\" xmlns:p490=\"urn:490\" xmlns:p491=\"urn:491\" xmlns:p492=\"urn:492\" xmlns:p493=\"urn:493\" xmlns:p494=\"urn:494\" xmlns:p495=\"urn:495\" xmlns:p496=\"urn:496\" xmlns:p497=\"urn:497\" xmlns:p498=\"urn:498\" xmlns:p499=\"urn:499\" xmlns:p500=\"urn:500\" xmlns:p501=\"urn:501\" xmlns:p502=\"urn:502\" xmlns:p503=\"urn:503\" xmlns:p504=\"urn:504\" xmlns:p505=\"urn:505\" xmlns:p506=\"urn:506\" xmlns:p507=\"urn:507\" xmlns:p508=\"urn:508\" xmlns:p509=\"urn:509\" xmlns:p510=\"urn:510\" xmlns:p511=\"urn:511\" xmlns:p512=\"urn:512\" xmlns:p513=\"urn:513\" xmlns:p514=\"urn:514\" xmlns:p515=\"urn:515\" xmlns:p516=\"urn:516\" xmlns:p517=\"urn:517\" xmlns:p518=\"urn:518\" xmlns:p519=\"urn:519\" xmlns:p520=\"urn:520\" xmlns:p521=\"urn:521\" xmlns:p522=\"urn:522\" xmlns:p523=\"urn:523\" xmlns:p524=\"urn:524\" xmlns:p525=\"urn:525\" xmlns:p526=\"urn:526\" xmlns:p527=\"urn:527\" xmlns:p528=\"urn:528\" xmlns:p529=\"urn:529\" xmlns:p530=\"urn:530\" xmlns:p531=\"urn:531\" xmlns:p532=\"urn:532\" xmlns:p533=\"urn:533\" xmlns:p534=\"urn:534\" xmlns:p535=\"urn:535\" xmlns:p536=\"urn:536\" xmlns:p537=\"urn:537\" xmlns:p538=\"urn:538\" xmlns:p539=\"urn:539\" xmlns:p540=\"urn:540\" xmlns:p541=\"urn:541\" xmlns:p542=\"urn:542\" xmlns:p543=\"urn:543\" xmlns:p544=\"urn:544\" xmlns:p545=\"urn:545\" xmlns:p546=\"urn:546\" xmlns:p547=\"urn:547\" xmlns:p548=\"urn:548\" xmlns:p549=\"urn:549\" xmlns:p550=\"urn:550\" xmlns:p551=\"urn:551\" xmlns:p552=\"urn:552\" xmlns:p553=\"urn:553\" xmlns:p554=\"urn:554\" xmlns:p555=\"urn:555\" xmlns:p556=\"urn:556\" xmlns:p557=\"urn:557\" xmlns:p558=\"urn:558\" xmlns:p559=\"urn:559\" xmlns:p560=\"urn:560\" xmlns:p561=\"urn:561\" xmlns:p562=\"urn:562\" xmlns:p563=\"urn:563\" xmlns:p564=\"urn:564\" xmlns:p565=\"urn:565\" xmlns:p566=\"urn:566\" xmlns:p567=\"urn:567\" xmlns:p568=\"urn:568\" xmlns:p569=\"urn:569\" xmlns:p570=\"urn:570\" xmlns:p571=\"urn:571\" xmlns:p572=\"urn:572\" xmlns:p573=\"urn:573\" xmlns:p574=\"urn:574\" xmlns:p575=\"urn:575\" xmlns:p576=\"urn:576\" xmlns:p577=\"urn:577\" xmlns:p578=\"urn:578\" xmlns:p579=\"urn:579\" xmlns:p580=\"urn:580\" xmlns:p581=\"urn:581\" xmlns:p582=\"urn:582\" xmlns:p583=\"urn:583\" xmlns:p584=\"urn:584\" xmlns:p585=\"urn:585\" xmlns:p586=\"urn:586\" xmlns:p587=\"urn:587\" xmlns:p588=\"urn:588\" xmlns:p589=\"urn:589\" xmlns:p590=\"urn:590\" xmlns:p591=\"urn:591\" xmlns:p592=\"urn:592\" xmlns:p593=\"urn:593\" xmlns:p594=\"urn:594\" xmlns:p595=\"urn:595\" xmlns:p596=\"urn:596\" xmlns:p597=\"urn:597\" xmlns:p598=\"urn:598\" xmlns:p599=\"urn:599\" xmlns:p600=\"urn:600\" xmlns:p601=\"urn:601\" xmlns:p602=\"urn:602\" xmlns:p603=\"urn:603\" xmlns:p604=\"urn:604\" xmlns:p605=\"urn:605\" xmlns:p606=\"urn:606\" xmlns:p607=\"urn:607\" xmlns:p608=\"urn:608\" xmlns:p609=\"urn:609\" xmlns:p610=\"urn:610\" xmlns:p611=\"urn:611\" xmlns:p612=\"urn:612\" xmlns:p613=\"urn:613\" xmlns:p614=\"urn:614\" xmlns:p615=\"urn:615\" xmlns:p616=\"urn:616\" xmlns:p617=\"urn:617\" xmlns:p618=\"urn:618\" xmlns:p619=\"urn:619\" xmlns:p620=\"urn:620\" xmlns:p621=\"urn:621\" xmlns:p622=\"urn:622\" xmlns:p623=\"urn:623\" xmlns:p624=\"urn:624\" xmlns:p625=\"urn:625\" xmlns:p626=\"urn:626\" xmlns:p627=\"urn:627\" xmlns:p628=\"urn:628\" xmlns:p629=\"urn:629\" xmlns:p630=\"urn:630\" xmlns:p631=\"urn:631\" xmlns:p632=\"urn:632\" xmlns:p633=\"urn:633\" xmlns:p634=\"urn:634\" xmlns:p635=\"urn:635\" xmlns:p636=\"urn:636\" xmlns:p637=\"urn:637\" xmlns:p638=\"urn:638\" xmlns:p639=\"urn:639\" xmlns:p640=\"urn:640\" xmlns:p641=\"urn:641\" xmlns:p642=\"urn:642\" xmlns:p643=\"urn:643\" xmlns:p644=\"urn:644\" xmlns:p645=\"urn:645\" xmlns:p646=\"urn:646\" xmlns:p647=\"urn:647\" xmlns:p648=\"urn:648\" xmlns:p649=\"urn:649\" xmlns:p650=\"urn:650\" xmlns:p651=\"urn:651\" xmlns:p652=\"urn:652\" xmlns:p653=\"urn:653\" xmlns:p654=\"urn:654\" xmlns:p655=\"urn:655\" xmlns:p656=\"urn:656\" xmlns:p657=\"urn:657\" xmlns:p658=\"urn:658\" xmlns:p659=\"urn:659\" xmlns:p660=\"urn:660\" xmlns:p661=\"urn:661\" xmlns:p662=\"urn:662\" xmlns:p663=\"urn:663\" xmlns:p664=\"urn:664\" xmlns:p665=\"urn:665\" xmlns:p666=\"urn:666\" xmlns:p667=\"urn:667\" xmlns:p668=\"urn:668\" xmlns:p669=\"urn:669\" xmlns:p670=\"urn:670\" xmlns:p671=\"urn:671\" xmlns:p672=\"urn:672\" xmlns:p673=\"urn:673\" xmlns:p674=\"urn:674\" xmlns:p675=\"urn:675\" xmlns:p676=\"urn:676\" xmlns:p677=\"urn:677\" xmlns:p678=\"urn:678\" xmlns:p679=\"urn:679\" xmlns:p680=\"urn:680\" xmlns:p681=\"urn:681\" xmlns:p682=\"urn:682\" xmlns:p683=\"urn:683\" xmlns:p684=\"urn:684\" xmlns:p685=\"urn:685\" xmlns:p686=\"urn:686\" xmlns:p687=\"urn:687\" xmlns:p688=\"urn:688\" xmlns:p689=\"urn:689\" xmlns:p690=\"urn:690\" xmlns:p691=\"urn:691\" xmlns:p692=\"urn:692\" xmlns:p693=\"urn:693\" xmlns:p694=\"urn:694\" xmlns:p695=\"urn:695\" xmlns:p696=\"urn:696\" xmlns:p697=\"urn:697\" xmlns:p698=\"urn:698\" xmlns:p699=\"urn:699\" xmlns:p700=\"urn:700\" xmlns:p701=\"urn:701\" xmlns:p702=\"urn:702\" xmlns:p703=\"urn:703\" xmlns:p704=\"urn:704\" xmlns:p705=\"urn:705\" xmlns:p706=\"urn:706\" xmlns:p707=\"urn:707\" xmlns:p708=\"urn:708\" xmlns:p709=\"urn:709\" xmlns:p710=\"urn:710\" xmlns:p711=\"urn:711\" xmlns:p712=\"urn:712\" xmlns:p713=\"urn:713\" xmlns:p714=\"urn:714\" xmlns:p715=\"urn:715\" xmlns:p716=\"urn:716\" xmlns:p717=\"urn:717\" xmlns:p718=\"urn:718\" xmlns:p719=\"urn:719\" xmlns:p720=\"urn:720\" xmlns:p721=\"urn:721\" xmlns:p722=\"urn:722\" xmlns:p723=\"urn:723\" xmlns:p724=\"urn:724\" xmlns:p725=\"urn:725\" xmlns:p726=\"urn:726\" xmlns:p727=\"urn:727\" xmlns:p728=\"urn:728\" xmlns:p729=\"urn:729\" xmlns:p730=\"urn:730\" xmlns:p731=\"urn:731\" xmlns:p732=\"urn:732\" xmlns:p733=\"urn:733\" xmlns:p734=\"urn:734\" xmlns:p735=\"urn:735\" xmlns:p736=\"urn:736\" xmlns:p737=\"urn:737\" xmlns:p738=\"urn:738\" xmlns:p739=\"urn:739\" xmlns:p740=\"urn:740\" xmlns:p741=\"urn:741\" xmlns:p742=\"urn:742\" xmlns:p743=\"urn:743\" xmlns:p744=\"urn:744\" xmlns:p745=\"urn:745\" xmlns:p746=\"urn:746\" xmlns:p747=\"urn:747\" xmlns:p748=\"urn:748\" xmlns:p749=\"urn:749\" xmlns:p750=\"urn:750\" xmlns:p751=\"urn:751\" xmlns:p752=\"urn:752\" xmlns:p753=\"urn:753\" xmlns:p754=\"urn:754\" xmlns:p755=\"urn:755\" xmlns:p756=\"urn:756\" xmlns:p757=\"urn:757\" xmlns:p758=\"urn:758\" xmlns:p759=\"urn:759\" xmlns:p760=\"urn:760\" xmlns:p761=\"urn:761\" xmlns:p762=\"urn:762\" xmlns:p763=\"urn:763\" xmlns:p764=\"urn:764\" xmlns:p765=\"urn:765\" xmlns:p766=\"urn:766\" xmlns:p767=\"urn:767\" xmlns:p768=\"urn:768\" xmlns:p769=\"urn:769\" xmlns:p770=\"urn:770\" xmlns:p771=\"urn:771\" xmlns:p772=\"urn:772\" xmlns:p773=\"urn:773\" xmlns:p774=\"urn:774\" xmlns:p775=\"urn:775\" xmlns:p776=\"urn:776\" xmlns:p777=\"urn:777\" xmlns:p778=\"urn:778\" xmlns:p779=\"urn:779\" xmlns:p780=\"urn:780\" xmlns:p781=\"urn:781\" xmlns:p782=\"urn:782\" xmlns:p783=\"urn:783\" xmlns:p784=\"urn:784\" xmlns:p785=\"urn:785\" xmlns:p786=\"urn:786\" xmlns:p787=\"urn:787\" xmlns:p788=\"urn:788\" xmlns:p789=\"urn:789\" xmlns:p790=\"urn:790\" xmlns:p791=\"urn:791\" xmlns:p792=\"urn:792\" xmlns:p793=\"urn:793\" xmlns:p794=\"urn:794\" xmlns:p795=\"urn:795\" xmlns:p796=\"urn:796\" xmlns:p797=\"urn:797\" xmlns:p798=\"urn:798\" xmlns:p799=\"urn:799\" xmlns:p800=\"urn:800\" xmlns:p801=\"urn:801\" xmlns:p802=\"urn:802\" xmlns:p803=\"urn:803\" xmlns:p804=\"urn:804\" xmlns:p805=\"urn:805\" xmlns:p806=\"urn:806\" xmlns:p807=\"urn:807\" xmlns:p808=\"urn:808\" xmlns:p809=\"urn:809\" xmlns:p810=\"urn:810\" xmlns:p811=\"urn:811\" xmlns:p812=\"urn:812\" xmlns:p813=\"urn:813\" xmlns:p814=\"urn:814\" xmlns:p815=\"urn:815\" xmlns:p816=\"urn:816\" xmlns:p817=\"urn:817\" xmlns:p818=\"urn:818\" xmlns:p819=\"urn:819\" xmlns:p820=\"urn:820\" xmlns:p821=\"urn:821\" xmlns:p822=\"urn:822\" xmlns:p823=\"urn:823\" xmlns:p824=\"urn:824\" xmlns:p825=\"urn:825\" xmlns:p826=\"urn:826\" xmlns:p827=\"urn:827\" xmlns:p828=\"urn:828\" xmlns:p829=\"urn:829\" xmlns:p830=\"urn:830\" xmlns:p831=\"urn:831\" xmlns:p832=\"urn:832\" xmlns:p833=\"urn:833\" xmlns:p834=\"urn:834\" xmlns:p835=\"urn:835\" xmlns:p836=\"urn:836\" xmlns:p837=\"urn:837\" xmlns:p838=\"urn:838\" xmlns:p839=\"urn:839\" xmlns:p840=\"urn:840\" xmlns:p841=\"urn:841\" xmlns:p842=\"urn:842\" xmlns:p843=\"urn:843\" xmlns:p844=\"urn:844\" xmlns:p845=\"urn:845\" xmlns:p846=\"urn:846\" xmlns:p847=\"urn:847\" xmlns:p848=\"urn:848\" xmlns:p849=\"urn:849\" xmlns:p850=\"urn:850\" xmlns:p851=\"urn:851\" xmlns:p852=\"urn:852\" xmlns:p853=\"urn:853\" xmlns:p854=\"urn:854\" xmlns:p855=\"urn:855\" xmlns:p856=\"urn:856\" xmlns:p857=\"urn:857\" xmlns:p858=\"urn:858\" xmlns:p859=\"urn:859\" xmlns:p860=\"urn:860\" xmlns:p861=\"urn:861\" xmlns:p862=\"urn:862\" xmlns:p863=\"urn:863\" xmlns:p864=\"urn:864\" xmlns:p865=\"urn:865\" xmlns:p866=\"urn:866\" xmlns:p867=\"urn:867\" xmlns:p868=\"urn:868\" xmlns:p869=\"urn:869\" xmlns:p870=\"urn:870\" xmlns:p871=\"urn:871\" xmlns:p872=\"urn:872\" xmlns:p873=\"urn:873\" xmlns:p874=\"urn:874\" xmlns:p875=\"urn:875\" xmlns:p876=\"urn:876\" xmlns:p877=\"urn:877\" xmlns:p878=\"urn:878\" xmlns:p879=\"urn:879\" xmlns:p880=\"urn:880\" xmlns:p881=\"urn:881\" xmlns:p882=\"urn:882\" xmlns:p883=\"urn:883\" xmlns:p884=\"urn:884\" xmlns:p885=\"urn:885\" xmlns:p886=\"urn:886\" xmlns:p887=\"urn:887\" xmlns:p888=\"urn:888\" xmlns:p889=\"urn:889\" xmlns:p890=\"urn:890\" xmlns:p891=\"urn:891\" xmlns:p892=\"urn:892\" xmlns:p893=\"urn:893\" xmlns:p894=\"urn:894\" xmlns:p895=\"urn:895\" xmlns:p896=\"urn:896\" xmlns:p897=\"urn:897\" xmlns:p898=\"urn:898\" xmlns:p899=\"urn:899\" xmlns:p900=\"urn:900\" xmlns:p901=\"urn:901\" xmlns:p902=\"urn:902\" xmlns:p903=\"urn:903\" xmlns:p904=\"urn:904\" xmlns:p905=\"urn:905\" xmlns:p906=\"urn:906\" xmlns:p907=\"urn:907\" xmlns:p908=\"urn:908\" xmlns:p909=\"urn:909\" xmlns:p910=\"urn:910\" xmlns:p911=\"urn:911\" xmlns:p912=\"urn:912\" xmlns:p913=\"urn:913\" xmlns:p914=\"urn:914\" xmlns:p915=\"urn:915\" xmlns:p916=\"urn:916\" xmlns:p917=\"urn:917\" xmlns:p918=\"urn:918\" xmlns:p919=\"urn:919\" xmlns:p920=\"urn:920\" xmlns:p921=\"urn:921\" xmlns:p922=\"urn:922\" xmlns:p923=\"urn:923\" xmlns:p924=\"urn:924\" xmlns:p925=\"urn:925\" xmlns:p926=\"urn:926\" xmlns:p927=\"urn:927\" xmlns:p928=\"urn:928\" xmlns:p929=\"urn:929\" xmlns:p930=\"urn:930\" xmlns:p931=\"urn:931\" xmlns:p932=\"urn:932\" xmlns:p933=\"urn:933\" xmlns:p934=\"urn:934\" xmlns:p935=\"urn:935\" xmlns:p936=\"urn:936\" xmlns:p937=\"urn:937\" xmlns:p938=\"urn:938\" xmlns:p939=\"urn:939\" xmlns:p940=\"urn:940\" xmlns:p941=\"urn:941\" xmlns:p942=\"urn:942\" xmlns:p943=\"urn:943\" xmlns:p944=\"urn:944\" xmlns:p945=\"urn:945\" xmlns:p946=\"urn:946\" xmlns:p947=\"urn:947\" xmlns:p948=\"urn:948\" xmlns:p949=\"urn:949\" xmlns:p950=\"urn:950\" xmlns:p951=\"urn:951\" xmlns:p952=\"urn:952\" xmlns:p953=\"urn:953\" xmlns:p954=\"urn:954\" xmlns:p955=\"urn:955\" xmlns:p956=\"urn:956\" xmlns:p957=\"urn:957\" xmlns:p958=\"urn:958\" xmlns:p959=\"urn:959\" xmlns:p960=\"urn:960\" xmlns:p961=\"urn:961\" xmlns:p962=\"urn:962\" xmlns:p963=\"urn:963\" xmlns:p964=\"urn:964\" xmlns:p965=\"urn:965\" xmlns:p966=\"urn:966\" xmlns:p967=\"urn:967\" xmlns:p968=\"urn:968\" xmlns:p969=\"urn:969\" xmlns:p970=\"urn:970\" xmlns:p971=\"urn:971\" xmlns:p972=\"urn:972\" xmlns:p973=\"urn:973\" xmlns:p974=\"urn:974\" xmlns:p975=\"urn:975\" xmlns:p976=\"urn:976\" xmlns:p977=\"urn:977\" xmlns:p978=\"urn:978\" xmlns:p979=\"urn:979\" xmlns:p980=\"urn:980\" xmlns:p981=\"urn:981\" xmlns:p982=\"urn:982\" xmlns:p983=\"urn:983\" xmlns:p984=\"urn:984\" xmlns:p985=\"urn:985\" xmlns:p986=\"urn:986\" xmlns:p987=\"urn:987\" xmlns:p988=\"urn:988\" xmlns:p989=\"urn:989\" xmlns:p990=\"urn:990\" xmlns:p991=\"urn:991\" xmlns:p992=\"urn:992\" xmlns:p993=\"urn:993\" xmlns:p994=\"urn:994\" xmlns:p995=\"urn:995\" xmlns:p996=\"urn:996\" xmlns:p997=\"urn:997\" xmlns:p998=\"urn:998\" xmlns:p999=\"urn:999\" xmlns:p1000=\"urn:1000\" xmlns:p1001=\"urn:1001\" xmlns:p1002=\"urn:1002\" xmlns:p1003=\"urn:1003\" xmlns:p1004=\"urn:1004\" xmlns:p1005=\"urn:1005\" xmlns:p1006=\"urn:1006\" xmlns:p1007=\"urn:1007\" xmlns:p1008=\"urn:1008\" xmlns:p1009=\"urn:1009\" xmlns:p1010=\"urn:1010\" xmlns:p1011=\"urn:1011\" xmlns:p1012=\"urn:1012\" xmlns:p1013=\"urn:1013\" xmlns:p1014=\"urn:1014\" xmlns:p1015=\"urn:1015\" xmlns:p1016=\"urn:1016\" xmlns:p1017=\"urn:1017\" xmlns:p1018=\"urn:1018\" xmlns:p1019=\"urn:1019\" xmlns:p1020=\"urn:1020\" xmlns:p1021=\"urn:1021\" xmlns:p1022=\"urn:1022\" xmlns:p1023=\"urn:1023\" xmlns:p1024=\"urn:1024\"><S>a</S></R>",
+      "expect": {
+        "refuses": "body"
+      }
+    },
+    {
+      "name": "a null is refused by the change that wrote it",
+      "why": "XML has no null, and writing nothing or an empty element would be a guess about what the caller means.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "set",
+          "path": "/S",
+          "value": null,
+          "ifAbsent": false,
+          "c": "chg_null"
+        }
+      ],
+      "input": "<R><S>a</S></R>",
+      "expect": {
+        "refuses": "chg_null"
+      }
+    },
+    {
+      "name": "a description of a list of lists is refused",
+      "why": "OpenAPI gives a list of lists no XML form, so there is nothing to read it as.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "M": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "name": "Row",
+                "items": {
+                  "type": "string",
+                  "name": "C"
+                }
+              }
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "M": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "name": "Row",
+                "items": {
+                  "type": "string",
+                  "name": "C"
+                }
+              }
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "del",
+          "path": "/M",
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R/>",
+      "expect": {
+        "refuses": "decode"
+      }
+    },
+    {
+      "name": "a description that writes two fields as one element is refused",
+      "why": "An element that could be either field is a guess about which.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "string",
+              "name": "X"
+            },
+            "b": {
+              "type": "string",
+              "name": "X"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "a": {
+              "type": "string",
+              "name": "X"
+            },
+            "b": {
+              "type": "string",
+              "name": "X"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "del",
+          "path": "/a",
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R/>",
+      "expect": {
+        "refuses": "decode"
+      }
+    },
+    {
+      "name": "a program that reads a map's values in an XML body is refused",
+      "why": "XML has no maps, and a map's wildcard would reach the elements nothing names.",
+      "xml": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        },
+        "write": {
+          "type": "object",
+          "properties": {
+            "S": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "instrs": [
+        {
+          "k": "del",
+          "path": "/{}",
+          "c": "chg_vector"
+        }
+      ],
+      "input": "<R/>",
+      "expect": {
+        "refuses": "decode"
+      }
+    }
   ]
 }

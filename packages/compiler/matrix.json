@@ -23,11 +23,11 @@
   "cells": {
     "body request": {
       "status": "served",
-      "why": "A schema scope reaches every request body that uses the schema."
+      "why": "A schema scope reaches every request body that uses the schema, JSON, form-encoded or XML. Over XML, a map's values, a schema that contains itself, a value read whose schema says nothing of it, and a program that reaches a parameter too, are refused at compile time."
     },
     "body response": {
       "status": "served",
-      "why": "A schema scope reaches every response body that uses the schema, undone in reverse."
+      "why": "A schema scope reaches every response body that uses the schema, undone in reverse, JSON or XML, with the same refusals over XML as a request."
     },
     "body outbound": {
       "status": "served",
