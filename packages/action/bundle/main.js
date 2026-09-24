@@ -17772,19 +17772,43 @@ function prefixed(prefix, path) {
 	return formatPointer([...parsePointer(prefix), ...parsePointer(path)]);
 }
 /**
+* A value written into the object a Change is scoped to, only where that
+* object is there. Written at the prefixed path, the write created every
+* object on the way that was missing: Qdrant's telemetry sends `features`
+* only when asked for detail, and restoring `web_feature` into it sent old
+* callers a `features` holding that one field where the old server had sent
+* no `features` at all. Inside the object, the path is still created, as a
+* field an op puts back may sit under one it put back first.
+*/
+function inPlace(prefix, write) {
+	if (prefix === "") return write;
+	return {
+		k: "within",
+		path: prefix,
+		block: [{
+			k: "is",
+			path: "",
+			type: "object",
+			block: [write],
+			c: write.c
+		}],
+		c: write.c
+	};
+}
+/**
 * A `default` op's one write, in whichever direction it faces. A value the
 * stricter side would accept is never touched: `ifAbsent` alone leaves a null
 * in place, and `ifNull` alone never creates a field that was missing.
 */
 function fill(op, prefix, changeId) {
-	return {
+	return inPlace(prefix, {
 		k: "set",
-		path: prefixed(prefix, op.path),
+		path: op.path,
 		value: op.value,
 		ifAbsent: op.when !== "null",
 		...op.when === "absent" ? {} : { ifNull: true },
 		c: changeId
-	};
+	});
 }
 function dropNull(op, prefix, changeId) {
 	return {
@@ -17910,13 +17934,13 @@ function forwardInstrs(op, prefix, changeId) {
 			}];
 			default: return [valueCodec(op.codec, prefixed(prefix, op.path), changeId, "forward")];
 		}
-		case "add": return [{
+		case "add": return [inPlace(prefix, {
 			k: "set",
-			path: prefixed(prefix, op.path),
+			path: op.path,
 			value: op.value,
 			ifAbsent: true,
 			c: changeId
-		}];
+		})];
 		case "remove": return [{
 			k: "del",
 			path: prefixed(prefix, op.path),
@@ -18044,13 +18068,13 @@ function backwardInstrs(op, prefix, changeId, variants = NO_VARIANTS) {
 		}];
 		case "remove":
 			if (op.restore === void 0) return [];
-			return [{
+			return [inPlace(prefix, {
 				k: "set",
-				path: prefixed(prefix, op.path),
+				path: op.path,
 				value: op.restore,
 				ifAbsent: false,
 				c: changeId
-			}];
+			})];
 		case "default": return op.toward === "old" ? [fill(op, prefix, changeId)] : [];
 		case "dropNull": return op.toward === "old" ? [dropNull(op, prefix, changeId)] : [];
 		case "relax": return [];
