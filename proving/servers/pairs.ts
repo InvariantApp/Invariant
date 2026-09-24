@@ -11,6 +11,8 @@ export interface ArmResult {
   messages?: Record<string, string>;
   /** Set when the arm could not run at all. */
   error?: string;
+  /** Tests whose outcome differed between runs of this arm, by test id. */
+  volatile?: string[];
 }
 
 /** What the product made of the release, read the way `invariant check` reports it. */
@@ -44,6 +46,12 @@ export interface PairResult {
   served: string[];
   /** Passing without the adapter and failing through it. Must be empty. */
   regressions: string[];
+  /**
+   * Tests whose outcome differed between two runs of one arm, against the
+   * same server doing the same thing: they are left out of every count
+   * above, since what they say is chance. Older results carry none.
+   */
+  volatile?: string[];
 }
 
 /** A project that was looked at and left out, and why, so the list is honest. */
@@ -104,13 +112,59 @@ function unescapeXml(text: string): string {
     .replace(/&amp;/g, "&");
 }
 
+/**
+ * One arm run several times, as one result: a test's outcome where every run
+ * agreed on it, and the test named volatile where they did not.
+ *
+ * Immich's e2e suite checks that a library scan produced thumbnails, which a
+ * job makes a moment later, and Qdrant's queries a payload index it asked
+ * for without waiting: each failed through the proxy once and passed the
+ * next time, against the same server. Retrying a failure until it passes
+ * would call chance a result; running each arm the same number of times and
+ * setting aside what disagrees with itself does not.
+ */
+export function combineRuns(runs: readonly ArmResult[]): ArmResult {
+  const broken = runs.find((run) => run.error !== undefined);
+  if (broken || runs.length === 0) {
+    return broken ?? { outcomes: {}, error: "the arm did not run" };
+  }
+  const ids = new Set(runs.flatMap((run) => Object.keys(run.outcomes)));
+  const outcomes: Record<string, Outcome> = {};
+  const messages: Record<string, string> = {};
+  const volatile: string[] = [];
+  for (const id of [...ids].sort()) {
+    const seen = new Set(runs.map((run) => run.outcomes[id] ?? "skipped"));
+    const first = runs.find((run) => run.outcomes[id] === "failed");
+    if (first?.messages?.[id] !== undefined) messages[id] = first.messages[id];
+    if (seen.size > 1) {
+      volatile.push(id);
+      outcomes[id] = "failed";
+    } else {
+      outcomes[id] = [...seen][0] as Outcome;
+    }
+  }
+  return {
+    outcomes,
+    ...(Object.keys(messages).length > 0 ? { messages } : {}),
+    ...(volatile.length > 0 ? { volatile } : {}),
+  };
+}
+
 export function compareArms(arms: {
   a: ArmResult;
   b: ArmResult;
   c: ArmResult;
-}): Pick<PairResult, "valid" | "broken" | "served" | "regressions"> {
+}): Pick<PairResult, "valid" | "broken" | "served" | "regressions" | "volatile"> {
+  const volatile = [
+    ...new Set([
+      ...(arms.a.volatile ?? []),
+      ...(arms.b.volatile ?? []),
+      ...(arms.c.volatile ?? []),
+    ]),
+  ].sort();
+  const steady = new Set(volatile);
   const valid = Object.keys(arms.a.outcomes).filter(
-    (id) => arms.a.outcomes[id] === "passed",
+    (id) => arms.a.outcomes[id] === "passed" && !steady.has(id),
   );
   const broken = valid.filter((id) => arms.b.outcomes[id] !== "passed");
   const served = broken.filter((id) => arms.c.outcomes[id] === "passed");
@@ -120,7 +174,13 @@ export function compareArms(arms: {
     : valid.filter(
         (id) => arms.b.outcomes[id] === "passed" && arms.c.outcomes[id] !== "passed",
       );
-  return { valid: valid.length, broken, served, regressions };
+  return {
+    valid: valid.length,
+    broken,
+    served,
+    regressions,
+    ...(volatile.length > 0 ? { volatile } : {}),
+  };
 }
 
 /**
@@ -153,6 +213,8 @@ export interface Tally {
   served: number;
   regressions: number;
   vacuous: number;
+  /** Tests set aside because two runs of one arm disagreed on them. */
+  volatile: number;
 }
 
 /**
@@ -185,6 +247,7 @@ export function tally(results: readonly PairResult[]): Tally {
     served: breaking.reduce((sum, result) => sum + result.served.length, 0),
     regressions: results.reduce((sum, result) => sum + result.regressions.length, 0),
     vacuous: results.length - breaking.length,
+    volatile: results.reduce((sum, result) => sum + (result.volatile?.length ?? 0), 0),
   };
 }
 
@@ -200,7 +263,10 @@ export function headline(counts: Tally): string {
     `${counts.proven.length > 0 ? ` (${counts.proven.join(", ")})` : ""}; ` +
     `${counts.servedPairs} of ${counted(counts.breaking, "breaking release pair")} served in full, ` +
     `${counts.served} of ${counted(counts.broken, "broken test")}, ` +
-    `${counted(counts.regressions, "regression")}`
+    `${counted(counts.regressions, "regression")}` +
+    (counts.volatile > 0
+      ? `; ${counted(counts.volatile, "volatile test")} set aside`
+      : "")
   );
 }
 
@@ -225,8 +291,8 @@ export function render(
     "",
     `${headline(counts)}.`,
     "",
-    "| Project | Release | Changes | Gate | Valid tests | Broken by the release | Served through the adapter | Regressions | Verdict |",
-    "|---|---|---|---|---|---|---|---|---|",
+    "| Project | Release | Changes | Gate | Valid tests | Broken by the release | Served through the adapter | Regressions | Volatile, set aside | Verdict |",
+    "|---|---|---|---|---|---|---|---|---|---|",
   ];
   for (const result of results) {
     const failed = Object.entries(result.arms)
@@ -235,7 +301,7 @@ export function render(
     const gate = result.gate;
     const changes = `${result.changes} ${gate.changesFrom}`;
     lines.push(
-      `| ${result.project} (${result.language}) | ${result.from} -> ${result.to} | ${changes} | ${gate.result} | ${result.valid} | ${result.broken.length} | ${result.served.length} | ${result.regressions.length}${failed.length ? `; ${failed.join("; ")}` : ""} | ${verdict(result)} |`,
+      `| ${result.project} (${result.language}) | ${result.from} -> ${result.to} | ${changes} | ${gate.result} | ${result.valid} | ${result.broken.length} | ${result.served.length} | ${result.regressions.length}${failed.length ? `; ${failed.join("; ")}` : ""} | ${result.volatile?.length ?? 0} | ${verdict(result)} |`,
     );
   }
   lines.push("");
@@ -252,10 +318,12 @@ export function render(
     const unserved = result.broken.filter((id) => !result.served.includes(id));
     const gate = result.gate;
     const gateLines = [...gate.unexplained, ...gate.unservable];
+    const volatile = result.volatile ?? [];
     if (
       unserved.length === 0 &&
       result.regressions.length === 0 &&
-      gateLines.length === 0
+      gateLines.length === 0 &&
+      volatile.length === 0
     ) {
       continue;
     }
@@ -283,6 +351,15 @@ export function render(
       }
       if (unserved.length > 40) lines.push(`- and ${unserved.length - 40} more`);
       lines.push("");
+    }
+    if (volatile.length > 0) {
+      lines.push(
+        "Set aside, since two runs of one arm disagreed on them:",
+        "",
+        ...volatile.slice(0, 40).map((id) => `- \`${id}\``),
+        ...(volatile.length > 40 ? [`- and ${volatile.length - 40} more`] : []),
+        "",
+      );
     }
   }
   return `${lines.join("\n")}\n`;
