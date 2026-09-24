@@ -1,0 +1,188 @@
+{
+  "startedAt": "2026-09-24T15:57:17.981Z",
+  "finishedAt": "2026-09-24T16:07:32.068Z",
+  "hours": 0.1669,
+  "seed": 1,
+  "schedule": {
+    "durationMs": 600000,
+    "checkpointMs": 60000,
+    "flipMs": 50000,
+    "reloadMs": 75000,
+    "restartMs": 300000,
+    "warmupMs": 60000
+  },
+  "rps": {
+    "stated": 50,
+    "achieved": 50
+  },
+  "requests": {
+    "issued": 30045,
+    "completed": 30045,
+    "shed": 0
+  },
+  "violations": {
+    "responses": 0,
+    "requests": 0,
+    "samples": []
+  },
+  "transport": {
+    "duringRestart": 56,
+    "streamedCut": 71,
+    "otherwise": 0,
+    "samples": []
+  },
+  "outcomes": {
+    "2026-01-15 bloated 400 invariant_contract_unsupported": 31,
+    "2026-01-15 bloated 413 invariant_body_too_large": 37,
+    "2026-01-15 cut 400 invariant_contract_unsupported": 122,
+    "2026-01-15 cut 502 invariant_upstream_unavailable": 130,
+    "2026-01-15 cut restart": 1,
+    "2026-01-15 cut transport": 4,
+    "2026-01-15 late 200 ok": 140,
+    "2026-01-15 late 201 ok": 56,
+    "2026-01-15 late 400 invariant_contract_unsupported": 205,
+    "2026-01-15 late 404 upstream": 6,
+    "2026-01-15 late restart": 3,
+    "2026-01-15 normal 200 ok": 4179,
+    "2026-01-15 normal 201 ok": 1513,
+    "2026-01-15 normal 400 invariant_contract_unsupported": 5562,
+    "2026-01-15 normal 404 upstream": 169,
+    "2026-01-15 normal restart": 24,
+    "2026-01-15 oversized 201 ok": 11,
+    "2026-01-15 oversized 400 invariant_contract_unsupported": 133,
+    "2026-01-15 oversized 404 upstream": 1,
+    "2026-01-15 oversized 502 invariant_response_not_translatable": 147,
+    "2026-01-15 reset 400 invariant_contract_unsupported": 142,
+    "2026-01-15 reset 502 invariant_upstream_unavailable": 141,
+    "2026-01-15 reset restart": 1,
+    "2026-01-15 slow 200 ok": 212,
+    "2026-01-15 slow 201 ok": 64,
+    "2026-01-15 slow 400 invariant_contract_unsupported": 256,
+    "2026-01-15 slow 404 upstream": 6,
+    "2026-01-15 stall 400 invariant_contract_unsupported": 62,
+    "2026-01-15 stall 504 invariant_upstream_unavailable": 93,
+    "2026-01-15 trickle 201 ok": 64,
+    "2026-01-15 trickle 400 invariant_contract_unsupported": 63,
+    "2026-03-01 bloated 400 invariant_contract_unsupported": 17,
+    "2026-03-01 bloated 413 invariant_body_too_large": 46,
+    "2026-03-01 cut 400 invariant_contract_unsupported": 77,
+    "2026-03-01 cut 502 invariant_upstream_unavailable": 140,
+    "2026-03-01 cut transport": 3,
+    "2026-03-01 late 200 ok": 154,
+    "2026-03-01 late 201 ok": 62,
+    "2026-03-01 late 400 invariant_contract_unsupported": 117,
+    "2026-03-01 late 404 upstream": 13,
+    "2026-03-01 normal 200 ok": 4922,
+    "2026-03-01 normal 201 ok": 1811,
+    "2026-03-01 normal 400 invariant_contract_unsupported": 3296,
+    "2026-03-01 normal 404 upstream": 196,
+    "2026-03-01 normal restart": 19,
+    "2026-03-01 oversized 201 ok": 9,
+    "2026-03-01 oversized 400 invariant_contract_unsupported": 69,
+    "2026-03-01 oversized 404 upstream": 4,
+    "2026-03-01 oversized 502 invariant_response_not_translatable": 121,
+    "2026-03-01 reset 400 invariant_contract_unsupported": 85,
+    "2026-03-01 reset 502 invariant_upstream_unavailable": 145,
+    "2026-03-01 reset restart": 2,
+    "2026-03-01 slow 200 ok": 237,
+    "2026-03-01 slow 201 ok": 87,
+    "2026-03-01 slow 400 invariant_contract_unsupported": 182,
+    "2026-03-01 slow 404 upstream": 10,
+    "2026-03-01 slow restart": 1,
+    "2026-03-01 stall 400 invariant_contract_unsupported": 28,
+    "2026-03-01 stall 504 invariant_upstream_unavailable": 79,
+    "2026-03-01 trickle 201 ok": 92,
+    "2026-03-01 trickle 400 invariant_contract_unsupported": 33,
+    "2026-09-20 bloated 201 ok": 23,
+    "2026-09-20 cut restart": 2,
+    "2026-09-20 cut transport": 64,
+    "2026-09-20 late 200 ok": 79,
+    "2026-09-20 late 201 ok": 33,
+    "2026-09-20 late 404 upstream": 3,
+    "2026-09-20 normal 200 ok": 2752,
+    "2026-09-20 normal 201 ok": 872,
+    "2026-09-20 normal 404 upstream": 119,
+    "2026-09-20 normal restart": 3,
+    "2026-09-20 oversized 200 ok": 65,
+    "2026-09-20 oversized 201 ok": 24,
+    "2026-09-20 oversized 404 upstream": 1,
+    "2026-09-20 reset 502 invariant_upstream_unavailable": 92,
+    "2026-09-20 slow 200 ok": 128,
+    "2026-09-20 slow 201 ok": 44,
+    "2026-09-20 slow 404 upstream": 4,
+    "2026-09-20 stall 504 invariant_upstream_unavailable": 46,
+    "2026-09-20 trickle 201 ok": 56
+  },
+  "disturbances": {
+    "flagFlips": 11,
+    "reloads": {
+      "written": 6,
+      "broken": 1,
+      "served": 4,
+      "kept": 1
+    },
+    "restarts": 1,
+    "crashes": 0
+  },
+  "rss": {
+    "maxMb": 118.9,
+    "trend": {
+      "incarnation": 2,
+      "windowMs": 242466,
+      "mbPerHour": -60.47999999999981
+    },
+    "samples": 59
+  },
+  "sockets": {
+    "baseline": 1,
+    "max": 71,
+    "final": 1,
+    "leaked": 0,
+    "upstreamLeftOpen": 0
+  },
+  "verdict": {
+    "met": false,
+    "criteria": [
+      {
+        "name": "ran 24 hours",
+        "met": false,
+        "value": "0.17 hours"
+      },
+      {
+        "name": "held 50 requests a second",
+        "met": true,
+        "value": "50 of 50 stated"
+      },
+      {
+        "name": "no response fails the old contract",
+        "met": true,
+        "value": "0 violations"
+      },
+      {
+        "name": "every request is answered, outside a restart",
+        "met": true,
+        "value": "0 unanswered"
+      },
+      {
+        "name": "the proxy never crashed",
+        "met": true,
+        "value": "0 crashes"
+      },
+      {
+        "name": "memory floor grows under 1 MB an hour after warm-up",
+        "met": false,
+        "value": "not judged: 4 minutes after warm-up, under the hour a trend needs"
+      },
+      {
+        "name": "memory stays under 256 MB",
+        "met": true,
+        "value": "118.9 MB at most"
+      },
+      {
+        "name": "no socket leaked",
+        "met": true,
+        "value": "0 left open"
+      }
+    ]
+  }
+}
