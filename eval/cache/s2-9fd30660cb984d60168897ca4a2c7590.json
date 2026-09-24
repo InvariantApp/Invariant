@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "uriPattern",
+    "confidence": 0.96,
+    "scores": {
+      "uriPattern": 0.96
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "claude-opus-5",
+  "latencyMs": 4213.711049000005,
+  "inputTokens": 1455,
+  "costUsd": 0.0093
+}

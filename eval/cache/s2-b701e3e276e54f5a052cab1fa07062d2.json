@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "opening_hours",
+    "confidence": 0.93,
+    "scores": {
+      "opening_hours": 0.93
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "claude-opus-5",
+  "latencyMs": 3708.7925730000134,
+  "inputTokens": 1288,
+  "costUsd": 0.008465
+}

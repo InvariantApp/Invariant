@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "threeDS2Versions",
+    "confidence": 0.72,
+    "scores": {
+      "threeDS2Versions": 0.72
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 154.58821100000023,
+  "inputTokens": 947,
+  "costUsd": 0.000039774
+}

@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": "number",
+    "confidence": 1,
+    "scores": {
+      "countryCode": 0.05,
+      "number": 1,
+      "type": 0.005
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 141.02350099999967,
+  "inputTokens": 1633,
+  "costUsd": 0.000068586
+}

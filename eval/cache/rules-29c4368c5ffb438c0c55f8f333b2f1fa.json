@@ -1,0 +1,14 @@
+{
+  "answer": {
+    "successor": "credResponseJwe",
+    "confidence": 1,
+    "scores": {
+      "credResponseJwe": 1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.007825999999795386,
+  "inputTokens": 0,
+  "costUsd": 0
+}

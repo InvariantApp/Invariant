@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "accountUuid",
+    "confidence": 1,
+    "scores": {
+      "accountUuid": 1,
+      "type": 0.1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.016391999999996187,
+  "inputTokens": 0,
+  "costUsd": 0
+}

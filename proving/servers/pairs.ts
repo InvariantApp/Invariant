@@ -3,6 +3,8 @@
  * tests read the same arithmetic the harness writes.
  */
 
+import type { ClosureResult } from "./closure.ts";
+
 export type Outcome = "passed" | "failed" | "skipped";
 
 export interface ArmResult {
@@ -59,6 +61,11 @@ export interface PairResult {
    * vacuous. Older results carry none.
    */
   behavioral?: { test: string; reason: string }[];
+  /**
+   * The adapter's answers set beside the old server's (closure.ts), where
+   * arm c ran on a program the gate passed. Older results carry none.
+   */
+  closure?: ClosureResult;
 }
 
 /**
@@ -266,6 +273,14 @@ export interface Tally {
   volatile: number;
   /** Tests set aside because the release broke them by behavior no document describes. */
   behavioral: number;
+  /** Pairs whose adapted answers were judged against the old server. */
+  closurePairs: number;
+  /** Adapted answers, and of those the ones set beside the old server's. */
+  adapted: number;
+  comparedAnswers: number;
+  /** Distinct places the adapter wrote that were compared, and those that were wrong. */
+  closureSites: number;
+  wrongSites: number;
 }
 
 /**
@@ -303,11 +318,36 @@ export function tally(results: readonly PairResult[]): Tally {
       (sum, result) => sum + (result.behavioral?.length ?? 0),
       0,
     ),
+    closurePairs: results.filter((result) => result.closure !== undefined).length,
+    adapted: results.reduce((sum, result) => sum + (result.closure?.adapted ?? 0), 0),
+    comparedAnswers: results.reduce(
+      (sum, result) => sum + (result.closure?.compared ?? 0),
+      0,
+    ),
+    closureSites: results.reduce(
+      (sum, result) => sum + (result.closure?.sites.length ?? 0),
+      0,
+    ),
+    wrongSites: results.reduce(
+      (sum, result) => sum + (result.closure?.wrong.length ?? 0),
+      0,
+    ),
   };
 }
 
 function counted(count: number, noun: string, plural = `${noun}s`): string {
   return `${count} ${count === 1 ? noun : plural}`;
+}
+
+/** L4b's Rig D half in one line, as the report and the scoreboard both print it. */
+export function closureHeadline(counts: Tally): string {
+  if (counts.closurePairs === 0)
+    return "no adapted answer has yet been judged against an old server";
+  return (
+    `${counts.comparedAnswers} of ${counted(counts.adapted, "adapted answer")} set beside the old server's ` +
+    `across ${counted(counts.closurePairs, "release pair")}, at ${counted(counts.closureSites, "site")}: ` +
+    `${counts.wrongSites} wrong`
+  );
 }
 
 /** L7 in one line, as the report and the scoreboard both print it. */
@@ -349,6 +389,11 @@ export function render(
     "",
     `${headline(counts)}.`,
     "",
+    "False closure: every answer the adapter changed in arm c is set beside the",
+    "old server's answer to the same call in arm a, place by place, and a place",
+    "where they disagree is a Change that passed the gate and changed meaning.",
+    `${closureHeadline(counts)}.`,
+    "",
     "| Project | Release | Changes | Gate | Valid tests | Broken by the release | Served through the adapter | Regressions | Volatile, set aside | Behavioral, set aside | Verdict |",
     "|---|---|---|---|---|---|---|---|---|---|---|",
   ];
@@ -378,8 +423,10 @@ export function render(
     const gateLines = [...gate.unexplained, ...gate.unservable];
     const volatile = result.volatile ?? [];
     const behavioral = result.behavioral ?? [];
+    const wrong = result.closure?.wrong ?? [];
     if (
       unserved.length === 0 &&
+      wrong.length === 0 &&
       result.regressions.length === 0 &&
       gateLines.length === 0 &&
       volatile.length === 0 &&
@@ -399,6 +446,14 @@ export function render(
       for (const id of result.regressions) {
         lines.push(`- \`${id}\`${said(result.arms.c, id)}`);
       }
+      lines.push("");
+    }
+    if (wrong.length > 0) {
+      lines.push("Adapted answers the old server contradicts:", "");
+      for (const finding of wrong.slice(0, 40)) {
+        lines.push(`- \`${finding.site}\`: ${cell(finding.why.slice(0, 200))}`);
+      }
+      if (wrong.length > 40) lines.push(`- and ${wrong.length - 40} more`);
       lines.push("");
     }
     if (unserved.length > 0) {

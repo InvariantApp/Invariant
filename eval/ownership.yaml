@@ -4,15 +4,16 @@
 # and re-read the numbers before changing anything here. Every threshold is
 # pinned to the model that produced it, because confidence is version-coupled
 # and a number tuned against one version is not evidence about the next.
-measuredOn: 2026-09-20
+measuredOn: 2026-09-24
 corpus:
-  cases: 240
-  # The design's target, reached, with every family above the fifteen it asks
-  # for. What matters more than the count is the split below: 45 of these are
-  # changes a real provider actually shipped, and they are measurably harder
-  # than the ones written for this purpose.
+  cases: 651
+  # Past the 600 the launch gate asks for, 55% of it mined from real deltas
+  # against the 40% it asks. The per-family precision at each judge's
+  # threshold, which is what L4b is judged on, is eval/results.json, written
+  # by eval/measure.mts and held to the recorded answers by
+  # packages/eval/src/eval.test.ts on every commit. The numbers below that
+  # date from before 2026-09-24 describe the first 240 cases.
   families: [rename, unit, nesting, enum, type-change, split-merge, removal, ambiguous, adversarial, decoy]
-  adversarialOrAmbiguous: 0.57
 
   provenance:
     # Never added together. A corpus its author wrote measures the questions
@@ -20,7 +21,14 @@ corpus:
     # really arrives, and reporting one number would let the easier part carry
     # the harder one.
     mined:
-      cases: 45
+      cases: 358
+      # 313 of these are every distinct alignment question the proposer asks
+      # across the 1,553 pinned corpus pairs (eval/mine.mts), labelled by two
+      # readers working apart, each with both schemas whole and the documents
+      # to search. The 32 either could not settle, or disagreed on, are left
+      # out; labels and reasons are in eval/mined/labels.json. The readers were
+      # Claude agents, the family S2 is from, so S2's agreement with them is
+      # the figure most likely to flatter. The other 45 came from changelogs:
       sources:
         - https://docs.github.com/en/rest/about-the-rest-api/breaking-changes
         - https://docs.stripe.com/changelog/basil
@@ -32,7 +40,7 @@ corpus:
         replaced by a URL that has to be fetched, and a relocation gated on a
         discriminator.
     written:
-      cases: 195
+      cases: 293
 
 tasks:
   alignment:
@@ -130,18 +138,17 @@ tasks:
         without this split is quoting the easier half.
 
 byFamily:
-  # Where the remaining errors live. Removals are the weak spot and have been
-  # since the corpus was first large enough to say so.
-  removal: 0.87
-  decoy: 0.87
-  ambiguous: 0.95
-  adversarial: 0.96
-  enum: 0.96
-  split-merge: 0.96
-  nesting: 1.0
-  rename: 1.0
-  type-change: 1.0
-  unit: 1.0
+  # At each judge's threshold on all 651 cases (eval/results.json). Nesting is
+  # the weak family now, for both judges and for the same reason: a value
+  # moved into a new wrapper object (Adyen's transaction rule conditions into
+  # `ruleRestrictions`, Datadog's recommendation filter into `data`, a Google
+  # Play track's `userFraction` into `releases`) answered as having no
+  # successor. That drafts a removal for the provider to decide about rather
+  # than moving data to the wrong field, but it is below the 99% L4b asks.
+  # Removals, the weak family on the first 240 cases, are no longer.
+  jev: { nesting: 0.852, type-change: 0.964, ambiguous: 0.975, decoy: 0.976, rename: 0.983, removal: 0.989, others: 1.0 }
+  s2: { nesting: 0.852, type-change: 0.974, others: 1.0 }
+  rules: { all: 1.0 }
 
 calibration:
   - atLeast: 0.8

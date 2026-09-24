@@ -1,0 +1,26 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.94,
+    "scores": {
+      "payout_item_id": 0.005,
+      "transaction_id": 0,
+      "activity_id": 0,
+      "transaction_status": 0,
+      "payout_item_fee": 0,
+      "payout_batch_id": 0.005,
+      "sender_batch_id": 0.005,
+      "payout_item": 0.12,
+      "currency_conversion": 0,
+      "time_processed": 0,
+      "errors": 0,
+      "links": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 176.0326610000011,
+  "inputTokens": 4857,
+  "costUsd": 0.000203994
+}

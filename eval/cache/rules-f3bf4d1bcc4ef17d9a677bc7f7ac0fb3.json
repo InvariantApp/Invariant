@@ -1,0 +1,14 @@
+{
+  "answer": {
+    "successor": "ContainerSpec.Healthcheck",
+    "confidence": 1,
+    "scores": {
+      "ContainerSpec.Healthcheck": 0.8388888888888889
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.011915999999928317,
+  "inputTokens": 0,
+  "costUsd": 0
+}

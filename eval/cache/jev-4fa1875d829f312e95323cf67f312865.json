@@ -1,0 +1,20 @@
+{
+  "answer": {
+    "successor": "aggregationLevel",
+    "confidence": 0.2,
+    "scores": {
+      "aggregationLevel": 0.2,
+      "entityKey": 0.495,
+      "outcomeType": 0,
+      "requestType": 0.005,
+      "ruleRestrictions": 0.215,
+      "score": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 151.12472900000012,
+  "inputTokens": 2939,
+  "costUsd": 0.00012343800000000002
+}

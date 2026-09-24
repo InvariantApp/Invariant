@@ -1,0 +1,100 @@
+{
+  "about": "Rig B. Seven consecutive commits of stripe/openapi that changed openapi/spec3.sdk.json, the document Stripe's SDK suites run stripe-mock on, so six old -> new pairs. Each commit pins spec3.sdk.json and fixtures3.json from that same commit by SHA-256; stripe-mock is always given both. Each pair runs stripe-node's and stripe-python's own suites at the release pinned to the old commit's API version. d5d11f6 restores the document 7061322 replaced forty minutes earlier, byte for byte, so one pair runs an API version backwards: that is what the history holds, and it is kept rather than skipped.",
+  "stripeMock": {
+    "version": "0.203.0",
+    "assets": {
+      "linux-x64": {
+        "url": "https://github.com/stripe/stripe-mock/releases/download/v0.203.0/stripe-mock_0.203.0_linux_amd64.tar.gz",
+        "sha256": "3154cfb346dc335d45de1b6e14cece86a76779b27803c07d308d77b894b74c24"
+      },
+      "linux-arm64": {
+        "url": "https://github.com/stripe/stripe-mock/releases/download/v0.203.0/stripe-mock_0.203.0_linux_arm64.tar.gz",
+        "sha256": "a39c26a6098f32f22ac465b976b81c12534dbc7db52b85781db986ca2ada4654"
+      },
+      "darwin-arm64": {
+        "url": "https://github.com/stripe/stripe-mock/releases/download/v0.203.0/stripe-mock_0.203.0_darwin_arm64.tar.gz",
+        "sha256": "6afa6badbaa8f0a19e98689ec32fdff39087c3739ca35d1d1d50cf7b8166e185"
+      }
+    }
+  },
+  "commits": [
+    {
+      "commit": "f4ac6d9a7f40730f7f50c8c1d76c27f80178e4f5",
+      "apiVersion": "2026-06-24.dahlia",
+      "spec": "e6fea7e1d7cf039585f374ee6b008788b6eb32523e0ef7b7084b35818aefabbe",
+      "fixtures": "d5f80d41b14b7acdbe31c879e187c956fddbe804be68504f8c1d65bf89b5bc03"
+    },
+    {
+      "commit": "3881db83dff8d170d4b7ef7e00e1801cd617e891",
+      "apiVersion": "2026-06-24.dahlia",
+      "spec": "a58d0f7ce76116839b2031fe1fff178283f5c686c6cdbdeaf324d6670a97fe9e",
+      "fixtures": "d5f80d41b14b7acdbe31c879e187c956fddbe804be68504f8c1d65bf89b5bc03"
+    },
+    {
+      "commit": "7061322ce765ba59b40b704e7d8198d6bb24955c",
+      "apiVersion": "2026-07-29.dahlia",
+      "spec": "e2af03784d3d9efac6fbc88ace7d2bd4372d9a00a21632fe72d86b951c40782f",
+      "fixtures": "3863f3b7168a387bae45cae30cbc7b3def013038dee4626ebb1cab388af69eca"
+    },
+    {
+      "commit": "d5d11f661d1180a847d6e26774517756e6a493a1",
+      "apiVersion": "2026-06-24.dahlia",
+      "spec": "a58d0f7ce76116839b2031fe1fff178283f5c686c6cdbdeaf324d6670a97fe9e",
+      "fixtures": "d5f80d41b14b7acdbe31c879e187c956fddbe804be68504f8c1d65bf89b5bc03"
+    },
+    {
+      "commit": "af5309cae53e5f666f9686dfed306d6d3b5fdc67",
+      "apiVersion": "2026-07-29.dahlia",
+      "spec": "4464ed5c2c2c94c9b6d8cea7c36c55e0bf027a48cb40cc2704818f702acb81a4",
+      "fixtures": "41486e14a5b930447f53ecc4e71e34e3184462ba3d18212a39d4a40f70eaba44"
+    },
+    {
+      "commit": "30d3391cc09a0f67ad29bee002f570811b19e1da",
+      "apiVersion": "2026-08-26.dahlia",
+      "spec": "610a902a16d767bef822a36ae357325ae723f8f4a4dc8f009e9b250409728465",
+      "fixtures": "34ed27ca3a9f31ffa25d93a28bc4fd255c69e560e161b02307773faf34c09031"
+    },
+    {
+      "commit": "c8faccbde66b784ea916d3c28f5790d7a9c9aee2",
+      "apiVersion": "2026-09-30.endive",
+      "spec": "43612f34a6b279e2025d49028eb1b614caa12372623466a8ab8978e2193eb29d",
+      "fixtures": "e6822f7ee6fd71bdde6228537368aafcfb7191109340fe119d9aca27c6e9396d"
+    }
+  ],
+  "sdks": {
+    "node": {
+      "repo": "stripe/stripe-node",
+      "releases": {
+        "2026-06-24.dahlia": {
+          "tag": "v22.3.0",
+          "commit": "3c5c172c0dbabc0c34a1fd14b910ad5ada110a53"
+        },
+        "2026-07-29.dahlia": {
+          "tag": "v22.4.0",
+          "commit": "57626dcdfb94164fc9f112dfaa3c57aec5130e4f"
+        },
+        "2026-08-26.dahlia": {
+          "tag": "v22.6.0",
+          "commit": "2f64e7ac920bd6863fdb851f4fb1fcc6190d963f"
+        }
+      }
+    },
+    "python": {
+      "repo": "stripe/stripe-python",
+      "releases": {
+        "2026-06-24.dahlia": {
+          "tag": "v15.3.0",
+          "commit": "4454934a9bd1d957e50d6f9b4d6c11cb827348db"
+        },
+        "2026-07-29.dahlia": {
+          "tag": "v15.4.0",
+          "commit": "07b9a74cf02ce55413237a434be807190fccc3a7"
+        },
+        "2026-08-26.dahlia": {
+          "tag": "v15.6.0",
+          "commit": "761354d82246d63d39805d30b4f5a8a45c5a008e"
+        }
+      }
+    }
+  }
+}

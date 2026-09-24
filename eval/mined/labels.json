@@ -1,0 +1,1791 @@
+[
+  {
+    "id": "mined_adyen_close_account_holder_response_submitted_async",
+    "successor": null,
+    "rationale": "submittedAsync described async queuing of the request; the only candidate invalidFields holds field validation errors, an unrelated piece of information."
+  },
+  {
+    "id": "mined_adyen_close_account_response_submitted_async",
+    "successor": null,
+    "rationale": "submittedAsync is an async-processing flag; accountCode and invalidFields carry unrelated information, so it was dropped in v5."
+  },
+  {
+    "id": "mined_adyen_create_account_holder_response_submitted_async",
+    "successor": null,
+    "rationale": "submittedAsync is a processing-mode flag; the only candidate primaryCurrency is an unrelated ISO currency code, so the flag was simply dropped."
+  },
+  {
+    "id": "mined_adyen_create_account_response_submitted_async",
+    "successor": null,
+    "rationale": "submittedAsync is dropped from the response; the added fields are payout settings, metadata and invalidFields, none of which describes asynchronous processing."
+  },
+  {
+    "id": "mined_adyen_get_account_holder_response_submitted_async",
+    "successor": null,
+    "rationale": "submittedAsync (async processing flag) has no counterpart among the candidates, which are validation errors, migration data, a freshness timestamp and new per-account settings."
+  },
+  {
+    "id": "mined_adyen_kyccheck_summary_code",
+    "successor": "kycCheckCode",
+    "rationale": "Same int32 type and same description (the check code), renamed alongside description becoming kycCheckDescription."
+  },
+  {
+    "id": "mined_adyen_kyccheck_summary_description",
+    "successor": "kycCheckDescription",
+    "rationale": "KYCCheckSummary renamed both fields in v5: code became kycCheckCode and description became kycCheckDescription with an identical description and type."
+  },
+  {
+    "id": "mined_adyen_update_account_holder_response_updated_fields",
+    "successor": null,
+    "rationale": "updatedFields (list of fields changed by the request) has no counterpart; the only addition, primaryCurrency, is an unrelated currency code."
+  },
+  {
+    "id": "mined_adyen_kycverification_result_bank_accounts",
+    "successor": null,
+    "rationale": "The bank account check results were keyed by bankAccountUUID; the new payoutMethods results are keyed by payoutMethodCode and match the removed cards results instead, and no other candidate covers bank accounts."
+  },
+  {
+    "id": "mined_adyen_kycverification_result_cards",
+    "successor": "payoutMethods",
+    "rationale": "The cards item schema had payoutMethodCode plus checks, and KYCPayoutMethodCheckResult has exactly the same two properties, so card check results became payout method check results."
+  },
+  {
+    "id": "mined_adyen_contact_personal_data",
+    "successor": null,
+    "rationale": "Contact no longer exists in the new spec; personalData held date of birth and ID style data, which none of the address line candidates carry."
+  },
+  {
+    "id": "mined_adyen_contact_address_house_number_or_name",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: Contact became DeliveryContact whose address now uses Address-2 with free-form line1/line2/line3 instead of street plus houseNumberOrName; which line carries the house number is not determined by the spec. Second reader: The Contact schema is absent from the new spec; the new Address-2 uses line1/line2/line3 instead of street plus houseNumberOrName, but nothing states which line the house number or name now goes into, so the mapping is not decisive."
+  },
+  {
+    "id": "mined_adyen_contact_address_street",
+    "successor": "address.line1",
+    "rationale": "The Contact schema became DeliveryContact (same deliveryContact refs on Card and CardInfo) and its address moved from a street/houseNumberOrName structure to line1/line2/line3, so the street now goes in the first address line."
+  },
+  {
+    "id": "mined_adyen_transaction_rule_amount",
+    "successor": "ruleRestrictions",
+    "rationale": "The v2 redesign moved rule conditions into ruleRestrictions; the old maximum amount per interval is now expressed by ruleRestrictions.totalAmount with an operation, alongside countries, mccs, entryModes and processingTypes."
+  },
+  {
+    "id": "mined_adyen_transaction_rule_balance_platform_id",
+    "successor": "entityKey",
+    "rationale": "The new required entityKey object holds entityType (with balancePlatform as a value) plus entityReference, replacing the separate balancePlatformId, paymentInstrumentId and paymentInstrumentGroupId targets."
+  },
+  {
+    "id": "mined_adyen_transaction_rule_countries",
+    "successor": "ruleRestrictions",
+    "rationale": "In v2 the rule conditions moved into ruleRestrictions (TransactionRuleRestrictions), which has a countries restriction object with value list and operation."
+  },
+  {
+    "id": "mined_adyen_transaction_rule_entry_modes",
+    "successor": "ruleRestrictions",
+    "rationale": "The new TransactionRuleRestrictions object behind ruleRestrictions has an entryModes condition, and the other flat conditions (countries, mccs, processingTypes) moved there in the same release."
+  },
+  {
+    "id": "mined_adyen_transaction_rule_max_transactions",
+    "successor": "ruleRestrictions",
+    "rationale": "The maximum transaction count per interval is now expressed by ruleRestrictions.matchingTransactions (a count plus an operation), part of the same move of conditions into ruleRestrictions."
+  },
+  {
+    "id": "mined_adyen_transaction_rule_mccs",
+    "successor": "ruleRestrictions",
+    "rationale": "The new ruleRestrictions object has an mccs entry (MccsRestriction with a value list of MCCs plus an operation), so the MCC list moved inside it."
+  },
+  {
+    "id": "mined_adyen_transaction_rule_payment_instrument_group_id",
+    "successor": "entityKey",
+    "rationale": "v2 replaces the per-resource id fields with entityKey {entityType, entityReference}, and entityType explicitly lists paymentInstrumentGroup."
+  },
+  {
+    "id": "mined_adyen_transaction_rule_payment_instrument_id",
+    "successor": "entityKey",
+    "rationale": "entityKey holds entityType (which includes paymentInstrument) plus entityReference, replacing the flat paymentInstrumentId, paymentInstrumentGroupId and balancePlatformId targets that were all removed."
+  },
+  {
+    "id": "mined_adyen_transaction_rule_processing_types",
+    "successor": "ruleRestrictions",
+    "rationale": "TransactionRuleRestrictions has a processingTypes restriction (list plus operation), so the old top-level list moved inside ruleRestrictions."
+  },
+  {
+    "id": "mined_adyen_three_ds2_card_range_detail_three_ds2_version",
+    "successor": "threeDS2Versions",
+    "rationale": "The single 3D Secure version string was replaced by an array of supported 3D Secure protocol versions in the same schema."
+  },
+  {
+    "id": "mined_adyen_payment_details_response_auth_response",
+    "successor": null,
+    "rationale": "authResponse was an authorisation code for the authentication result; the added authentication map holds threeds2 fingerprint or challengeToken inputs for further calls, a different piece of data."
+  },
+  {
+    "id": "mined_adyen_payment_method_supports_recurring",
+    "successor": null,
+    "rationale": "supportsRecurring was a tokenization support flag; the only candidate, brand, is the gift card brand and carries no such information."
+  },
+  {
+    "id": "mined_adyen_payment_details_response_action",
+    "successor": null,
+    "rationale": "action was a oneOf of CheckoutRedirectAction only; threeDS2ResponseData holds 3DS2 ACS response data and threeDSPaymentData a token string, neither carries the redirect action."
+  },
+  {
+    "id": "mined_adyen_payment_details_response_authentication",
+    "successor": null,
+    "rationale": "authentication was already deprecated in favour of action; the new threeDS2ResponseData holds ARes fields (acsTransID, transStatus, etc.) and threeDSPaymentData is a paymentData value, neither carries the fingerprint or challengeToken map."
+  },
+  {
+    "id": "mined_adyen_payment_details_response_details",
+    "successor": null,
+    "rationale": "details (list of input fields to submit) is dropped along with action and paymentData; threeDSPaymentData parallels the removed paymentData, and threeDS2ResponseData is 3DS2 response data, neither replaces the details field list."
+  },
+  {
+    "id": "mined_adyen_payment_details_response_output_details",
+    "successor": null,
+    "rationale": "outputDetails was deprecated with a pointer to action, which was removed too; the new 3DS2 response data and threeDSPaymentData fields do not carry the shopper-facing output details."
+  },
+  {
+    "id": "mined_adyen_payment_details_response_payment_data",
+    "successor": "threeDSPaymentData",
+    "rationale": "Both are strings with near-identical descriptions (a value to submit to /payments/details), the new one explicitly as paymentData; paymentData was deprecated and removed in the same release that added threeDSPaymentData."
+  },
+  {
+    "id": "mined_adyen_payment_details_response_redirect",
+    "successor": null,
+    "rationale": "redirect was deprecated in favour of action and is dropped; the 3DS2 response data object and the paymentData string are different information."
+  },
+  {
+    "id": "mined_adyen_create_payment_link_request_store_payment_method",
+    "successor": "storePaymentMethodMode",
+    "rationale": "The boolean storePaymentMethod is replaced by the enum storePaymentMethodMode (disabled, askForConsent, enabled) describing the same storing of payment details for the shopperReference."
+  },
+  {
+    "id": "mined_adyen_payment_method_details",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: details was a generic list of input details, and the new issuers list covers only the issuer select list that details used to carry for some methods, so the replacement is partial and not decisive. Second reader: details was a generic InputDetail array; the new issuers array (id, name, disabled) covers only the issuer-selection part of it, and the identical deprecated inputDetails array remains, so it is unclear whether issuers counts as its successor."
+  },
+  {
+    "id": "mined_adyen_create_payment_amount_update_request_reason",
+    "successor": "industryUsage",
+    "rationale": "Identical description of the reason for the amount update with the same enum values plus one added value (installment)."
+  },
+  {
+    "id": "mined_adyen_payout_account_holder_response_submitted_async",
+    "successor": null,
+    "rationale": "submittedAsync is a processing-mode flag; invalidFields (validation errors) and payoutSpeed (payout speed) are unrelated additions."
+  },
+  {
+    "id": "mined_amazonaws_dns_service_discovery_service_name",
+    "successor": "hostname",
+    "rationale": "DnsServiceDiscovery's only field serviceName became hostname, both describing the DNS name used for the virtual node's service discovery."
+  },
+  {
+    "id": "mined_amazonaws_virtual_router_spec_service_names",
+    "successor": null,
+    "rationale": "serviceNames associated mesh service names with the router, while listeners describe port mappings for inbound traffic; service names moved to separate virtual service resources, not into listeners."
+  },
+  {
+    "id": "mined_amazonaws_create_virtual_router_request_body_spec_service_names",
+    "successor": null,
+    "rationale": "serviceNames associated mesh service names, while listeners describe port mappings for inbound traffic; the service association moved to virtual services, not to listeners or tags."
+  },
+  {
+    "id": "mined_amazonaws_update_virtual_router_request_body_spec_service_names",
+    "successor": null,
+    "rationale": "The virtual router spec dropped its service name list; listeners describes port mappings for inbound traffic, a different concept."
+  },
+  {
+    "id": "mined_amazonaws_domain_status_num_searchable_docs",
+    "successor": null,
+    "rationale": "The document count is not carried over; ARN is an identifier and Limits holds replication and partition maximums."
+  },
+  {
+    "id": "mined_amazonaws_index_field_uint_options",
+    "successor": "IntOptions",
+    "rationale": "The uint field type was replaced by int in the IndexFieldType enum, and IntOptions has the same role of per-type options with DefaultValue, now a 64-bit signed integer."
+  },
+  {
+    "id": "mined_amazonaws_index_field_source_attributes",
+    "successor": null,
+    "rationale": "The source mapping and transformation functions were dropped; source selection is now a SourceField inside each type-specific options object, including pre-existing TextOptions and LiteralOptions, so no single candidate replaced it."
+  },
+  {
+    "id": "mined_amazonaws_literal_options_result_enabled",
+    "successor": "ReturnEnabled",
+    "rationale": "LiteralOptions keeps Search and Facet flags; ResultEnabled (returnable in search results) maps to ReturnEnabled with the same meaning, while SortEnabled and SourceField are new capabilities."
+  },
+  {
+    "id": "mined_amazonaws_text_options_facet_enabled",
+    "successor": null,
+    "rationale": "The 2013 TextOptions has no facet setting at all; the added flags cover return, sort and highlight, and ReturnEnabled corresponds to the removed ResultEnabled, not FacetEnabled."
+  },
+  {
+    "id": "mined_amazonaws_text_options_result_enabled",
+    "successor": "ReturnEnabled",
+    "rationale": "ResultEnabled (values can be returned in search results) was renamed ReturnEnabled with the same boolean meaning, while the other candidates cover sorting, highlighting and analysis."
+  },
+  {
+    "id": "mined_amazonaws_text_options_text_processor",
+    "successor": "AnalysisScheme",
+    "rationale": "The old field named the text processor to apply (cs_text_no_stemming to disable stemming); in the 2013 API text analysis such as stemming is configured by naming an analysis scheme for the text field."
+  },
+  {
+    "id": "mined_amazonaws_batch_write_item_output_responses",
+    "successor": "ConsumedCapacity",
+    "rationale": "Responses was a map of table name to consumed capacity units; ConsumedCapacity carries the same per-table capacity as an array of TableName and CapacityUnits entries."
+  },
+  {
+    "id": "mined_amazonaws_delete_item_output_consumed_capacity_units",
+    "successor": "ConsumedCapacity",
+    "rationale": "The scalar ConsumedCapacityUnits is replaced by the ConsumedCapacity object, which contains CapacityUnits plus per-table and per-index breakdowns."
+  },
+  {
+    "id": "mined_amazonaws_get_item_output_consumed_capacity_units",
+    "successor": "ConsumedCapacity",
+    "rationale": "The scalar capacity units figure is now reported inside the ConsumedCapacity object, which carries the total capacity units consumed plus per-table and per-index detail."
+  },
+  {
+    "id": "mined_amazonaws_key_schema_element_attribute_type",
+    "successor": null,
+    "rationale": "AttributeType (String or Number) moved to table-level AttributeDefinitions; KeyType is the HASH or RANGE role, which was previously implied by the key element position."
+  },
+  {
+    "id": "mined_amazonaws_query_input_count",
+    "successor": "Select",
+    "rationale": "The Count boolean was replaced by the Select enum, whose COUNT value requests the number of matching items instead of the items."
+  },
+  {
+    "id": "mined_amazonaws_query_input_hash_key_value",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: HashKeyValue is superseded by key conditions, but the new spec offers both the legacy KeyConditions map and KeyConditionExpression with ExpressionAttributeValues, so more than one candidate carries the hash key value. Second reader: In the 2012-08-10 API the separate HashKeyValue and RangeKeyCondition parameters were merged into the KeyConditions map of key attribute conditions; the hash key value is now its EQ condition (KeyConditionExpression is a later expression-based alternative)."
+  },
+  {
+    "id": "mined_amazonaws_query_input_range_key_condition",
+    "successor": "KeyConditions",
+    "rationale": "The 2012 API replaced HashKeyValue and RangeKeyCondition with the KeyConditions map of attribute conditions, which holds the range key condition."
+  },
+  {
+    "id": "mined_amazonaws_query_output_consumed_capacity_units",
+    "successor": "ConsumedCapacity",
+    "rationale": "The consumed capacity unit count is now reported inside the ConsumedCapacity object (its CapacityUnits member), with extra per-index detail."
+  },
+  {
+    "id": "mined_amazonaws_scan_input_count",
+    "successor": "Select",
+    "rationale": "The Count boolean was replaced by the Select enum, whose COUNT value requests the item count instead of the items."
+  },
+  {
+    "id": "mined_amazonaws_function_configuration_function_arn",
+    "successor": "FunctionArn",
+    "rationale": "Pure casing rename of the function ARN field with matching description."
+  },
+  {
+    "id": "mined_amazonaws_function_configuration_configuration_id",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: ConfigurationId identified the code plus configuration; CodeSha256, Version and RevisionId each overlap partly but none is clearly the same identifier. Second reader: ConfigurationId identified the current code and configuration; no candidate is clearly the same, though RevisionId (latest revision of the function) is conceptually close while CodeSha256 and Version cover only parts."
+  },
+  {
+    "id": "mined_amazonaws_function_configuration_mode",
+    "successor": null,
+    "rationale": "Mode was the upload type of the function (event); none of the added fields (ARN, versions, VPC, state, package type etc.) carries that value."
+  },
+  {
+    "id": "mined_amazonaws_dbinstance_option_group_membership",
+    "successor": "OptionGroupMemberships",
+    "rationale": "The single OptionGroupMembership object became the OptionGroupMemberships array in the same DBInstance schema, a pluralisation of the same data."
+  },
+  {
+    "id": "mined_googleapis_service_perimeter_config_egress_policies",
+    "successor": null,
+    "rationale": "v1beta has no egress policy concept; unrestrictedServices is an unrelated deprecated service wildcard list."
+  },
+  {
+    "id": "mined_googleapis_service_perimeter_config_ingress_policies",
+    "successor": null,
+    "rationale": "ingressPolicies are access rules for the perimeter; unrestrictedServices is a deprecated wildcard list of unrestricted services, unrelated."
+  },
+  {
+    "id": "mined_googleapis_creative_disapproval_reasons",
+    "successor": "servingRestrictions",
+    "rationale": "Each servingRestrictions entry has a disapprovalReasons array with the same item shape (reason, details), so the reasons moved into per-context restriction entries."
+  },
+  {
+    "id": "mined_googleapis_creative_status",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The single serving status was split into openAuctionStatus and dealsStatus (plus granular servingRestrictions), so no single candidate is clearly its successor. Second reader: Single serving status was split into dealsStatus and openAuctionStatus (plus servingRestrictions); no single candidate is clearly its successor."
+  },
+  {
+    "id": "mined_googleapis_account_creation_time",
+    "successor": "createTime",
+    "rationale": "creation_time (int64 timestamp) is re-encoded as createTime, a google-datetime described as the creation time of the account."
+  },
+  {
+    "id": "mined_googleapis_account_id",
+    "successor": null,
+    "rationale": "The account ID now lives in the resource name, which already existed as a field (it was the display name in v1.4); none of the candidates carries the ID."
+  },
+  {
+    "id": "mined_googleapis_account_kind",
+    "successor": null,
+    "rationale": "The kind discriminator was dropped in the v2 API; the added fields carry other data."
+  },
+  {
+    "id": "mined_googleapis_account_sub_accounts",
+    "successor": null,
+    "rationale": "subAccounts is not represented by any candidate; the v2 Account only has display, state, time and task fields."
+  },
+  {
+    "id": "mined_googleapis_account_timezone",
+    "successor": "timeZone",
+    "rationale": "The string timezone became the TimeZone object timeZone, whose id holds the IANA zone of the account."
+  },
+  {
+    "id": "mined_googleapis_accounts_etag",
+    "successor": null,
+    "rationale": "etag was a response caching tag; the accounts candidate is the renamed items list, not the etag."
+  },
+  {
+    "id": "mined_googleapis_accounts_items",
+    "successor": "accounts",
+    "rationale": "Same description (the accounts returned in this list response), array of Account, renamed from items."
+  },
+  {
+    "id": "mined_googleapis_accounts_kind",
+    "successor": null,
+    "rationale": "kind is a type marker dropped in v2; the list moved from items to accounts, which is not the kind information."
+  },
+  {
+    "id": "mined_googleapis_ad_client_arc_opt_in",
+    "successor": null,
+    "rationale": "ARC opt-in status has no successor; the added fields are resource name, reporting id and a readiness state."
+  },
+  {
+    "id": "mined_googleapis_ad_client_id",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The ad client ID is now carried both by the new resource name and by reportingDimensionId, so which candidate is its successor is ambiguous. Second reader: The old ad client id is now reflected both in the resource name (accounts/{account}/adclients/{adclient}) and in reportingDimensionId (unique ID of the ad client for reporting); two candidates plausibly carry it."
+  },
+  {
+    "id": "mined_googleapis_ad_client_kind",
+    "successor": null,
+    "rationale": "The kind discriminator was dropped in the v2 API; name, reportingDimensionId and state carry other data."
+  },
+  {
+    "id": "mined_googleapis_ad_client_supports_reporting",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: No candidate carries the boolean directly; v2 only implies reporting support by the presence of reportingDimensionId and productCode, which is an indirect encoding. Second reader: reportingDimensionId is 'present only if the ad client supports reporting', so support is only implied by its presence; not clearly the same information as the boolean."
+  },
+  {
+    "id": "mined_googleapis_ad_clients_etag",
+    "successor": null,
+    "rationale": "The response etag is dropped; adClients is the renamed items list, not the etag."
+  },
+  {
+    "id": "mined_googleapis_ad_clients_items",
+    "successor": "adClients",
+    "rationale": "Same list of AdClient objects with an identical description, renamed from items to adClients in v2."
+  },
+  {
+    "id": "mined_googleapis_ad_clients_kind",
+    "successor": null,
+    "rationale": "The kind discriminator was dropped; adClients replaced the items list, not kind."
+  },
+  {
+    "id": "mined_googleapis_ad_unit_code",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The short ad unit code has no candidate; displayName replaces the old name, reportingDimensionId replaces the unique id style value and the code now only appears inside the kept resource name. Second reader: The ad unit code is the short identifier now embedded in the resource name (an existing field) and possibly in reportingDimensionId; evidence is not decisive."
+  },
+  {
+    "id": "mined_googleapis_ad_unit_content_ads_settings_backup_option",
+    "successor": null,
+    "rationale": "contentAdsSettings is kept but its backupOption is dropped; the added fields are displayName, reportingDimensionId and state, unrelated to backup ads."
+  },
+  {
+    "id": "mined_googleapis_ad_unit_custom_style",
+    "successor": null,
+    "rationale": "customStyle held ad styling; the candidates are display name, reporting ID and state, and v2 has no style information."
+  },
+  {
+    "id": "mined_googleapis_ad_unit_feed_ads_settings",
+    "successor": null,
+    "rationale": "Deprecated feed ads settings were dropped; displayName, reportingDimensionId and state are unrelated."
+  },
+  {
+    "id": "mined_googleapis_ad_unit_id",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The opaque unique id could have become reportingDimensionId or be carried by the kept, repurposed name field; the spec gives no example values to decide. Second reader: The opaque unique id could correspond to reportingDimensionId or to the resource name (an existing field that changed meaning); not decisive."
+  },
+  {
+    "id": "mined_googleapis_ad_unit_kind",
+    "successor": null,
+    "rationale": "The kind discriminator was dropped in v2; no candidate carries a resource kind string."
+  },
+  {
+    "id": "mined_googleapis_ad_unit_mobile_content_ads_settings",
+    "successor": null,
+    "rationale": "mobileContentAdsSettings was deprecated WAP ad settings and was dropped in v2; none of the candidates relates to it."
+  },
+  {
+    "id": "mined_googleapis_ad_unit_saved_style_id",
+    "successor": null,
+    "rationale": "The saved style reference was dropped in v2; none of the added fields refers to styles."
+  },
+  {
+    "id": "mined_googleapis_ad_unit_status",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: state replaces status in the same slot but the enums differ in meaning (activity based NEW/ACTIVE/INACTIVE versus lifecycle ACTIVE/ARCHIVED), so it is not clearly the same information. Second reader: Old status was activity based (NEW, ACTIVE, INACTIVE), new state is ACTIVE/ARCHIVED; same slot but different semantics, not decisive."
+  },
+  {
+    "id": "mined_googleapis_adsense_reports_generate_response_headers_currency",
+    "successor": "headers.*.currencyCode",
+    "rationale": "Same position in the header object, same condition (only for METRIC_CURRENCY), now named currencyCode and described as an ISO-4217 code."
+  },
+  {
+    "id": "mined_googleapis_adsense_reports_generate_response_kind",
+    "successor": null,
+    "rationale": "kind was a constant resource type marker dropped in v2; a header currency code is unrelated."
+  },
+  {
+    "id": "mined_googleapis_alert_id",
+    "successor": "name",
+    "rationale": "The old opaque alert id is replaced by the resource name accounts/{account}/alerts/{alert}, which is now the alert's identifier; the old schema had no name field."
+  },
+  {
+    "id": "mined_googleapis_alert_is_dismissible",
+    "successor": null,
+    "rationale": "isDismissible has no counterpart; the only candidate name is the alert resource name."
+  },
+  {
+    "id": "mined_googleapis_alert_kind",
+    "successor": null,
+    "rationale": "The kind discriminator was dropped in v2; name is a resource path, not a kind string."
+  },
+  {
+    "id": "mined_googleapis_alerts_items",
+    "successor": "alerts",
+    "rationale": "Same list of Alert objects with an identical description, renamed from items to alerts."
+  },
+  {
+    "id": "mined_googleapis_alerts_kind",
+    "successor": null,
+    "rationale": "The kind discriminator was dropped; alerts replaced the items list, not kind."
+  },
+  {
+    "id": "mined_googleapis_custom_channel_code",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The short custom channel code has no candidate counterpart; displayName replaces the old name, reportingDimensionId the unique id style value and active is new. Second reader: The channel code is the short identifier embedded in the resource name (existing field) and possibly reportingDimensionId; not decisive."
+  },
+  {
+    "id": "mined_googleapis_custom_channel_id",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The v1.4 opaque id could correspond either to reportingDimensionId (unique id used in the CUSTOM_CHANNEL_ID dimension) or to the resource name, which is an existing field; the spec does not settle it. Second reader: The opaque v1.4 id could correspond to reportingDimensionId (unique ID used in the CUSTOM_CHANNEL_ID dimension) or to the ID segment embedded in the existing name field; the spec does not settle which."
+  },
+  {
+    "id": "mined_googleapis_custom_channel_kind",
+    "successor": null,
+    "rationale": "kind was a constant resource type marker dropped in v2; active, displayName and reportingDimensionId are unrelated."
+  },
+  {
+    "id": "mined_googleapis_custom_channel_targeting_info",
+    "successor": null,
+    "rationale": "targetingInfo held targeting details (location, site language etc.); active, displayName and reportingDimensionId are different information."
+  },
+  {
+    "id": "mined_googleapis_payment_id",
+    "successor": "name",
+    "rationale": "Payment lost its id and gained a resource name whose last segment identifies the payment (unpaid or a payment date); amount and date replace the other removed fields."
+  },
+  {
+    "id": "mined_googleapis_payment_kind",
+    "successor": null,
+    "rationale": "The kind discriminator was dropped; amount, date and name correspond to paymentAmount, paymentDate and id."
+  },
+  {
+    "id": "mined_googleapis_payment_payment_amount",
+    "successor": "amount",
+    "rationale": "The payment amount is now a formatted string in amount that also includes the currency, merging paymentAmount with paymentAmountCurrencyCode."
+  },
+  {
+    "id": "mined_googleapis_payment_payment_amount_currency_code",
+    "successor": "amount",
+    "rationale": "paymentAmount and its currency code were merged into amount, a formatted string that includes the currency."
+  },
+  {
+    "id": "mined_googleapis_payment_payment_date",
+    "successor": "date",
+    "rationale": "paymentDate (credit date string) became the date field, now a Date object for the date the payment was credited."
+  },
+  {
+    "id": "mined_googleapis_payments_items",
+    "successor": "payments",
+    "rationale": "The list response's items array of Payment objects became payments, described as the payments returned in this list response."
+  },
+  {
+    "id": "mined_googleapis_payments_kind",
+    "successor": null,
+    "rationale": "kind was a constant list type marker; payments is the renamed items list."
+  },
+  {
+    "id": "mined_googleapis_saved_report_id",
+    "successor": null,
+    "rationale": "The old id became part of the resource name in the pre-existing name field, while title took over the old display name; title is not the id."
+  },
+  {
+    "id": "mined_googleapis_saved_report_kind",
+    "successor": null,
+    "rationale": "kind is a type marker dropped in v2; title is the report title, unrelated."
+  },
+  {
+    "id": "mined_googleapis_saved_reports_etag",
+    "successor": null,
+    "rationale": "The response etag is dropped; savedReports is the renamed items list, not the etag."
+  },
+  {
+    "id": "mined_googleapis_saved_reports_items",
+    "successor": "savedReports",
+    "rationale": "Same list of SavedReport objects, renamed from items to savedReports with matching descriptions."
+  },
+  {
+    "id": "mined_googleapis_saved_reports_kind",
+    "successor": null,
+    "rationale": "The kind discriminator was dropped; savedReports replaced the items list, not kind."
+  },
+  {
+    "id": "mined_googleapis_url_channel_id",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The opaque unique id could map to the resource name or to reportingDimensionId; both are plausible and the spec does not disambiguate. Second reader: The opaque id could have become either the resource name or reportingDimensionId; both are candidates and the evidence does not decide."
+  },
+  {
+    "id": "mined_googleapis_url_channel_kind",
+    "successor": null,
+    "rationale": "The kind discriminator was dropped; the candidates are the resource name, reporting id and uriPattern (renamed urlPattern)."
+  },
+  {
+    "id": "mined_googleapis_url_channel_url_pattern",
+    "successor": "uriPattern",
+    "rationale": "Same URL channel pattern with identical description and example, renamed urlPattern to uriPattern."
+  },
+  {
+    "id": "mined_googleapis_subscription_purchase_initiation_timestamp_msec",
+    "successor": "startTimeMillis",
+    "rationale": "Identical description (time the subscription was granted, ms since Epoch) and int64 string type; validUntil similarly became expiryTimeMillis."
+  },
+  {
+    "id": "mined_googleapis_subscription_purchase_valid_until_timestamp_msec",
+    "successor": "expiryTimeMillis",
+    "rationale": "expiryTimeMillis has the exact same description (expiry time in milliseconds since the Epoch) and type, a rename in v2."
+  },
+  {
+    "id": "mined_googleapis_track_user_fraction",
+    "successor": "releases",
+    "rationale": "v3 moved staged rollout into releases, whose TrackRelease items carry userFraction as the fraction of users eligible for the staged release."
+  },
+  {
+    "id": "mined_googleapis_track_version_codes",
+    "successor": "releases",
+    "rationale": "In androidpublisher v3 versionCodes (and userFraction) moved into each TrackRelease in the releases array."
+  },
+  {
+    "id": "mined_googleapis_ssl_settings_pending_managed_certificate_id",
+    "successor": null,
+    "rationale": "pendingManagedCertificateId is the ID of a certificate being provisioned; isManagedCertificate is a boolean about the mapped certificate, different information."
+  },
+  {
+    "id": "mined_googleapis_ssl_settings_ssl_management_type",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: sslManagementType (settable AUTOMATIC/MANUAL) splits in v1alpha into the output-only isManagedCertificate boolean and a no_managed_certificate request option, so the mapping is only partial. Second reader: sslManagementType AUTOMATIC means a managed certificate is provisioned; isManagedCertificate encodes that same managed-vs-manual choice as a boolean."
+  },
+  {
+    "id": "mined_googleapis_ssl_settings_is_managed_certificate",
+    "successor": "sslManagementType",
+    "rationale": "The managed-versus-manual certificate flag is re-encoded as the enum sslManagementType (AUTOMATIC means a managed certificate), and certificateId's text replaces no_managed_certificate with SslManagementType.MANUAL."
+  },
+  {
+    "id": "mined_stripe_post_accounts_request_body_documents_proof_of_registration",
+    "successor": null,
+    "rationale": "proof_of_registration was a document upload (files and signer); the candidates are company address objects, and the document type was simply removed."
+  },
+  {
+    "id": "mined_stripe_post_checkout_sessions_request_body_line_items_dynamic_tax_rates",
+    "successor": null,
+    "rationale": "dynamic_tax_rates was removed from line items; the candidates are setup_future_usage options for unrelated payment methods."
+  },
+  {
+    "id": "mined_plaid_user_products_terminate_request_products",
+    "successor": null,
+    "rationale": "The optional product list was dropped; reason_code and reason_note describe why products are terminated, not which ones."
+  },
+  {
+    "id": "mined_plaid_last_data_access_times_contact_details",
+    "successor": "contact_info",
+    "rationale": "Schema renamed to ApplicationLastDataAccessTimes with the timestamps renamed to the data scope names; contact_info has the identical last-accessed description and credit_and_loans likewise became credit_loan_info."
+  },
+  {
+    "id": "mined_plaid_last_data_access_times_credit_and_loans",
+    "successor": "credit_loan_info",
+    "rationale": "The schema was renamed ApplicationLastDataAccessTimes and its per-scope timestamps were renamed to the data scope names, with credit_and_loans becoming credit_loan_info (same type, format and description pattern)."
+  },
+  {
+    "id": "mined_plaid_last_data_access_times_payroll_info",
+    "successor": null,
+    "rationale": "payroll_info and transaction_risk_info were dropped from the access-times schema; contact_info and credit_loan_info are renames of contact_details and credit_and_loans, other data types."
+  },
+  {
+    "id": "mined_plaid_last_data_access_times_transaction_risk_info",
+    "successor": null,
+    "rationale": "The schema was renamed to ApplicationLastDataAccessTimes and transaction_risk_info and payroll_info were dropped; contact_info and credit_loan_info are renames of contact_details and credit_and_loans."
+  },
+  {
+    "id": "mined_plaid_protect_event_protect_session_id",
+    "successor": "device_session_id",
+    "rationale": "Protect Session ID was renamed Device Session ID consistently across Protect schemas in this release, with otherwise identical descriptions."
+  },
+  {
+    "id": "mined_plaid_protect_model_inputs_sdk",
+    "successor": "device",
+    "rationale": "ProtectSDKModelInputs (sdk_session_id) became ProtectDeviceModelInputs (device_session_id, a session started via the Protect SDK), so sdk was renamed device."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_type",
+    "successor": null,
+    "rationale": "The endpoint response changed from a full conversation to a participants list; customers is the participant roster and does not carry the conversation type."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_id",
+    "successor": null,
+    "rationale": "The response changed from a full conversation to a participants list; the conversation id is not carried by customers."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_title",
+    "successor": null,
+    "rationale": "The operation's response changed from the full conversation object to a participants response; the conversation title is no longer returned and customers is the participant list."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_created_at",
+    "successor": null,
+    "rationale": "The response changed from a full conversation to a participants response; created_at is not carried by the customers list."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_updated_at",
+    "successor": null,
+    "rationale": "The response no longer returns the conversation object; customers lists participants and has no update timestamp."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_waiting_since",
+    "successor": null,
+    "rationale": "The response changed from a full conversation to a participants list; waiting_since has no counterpart."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_snoozed_until",
+    "successor": null,
+    "rationale": "The response is now a participants response rather than a conversation, so snoozed_until is simply no longer returned; customers is unrelated."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_open",
+    "successor": null,
+    "rationale": "The response changed from a full conversation to a participants response; the open flag is not carried by the customers list."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_state",
+    "successor": null,
+    "rationale": "The response no longer returns the conversation object; customers lists participants and does not hold conversation state."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_read",
+    "successor": null,
+    "rationale": "The response changed from a full conversation to a participants list; the read flag has no counterpart."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_priority",
+    "successor": null,
+    "rationale": "The response is now a participants response rather than a conversation, so priority is no longer returned; customers is unrelated."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_admin_assignee_id",
+    "successor": null,
+    "rationale": "The response changed from a full conversation to a participants response; the admin assignee is not part of the customers list."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_team_assignee_id",
+    "successor": null,
+    "rationale": "The response no longer returns the conversation object; the team assignee is not part of the customers participant list."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_company",
+    "successor": null,
+    "rationale": "The response changed from a full conversation to a participants list; the company object has no counterpart."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_tags",
+    "successor": null,
+    "rationale": "The response is now a participants response rather than a conversation, so tags are no longer returned; customers is unrelated."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_conversation_rating",
+    "successor": null,
+    "rationale": "The response changed from a full conversation to a participants response; the conversation rating is not in the customers list."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_source",
+    "successor": null,
+    "rationale": "The response no longer returns the conversation object; the conversation source is not part of the customers list."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_contacts",
+    "successor": "customers",
+    "rationale": "The conversation contacts list (users or leads with ids) is what the new customers array returns, each entry a user or lead type with its id, matching the unchanged response example."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_teammates",
+    "successor": null,
+    "rationale": "The response is now a participants response; teammates (admins who wrote parts) are not the customers list, which holds contact participants."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_custom_attributes",
+    "successor": null,
+    "rationale": "The response changed from a full conversation to a participants response; conversation custom attributes are not in the customers list."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_first_contact_reply",
+    "successor": null,
+    "rationale": "The response no longer returns the conversation object; first_contact_reply is not part of the customers list."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_sla_applied",
+    "successor": null,
+    "rationale": "The response changed from a full conversation to a participants list; sla_applied has no counterpart."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_statistics",
+    "successor": null,
+    "rationale": "The response is now a participants response rather than a conversation, so statistics are no longer returned; customers is unrelated."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_conversation_parts",
+    "successor": null,
+    "rationale": "The response changed from a full conversation to a participants response; conversation parts are not in the customers list."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_linked_objects",
+    "successor": null,
+    "rationale": "The response no longer returns the conversation object; linked conversations and tickets are not part of the customers list."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_ai_agent_participated",
+    "successor": null,
+    "rationale": "The response changed from a full conversation to a participants list; ai_agent_participated has no counterpart."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_ai_agent",
+    "successor": null,
+    "rationale": "The response is now a participants response rather than a conversation, so ai_agent data is no longer returned; customers is unrelated."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_sales_agent_participated",
+    "successor": null,
+    "rationale": "The response changed from a full conversation to a participants response; the sales agent flag is not in the customers list."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_sales_agent",
+    "successor": null,
+    "rationale": "The response no longer returns the conversation object; sales agent data is not part of the customers list."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_channel",
+    "successor": null,
+    "rationale": "The response changed from a full conversation to a participants list; channel has no counterpart."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_external_references",
+    "successor": null,
+    "rationale": "The response is now a participants response rather than a conversation, so external_references are no longer returned; customers is unrelated."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_monitor_evaluations",
+    "successor": null,
+    "rationale": "The response changed from a full conversation to a participants response; monitor evaluations are not in the customers list."
+  },
+  {
+    "id": "mined_intercom_attach_contact_to_conversation_200_response_scorecards",
+    "successor": null,
+    "rationale": "The response no longer returns the conversation object; QA scorecards are not part of the customers list."
+  },
+  {
+    "id": "mined_twilio_create_realtime_transcription_request_body_configuration_id",
+    "successor": "TranscriptionConfigurationId",
+    "rationale": "Same description and type, the parameter was renamed with a Transcription prefix."
+  },
+  {
+    "id": "mined_twilio_insights_v1_metadata_response_cubes_measures_title",
+    "successor": "cubes.*.measures.*.displayName",
+    "rationale": "Within each measure, title was replaced by displayName at the same position, and dimensions got the identical title to displayName change."
+  },
+  {
+    "id": "mined_twilio_insights_v1_metadata_response_cubes_dimensions_title",
+    "successor": "cubes.*.dimensions.*.displayName",
+    "rationale": "Within each dimension title was replaced by displayName in the same position and type, alongside the matching change for measures."
+  },
+  {
+    "id": "mined_twilio_video_v1_room_room_transcriptions_identity",
+    "successor": null,
+    "rationale": "identity (participant identity) was dropped from transcriptions; configuration is a layout or settings object, unrelated."
+  },
+  {
+    "id": "mined_twilio_list_room_transcriptions_200_response_extensions",
+    "successor": "transcriptions",
+    "rationale": "The list response key was corrected from extensions to transcriptions, with the same item schema and the meta key changing to match."
+  },
+  {
+    "id": "mined_twilio_conversations_v2_start_conversation_participant_participant_id",
+    "successor": null,
+    "rationale": "Referencing an existing Participant by participantId is dropped; profileId points to a Profile, a different resource, and the other candidates are new roster attributes."
+  },
+  {
+    "id": "mined_twilio_conversations_v2_start_conversation_participant_address",
+    "successor": "addresses",
+    "rationale": "The single channel-specific address string became an addresses array of objects each holding channel and the same formatted address."
+  },
+  {
+    "id": "mined_twilio_conversations_v2_start_conversation_request_channel",
+    "successor": "action",
+    "rationale": "The flat request was replaced by a participant roster plus a typed action; the channel now lives in the SEND_MESSAGE action's channel field, and VOICE became the CALL action type."
+  },
+  {
+    "id": "mined_twilio_conversations_v2_start_conversation_request_from",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The sending party (start_conversation_participant) now lives in the participants roster, whose items use the same schema name; the action only selects actors from that roster. Second reader: The sender's participant data now sits in the participants roster while its role is referenced from action.payload.from; split between two candidates."
+  },
+  {
+    "id": "mined_twilio_conversations_v2_start_conversation_request_to",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The recipient is now declared as a participants entry (with addresses) and selected by action payload to, so the information is split between two candidates. Second reader: The recipient to (array of start_conversation_participant) and sender from were folded into participants, an array of the same start_conversation_participant type forming the roster the action selects from."
+  },
+  {
+    "id": "mined_twilio_conversations_v2_start_conversation_request_content",
+    "successor": "action",
+    "rationale": "Message content now goes in the SEND_MESSAGE action payload (action.payload.content, same send_content schema) rather than a top-level content field."
+  },
+  {
+    "id": "mined_twilio_conversations_v2_start_conversation_request_channel_settings",
+    "successor": "action",
+    "rationale": "The same channel_settings schema now sits in the SEND_MESSAGE action payload (action.payload.channelSettings)."
+  },
+  {
+    "id": "mined_twilio_conversations_v2_start_conversation_request_orchestrator_policy",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: Voice delivery is now expressed by a CALL action with a different handler model (AGENT_CONNECT, callSettings) rather than the STUDIO_FLOW policy, so it is a redesign rather than a clear move. Second reader: orchestratorPolicy (flow type, onSuccess/onFailure, parameters) was restructured into START_FLOW/CALL actions, but onSuccess/onFailure have no equivalent; not decisive."
+  },
+  {
+    "id": "mined_twilio_conversations_v2_start_conversation_participant_selector_ref",
+    "successor": "name",
+    "rationale": "The participant handle ref was folded into name in this release, and the selector now points at a participant by its name instead of its ref."
+  },
+  {
+    "id": "mined_twilio_iam_v1_organization_vendor_oauth_app_update_request_type",
+    "successor": null,
+    "rationale": "type was removed from the update request; image_url and image_key are new logo fields, unrelated."
+  },
+  {
+    "id": "mined_twilio_identity_match_address_line_match",
+    "successor": "address_lines_match",
+    "rationale": "Same string type at the same position in the property order; renamed to plural lines while country_code_match became address_country_match."
+  },
+  {
+    "id": "mined_twilio_identity_match_country_code_match",
+    "successor": "address_country_match",
+    "rationale": "IdentityMatch renamed its address match fields in place (address_line_match to address_lines_match), and address_country_match takes the slot of country_code_match with the same type."
+  },
+  {
+    "id": "mined_adyen_update_payment_method_info_accel_processing_type",
+    "successor": null,
+    "rationale": "accel.processingType is dropped from the accel object; the candidates are new payment methods (affirm, carnet) and a bcmc description object."
+  },
+  {
+    "id": "mined_adyen_update_payment_method_info_bcmc_enable_bcmc_mobile",
+    "successor": null,
+    "rationale": "The bcmc update schema became BcmcUpdateInfo with only transactionDescription; enableBcmcMobile is no longer updatable and no candidate carries it."
+  },
+  {
+    "id": "mined_adyen_update_payment_method_info_cartes_bancaires_siret",
+    "successor": null,
+    "rationale": "The siret field is still defined in CartesBancairesInfo; affirm, carnet and bcmc transactionDescription are other payment methods' settings."
+  },
+  {
+    "id": "mined_adyen_update_payment_method_info_nyce_processing_type",
+    "successor": null,
+    "rationale": "nyce now references NyceUpdateInfo without processingType; the candidates are unrelated payment method objects."
+  },
+  {
+    "id": "mined_adyen_update_payment_method_info_paybybank_plaid_logo",
+    "successor": null,
+    "rationale": "The paybybank_plaid logo is dropped; the candidates are unrelated new payment method objects."
+  },
+  {
+    "id": "mined_adyen_update_payment_method_info_pulse_processing_type",
+    "successor": null,
+    "rationale": "The pulse update schema became PulseUpdateInfo with only transactionDescription; processingType is no longer updatable and no candidate carries it."
+  },
+  {
+    "id": "mined_adyen_update_payment_method_info_sepadirectdebit_creditor_id",
+    "successor": null,
+    "rationale": "creditorId is still in SepaDirectDebitInfo; the candidates are settings for other payment methods."
+  },
+  {
+    "id": "mined_adyen_update_payment_method_info_star_processing_type",
+    "successor": null,
+    "rationale": "star now references StarUpdateInfo without processingType; the candidates are unrelated payment method objects."
+  },
+  {
+    "id": "mined_adyen_default_error_response_entity_detail",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The RFC 7807 schema was replaced by CheckoutErrorResponseEntity with undocumented errorType, message and pspReference; detail plausibly maps to message but title could too, so the mapping is not decisive. Second reader: The RFC-7807 DefaultErrorResponseEntity was replaced by CheckoutErrorResponseEntity (errorCode, errorType, message, pspReference, status) without descriptions; detail may map to message, but message could equally absorb title, so the mapping is not decisive."
+  },
+  {
+    "id": "mined_adyen_default_error_response_entity_instance",
+    "successor": null,
+    "rationale": "The RFC 7807 error entity was replaced by a simpler error body; the occurrence URI instance has no counterpart among errorType, message and pspReference."
+  },
+  {
+    "id": "mined_adyen_default_error_response_entity_invalid_fields",
+    "successor": null,
+    "rationale": "The error entity was replaced by a different shape without a field-level validation array; errorType, message and pspReference are not the invalid fields list."
+  },
+  {
+    "id": "mined_adyen_default_error_response_entity_request_id",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The error schema switched from RFC 7807 style to CheckoutErrorResponseEntity; pspReference may play the request reference role but has no description to confirm it. Second reader: The RFC 7807 requestId could correspond to pspReference in the new Checkout error entity, but pspReference is described as the payment reference; not decisive."
+  },
+  {
+    "id": "mined_adyen_default_error_response_entity_title",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The RFC 7807 schema was replaced by CheckoutErrorResponseEntity with undocumented errorType and message; the short problem summary could map to either, so no decisive successor. Second reader: The RFC-7807 error was replaced by CheckoutErrorResponseEntity with undescribed errorType and message; title could correspond to either or to neither, so the evidence is not decisive."
+  },
+  {
+    "id": "mined_adyen_default_error_response_entity_type",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The error body moved from RFC 7807 to a service error shape, and the problem type URI corresponds to errorType, the error category. Second reader: The problem type URI was replaced by ServiceError fields; errorType (category of the error) is related in purpose but is a category, not a documentation URI, so equivalence is not established by the specs."
+  },
+  {
+    "id": "mined_adyen_address_house_number_or_name",
+    "successor": null,
+    "rationale": "The Address and Address2 schemas swapped names; the house number now goes into the pre-existing street field, and street2 is apartment or unit, not the house number."
+  },
+  {
+    "id": "mined_adyen_address2_street2",
+    "successor": null,
+    "rationale": "street2 (apartment or unit) was dropped; houseNumberOrName is the house number that used to be part of street, a different piece of data."
+  },
+  {
+    "id": "mined_adyen_phone_number_phone_country_code",
+    "successor": "countryCode",
+    "rationale": "All three fields lost the phone prefix (phoneNumber to number, phoneType to type); countryCode keeps the ISO 3166-1 alpha-2 meaning."
+  },
+  {
+    "id": "mined_adyen_phone_number_phone_number",
+    "successor": "number",
+    "rationale": "The PhoneNumber fields were renamed phoneCountryCode to countryCode, phoneType to type and phoneNumber to number, with the same phone number meaning."
+  },
+  {
+    "id": "mined_adyen_phone_number_phone_type",
+    "successor": "type",
+    "rationale": "Same phone type information with the same values (mobile, landline, sip, fax), renamed together with phoneNumber to number and phoneCountryCode to countryCode."
+  },
+  {
+    "id": "mined_adyen_phone_number2_country_code",
+    "successor": "phoneCountryCode",
+    "rationale": "The phone country code (ISO 3166-1 alpha-2, e.g. US or NL) was renamed with a phone prefix, as number and type became phoneNumber and phoneType."
+  },
+  {
+    "id": "mined_adyen_phone_number2_number",
+    "successor": "phoneNumber",
+    "rationale": "The reverse rename in PhoneNumber2: number, countryCode and type became phoneNumber, phoneCountryCode and phoneType, with phoneNumber described as the phone number."
+  },
+  {
+    "id": "mined_adyen_phone_number2_type",
+    "successor": "phoneType",
+    "rationale": "The PhoneNumber2 fields were renamed the other way, countryCode to phoneCountryCode, number to phoneNumber and type to phoneType, with the same phone type values."
+  },
+  {
+    "id": "mined_adyen_balance_account_sweep_configurations",
+    "successor": null,
+    "rationale": "Sweep configurations were dropped from the balance account; metadata, migratedAccountCode and platformPaymentConfiguration carry different information."
+  },
+  {
+    "id": "mined_adyen_balance_account_update_request_default_currency_code",
+    "successor": null,
+    "rationale": "The default currency is not updatable anymore; metadata and platformPaymentConfiguration are unrelated."
+  },
+  {
+    "id": "mined_adyen_balance_account_update_request_sweep_configurations",
+    "successor": null,
+    "rationale": "Sweep configuration is no longer part of the balance account update body; metadata and platformPaymentConfiguration do not hold sweeps."
+  },
+  {
+    "id": "mined_adyen_migrated_accounts_virtual_account_code",
+    "successor": "accountCode",
+    "rationale": "accountCode has the identical description of the classic-integration account identifier, a straight rename of virtualAccountCode."
+  },
+  {
+    "id": "mined_datadoghq_recommendations_filter_request_filter",
+    "successor": "data",
+    "rationale": "The request became JSON:API; the filter expression is now data.id, whose description is the same filter expression text, with scope, sort and view in data.attributes."
+  },
+  {
+    "id": "mined_datadoghq_recommendations_filter_request_scope",
+    "successor": "data",
+    "rationale": "The request became a JSON:API body and scope now sits under data.attributes.scope, as the new example shows."
+  },
+  {
+    "id": "mined_datadoghq_recommendations_filter_request_sort",
+    "successor": "data",
+    "rationale": "The request was wrapped in a JSON:API data object, and RecommendationsFilterRequestDataAttributes carries sort with the same sort items schema."
+  },
+  {
+    "id": "mined_datadoghq_recommendations_filter_request_view",
+    "successor": "data",
+    "rationale": "The request moved to a JSON:API envelope and view now lives at data.attributes.view with the same description."
+  },
+  {
+    "id": "mined_sentry_organization_events_timeseries_response_meta_annotations",
+    "successor": "meta.droppedAnnotations",
+    "rationale": "Old annotations all carried a required droppedCount for data dropped in a time range; droppedAnnotations carries the same bucketed dropped volumes, while acceptedAnnotations is new accepted-volume data."
+  },
+  {
+    "id": "mined_okta_mac_osaccount_profile_account_uuid",
+    "successor": "accountUuid",
+    "rationale": "Case change of the same field, identical description."
+  },
+  {
+    "id": "mined_okta_workflows_validation_detail_provider_result",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The enum result of validation error types gave way to code, message, flowName and link; code (an opaque code like CBDE000001H) and message together express the error, so the successor is not clear-cut. Second reader: The result field (WorkflowsValidationErrorType enum of validation error types) was replaced by code, a string described as the error code identifying the validation issue, while flowName, link and message add new context."
+  },
+  {
+    "id": "mined_grafana_extra_configuration_merge_matchers",
+    "successor": null,
+    "rationale": "merge_matchers were label matchers for merging config; managed_by is a server-computed manual or auto-sync flag, unrelated."
+  },
+  {
+    "id": "mined_paypal_400_issues",
+    "successor": "details",
+    "rationale": "Same array with the identical anyOf list of issue codes and descriptions, renamed from issues to details."
+  },
+  {
+    "id": "mined_paypal_error_400_issues",
+    "successor": "details",
+    "rationale": "error_400 replaced issues with details, both arrays of the same error_details item schema."
+  },
+  {
+    "id": "mined_paypal_error_400_information_link",
+    "successor": "links",
+    "rationale": "Consistently across all error schemas, information_link became links, an array of HATEOAS link descriptions (PayPal errors carry the info link as a link with rel information_link), while issues became details."
+  },
+  {
+    "id": "mined_paypal_error_500_information_link",
+    "successor": "links",
+    "rationale": "information_link is now expressed as an entry in the links array, and the new example shows the same URL with rel information_link."
+  },
+  {
+    "id": "mined_paypal_card_request_id",
+    "successor": null,
+    "rationale": "The card id field is now excluded from card_request by a not-required constraint; single_use_token is a new one-time token, not the instrument id."
+  },
+  {
+    "id": "mined_paypal_card_request_last_digits",
+    "successor": null,
+    "rationale": "The flattened card_request no longer includes the read-only last_digits; single_use_token is a new one-time payment token."
+  },
+  {
+    "id": "mined_paypal_card_request_card_type",
+    "successor": null,
+    "rationale": "card_type is dropped from card_request; single_use_token is an unrelated one-time payment token."
+  },
+  {
+    "id": "mined_paypal_card_request_type",
+    "successor": null,
+    "rationale": "The card type was dropped from card_request; single_use_token is an unrelated one-time payment token."
+  },
+  {
+    "id": "mined_paypal_card_request_brand",
+    "successor": null,
+    "rationale": "brand is now excluded from card_request; single_use_token is unrelated to the card brand."
+  },
+  {
+    "id": "mined_paypal_line_item_category",
+    "successor": null,
+    "rationale": "line_item stopped inheriting item and dropped category; url, image_url, upc and billing_plan are new item attributes."
+  },
+  {
+    "id": "mined_paypal_paypal_wallet_vault_response_customer_phone_phone_number_country_code",
+    "successor": null,
+    "rationale": "The phone country calling code is dropped; the candidates are the customer name and merchant_customer_id."
+  },
+  {
+    "id": "mined_paypal_paypal_wallet_vault_response_customer_phone_phone_number_extension_number",
+    "successor": null,
+    "rationale": "The phone extension number has no counterpart in the new customer name or merchant_customer_id fields."
+  },
+  {
+    "id": "mined_paypal_paypal_wallet_vault_response_owner_id",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: owner_id had an empty undocumented schema, so it cannot be tied to customer.merchant_customer_id or customer.name with confidence. Second reader: owner_id pointed to an empty vault_owner_id schema and was dropped; customer.name and customer.merchant_customer_id are customer details, not a vault owner id."
+  },
+  {
+    "id": "mined_paypal_shipping_detail_name_prefix",
+    "successor": null,
+    "rationale": "The shipping name was restricted to full_name only; prefix is dropped and email_address and phone_number are unrelated."
+  },
+  {
+    "id": "mined_paypal_shipping_detail_name_given_name",
+    "successor": null,
+    "rationale": "The given name is dropped from the shipping name; email_address and phone_number are new contact data."
+  },
+  {
+    "id": "mined_paypal_shipping_detail_name_surname",
+    "successor": null,
+    "rationale": "The name surname subfield is not carried by the new email_address or phone_number fields."
+  },
+  {
+    "id": "mined_paypal_shipping_detail_name_middle_name",
+    "successor": null,
+    "rationale": "middle_name is no longer supported on the shipping name; email_address and phone_number are unrelated."
+  },
+  {
+    "id": "mined_paypal_shipping_detail_name_suffix",
+    "successor": null,
+    "rationale": "The shipping name was restricted to full_name only; suffix is dropped and email_address and phone_number are unrelated."
+  },
+  {
+    "id": "mined_paypal_shipping_detail_name_alternate_full_name",
+    "successor": null,
+    "rationale": "The deprecated alternate_full_name is dropped; email_address and phone_number are unrelated contact data."
+  },
+  {
+    "id": "mined_paypal_card_request_billing_address_address_line_1",
+    "successor": null,
+    "rationale": "billing_address is still present in the new card_request through its allOf on card (address_portable with address_line_1); the candidates are card response fields, unrelated."
+  },
+  {
+    "id": "mined_paypal_card_request_billing_address_address_line_2",
+    "successor": null,
+    "rationale": "billing_address was restructured via refs with a supported-subset constraint, and the candidates are card response fields excluded by a not constraint; none carries address line 2."
+  },
+  {
+    "id": "mined_paypal_card_request_billing_address_admin_area_2",
+    "successor": null,
+    "rationale": "card_request went back to extending card via allOf, so billing address data is still inherited; none of the id, last_digits or brand style candidates carry the city."
+  },
+  {
+    "id": "mined_paypal_card_request_billing_address_admin_area_1",
+    "successor": null,
+    "rationale": "The billing address subdivision is not represented by any candidate; the added fields are card identifiers and brand/type data."
+  },
+  {
+    "id": "mined_paypal_card_request_billing_address_postal_code",
+    "successor": null,
+    "rationale": "billing_address.postal_code is still present in the new card_request through its allOf on card; the candidates are card identity and brand fields, unrelated."
+  },
+  {
+    "id": "mined_paypal_card_request_billing_address_country_code",
+    "successor": null,
+    "rationale": "billing_address was restructured via refs; the candidates are card identity fields, none carries the country code."
+  },
+  {
+    "id": "mined_paypal_order_authorize_request_payment_source_swish",
+    "successor": null,
+    "rationale": "Swish was dropped from payment_source; the candidates are other payment methods."
+  },
+  {
+    "id": "mined_paypal_order_authorize_request_payment_source_pix",
+    "successor": null,
+    "rationale": "Pix is dropped from payment_source; the candidates are other payment methods, not a replacement for Pix."
+  },
+  {
+    "id": "mined_paypal_paypal_wallet_response_name_given_name",
+    "successor": null,
+    "rationale": "The given name of the payer is not carried by experience_status, which is a checkout lifecycle status."
+  },
+  {
+    "id": "mined_paypal_paypal_wallet_response_name_surname",
+    "successor": null,
+    "rationale": "name was restructured via a ref allowing only given_name and surname; experience_status is a checkout status, unrelated."
+  },
+  {
+    "id": "mined_paypal_paypal_wallet_response_address_address_line_1",
+    "successor": null,
+    "rationale": "Address line data has no counterpart in experience_status, which is a checkout lifecycle status."
+  },
+  {
+    "id": "mined_paypal_paypal_wallet_response_address_address_line_2",
+    "successor": null,
+    "rationale": "address_line_2 is dropped from the wallet address; experience_status is an unrelated checkout status."
+  },
+  {
+    "id": "mined_paypal_paypal_wallet_response_address_admin_area_2",
+    "successor": null,
+    "rationale": "The city subfield of the address is not carried by experience_status, which is a checkout lifecycle status."
+  },
+  {
+    "id": "mined_paypal_paypal_wallet_response_address_admin_area_1",
+    "successor": null,
+    "rationale": "address was restructured via a ref to address_portable; experience_status is unrelated."
+  },
+  {
+    "id": "mined_paypal_paypal_wallet_response_address_postal_code",
+    "successor": null,
+    "rationale": "Postal code has no counterpart in experience_status, which is a checkout lifecycle status."
+  },
+  {
+    "id": "mined_paypal_paypal_wallet_response_address_country_code",
+    "successor": null,
+    "rationale": "The address country code is dropped from the wallet address; experience_status is an unrelated checkout status."
+  },
+  {
+    "id": "mined_paypal_venmo_wallet_response_name_given_name",
+    "successor": null,
+    "rationale": "The given name is not carried by return_flow, which is a merchant navigation preference."
+  },
+  {
+    "id": "mined_paypal_venmo_wallet_response_name_surname",
+    "successor": null,
+    "rationale": "name was restructured via a ref; return_flow is a navigation preference, unrelated."
+  },
+  {
+    "id": "mined_paypal_venmo_wallet_response_address_address_line_1",
+    "successor": null,
+    "rationale": "Address line data has no counterpart in return_flow, a merchant navigation preference."
+  },
+  {
+    "id": "mined_paypal_venmo_wallet_response_address_address_line_2",
+    "successor": null,
+    "rationale": "address_line_2 is dropped from the Venmo address; return_flow is an unrelated merchant preference."
+  },
+  {
+    "id": "mined_paypal_venmo_wallet_response_address_admin_area_2",
+    "successor": null,
+    "rationale": "The city subfield of the address is not carried by return_flow, which is a merchant navigation preference."
+  },
+  {
+    "id": "mined_paypal_venmo_wallet_response_address_admin_area_1",
+    "successor": null,
+    "rationale": "address was restructured via a ref; return_flow is unrelated."
+  },
+  {
+    "id": "mined_paypal_venmo_wallet_response_address_postal_code",
+    "successor": null,
+    "rationale": "Postal code has no counterpart in return_flow, a merchant navigation preference."
+  },
+  {
+    "id": "mined_paypal_venmo_wallet_response_address_country_code",
+    "successor": null,
+    "rationale": "The address country code is dropped from the Venmo address; return_flow is an unrelated merchant preference."
+  },
+  {
+    "id": "mined_paypal_card_id",
+    "successor": null,
+    "rationale": "The PayPal-generated card ID has no counterpart among type, brand and attributes."
+  },
+  {
+    "id": "mined_paypal_card_last_digits",
+    "successor": null,
+    "rationale": "last_digits is not replaced by type, brand or attributes, which describe card kind, network and usage attributes."
+  },
+  {
+    "id": "mined_paypal_card_card_type",
+    "successor": "brand",
+    "rationale": "The inlined card now has brand, which refs the same card_brand schema and has the same card network or brand meaning as card_type."
+  },
+  {
+    "id": "mined_paypal_202_response_links",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The 202 response changed from an object with a links array to a single link_description, so the link data is spread over href, rel and method rather than moved into one candidate. Second reader: The 202 response changed from an object holding a links array to a single link_description (href, rel, method) at the root; the link list's information is spread across all three candidates rather than one."
+  },
+  {
+    "id": "mined_paypal_card_response_type",
+    "successor": null,
+    "rationale": "The payment card type (credit, debit) is not carried by expiry or the new verification fields."
+  },
+  {
+    "id": "mined_paypal_card_response_authentication_result",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: two readers disagreed (verification against None). First reader: The 3D Secure authentication results moved into the new verification object, which holds three_d_secure details together with authorization details; authentication_response was removed from the spec. Second reader: In the old spec the full card response (card_response-2) already had verification alongside authentication_result, so verification is not its rename; authentication_result was simply dropped."
+  },
+  {
+    "id": "mined_paypal_payment_token_response_payment_source_card_type",
+    "successor": null,
+    "rationale": "The new card_response dropped type; apple_pay and bank are new payment sources."
+  },
+  {
+    "id": "mined_paypal_payment_token_response_payment_source_card_authentication_result",
+    "successor": null,
+    "rationale": "The card authentication_result is dropped; apple_pay and bank are new payment source types."
+  },
+  {
+    "id": "mined_paypal_setup_token_response_payment_source_card_type",
+    "successor": null,
+    "rationale": "The payment card type has no relation to ordinal, a sort number."
+  },
+  {
+    "id": "mined_paypal_setup_token_response_payment_source_card_authentication_result",
+    "successor": null,
+    "rationale": "The card 3DS result moved into the card response's verification object, not into ordinal, which is a sort number."
+  },
+  {
+    "id": "mined_paypal_payment_token_request_metadata",
+    "successor": null,
+    "rationale": "metadata was dropped from the request; the candidates are card detail fields unrelated to it."
+  },
+  {
+    "id": "mined_paypal_setup_token_request_metadata",
+    "successor": null,
+    "rationale": "metadata is dropped from the setup token request; network_transaction_reference is card network data, unrelated."
+  },
+  {
+    "id": "mined_paypal_setup_token_request_payment_source_card_id",
+    "successor": null,
+    "rationale": "The card instrument identifier is not the same as network_transaction_reference, which references a prior network transaction."
+  },
+  {
+    "id": "mined_paypal_setup_token_request_payment_source_card_last_digits",
+    "successor": null,
+    "rationale": "last_digits was dropped from the request card; network_transaction_reference is different information."
+  },
+  {
+    "id": "mined_paypal_setup_token_request_payment_source_card_card_type",
+    "successor": null,
+    "rationale": "card_type has no candidate successor; network_transaction_reference is a different concept."
+  },
+  {
+    "id": "mined_paypal_setup_token_request_payment_source_card_type",
+    "successor": null,
+    "rationale": "The card type is dropped from the setup token card; network_transaction_reference is unrelated."
+  },
+  {
+    "id": "mined_paypal_partner_referrals_create_request_body_individual_owners_phones_type",
+    "successor": null,
+    "rationale": "The phone type is not carried by any candidate; the added fields are encrypted IDs, inactive flags and document links."
+  },
+  {
+    "id": "mined_paypal_partner_referrals_create_request_body_business_entity_office_bearers_phones_type",
+    "successor": null,
+    "rationale": "The phone type field was dropped from office bearer phones; the candidates are ids, inactive flags and links."
+  },
+  {
+    "id": "mined_paypal_payout_item_recipient_type",
+    "successor": null,
+    "rationale": "The old payout_item was renamed to payout_item_request with identical fields including recipient_type; the new payout_item is the former response schema payout_item-2, so no candidate is a successor."
+  },
+  {
+    "id": "mined_paypal_payout_item_amount",
+    "successor": null,
+    "rationale": "The old request schema payout_item was renamed payout_item_request, which still has amount; the name payout_item now labels the former payout_item-2 response item, so no candidate is the successor."
+  },
+  {
+    "id": "mined_paypal_payout_item_note",
+    "successor": null,
+    "rationale": "The old request schema payout_item was renamed payout_item_request (which still has note), and the new payout_item is the former response schema whose nested payout_item already existed; note did not move into a candidate."
+  },
+  {
+    "id": "mined_paypal_payout_item_receiver",
+    "successor": null,
+    "rationale": "The old payout_item schema was renamed to payout_item_request with identical fields including receiver, and a different response schema took the payout_item name, so no candidate replaced it."
+  },
+  {
+    "id": "mined_paypal_payout_item_sender_item_id",
+    "successor": null,
+    "rationale": "The old payout_item was renamed to payout_item_request with identical fields including sender_item_id; the new payout_item is the former response schema payout_item-2."
+  },
+  {
+    "id": "mined_paypal_payout_item_recipient_wallet",
+    "successor": null,
+    "rationale": "The old request schema payout_item was renamed payout_item_request, which still has recipient_wallet; the candidates are the fields of the former response item schema that took over the name."
+  },
+  {
+    "id": "mined_paypal_payout_item_alternate_notification_method",
+    "successor": null,
+    "rationale": "alternate_notification_method stayed on the renamed request schema payout_item_request; the new payout_item is the former response schema and none of its fields carries it."
+  },
+  {
+    "id": "mined_paypal_payout_item_notification_language",
+    "successor": null,
+    "rationale": "The old payout_item schema was renamed to payout_item_request, which still has notification_language; the candidates belong to the response schema that took over the name."
+  },
+  {
+    "id": "mined_paypal_payout_item_application_context",
+    "successor": null,
+    "rationale": "The old payout_item was renamed to payout_item_request with identical fields including application_context; the candidates belong to the former response schema."
+  },
+  {
+    "id": "mined_paypal_payout_item_purpose",
+    "successor": null,
+    "rationale": "The old request schema payout_item was renamed payout_item_request, which still has purpose; the candidates are the fields of the former response item schema that took over the name."
+  },
+  {
+    "id": "mined_supabase_storage_config_response_database_pool_mode",
+    "successor": null,
+    "rationale": "databasePoolMode has no relation to the object_versioning capability flag."
+  },
+  {
+    "id": "mined_meilisearch_hybrid_query_semantic_ratio",
+    "successor": "semanticRatio",
+    "rationale": "Same float field renamed from snake_case to camelCase, with embedder unchanged."
+  },
+  {
+    "id": "mined_meilisearch_runtime_togglable_features_vector_store",
+    "successor": null,
+    "rationale": "The vectorStore experimental flag was removed (feature stabilised); network and getTaskDocumentsRoute are other feature toggles."
+  },
+  {
+    "id": "mined_langfuse_observation_v2_provided_model_name",
+    "successor": "model",
+    "rationale": "providedModelName was renamed model with the identical description of the model name as provided by the user."
+  },
+  {
+    "id": "mined_datadoghq_custom_rule_last_revision_type",
+    "successor": null,
+    "rationale": "last_revision.type was the JSON:API envelope resource type, dropped when nested rules became flat; id, revisions and version_id do not carry it."
+  },
+  {
+    "id": "mined_datadoghq_get_ast_response_data_attributes_ast",
+    "successor": "result",
+    "rationale": "The parsed abstract syntax tree changed from a free-form object to a typed AstNode root, same information under a new name."
+  },
+  {
+    "id": "mined_datadoghq_get_multiple_rulesets_response_data_attributes_rulesets_items_data",
+    "successor": "id",
+    "rationale": "The data wrapper (id and type) was flattened into a top-level id for the ruleset, which is required."
+  },
+  {
+    "id": "mined_okta_caep_device_compliance_change_event_subjects",
+    "successor": "subject",
+    "rationale": "subjects was renamed subject with the same description, the event subjects."
+  },
+  {
+    "id": "mined_okta_entity_risk_policy_rule_conditions_entity_risk",
+    "successor": "conditions.entityRisk",
+    "rationale": "Only the casing changed from EntityRisk to entityRisk, with the same description of the risk score level."
+  },
+  {
+    "id": "mined_okta_group_schema_attribute_union",
+    "successor": null,
+    "rationale": "union controlled attribute union behavior; format identifies the string data type, different information."
+  },
+  {
+    "id": "mined_okta_log_stream_schema_created",
+    "successor": null,
+    "rationale": "created was dropped along with lastUpdated and name; oneOf and pattern are JSON schema keywords."
+  },
+  {
+    "id": "mined_okta_log_stream_schema_last_updated",
+    "successor": null,
+    "rationale": "lastUpdated is dropped along with created; oneOf and pattern are JSON schema keywords, unrelated to timestamps."
+  },
+  {
+    "id": "mined_okta_log_stream_schema_name",
+    "successor": null,
+    "rationale": "name has no counterpart among oneOf and pattern, which are property-level schema keywords."
+  },
+  {
+    "id": "mined_okta_org_contact_user_links_self",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The generic self link was replaced by a user link; it is unclear whether the old self link actually pointed at the user or at the contact resource. Second reader: The generic self link was replaced by a user link. The descriptions differ (self resource versus user resource), but this looks like a correction of a copied LinksSelf schema, so it is unclear if it is the same link."
+  },
+  {
+    "id": "mined_okta_org_okta_communication_setting_links_self",
+    "successor": null,
+    "rationale": "The self link was dropped; optIn and optOut are different links."
+  },
+  {
+    "id": "mined_okta_org_okta_support_settings_obj_links_self",
+    "successor": null,
+    "rationale": "The self link is dropped; extend, revoke and grant are action links to other operations, not the resource self link."
+  },
+  {
+    "id": "mined_okta_org_preferences_links_self",
+    "successor": null,
+    "rationale": "The self link was dropped; the new hide and show footer links are action links, not the resource self link."
+  },
+  {
+    "id": "mined_okta_org_setting_links_self",
+    "successor": null,
+    "rationale": "The self link was dropped and several new links to other org resources were added; none of them links to the org setting itself."
+  },
+  {
+    "id": "mined_okta_privileged_resource_credential_changed",
+    "successor": "credentialSyncInfo",
+    "rationale": "credentialSyncInfo contains syncTime described as the timestamp when the credential was changed, alongside syncState which replaces credentialSyncState."
+  },
+  {
+    "id": "mined_okta_privileged_resource_credential_sync_state",
+    "successor": "credentialSyncInfo",
+    "rationale": "The flat credentialSyncState was folded into the credentialSyncInfo object, whose syncState uses the same CredentialSyncState enum."
+  },
+  {
+    "id": "mined_okta_resource_set_resource_description",
+    "successor": null,
+    "rationale": "The Resource Set description has no counterpart; orn is a resource name and the new links point to self, groups and users."
+  },
+  {
+    "id": "mined_okta_user_schema_attribute_items",
+    "successor": null,
+    "rationale": "items described array element types; format describes a string format, different information."
+  },
+  {
+    "id": "mined_okta_create_identity_provider_key_request_body_n",
+    "successor": null,
+    "rationale": "The request body changed from a JSON web key to a certificate credential; x5c is a certificate chain, not the RSA modulus."
+  },
+  {
+    "id": "mined_okta_replace_user_request_body_type",
+    "successor": null,
+    "rationale": "The user type is dropped from the replaceUser body; realmId is a different attribute, the realm of the user."
+  },
+  {
+    "id": "mined_okta_expire_password_and_get_temporary_password_200_response_temp_password",
+    "successor": null,
+    "rationale": "The response schema changed from TempPassword to User, which has no temporary password field (the example still shows tempPassword), so no candidate carries it."
+  },
+  {
+    "id": "mined_okta_inline_hook_metadata",
+    "successor": null,
+    "rationale": "metadata held hook-specific properties such as rate limit opt-out; the candidates are lifecycle links."
+  },
+  {
+    "id": "mined_okta_create_inline_hook_200_response_metadata",
+    "successor": null,
+    "rationale": "metadata configuration has no counterpart; the candidates are new deactivate and execute links."
+  },
+  {
+    "id": "mined_okta_oinsaml20_application_settings_sign_on_configured_attribute_statements",
+    "successor": "attributeStatements",
+    "rationale": "configuredAttributeStatements became attributeStatements with the same SamlAttributeStatement item type."
+  },
+  {
+    "id": "mined_okta_security_event_subject_device",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The subject changed from separate device, tenant and user objects to a single iss_sub identifier, and whether a device subject maps to sub is not clear from the spec. Second reader: The subject changed from a device/tenant/user map to a single iss_sub identifier (format, iss, sub); sub could identify a device but nothing maps the device subject decisively to one candidate."
+  },
+  {
+    "id": "mined_okta_security_event_subject_tenant",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The subject changed from device, tenant and user objects to a single iss_sub identifier; iss might identify the tenant but the evidence is not decisive. Second reader: The subject changed from device, tenant and user objects to a single iss_sub identifier (format, iss, sub). Whether the tenant maps to iss is not established by the spec."
+  },
+  {
+    "id": "mined_okta_security_event_subject_user",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The typed user, device and tenant subjects were replaced by a single iss and sub subject, and sub may identify the user, but the mapping is not explicit. Second reader: The subject changed from user/device/tenant objects to a flat iss_sub subject; sub may identify a user or device, so not decisive."
+  },
+  {
+    "id": "mined_okta_web_authn_cred_response_cred_response_jwe",
+    "successor": "credResponseJwe",
+    "rationale": "Casing rename with identical description of the encrypted JWE credential response."
+  },
+  {
+    "id": "mined_okta_email_test_addresses_from",
+    "successor": "fromAddress",
+    "rationale": "Identical description and example, renamed from to fromAddress alongside to becoming toAddress."
+  },
+  {
+    "id": "mined_okta_email_test_addresses_to",
+    "successor": "toAddress",
+    "rationale": "Identical description (address that receives test emails), renamed together with from becoming fromAddress."
+  },
+  {
+    "id": "mined_okta_security_event_subject_format",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: format now appears inside both the user and device subject objects (per their examples), so it is split across two candidates. Second reader: format now appears nested inside both user and device objects (and in a separate SsfTransmitterSecurityEventSubject schema); no single candidate."
+  },
+  {
+    "id": "mined_okta_security_event_subject_iss",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The iss_sub style subject was restructured into device and user subject identifier objects with their own format; iss could live inside either depending on format, so no single candidate is decisive. Second reader: iss identified the actor (transmitter); the new device and user objects describe the subjects involved in the event, and neither example contains an issuer."
+  },
+  {
+    "id": "mined_okta_security_event_subject_sub",
+    "successor": {
+      "unsure": true
+    },
+    "rationale": "Left out: a reader could not settle it. First reader: The iss_sub subject was split off into SsfTransmitterSecurityEventSubject, which still has sub, and SecurityEventSubject went back to device and user objects, so sub did not become a candidate. Second reader: The single sub identifier was replaced by device and user subject objects; which of them carries the old sub depends on the subject kind, so no single successor is decisive."
+  },
+  {
+    "id": "mined_okta_available_action_provider_url",
+    "successor": "link",
+    "rationale": "Same uri string for the action flow, renamed with an expanded description."
+  },
+  {
+    "id": "mined_okta_email_server_post_password",
+    "successor": null,
+    "rationale": "password moved into the BASIC_SMTP_AUTH variant chosen by authType; authType itself is only the discriminator and id is a server id."
+  },
+  {
+    "id": "mined_okta_submission_response_actions",
+    "successor": null,
+    "rationale": "The list of SubmissionAction entries has no counterpart; oinFeatures is a single feature type string and the others are contact, case and logo data."
+  },
+  {
+    "id": "mined_okta_submission_response_capabilities_capability",
+    "successor": null,
+    "rationale": "The capability name inside capabilities has no counterpart among the new contact details, case timestamp, logo flag and OIN features fields."
+  },
+  {
+    "id": "mined_okta_submission_response_capabilities_supported_protocols",
+    "successor": null,
+    "rationale": "supportedProtocols was dropped from capabilities; the candidates are unrelated top-level submission fields."
+  },
+  {
+    "id": "mined_okta_get_email_server_200_response_email_servers",
+    "successor": null,
+    "rationale": "The response was corrected from a list wrapper to a single server object; the server fields are flattened, not carried by any single candidate."
+  },
+  {
+    "id": "mined_okta_expire_password_with_temp_password_200_response_activated",
+    "successor": null,
+    "rationale": "The response changed from the full User to a tempPassword object, so activated is no longer returned; tempPassword is unrelated."
+  },
+  {
+    "id": "mined_okta_expire_password_with_temp_password_200_response_created",
+    "successor": null,
+    "rationale": "The response changed from a User object to a temporary password response; the user creation time is not carried by tempPassword."
+  },
+  {
+    "id": "mined_okta_expire_password_with_temp_password_200_response_credentials",
+    "successor": null,
+    "rationale": "The response changed from a User object to a TempPassword object; tempPassword is the generated password, not the user's credentials object."
+  },
+  {
+    "id": "mined_okta_expire_password_with_temp_password_200_response_id",
+    "successor": null,
+    "rationale": "The response changed from a User object to only a tempPassword; the user id has no counterpart."
+  },
+  {
+    "id": "mined_okta_expire_password_with_temp_password_200_response_last_login",
+    "successor": null,
+    "rationale": "The response changed from the full User to a tempPassword object, so lastLogin is no longer returned; tempPassword is unrelated."
+  },
+  {
+    "id": "mined_okta_expire_password_with_temp_password_200_response_last_updated",
+    "successor": null,
+    "rationale": "The response changed from a User object to a temporary password response; the last updated time is not carried by tempPassword."
+  },
+  {
+    "id": "mined_okta_expire_password_with_temp_password_200_response_password_changed",
+    "successor": null,
+    "rationale": "The response changed from User to TempPassword; no password-changed timestamp is returned."
+  },
+  {
+    "id": "mined_okta_expire_password_with_temp_password_200_response_profile",
+    "successor": null,
+    "rationale": "The response changed from a User object to only a tempPassword; the profile has no counterpart."
+  },
+  {
+    "id": "mined_okta_expire_password_with_temp_password_200_response_realm_id",
+    "successor": null,
+    "rationale": "The response changed from the full User to a tempPassword object, so realmId is no longer returned; tempPassword is unrelated."
+  },
+  {
+    "id": "mined_okta_expire_password_with_temp_password_200_response_status",
+    "successor": null,
+    "rationale": "The response changed from a User object to a temporary password response; the user status is not carried by tempPassword."
+  },
+  {
+    "id": "mined_okta_expire_password_with_temp_password_200_response_status_changed",
+    "successor": null,
+    "rationale": "The response changed from User to TempPassword; no status timestamp is returned."
+  },
+  {
+    "id": "mined_okta_expire_password_with_temp_password_200_response_transitioning_to_status",
+    "successor": null,
+    "rationale": "The response changed from a User object to only a tempPassword; transitioningToStatus has no counterpart."
+  },
+  {
+    "id": "mined_okta_expire_password_with_temp_password_200_response_type",
+    "successor": null,
+    "rationale": "The response changed from the full User to a tempPassword object, so the user type is no longer returned; tempPassword is unrelated."
+  },
+  {
+    "id": "mined_okta_expire_password_with_temp_password_200_response_embedded",
+    "successor": null,
+    "rationale": "The response changed from a User object to a temporary password response; embedded resources are not carried by tempPassword."
+  },
+  {
+    "id": "mined_okta_expire_password_with_temp_password_200_response_links",
+    "successor": null,
+    "rationale": "The response changed from User to TempPassword; no link relations are returned."
+  },
+  {
+    "id": "mined_figma_prototype_device_present_identifier",
+    "successor": "presetIdentifier",
+    "rationale": "Spelling fix of the same string field in PrototypeDevice (present to preset)."
+  },
+  {
+    "id": "mined_langfuse_unstable_evaluator_base_scope",
+    "successor": null,
+    "rationale": "The evaluator scope is dropped; mapping is a default variable mapping, unrelated to where the evaluator comes from."
+  },
+  {
+    "id": "mined_docker_task_spec_container_spec_health_check",
+    "successor": "ContainerSpec.Healthcheck",
+    "rationale": "Only the casing changed from HealthCheck to Healthcheck, with the same health check description."
+  }
+]

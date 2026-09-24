@@ -274,6 +274,11 @@ describe("what the pairs prove", () => {
       vacuous: 1,
       volatile: 0,
       behavioral: 0,
+      closurePairs: 0,
+      adapted: 0,
+      comparedAnswers: 0,
+      closureSites: 0,
+      wrongSites: 0,
     });
   });
 

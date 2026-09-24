@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.88,
+    "scores": {
+      "errorType": 0.025,
+      "message": 0.075,
+      "pspReference": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 166.3966819999996,
+  "inputTokens": 1589,
+  "costUsd": 0.000066738
+}

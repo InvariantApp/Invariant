@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "author_id",
+    "confidence": 1,
+    "scores": {
+      "author_id": 1,
+      "last_editor_id": 0.03
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 166.77515899995342,
+  "inputTokens": 1256,
+  "costUsd": 0.000052752
+}

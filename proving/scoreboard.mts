@@ -12,9 +12,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { parseDocumentText } from "@invariant-app/contract";
 import { catalogueEntry, isUnclassified } from "@invariant-app/diff";
-import type { PairResult as CorpusResult } from "@invariant-app/eval";
+import type { PairResult as CorpusResult, Measurement } from "@invariant-app/eval";
 import type { BUDGET, ChainCost } from "./chains/cost.ts";
 import { ROOT } from "./corpus/manifest.mts";
 import { type JourneySummary, met as journeyMet } from "./journey/summary.ts";
@@ -25,12 +24,19 @@ import type { SiteClass } from "./replay/classify.mts";
 import type { ReplayIndex } from "./replay/mine.mts";
 import type { ReplayResult } from "./replay/run.mts";
 import {
+  closureHeadline,
   type PairResult as ServerResult,
   headline as serversHeadline,
   tally,
 } from "./servers/pairs.ts";
 import type { SkewResult } from "./skew/run.mts";
 import type { SoakResults } from "./soak/plan.ts";
+import {
+  type StripeResults,
+  headline as stripeHeadline,
+  met as stripeMet,
+  tally as stripeTally,
+} from "./stripe/summary.ts";
 import { summarize as summarizeThreats, type ThreatManifest } from "./threats/summary.ts";
 import type { TrafficResult } from "./traffic/run.mts";
 
@@ -87,10 +93,11 @@ export function scoreboard(inputs: {
   chains?: (ChainCost & { budget: typeof BUDGET }) | undefined;
   overhead?: (OverheadResult & { budget: typeof OVERHEAD_BUDGET }) | undefined;
   vectors?: VectorCounts | undefined;
-  ownership?: Ownership | undefined;
+  judges?: JudgeResults | undefined;
   journey?: JourneySummary | undefined;
   skew?: SkewResult | undefined;
   soak?: SoakResults | undefined;
+  stripe?: StripeResults | undefined;
 }): Line[] {
   const lines: Line[] = [];
   const unmeasured = (id: string, claim: string, why: string): Line => ({
@@ -244,14 +251,8 @@ export function scoreboard(inputs: {
     evidence:
       "proving/corpus/results.json (rules judge; without decisions, and with synthetic answers)",
   });
-  lines.push(judgeLine(inputs.ownership));
-  lines.push(
-    unmeasured(
-      "L5",
-      "Official Stripe SDK suites pass through the proxy against stripe-mock on the new specification.",
-      "Consecutive Stripe specifications differ only by enum values added within an API version, which nothing drafts until M3.8 and the judge; the rig would prove nothing yet.",
-    ),
-  );
+  lines.push(judgeLine(inputs.judges, inputs.servers));
+  lines.push(stripeLine(inputs.stripe));
 
   const traffic = inputs.traffic ?? [];
   const sites = traffic.flatMap((result) => result.sites);
@@ -497,66 +498,84 @@ function auditLine(
   return `${base} On a fixed sample read by ${audit.reader}, ${result.agreed} of ${result.labelled} agree (${percent(result.agreed, result.labelled)}; ${per}).`;
 }
 
-/** What `eval/ownership.yaml` records of each judge, as far as L4b reads it. */
-export interface Ownership {
-  corpus?: { cases?: number; provenance?: { mined?: { cases?: number } } };
-  tasks?: {
-    alignment?: Record<
-      string,
-      {
-        model?: string;
-        atThreshold?: {
-          answered?: number;
-          selectiveAccuracy?: number;
-          answeredAndWrong?: number;
-        };
-      }
-    >;
-  };
-  byFamily?: Record<string, number>;
-}
+/** What `eval/measure.mts` writes to eval/results.json, which L4b reads. */
+export type JudgeResults = Measurement;
 
-/** The labelled corpus the plan asks for before a judge's precision is quoted per family. */
+/** The labelled corpus the plan asks for, and the share of it mined from real deltas. */
 const LABELLED_TARGET = 600;
+const MINED_SHARE = 0.4;
+const PRECISION_TARGET = 0.99;
 
-function judgeLine(ownership: Ownership | undefined): Line {
+function judgeLine(
+  results: JudgeResults | undefined,
+  servers: ServerResult[] | undefined,
+): Line {
   const claim =
     "Judge precision of at least 99% per family, and no semantically wrong Change surviving the gate.";
-  const evidence = "eval/ownership.yaml; Rig D for false closure";
-  const judges = Object.entries(ownership?.tasks?.alignment ?? {}).filter(
-    ([, judge]) => judge.atThreshold !== undefined,
-  );
-  if (!ownership || judges.length === 0) {
+  const evidence =
+    "eval/results.json (eval/measure.mts, from recorded answers on every commit); proving/servers/results.json for false closure";
+  if (!results || results.judges.length === 0) {
     return { id: "L4b", claim, status: "not measured", value: "", evidence };
   }
-  const cases = ownership.corpus?.cases ?? 0;
-  const mined = ownership.corpus?.provenance?.mined?.cases ?? 0;
-  const precise = judges.every(
-    ([, judge]) => (judge.atThreshold?.selectiveAccuracy ?? 0) >= 0.99,
-  );
-  const perJudge = judges
-    .map(([name, judge]) => {
-      const at = judge.atThreshold ?? {};
-      return `${name}${judge.model ? ` (${judge.model})` : ""} ${percent(at.selectiveAccuracy ?? 0, 1)} on ${at.answered ?? 0} answered, ${at.answeredAndWrong ?? 0} wrong`;
-    })
-    .join("; ");
-  const weakest = Object.entries(ownership.byFamily ?? {}).sort(
-    ([, a], [, b]) => a - b,
-  )[0];
+  const { corpus } = results;
+  const sized =
+    corpus.cases >= LABELLED_TARGET && corpus.mined / corpus.cases >= MINED_SHARE;
+  const perJudge = results.judges.map((judge) => {
+    const families = Object.entries(judge.byFamily).filter(([, at]) => at.answered > 0);
+    const [weakest] = [...families].sort(([, a], [, b]) => a.precision - b.precision);
+    const role = judge.judge === "s2" ? ", also the auto-provider" : "";
+    const lowest = weakest
+      ? `, lowest family ${weakest[0]} ${percent(weakest[1].answered - weakest[1].wrong, weakest[1].answered)} of ${weakest[1].answered}`
+      : "";
+    const missing = judge.missing > 0 ? `, ${judge.missing} cases unrecorded` : "";
+    return {
+      precise:
+        judge.missing === 0 &&
+        judge.overall.answered > 0 &&
+        families.every(([, at]) => at.precision >= PRECISION_TARGET),
+      text:
+        `${judge.judge}${judge.model ? ` (${judge.model}${role})` : ""} at ${judge.threshold}: ` +
+        `${percent(judge.overall.answered - judge.overall.wrong, judge.overall.answered)} on ${judge.overall.answered} answered ` +
+        `(mined ${percent(judge.mined.answered - judge.mined.wrong, judge.mined.answered)} on ${judge.mined.answered}), ` +
+        `${judge.overall.wrong} wrong${lowest}${missing}`,
+    };
+  });
+  const counts = tally(servers ?? []);
+  const closed = counts.comparedAnswers > 0 && counts.wrongSites === 0;
   return {
     id: "L4b",
     claim,
-    // Met only when every part is: the per-family figure at threshold is not
-    // yet recorded, the corpus is short of its size, and Rig D has not yet
-    // judged a Change's meaning against the old server.
-    status: "not met",
+    status:
+      sized && perJudge.every((judge) => judge.precise) && closed ? "met" : "not met",
     value:
-      `At each judge's threshold: ${perJudge}${precise ? "" : " (below 99%)"}. ` +
-      `Labelled corpus ${cases} of ${LABELLED_TARGET} cases (${mined} mined). ` +
-      (weakest
-        ? `Per family only unthresholded accuracy is recorded, lowest ${weakest[0]} at ${percent(weakest[1], 1)}. `
-        : "") +
-      "False closure on Rig D is not yet measured.",
+      `Per family at each judge's drafting threshold: ${perJudge.map((judge) => judge.text).join("; ")}. ` +
+      `Labelled corpus ${corpus.cases} cases (target ${LABELLED_TARGET}), ${corpus.mined} mined from real deltas ` +
+      `(${percent(corpus.mined, corpus.cases)}, target ${MINED_SHARE * 100}%). ` +
+      `False closure on Rig D: ${closureHeadline(counts)}.`,
+    evidence,
+  };
+}
+
+/**
+ * L5, from rig B. The primary criteria are the plan's: no request the mock
+ * on the new specification refuses with a 400, and no answer the old
+ * specification does not allow, through the proxy, over what the old mock on
+ * its own specification already showed. Suite-green is reported beside them
+ * and decides nothing.
+ */
+function stripeLine(stripe: StripeResults | undefined): Line {
+  const claim =
+    "Official Stripe SDK suites pass through the proxy against stripe-mock on the new specification.";
+  const evidence = "proving/stripe/results.json";
+  if (!stripe || stripe.pairs.length === 0) {
+    return { id: "L5", claim, status: "not measured", value: "", evidence };
+  }
+  const counted = stripeTally(stripe);
+  return {
+    id: "L5",
+    claim,
+    status: stripeMet(counted) ? "met" : "not met",
+    value: stripeHeadline(counted),
     evidence,
   };
 }
@@ -752,18 +771,14 @@ if (process.argv[1]?.endsWith("scoreboard.mts")) {
     releases: read<ReleaseResults>("proving/releases/results.json"),
     chains: read<ChainCost & { budget: typeof BUDGET }>("proving/chains/results.json"),
     vectors: read<VectorCounts>("conformance/vectors.json"),
-    ownership: existsSync(join(ROOT, "eval/ownership.yaml"))
-      ? (parseDocumentText(
-          "ownership.yaml",
-          readFileSync(join(ROOT, "eval/ownership.yaml"), "utf8"),
-        ) as Ownership)
-      : undefined,
+    judges: read<JudgeResults>("eval/results.json"),
     overhead: read<OverheadResult & { budget: typeof OVERHEAD_BUDGET }>(
       "proving/overhead/results.json",
     ),
     journey: read<JourneySummary>("proving/journey/results.json"),
     skew: read<SkewResult>("proving/skew/results.json"),
     soak: read<SoakResults>("proving/soak/results.json"),
+    stripe: read<StripeResults>("proving/stripe/results.json"),
   });
   const page = render(lines);
   await writeFile(join(ROOT, "proving/SCOREBOARD.md"), page, "utf8");

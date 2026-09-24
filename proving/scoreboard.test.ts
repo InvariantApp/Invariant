@@ -230,3 +230,195 @@ describe("L11", () => {
     expect(l11(soak(true))?.status).toBe("met");
   });
 });
+
+describe("L4b", () => {
+  const precision = (answered: number, wrong: number) => ({
+    cases: answered,
+    answered,
+    wrong,
+    precision: answered === 0 ? 1 : (answered - wrong) / answered,
+  });
+  const judge = (removalWrong: number) => ({
+    judge: "s2",
+    model: "claude-opus-5",
+    threshold: 0.85,
+    missing: 0,
+    overall: precision(500, removalWrong),
+    mined: precision(300, removalWrong),
+    written: precision(200, 0),
+    byFamily: { rename: precision(300, 0), removal: precision(200, removalWrong) },
+    wrongCases: [],
+  });
+  const judges = (removalWrong: number, cases = 600, mined = 300) => ({
+    corpus: { cases, mined, written: cases - mined, byFamily: {} },
+    judges: [judge(removalWrong)],
+  });
+  const closed = (wrong: number) =>
+    [
+      {
+        project: "gitea",
+        language: "Go",
+        from: "1",
+        to: "2",
+        changes: 3,
+        gate: {
+          changesFrom: "recorded",
+          drafted: 0,
+          result: "pass",
+          unexplained: [],
+          unservable: [],
+          accounted: 0,
+        },
+        arms: { a: { outcomes: {} }, b: { outcomes: {} }, c: { outcomes: {} } },
+        valid: 0,
+        broken: [],
+        served: [],
+        regressions: [],
+        closure: {
+          adapted: 4,
+          compared: 4,
+          notComparable: 0,
+          sites: ["GET /repos/{id} /owner"],
+          wrong: Array.from({ length: wrong }, () => ({ site: "x", why: "y" })),
+        },
+      },
+    ] as never;
+  const l4b = (inputs: { judges: unknown; servers: unknown }) =>
+    scoreboard({
+      corpus: undefined,
+      manifestPairs: [],
+      traffic: undefined,
+      servers: inputs.servers as never,
+      replay: undefined,
+      fuzz: undefined,
+      judges: inputs.judges as never,
+    }).find((line) => line.id === "L4b");
+
+  it("is met with every family at 99%, a large enough mined corpus, and no false closure", () => {
+    const line = l4b({ judges: judges(0), servers: closed(0) });
+    expect(line?.status).toBe("met");
+    expect(line?.value).toMatch(/4 of 4 adapted answers set beside the old server's/);
+  });
+
+  it("is not met when one family falls below 99%, whatever the aggregate", () => {
+    expect(l4b({ judges: judges(3), servers: closed(0) })?.status).toBe("not met");
+  });
+
+  it("is not met on a corpus short of 600 cases or 40% mined", () => {
+    expect(l4b({ judges: judges(0, 599), servers: closed(0) })?.status).toBe("not met");
+    expect(l4b({ judges: judges(0, 600, 239), servers: closed(0) })?.status).toBe(
+      "not met",
+    );
+  });
+
+  it("is not met until Rig D has judged an adapted answer, nor with one wrong", () => {
+    expect(l4b({ judges: judges(0), servers: [] })?.status).toBe("not met");
+    expect(l4b({ judges: judges(0), servers: closed(1) })?.status).toBe("not met");
+  });
+});
+
+describe("L5", () => {
+  const arm = (mock400: Record<string, number>, violations: Record<string, number>) => ({
+    outcomes: {},
+    suites: { node: { passed: 10, failed: 0 }, python: { passed: 5, failed: 1 } },
+    exchanges: 20,
+    mock400,
+    violations,
+    unjudged: 0,
+  });
+  /** A pair the release breaks without the adapter and that the adapter serves, unless told otherwise. */
+  const pair = (
+    index: number,
+    c: { mock400?: Record<string, number>; violations?: Record<string, number> } = {},
+    b: Record<string, number> = {
+      "GET /v1/charges 200 /status: must be equal to one of the allowed values": 3,
+    },
+  ) => ({
+    from: {
+      commit: `${index}`.padStart(40, "a"),
+      apiVersion: "2026-06-24.dahlia",
+      label: "2026-06-24.dahlia",
+    },
+    to: {
+      commit: `${index + 1}`.padStart(40, "a"),
+      apiVersion: "2026-07-29.dahlia",
+      label: "2026-07-29.dahlia",
+    },
+    sdks: { node: "v22.3.0", python: "v15.3.0" },
+    gate: {
+      result: "warn" as const,
+      drafted: 1,
+      decided: 1,
+      unexplained: [],
+      unservable: [],
+    },
+    arms: {
+      // The suite's own 400, which the old mock gives too, is not the release's.
+      a: arm({ "POST /v1/tokens": 1 }, {}),
+      b: arm({ "POST /v1/tokens": 1 }, b),
+      c: arm(c.mock400 ?? { "POST /v1/tokens": 1 }, c.violations ?? {}),
+    },
+    programSites: 2,
+    adapted: { exchanges: 3, sites: ["GET /v1/charges"] },
+  });
+  const l5 = (pairs: ReturnType<typeof pair>[]) =>
+    scoreboard({
+      corpus: [],
+      manifestPairs: [],
+      traffic: undefined,
+      servers: undefined,
+      replay: undefined,
+      fuzz: undefined,
+      stripe: { stripeMock: "0.203.0", pairs },
+    }).find((line) => line.id === "L5");
+  const six = (last = pair(5)) =>
+    [0, 1, 2, 3, 4].map((index) => pair(index)).concat(last);
+
+  it("is not measured before the rig has run", () => {
+    expect(
+      scoreboard({
+        corpus: [],
+        manifestPairs: [],
+        traffic: undefined,
+        servers: undefined,
+        replay: undefined,
+        fuzz: undefined,
+      }).find((line) => line.id === "L5")?.status,
+    ).toBe("not measured");
+  });
+
+  it("is met by six pairs with no 400 and no violation through the proxy", () => {
+    const line = l5(six());
+    expect(line?.status).toBe("met");
+    expect(line?.value).toMatch(
+      /0 mock 400s and 0 old-contract violations through the proxy/,
+    );
+  });
+
+  it("is not met by a 400 through the proxy the old mock did not give", () => {
+    expect(l5(six(pair(5, { mock400: { "POST /v1/tokens": 2 } })))?.status).toBe(
+      "not met",
+    );
+  });
+
+  it("is not met by an answer the old specification does not allow", () => {
+    expect(
+      l5(six(pair(5, { violations: { "GET /v1/charges 200 /status: bad": 1 } })))?.status,
+    ).toBe("not met");
+  });
+
+  it("is not met by fewer than six pairs, nor by a run where no pair needed the adapter", () => {
+    expect(l5(six().slice(1))?.status).toBe("not met");
+    const vacuous = [0, 1, 2, 3, 4, 5].map((index) => pair(index, {}, {}));
+    expect(l5(vacuous)?.status).toBe("not met");
+  });
+
+  it("is not met while a gate blocks and leaves a pair nothing to run", () => {
+    const blocked = pair(5);
+    const c = {
+      ...blocked.arms.c,
+      error: "the gate blocks the pair, so there is no program to run",
+    };
+    expect(l5(six({ ...blocked, arms: { ...blocked.arms, c } }))?.status).toBe("not met");
+  });
+});

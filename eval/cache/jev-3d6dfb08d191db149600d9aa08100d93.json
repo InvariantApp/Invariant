@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "marketing_channels",
+    "confidence": 0.84,
+    "scores": {
+      "marketing_channels": 0.84,
+      "notification_channels": 0.045
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 164.18157400000018,
+  "inputTokens": 1293,
+  "costUsd": 0.000054306000000000005
+}

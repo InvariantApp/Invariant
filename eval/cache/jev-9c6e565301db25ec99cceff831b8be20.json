@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.86,
+    "scores": {
+      "firmware_version": 0.065,
+      "last_update_at": 0.025
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 149.01521200000025,
+  "inputTokens": 1266,
+  "costUsd": 0.000053172000000000005
+}

@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "address_country_match",
+    "confidence": 0.72,
+    "scores": {
+      "address_country_match": 0.72
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "claude-opus-5",
+  "latencyMs": 2395.1741880000045,
+  "inputTokens": 1215,
+  "costUsd": 0.0081
+}

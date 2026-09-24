@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "OptionGroupMemberships",
+    "confidence": 0.915,
+    "scores": {
+      "OptionGroupMemberships": 0.915
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 154.26224399998318,
+  "inputTokens": 923,
+  "costUsd": 0.000038766
+}

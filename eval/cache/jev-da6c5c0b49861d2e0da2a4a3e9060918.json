@@ -1,0 +1,18 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.49,
+    "scores": {
+      "legalArrangements": 0.005,
+      "legalArrangementsEntities": 0.01,
+      "payoutMethods": 0.145,
+      "ultimateParentCompany": 0.005
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 187.96866999999997,
+  "inputTokens": 1928,
+  "costUsd": 0.000080976
+}
