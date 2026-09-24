@@ -103,7 +103,43 @@
         ["v1.16.0", "v1.17.0"],
         ["v1.17.0", "v1.18.0"],
         ["v1.18.0", "v1.19.0"]
-      ]
+      ],
+      "behavioral": {
+        "v1.14.0..v1.15.0": [
+          {
+            "test": "openapi.test_strictmode::test_strict_mode_distance_matrix_limits",
+            "says": "assert 'Forbidden: Limit exceeded 20 > 15 for \"limit\"' in 'Bad request: Limit exceeded 20 > 15 for \"limit\".",
+            "reason": "1.15 refuses a limit over strict mode's as a bad request, where 1.14 said forbidden, and adds a hint. Both documents answer these operations with a 4XX ErrorResponse whose error is free text, so neither names the status or the words."
+          },
+          {
+            "test": "openapi.test_strictmode::test_strict_mode_group_limits",
+            "says": "assert 'Forbidden: Limit exceeded 30 > 15 for \"limit\"' in 'Bad request: Limit exceeded 30 > 15 for \"limit\".",
+            "reason": "1.15 refuses a limit over strict mode's as a bad request, where 1.14 said forbidden, and adds a hint. Both documents answer these operations with a 4XX ErrorResponse whose error is free text, so neither names the status or the words."
+          }
+        ],
+        "v1.18.0..v1.19.0": [
+          {
+            "test": "openapi.test_multi_vector::test_multi_vector_validation[False]",
+            "says": "assert 'Wrong input: Vector dimension error: expected dim: 4, got 0' in 'Validation error in JSON body:",
+            "reason": "Both releases refuse an empty dense vector; 1.19 does it while reading the body, in other words. The vector schemas are the same in both documents, and the refusal is a 4XX ErrorResponse whose error is free text."
+          },
+          {
+            "test": "openapi.test_multi_vector::test_multi_vector_validation[True]",
+            "says": "assert 'Wrong input: Vector dimension error: expected dim: 4, got 0' in 'Validation error in JSON body:",
+            "reason": "Both releases refuse an empty dense vector; 1.19 does it while reading the body, in other words. The vector schemas are the same in both documents, and the refusal is a 4XX ErrorResponse whose error is free text."
+          },
+          {
+            "test": "openapi.test_multi_vector_unnamed::test_multi_vector_validation[False]",
+            "says": "assert 'Wrong input' in 'Validation error in JSON body:",
+            "reason": "Both releases refuse an empty dense vector; 1.19 does it while reading the body, in other words. The vector schemas are the same in both documents, and the refusal is a 4XX ErrorResponse whose error is free text."
+          },
+          {
+            "test": "openapi.test_multi_vector_unnamed::test_multi_vector_validation[True]",
+            "says": "assert 'Wrong input' in 'Validation error in JSON body:",
+            "reason": "Both releases refuse an empty dense vector; 1.19 does it while reading the body, in other words. The vector schemas are the same in both documents, and the refusal is a 4XX ErrorResponse whose error is free text."
+          }
+        ]
+      }
     },
     {
       "name": "netbox",
@@ -333,7 +369,21 @@
           "digest": "sha256:17d18218be2dad1f8ed402a4f906989505c90ab8b66ee9befcecfb5d470133e7"
         }
       },
-      "pairs": [["v1.24.2", "v1.25.4"]]
+      "pairs": [["v1.24.2", "v1.25.4"]],
+      "behavioral": {
+        "v1.24.2..v1.25.4": [
+          {
+            "test": "code.gitea.io/sdk/gitea::TestCommitStatus",
+            "says": "expected: \"warning\" actual : \"success\"",
+            "reason": "1.25 combines a commit's latest statuses by another rule: a warning beside a success now combines to success, where 1.24 said warning. Both documents say only that the combined state is one of the status values, never how it is chosen."
+          },
+          {
+            "test": "code.gitea.io/sdk/gitea::TestFileCreateUpdateGet",
+            "says": "expected: \"The target couldn't be found.\" actual : \"not found\"",
+            "reason": "A file that is not there is still a 404, now saying \"not found\" where 1.24 said \"The target couldn't be found.\". Both documents describe that 404 as an empty response, so neither gives the words."
+          }
+        ]
+      }
     },
     {
       "name": "immich",

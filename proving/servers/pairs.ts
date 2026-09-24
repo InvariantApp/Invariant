@@ -52,6 +52,26 @@ export interface PairResult {
    * above, since what they say is chance. Older results carry none.
    */
   volatile?: string[];
+  /**
+   * Tests the release broke by behavior neither release's document
+   * describes, as the manifest names them, set aside with the reason. They
+   * are left out of `broken`, so a pair whose every break is of this kind is
+   * vacuous. Older results carry none.
+   */
+  behavioral?: { test: string; reason: string }[];
+}
+
+/**
+ * A test the manifest names as broken by behavior no document describes: an
+ * error message reworded, a rule for combining states changed. It is set
+ * aside only while it fails as recorded, with `says` in what it said both
+ * without the adapter and through it, so it cannot hide a different failure,
+ * or one the adapter caused.
+ */
+export interface Behavioral {
+  test: string;
+  says: string;
+  reason: string;
 }
 
 /** A project that was looked at and left out, and why, so the list is honest. */
@@ -150,11 +170,20 @@ export function combineRuns(runs: readonly ArmResult[]): ArmResult {
   };
 }
 
-export function compareArms(arms: {
-  a: ArmResult;
-  b: ArmResult;
-  c: ArmResult;
-}): Pick<PairResult, "valid" | "broken" | "served" | "regressions" | "volatile"> {
+/** Whitespace folded, since a report may wrap what a test said. */
+const folded = (text: string) => text.replace(/\s+/g, " ").trim();
+
+export function compareArms(
+  arms: {
+    a: ArmResult;
+    b: ArmResult;
+    c: ArmResult;
+  },
+  behavioral: readonly Behavioral[] = [],
+): Pick<
+  PairResult,
+  "valid" | "broken" | "served" | "regressions" | "volatile" | "behavioral"
+> {
   const volatile = [
     ...new Set([
       ...(arms.a.volatile ?? []),
@@ -166,7 +195,22 @@ export function compareArms(arms: {
   const valid = Object.keys(arms.a.outcomes).filter(
     (id) => arms.a.outcomes[id] === "passed" && !steady.has(id),
   );
-  const broken = valid.filter((id) => arms.b.outcomes[id] !== "passed");
+  const failing = valid.filter((id) => arms.b.outcomes[id] !== "passed");
+  // Set aside only where arm c ran, and both it and arm b failed the test
+  // saying what the manifest recorded.
+  const says = (arm: ArmResult, id: string, entry: Behavioral) =>
+    arm.outcomes[id] === "failed" &&
+    folded(arm.messages?.[id] ?? "").includes(folded(entry.says));
+  const setAside = arms.c.error
+    ? []
+    : behavioral.filter(
+        (entry) =>
+          failing.includes(entry.test) &&
+          says(arms.b, entry.test, entry) &&
+          says(arms.c, entry.test, entry),
+      );
+  const aside = new Set(setAside.map((entry) => entry.test));
+  const broken = failing.filter((id) => !aside.has(id));
   const served = broken.filter((id) => arms.c.outcomes[id] === "passed");
   // An arm that never ran regressed nothing; it is reported as not having run.
   const regressions = arms.c.error
@@ -180,6 +224,11 @@ export function compareArms(arms: {
     served,
     regressions,
     ...(volatile.length > 0 ? { volatile } : {}),
+    ...(setAside.length > 0
+      ? {
+          behavioral: setAside.map(({ test, reason }) => ({ test, reason })),
+        }
+      : {}),
   };
 }
 
@@ -215,6 +264,8 @@ export interface Tally {
   vacuous: number;
   /** Tests set aside because two runs of one arm disagreed on them. */
   volatile: number;
+  /** Tests set aside because the release broke them by behavior no document describes. */
+  behavioral: number;
 }
 
 /**
@@ -248,6 +299,10 @@ export function tally(results: readonly PairResult[]): Tally {
     regressions: results.reduce((sum, result) => sum + result.regressions.length, 0),
     vacuous: results.length - breaking.length,
     volatile: results.reduce((sum, result) => sum + (result.volatile?.length ?? 0), 0),
+    behavioral: results.reduce(
+      (sum, result) => sum + (result.behavioral?.length ?? 0),
+      0,
+    ),
   };
 }
 
@@ -266,6 +321,9 @@ export function headline(counts: Tally): string {
     `${counted(counts.regressions, "regression")}` +
     (counts.volatile > 0
       ? `; ${counted(counts.volatile, "volatile test")} set aside`
+      : "") +
+    (counts.behavioral > 0
+      ? `; ${counted(counts.behavioral, "test")} broken by behavior no document describes, set aside`
       : "")
   );
 }
@@ -291,8 +349,8 @@ export function render(
     "",
     `${headline(counts)}.`,
     "",
-    "| Project | Release | Changes | Gate | Valid tests | Broken by the release | Served through the adapter | Regressions | Volatile, set aside | Verdict |",
-    "|---|---|---|---|---|---|---|---|---|---|",
+    "| Project | Release | Changes | Gate | Valid tests | Broken by the release | Served through the adapter | Regressions | Volatile, set aside | Behavioral, set aside | Verdict |",
+    "|---|---|---|---|---|---|---|---|---|---|---|",
   ];
   for (const result of results) {
     const failed = Object.entries(result.arms)
@@ -301,7 +359,7 @@ export function render(
     const gate = result.gate;
     const changes = `${result.changes} ${gate.changesFrom}`;
     lines.push(
-      `| ${result.project} (${result.language}) | ${result.from} -> ${result.to} | ${changes} | ${gate.result} | ${result.valid} | ${result.broken.length} | ${result.served.length} | ${result.regressions.length}${failed.length ? `; ${failed.join("; ")}` : ""} | ${result.volatile?.length ?? 0} | ${verdict(result)} |`,
+      `| ${result.project} (${result.language}) | ${result.from} -> ${result.to} | ${changes} | ${gate.result} | ${result.valid} | ${result.broken.length} | ${result.served.length} | ${result.regressions.length}${failed.length ? `; ${failed.join("; ")}` : ""} | ${result.volatile?.length ?? 0} | ${result.behavioral?.length ?? 0} | ${verdict(result)} |`,
     );
   }
   lines.push("");
@@ -319,11 +377,13 @@ export function render(
     const gate = result.gate;
     const gateLines = [...gate.unexplained, ...gate.unservable];
     const volatile = result.volatile ?? [];
+    const behavioral = result.behavioral ?? [];
     if (
       unserved.length === 0 &&
       result.regressions.length === 0 &&
       gateLines.length === 0 &&
-      volatile.length === 0
+      volatile.length === 0 &&
+      behavioral.length === 0
     ) {
       continue;
     }
@@ -360,6 +420,16 @@ export function render(
         ...(volatile.length > 40 ? [`- and ${volatile.length - 40} more`] : []),
         "",
       );
+    }
+    if (behavioral.length > 0) {
+      lines.push(
+        "Set aside, since the release broke them by behavior neither document describes, and they failed as recorded with the adapter and without it:",
+        "",
+      );
+      for (const { test, reason } of behavioral) {
+        lines.push(`- \`${test}\`${said(result.arms.b, test)}. ${cell(reason)}`);
+      }
+      lines.push("");
     }
   }
   return `${lines.join("\n")}\n`;
