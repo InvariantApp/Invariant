@@ -47,6 +47,23 @@ export interface JudgeResult {
   latencyMs: number;
   inputTokens: number;
   costUsd: number;
+  /**
+   * Why the judge could not answer, when a request failed. The answer is an
+   * abstention either way, which is right for drafting; an evaluation must
+   * not record it as the judge's answer, since it says nothing about the
+   * question and everything about the request.
+   */
+  failure?: string;
+}
+
+/** A failure's message, short and on one line, for a report. */
+export function failureOf(error: unknown): string {
+  const text = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  // Without the request's id, so one cause reads as one failure.
+  return text
+    .replace(/,?\s*"request_id"\s*:\s*"[^"]*"/g, "")
+    .replace(/\s+/g, " ")
+    .slice(0, 300);
 }
 
 export interface Judge {
@@ -70,15 +87,21 @@ export interface Judge {
   align(questions: readonly AlignmentQuestion[]): Promise<JudgeResult[]>;
 }
 
-/** Turns a schema delta into one question per removed field. */
+/**
+ * Turns a schema delta into one question per removed field. The candidates
+ * are the fields added, and the fields inside the objects added, since a
+ * value that moved into a new wrapper went to a field in it rather than to
+ * the wrapper.
+ */
 export function questionsFor(delta: SchemaDelta, context?: string): AlignmentQuestion[] {
   if (delta.added.length === 0) return [];
+  const candidates = [...delta.added, ...(delta.within ?? [])];
   return delta.removed.map((removed) => ({
     kind: "alignment" as const,
     schema: delta.schema,
     operations: delta.operations,
     removed,
-    candidates: delta.added,
+    candidates,
     ...(context === undefined ? {} : { context }),
   }));
 }

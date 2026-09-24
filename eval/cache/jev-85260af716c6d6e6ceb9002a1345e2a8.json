@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "arrival_date",
+    "confidence": 0.89,
+    "scores": {
+      "arrival_date": 0.985,
+      "notes": 0.14
+    },
+    "stated": true,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 139.9309599999997,
+  "inputTokens": 1302,
+  "costUsd": 0.000054684
+}

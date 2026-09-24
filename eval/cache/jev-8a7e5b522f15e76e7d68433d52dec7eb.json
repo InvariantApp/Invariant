@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "totalTaxSet",
+    "confidence": 0.99,
+    "scores": {
+      "totalTaxSet": 0.99,
+      "taxesIncluded": 0.02
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 147.04910500000005,
+  "inputTokens": 1272,
+  "costUsd": 0.000053424
+}

@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "industryUsage",
+    "confidence": 0.98,
+    "scores": {
+      "industryUsage": 0.99
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 201.588475999999,
+  "inputTokens": 1069,
+  "costUsd": 0.000044898
+}

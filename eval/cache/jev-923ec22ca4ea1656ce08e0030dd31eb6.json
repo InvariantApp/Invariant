@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "totalRefundedSet",
+    "confidence": 0.92,
+    "scores": {
+      "totalRefundedSet": 0.92,
+      "totalRefundedShippingSet": 0.055
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 132.10703600000033,
+  "inputTokens": 1278,
+  "costUsd": 0.000053676000000000006
+}

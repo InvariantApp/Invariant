@@ -1,0 +1,21 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.98,
+    "scores": {
+      "appContactDetails": 0,
+      "caseLastUpdated": 0,
+      "defaultLogo": 0,
+      "oinFeatures": 0.04,
+      "appContactDetails.*.contactType": 0,
+      "appContactDetails.*.contactValueType": 0,
+      "appContactDetails.*.contact": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 142.99539300000106,
+  "inputTokens": 3037,
+  "costUsd": 0.00012755400000000002
+}

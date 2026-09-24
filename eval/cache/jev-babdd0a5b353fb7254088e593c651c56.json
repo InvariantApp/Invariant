@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": "hostname",
+    "confidence": 0.745,
+    "scores": {
+      "hostname": 0.745,
+      "ipPreference": 0.005,
+      "responseType": 0.02
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 133.7570369999994,
+  "inputTokens": 1611,
+  "costUsd": 0.000067662
+}

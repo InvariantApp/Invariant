@@ -1,0 +1,32 @@
+{
+  "answer": {
+    "successor": "meta.droppedAnnotations",
+    "confidence": 0.5,
+    "scores": {
+      "meta.droppedAnnotations": 0.5,
+      "meta.acceptedAnnotations": 0.28,
+      "meta.droppedAnnotations.*.type": 0.445,
+      "meta.droppedAnnotations.*.category": 0.495,
+      "meta.droppedAnnotations.*.outcome": 0.445,
+      "meta.droppedAnnotations.*.reason": 0.555,
+      "meta.droppedAnnotations.*.start": 0.49,
+      "meta.droppedAnnotations.*.end": 0.48,
+      "meta.droppedAnnotations.*.eventCount": 0.385,
+      "meta.droppedAnnotations.*.byteSize": 0.38,
+      "meta.acceptedAnnotations.*.type": 0.3,
+      "meta.acceptedAnnotations.*.category": 0.3,
+      "meta.acceptedAnnotations.*.outcome": 0.295,
+      "meta.acceptedAnnotations.*.reason": 0.37,
+      "meta.acceptedAnnotations.*.start": 0.3,
+      "meta.acceptedAnnotations.*.end": 0.33,
+      "meta.acceptedAnnotations.*.eventCount": 0.295,
+      "meta.acceptedAnnotations.*.byteSize": 0.3
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 159.4738989999987,
+  "inputTokens": 6358,
+  "costUsd": 0.000267036
+}

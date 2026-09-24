@@ -1,0 +1,43 @@
+{
+  "answer": {
+    "successor": "payoutMethods",
+    "confidence": 0.505,
+    "scores": {
+      "legalArrangements": 0.025,
+      "legalArrangementsEntities": 0.065,
+      "payoutMethods": 0.505,
+      "ultimateParentCompany": 0.005,
+      "legalArrangements.*.checks": 0.29,
+      "legalArrangements.*.checks.*.requiredFields": 0.105,
+      "legalArrangements.*.checks.*.status": 0.35,
+      "legalArrangements.*.checks.*.summary": 0.135,
+      "legalArrangements.*.checks.*.type": 0.545,
+      "legalArrangements.*.legalArrangementCode": 0.035,
+      "legalArrangementsEntities.*.checks": 0.12,
+      "legalArrangementsEntities.*.checks.*.requiredFields": 0.105,
+      "legalArrangementsEntities.*.checks.*.status": 0.19,
+      "legalArrangementsEntities.*.checks.*.summary": 0.095,
+      "legalArrangementsEntities.*.checks.*.type": 0.43,
+      "legalArrangementsEntities.*.legalArrangementCode": 0.025,
+      "legalArrangementsEntities.*.legalArrangementEntityCode": 0.045,
+      "payoutMethods.*.checks": 0.48,
+      "payoutMethods.*.checks.*.requiredFields": 0.265,
+      "payoutMethods.*.checks.*.status": 0.365,
+      "payoutMethods.*.checks.*.summary": 0.23,
+      "payoutMethods.*.checks.*.type": 0.595,
+      "payoutMethods.*.payoutMethodCode": 0.31,
+      "ultimateParentCompany.*.checks": 0.02,
+      "ultimateParentCompany.*.checks.*.requiredFields": 0.05,
+      "ultimateParentCompany.*.checks.*.status": 0.04,
+      "ultimateParentCompany.*.checks.*.summary": 0.06,
+      "ultimateParentCompany.*.checks.*.type": 0.135,
+      "ultimateParentCompany.*.ultimateParentCompanyCode": 0.01
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 304.25678100000005,
+  "inputTokens": 11526,
+  "costUsd": 0.00048409200000000004
+}

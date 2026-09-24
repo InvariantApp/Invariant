@@ -1,0 +1,24 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.99,
+    "scores": {
+      "accounts": 0.005,
+      "accounts.*.createTime": 0,
+      "accounts.*.displayName": 0,
+      "accounts.*.name": 0,
+      "accounts.*.pendingTasks": 0,
+      "accounts.*.premium": 0,
+      "accounts.*.state": 0,
+      "accounts.*.timeZone": 0,
+      "accounts.*.timeZone.id": 0,
+      "accounts.*.timeZone.version": 0.01
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 221.05259900000055,
+  "inputTokens": 3976,
+  "costUsd": 0.00016699200000000003
+}

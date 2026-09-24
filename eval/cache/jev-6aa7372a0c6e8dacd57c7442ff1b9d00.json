@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "totalPriceSet",
+    "confidence": 0.935,
+    "scores": {
+      "totalPriceSet": 0.935,
+      "totalOutstandingSet": 0.015
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 143.76178600000003,
+  "inputTokens": 1287,
+  "costUsd": 0.000054054
+}

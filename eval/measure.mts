@@ -31,7 +31,7 @@ for (const judge of results.judges) {
     )
     .join(", ");
   process.stdout.write(
-    `${judge.judge} at ${judge.threshold}: ${(judge.overall.precision * 100).toFixed(1)}% on ` +
+    `${judge.judge} at ${judge.threshold.named} naming a field, ${judge.threshold.none} saying none did: ${(judge.overall.precision * 100).toFixed(1)}% on ` +
       `${judge.overall.answered} answered, ${judge.overall.wrong} wrong, ${judge.missing} missing\n` +
       `  ${families}\n`,
   );

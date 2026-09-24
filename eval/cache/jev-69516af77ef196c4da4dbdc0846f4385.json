@@ -1,0 +1,24 @@
+{
+  "answer": {
+    "successor": "result",
+    "confidence": 0.85,
+    "scores": {
+      "result": 0.85,
+      "result.ast_type": 0.21,
+      "result.children": 0.365,
+      "result.end": 0.165,
+      "result.end.col": 0.15,
+      "result.end.line": 0.175,
+      "result.field_name": 0.08,
+      "result.start": 0.145,
+      "result.start.col": 0.15,
+      "result.start.line": 0.21
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 163.4111759999996,
+  "inputTokens": 3897,
+  "costUsd": 0.000163674
+}

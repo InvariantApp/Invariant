@@ -1,0 +1,30 @@
+{
+  "answer": {
+    "successor": "action",
+    "confidence": 0.405,
+    "scores": {
+      "name": 0.005,
+      "participants": 0.015,
+      "action": 0.405,
+      "configuration": 0.015,
+      "participants.*.ref": 0.015,
+      "participants.*.name": 0.005,
+      "participants.*.type": 0.005,
+      "participants.*.profileId": 0.015,
+      "participants.*.agentConnectConnectionId": 0.005,
+      "participants.*.addresses": 0.03,
+      "participants.*.addresses.*.channel": 0.025,
+      "participants.*.addresses.*.address": 0.02,
+      "configuration.intelligenceConfigurationIds": 0,
+      "configuration.statusCallbacks": 0.005,
+      "configuration.statusCallbacks.*.url": 0,
+      "configuration.statusCallbacks.*.method": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 271.06867799999964,
+  "inputTokens": 5935,
+  "costUsd": 0.00024927
+}

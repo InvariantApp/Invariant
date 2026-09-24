@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": "notification_token",
+    "confidence": 1,
+    "scores": {
+      "notification_token": 1,
+      "device_id": 0.005,
+      "push_enabled": 0.1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 163.47333400000025,
+  "inputTokens": 1568,
+  "costUsd": 0.000065856
+}

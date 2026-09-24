@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "items",
+    "confidence": 0.69,
+    "scores": {
+      "items": 0.69,
+      "billing_cycle_anchor": 0.1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 149.88626100000056,
+  "inputTokens": 1267,
+  "costUsd": 0.000053213999999999996
+}

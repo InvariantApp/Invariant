@@ -78,9 +78,15 @@ export function familiesOf(
   const tags = new Set<CaseTag>();
   const removed = question.removed;
   const chosen = question.candidates.find((candidate) => candidate.name === successor);
+  // A successor inside an object the release added is a value moved into a
+  // wrapper, whether the answer names the wrapper or the field in it.
+  const depth = (name: string) => name.split(".").length;
   if (!chosen) {
     tags.add("removal");
-  } else if (chosen.type === "object" && removed.type !== "object") {
+  } else if (
+    (chosen.type === "object" && removed.type !== "object") ||
+    depth(chosen.name) > depth(removed.name)
+  ) {
     tags.add("nesting");
   } else if (chosen.type !== removed.type) {
     tags.add("type-change");

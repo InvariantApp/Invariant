@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "archived_at",
+    "confidence": 0.595,
+    "scores": {
+      "archived_at": 0.595,
+      "last_message_at": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 137.78419000000213,
+  "inputTokens": 1284,
+  "costUsd": 0.000053928
+}

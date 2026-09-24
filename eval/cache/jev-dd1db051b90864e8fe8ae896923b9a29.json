@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": "phoneNumber",
+    "confidence": 0.99,
+    "scores": {
+      "phoneCountryCode": 0.105,
+      "phoneNumber": 0.99,
+      "phoneType": 0.005
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 166.05658700000095,
+  "inputTokens": 1654,
+  "costUsd": 0.000069468
+}

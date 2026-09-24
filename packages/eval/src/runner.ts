@@ -59,6 +59,10 @@ export interface RunResult {
   missing: string[];
   fromCache: number;
   recorded: number;
+  /** The recorded answers this run is keyed on, whether or not they exist yet. */
+  files: string[];
+  /** Why requests failed, once each, where any did; those cases are missing. */
+  failures: string[];
 }
 
 export async function runJudge(
@@ -80,6 +84,7 @@ export async function runJudge(
   });
 
   const missing: string[] = [];
+  const failures = new Set<string>();
   let recorded = 0;
 
   if (pending.length > 0) {
@@ -93,6 +98,13 @@ export async function runJudge(
         pending.map(async (index, position) => {
           const result = answers[position];
           if (!result) return;
+          // A request that failed is not an answer to the question: recorded,
+          // it would be replayed as the judge declining on every later run.
+          if (result.failure !== undefined) {
+            missing.push((cases[index] as EvalCase).id);
+            failures.add(result.failure);
+            return;
+          }
           cached[index] = {
             answer: result.answer,
             model: result.model,
@@ -136,5 +148,7 @@ export async function runJudge(
     missing,
     fromCache: cases.length - recorded - missing.length,
     recorded,
+    files: paths,
+    failures: [...failures],
   };
 }

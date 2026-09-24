@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "merged_commit_sha",
+    "confidence": 0.175,
+    "scores": {
+      "merged_commit_sha": 0.175,
+      "head_sha": 0.1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 124.31111400000009,
+  "inputTokens": 1259,
+  "costUsd": 0.000052878
+}

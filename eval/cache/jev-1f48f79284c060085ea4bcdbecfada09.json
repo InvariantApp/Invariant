@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "item_code",
+    "confidence": 0.91,
+    "scores": {
+      "item_code": 0.945,
+      "barcode": 0.22
+    },
+    "stated": true,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 162.12078900000006,
+  "inputTokens": 1274,
+  "costUsd": 0.000053508
+}

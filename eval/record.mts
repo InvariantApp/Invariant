@@ -1,7 +1,22 @@
 /**
  * Records fresh judge answers into the cache. A deliberate act, run by hand.
+ *
+ *   node --import tsx eval/record.mts [--judges rules,jev,s2,chain] [--prune]
+ *
+ * Each judge is recorded where its key is: Jev's is kept on the machine that
+ * records it, and S2's only in the proving workflow's `judges` job, so a run
+ * names the judges it records and the rest are read from the cache. The
+ * escalation chain calls both, so it is recorded only where both keys are.
+ *
+ * `--prune` deletes every recorded answer that no judge read here keys on:
+ * answers to questions no longer asked, or asked under wording or a model
+ * that is no longer the judge's. Rules, Jev and S2 are always read; the
+ * chain only where it is recorded, so a prune without both keys drops its
+ * answers, which no measurement reads.
  */
 
+import { readdir, unlink } from "node:fs/promises";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   bySource,
@@ -31,16 +46,25 @@ const CACHE = fileURLToPath(new URL("cache", import.meta.url));
 const cases = await loadCorpus(CORPUS);
 console.log(`corpus: ${cases.length} cases\n`);
 
+const flag = process.argv.indexOf("--judges");
+const named = new Set(
+  flag === -1
+    ? ["rules", "jev", "s2", "chain"]
+    : (process.argv[flag + 1] ?? "").split(",").map((name) => name.trim()),
+);
+const prune = process.argv.includes("--prune");
+
 const rules = new RulesJudge();
 const jev = new JevJudge();
 // Labelled here rather than by id: a chain of judges reports under its own name.
-const judges: { label: string; judge: Judge }[] = [
-  { label: "rules", judge: rules },
-  { label: "jev", judge: jev },
+// A judge not named is still read, from the cache alone, so its numbers print.
+const judges: { label: string; judge: Judge; record: boolean }[] = [
+  { label: "rules", judge: rules, record: named.has("rules") },
+  { label: "jev", judge: jev, record: named.has("jev") },
 ];
 // S2 only with a key, and only once its pinned model is confirmed to exist.
 // The escalation chain is recorded beside it, because that is what drafts.
-if (process.env["ANTHROPIC_API_KEY"]) {
+if (process.env["ANTHROPIC_API_KEY"] && (named.has("s2") || named.has("chain"))) {
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
   const { anthropicMessages, verifiedModel } = await import("./models.mts");
   const client = new Anthropic();
@@ -49,19 +73,38 @@ if (process.env["ANTHROPIC_API_KEY"]) {
     model: await verifiedModel(client),
     pricing: ANTHROPIC_PRICING,
   });
-  judges.push(
-    { label: "s2", judge: s2 },
-    {
+  judges.push({ label: "s2", judge: s2, record: named.has("s2") });
+  if (process.env["TYPESAFE_API_KEY"] && named.has("chain")) {
+    judges.push({
       label: "rules+jev, escalating to s2 below 0.9",
       judge: new EscalatingJudge(new HybridJudge(rules, jev), s2, { threshold: 0.9 }),
-    },
-  );
+      record: true,
+    });
+  } else {
+    console.log(
+      "TYPESAFE_API_KEY is not set here: the escalation chain is not recorded.\n",
+    );
+  }
 } else {
-  console.log("ANTHROPIC_API_KEY is not set: S2 is not recorded.\n");
+  // Read from the cache, so its numbers still print.
+  const offline = {
+    messages: {
+      create: () => Promise.reject(new Error("S2 is read from recorded answers here")),
+    },
+  };
+  judges.push({ label: "s2", judge: new S2Judge({ client: offline }), record: false });
+  console.log("S2 is not recorded here: its answers are read from the cache.\n");
 }
 
-for (const { label, judge } of judges) {
-  const run = await runJudge(judge, cases, { cacheDir: CACHE, record: true });
+const kept = new Set<string>();
+for (const { label, judge, record } of judges) {
+  const run = await runJudge(judge, cases, { cacheDir: CACHE, record });
+  for (const file of run.files) kept.add(file);
+  if (run.missing.length > 0) {
+    console.log(`${label}: ${run.missing.length} cases have no recorded answer`);
+  }
+  for (const failure of run.failures)
+    console.log(`${label}: a request failed: ${failure}`);
   const outcomes = outcomesOf(cases, run.results);
   const metrics = summarize(outcomes);
   console.log(renderMetrics(label, metrics));
@@ -119,4 +162,12 @@ for (const { label, judge } of judges) {
     }
   }
   console.log();
+}
+
+if (prune) {
+  const stale = (await readdir(CACHE))
+    .map((name) => join(CACHE, name))
+    .filter((path) => !kept.has(path));
+  await Promise.all(stale.map((path) => unlink(path)));
+  console.log(`pruned ${stale.length} recorded answers no judge or case keys on`);
 }

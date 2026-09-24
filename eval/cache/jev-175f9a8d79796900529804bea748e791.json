@@ -1,0 +1,35 @@
+{
+  "answer": {
+    "successor": "threeDSPaymentData",
+    "confidence": 0.51,
+    "scores": {
+      "threeDS2ResponseData": 0.79,
+      "threeDSPaymentData": 0.62,
+      "threeDS2ResponseData.acsChallengeMandated": 0.325,
+      "threeDS2ResponseData.acsOperatorID": 0.43,
+      "threeDS2ResponseData.acsReferenceNumber": 0.435,
+      "threeDS2ResponseData.acsSignedContent": 0.455,
+      "threeDS2ResponseData.acsTransID": 0.42,
+      "threeDS2ResponseData.acsURL": 0.47,
+      "threeDS2ResponseData.authenticationType": 0.51,
+      "threeDS2ResponseData.cardHolderInfo": 0.195,
+      "threeDS2ResponseData.cavvAlgorithm": 0.325,
+      "threeDS2ResponseData.challengeIndicator": 0.285,
+      "threeDS2ResponseData.dsReferenceNumber": 0.33,
+      "threeDS2ResponseData.dsTransID": 0.36,
+      "threeDS2ResponseData.exemptionIndicator": 0.405,
+      "threeDS2ResponseData.messageVersion": 0.495,
+      "threeDS2ResponseData.riskScore": 0.265,
+      "threeDS2ResponseData.sdkEphemPubKey": 0.43,
+      "threeDS2ResponseData.threeDSServerTransID": 0.41,
+      "threeDS2ResponseData.transStatus": 0.34,
+      "threeDS2ResponseData.transStatusReason": 0.285
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 164.11600400000134,
+  "inputTokens": 7482,
+  "costUsd": 0.00031424400000000004
+}

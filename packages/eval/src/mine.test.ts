@@ -53,6 +53,18 @@ describe("families, by rule", () => {
     ).toEqual(["nesting"]);
   });
 
+  it("names a value moved to a field inside a new object as nesting", () => {
+    expect(
+      familiesOf(
+        question(field("scope"), [
+          field("data", { type: "object" }),
+          field("data.attributes.scope"),
+        ]),
+        "data.attributes.scope",
+      ),
+    ).toEqual(["nesting"]);
+  });
+
   it("names a unit and a type change", () => {
     expect(
       familiesOf(

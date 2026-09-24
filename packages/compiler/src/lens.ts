@@ -24,19 +24,35 @@ export function prefixed(prefix: string, path: string): string {
 }
 
 /**
+ * A value written into the object a Change is scoped to, only where that
+ * object is there. Written at the prefixed path, the write created every
+ * object on the way that was missing: Qdrant's telemetry sends `features`
+ * only when asked for detail, and restoring `web_feature` into it sent old
+ * callers a `features` holding that one field where the old server had sent
+ * no `features` at all. Inside the object, the path is still created, as a
+ * field an op puts back may sit under one it put back first.
+ */
+function inPlace(prefix: string, write: Extract<Instr, { k: "set" }>): Instr {
+  if (prefix === "") return write;
+  // An object that may be null is not one to write into when it is.
+  const object: Instr = { k: "is", path: "", type: "object", block: [write], c: write.c };
+  return { k: "within", path: prefix, block: [object], c: write.c };
+}
+
+/**
  * A `default` op's one write, in whichever direction it faces. A value the
  * stricter side would accept is never touched: `ifAbsent` alone leaves a null
  * in place, and `ifNull` alone never creates a field that was missing.
  */
 function fill(op: DefaultOp, prefix: string, changeId: string): Instr {
-  return {
+  return inPlace(prefix, {
     k: "set",
-    path: prefixed(prefix, op.path),
+    path: op.path,
     value: op.value,
     ifAbsent: op.when !== "null",
     ...(op.when === "absent" ? {} : { ifNull: true as const }),
     c: changeId,
-  };
+  });
 }
 
 function dropNull(op: DropNullOp, prefix: string, changeId: string): Instr {
@@ -174,13 +190,13 @@ export function forwardInstrs(op: DataOp, prefix: string, changeId: string): Ins
       // The caller was written before this field existed, so supply the default
       // without ever overwriting a value they did send.
       return [
-        {
+        inPlace(prefix, {
           k: "set",
-          path: prefixed(prefix, op.path),
+          path: op.path,
           value: op.value,
           ifAbsent: true,
           c: changeId,
-        },
+        }),
       ];
     case "remove":
       return [{ k: "del", path: prefixed(prefix, op.path), c: changeId }];
@@ -339,13 +355,13 @@ export function backwardInstrs(
       // Nothing to put back: old callers were never promised it.
       if (op.restore === undefined) return [];
       return [
-        {
+        inPlace(prefix, {
           k: "set",
-          path: prefixed(prefix, op.path),
+          path: op.path,
           value: op.restore,
           ifAbsent: false,
           c: changeId,
-        },
+        }),
       ];
     case "default":
       return op.toward === "old" ? [fill(op, prefix, changeId)] : [];

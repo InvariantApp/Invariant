@@ -68,48 +68,48 @@
   },
   {
     "id": "mined_adyen_transaction_rule_amount",
-    "successor": "ruleRestrictions",
-    "rationale": "The v2 redesign moved rule conditions into ruleRestrictions; the old maximum amount per interval is now expressed by ruleRestrictions.totalAmount with an operation, alongside countries, mccs, entryModes and processingTypes."
+    "successor": "ruleRestrictions.totalAmount",
+    "rationale": "Old amount was the maximum Amount for the interval; the v2 TotalAmountRestriction holds that Amount in its value, and no value-level candidate is offered. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_adyen_transaction_rule_balance_platform_id",
-    "successor": "entityKey",
-    "rationale": "The new required entityKey object holds entityType (with balancePlatform as a value) plus entityReference, replacing the separate balancePlatformId, paymentInstrumentId and paymentInstrumentGroupId targets."
+    "successor": "entityKey.entityReference",
+    "rationale": "The v2 TransactionRuleEntityKey replaces the per-resource ID fields; entityReference holds the resource ID with entityType balancePlatform. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_adyen_transaction_rule_countries",
-    "successor": "ruleRestrictions",
-    "rationale": "In v2 the rule conditions moved into ruleRestrictions (TransactionRuleRestrictions), which has a countries restriction object with value list and operation."
+    "successor": "ruleRestrictions.countries",
+    "rationale": "The v2 CountriesRestriction holds the country code list in value with an operation; only the object is offered. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_adyen_transaction_rule_entry_modes",
-    "successor": "ruleRestrictions",
-    "rationale": "The new TransactionRuleRestrictions object behind ruleRestrictions has an entryModes condition, and the other flat conditions (countries, mccs, processingTypes) moved there in the same release."
+    "successor": "ruleRestrictions.entryModes",
+    "rationale": "The v2 EntryModesRestriction.value holds the same entry mode enum list; only the object is offered. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_adyen_transaction_rule_max_transactions",
-    "successor": "ruleRestrictions",
-    "rationale": "The maximum transaction count per interval is now expressed by ruleRestrictions.matchingTransactions (a count plus an operation), part of the same move of conditions into ruleRestrictions."
+    "successor": "ruleRestrictions.matchingTransactions",
+    "rationale": "The v2 MatchingTransactionsRestriction.value is the number of transactions, the old maxTransactions limit; only the object is offered. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_adyen_transaction_rule_mccs",
-    "successor": "ruleRestrictions",
-    "rationale": "The new ruleRestrictions object has an mccs entry (MccsRestriction with a value list of MCCs plus an operation), so the MCC list moved inside it."
+    "successor": "ruleRestrictions.mccs",
+    "rationale": "The v2 MccsRestriction.value holds the MCC list; only the object is offered. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_adyen_transaction_rule_payment_instrument_group_id",
-    "successor": "entityKey",
-    "rationale": "v2 replaces the per-resource id fields with entityKey {entityType, entityReference}, and entityType explicitly lists paymentInstrumentGroup."
+    "successor": "entityKey.entityReference",
+    "rationale": "The payment instrument group ID moved into entityKey, with entityReference holding the ID and entityType paymentInstrumentGroup. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_adyen_transaction_rule_payment_instrument_id",
-    "successor": "entityKey",
-    "rationale": "entityKey holds entityType (which includes paymentInstrument) plus entityReference, replacing the flat paymentInstrumentId, paymentInstrumentGroupId and balancePlatformId targets that were all removed."
+    "successor": "entityKey.entityReference",
+    "rationale": "The payment instrument ID moved into entityKey, with entityReference holding the ID and entityType paymentInstrument. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_adyen_transaction_rule_processing_types",
-    "successor": "ruleRestrictions",
-    "rationale": "TransactionRuleRestrictions has a processingTypes restriction (list plus operation), so the old top-level list moved inside ruleRestrictions."
+    "successor": "ruleRestrictions.processingTypes",
+    "rationale": "The v2 ProcessingTypesRestriction.value holds the same processing type enum list; only the object is offered. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_adyen_three_ds2_card_range_detail_three_ds2_version",
@@ -240,13 +240,13 @@
   },
   {
     "id": "mined_amazonaws_delete_item_output_consumed_capacity_units",
-    "successor": "ConsumedCapacity",
-    "rationale": "The scalar ConsumedCapacityUnits is replaced by the ConsumedCapacity object, which contains CapacityUnits plus per-table and per-index breakdowns."
+    "successor": "ConsumedCapacity.CapacityUnits",
+    "rationale": "The new ConsumedCapacity object carries the total capacity units consumed by the operation in CapacityUnits, the same number as the old ConsumedCapacityUnits. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_amazonaws_get_item_output_consumed_capacity_units",
-    "successor": "ConsumedCapacity",
-    "rationale": "The scalar capacity units figure is now reported inside the ConsumedCapacity object, which carries the total capacity units consumed plus per-table and per-index detail."
+    "successor": "ConsumedCapacity.CapacityUnits",
+    "rationale": "The new ConsumedCapacity object carries the total capacity units consumed by the operation in CapacityUnits, the same number as the old ConsumedCapacityUnits. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_amazonaws_key_schema_element_attribute_type",
@@ -272,8 +272,8 @@
   },
   {
     "id": "mined_amazonaws_query_output_consumed_capacity_units",
-    "successor": "ConsumedCapacity",
-    "rationale": "The consumed capacity unit count is now reported inside the ConsumedCapacity object (its CapacityUnits member), with extra per-index detail."
+    "successor": "ConsumedCapacity.CapacityUnits",
+    "rationale": "The new ConsumedCapacity object carries the total capacity units consumed by the operation in CapacityUnits; ScannedCount is an item count, not capacity. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_amazonaws_scan_input_count",
@@ -314,8 +314,8 @@
   },
   {
     "id": "mined_googleapis_creative_disapproval_reasons",
-    "successor": "servingRestrictions",
-    "rationale": "Each servingRestrictions entry has a disapprovalReasons array with the same item shape (reason, details), so the reasons moved into per-context restriction entries."
+    "successor": "servingRestrictions.*.disapprovalReasons",
+    "rationale": "The creative-level disapprovalReasons list (reason, details items) moved into each serving restriction with identical item shape and near-identical description. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_googleapis_creative_status",
@@ -346,8 +346,8 @@
   },
   {
     "id": "mined_googleapis_account_timezone",
-    "successor": "timeZone",
-    "rationale": "The string timezone became the TimeZone object timeZone, whose id holds the IANA zone of the account."
+    "successor": "timeZone.id",
+    "rationale": "The v1.4 timezone string became the v2 TimeZone object, whose id holds the IANA time zone name. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_googleapis_accounts_etag",
@@ -602,13 +602,13 @@
   },
   {
     "id": "mined_googleapis_track_user_fraction",
-    "successor": "releases",
-    "rationale": "v3 moved staged rollout into releases, whose TrackRelease items carry userFraction as the fraction of users eligible for the staged release."
+    "successor": "releases.*.userFraction",
+    "rationale": "Androidpublisher v3 moved the staged rollout fraction from the Track into each TrackRelease as userFraction. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_googleapis_track_version_codes",
-    "successor": "releases",
-    "rationale": "In androidpublisher v3 versionCodes (and userFraction) moved into each TrackRelease in the releases array."
+    "successor": "releases.*.versionCodes",
+    "rationale": "Androidpublisher v3 moved the active version codes from the Track into each TrackRelease as versionCodes. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_googleapis_ssl_settings_pending_managed_certificate_id",
@@ -869,8 +869,8 @@
   },
   {
     "id": "mined_twilio_conversations_v2_start_conversation_participant_address",
-    "successor": "addresses",
-    "rationale": "The single channel-specific address string became an addresses array of objects each holding channel and the same formatted address."
+    "successor": "addresses.*.address",
+    "rationale": "The participant's single address string moved into the addresses list, each entry holding channel plus address with the same formatting rules. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_twilio_conversations_v2_start_conversation_request_channel",
@@ -1068,23 +1068,23 @@
   },
   {
     "id": "mined_datadoghq_recommendations_filter_request_filter",
-    "successor": "data",
-    "rationale": "The request became JSON:API; the filter expression is now data.id, whose description is the same filter expression text, with scope, sort and view in data.attributes."
+    "successor": "data.id",
+    "rationale": "New RecommendationsFilterRequestData.id is described as the filter expression applied to the recommendations. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_datadoghq_recommendations_filter_request_scope",
-    "successor": "data",
-    "rationale": "The request became a JSON:API body and scope now sits under data.attributes.scope, as the new example shows."
+    "successor": "data.attributes.scope",
+    "rationale": "The scope field moved unchanged into the JSON:API wrapper as data.attributes.scope with the same description and ref. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_datadoghq_recommendations_filter_request_sort",
-    "successor": "data",
-    "rationale": "The request was wrapped in a JSON:API data object, and RecommendationsFilterRequestDataAttributes carries sort with the same sort items schema."
+    "successor": "data.attributes.sort",
+    "rationale": "The sort clause list moved unchanged into data.attributes.sort with the same item schema. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_datadoghq_recommendations_filter_request_view",
-    "successor": "data",
-    "rationale": "The request moved to a JSON:API envelope and view now lives at data.attributes.view with the same description."
+    "successor": "data.attributes.view",
+    "rationale": "The view name moved unchanged into data.attributes.view with the same description. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_sentry_organization_events_timeseries_response_meta_annotations",
@@ -1120,13 +1120,13 @@
   },
   {
     "id": "mined_paypal_error_400_information_link",
-    "successor": "links",
-    "rationale": "Consistently across all error schemas, information_link became links, an array of HATEOAS link descriptions (PayPal errors carry the info link as a link with rel information_link), while issues became details."
+    "successor": "links.*.href",
+    "rationale": "The information_link URL is now a HATEOAS link in links with rel information_link, the URL held in href (the new error_500 example shows this pattern). Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_paypal_error_500_information_link",
-    "successor": "links",
-    "rationale": "information_link is now expressed as an entry in the links array, and the new example shows the same URL with rel information_link."
+    "successor": "links.*.href",
+    "rationale": "The new error_500 example returns the same URL as a links entry with rel information_link, so href holds the old information_link value. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_paypal_card_request_id",
@@ -1563,13 +1563,13 @@
   },
   {
     "id": "mined_okta_privileged_resource_credential_changed",
-    "successor": "credentialSyncInfo",
-    "rationale": "credentialSyncInfo contains syncTime described as the timestamp when the credential was changed, alongside syncState which replaces credentialSyncState."
+    "successor": "credentialSyncInfo.syncTime",
+    "rationale": "The new CredentialSyncInfo.syncTime has the exact old description, Timestamp when the credential was changed. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_okta_privileged_resource_credential_sync_state",
-    "successor": "credentialSyncInfo",
-    "rationale": "The flat credentialSyncState was folded into the credentialSyncInfo object, whose syncState uses the same CredentialSyncState enum."
+    "successor": "credentialSyncInfo.syncState",
+    "rationale": "The new CredentialSyncInfo.syncState has the same CredentialSyncState ref and description as the old credentialSyncState. Read again once the fields inside new objects were offered; both readers named this field, where the wrapper was the most precise answer before."
   },
   {
     "id": "mined_okta_resource_set_resource_description",

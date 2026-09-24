@@ -506,14 +506,24 @@ const LABELLED_TARGET = 600;
 const MINED_SHARE = 0.4;
 const PRECISION_TARGET = 0.99;
 
+/** A judge's floors as the line reads them: one number where both are the same. */
+function floors(threshold: JudgeResults["judges"][number]["threshold"]): string {
+  return threshold.named === threshold.none
+    ? String(threshold.named)
+    : `${threshold.named} naming a field, ${threshold.none} saying none did`;
+}
+
 function judgeLine(
   results: JudgeResults | undefined,
   servers: ServerResult[] | undefined,
 ): Line {
   const claim =
     "Judge precision of at least 99% per family, and no semantically wrong Change surviving the gate.";
+  // The mined labels were read by Claude agents, the family S2 is from, so
+  // S2's agreement with them is the figure most likely to flatter; the line
+  // says so wherever it is read.
   const evidence =
-    "eval/results.json (eval/measure.mts, from recorded answers on every commit); proving/servers/results.json for false closure";
+    "eval/results.json (eval/measure.mts, from recorded answers on every commit), against labels read by Claude agents, the model family S2 is from (eval/mined/labels.json); proving/servers/results.json for false closure";
   if (!results || results.judges.length === 0) {
     return { id: "L4b", claim, status: "not measured", value: "", evidence };
   }
@@ -534,7 +544,7 @@ function judgeLine(
         judge.overall.answered > 0 &&
         families.every(([, at]) => at.precision >= PRECISION_TARGET),
       text:
-        `${judge.judge}${judge.model ? ` (${judge.model}${role})` : ""} at ${judge.threshold}: ` +
+        `${judge.judge}${judge.model ? ` (${judge.model}${role})` : ""} at ${floors(judge.threshold)}: ` +
         `${percent(judge.overall.answered - judge.overall.wrong, judge.overall.answered)} on ${judge.overall.answered} answered ` +
         `(mined ${percent(judge.mined.answered - judge.mined.wrong, judge.mined.answered)} on ${judge.mined.answered}), ` +
         `${judge.overall.wrong} wrong${lowest}${missing}`,

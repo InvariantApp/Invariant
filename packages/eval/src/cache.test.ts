@@ -165,6 +165,45 @@ describe("replaying recorded answers", () => {
     expect(replay.fromCache).toBe(0);
   });
 
+  /**
+   * A request that failed came back as an abstention, and was recorded as
+   * one: every S2 request in one recording run was refused, and all 651
+   * refusals would have been replayed as S2 declining every question.
+   */
+  it("records nothing for a request that failed, and says why", async () => {
+    scratch = await mkdtemp(join(tmpdir(), "invariant-eval-cache-"));
+    const failing: Judge = {
+      id: "s2",
+      fingerprint: "s2:failing",
+      align: (questions) =>
+        Promise.resolve(
+          questions.map(() => ({
+            answer: {
+              successor: null,
+              confidence: 0,
+              scores: {},
+              stated: false,
+              abstained: true,
+            },
+            judge: "s2" as const,
+            model: undefined,
+            latencyMs: 0,
+            inputTokens: 0,
+            costUsd: 0,
+            failure: "BadRequestError: 400 refused",
+          })),
+        ),
+    };
+    const run = await runJudge(failing, CASES, { cacheDir: scratch, record: true });
+    expect(run).toMatchObject({
+      recorded: 0,
+      missing: ["amount_to_cents"],
+      failures: ["BadRequestError: 400 refused"],
+    });
+    const later = await runJudge(failing, CASES, { cacheDir: scratch });
+    expect(later.missing).toEqual(["amount_to_cents"]);
+  });
+
   it("gives two real judges different keys for the same question", () => {
     // Not a detail: the whole cache is one flat directory, so two judges that
     // hashed alike would answer for each other.

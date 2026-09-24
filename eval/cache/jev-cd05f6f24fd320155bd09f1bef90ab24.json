@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "lag_messages",
+    "confidence": 1,
+    "scores": {
+      "lag_seconds": 0.305,
+      "lag_messages": 1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 136.2268939999999,
+  "inputTokens": 1266,
+  "costUsd": 0.000053172000000000005
+}

@@ -1,0 +1,36 @@
+{
+  "answer": {
+    "successor": "ruleRestrictions.entryModes",
+    "confidence": 0.94,
+    "scores": {
+      "aggregationLevel": 0.005,
+      "entityKey": 0.025,
+      "outcomeType": 0.005,
+      "requestType": 0.01,
+      "ruleRestrictions": 0.725,
+      "score": 0,
+      "entityKey.entityReference": 0.005,
+      "entityKey.entityType": 0.02,
+      "ruleRestrictions.activeNetworkTokens": 0.025,
+      "ruleRestrictions.brandVariants": 0.02,
+      "ruleRestrictions.countries": 0.01,
+      "ruleRestrictions.dayOfWeek": 0.01,
+      "ruleRestrictions.differentCurrencies": 0.01,
+      "ruleRestrictions.entryModes": 0.94,
+      "ruleRestrictions.internationalTransaction": 0.02,
+      "ruleRestrictions.matchingTransactions": 0.05,
+      "ruleRestrictions.mccs": 0.02,
+      "ruleRestrictions.merchantNames": 0.02,
+      "ruleRestrictions.merchants": 0.01,
+      "ruleRestrictions.processingTypes": 0.12,
+      "ruleRestrictions.timeOfDay": 0.01,
+      "ruleRestrictions.totalAmount": 0.01
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 244.1886569999997,
+  "inputTokens": 8079,
+  "costUsd": 0.000339318
+}

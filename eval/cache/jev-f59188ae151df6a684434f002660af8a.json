@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "rate_e8",
+    "confidence": 0.99,
+    "scores": {
+      "rate_e8": 1,
+      "inverse_rate": 0.16
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 162.71021800000017,
+  "inputTokens": 1284,
+  "costUsd": 0.000053928
+}

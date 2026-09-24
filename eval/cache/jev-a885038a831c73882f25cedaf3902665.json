@@ -1,0 +1,27 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.91,
+    "scores": {
+      "payment_source.card.name": 0.01,
+      "payment_source.card.number": 0.01,
+      "payment_source.card.expiry": 0.005,
+      "payment_source.card.security_code": 0.01,
+      "payment_source.card.brand": 0.01,
+      "payment_source.card.billing_address": 0.03,
+      "payment_source.card.network_transaction_reference": 0.04,
+      "payment_source.card.billing_address.address_line_1": 0.02,
+      "payment_source.card.billing_address.address_line_2": 0.015,
+      "payment_source.card.billing_address.admin_area_2": 0.01,
+      "payment_source.card.billing_address.admin_area_1": 0.01,
+      "payment_source.card.billing_address.postal_code": 0.015,
+      "payment_source.card.billing_address.country_code": 0.015
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 181.29359999999906,
+  "inputTokens": 5373,
+  "costUsd": 0.00022566600000000002
+}

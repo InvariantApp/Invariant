@@ -1,0 +1,19 @@
+{
+  "answer": {
+    "successor": "adClients",
+    "confidence": 0.99,
+    "scores": {
+      "adClients": 0.995,
+      "adClients.*.name": 0.495,
+      "adClients.*.productCode": 0.145,
+      "adClients.*.reportingDimensionId": 0.145,
+      "adClients.*.state": 0.18
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 148.61408699999993,
+  "inputTokens": 2379,
+  "costUsd": 0.000099918
+}

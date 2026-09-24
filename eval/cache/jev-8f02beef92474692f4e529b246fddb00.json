@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "cubes.*.dimensions.*.displayName",
+    "confidence": 0.96,
+    "scores": {
+      "cubes.*.measures.*.displayName": 0.02,
+      "cubes.*.dimensions.*.displayName": 0.96
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 122.34685899999931,
+  "inputTokens": 1238,
+  "costUsd": 0.000051996
+}

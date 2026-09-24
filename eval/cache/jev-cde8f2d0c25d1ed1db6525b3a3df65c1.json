@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "conversion_rate_bps",
+    "confidence": 1,
+    "scores": {
+      "conversion_rate_bps": 1,
+      "bounce_rate_bps": 0.015
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 128.74596499999961,
+  "inputTokens": 1278,
+  "costUsd": 0.000053676000000000006
+}

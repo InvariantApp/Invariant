@@ -1,0 +1,24 @@
+{
+  "answer": {
+    "successor": "links",
+    "confidence": 0.37,
+    "scores": {
+      "details": 0.02,
+      "links": 0.45,
+      "details.*.field": 0.005,
+      "details.*.value": 0.005,
+      "details.*.location": 0.01,
+      "details.*.issue": 0.02,
+      "details.*.description": 0.03,
+      "links.*.href": 0.345,
+      "links.*.rel": 0.305,
+      "links.*.method": 0.045
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 150.53448300000127,
+  "inputTokens": 4066,
+  "costUsd": 0.00017077200000000002
+}

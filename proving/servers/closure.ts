@@ -29,7 +29,8 @@
  *
  * Calls are paired by method, path with its ids set aside, and how many
  * calls to that route came before, since the suite makes them in the same
- * order against either server. A call with no counterpart is counted and not
+ * order against either server. A call with no counterpart, or whose old
+ * answer was too large or not JSON enough to record, is counted and not
  * judged. Only answers are judged here: an adapted request is judged by what
  * the new server answers to it, which the suite's own outcome already says.
  */
@@ -42,6 +43,8 @@ export interface Exchange {
   method: string;
   path: string;
   status: number;
+  /** The query string as sent, `?` included, for naming a call in a finding. */
+  query?: string;
   /** The parsed body, for a JSON answer small enough to record. */
   body?: Json;
 }
@@ -105,6 +108,38 @@ function leaves(
   }
   out.set(at, value);
   return out;
+}
+
+/** The value at a pointer, or undefined where the document has none. */
+function at(value: Json | undefined, pointer: string): Json | undefined {
+  let here = value;
+  for (const segment of pointer.split("/").slice(1)) {
+    const key = segment.replace(/~1/g, "/").replace(/~0/g, "~");
+    if (here === null || typeof here !== "object") return undefined;
+    here = Array.isArray(here) ? here[Number(key)] : here[key];
+    if (here === undefined) return undefined;
+  }
+  return here;
+}
+
+/**
+ * What the old server sent around a place it left empty: the nearest
+ * enclosing value it did send, so a finding says whether the field alone was
+ * missing or everything that held it was.
+ */
+function around(body: Json | undefined, pointer: string): string {
+  const segments = pointer.split("/");
+  for (let length = segments.length - 1; length >= 1; length -= 1) {
+    const parent = segments.slice(0, length).join("/");
+    const value = at(body, parent);
+    if (value === undefined) continue;
+    const shown =
+      value !== null && typeof value === "object" && !Array.isArray(value)
+        ? `an object holding ${Object.keys(value).sort().join(", ") || "nothing"}`
+        : kindOf(value);
+    return `at ${parent || "/"} it sent ${shown}`;
+  }
+  return "it sent no body";
 }
 
 const same = (a: Json | undefined, b: Json | undefined) =>
@@ -181,8 +216,16 @@ export function judgeClosure(
         .map((runOf) => runOf.get(key))
         .filter((exchange): exchange is Exchange => exchange !== undefined);
       const truth = counterparts[0];
+      // An old answer whose body was not recorded (too large, or not JSON)
+      // says nothing about any place in it. Read as an empty document it
+      // made every value the adapter wrote look invented and every value it
+      // took away look right.
+      const unread =
+        sent.body !== undefined &&
+        counterparts.some((exchange) => exchange.body === undefined);
       if (
         !truth ||
+        unread ||
         (!statusChanged && statusClass(truth.status) !== statusClass(sent.status))
       ) {
         notComparable += 1;
@@ -223,7 +266,8 @@ export function judgeClosure(
           if (truths.every((truthValue) => truthValue === undefined)) {
             flag(
               pointer,
-              `the adapter sent ${JSON.stringify(value)} where the old server sent nothing`,
+              `the adapter sent ${JSON.stringify(value)} where the old server sent nothing` +
+                ` (${around(counterparts[0]?.body, pointer)}, ${sent.method.toUpperCase()} ${sent.path}${sent.query ?? ""})`,
             );
           } else {
             fine(pointer);

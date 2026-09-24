@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "dimensions_cm",
+    "confidence": 0.79,
+    "scores": {
+      "dimensions_cm": 0.79,
+      "weight_grams": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 151.55746399999953,
+  "inputTokens": 1261,
+  "costUsd": 0.000052962
+}

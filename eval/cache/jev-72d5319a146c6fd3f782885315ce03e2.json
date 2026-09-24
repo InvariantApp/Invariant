@@ -1,0 +1,23 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.97,
+    "scores": {
+      "affirm": 0,
+      "carnet": 0.005,
+      "bcmc.transactionDescription": 0.005,
+      "affirm.pricePlan": 0,
+      "carnet.transactionDescription": 0.005,
+      "carnet.transactionDescription.doingBusinessAsName": 0.01,
+      "carnet.transactionDescription.type": 0,
+      "bcmc.transactionDescription.doingBusinessAsName": 0.005,
+      "bcmc.transactionDescription.type": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 149.00905000000057,
+  "inputTokens": 5369,
+  "costUsd": 0.000225498
+}

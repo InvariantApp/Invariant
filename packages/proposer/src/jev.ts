@@ -35,6 +35,7 @@ import type { FieldShape } from "./candidates.ts";
 import {
   type AlignmentQuestion,
   abstention,
+  failureOf,
   type Judge,
   type JudgeResult,
 } from "./judge.ts";
@@ -52,6 +53,23 @@ const ALIGNMENT_LEVELS: ScoreCriteria = [
   "They describe related information that may or may not be the same quantity: a reviewer should decide.",
   "They describe one and the same piece of information, renamed, moved, or re-encoded.",
 ] as const;
+
+/**
+ * What the successor is chosen from, and what choosing none means.
+ *
+ * Kept as they were. Telling Jev how to read a dotted candidate, a field
+ * inside an object the change added, was tried when those candidates were
+ * first offered, and it did not earn its place: on the 651 cases at 0.6 it
+ * took nesting from 96.6% to 98.3%, and adversarial cases from 98.1% to
+ * 96.2%, an injected instruction followed at 0.70. The candidates did the
+ * work; the sentence did not.
+ */
+const SUCCESSOR_QUESTION = {
+  question: "Which entry in `candidate_fields`, if any, is what `removed_field` became?",
+  decide_from: "The names, types, and descriptions of the fields themselves.",
+} as const;
+const NONE_OPTION =
+  "None of them. The information `removed_field` carried is simply gone.";
 
 /** Highest level index, so a raw score reads back as 0 to 1 with no magic number. */
 const TOP_LEVEL = ALIGNMENT_LEVELS.length - 1;
@@ -139,6 +157,8 @@ export class JevJudge implements Judge {
 
   /**
    * The model and the wording, which are the two things that move its answers.
+   * All of the wording: the successor question's own was left out once, so a
+   * change to it would have replayed answers to the question it replaced.
    *
    * The wording matters as much as the version: narrowing one sentence about
    * embedded instructions moved overall accuracy on the corpus by two points,
@@ -162,6 +182,8 @@ export class JevJudge implements Judge {
           model: this.#model,
           framing: EMBEDDED_TEXT_RULE,
           ALIGNMENT_LEVELS,
+          SUCCESSOR_QUESTION,
+          NONE_OPTION,
         }),
       )
       .digest("hex")
@@ -231,12 +253,7 @@ export class JevJudge implements Judge {
 
     const questions: Record<string, Question> = {
       successor: choice(
-        {
-          question:
-            "Which entry in `candidate_fields`, if any, is what `removed_field` became?",
-          decide_from: "The names, types, and descriptions of the fields themselves.",
-          about_the_text: EMBEDDED_TEXT_RULE,
-        },
+        { ...SUCCESSOR_QUESTION, about_the_text: EMBEDDED_TEXT_RULE },
         {
           ...Object.fromEntries(
             question.candidates.map((candidate, index) => [
@@ -244,7 +261,7 @@ export class JevJudge implements Judge {
               optionLabel(candidate, candidateKey(index)),
             ]),
           ),
-          none: "None of them. The information `removed_field` carried is simply gone.",
+          none: NONE_OPTION,
         },
       ),
       stated: noul({
@@ -288,10 +305,14 @@ export class JevJudge implements Judge {
       model = response.model;
       answers = response.answers as Record<string, Answer>;
       inputTokens = response.usage.input_tokens;
-    } catch {
+    } catch (error) {
       // A judge that cannot answer abstains. The pipeline falls through to the
       // next stage rather than treating an outage as a negative answer.
-      return { ...abstention("jev"), latencyMs: performance.now() - started };
+      return {
+        ...abstention("jev"),
+        latencyMs: performance.now() - started,
+        failure: failureOf(error),
+      };
     }
 
     // Built from entries, so a field named `__proto__` is a score like any

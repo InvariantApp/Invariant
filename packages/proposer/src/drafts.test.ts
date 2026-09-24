@@ -1654,15 +1654,17 @@ describe("how sure a judge has to be", () => {
     );
 
   it("is measured per judge: the same answer drafts from one and is asked from another", async () => {
-    const fromJev = await renamed(sure("jev", 0.7));
-    expect(
-      fromJev.proposals.some((p) => p.change.ops.some((op) => op.op === "move")),
-    ).toBe(true);
-    const fromS2 = await renamed(sure("s2", 0.7));
+    // S2 names a field from 0.85; Jev, whose wrong answers naming one reach
+    // 0.93 on the corpus, from 0.95.
+    const fromS2 = await renamed(sure("s2", 0.9));
     expect(
       fromS2.proposals.some((p) => p.change.ops.some((op) => op.op === "move")),
+    ).toBe(true);
+    const fromJev = await renamed(sure("jev", 0.9));
+    expect(
+      fromJev.proposals.some((p) => p.change.ops.some((op) => op.op === "move")),
     ).toBe(false);
-    expect(fromS2.unresolved.map((entry) => entry.reason).join()).toMatch(
+    expect(fromJev.unresolved.map((entry) => entry.reason).join()).toMatch(
       /below the threshold/,
     );
   });
