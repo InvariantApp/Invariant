@@ -761,9 +761,9 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         plan: buildPlan(contract?.changes ?? [], symbols),
         current: { package: entry.package, from: oldRelease.prefix },
         upgraded: { package: entry.package, from: newRelease.prefix },
-        // Most cases check in seconds; one that has not in ten minutes is
+        // Most cases check in seconds; one that has not in five minutes is
         // left partly unchecked, and says so, rather than holding the shard.
-        checkFor: 10 * 60_000,
+        checkFor: 5 * 60_000,
         ...(keep || options.verbose
           ? {
               trace: (step: string) =>
