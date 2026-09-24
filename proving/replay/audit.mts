@@ -16,6 +16,9 @@
  *     compares audit.json with classes.json
  *   node --env-file-if-exists=.env --import tsx proving/replay/audit.mts reclassify
  *     classes every cached site again, from its cached lines, as the replay would
+ *   node --env-file-if-exists=.env --import tsx proving/replay/audit.mts narrow
+ *     asks the narrow questions (`classify.mts`) of every labelled site, whatever
+ *     its class, and says which they would settle and whether the reader agrees
  */
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -25,6 +28,8 @@ import { ROOT } from "../corpus/manifest.mts";
 import {
   cachedSites,
   classify,
+  type NarrowAnswer,
+  narrowAnswer,
   readClasses,
   type Site,
   type SiteClass,
@@ -96,6 +101,44 @@ export function sample(
   return picked;
 }
 
+/**
+ * How the narrow questions do on the labelled sample: how many sites they
+ * would settle, how many of those the reader puts outside the contract as
+ * they do, and how many of the reader's contract sites they would have put
+ * outside it, which must be none for the step to be trusted.
+ */
+export function narrowReport(
+  sites: readonly {
+    label: Exclude<SiteClass, "contested">;
+    given: SiteClass | undefined;
+    answer: NarrowAnswer | undefined;
+  }[],
+): {
+  asked: number;
+  settled: number;
+  outsideAgreed: number;
+  sameClass: number;
+  contractSettled: number;
+  contested: { labelled: number; settled: number; agreed: number };
+} {
+  const settled = sites.filter((site) => site.answer?.settled);
+  const contested = sites.filter((site) => site.given === "contested");
+  const contestedSettled = contested.filter((site) => site.answer?.settled);
+  return {
+    asked: sites.length,
+    settled: settled.length,
+    outsideAgreed: settled.filter((site) => site.label !== "contract").length,
+    sameClass: settled.filter((site) => site.label === site.answer?.settled).length,
+    contractSettled: settled.filter((site) => site.label === "contract").length,
+    contested: {
+      labelled: contested.length,
+      settled: contestedSettled.length,
+      agreed: contestedSettled.filter((site) => site.label === site.answer?.settled)
+        .length,
+    },
+  };
+}
+
 function render(site: Site): string {
   const { base, region } = site;
   const before = base.slice(Math.max(0, region.oldStart - 4), region.oldStart);
@@ -154,7 +197,26 @@ async function main(): Promise<void> {
     process.stdout.write(`${Object.keys(fresh).length} sites classed again\n`);
     return;
   }
-  throw new Error("usage: audit.mts sample | score | reclassify");
+  if (command === "narrow") {
+    const { TypeSafeClient } = await import("@typesafe-ai/sdk");
+    const { JEV_MODEL } = await import("@invariant-app/proposer");
+    const client = new TypeSafeClient() as unknown as Parameters<typeof classify>[2];
+    const audit = JSON.parse(readFileSync(AUDIT, "utf8")) as AuditFile;
+    const report = narrowReport(
+      await Promise.all(
+        cachedSites()
+          .filter((site) => audit.labels[siteKey(site)])
+          .map(async (site) => ({
+            label: audit.labels[siteKey(site)]?.label as Exclude<SiteClass, "contested">,
+            given: classes[siteKey(site)]?.class,
+            answer: await narrowAnswer(site, client, JEV_MODEL),
+          })),
+      ),
+    );
+    process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+    return;
+  }
+  throw new Error("usage: audit.mts sample | score | reclassify | narrow");
 }
 
 if (process.argv[1]?.endsWith("audit.mts")) await main();

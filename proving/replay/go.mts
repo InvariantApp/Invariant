@@ -31,6 +31,7 @@ import {
 } from "@invariant-app/migrate-go";
 import { goGithubContract, operationsListing } from "./gogithub.mts";
 import type { ReplayCase } from "./mine.mts";
+import { stripeGoPlan } from "./stripe.mts";
 
 /** What the replay needs from the checkout it made. */
 export interface Checkout {
@@ -206,14 +207,44 @@ export async function replayGo(
             operationsListing(await downloadModule(to.path, to.version, options, cache)),
           )
         : undefined;
-    if (contract) result.engine = "contract";
+    // stripe-go's releases each speak one API version, whose specification
+    // stripe/openapi keeps: the Changes between the two are drafted as the
+    // npm and PyPI replays draft them.
+    let stripe: Awaited<ReturnType<typeof stripeGoPlan>> | undefined;
+    if (family === "github.com/stripe/stripe-go") {
+      try {
+        stripe = await stripeGoPlan(from.version, to.version, before);
+      } catch (error) {
+        // With no Changes, the case is still checked against both releases.
+        result.notes.push({
+          root,
+          stripe: (error instanceof Error ? error.message : String(error)).slice(0, 200),
+        });
+      }
+    }
+    if (contract || stripe) result.engine = "contract";
     const plan = buildGoPlan(
-      contract?.changes ?? [],
+      contract?.changes ?? stripe?.changes ?? [],
       {
         module: from,
         upgradeTo: to,
-        types: {},
+        types: stripe?.types ?? {},
         ...(contract ? { operations: contract.operations } : {}),
+        ...(stripe
+          ? {
+              tags: {
+                ...stripe.tags,
+                ...(stripe.tags.version
+                  ? {
+                      version: {
+                        ...stripe.tags.version,
+                        sdk: `${to.path} ${to.version}`,
+                      },
+                    }
+                  : {}),
+              },
+            }
+          : {}),
       },
       { before, after },
     );
@@ -232,6 +263,16 @@ export async function replayGo(
       to,
       packages: patterns,
       retired: (contract?.changes ?? []).map((change) => change.summary),
+      ...(stripe
+        ? {
+            stripe: {
+              changes: stripe.changes.length,
+              types: Object.keys(stripe.types).length,
+              tags: Object.keys(stripe.tags.schemas).length,
+              version: stripe.tags.version?.label,
+            },
+          }
+        : {}),
       renames: plan.renames.map((rename) => `${rename.from.key} -> ${rename.to}`),
       edits: migrated.edits.length,
       manual: migrated.manual.map(
@@ -240,6 +281,7 @@ export async function replayGo(
       ),
       diagnosticsBefore: migrated.diagnosticsBefore.length,
       diagnosticsAfter: migrated.diagnosticsAfter.length,
+      filesChecked: migrated.filesChecked,
       // The first of each, to tell a base that did not compile from an
       // upgrade the checker could not see.
       firstBefore: migrated.diagnosticsBefore

@@ -449,7 +449,7 @@ function auditLine(
   classes: Record<string, { class: SiteClass }> | undefined,
 ): string {
   const base =
-    "Sites are classed by rule where the text alone decides, otherwise by Jev, with a second question where it was unsure.";
+    "Sites are classed by rule where the text alone decides, otherwise by Jev, with a second question where it was unsure, a third where the two disagreed, and narrow ones about the wire that settle a site the third left contested only outside the contract.";
   if (!audit || !classes) return `${base} The classes are not yet audited.`;
   const result = agreement(classes, audit);
   const per = Object.entries(result.byClass)

@@ -25,11 +25,11 @@
  * Usage:
  *   node --env-file-if-exists=.env --import tsx proving/replay/run.mts [--package stripe]
  *     [--ecosystem npm|pypi|go] [--case owner/repo#1] [--limit 10] [--keep] [--classify]
- *     [--recheck] [--settle] [--again] [--shard 0/4] [--results shard-0.json] [--verbose]
+ *     [--recheck] [--settle] [--narrow] [--again] [--shard 0/4] [--results shard-0.json] [--verbose]
  *     [--minutes 200]
  *   node --import tsx proving/replay/run.mts --merge shard-*.json
  *   node --env-file-if-exists=.env --import tsx proving/replay/run.mts --rescore
- *     [--ecosystem pypi] [--classify] [--recheck] [--settle]
+ *     [--ecosystem pypi] [--classify] [--recheck] [--settle] [--narrow]
  *
  * Cases already in the results are skipped, so a run resumes where the last
  * one stopped; `--again` replays them too.
@@ -53,7 +53,8 @@
  *
  * `--recheck` with `--classify` also settles classes recorded before the
  * rules and the second question existed; `--settle` asks the third question
- * of each site the first two disagreed about (`classify.mts`); `--minutes`
+ * of each site the first two disagreed about, and `--narrow` the narrow ones
+ * of each site still contested after it (`classify.mts`); `--minutes`
  * stops starting cases in time for what was replayed to be kept.
  *
  * `--keep` leaves each case's checkout in place and prints what the engine
@@ -66,7 +67,7 @@ import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import type { Change } from "@invariant-app/ir";
-import type { ManualSite } from "@invariant-app/migrate-core";
+import type { ManualSite, WireTags } from "@invariant-app/migrate-core";
 import {
   installWithDependencies,
   migrate as migratePython,
@@ -526,6 +527,8 @@ interface ReplayOptions {
   recheck?: boolean;
   /** Ask the third question of sites the first two disagreed about. */
   settle?: boolean;
+  /** Ask the narrow questions of sites still contested after the third. */
+  narrow?: boolean;
 }
 
 async function replay(entry: ReplayCase, options: ReplayOptions): Promise<ReplayResult> {
@@ -760,6 +763,9 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         },
         types: contract?.types ?? {},
         ...(contract ? { operations: contract.operations } : {}),
+        ...(contract
+          ? { tags: withLabel(contract.tags, next?.label, entry.package) }
+          : {}),
         accessors: [],
         ...(old && next
           ? { pin: { type: old.pinType, property: old.pinProperty, label: next.label } }
@@ -851,7 +857,11 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
           options.classes,
           options.classifier.client,
           options.classifier.model,
-          { recheck: options.recheck ?? false, settle: options.settle ?? false },
+          {
+            recheck: options.recheck ?? false,
+            settle: options.settle ?? false,
+            narrow: options.narrow ?? false,
+          },
         );
       } catch (error) {
         // The case is still scored; what could not be classed counts as
@@ -915,6 +925,18 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
   } finally {
     if (!keep) await rm(work, { recursive: true, force: true });
   }
+}
+
+/**
+ * A contract's tags with the version the upgraded SDK itself speaks, where it
+ * says, rather than the one its specification describes, and the SDK named.
+ */
+function withLabel(tags: WireTags, label: string | undefined, sdk: string): WireTags {
+  if (!tags.version) return tags;
+  return {
+    ...tags,
+    version: { ...tags.version, label: label ?? tags.version.label, sdk },
+  };
 }
 
 /** A case's sites that follow from a contract change, by how the engine did on each. */
@@ -1130,6 +1152,9 @@ async function replayPython(
     package: entry.package,
     upgradeTo: { package: entry.package, version: next.version, types },
     types,
+    ...(contract
+      ? { tags: withLabel(contract.tags, pin?.label, `stripe-python ${next.version}`) }
+      : {}),
     accessors: [],
     ...(pin ? { pin } : {}),
   };
@@ -1274,7 +1299,11 @@ async function main(): Promise<void> {
             classes,
             classifier.client,
             classifier.model,
-            { recheck: args.includes("--recheck"), settle: args.includes("--settle") },
+            {
+              recheck: args.includes("--recheck"),
+              settle: args.includes("--settle"),
+              narrow: args.includes("--narrow"),
+            },
           );
         } catch (error) {
           // What could not be classed stays unclassified, and is counted so.
@@ -1306,6 +1335,7 @@ async function main(): Promise<void> {
       verbose: args.includes("--verbose"),
       recheck: args.includes("--recheck"),
       settle: args.includes("--settle"),
+      narrow: args.includes("--narrow"),
       classes,
       ...(classifier ? { classifier } : {}),
     });
