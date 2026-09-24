@@ -40,7 +40,9 @@ on:
     - cron: "41 4 * * 1"
 
 concurrency:
-  group: replay-${{ github.ref }}
+  # Mining and each ecosystem's replay queue apart: an hours-long mining run
+  # does not hold back the replay of a change pushed beside it.
+  group: replay-${{ github.ref }}-${{ inputs.mine != '' && 'mine' || inputs.ecosystem || 'pypi' }}
   cancel-in-progress: false
 
 permissions: {}

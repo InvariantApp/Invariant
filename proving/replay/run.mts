@@ -102,6 +102,8 @@ import {
 } from "./python.mts";
 import {
   changedRegions,
+  type Flag,
+  newCodeIn,
   type Outcome,
   type Region,
   type Score,
@@ -166,6 +168,8 @@ export interface ScopedScore {
   unclassified: number;
   /** Sites the two questions disagreed about, counted as neither. */
   contested?: number;
+  /** New code the humans wrote: no site of a contract change, whatever its class. */
+  newCode?: number;
 }
 
 /** What an SDK records about itself, read from the installed package. */
@@ -661,8 +665,8 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
     // the denominator a pack is judged on.
     const stamp = entry.ecosystem === "npm" ? STAMPS[entry.package] : undefined;
     const engineText = new Map<string, string>();
-    /** Base lines, per file, the engine reported to a person rather than edited. */
-    const flagged = new Map<string, (readonly [number, number])[]>();
+    /** What the engine reported to a person rather than edited, per file, in base lines. */
+    const flagged = new Map<string, Flag[]>();
     if (entry.ecosystem === "pypi") {
       const python = await replayPython(
         entry,
@@ -881,6 +885,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       missed: 0,
       extra: 0,
       extraFlags: 0,
+      newCode: 0,
     };
     const scored: { site: Site; outcome: Outcome }[] = [];
     const engineRegions = new Map<string, Region[]>();
@@ -892,13 +897,16 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         : [];
       engineRegions.set(file, engine);
       const regions = human.get(file) ?? [];
-      const result = score(lines, regions, engine, flagged.get(file) ?? []);
+      const result = score(lines, regions, engine, flagged.get(file) ?? [], (region) =>
+        newCodeIn(lines, region, language),
+      );
       total.identical += result.identical;
       total.differs += result.differs;
       total.flagged += result.flagged;
       total.missed += result.missed;
       total.extra += result.extra;
       total.extraFlags = (total.extraFlags ?? 0) + (result.extraFlags ?? 0);
+      total.newCode = (total.newCode ?? 0) + (result.newCode ?? 0);
       regions.forEach((region, at) => {
         scored.push({
           site: {
@@ -918,7 +926,8 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
     if (options.classifier) {
       try {
         await classify(
-          scored.map((each) => each.site),
+          // New code is no site of a contract change, and is not asked about.
+          scored.filter((each) => each.outcome !== "new").map((each) => each.site),
           options.classes,
           options.classifier.client,
           options.classifier.model,
@@ -1028,6 +1037,11 @@ export function scopeOf(
     unclassified: 0,
   };
   for (const { site, outcome } of scored) {
+    // New code is no site of a contract change, whatever it was classed.
+    if (outcome === "new") {
+      scope.newCode = (scope.newCode ?? 0) + 1;
+      continue;
+    }
     const record = classes[siteKey(site)];
     if (!record) {
       scope.unclassified += 1;
@@ -1052,7 +1066,13 @@ export function byClassOf(
   const counts: Record<string, Record<Outcome, number>> = {};
   for (const { site, outcome } of scored) {
     const name = classes[siteKey(site)]?.class ?? "unclassified";
-    const bucket = counts[name] ?? { identical: 0, differs: 0, flagged: 0, missed: 0 };
+    const bucket = counts[name] ?? {
+      identical: 0,
+      differs: 0,
+      flagged: 0,
+      missed: 0,
+      new: 0,
+    };
     counts[name] = bucket;
     bucket[outcome] += 1;
   }
@@ -1082,13 +1102,16 @@ export function lineOf(starts: readonly number[], offset: number): number {
   return low;
 }
 
-/** Base lines each manual site covers, per file, as the score reads them. */
+/**
+ * Base lines each manual site covers, per file, and the line of the changed
+ * element it points at, as the score reads them.
+ */
 function flaggedLines(
   manual: readonly ManualSite[],
   repo: string,
   before: Map<string, string>,
-): Map<string, (readonly [number, number])[]> {
-  const flagged = new Map<string, (readonly [number, number])[]>();
+): Map<string, Flag[]> {
+  const flagged = new Map<string, Flag[]>();
   // Each file's line starts once: a file the upgrade broke all over has tens
   // of thousands of sites, and counting lines from the top for each held
   // decipad's replay for hours.
@@ -1104,10 +1127,11 @@ function flaggedLines(
       }
       starts.set(file, lines);
     }
-    const range = [
-      lineOf(lines, site.offset),
-      lineOf(lines, site.end ?? site.offset) + 1,
-    ] as const;
+    const range: Flag = {
+      from: lineOf(lines, site.offset),
+      to: lineOf(lines, site.end ?? site.offset) + 1,
+      at: lineOf(lines, site.at ?? site.offset),
+    };
     const ranges = flagged.get(file);
     if (ranges) ranges.push(range);
     else flagged.set(file, [range]);
@@ -1127,7 +1151,7 @@ async function replayPython(
   before: Map<string, string>,
   keep: boolean,
 ): Promise<{
-  flagged: Map<string, (readonly [number, number])[]>;
+  flagged: Map<string, Flag[]>;
   files: Map<string, string>;
   versions: [string, string];
 }> {
@@ -1404,7 +1428,7 @@ async function main(): Promise<void> {
       if (classifier) {
         try {
           await classify(
-            scored.map((each) => each.site),
+            scored.filter((each) => each.outcome !== "new").map((each) => each.site),
             classes,
             classifier.client,
             classifier.model,

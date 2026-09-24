@@ -207,6 +207,7 @@ export async function migrate(options: GoMigrateOptions): Promise<GoMigrationRes
     end: number,
     changeId: string,
     reason: string,
+    at?: number,
   ): ManualSite => {
     const text = texts.get(file) as string;
     const before = text.slice(0, start);
@@ -220,6 +221,7 @@ export async function migrate(options: GoMigrateOptions): Promise<GoMigrationRes
       snippet: text.slice(start, Math.min(end, start + 120)),
       offset: start,
       end,
+      ...(at !== undefined && at !== start ? { at } : {}),
     };
   };
   edits.push(...(await inlineCalls(refs.references, plan, textOf, indexOf)));
@@ -248,6 +250,7 @@ export async function migrate(options: GoMigrateOptions): Promise<GoMigrationRes
           indexOf(reference.file, reference.spanEnd),
           flag.changeId,
           flag.reason,
+          indexOf(reference.file, reference.start),
         ),
       );
     }
