@@ -191,10 +191,11 @@ function diagnosticsOf(
         ),
     }),
   });
+  // Only the files checked are added; the compiler reads what they import
+  // itself, as declarations, without their being checked.
   for (const file of files) {
     project.createSourceFile(file, texts.get(file) ?? "", { overwrite: true });
   }
-  project.resolveSourceFileDependencies();
   const program = project.getProgram().compilerObject;
   const found = new Map<string, Found[]>();
   for (const file of files) {

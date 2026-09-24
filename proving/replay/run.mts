@@ -717,7 +717,10 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       const next = stamp?.(newSdk);
       if (stamp && (!old || !next)) throw new Error("the SDK records no API version");
 
-      await mkdir(join(repo, "node_modules"), { recursive: true });
+      // A scoped package's link sits in its scope's directory.
+      await mkdir(dirname(join(repo, "node_modules", entry.package)), {
+        recursive: true,
+      });
       await symlink(oldSdk, join(repo, "node_modules", entry.package), "dir");
       // What changed in the contract between the two releases, where the SDK
       // says which contracts they speak.

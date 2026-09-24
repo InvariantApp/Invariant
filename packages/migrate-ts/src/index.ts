@@ -426,9 +426,20 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
 
   if (options.upgraded) {
     const flagged = new Set(result.manual.map((site) => `${site.file}:${site.offset}`));
+    // The files that use the SDK, and whatever the edits touched: the rest of
+    // a monorepo reaches the SDK only through them, and checking all of it
+    // twice more ran decipad's replay out of memory.
+    const given = new Set(
+      (options.sources ?? []).map((path) => project.getSourceFile(path)?.getFilePath()),
+    );
+    const checked = new Map(
+      [...original].filter(
+        ([path]) => options.sources === undefined || given.has(path) || files.has(path),
+      ),
+    );
     for (const site of upgradeBreaks({
       repoDir: options.repoDir,
-      original,
+      original: checked,
       edited: files,
       edits: result.edits,
       compilerOptions: project.getCompilerOptions(),

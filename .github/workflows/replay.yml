@@ -80,6 +80,9 @@ jobs:
           SHARD: ${{ matrix.shard }}
           CASE: ${{ inputs.case || '' }}
           REPLAY_GO_PARALLELISM: "4"
+          # A monorepo's program is held three times over while the npm engine
+          # checks it against both releases; the runner has the memory.
+          NODE_OPTIONS: --max-old-space-size=8192
         run: >-
           node --import tsx proving/replay/run.mts
           --ecosystem "$ECOSYSTEM"
