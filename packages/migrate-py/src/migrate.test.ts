@@ -410,6 +410,32 @@ describe("what the checker cannot see", () => {
   }, 60_000);
 });
 
+describe("an old release that ships no types", () => {
+  it("reads a field by name only from a value proven to be its class", async () => {
+    const repo = join(root, "untyped");
+    const { "acme/py.typed": _, ...untyped } = SDK_OLD;
+    await writeTree(join(root, "old-untyped"), untyped);
+    await writeTree(repo, { "app.py": CONSUMER });
+    const result = await migrate({
+      repoDir: repo,
+      sources: [join(repo, "app.py")],
+      packages: [join(root, "old-untyped")],
+      plan: buildPlan(changes, {
+        package: "acme",
+        upgradeTo: { package: "acme", version: "2.0.0" },
+        types: { subscription: "acme.Subscription", invoice: "acme.Invoice" },
+        accessors: [],
+      }),
+    });
+    const lines = result.manual
+      .filter((site) => site.reason.startsWith("`current_period_end`"))
+      .map((site) => site.line);
+    // The typed read is reported; the webhook's dictionary, which the
+    // checker cannot type, is not read by name against a release like this.
+    expect(lines).toEqual([10]);
+  }, 60_000);
+});
+
 describe("the API version a consumer pins", () => {
   it("is shown where it is written, through a settings module, and never moved", async () => {
     const repo = join(root, "pins");

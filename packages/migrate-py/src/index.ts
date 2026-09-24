@@ -128,6 +128,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
     const module = options.plan.targets[0]?.typeName.split(".")[0];
     targets = await runTargets(references, sources, options.plan, result, {
       ...(module ? { flow: new ValueFlow(references, sources, module) } : {}),
+      untyped: !typedBefore,
     });
     await bumpPins(references, sources, options.plan.symbols, result);
     // Requests to the API made over plain HTTP, read against the same Changes.

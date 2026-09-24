@@ -331,6 +331,13 @@ export async function runTargets(
   options: {
     /** Follows values the checker cannot type back to where they came from. */
     flow?: ValueFlow;
+    /**
+     * The old release ships no types of its own. Nearly every value read
+     * from it is one the checker cannot type, so a read by name from such a
+     * value says nothing there: only a value proven to be the field's class
+     * is read by name.
+     */
+    untyped?: boolean;
   } = {},
 ): Promise<{ resolved: number; unresolved: number }> {
   let resolved = 0;
@@ -383,7 +390,7 @@ export async function runTargets(
     if (composed.unsupported || composed.path.join(".") !== first.property) {
       await flagByName(references, sources, first, declaration, composed, typed, result, {
         ...options,
-        proven: false,
+        proven: options.untyped === true,
       });
       expansions ??= await expansionsIn(references, sources, first.typeName);
       for (const expansion of expansions) {
