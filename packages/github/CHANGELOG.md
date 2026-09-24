@@ -1,5 +1,22 @@
 # @invariant-app/github
 
+## 0.4.0
+
+### Patch Changes
+
+- Updated dependencies [6edee60]
+- Updated dependencies [cba62b1]
+- Updated dependencies [d9ab966]
+- Updated dependencies [407f319]
+- Updated dependencies [c6d1cac]
+- Updated dependencies [c6d1cac]
+- Updated dependencies [1ba578b]
+- Updated dependencies [f2f666a]
+- Updated dependencies [ca7c00e]
+  - @invariant-app/ir@0.4.0
+  - @invariant-app/migrate-ts@0.4.0
+  - @invariant-app/bundle@0.4.0
+
 ## 0.3.0
 
 ### Patch Changes

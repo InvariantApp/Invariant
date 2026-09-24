@@ -4,4 +4,4 @@ package invariant
 
 // Version is the runtime version this engine implements, which a program's
 // minRuntime is compared against.
-const Version = "0.3.0"
+const Version = "0.4.0"

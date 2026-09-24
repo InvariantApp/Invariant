@@ -1,5 +1,15 @@
 # @invariant-app/telemetry
 
+## 0.4.0
+
+### Patch Changes
+
+- Updated dependencies [5da65b3]
+- Updated dependencies [407f319]
+- Updated dependencies [ca7c00e]
+  - @invariant-app/runtime@0.4.0
+  - @invariant-app/client@0.4.0
+
 ## 0.3.0
 
 ### Patch Changes

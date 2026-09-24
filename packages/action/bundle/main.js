@@ -3619,7 +3619,7 @@ function isDeniedHeader(name) {
 //#endregion
 //#region ../ir/src/format.ts
 /** The product version this package was released as, which the compiler records. */
-const PRODUCT_VERSION = "0.3.0";
+const PRODUCT_VERSION = "0.4.0";
 /**
 * A feature added since the last release, which the next one will carry.
 *
@@ -3677,9 +3677,9 @@ const FEATURE_SINCE = {
 	retired: "0.1.0",
 	behaviors: "0.1.0",
 	identity: "0.1.0",
-	status: NEXT,
-	"move-beneath": NEXT,
-	xml: NEXT
+	status: "0.4.0",
+	"move-beneath": "0.4.0",
+	xml: "0.4.0"
 };
 function instrFeatures(list, into) {
 	for (const instr of list) {
@@ -20210,7 +20210,7 @@ function responseOf(body, status, headers) {
 }
 //#endregion
 //#region ../runtime/src/version.ts
-const VERSION = "0.3.0";
+const VERSION = "0.4.0";
 //#endregion
 //#region ../runtime/src/xml.ts
 /**
@@ -22182,7 +22182,7 @@ function checkVersion(value) {
 	const minRuntime = value["minRuntime"];
 	if (minRuntime === void 0) return;
 	if (typeof minRuntime !== "string" || !/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(minRuntime)) throw new ProgramError("program.minRuntime must be a version such as 1.2.3");
-	if (compareVersions$1(minRuntime, "0.3.0") > 0 && minRuntime !== nextRelease("0.3.0")) throw new ProgramTooNewError(`runtime ${minRuntime}`, compiledBy);
+	if (compareVersions$1(minRuntime, "0.4.0") > 0 && minRuntime !== nextRelease("0.4.0")) throw new ProgramTooNewError(`runtime ${minRuntime}`, compiledBy);
 }
 /** The version a feature not yet released asks for, as `@invariant-app/ir` writes it. */
 function nextRelease(version) {
