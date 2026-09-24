@@ -13,7 +13,7 @@ or a corpus written for it.
 - 1486 ran every stage (95.7%)
 - 55 stopped after `load`
 - 12 stopped after `budget`
-- median 832 ms per pair
+- median 792 ms per pair
 
 ### What stopped them
 
@@ -32,7 +32,7 @@ Error` |
 | 1 | `ContractError: /home/runner/work/Invariant/Invariant/.cache/corpus/77e2ebc28fc4e06678e23a79a3193b4719300c1652dc559598c7792de501c49f.json refers to /home/runner/work/Invariant/Invariant/common/schemas/common_user_prefs_schema.json, which cannot be read` |
 | 1 | `Stopped after 180000 ms, in `decide` (43s there). The difference between these two versions is larger than one pair's budget.` |
 | 1 | `The worker was killed, which on this path means it ran out of memory.` |
-| 1 | `Stopped after 180000 ms, in `decide` (10s there). The difference between these two versions is larger than one pair's budget.` |
+| 1 | `Stopped after 180000 ms, in `closure` (67s there). The difference between these two versions is larger than one pair's budget.` |
 
 ## What real API changes look like
 
@@ -155,7 +155,7 @@ says which bound it hit.
 | elastic.co:elasticsearch-openapi | 2026-09-17 74ebc3f to 2026-09-18 ad270ce | Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's bud |
 | cloudflare.com:openapi | 2026-09-21 ce5342d to 2026-09-21 a01729c | Stopped after 180000 ms, in `decide` (43s there). The difference between these two versions is larger than one pair's bu |
 | stripe.com:spec3 | 2026-07-01 d5d11f6 to 2026-07-29 af5309c | The worker was killed, which on this path means it ran out of memory. |
-| stripe.com:spec3 | 2026-07-29 af5309c to 2026-08-26 30d3391 | Stopped after 180000 ms, in `decide` (10s there). The difference between these two versions is larger than one pair's bu |
+| stripe.com:spec3 | 2026-07-29 af5309c to 2026-08-26 30d3391 | Stopped after 180000 ms, in `closure` (67s there). The difference between these two versions is larger than one pair's b |
 
 ## Changes waiting on one decision
 
