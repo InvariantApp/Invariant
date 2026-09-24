@@ -241,3 +241,73 @@ jobs:
             test -f "dist/$page/index.html" || test -f "dist/$page.html" || {
               echo "missing $page"; exit 1; }
           done
+
+  # Veyrum (github.com/VeyrumApp/veyrum), a verification cache, in shadow mode: every test
+  # still runs, and the job summary reports which files it would have reused from earlier
+  # runs, how much test time that is, and whether any of those files failed (an escape).
+  # Measurement only, so it never fails the workflow. Veyrum is built from its main branch
+  # until it is published.
+  veyrum:
+    name: Veyrum (shadow mode)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # As in the check job: the suites that need Go are told to fail rather than skip.
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: engines/go/migrate/go.mod
+          cache-dependency-path: |
+            engines/go/go.mod
+            engines/go/migrate/go.sum
+
+      - name: Fetch the pinned oasdiff release
+        run: node --import tsx scripts/fetch-oasdiff.mts --host
+
+      - name: Build Veyrum
+        run: |
+          git clone --quiet --depth 1 https://github.com/VeyrumApp/veyrum.git "$RUNNER_TEMP/veyrum"
+          cd "$RUNNER_TEMP/veyrum"
+          pnpm install --frozen-lockfile
+          pnpm build
+          echo "Veyrum $(git rev-parse --short HEAD)" >> "$GITHUB_STEP_SUMMARY"
+
+      # The evidence store, from this branch's last run or else the base branch's.
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .veyrum/store.sqlite
+          key: veyrum-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            veyrum-${{ runner.os }}-${{ github.ref_name }}-
+            veyrum-${{ runner.os }}-${{ github.base_ref || github.event.repository.default_branch }}-
+
+      - name: Test under Veyrum
+        run: >-
+          node "$RUNNER_TEMP/veyrum/packages/cli/dist/main.js" run --full --audit
+          --json "$RUNNER_TEMP/veyrum.json" --summary "$GITHUB_STEP_SUMMARY"
+        env:
+          INVARIANT_REQUIRE_GO: "1"
+
+      # The decisions and outcomes of each run, for statistics across commits.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: veyrum-${{ github.sha }}
+          path: ${{ runner.temp }}/veyrum.json
+          retention-days: 90
+          if-no-files-found: ignore
