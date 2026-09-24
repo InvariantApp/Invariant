@@ -125,6 +125,21 @@ export interface TargetSymbol {
   within?: string[];
 }
 
+/**
+ * A value a field or parameter old callers send no longer takes: one an
+ * `enumMap` renamed, with what it is sent as now, or one a `dropValues` left
+ * out of a list, with nothing in its place. A literal equal to it, sent where
+ * the SDK declares that field's vocabulary, is certainly a site.
+ */
+export interface RetiredValue {
+  /** The field or parameter, as the Change's path names it last. */
+  field: string;
+  value: string;
+  /** What the Change maps it to, where it maps it. */
+  to?: string;
+  changeId: string;
+}
+
 export interface MigrationPlan {
   symbols: SymbolMap;
   targets: TargetSymbol[];
@@ -133,6 +148,8 @@ export interface MigrationPlan {
   accessorRenames: { from: string[]; to: string[]; changeId: string }[];
   /** Operations the provider retired, each with what callers should use instead when it says. */
   retired: { key: string; changeId: string; guidance?: string }[];
+  /** Values fields and parameters no longer take, from every scope. */
+  retiredValues: RetiredValue[];
   changes: Change[];
 }
 
@@ -157,6 +174,7 @@ export function buildPlan(changes: readonly Change[], symbols: SymbolMap): Migra
   const targets: TargetSymbol[] = [];
   const accessorRenames: { from: string[]; to: string[]; changeId: string }[] = [];
   const retired: MigrationPlan["retired"] = [];
+  const retiredValues: RetiredValue[] = [];
   /** Where a field ends up, back to what the consumer's SDK still calls it. */
   const origins = new Map<string, string>();
 
@@ -180,6 +198,7 @@ export function buildPlan(changes: readonly Change[], symbols: SymbolMap): Migra
       }
       // Nothing in a consumer's source names a status the SDK checks for it.
       if (op.op === "behavior" || op.op === "status") continue;
+      if (op.op === "convert") retiredValues.push(...retiredBy(op, change.id));
 
       for (const scope of change.scopes ?? []) {
         if (!("schema" in scope)) continue;
@@ -241,6 +260,33 @@ export function buildPlan(changes: readonly Change[], symbols: SymbolMap): Migra
     typeRenames: [],
     accessorRenames: uniqueAccessors,
     retired,
+    retiredValues,
     changes: [...changes],
   };
+}
+
+/**
+ * The values a re-encoding retires, whatever the Change is scoped to: each
+ * old value an `enumMap` renames, and each value a `dropValues` leaves out.
+ * A dropped list names values of both sides; one only the new contract
+ * holds is never in the old SDK's vocabulary, so never matches a literal an
+ * old caller wrote.
+ */
+export function retiredBy(op: DataOp, changeId: string): RetiredValue[] {
+  if (op.op !== "convert") return [];
+  const field = op.path
+    .split("/")
+    .filter((segment) => segment !== "" && segment !== "*")
+    .at(-1)
+    ?.replace(/^@\w+$/, "");
+  if (!field) return [];
+  if (op.codec.kind === "enumMap") {
+    return op.codec.pairs
+      .filter(([from, to]) => from !== to)
+      .map(([value, to]) => ({ field, value, to, changeId }));
+  }
+  if (op.codec.kind === "dropValues") {
+    return op.codec.values.map((value) => ({ field, value, changeId }));
+  }
+  return [];
 }
