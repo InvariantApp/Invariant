@@ -452,72 +452,6 @@
         }
       },
       "pairs": [["v1.137.3", "v1.138.0"]]
-    },
-    {
-      "name": "semaphore",
-      "language": "Go",
-      "notes": "The suite is the release's own API test: Dredd reading the release's api-docs.yml, with the release's Go hooks writing each transaction's fixtures into the database, as Semaphore's integration job runs it (Dredd 13.1.2 on Node 16, goodman at the commit its Taskfile installed). The hooks read the database from .dredd/config.json, which is written with this run's credentials before Dredd starts. The new release is 2.11.0-beta2, a published prerelease: stable 2.11 renames a column the 2.10 hooks insert into, so they cannot seed it.",
-      "repo": "semaphoreui/semaphore",
-      "image": "semaphoreui/semaphore",
-      "server": {
-        "port": 3000,
-        "ready": "/api/ping",
-        "readySeconds": 300,
-        "compose": "compose/semaphore.yaml",
-        "secrets": {
-          "SEMAPHORE_DB_PASSWORD": {
-            "random": 16
-          },
-          "SEMAPHORE_ADMIN_PASSWORD": {
-            "random": 16
-          },
-          "SEMAPHORE_ACCESS_KEY_ENCRYPTION": {
-            "random": 16
-          }
-        }
-      },
-      "spec": {
-        "path": "api-docs.yml"
-      },
-      "suite": {
-        "sparse": [],
-        "dir": ".",
-        "install": [
-          [
-            "sh",
-            "-c",
-            "GOBIN=\"$(go env GOPATH)/bin\" go install github.com/snikch/goodman/cmd/goodman@10e37e294daa3c9a90abded60ff9924bafab3888"
-          ],
-          ["sh", "-c", "cd .dredd/hooks && go build -o ../compiled_hooks"],
-          [
-            "npm",
-            "install",
-            "--prefix",
-            "{env}",
-            "--no-audit",
-            "--no-fund",
-            "node@16",
-            "dredd@13.1.2"
-          ]
-        ],
-        "run": [
-          "sh",
-          "-c",
-          "printf '%s' '{\"postgres\":{\"host\":\"127.0.0.1:15432\",\"user\":\"semaphore\",\"pass\":\"{SEMAPHORE_DB_PASSWORD}\",\"name\":\"semaphore\",\"options\":{\"sslmode\":\"disable\"}},\"dialect\":\"postgres\",\"access_key_encryption\":\"{SEMAPHORE_ACCESS_KEY_ENCRYPTION}\",\"tmp_path\":\"/tmp/semaphore\"}' > .dredd/config.json && PATH={env}/node_modules/.bin:$PATH exec dredd api-docs.yml {url} --hookfiles=./.dredd/compiled_hooks --language=go --header 'Authorization: bearer h4a_i4qslpnxyyref71rk5nqbwxccrs7enwvggx0vfs=' --reporter xunit --output {report}"
-        ],
-        "env": {}
-      },
-      "releases": {
-        "v2.10.43": {
-          "commit": "e43af6b493f25426a204179288a064ff180c438f",
-          "digest": "sha256:eda4e5adc6d45cbcf16c07343d014809e2a39a0efcc31f4d07135b31cd01a78a"
-        },
-        "v2.11.0-beta2": {
-          "commit": "07c00f3a3a9c03c1c754db1fbe492ff939848e54",
-          "digest": "sha256:276e113c5f69fdb6ebdde34ec758e10f85c85e2ca6ab3ec3dacacb8b9b296ed1"
-        }
-      },
-      "pairs": [["v2.10.43", "v2.11.0-beta2"]]
     }
   ],
   "skipped": [
@@ -555,6 +489,11 @@
       "name": "inventree",
       "language": "Python",
       "reason": "1.3.6 -> 1.4.3 with inventree-python 0.23.2, the client release of the 1.3 line, was run (Actions run 36024691789) and broke none of its 103 tests: 1.4 dropped GET /api/user/token/ from its document, but still answers it. 1.1 -> 1.2 does break the suite of its time, but also by moving manufacturer part parameters to a generic parameter model whose template has to exist first, which no op serves."
+    },
+    {
+      "name": "semaphore",
+      "language": "Go",
+      "reason": "2.10.43 -> 2.11.0-beta2 answers 201 with the created object where 2.10 answered 204 for new keys, repositories and environments, which status Changes serve, but the release's own suite cannot reach them against 2.11: its Dredd hooks, which write each transaction's fixtures straight into the database, crash seeding a project's integrations on the 2.11 database (Actions run 36028629812), both with the proxy and without it. Stable 2.11 renames a column the hooks insert into."
     }
   ]
 }
