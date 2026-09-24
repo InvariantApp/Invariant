@@ -16,7 +16,7 @@
  * through the SDK's declarations, and only what is new is reported, so a file
  * that was never clean under the checker costs nothing.
  */
-import { join } from "node:path";
+import { Worker } from "node:worker_threads";
 import {
   applyEdits,
   type Edit,
@@ -24,7 +24,8 @@ import {
   type ManualSite,
   originalOffset,
 } from "@invariant-app/migrate-core";
-import { Project, ts } from "ts-morph";
+import { ts } from "ts-morph";
+import type { CheckMessage, CheckRequest, Found } from "./check.ts";
 import { within } from "./paths.ts";
 
 /** Where a release of the SDK resolves from, as a package's dependents find it. */
@@ -72,9 +73,10 @@ const UPGRADE = "sdk-upgrade";
  * Each error the upgraded release brings to the consumer's files, as a site
  * in the file as it was read.
  */
-export function upgradeBreaks(check: UpgradeCheck): UpgradeBreaks {
+export async function upgradeBreaks(check: UpgradeCheck): Promise<UpgradeBreaks> {
   const files = [...check.original.keys()];
-  const before = diagnosticsOf(check, files, check.original, check.current);
+  const before =
+    (await diagnosticsOf(check, files, check.original, check.current)) ?? new Map();
   check.trace?.(`checked ${files.length} files against the current release`);
   const now = new Map(
     files.map((file) => [
@@ -82,7 +84,9 @@ export function upgradeBreaks(check: UpgradeCheck): UpgradeBreaks {
       check.edited.get(file) ?? (check.original.get(file) as string),
     ]),
   );
-  const after = diagnosticsOf(check, files, now, check.upgraded);
+  const after =
+    (await diagnosticsOf(check, files, now, check.upgraded)) ??
+    new Map<string, Found[]>();
   check.trace?.(
     `found ${[...after.values()].reduce((sum, found) => sum + found.length, 0)} errors against the upgraded release`,
   );
@@ -127,14 +131,6 @@ export function upgradeBreaks(check: UpgradeCheck): UpgradeBreaks {
   return { sites, unchecked };
 }
 
-interface Found {
-  code: number;
-  /** The checker's first line: what is wrong, and with what. */
-  message: string;
-  start: number;
-  end: number;
-}
-
 /**
  * The errors in `after` that were not in `before`. An error is matched by its
  * code, its message and the text of its line, so one that only moved because
@@ -172,105 +168,58 @@ export function newErrors(
   return fresh;
 }
 
+/** The check's own thread: its source in development, its build once published. */
+const CHECK = new URL(
+  import.meta.url.endsWith(".ts") ? "./check.ts" : "./check.js",
+  import.meta.url,
+);
+
 /**
  * The files' errors with the SDK resolved from `release`, or through the
- * repository's own `node_modules` where none is given.
+ * repository's own `node_modules` where none is given, checked in a thread
+ * of their own and given up on at the deadline.
  */
-function diagnosticsOf(
+async function diagnosticsOf(
   check: UpgradeCheck,
   files: readonly string[],
   texts: ReadonlyMap<string, string>,
   release: Release | undefined,
-): Map<string, Found[]> {
-  const redirect = (name: string) =>
-    release !== undefined &&
-    (name === release.package || name.startsWith(`${release.package}/`));
-  const project = new Project({
-    compilerOptions: { ...check.compilerOptions, checkJs: true, noEmit: true },
-    skipAddingFilesFromTsConfig: true,
-    resolutionHost: (host, options) => {
-      // One cache for the whole program, as the compiler keeps its own: a
-      // monorepo's thousands of imports are each resolved once.
-      const cache = ts.createModuleResolutionCache(
-        host.getCurrentDirectory?.() ?? check.repoDir,
-        (name) => name,
-        options(),
-      );
-      return {
-        resolveModuleNames: (names, containingFile) =>
-          names.map(
-            (name) =>
-              ts.resolveModuleName(
-                name,
-                redirect(name)
-                  ? join((release as Release).from, "__invariant__.ts")
-                  : containingFile,
-                options(),
-                host,
-                cache,
-              ).resolvedModule,
-          ),
-      };
-    },
-  });
-  // Only the files checked are added; the compiler reads what they import
-  // itself, as declarations, without their being checked.
-  for (const file of files) {
-    project.createSourceFile(file, texts.get(file) ?? "", { overwrite: true });
-  }
-  const program = project.getProgram().compilerObject;
-  check.trace?.(
-    `read ${program.getSourceFiles().length} files for ${release?.from ?? "the repository's own release"}`,
-  );
-  const found = new Map<string, Found[]>();
-  const token: ts.CancellationToken = {
-    isCancellationRequested: () =>
-      check.deadline !== undefined && Date.now() > check.deadline,
-    throwIfCancellationRequested() {
-      if (this.isCancellationRequested()) throw new ts.OperationCanceledException();
-    },
+): Promise<Map<string, Found[]> | undefined> {
+  const request: CheckRequest = {
+    repoDir: check.repoDir,
+    files,
+    texts: files.map((file) => [file, texts.get(file) ?? ""] as const),
+    compilerOptions: check.compilerOptions,
+    ...(release ? { release } : {}),
   };
-  for (const file of files) {
-    const source = program.getSourceFile(file);
-    if (!source || token.isCancellationRequested()) continue;
-    let diagnostics: ts.Diagnostic[];
-    try {
-      diagnostics = [
-        ...program.getSyntacticDiagnostics(source, token),
-        ...program.getSemanticDiagnostics(source, token),
-      ];
-    } catch (error) {
-      // Past the deadline the file is left out, and so listed as unchecked.
-      if (error instanceof ts.OperationCanceledException) continue;
-      throw error;
-    }
-    found.set(
-      file,
-      diagnostics
-        .filter(
-          (diagnostic) =>
-            diagnostic.category === ts.DiagnosticCategory.Error &&
-            diagnostic.start !== undefined,
-        )
-        .map((diagnostic) => ({
-          code: diagnostic.code,
-          message: firstLine(diagnostic.messageText),
-          start: diagnostic.start as number,
-          end: (diagnostic.start as number) + (diagnostic.length ?? 0),
-        })),
-    );
+  const worker = new Worker(CHECK, { workerData: request });
+  try {
+    return await new Promise<Map<string, Found[]> | undefined>((resolve, reject) => {
+      const timer =
+        check.deadline === undefined
+          ? undefined
+          : setTimeout(
+              () => resolve(undefined),
+              Math.max(0, check.deadline - Date.now()),
+            );
+      worker.on("message", (message: CheckMessage) => {
+        if ("read" in message) {
+          check.trace?.(
+            `read ${message.read} files for ${release?.from ?? "the repository's own release"}`,
+          );
+          return;
+        }
+        clearTimeout(timer);
+        resolve(new Map(message.found));
+      });
+      worker.once("error", (error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+    });
+  } finally {
+    await worker.terminate();
   }
-  return found;
-}
-
-/**
- * The checker's own words, without the chain of reasons below them: what is
- * wrong, and with what. A chain names the types it compared, which differ by
- * release even where the error is the same one.
- */
-function firstLine(message: string | ts.DiagnosticMessageChain): string {
-  const text = typeof message === "string" ? message : message.messageText;
-  return text.split("\n")[0]?.trim() ?? "";
 }
 
 /**

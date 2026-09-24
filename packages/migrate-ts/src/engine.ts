@@ -712,13 +712,16 @@ function flagUntyped(
   result: EngineResult,
 ): void {
   if (fields.size === 0) return;
-  const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const literally = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   // Only the files that use the SDK: a name alone is weak evidence, and
   // weaker still in a file that never touches the SDK at all.
   const imports = new RegExp(
-    `(?:from|import|require\\()\\s*['"]${escape(sdk)}(?:/[^'"]*)?['"]`,
+    `(?:from|import|require\\()\\s*['"]${literally(sdk)}(?:/[^'"]*)?['"]`,
   );
-  const names = new RegExp(`\\b(?:${[...fields.keys()].map(escape).join("|")})\\b`, "g");
+  const names = new RegExp(
+    `\\b(?:${[...fields.keys()].map(literally).join("|")})\\b`,
+    "g",
+  );
   const untyped = (type: Type | undefined) =>
     type === undefined || type.isAny() || type.isUnknown();
   for (const source of project.getSourceFiles()) {

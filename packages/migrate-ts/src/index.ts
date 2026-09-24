@@ -451,7 +451,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
         ([path]) => options.sources === undefined || given.has(path) || files.has(path),
       ),
     );
-    const broken = upgradeBreaks({
+    const broken = await upgradeBreaks({
       repoDir: options.repoDir,
       original: checked,
       edited: files,
