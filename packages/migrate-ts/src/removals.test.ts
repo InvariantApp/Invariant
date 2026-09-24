@@ -105,6 +105,28 @@ describe("a field the contract dropped", () => {
     );
   });
 
+  it("is shown in a file that never imports the SDK where the types say the stand-in is handed to it", async () => {
+    const types = { subscription: "Pay.Subscription" };
+    const result = await migrate({
+      repoDir: CONSUMER,
+      generated: [`${CONSUMER}sdk/`],
+      sources: [`${CONSUMER}src/handler-spec.ts`],
+      plan: buildPlan([gone], {
+        package: "paysdk",
+        upgradeTo: { package: "paysdk", version: "2.0.0", types },
+        types,
+        accessors: [],
+      }),
+    });
+    expect(result.edits).toEqual([]);
+    expect(result.manual.map((site) => `${site.line} ${site.snippet}`)).toEqual([
+      '6 discount: { coupon: "HALF" }',
+    ]);
+    expect(result.manual[0]?.reason).toMatch(
+      /^nothing types this `discount`.*; this object is passed where the SDK's `.*Subscription` is expected$/,
+    );
+  });
+
   const nested = (change: Change, file: string) => {
     const types = { subscription: "Pay.Subscription" };
     return migrate({

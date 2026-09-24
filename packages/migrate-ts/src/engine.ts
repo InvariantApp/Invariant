@@ -29,6 +29,7 @@ import {
 } from "@invariant-app/migrate-core";
 import {
   Node,
+  type ObjectLiteralExpression,
   type Project,
   type PropertySignature,
   SyntaxKind,
@@ -714,7 +715,8 @@ function flagUntyped(
   if (fields.size === 0) return;
   const literally = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   // Only the files that use the SDK: a name alone is weak evidence, and
-  // weaker still in a file that never touches the SDK at all.
+  // weaker still in a file that never touches the SDK at all, unless the
+  // types say the object is handed to it.
   const imports = new RegExp(
     `(?:from|import|require\\()\\s*['"]${literally(sdk)}(?:/[^'"]*)?['"]`,
   );
@@ -727,7 +729,9 @@ function flagUntyped(
   for (const source of project.getSourceFiles()) {
     if (!editable(source, scope)) continue;
     const text = source.getFullText();
-    if (!imports.test(text)) continue;
+    // A file that does not import the SDK is read only for stand-ins the
+    // types say are handed to it (`passedAsSdk`).
+    const importsSdk = imports.test(text);
     // Only where a name is written, rather than every node of the file.
     for (const match of text.matchAll(names)) {
       const field = fields.get(match[0]);
@@ -749,8 +753,24 @@ function flagUntyped(
         parent.getNameNode() === node
       ) {
         const literal = parent.getParent();
-        shown =
-          Node.isObjectLiteralExpression(literal) && untyped(literal.getContextualType());
+        if (
+          Node.isObjectLiteralExpression(literal) &&
+          untyped(literal.getContextualType())
+        ) {
+          const passed = importsSdk ? undefined : passedAsSdk(literal, match[0], scope);
+          if (importsSdk) shown = true;
+          else if (passed) {
+            result.manual.push(
+              manualFrom(
+                node,
+                field.changeId,
+                `${field.reason}; this object is passed where the SDK's \`${passed}\` is expected`,
+              ),
+            );
+          }
+        }
+      } else if (!importsSdk) {
+        continue;
       } else if (
         Node.isPropertyAccessExpression(parent) &&
         parent.getNameNode() === node
@@ -765,6 +785,49 @@ function flagUntyped(
       if (shown) result.manual.push(manualFrom(node, field.changeId, field.reason));
     }
   }
+}
+
+/**
+ * The SDK type a stand-in is handed to as an argument, where it declares
+ * `field`: hiroppy's web-app-template tests its subscription handler with
+ * `const subscription = { current_period_end: null, ... }` and
+ * `handleSubscriptionUpsert(subscription)`, whose parameter is a
+ * `Stripe.Subscription`, the mismatch silenced by `@ts-expect-error`. The
+ * file never imports the SDK, but the types say what the object stands in
+ * for.
+ */
+function passedAsSdk(
+  literal: ObjectLiteralExpression,
+  field: string,
+  scope: EditScope,
+): string | undefined {
+  const holder = literal.getParent();
+  if (!Node.isVariableDeclaration(holder) || holder.getInitializer() !== literal)
+    return undefined;
+  const list = holder.getVariableStatement()?.getDeclarationList();
+  const name = holder.getNameNode();
+  if (list?.getDeclarationKind() !== "const" || !Node.isIdentifier(name))
+    return undefined;
+  const checker = literal.getProject().getTypeChecker();
+  for (const reference of name.findReferencesAsNodes()) {
+    const call = reference.getParent();
+    if (!Node.isCallExpression(call)) continue;
+    const index = call.getArguments().indexOf(reference);
+    if (index === -1) continue;
+    const parameter = checker.getResolvedSignature(call)?.getParameters()[index];
+    if (!parameter) continue;
+    const type = parameter.getTypeAtLocation(call);
+    const declared = type.getProperty(field)?.getDeclarations() ?? [];
+    if (
+      declared.length > 0 &&
+      declared.every((declaration) =>
+        isGenerated(declaration.getSourceFile().getFilePath(), scope),
+      )
+    ) {
+      return type.getText(call);
+    }
+  }
+  return undefined;
 }
 
 export function runEngine(

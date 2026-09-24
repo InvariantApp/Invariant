@@ -21,9 +21,11 @@ import { join } from "node:path";
 import {
   applyEdits,
   type Edit,
+  goneFields,
   groupByFile,
   type ManualSite,
   Offsets,
+  taggedObjectSites,
 } from "@invariant-app/migrate-core";
 import { askHelper, type GoOptions, goCommand } from "./helper.ts";
 import type { GoMigrationPlan, GoRole } from "./plan.ts";
@@ -244,6 +246,17 @@ export async function migrate(options: GoMigrateOptions): Promise<GoMigrationRes
           flag.changeId,
           flag.reason,
         ),
+      );
+    }
+  }
+
+  // Fixtures nothing types, found by the tag each of the API's objects carries.
+  const tags = plan.symbols.tags;
+  if (tags) {
+    const gone = goneFields(plan.changes);
+    for (const file of refs.files) {
+      manual.push(
+        ...taggedObjectSites(file, await textOf(file), plan.changes, tags, gone),
       );
     }
   }

@@ -13,10 +13,12 @@ import {
   applyEdits,
   buildPlan,
   type Edit,
+  goneFields,
   groupByFile,
   type ManualSite,
   type MigrationPlan,
   type SymbolMap,
+  taggedObjectSites,
 } from "@invariant-app/migrate-core";
 import { Node, Project, type SourceFile, ts } from "ts-morph";
 import { type EditScope, type EngineResult, editable, runEngine } from "./engine.ts";
@@ -394,6 +396,28 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
   renameTypes(project, options.plan, scope, result);
   bumpPins(project, options.plan.symbols, scope, result);
   flagRetired(project, options.plan, scope, result);
+  // Fixtures nothing types, found by the tag each of the API's objects carries.
+  const tags = options.plan.symbols.tags;
+  if (tags) {
+    const gone = goneFields(options.plan.changes);
+    for (const source of project.getSourceFiles()) {
+      const path = source.getFilePath();
+      if (
+        !consumerFile(options.repoDir, path) ||
+        options.generated.some((entry) => path.startsWith(entry))
+      )
+        continue;
+      result.manual.push(
+        ...taggedObjectSites(
+          path,
+          source.getFullText(),
+          options.plan.changes,
+          tags,
+          gone,
+        ),
+      );
+    }
+  }
   trace(`planned ${result.edits.length} edits and ${result.manual.length} flags`);
 
   const files = new Map<string, string>();
