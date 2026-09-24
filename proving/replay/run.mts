@@ -71,6 +71,8 @@ import type { ManualSite, WireTags } from "@invariant-app/migrate-core";
 import {
   installWithDependencies,
   migrate as migratePython,
+  normalizeName,
+  shipsTypes,
 } from "@invariant-app/migrate-py";
 import { buildPlan, migrate, type SymbolMap } from "@invariant-app/migrate-ts";
 import { ts } from "ts-morph";
@@ -90,6 +92,7 @@ import {
 import { replayGo } from "./go.mts";
 import type { ReplayCase, ReplayIndex } from "./mine.mts";
 import {
+  importersPython,
   importingPython,
   PYTHON_PINS,
   pinnedPython,
@@ -106,6 +109,7 @@ import {
 } from "./score.mts";
 import { type Language, languageOf } from "./sites.mts";
 import { type ContractPlan, stripePlan } from "./stripe.mts";
+import { typedCopy } from "./stubs.mts";
 
 const run = promisify(execFile);
 const CACHE = join(ROOT, ".cache/replay");
@@ -1223,6 +1227,7 @@ async function replayPython(
     package: entry.package,
     upgradeTo: { package: entry.package, version: next.version, types },
     types,
+    ...(contract?.wire ? { wire: contract.wire } : {}),
     ...(contract
       ? {
           tags: withLabel(
@@ -1235,11 +1240,39 @@ async function replayPython(
     accessors: [],
     ...(pin ? { pin } : {}),
   };
-  const sources = importingPython(repo, readable, topLevelModules(old.site));
+  const direct = importingPython(repo, readable, topLevelModules(old.site));
+  // The names of the fields the upgrade took away, for the files that read
+  // them from what the consumer's own SDK code hands them.
+  const gone = [
+    ...new Set(
+      changes.flatMap((change) =>
+        change.ops.flatMap((op) =>
+          op.op === "remove" || op.op === "move"
+            ? [(op.op === "move" ? op.from : op.path).split("/").at(-1) ?? ""]
+            : [],
+        ),
+      ),
+    ),
+  ].filter((name) => /^[a-z]\w{3,}$/.test(name));
+  const sources = [...direct, ...importersPython(repo, readable, direct, gone)];
+  // A release that ships no types declares no field; the checker is given a
+  // copy with each class's fields declared from the specification it was
+  // generated from, so a Change's field is found where it is referenced.
+  const packages =
+    contract?.classes && !shipsTypes(old.site)
+      ? [
+          typedCopy(
+            old.site,
+            contract.classes,
+            join(cache, "typed", `${normalizeName(entry.package)}-${old.version}`),
+          ),
+          ...oldSites.sites.slice(1),
+        ]
+      : oldSites.sites;
   const result = await migratePython({
     repoDir: repo,
     sources,
-    packages: oldSites.sites,
+    packages,
     upgraded: nextSites.sites,
     plan: buildPlan(changes, symbols),
   });

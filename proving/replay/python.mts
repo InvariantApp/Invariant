@@ -20,10 +20,11 @@ export const PYTHON_PINS =
   /(^|\/)(requirements[^/]*\.(txt|in)|poetry\.lock|uv\.lock|pdm\.lock|Pipfile\.lock|pyproject\.toml|setup\.cfg|setup\.py)$/;
 
 /**
- * The version of `name` a commit pinned, from the files that pin it. An exact
- * pin wins over a range; a range gives its lower bound, which is the release
- * the humans were on at least. Where several files pin it, the one whose major
- * version `wanted` names is taken, as for npm.
+ * The version of `name` a commit pinned, from the files that pin it. A pin in
+ * the major version `wanted` names is taken first, as for npm, an exact one
+ * over a range, then an exact pin in a later major; otherwise an exact pin
+ * wins over a range. A range gives its lower bound, which is the release the
+ * humans were on at least.
  */
 export function pinnedPython(
   files: readonly { path: string; text: string }[],
@@ -79,9 +80,17 @@ export function pinnedPython(
     for (const match of text.matchAll(table)) bounds.push(match[1] as string);
   }
   const major = wanted && /(\d+)/.exec(wanted)?.[1];
-  const pick = (list: string[]) =>
-    list.find((version) => major && version.split(".")[0] === major) ?? list[0];
-  return pick(exact) ?? pick(bounds);
+  const majorOf = (version: string) => Number(version.split(".")[0]);
+  const inMajor = (list: string[]) =>
+    list.find((version) => major && version.split(".")[0] === major);
+  // An exact pin in a later major than the one named is what a lock
+  // installed (polar's uv.lock at 11.6.0 beside `stripe>=10.12.0`); one in
+  // an earlier major was left behind, and a range in the named major wins
+  // over it: helm's head kept a frozen `openai==0.27.10` in requirements.txt
+  // beside `openai~=1.0` in setup.cfg, and replaying it from 0.27.10 to
+  // 0.27.10 found nothing.
+  const later = exact.find((version) => major && majorOf(version) > Number(major));
+  return inMajor(exact) ?? later ?? inMajor(bounds) ?? exact[0] ?? bounds[0];
 }
 
 /**
@@ -135,6 +144,93 @@ export function importingPython(
         return false;
       }
     });
+}
+
+/**
+ * The dotted module names an import statement in a file reaches: `from
+ * app.services.billing import stripe_gateway` reaches `app.services.billing`
+ * and `app.services.billing.stripe_gateway`, and a relative import is read
+ * from the file's own package (`path` is relative to the repository).
+ */
+export function importedPaths(path: string, text: string): string[] {
+  const packageOf = (dots: number) =>
+    path
+      .split("/")
+      .slice(0, -1)
+      .slice(0, Math.max(0, path.split("/").length - dots))
+      .join(".");
+  const found: string[] = [];
+  const statement =
+    /^[ \t]*from[ \t]+(\.*)([\w.]*)[ \t]+import[ \t]+(\([^)]*\)|[^\n#]+)|^[ \t]*import[ \t]+([^\n#]+)/gm;
+  for (const match of text.matchAll(statement)) {
+    if (match[4] !== undefined) {
+      for (const part of match[4].split(",")) {
+        const name = part
+          .trim()
+          .split(/\s+as\s+/)[0]
+          ?.trim();
+        if (name && /^[\w.]+$/.test(name)) found.push(name);
+      }
+      continue;
+    }
+    const dots = (match[1] ?? "").length;
+    const base =
+      dots > 0 ? [packageOf(dots), match[2]].filter(Boolean).join(".") : (match[2] ?? "");
+    if (!base) continue;
+    found.push(base);
+    for (const part of (match[3] ?? "").replace(/[()]/g, "").split(",")) {
+      const name = part
+        .trim()
+        .split(/\s+as\s+/)[0]
+        ?.trim();
+      if (name && /^\w+$/.test(name)) found.push(`${base}.${name}`);
+    }
+  }
+  return found;
+}
+
+/**
+ * The files among `paths` that import one of `sources`, the consumer's own
+ * modules that use the SDK, and write one of `names`: a webhook route that
+ * never imports stripe itself, reading `data.get("subscription")` from an
+ * event its billing service hands it. greensecops moved that read when
+ * basil moved an invoice's subscription, in a file the replay never showed
+ * the engine, since it read only the files that import the SDK.
+ */
+export function importersPython(
+  repo: string,
+  paths: readonly string[],
+  sources: readonly string[],
+  names: readonly string[],
+): string[] {
+  if (names.length === 0 || sources.length === 0) return [];
+  const escaped = names.map((name) => name.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&"));
+  const named = new RegExp(`\\b(?:${escaped.join("|")})\\b`);
+  // Each source as a dotted name from the repository's root; an import names
+  // the end of it, from wherever the project's root package starts.
+  const dotted = sources.map((source) =>
+    source
+      .slice(repo.length + 1)
+      .replace(/\.py$/, "")
+      .replace(/\/__init__$/, "")
+      .replaceAll("/", "."),
+  );
+  const given = new Set(sources);
+  return paths
+    .filter((path) => !given.has(join(repo, path)))
+    .filter((path) => {
+      let text: string;
+      try {
+        text = readFileSync(join(repo, path), "utf8");
+      } catch {
+        return false;
+      }
+      if (!named.test(text)) return false;
+      return importedPaths(path, text).some((module) =>
+        dotted.some((source) => source === module || source.endsWith(`.${module}`)),
+      );
+    })
+    .map((path) => join(repo, path));
 }
 
 /**

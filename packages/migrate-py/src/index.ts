@@ -15,7 +15,7 @@
  * declares. Each is reported to a person with the checker's own words, and an
  * edit of the engine's that the checker rejects is reported the same way.
  */
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
@@ -35,11 +35,23 @@ import {
   Sources,
   shownExtent,
 } from "./engine.ts";
+import { ValueFlow } from "./flows.ts";
 import { narrowedParameters } from "./narrowed.ts";
+import { LineIndex } from "./offsets.ts";
 import { bumpPins } from "./pins.ts";
 import { type Diagnostic, Pyright } from "./pyright.ts";
 import { PyrightReferences } from "./references.ts";
-import { enclosing, type Tree } from "./syntax.ts";
+import { enclosing, parsePython, type Tree } from "./syntax.ts";
+import {
+  rejectedKeySite,
+  rejectedKeys,
+  sdkUnpackings,
+  type Unpacking,
+  unpackedIntoBroken,
+  usesOfRemoved,
+  type Written,
+} from "./unpacked.ts";
+import { wireSites } from "./wire.ts";
 
 export { originalOffset } from "@invariant-app/migrate-core";
 export { compose, manualAt, Sources } from "./engine.ts";
@@ -102,6 +114,8 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
   const result: EngineResult = { edits: [], manual: [] };
   let targets = { resolved: 0, unresolved: 0 };
   let before = new Map<string, Diagnostic[]>();
+  let unpackings = new Map<string, Unpacking[]>();
+  const refusedBefore = new Map<string, Map<string, Written>>();
 
   // The SDK's own directory comes first; the rest are what it requires.
   const typedBefore =
@@ -110,8 +124,22 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
   try {
     for (const [file, text] of texts) await server.open(file, text);
     const references = new PyrightReferences(server, repoDir, texts);
-    targets = await runTargets(references, sources, options.plan, result);
+    // The SDK's module, which every class the plan names is qualified by.
+    const module = options.plan.targets[0]?.typeName.split(".")[0];
+    targets = await runTargets(references, sources, options.plan, result, {
+      ...(module ? { flow: new ValueFlow(references, sources, module) } : {}),
+      untyped: !typedBefore,
+    });
     await bumpPins(references, sources, options.plan.symbols, result);
+    // Requests to the API made over plain HTTP, read against the same Changes.
+    const wire = options.plan.symbols.wire;
+    if (wire) {
+      for (const [file, text] of texts) {
+        const tree = await sources.tree(file);
+        if (tree)
+          wireSites(file, text, tree, { changes: options.plan.changes, wire }, result);
+      }
+    }
     // Fixtures nothing types, found by the tag each of the API's objects carries.
     const tags = options.plan.symbols.tags;
     if (tags) {
@@ -122,7 +150,25 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
         );
       }
     }
-    if (options.upgraded) before = await references.errors(read);
+    if (options.upgraded) {
+      before = await references.errors(read);
+      // Dictionaries unpacked into the SDK's calls, and the keys the old
+      // release already refused, which the upgrade did not break.
+      const trees = new Map<string, Tree>();
+      for (const file of read) {
+        const tree = await sources.tree(file);
+        if (tree) trees.set(file, tree);
+      }
+      if (options.packages[0]) {
+        unpackings = await sdkUnpackings(references, trees, options.packages[0]);
+      }
+      for (const [file, found] of unpackings) {
+        refusedBefore.set(
+          file,
+          await rejectedKeys(references, file, texts.get(file) ?? "", found),
+        );
+      }
+    }
   } finally {
     await server.stop();
   }
@@ -135,6 +181,10 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
 
   let after = new Map<string, Diagnostic[]>();
   if (options.upgraded) {
+    const sdkClasses =
+      typedBefore || !options.upgraded[0]
+        ? new Set<string>()
+        : declaredClasses(options.upgraded[0]);
     const checker = await Pyright.start({ root: repoDir, packages: options.upgraded });
     try {
       const checked = [...new Set([...read, ...files.keys()])];
@@ -157,20 +207,71 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
             result.edits,
             await sources.tree(file),
             fresh,
-            typedBefore ? () => true : breaks,
+            typedBefore ? () => true : (diagnostic) => breaks(diagnostic, sdkClasses),
           ),
         );
-        for (const diagnostic of fresh) {
+        const mine = result.edits.filter((edit) => edit.file === file);
+        const back = (offset: number) => originalOffset(offset, mine);
+        const nowText = now.get(file) ?? "";
+        const nowTree =
+          mine.length === 0 ? await sources.tree(file) : await parsePython(nowText);
+        try {
+          for (const diagnostic of fresh) {
+            result.manual.push(
+              ...(await narrowedParameters(
+                upgraded,
+                now,
+                texts,
+                file,
+                diagnostic,
+                result.edits,
+                originalOffset,
+              )),
+            );
+            if (!nowTree) continue;
+            const index = new LineIndex(nowText);
+            const start = index.offsetAt(diagnostic.range.start);
+            const end = index.offsetAt(diagnostic.range.end);
+            const said = diagnostic.message.split("\n")[0]?.trim() ?? "";
+            result.manual.push(
+              ...unpackedIntoBroken(
+                file,
+                texts.get(file) ?? "",
+                nowTree,
+                start,
+                end,
+                said,
+                back,
+              ),
+              ...usesOfRemoved(
+                file,
+                texts.get(file) ?? "",
+                nowText,
+                nowTree,
+                diagnostic,
+                start,
+                back,
+              ),
+            );
+          }
+        } finally {
+          if (mine.length > 0) nowTree?.delete();
+        }
+      }
+      // Keys of dictionaries unpacked into the SDK's calls that the upgraded
+      // release refuses and the old one took. Each file is checked as it was
+      // read; a key the engine already rewrote is left to its edit.
+      for (const [file, found] of unpackings) {
+        const refused = await rejectedKeys(upgraded, file, texts.get(file) ?? "", found);
+        const was = refusedBefore.get(file);
+        const edited = result.edits.filter((edit) => edit.file === file);
+        for (const [key, keyword] of refused) {
+          if (was?.has(key)) continue;
+          const { startIndex, endIndex } = keyword.key.node;
+          if (edited.some((edit) => edit.start < endIndex && startIndex < edit.end))
+            continue;
           result.manual.push(
-            ...(await narrowedParameters(
-              upgraded,
-              now,
-              texts,
-              file,
-              diagnostic,
-              result.edits,
-              originalOffset,
-            )),
+            rejectedKeySite(file, texts.get(file) ?? "", keyword, (offset) => offset),
           );
         }
       }
@@ -222,7 +323,8 @@ export function shipsTypes(site: string): boolean {
  * The errors that are the upgrade breaking something, rather than the SDK
  * starting to say what its types are: a name a module no longer has, an
  * import that no longer resolves, a parameter a function no longer takes,
- * a match a new value leaves incomplete.
+ * a member a class of the SDK no longer declares, a match a new value
+ * leaves incomplete.
  *
  * Across a release that first ships its types, almost every other new error
  * is the checker seeing, for the first time, that an expandable field may
@@ -232,17 +334,65 @@ export function shipsTypes(site: string): boolean {
  * both typed, every new error counts: a field that became optional there is
  * the contract saying so.
  */
-export function breaks(diagnostic: Diagnostic): boolean {
+export function breaks(
+  diagnostic: Diagnostic,
+  /** The classes the upgraded SDK declares (`declaredClasses`). */
+  sdkClasses: ReadonlySet<string> = new Set(),
+): boolean {
   const rule = String(diagnostic.code ?? diagnostic.rule ?? "");
   if (
     ["reportCallIssue", "reportMissingImports", "reportMatchNotExhaustive"].includes(rule)
   ) {
     return true;
   }
-  return (
-    rule === "reportAttributeAccessIssue" &&
+  if (rule !== "reportAttributeAccessIssue") return false;
+  if (
     /is not a known attribute of module|is unknown import symbol/.test(diagnostic.message)
-  );
+  )
+    return true;
+  // A member one of the SDK's classes no longer declares, `session.stripe_id`
+  // once stripe-python 7 typed `Session`: its types are its API version's
+  // schema, so what they leave out is gone from the object the consumer
+  // reads. A member missing from a string or `None` is the checker first
+  // seeing that a field may be one, and one missing from a class of the
+  // standard library's is not the SDK's to say; neither counts.
+  const holder =
+    /Cannot access attribute "\w+" for class "(?:type\[)?([A-Za-z_]\w*)/.exec(
+      diagnostic.message,
+    )?.[1];
+  return holder !== undefined && sdkClasses.has(holder);
+}
+
+/**
+ * The names of the classes a package declares, read from its files: what
+ * tells one of the SDK's own classes from the standard library's
+ * `AsyncResult`, which kubernetes' methods may also return.
+ */
+export function declaredClasses(site: string): Set<string> {
+  const found = new Set<string>();
+  const walk = (dir: string, depth: number) => {
+    if (depth > 8) return;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (!entry.name.endsWith(".dist-info") && entry.name !== "__pycache__") {
+          walk(path, depth + 1);
+        }
+      } else if (/\.pyi?$/.test(entry.name)) {
+        for (const match of readFileSync(path, "utf8").matchAll(
+          /^[ \t]*class[ \t]+(\w+)/gm,
+        )) {
+          found.add(match[1] as string);
+        }
+      }
+    }
+  };
+  try {
+    walk(site, 0);
+  } catch {
+    // A package that cannot be read declares nothing the check can use.
+  }
+  return found;
 }
 
 /**

@@ -52,6 +52,15 @@ export interface SymbolMap {
    * says it is (`tagged.ts`).
    */
   tags?: WireTags;
+  /**
+   * The API as a plain HTTP client reaches it: the servers its URLs start
+   * with and each operation's method, path and the schema its success
+   * response is. A consumer that calls the API with `requests` or `httpx`
+   * beside, or instead of, the SDK is read against the same Changes: the
+   * keys of the dictionary a request sends are that operation's parameters,
+   * and what its response parses to is that schema.
+   */
+  wire?: { servers: string[]; operations: WireOperation[] };
   /** Resource accessor paths that moved, for example charges.create to payments.create. */
   accessors: { from: string[]; to: string[] }[];
   /**
@@ -85,6 +94,18 @@ export type Role =
   | "type-reference"
   /** Something the engine will not rewrite on its own. */
   | "unknown";
+
+/** One of the API's operations, as a URL and a method reach it. */
+export interface WireOperation {
+  /** The contract's `operationId`, which a Change's operation scope names. */
+  id: string;
+  /** Lower case, as `get`. */
+  method: string;
+  /** The path template, as `/v1/subscriptions/{subscription_exposed_id}`. */
+  path: string;
+  /** The schema a success response's JSON body is, where it names one. */
+  response?: string;
+}
 
 export interface TargetSymbol {
   /** Exported type name in the consumer's SDK. */

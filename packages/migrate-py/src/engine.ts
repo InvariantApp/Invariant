@@ -23,6 +23,7 @@ import {
   recoding,
   type TargetSymbol,
 } from "@invariant-app/migrate-core";
+import { classIn, type ValueFlow } from "./flows.ts";
 import {
   type Declaration,
   isSpan,
@@ -327,6 +328,17 @@ export async function runTargets(
   sources: Sources,
   plan: MigrationPlan,
   result: EngineResult,
+  options: {
+    /** Follows values the checker cannot type back to where they came from. */
+    flow?: ValueFlow;
+    /**
+     * The old release ships no types of its own. Nearly every value read
+     * from it is one the checker cannot type, so a read by name from such a
+     * value says nothing there: only a value proven to be the field's class
+     * is read by name.
+     */
+    untyped?: boolean;
+  } = {},
 ): Promise<{ resolved: number; unresolved: number }> {
   let resolved = 0;
   let unresolved = 0;
@@ -340,6 +352,29 @@ export async function runTargets(
     ]);
     if (!declaration) {
       unresolved += 1;
+      // A field the old release does not declare, as none is in one that
+      // ships no types, is still read by name, but only from a value the
+      // checker or value flow proves to be its class: with nothing declared
+      // to compare with, a value it cannot type says nothing.
+      const composed = compose(targets);
+      if (
+        (first.within ?? []).length === 0 &&
+        (composed.unsupported || composed.path.join(".") !== first.property)
+      ) {
+        await flagByName(
+          references,
+          sources,
+          first,
+          undefined,
+          composed,
+          new Set(),
+          result,
+          {
+            ...options,
+            proven: true,
+          },
+        );
+      }
       continue;
     }
     resolved += 1;
@@ -353,7 +388,10 @@ export async function runTargets(
     }
     // What the checker could not type is found by name, and only reported.
     if (composed.unsupported || composed.path.join(".") !== first.property) {
-      await flagByName(references, sources, first, declaration, composed, typed, result);
+      await flagByName(references, sources, first, declaration, composed, typed, result, {
+        ...options,
+        proven: options.untyped === true,
+      });
       expansions ??= await expansionsIn(references, sources, first.typeName);
       for (const expansion of expansions) {
         for (const [at, reached] of expansion.reaches.entries()) {
@@ -504,14 +542,26 @@ async function flagByName(
   references: ReferenceProvider,
   sources: Sources,
   target: TargetSymbol,
-  declaration: Declaration,
+  /** Where the old release declares the field, where it does. */
+  declaration: Declaration | undefined,
   composed: Composed,
   typed: Set<string>,
   result: EngineResult,
+  options: {
+    flow?: ValueFlow;
+    /** Report a read only where the value is provably the field's class. */
+    proven: boolean;
+  },
 ): Promise<void> {
   const name = target.property;
   const changeId = composed.changeIds[0] ?? "";
   const reason = composed.unsupported ?? composed.reasons.join("; ");
+  // A field renamed in place is rewritten where the value is certainly the
+  // SDK's; anything nested or gone is shown.
+  const renamedTo =
+    !composed.unsupported && composed.path.length === 1 && composed.path[0] !== name
+      ? composed.path[0]
+      : undefined;
   for (const [file, text] of sources.texts) {
     if (!text.includes(name)) continue;
     const tree = await sources.tree(file);
@@ -564,7 +614,11 @@ async function flagByName(
       if (candidate.role === "attribute-read" || candidate.role === "attribute-write") {
         // A read the checker resolves somewhere else is some other `name`.
         const points = await references.definitionAt(file, candidate.node.startIndex);
-        if (points.some((point) => isSpan(point) || point.file !== declaration.file))
+        if (
+          points.some(
+            (point) => isSpan(point) || !declaration || point.file !== declaration.file,
+          )
+        )
           continue;
       }
       const evidence = await receiverEvidence(
@@ -572,8 +626,27 @@ async function flagByName(
         file,
         candidate.receiver,
         target,
+        options.flow,
       );
       if (evidence === "other") continue;
+      if (options.proven && evidence !== "sdk") continue;
+      if (evidence === "sdk" && renamedTo) {
+        // The value is the SDK's class, by the checker or by following it,
+        // so the name read from it is the field, and renaming it is exact.
+        const literal = candidate.role === "subscript" ? candidate.node : undefined;
+        if (literal ? stringValue(literal) !== undefined : candidate.role !== "unknown") {
+          result.edits.push({
+            file,
+            start: candidate.node.startIndex,
+            end: candidate.node.endIndex,
+            replacement: literal ? withStringValue(literal, renamedTo) : renamedTo,
+            changeId,
+            author: "codemod",
+            reason: `${reason}; read by name from a ${target.typeName.split(".").at(-1)}`,
+          });
+          continue;
+        }
+      }
       const holder = candidate.node.parent ?? candidate.node;
       const extent = shownExtent(tree, text, holder.startIndex, holder.endIndex);
       result.manual.push(
@@ -583,7 +656,7 @@ async function flagByName(
           extent.start,
           extent.end,
           changeId,
-          evidence === "sdk"
+          evidence === "sdk" || evidence === "near"
             ? `${reason}; read here by name from a ${target.typeName.split(".").at(-1)}`
             : `${reason}; read here by name from a value the type checker cannot type, so check it is the API's`,
         ),
@@ -593,16 +666,25 @@ async function flagByName(
 }
 
 /**
- * What the value a field is read from is: an SDK type declaring it, a type
- * the checker cannot name, or something else entirely.
+ * What the value a field is read from is: the SDK's class that declares it
+ * (`sdk`), a type that has that class in it (`near`), a value neither the
+ * checker nor value flow can type, or something else entirely.
  */
 async function receiverEvidence(
   references: ReferenceProvider,
   file: string,
   receiver: Node | null,
   target: TargetSymbol,
-): Promise<"sdk" | "untyped" | "other"> {
+  flow?: ValueFlow,
+): Promise<"sdk" | "near" | "untyped" | "other"> {
   if (!receiver) return "untyped";
+  // Where the checker cannot type the value, it is followed to where it
+  // came from: provably the field's class, or provably some other.
+  const followed = async (): Promise<"sdk" | "untyped" | "other"> => {
+    const found = flow && (await flow.classOf(file, receiver));
+    if (!found) return "untyped";
+    return found === target.typeName ? "sdk" : "other";
+  };
   // The last name in the receiver is the one whose type is the receiver's:
   // `event.data.object` is typed by `object`, `items[0]` by `items`.
   let probe: Node = receiver;
@@ -616,17 +698,20 @@ async function receiverEvidence(
     }
     if (probe.type === "call" || probe.type === "subscript") {
       // A call's result or an item has no name to hover; read by name, it
-      // counts as untyped unless the checker types the whole expression.
-      return "untyped";
+      // counts as untyped unless it can be followed.
+      return followed();
     }
     break;
   }
   const hover = await references.typeAt(file, probe.startIndex);
-  if (!hover) return "untyped";
+  if (!hover) return followed();
   const type = hover.split(":").slice(1).join(":").split("\n")[0]?.trim() ?? "";
-  if (type === "" || /\b(Unknown|Any)\b/.test(type) || /^dict\[str, /.test(type))
-    return "untyped";
+  if (type === "" || /\b(Unknown|Any)\b/.test(type) || /^dict\[str, /i.test(type))
+    return followed();
   const className = target.typeName.split(".").at(-1) ?? "";
-  if (new RegExp(`\\b${className}\\b`).test(type)) return "sdk";
+  if (classIn(type) === className) return "sdk";
+  // `list[Subscription]`, `Subscription | Invoice`: the class is in it, but
+  // what is read from it is not certainly the field.
+  if (new RegExp(`\\b${className}\\b`).test(type)) return "near";
   return "other";
 }

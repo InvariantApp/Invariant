@@ -206,9 +206,11 @@ pull requests that name the SDK.
 A bot's bump carries mostly the SDK's own changes; the contract migrations
 are often a person's own pull request, titled for the API version it moves
 to ("read Stripe fields that basil relocated"). For stripe, plaid-python,
-kubernetes and openai on PyPI the miner also searches such titles, reads what
-each pull request upgraded from its manifests' diff, and keeps it only where
-that moves the SDK forward across a major version.
+kubernetes, openai and twilio on PyPI the miner also searches such titles, and
+for stripe the descriptions too (words ending `in:body`: the API version moved
+to, or `current_period_end`), reads what each pull request upgraded from its
+manifests' diff, and keeps it only where that moves the SDK forward across a
+major version.
 
 `replay/run.mts` replays them. Each repository is fetched at the bump's base
 with no history and no blob it does not need, the SDK alone is installed at
@@ -258,7 +260,16 @@ distribution; a release with no wheel is a case that could not be replayed.
 pyright reads the files that import the SDK against the old release and
 checks the result against the new one, and every error the upgrade brings is
 flagged. For stripe-python the pack is also told the Changes, the same way as
-for stripe-node, from the OpenAPI release each stripe-python release records.
+for stripe-node, from the OpenAPI release each stripe-python release records,
+and the operations of the old specification, for requests made with
+`requests` or `httpx`. A release before 7 ships no types, so the checker is
+given a copy of it with each class's fields declared from that specification
+(`replay/stubs.mts`), and finds a Change's field where it is referenced. The
+pack is also shown the files that import the consumer's own modules that use
+the SDK and write a field the upgrade took away, as a webhook route reading
+`data.get("subscription")` from what its billing service hands it. Where a bump's head pins the SDK in more than one file, the
+pin in the major the bump names is taken, or an exact one past it: a frozen
+requirements file left in the old major does not make the replay a no-op.
 
 The Python replay runs in GitHub Actions (`.github/workflows/replay.yml`, four
 shards, on every push that touches the pack or the rig), with no token and no
