@@ -213,6 +213,22 @@
       ]
     },
     {
+      "id": "ActionsDesk/ghec-enterprise-reporting#451",
+      "repo": "ActionsDesk/ghec-enterprise-reporting",
+      "pr": 451,
+      "base": "3e85259f095a175bf985f94d106bb03c964e0796",
+      "head": "d0666eec23a23ee4c572f557a411df6a75d0614a",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-03-09T07:38:55Z",
+      "files": [
+        "src/utils.ts"
+      ]
+    },
+    {
       "id": "adyen-examples/adyen-node-online-payments#172",
       "repo": "adyen-examples/adyen-node-online-payments",
       "pr": 172,
@@ -963,6 +979,22 @@
       ]
     },
     {
+      "id": "asteby/metacore-sdk#599",
+      "repo": "asteby/metacore-sdk",
+      "pr": 599,
+      "base": "e8c9b57283c2714fe56f28108a8f6c068c7fa4d3",
+      "head": "659b7c847f44566f43638401aba69c9520c11722",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "85.2.0",
+      "to": "86.1.1",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-07-19T02:56:22Z",
+      "files": [
+        "billing/billing.go"
+      ]
+    },
+    {
       "id": "Awis13/controlplane#41",
       "repo": "Awis13/controlplane",
       "pr": 41,
@@ -978,6 +1010,22 @@
         "internal/billing/handler_test.go",
         "internal/billing/stripe.go",
         "internal/billing/webhook_test.go"
+      ]
+    },
+    {
+      "id": "axelerant/platformsh-action#177",
+      "repo": "axelerant/platformsh-action",
+      "pr": 177,
+      "base": "9befba942e231fad177b49b2cb237347bc943130",
+      "head": "35813c821c59134a0a0e2fb33a243deaad677d03",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-02-02T19:30:50Z",
+      "files": [
+        "rollup.config.ts"
       ]
     },
     {
@@ -1121,6 +1169,24 @@
         "src/mattermind/agent/loop.py",
         "src/mattermind/cli/app.py",
         "tests/unit/test_cli.py"
+      ]
+    },
+    {
+      "id": "bitflight-devops/github-action-readme-generator#480",
+      "repo": "bitflight-devops/github-action-readme-generator",
+      "pr": 480,
+      "base": "02af146a614c0a106d648a314e4c5164161385b3",
+      "head": "f92e8edd5a91687651d54bc668c655e51294dba3",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "9.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-02-11T05:56:15Z",
+      "files": [
+        "__tests__/helpers.test.ts",
+        "src/helpers.ts",
+        "src/inputs.ts"
       ]
     },
     {
@@ -1343,6 +1409,23 @@
       "files": [
         "cartography/intel/kubernetes/util.py",
         "setup.py"
+      ]
+    },
+    {
+      "id": "CATcher-org/CATcher#1344",
+      "repo": "CATcher-org/CATcher",
+      "pr": 1344,
+      "base": "9eb19aff1f60cbd58f33a1de9ea0ec57d410b118",
+      "head": "f831784c667dc1b7b803d7ab1ac1b887b2fa6e84",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "16.37.0",
+      "to": "17.11.0",
+      "license": "MIT",
+      "mergedAt": "2025-03-15T17:10:37Z",
+      "files": [
+        "src/app/auth/auth.component.ts",
+        "src/app/core/services/github.service.ts"
       ]
     },
     {
@@ -1600,6 +1683,22 @@
         "buzz/transcriber.py",
         "buzz/widgets/preferences_dialog/general_preferences_widget.py",
         "tests/transcriber_test.py"
+      ]
+    },
+    {
+      "id": "chrisreddington/validate-dependabot#115",
+      "repo": "chrisreddington/validate-dependabot",
+      "pr": 115,
+      "base": "89599d738eac6feb9e1af211dc37e2d9722e7238",
+      "head": "c2e264f4890ac63652ccf6185c93a5c65f9a83a7",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-02-08T19:43:46Z",
+      "files": [
+        "rollup.config.ts"
       ]
     },
     {
@@ -1959,6 +2058,29 @@
       ]
     },
     {
+      "id": "CloudSnorkel/cdk-github-runners#640",
+      "repo": "CloudSnorkel/cdk-github-runners",
+      "pr": 640,
+      "base": "0dabd91f30842302e4d67f171c04cdfd7257ff9e",
+      "head": "558b01a8272acc40984b4505bd22351f737383e7",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "19.0.13",
+      "to": "22.0.1",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-01-19T22:22:25Z",
+      "files": [
+        "src/delete-failed-runner.lambda.ts",
+        "src/idle-runner-repear.lambda.ts",
+        "src/lambda-github.ts",
+        "src/setup.lambda.ts",
+        "src/status.lambda.ts",
+        "src/token-retriever.lambda.ts",
+        "src/webhook-redelivery.lambda.ts",
+        "test/webhook-redelivery.test.ts"
+      ]
+    },
+    {
       "id": "cncf/prow-github-actions#122",
       "repo": "cncf/prow-github-actions",
       "pr": 122,
@@ -2127,6 +2249,24 @@
       "mergedAt": "2026-09-15T02:29:59Z",
       "files": [
         "cmd/utils.go"
+      ]
+    },
+    {
+      "id": "danger/danger-js#1481",
+      "repo": "danger/danger-js",
+      "pr": 1481,
+      "base": "88a524b8b73b9fc102447303bb3df125c922fcb5",
+      "head": "e13bed168475f9f652b1d1bd79737012ce5ee112",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "18.12.0",
+      "to": "20.1.2",
+      "license": "MIT",
+      "mergedAt": "2025-04-03T18:30:16Z",
+      "files": [
+        "source/api/fetch.ts",
+        "source/platforms/github/GitHubUtils.ts",
+        "source/runner/runners/utils/_tests/_transpiler.test.ts"
       ]
     },
     {
@@ -2444,6 +2584,63 @@
       ]
     },
     {
+      "id": "docker/actions-toolkit#960",
+      "repo": "docker/actions-toolkit",
+      "pr": 960,
+      "base": "06cdb9490a1e3681072910403d0c2cdcf4339a75",
+      "head": "ae6b2a8dc97bae110b0ed9515de2cc0c16708757",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "9.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-01-28T16:17:44Z",
+      "files": [
+        "__tests__/git.test.ts",
+        "__tests__/github.test.ts",
+        "jest.config.cjs",
+        "jest.config.itg.cjs",
+        "src/git.ts",
+        "src/types/github.ts"
+      ]
+    },
+    {
+      "id": "docker/metadata-action#597",
+      "repo": "docker/metadata-action",
+      "pr": 597,
+      "base": "cb50be45084dde2f4465550fdd9e0abf61483be1",
+      "head": "2c6e6d9d3b79aab93b137865269460dc62b1eac8",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "6.0.1",
+      "to": "9.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-03-04T09:07:45Z",
+      "files": [
+        "__tests__/context.test.ts",
+        "__tests__/meta.test.ts",
+        "src/context.ts"
+      ]
+    },
+    {
+      "id": "dorny/test-reporter#718",
+      "repo": "dorny/test-reporter",
+      "pr": 718,
+      "base": "5f43297c5b97af417c2b3dbc422475451653fc5e",
+      "head": "7449990f9aa45c49cbd69ffe9dabc739707acc69",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "6.0.1",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-03-02T14:53:48Z",
+      "files": [
+        "src/input-providers/artifact-provider.ts",
+        "src/main.ts",
+        "src/utils/github-utils.ts"
+      ]
+    },
+    {
       "id": "driftive/driftive#94",
       "repo": "driftive/driftive",
       "pr": 94,
@@ -2462,6 +2659,23 @@
         "pkg/vcs/github/issues.go",
         "pkg/vcs/github/pullrequests.go",
         "pkg/vcs/github/type.go"
+      ]
+    },
+    {
+      "id": "e-conomic/mergebot#1210",
+      "repo": "e-conomic/mergebot",
+      "pr": 1210,
+      "base": "b5f87cad1833a9d3d1a7d1eaa358b1e60f707621",
+      "head": "288ee4e24b8786083821720320a7fb5363ced150",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-01-28T13:35:21Z",
+      "files": [
+        "src/services/actionService.ts",
+        "test/actionService.test.ts"
       ]
     },
     {
@@ -2716,6 +2930,24 @@
         "src/utils/setup-reclient-chromium.ts",
         "src/utils/siso.ts",
         "src/utils/which.ts"
+      ]
+    },
+    {
+      "id": "electron/fiddle#1906",
+      "repo": "electron/fiddle",
+      "pr": 1906,
+      "base": "c1a78c9cc2501859f6396e65bd1d1f8eb101444c",
+      "head": "99def974caaf79d6eb62faed839db11260307351",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "17.0.0",
+      "to": "22.0.1",
+      "license": "MIT",
+      "mergedAt": "2026-05-04T16:04:09Z",
+      "files": [
+        "src/renderer/components/commands-action-button.tsx",
+        "src/renderer/remote-loader.ts",
+        "tests/renderer/remote-loader.spec.ts"
       ]
     },
     {
@@ -2978,6 +3210,28 @@
       "mergedAt": "2026-04-06T22:01:22Z",
       "files": [
         "src/app/api/company/upgrade/route.ts"
+      ]
+    },
+    {
+      "id": "flcdrg/remove-release-asset-action#1366",
+      "repo": "flcdrg/remove-release-asset-action",
+      "pr": 1366,
+      "base": "bd0b9b9d311b3a716f4f30a590d49bfbbbcf087f",
+      "head": "31acb0b3265e389f24f15d00a0757413f2b2b1d2",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-02-23T11:05:46Z",
+      "files": [
+        "eslint.config.mjs",
+        "rollup.config.ts",
+        "src/index.ts",
+        "src/main.js",
+        "src/main.ts",
+        "src/remove-release-asset.js",
+        "src/remove-release-asset.ts"
       ]
     },
     {
@@ -3863,6 +4117,80 @@
       ]
     },
     {
+      "id": "github/codeql-action#3398",
+      "repo": "github/codeql-action",
+      "pr": 3398,
+      "base": "c99e493099a1fab0cf810f35d8807302cd2db3e0",
+      "head": "1b4c62b79d8fc88aa585b18475ea0ce462632382",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "6.0.1",
+      "to": "7.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-01-19T14:47:10Z",
+      "files": [
+        "lib/analyze-action-post.js",
+        "lib/analyze-action.js",
+        "lib/autobuild-action.js",
+        "lib/init-action-post.js",
+        "lib/init-action.js",
+        "lib/resolve-environment-action.js",
+        "lib/setup-codeql-action.js",
+        "lib/start-proxy-action-post.js",
+        "lib/start-proxy-action.js",
+        "lib/upload-lib.js",
+        "lib/upload-sarif-action-post.js",
+        "lib/upload-sarif-action.js"
+      ]
+    },
+    {
+      "id": "github/codeql-action#3432",
+      "repo": "github/codeql-action",
+      "pr": 3432,
+      "base": "ee1e1399e292f3386c840526dac6a4dc7509ad72",
+      "head": "6059a66dec375044f796731e169fe44dd59b671d",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "8.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-01-27T13:49:14Z",
+      "files": [
+        "lib/analyze-action-post.js",
+        "lib/analyze-action.js",
+        "lib/autobuild-action.js",
+        "lib/init-action-post.js",
+        "lib/init-action.js",
+        "lib/resolve-environment-action.js",
+        "lib/setup-codeql-action.js",
+        "lib/start-proxy-action-post.js",
+        "lib/start-proxy-action.js",
+        "lib/upload-lib.js",
+        "lib/upload-sarif-action-post.js",
+        "lib/upload-sarif-action.js"
+      ]
+    },
+    {
+      "id": "github/vscode-codeql#3700",
+      "repo": "github/vscode-codeql",
+      "pr": 3700,
+      "base": "28d07a8e6e089f71dea7758a567b861a15c514ff",
+      "head": "97c497bbd68d2f79f409fa20a34f00fc2d616b8b",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "20.0.2",
+      "to": "21.0.2",
+      "license": "MIT",
+      "mergedAt": "2024-09-02T07:03:39Z",
+      "files": [
+        "extensions/ql-vscode/src/view/jest.config.ts",
+        "extensions/ql-vscode/test/jest-config.ts",
+        "extensions/ql-vscode/test/unit-tests/jest.config.ts",
+        "extensions/ql-vscode/test/unit-tests/variant-analysis/custom-errors.test.ts",
+        "extensions/ql-vscode/test/vscode-tests/jest.config.base.ts"
+      ]
+    },
+    {
       "id": "github/vscode-codeql#4114",
       "repo": "github/vscode-codeql",
       "pr": 4114,
@@ -4018,6 +4346,96 @@
       "files": [
         "internal/github/app.go",
         "internal/server/api.go"
+      ]
+    },
+    {
+      "id": "googleapis/code-suggester#512",
+      "repo": "googleapis/code-suggester",
+      "pr": 512,
+      "base": "7872278e587c3779a9b47de6535b1f2cde277520",
+      "head": "b1b85368b520a64b8d62cfdae76e207f3cb8224b",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "19.0.5",
+      "to": "20.1.1",
+      "license": "Apache-2.0",
+      "mergedAt": "2025-02-26T22:44:38Z",
+      "files": [
+        "src/index.ts",
+        "test/util.ts"
+      ]
+    },
+    {
+      "id": "googleapis/release-please#2490",
+      "repo": "googleapis/release-please",
+      "pr": 2490,
+      "base": "4b5eb72ebec09e1e39ce5f8495b75b4b85bdbac0",
+      "head": "94047c1099ad6a6330d12c17cd0331fd9a9dc86a",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "19.0.0",
+      "to": "20.1.1",
+      "license": "Apache-2.0",
+      "mergedAt": "2025-03-11T16:19:55Z",
+      "files": [
+        "src/github.ts",
+        "test/changelog-notes/github-changelog-notes.ts",
+        "test/github.ts",
+        "test/manifest.ts"
+      ]
+    },
+    {
+      "id": "googleapis/repo-automation-bots#5680",
+      "repo": "googleapis/repo-automation-bots",
+      "pr": 5680,
+      "base": "79445f5dd7bd01cbd23b8af7df1a0311b555b17f",
+      "head": "97e01f97a9837878550cfb6d15f39691e12e62dc",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "19.0.7",
+      "to": "20.1.1",
+      "license": "Apache-2.0",
+      "mergedAt": "2025-02-26T23:45:47Z",
+      "files": [
+        "packages/git-file-utils/test/find-files.ts",
+        "packages/git-file-utils/test/git-file-utils.ts"
+      ]
+    },
+    {
+      "id": "googleapis/repo-automation-bots#5716",
+      "repo": "googleapis/repo-automation-bots",
+      "pr": 5716,
+      "base": "ebc2458602d719f25b2924b1f1fa3c03b0dd5916",
+      "head": "32e8a60832474a0ff36d163e8de8c10edc610812",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "19.0.4",
+      "to": "20.1.2",
+      "license": "Apache-2.0",
+      "mergedAt": "2025-03-17T20:36:20Z",
+      "files": [
+        "packages/cherry-pick-bot/test/bot.ts",
+        "packages/cherry-pick-bot/test/branch-protection.ts",
+        "packages/cherry-pick-bot/test/cherry-pick.ts",
+        "packages/do-not-merge/test/test.ts",
+        "packages/merge-on-green/test/merge-logic.ts",
+        "packages/merge-on-green/test/merge-on-green.ts"
+      ]
+    },
+    {
+      "id": "googleapis/repo-automation-bots#5724",
+      "repo": "googleapis/repo-automation-bots",
+      "pr": 5724,
+      "base": "1fffb5a3a32f1f0921456844f99c67df6739b3a6",
+      "head": "20c78672e7acdba38c2b285946fbec225a029799",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "19.0.4",
+      "to": "20.1.2",
+      "license": "Apache-2.0",
+      "mergedAt": "2025-03-18T19:16:23Z",
+      "files": [
+        "packages/release-brancher/src/release-brancher.ts"
       ]
     },
     {
@@ -4554,6 +4972,22 @@
       "mergedAt": "2026-08-15T08:52:17Z",
       "files": [
         "test/ai-tools-client.test.mjs"
+      ]
+    },
+    {
+      "id": "indielabio/zebrafish#128",
+      "repo": "indielabio/zebrafish",
+      "pr": 128,
+      "base": "d4f358eef73b26a16ec108ff36bd653c2e419d49",
+      "head": "ac6abc6edf6cc34af1a747706a1a6e8fb0f8b741",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "82.5.1",
+      "to": "86.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-06-17T00:38:38Z",
+      "files": [
+        "ci/sdk-verifiers/go/main.go"
       ]
     },
     {
@@ -5156,6 +5590,26 @@
         "packages/backend/src/billing/services/billing.webhook.service.ts",
         "packages/backend/src/billing/services/stripe.client.ts",
         "packages/backend/src/billing/services/stripe.service.ts"
+      ]
+    },
+    {
+      "id": "ken-matsui/notify-slack#345",
+      "repo": "ken-matsui/notify-slack",
+      "pr": 345,
+      "base": "b2c6d506dcc8d1bf6453ec2700fe130cf5cde659",
+      "head": "79c38c9daf49ff7030f872dda593bc20417ef9f8",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "6.0.1",
+      "to": "9.1.1",
+      "license": "MIT",
+      "mergedAt": "2026-05-03T19:46:55Z",
+      "files": [
+        "src/handler.ts",
+        "src/main.ts",
+        "src/slack.ts",
+        "src/types.ts",
+        "src/utils.ts"
       ]
     },
     {
@@ -6326,6 +6780,22 @@
       ]
     },
     {
+      "id": "microsoft/vscode-github-issue-notebooks#194",
+      "repo": "microsoft/vscode-github-issue-notebooks",
+      "pr": 194,
+      "base": "cc562880ce3e10aabb49702da139136242e1b726",
+      "head": "b5255fa5e4d382005369b2dd78f5dc7c538eded2",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "21.1.1",
+      "to": "22.0.0",
+      "license": "MIT",
+      "mergedAt": "2025-10-03T14:56:44Z",
+      "files": [
+        "src/extension/notebookProvider.ts"
+      ]
+    },
+    {
       "id": "ministryofjustice/analytics-platform-control-panel#1415",
       "repo": "ministryofjustice/analytics-platform-control-panel",
       "pr": 1415,
@@ -6606,6 +7076,38 @@
       ]
     },
     {
+      "id": "OctoMind-dev/automagically-action-execute#694",
+      "repo": "OctoMind-dev/automagically-action-execute",
+      "pr": 694,
+      "base": "78dad57fe490f311a0ee0ef865a7c8e464ecaf13",
+      "head": "9ff84c3e938befc8512fa8b4917bd1006589d1e8",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-01-28T10:30:38Z",
+      "files": [
+        "tests/executeAutomagically.spec.ts"
+      ]
+    },
+    {
+      "id": "OctoMind-dev/automagically-action-execute#698",
+      "repo": "OctoMind-dev/automagically-action-execute",
+      "pr": 698,
+      "base": "d51a78f610bc2cfb43e68eace40e6cd28cfc393e",
+      "head": "e2a0270c608e35387a57f7c33211007d36ce6702",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-02-05T16:26:45Z",
+      "files": [
+        "tests/executeAutomagically.spec.ts"
+      ]
+    },
+    {
       "id": "ogx-ai/ogx#3847",
       "repo": "ogx-ai/ogx",
       "pr": 3847,
@@ -6626,6 +7128,25 @@
       ]
     },
     {
+      "id": "oke-py/npm-audit-action#207",
+      "repo": "oke-py/npm-audit-action",
+      "pr": 207,
+      "base": "0a26ebc75bc0def47e7875e70cc7605cd2cc1d7b",
+      "head": "596a7794204357406f0b70bd5817ea221150c4a5",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "19.0.13",
+      "to": "21.1.1",
+      "license": "MIT",
+      "mergedAt": "2025-05-01T13:50:55Z",
+      "files": [
+        "__tests__/main.test.ts",
+        "src/issue.ts",
+        "src/main.ts",
+        "src/pr.ts"
+      ]
+    },
+    {
       "id": "okfde/froide-payment#22",
       "repo": "okfde/froide-payment",
       "pr": 22,
@@ -6643,6 +7164,23 @@
         "froide_payment/provider/stripe.py",
         "froide_payment/templatetags/froide_payment.py",
         "froide_payment/utils.py"
+      ]
+    },
+    {
+      "id": "One-Code-LLC/mergerisk-action#48",
+      "repo": "One-Code-LLC/mergerisk-action",
+      "pr": 48,
+      "base": "c969d577d09758b2b6780c2fe5f1f1aa32ac4a16",
+      "head": "18c5a7fe7ef2acfa18397b003cd048cf9ec36fdc",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "6.0.1",
+      "to": "9.1.1",
+      "license": "MIT",
+      "mergedAt": "2026-07-06T19:27:18Z",
+      "files": [
+        "src/github/comment.ts",
+        "src/github/pull-request.ts"
       ]
     },
     {
@@ -7188,6 +7726,22 @@
       ]
     },
     {
+      "id": "plaid/quickstart#524",
+      "repo": "plaid/quickstart",
+      "pr": 524,
+      "base": "e474fdcc63a8b75f9a696fdea4506037193611d9",
+      "head": "fd1291ebf27a860f52900e0edf1b95ad3b8e0040",
+      "package": "plaid-python",
+      "ecosystem": "pypi",
+      "from": "28.0.0",
+      "to": "37.1.0",
+      "license": "MIT",
+      "mergedAt": "2025-11-03T21:16:26Z",
+      "files": [
+        "python/server.py"
+      ]
+    },
+    {
       "id": "Pocket/pocket-monorepo#299",
       "repo": "Pocket/pocket-monorepo",
       "pr": 299,
@@ -7317,6 +7871,23 @@
       "mergedAt": "2026-09-04T09:51:58Z",
       "files": [
         "tests/llm_adapters/test_openrouter_adapter_cov.py"
+      ]
+    },
+    {
+      "id": "princespaghetti/setup-conftest#550",
+      "repo": "princespaghetti/setup-conftest",
+      "pr": 550,
+      "base": "6b36ca50f95e7fbaf98882a637fac6f534f7beb9",
+      "head": "c4316243afa2855e6cb658acf986b85b200755e6",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "8.0.0",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-01-29T00:10:15Z",
+      "files": [
+        "rollup.config.ts",
+        "src/main.ts"
       ]
     },
     {
@@ -7468,6 +8039,23 @@
         "src/providers/openai/assistant.ts",
         "test/providers/openai/assistant.test.ts",
         "test/providers/openai/util.test.ts"
+      ]
+    },
+    {
+      "id": "publira/publira#972",
+      "repo": "publira/publira",
+      "pr": 972,
+      "base": "4f8703e0d63f4c0e11faeafef05e50540d5364a4",
+      "head": "f4e39284ebf46182b7197966ab80773cfa756bcd",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "82.5.1",
+      "to": "86.3.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-08-15T17:59:11Z",
+      "files": [
+        "server/api/publicapi/purchase_handlers.go",
+        "server/api/publicapi/purchase_handlers_test.go"
       ]
     },
     {
@@ -7789,6 +8377,22 @@
       ]
     },
     {
+      "id": "relative-ci/agent#1647",
+      "repo": "relative-ci/agent",
+      "pr": 1647,
+      "base": "66fe8df095a6cca7d91ae4d8913b3468a82bdb8e",
+      "head": "2cab228fdd8e036171932f165334ef860c1d0df9",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "6.0.1",
+      "to": "8.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-01-26T22:02:04Z",
+      "files": [
+        "packages/core/rollup.config.mjs"
+      ]
+    },
+    {
       "id": "remal-github-actions/bump-repository-activity#2784",
       "repo": "remal-github-actions/bump-repository-activity",
       "pr": 2784,
@@ -8033,6 +8637,23 @@
         "service/github/diff_test.go",
         "service/github/github.go",
         "service/github/github_test.go"
+      ]
+    },
+    {
+      "id": "richardsimko/update-tag#122",
+      "repo": "richardsimko/update-tag",
+      "pr": 122,
+      "base": "ade36407b5303a05d62af9ffe7399473870ec2d8",
+      "head": "089d98bbd82c58c7c41cc10a1adc6cc6e55f068f",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "8.0.1",
+      "to": "9.1.1",
+      "license": "MIT",
+      "mergedAt": "2026-07-28T14:00:10Z",
+      "files": [
+        ".eslintrc.cjs",
+        "src/main.ts"
       ]
     },
     {
@@ -8375,6 +8996,24 @@
       ]
     },
     {
+      "id": "SAP/cloud-sdk-js#6283",
+      "repo": "SAP/cloud-sdk-js",
+      "pr": 6283,
+      "base": "91aa4e9547132f60e6666ea4facf6d13e7e91304",
+      "head": "fb57b5206e4a3a2ed407a671eae1e7e18787f432",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "6.0.1",
+      "to": "9.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-03-09T20:53:29Z",
+      "files": [
+        ".github/actions/changesets-fixed-version-bump/index.js",
+        ".github/actions/check-pr/index.js",
+        ".github/actions/check-public-api/index.js"
+      ]
+    },
+    {
       "id": "ScilifelabDataCentre/serve-event-listener#7",
       "repo": "ScilifelabDataCentre/serve-event-listener",
       "pr": 7,
@@ -8426,6 +9065,22 @@
       ]
     },
     {
+      "id": "SierraSoftworks/actions-tap#11",
+      "repo": "SierraSoftworks/actions-tap",
+      "pr": 11,
+      "base": "0d7e10ce36236cf156426b66d2ea4b3b59161644",
+      "head": "949506f0c8d430b616cbedb181a57bff535ea61d",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "6.0.1",
+      "to": "9.1.1",
+      "license": "MIT",
+      "mergedAt": "2026-06-22T23:32:23Z",
+      "files": [
+        "src/auth.ts"
+      ]
+    },
+    {
       "id": "siro103/OpSyne#2",
       "repo": "siro103/OpSyne",
       "pr": 2,
@@ -8440,6 +9095,23 @@
       "files": [
         "tests/test_adapter_agent.py",
         "tests/test_investigation.py"
+      ]
+    },
+    {
+      "id": "skaut/wordpress-version-checker#1722",
+      "repo": "skaut/wordpress-version-checker",
+      "pr": 1722,
+      "base": "bb958c1a36da10ea4db6a3428d1f33002240aa6d",
+      "head": "632f7890b348249bf4b50ace69fbd144951cf408",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-02-05T16:31:48Z",
+      "files": [
+        "src/octokit.ts",
+        "tests/setup.ts"
       ]
     },
     {
@@ -8472,6 +9144,23 @@
       "mergedAt": "2026-06-17T17:41:55Z",
       "files": [
         "internal/github/client.go"
+      ]
+    },
+    {
+      "id": "softprops/action-gh-release#470",
+      "repo": "softprops/action-gh-release",
+      "pr": 470,
+      "base": "20adb4259cc911c7d3ef4d10da2f13ca8ca2834c",
+      "head": "5e1d6ba6520efdc41c50385de6bede20141647c8",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "5.1.1",
+      "to": "6.0.0",
+      "license": "MIT",
+      "mergedAt": "2024-07-18T21:37:45Z",
+      "files": [
+        "src/github.ts",
+        "src/util.ts"
       ]
     },
     {
@@ -10430,6 +11119,24 @@
       ]
     },
     {
+      "id": "tldr-pages/tldr-labeler-action#120",
+      "repo": "tldr-pages/tldr-labeler-action",
+      "pr": 120,
+      "base": "4fabf12b4b5ad7044008167914585ae74f90fef5",
+      "head": "cab2a49edd4986a69c0473e7080d1e511e3cb5f0",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "6.0.1",
+      "to": "9.1.1",
+      "license": "MIT",
+      "mergedAt": "2026-08-21T06:28:03Z",
+      "files": [
+        "src/esmDeps.d.ts",
+        "src/esmDeps.js",
+        "src/labeler.ts"
+      ]
+    },
+    {
       "id": "tobydoescode/hass-integration-kubernetes#7",
       "repo": "tobydoescode/hass-integration-kubernetes",
       "pr": 7,
@@ -10612,6 +11319,39 @@
         "packages/third-parties/stripe/src/services/StripeFactory.spec.ts",
         "packages/third-parties/stripe/test/app/Server.ts",
         "packages/third-parties/stripe/test/stripe.integration.spec.ts"
+      ]
+    },
+    {
+      "id": "twk3/rollup-size-compare-action#429",
+      "repo": "twk3/rollup-size-compare-action",
+      "pr": 429,
+      "base": "83b2cc4bd6a9e362f7b8f79693f1a9ac28d48e36",
+      "head": "790f434e6a669f07a200b09e0d5c85d148e5664d",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "6.0.1",
+      "to": "9.1.1",
+      "license": "MIT",
+      "mergedAt": "2026-07-20T15:19:14Z",
+      "files": [
+        "src/main.ts"
+      ]
+    },
+    {
+      "id": "uhstray-io/agent-cloud#39",
+      "repo": "uhstray-io/agent-cloud",
+      "pr": 39,
+      "base": "8e9da0b2c86d2f81d4c7e39322b0ad490ad8a95f",
+      "head": "79162b3fe717b7edb030e963ef895033529e537a",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "79.12.0",
+      "to": "82.5.1",
+      "license": "MIT",
+      "mergedAt": "2026-06-01T16:52:08Z",
+      "files": [
+        "platform/services/uhhcraft/deployment/internal/app/app.go",
+        "platform/services/uhhcraft/deployment/internal/checkout/handler.go"
       ]
     },
     {
@@ -11573,6 +12313,76 @@
         "pkg/github/handlers_test.go",
         "pkg/github/mocks_test.go",
         "pkg/github/validator.go"
+      ]
+    },
+    {
+      "id": "yungweng/github-things-sync#10",
+      "repo": "yungweng/github-things-sync",
+      "pr": 10,
+      "base": "e94e4eba11d56535afe84d0a67854e54f6da50e8",
+      "head": "1231b3e9694bb86bd80ddfb638b09e6fd451c08b",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "21.0.0",
+      "to": "22.0.1",
+      "license": "MIT",
+      "mergedAt": "2025-12-30T15:09:20Z",
+      "files": [
+        "tsup.config.ts"
+      ]
+    },
+    {
+      "id": "yykamei/block-merge-based-on-time#2863",
+      "repo": "yykamei/block-merge-based-on-time",
+      "pr": 2863,
+      "base": "82cd2cac80b3b7a2e27f5c0da22f8313316e06f1",
+      "head": "8912132d0cea6c59f6e35f6a13cb4be4037e37ac",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-02-10T06:07:37Z",
+      "files": [
+        "__tests__/run.ts",
+        "jest-resolver.js",
+        "jest.config.ts",
+        "src/github.ts"
+      ]
+    },
+    {
+      "id": "yykamei/github-workflows-metrics#292",
+      "repo": "yykamei/github-workflows-metrics",
+      "pr": 292,
+      "base": "8c734c69e79bce24af12d3ce853b8af06102ef74",
+      "head": "2a4bba7d5b8885436cb8a8ae8a273cc388416df4",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-02-10T03:47:34Z",
+      "files": [
+        "src/Input.ts",
+        "tests/GitHubIssueContent.test.ts",
+        "tests/Input.test.ts",
+        "tests/MermaidXYChart.test.ts"
+      ]
+    },
+    {
+      "id": "yykamei/merge-branches-managed-on-issue#1091",
+      "repo": "yykamei/merge-branches-managed-on-issue",
+      "pr": 1091,
+      "base": "457e992723d38685096fdef38c61422fd77604bc",
+      "head": "2e31305885b801158e2a6d14da8309052d557fc7",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "7.0.0",
+      "to": "9.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-02-17T00:51:40Z",
+      "files": [
+        "jest.config.ts"
       ]
     },
     {
