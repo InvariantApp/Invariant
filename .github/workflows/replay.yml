@@ -60,9 +60,10 @@ jobs:
       max-parallel: 1
       matrix:
         package: ${{ fromJSON(inputs.mine || '[""]') }}
-    name: mine (${{ inputs.ecosystem || 'pypi' }}, ${{ matrix.package }})
+    name: mine
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # An hour of searching, and a wait for the hourly limit to reset.
+    timeout-minutes: 100
     permissions: {}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -88,7 +89,7 @@ jobs:
         run: >-
           node --import tsx proving/replay/mine.mts
           --ecosystem "$ECOSYSTEM" --package "$PACKAGE"
-          --months 72 --limit 150 --per-repo 2 --minutes 50
+          --months 72 --limit 150 --per-repo 2 --minutes 60 --patience 25
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()

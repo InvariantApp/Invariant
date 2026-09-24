@@ -17,7 +17,7 @@
  * Usage:
  *   GITHUB_TOKEN=... node --import tsx proving/replay/mine.mts [--months 24] [--limit 200]
  *     [--package stripe] [--ecosystem pypi] [--per-package 60] [--minutes 40]
- *     [--language javascript] [--per-repo 3]
+ *     [--language javascript] [--per-repo 3] [--patience 3]
  *   node --import tsx proving/replay/mine.mts --merge index-*.json [--per-repo 3]
  *
  * `--merge` lays indexes mined apart, one package to a job, over the recorded
@@ -544,6 +544,16 @@ const VERBOSE = process.argv.includes("--verbose");
  */
 class RateLimited extends Error {}
 
+/**
+ * The longest wait for an hourly limit to reset, in minutes (`--patience`).
+ * Three by default; a CI job that mines one package after another shares
+ * its token's hour with the jobs before it, and waits for the reset instead.
+ */
+const PATIENCE = (() => {
+  const at = process.argv.indexOf("--patience");
+  return (at === -1 ? 3 : Number(process.argv[at + 1])) * 60_000;
+})();
+
 /** A fallback for a request that failed, except a rate limit, which ends the run. */
 const orElse =
   <T,>(fallback: T) =>
@@ -599,7 +609,7 @@ async function github<T>(path: string, attempt = 0): Promise<T> {
       retryAfter,
       exhausted ? 5_000 : 60_000 * (attempt + 1),
     );
-    if (wait > 180_000 || attempt >= 3)
+    if (wait > PATIENCE || attempt >= 3)
       throw new RateLimited(`rate limited for ${Math.round(wait / 1000)}s`);
     await sleep(wait);
     return github(path, attempt + 1);
@@ -726,6 +736,9 @@ async function mine(): Promise<void> {
   }
   const licences = new Map<string, { license: string; fork: boolean }>();
   let added = 0;
+  // Why each pull request found was left out, so a run that adds nothing says why.
+  const reasons = new Map<string, number>();
+  const passed = (reason: string) => reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
 
   let stopped = "";
   try {
@@ -800,13 +813,21 @@ async function mine(): Promise<void> {
                 "",
               );
               const id = `${repo}#${item.number}`;
-              if (known.has(id)) continue;
-              if ((repos.get(repo) ?? 0) >= perRepo) continue;
+              if (known.has(id)) {
+                passed("already indexed");
+                continue;
+              }
+              if ((repos.get(repo) ?? 0) >= perRepo) {
+                passed("repository at its cap");
+                continue;
+              }
               // A bot's title names the versions; a person's pull request
               // says what it upgraded in its manifests, read below.
               let bump = parseBump(item.title, target);
-              if (bump && !isMajor(bump.from, bump.to)) continue;
-              if (!bump && !phrase.human) continue;
+              if ((bump && !isMajor(bump.from, bump.to)) || (!bump && !phrase.human)) {
+                passed("no major bump in the title");
+                continue;
+              }
 
               let owner = licences.get(repo);
               if (!owner) {
@@ -820,7 +841,10 @@ async function mine(): Promise<void> {
                 };
                 licences.set(repo, owner);
               }
-              if (owner.fork || !PERMISSIVE.has(owner.license)) continue;
+              if (owner.fork || !PERMISSIVE.has(owner.license)) {
+                passed(owner.fork ? "a fork" : "no permissive licence");
+                continue;
+              }
 
               const files = await github<{ filename: string; patch?: string }[]>(
                 `/repos/${repo}/pulls/${item.number}/files?per_page=100`,
@@ -829,17 +853,25 @@ async function mine(): Promise<void> {
                 files.map((file) => file.filename),
                 target.ecosystems,
               );
-              if (!kind || kind.sources.length === 0 || kind.sources.length > 50)
+              if (!kind || kind.sources.length === 0 || kind.sources.length > 50) {
+                passed("no source edited, or over 50 files");
                 continue;
+              }
               bump ??= bumpInPatches(files, target.package);
-              if (!bump || !isMajor(bump.from, bump.to)) continue;
+              if (!bump || !isMajor(bump.from, bump.to)) {
+                passed("no major bump in the manifests");
+                continue;
+              }
 
               const pull = await github<{
                 base: { sha: string };
                 head: { sha: string };
                 merged_at: string | null;
               }>(`/repos/${repo}/pulls/${item.number}`).catch(orElse(undefined));
-              if (!pull?.merged_at) continue;
+              if (!pull?.merged_at) {
+                passed("not merged");
+                continue;
+              }
 
               index.cases.push({
                 id,
@@ -885,6 +917,14 @@ async function mine(): Promise<void> {
     await writeFile(INDEX, `${JSON.stringify(index, null, 2)}\n`, "utf8");
   }
   if (stopped) process.stdout.write(`stopped early: ${stopped}\n`);
+  process.stdout.write(
+    `left out: ${
+      [...reasons]
+        .sort((a, b) => b[1] - a[1])
+        .map(([reason, count]) => `${reason} ${count}`)
+        .join(", ") || "none"
+    }\n`,
+  );
   const byEcosystem = new Map<string, number>();
   for (const entry of index.cases) {
     byEcosystem.set(entry.ecosystem, (byEcosystem.get(entry.ecosystem) ?? 0) + 1);
