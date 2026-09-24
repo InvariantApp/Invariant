@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"go/types"
 	"sort"
+	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
@@ -208,7 +209,11 @@ func (g *callGraph) reach(diagnostic *Diagnostic) []Span {
 	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
 	walk := &reach{graph: g, seen: map[string]bool{}}
 	walk.add(entry, statementOf(path), "error")
-	if call := callIn(path); call != nil {
+	if field := removedField(path, diagnostic.Message); field != nil {
+		// A value written to a field the SDK no longer has: whatever made it
+		// is written for that field alone, and changes with it.
+		walk.values(entry, []ast.Expr{field.Value}, path)
+	} else if call := callIn(path); call != nil {
 		walk.arguments(entry, call, g.culprits(entry.pkg.TypesInfo, call, pos), path)
 	}
 	// The error's own statement first, then the rest in source order,
@@ -254,13 +259,23 @@ func (r *reach) add(entry loadedFile, node ast.Node, why string) {
 
 // arguments follows the rejected arguments of a call to where they come from.
 func (r *reach) arguments(entry loadedFile, call *ast.CallExpr, indexes []int, path []ast.Node) {
+	var rejected []ast.Expr
+	for _, index := range indexes {
+		if index < len(call.Args) {
+			rejected = append(rejected, call.Args[index])
+		}
+	}
+	r.values(entry, rejected, path)
+}
+
+// values follows each local a rejected value is made of to where it comes
+// from: its definition, or, for the enclosing function's own parameter, that
+// function's signature and everything that calls it.
+func (r *reach) values(entry loadedFile, values []ast.Expr, path []ast.Node) {
 	info := entry.pkg.TypesInfo
 	enclosing := enclosingFunc(path)
-	for _, index := range indexes {
-		if index >= len(call.Args) {
-			continue
-		}
-		for _, variable := range localsIn(info, call.Args[index]) {
+	for _, value := range values {
+		for _, variable := range localsIn(info, value) {
 			if enclosing != nil {
 				if at, isParameter := parameterIndex(info, enclosing, variable); isParameter {
 					r.parameter(entry, enclosing, at)
@@ -457,6 +472,28 @@ func enclosingFunc(path []ast.Node) *ast.FuncDecl {
 		case *ast.FuncDecl:
 			return node
 		}
+	}
+	return nil
+}
+
+// removedField is the field of a composite literal a type error says its
+// type no longer has, `unknown field Page in struct literal of type ...`,
+// where the error is in one.
+func removedField(path []ast.Node, message string) *ast.KeyValueExpr {
+	if !strings.HasPrefix(message, "unknown field ") {
+		return nil
+	}
+	for index, node := range path {
+		field, ok := node.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		if index+1 < len(path) {
+			if _, literal := path[index+1].(*ast.CompositeLit); literal {
+				return field
+			}
+		}
+		return nil
 	}
 	return nil
 }

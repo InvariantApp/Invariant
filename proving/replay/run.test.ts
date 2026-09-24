@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { importing, lockedVersion, pathsOf } from "./run.mts";
+import { importing, lineOf, lockedVersion, pathsOf } from "./run.mts";
 
 describe("the version a commit installed", () => {
   it("is read from npm's, pnpm's and yarn's lockfiles", () => {
@@ -121,5 +121,16 @@ describe("how a monorepo's own imports resolve", () => {
       baseUrl: repo,
       paths: { "@acme/config": ["libs/config/src/index.ts"] },
     });
+  });
+});
+
+describe("the line a flagged place is on", () => {
+  it("is found from each line's start, at a line's first character and its last", () => {
+    const text = "a\nbc\n\nd";
+    const starts = [0, 2, 5, 6];
+    expect([0, 1, 2, 4, 5, 6, 7].map((offset) => lineOf(starts, offset))).toEqual([
+      0, 0, 1, 1, 2, 3, 3,
+    ]);
+    expect(text.slice(starts[3])).toBe("d");
   });
 });

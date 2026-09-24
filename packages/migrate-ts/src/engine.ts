@@ -694,6 +694,79 @@ function suppliesField(op: DataOp): op is AddOp | DefaultOp {
   );
 }
 
+/**
+ * Uses of a field's name that nothing types: a key of an object literal with
+ * no type to fit, a read or a subscript of a value typed `any`. A test's
+ * stand-in for a subscription, `{ current_period_end: 123 }` handed to a
+ * mock, is invisible to the checker, and is the ordinary way a consumer's
+ * tests hold a response. There is no evidence it is the field the Change is
+ * about, only its name, so each is shown to a person and never rewritten,
+ * as the Python pack does with a dictionary's keys. A use typed as anything
+ * at all is the checker's to decide, and is left to it.
+ */
+function flagUntyped(
+  project: Project,
+  fields: ReadonlyMap<string, { changeId: string; reason: string; typed: Set<string> }>,
+  sdk: string,
+  scope: EditScope,
+  result: EngineResult,
+): void {
+  if (fields.size === 0) return;
+  const literally = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // Only the files that use the SDK: a name alone is weak evidence, and
+  // weaker still in a file that never touches the SDK at all.
+  const imports = new RegExp(
+    `(?:from|import|require\\()\\s*['"]${literally(sdk)}(?:/[^'"]*)?['"]`,
+  );
+  const names = new RegExp(
+    `\\b(?:${[...fields.keys()].map(literally).join("|")})\\b`,
+    "g",
+  );
+  const untyped = (type: Type | undefined) =>
+    type === undefined || type.isAny() || type.isUnknown();
+  for (const source of project.getSourceFiles()) {
+    if (!editable(source, scope)) continue;
+    const text = source.getFullText();
+    if (!imports.test(text)) continue;
+    // Only where a name is written, rather than every node of the file.
+    for (const match of text.matchAll(names)) {
+      const field = fields.get(match[0]);
+      const node = source.getDescendantAtPos(match.index);
+      if (
+        !field ||
+        node === undefined ||
+        !(Node.isIdentifier(node) || Node.isStringLiteral(node)) ||
+        node.getText().replace(/^['"`]|['"`]$/g, "") !== match[0] ||
+        field.typed.has(`${source.getFilePath()}:${node.getStart()}`)
+      ) {
+        continue;
+      }
+      const parent = node.getParent();
+      let shown = false;
+      if (
+        (Node.isPropertyAssignment(parent) ||
+          Node.isShorthandPropertyAssignment(parent)) &&
+        parent.getNameNode() === node
+      ) {
+        const literal = parent.getParent();
+        shown =
+          Node.isObjectLiteralExpression(literal) && untyped(literal.getContextualType());
+      } else if (
+        Node.isPropertyAccessExpression(parent) &&
+        parent.getNameNode() === node
+      ) {
+        shown = untyped(parent.getExpression().getType());
+      } else if (
+        Node.isElementAccessExpression(parent) &&
+        parent.getArgumentExpression() === node
+      ) {
+        shown = untyped(parent.getExpression().getType());
+      }
+      if (shown) result.manual.push(manualFrom(node, field.changeId, field.reason));
+    }
+  }
+}
+
 export function runEngine(
   project: Project,
   plan: MigrationPlan,
@@ -710,6 +783,11 @@ export function runEngine(
 
   // One group per field, so every op that touches it composes into one edit.
   const groups = new Map<string, TargetSymbol[]>();
+  /** Each moved or removed field's name, for the places nothing types. */
+  const untypedFields = new Map<
+    string,
+    { changeId: string; reason: string; typed: Set<string> }
+  >();
   for (const target of plan.targets) {
     // Neither edits an existing reference: a field that must now be sent is
     // written into the literals below, and one that may now be missing or
@@ -725,6 +803,7 @@ export function runEngine(
     if (!declaration) continue;
 
     const composed = compose(targets, plan.symbols.helpers);
+    const typed = new Set<string>();
     const enums = targets.filter(
       (target) => target.op.op === "convert" && target.op.codec.kind === "enumMap",
     );
@@ -741,6 +820,7 @@ export function runEngine(
 
     for (const node of declaration.findReferencesAsNodes()) {
       if (!editable(node, scope)) continue;
+      typed.add(`${node.getSourceFile().getFilePath()}:${node.getStart()}`);
       const role = roleOf(node);
       if (role === "type-reference") continue;
 
@@ -767,7 +847,30 @@ export function runEngine(
       }
       applyComposed(node, role, composed, result);
     }
+
+    if (
+      composed.path.length !== 1 ||
+      composed.path[0] !== first.property ||
+      composed.wrapRead ||
+      composed.unsupported
+    ) {
+      const name = first.property;
+      const seen = untypedFields.get(name);
+      if (seen) {
+        for (const position of typed) seen.typed.add(position);
+      } else {
+        const what =
+          composed.unsupported ??
+          `the contract changed it: ${composed.reasons.join("; ")}`;
+        untypedFields.set(name, {
+          changeId: first.changeId,
+          reason: `nothing types this \`${name}\`, so it is shown rather than rewritten; if it is the contract's field, ${what}`,
+          typed,
+        });
+      }
+    }
   }
+  flagUntyped(project, untypedFields, plan.symbols.package, scope, result);
 
   // A newly required field has no existing reference to anchor to, so the
   // object literals that write the type are found through its other properties.

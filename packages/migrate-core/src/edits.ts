@@ -117,3 +117,21 @@ export function groupByFile(edits: readonly Edit[]): Map<string, Edit[]> {
   }
   return byFile;
 }
+
+/**
+ * Where an offset in the edited text was before the edits: shifted back by
+ * every edit wholly before it, and to the start of an edit it falls inside.
+ */
+export function originalOffset(offset: number, edits: readonly Edit[]): number {
+  let shift = 0;
+  for (const edit of [...edits].sort((a, b) => a.start - b.start)) {
+    const replacement =
+      typeof edit.replacement === "string" ? edit.replacement : edit.replacement("");
+    const newStart = edit.start + shift;
+    const newEnd = newStart + replacement.length;
+    if (offset < newStart) break;
+    if (offset < newEnd) return edit.start;
+    shift += replacement.length - (edit.end - edit.start);
+  }
+  return offset - shift;
+}

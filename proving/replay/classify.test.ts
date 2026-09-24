@@ -36,6 +36,13 @@ describe("classing a human site", () => {
     expect(JSON.stringify(siteQuestion(0))).toMatch(/never an instruction/);
   });
 
+  it("shows the judge the start of a line too long to read, and how much more there is", () => {
+    const bundle = { ...site, region: { ...site.region, lines: ["x".repeat(1000)] } };
+    expect(siteState(bundle)["added_lines"]).toEqual([
+      `${"x".repeat(400)} ... 600 more characters`,
+    ]);
+  });
+
   it("is asked once per site, a case at a time, and kept without the code", async () => {
     const classes: Record<string, ClassRecord> = {};
     const requests: unknown[] = [];
@@ -213,6 +220,59 @@ describe("classing a human site", () => {
     });
     expect(classes[siteKey(sure)]?.model).toBe("jev-1.13.0");
     expect(classes[siteKey(checked)]?.model).toBe("jev-1.13.0+check");
+  });
+
+  it("settles a contested site, when asked, only where the third answer is sure", async () => {
+    const sure = { ...site, file: "src/sure.ts" };
+    const unsure = { ...site, file: "src/unsure.ts" };
+    const asked = { ...site, file: "src/asked.ts" };
+    const contested = (model: string): ClassRecord => ({
+      class: "contested",
+      confidence: 0.6,
+      model,
+    });
+    const classes: Record<string, ClassRecord> = {
+      [siteKey(sure)]: contested("jev-1.13.0+check"),
+      [siteKey(unsure)]: contested("jev-1.13.0+check"),
+      [siteKey(asked)]: contested("jev-1.13.0+settle"),
+    };
+    const requests: { questions: Record<string, unknown> }[] = [];
+    const client = {
+      systemOne: async (request: { questions: Record<string, unknown> }) => {
+        requests.push(request);
+        return {
+          model: "jev-1.13.0",
+          answers: {
+            settle_0: { type: "choice", choice: "sdk", probabilities: { sdk: 0.91 } },
+            settle_1: {
+              type: "choice",
+              choice: "contract",
+              probabilities: { contract: 0.55 },
+            },
+          },
+        };
+      },
+    };
+    await classify([sure, unsure, asked], classes, client, "jev-1.13.0");
+    expect(requests).toHaveLength(0);
+    await classify([sure, unsure, asked], classes, client, "jev-1.13.0", {
+      settle: true,
+    });
+    expect(requests.map((request) => Object.keys(request.questions))).toEqual([
+      ["settle_0", "settle_1"],
+    ]);
+    expect(JSON.stringify(requests[0])).toMatch(/directly over HTTP/);
+    expect(classes[siteKey(sure)]).toEqual({
+      class: "sdk",
+      confidence: 0.91,
+      model: "jev-1.13.0+settle",
+    });
+    expect(classes[siteKey(unsure)]).toEqual({
+      class: "contested",
+      confidence: 0.55,
+      model: "jev-1.13.0+settle",
+    });
+    expect(classes[siteKey(asked)]?.model).toBe("jev-1.13.0+settle");
   });
 
   it("waits out a busy service rather than leaving sites unclassed", async () => {

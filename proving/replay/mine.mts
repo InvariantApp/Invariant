@@ -17,11 +17,17 @@
  * Usage:
  *   GITHUB_TOKEN=... node --import tsx proving/replay/mine.mts [--months 24] [--limit 200]
  *     [--package stripe] [--ecosystem pypi] [--per-package 60] [--minutes 40]
+ *     [--language javascript]
+ *
+ * `--language` searches only repositories GitHub says are written in it, and
+ * caps each package's cases in that language alone: npm's bumps are mostly
+ * TypeScript repositories', and JavaScript is counted apart.
  */
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { ROOT } from "../corpus/manifest.mts";
+import { languageOf } from "./sites.mts";
 
 export type Ecosystem = "npm" | "pypi" | "go";
 
@@ -76,6 +82,14 @@ const TARGETS: Target[] = [
         "update stripe",
         "stripe sdk",
       ],
+      // The same people's pull requests in JavaScript and TypeScript.
+      npm: [
+        "stripe basil",
+        "stripe clover",
+        "stripe acacia",
+        "stripe api version",
+        "upgrade stripe",
+      ],
     },
   },
   {
@@ -85,6 +99,10 @@ const TARGETS: Target[] = [
       "Bump github.com/stripe/stripe-go",
       "update module github.com/stripe/stripe-go",
     ],
+    // Dependabot does not move a Go module across a major version, since the
+    // version is part of its import path; Renovate does, and people do it by
+    // hand, naming the SDK and the version it moves to.
+    searches: { go: ["stripe-go", "stripe api version", "upgrade stripe"] },
   },
   {
     package: "twilio",
@@ -107,7 +125,10 @@ const TARGETS: Target[] = [
     package: "@octokit/rest",
     ecosystems: ["npm"],
     titles: ["Bump @octokit/rest from", "update dependency @octokit/rest to"],
+    searches: { npm: ["upgrade octokit", "octokit v20", "octokit v21"] },
   },
+  // GitHub's API through Actions' own client, which wraps Octokit.
+  sdk("@actions/github", "npm"),
   {
     package: "github.com/google/go-github",
     ecosystems: ["go"],
@@ -122,7 +143,10 @@ const TARGETS: Target[] = [
     package: "openai",
     ecosystems: ["npm", "pypi"],
     titles: ["Bump openai from", "update dependency openai to"],
-    searches: { pypi: ["upgrade openai", "migrate openai", "openai v1", "openai sdk"] },
+    searches: {
+      pypi: ["upgrade openai", "migrate openai", "openai v1", "openai sdk"],
+      npm: ["openai v4", "upgrade openai", "migrate openai"],
+    },
   },
   {
     package: "@slack/web-api",
@@ -201,6 +225,15 @@ const TARGETS: Target[] = [
     "intercom-client",
     "@pagerduty/pdjs",
   ].map((name) => sdk(name, "npm")),
+  {
+    // Each plaid-go major pins a new Plaid API version, as plaid-python's does.
+    ...sdk("github.com/plaid/plaid-go", "go"),
+    searches: { go: ["plaid-go", "upgrade plaid"] },
+  },
+  {
+    ...sdk("github.com/twilio/twilio-go", "go"),
+    searches: { go: ["twilio-go"] },
+  },
   ...[
     "github.com/adyen/adyen-go-api-library",
     "github.com/DataDog/datadog-api-client-go",
@@ -210,8 +243,6 @@ const TARGETS: Target[] = [
     "github.com/okta/okta-sdk-golang",
     "github.com/meilisearch/meilisearch-go",
     "github.com/PagerDuty/go-pagerduty",
-    "github.com/twilio/twilio-go",
-    "github.com/plaid/plaid-go",
   ].map((name) => sdk(name, "go")),
 ];
 
@@ -428,11 +459,32 @@ async function github<T>(path: string, attempt = 0): Promise<T> {
   }
   if (response.status === 403 || response.status === 429) {
     // The search API's thirty a minute resets within the minute and is worth
-    // waiting for; an hourly limit is not, and ends the run.
-    const reset = Number(response.headers.get("x-ratelimit-reset") ?? 0) * 1000;
+    // waiting for; an hourly limit is not, and ends the run. A secondary
+    // limit, for too many requests at once, leaves the hourly allowance
+    // unspent and says how long to back off, or means about a minute; its
+    // hourly reset used to be read as the wait, and ended a run with most of
+    // the hour's requests unmade.
+    const exhausted = response.headers.get("x-ratelimit-remaining") === "0";
+    const reset = exhausted
+      ? Number(response.headers.get("x-ratelimit-reset") ?? 0) * 1000
+      : 0;
     const retryAfter = Number(response.headers.get("retry-after") ?? 0) * 1000;
-    const wait = Math.max(reset - Date.now(), retryAfter, 5_000);
-    if (wait > 90_000 || attempt >= 3)
+    // A refusal for any other reason, as a repository whose access GitHub
+    // blocked, is that request's failure alone.
+    if (
+      !exhausted &&
+      retryAfter === 0 &&
+      response.status === 403 &&
+      !/rate limit/i.test(await response.text())
+    ) {
+      throw new Error(`403 for ${path}`);
+    }
+    const wait = Math.max(
+      reset - Date.now(),
+      retryAfter,
+      exhausted ? 5_000 : 60_000 * (attempt + 1),
+    );
+    if (wait > 180_000 || attempt >= 3)
       throw new RateLimited(`rate limited for ${Math.round(wait / 1000)}s`);
     await sleep(wait);
     return github(path, attempt + 1);
@@ -491,6 +543,7 @@ async function mine(): Promise<void> {
   const perPackage = Number(option("per-package") ?? 60);
   const only = option("package");
   const ecosystem = option("ecosystem") as Ecosystem | undefined;
+  const onlyLanguage = option("language");
   // Stops in time to write what it found, whatever else happens; told to
   // stop, it stops at the next search the same way, rather than losing
   // everything it found since it started.
@@ -521,13 +574,15 @@ async function mine(): Promise<void> {
       // used up stripe-python's share, and Python had eight.
       let mine = index.cases.filter(
         (entry) =>
-          entry.package === target.package && target.ecosystems.includes(entry.ecosystem),
+          entry.package === target.package &&
+          target.ecosystems.includes(entry.ecosystem) &&
+          (!onlyLanguage || languageOf(entry) === onlyLanguage),
       ).length;
       // Asked for one ecosystem, only repositories in its language are
       // searched: most `Bump stripe from` pull requests are stripe-node
       // bumps, and reading each one's files to find that out took the whole
       // hour's rate limit for eight Python cases.
-      const language = ecosystem ? LANGUAGE[ecosystem] : undefined;
+      const language = onlyLanguage ?? (ecosystem ? LANGUAGE[ecosystem] : undefined);
       const search = (
         phrase: Query,
         window: { from: string; to: string },
@@ -633,7 +688,13 @@ async function mine(): Promise<void> {
               });
               known.add(id);
               added += 1;
-              mine += 1;
+              if (
+                !onlyLanguage ||
+                languageOf({ ecosystem: kind.ecosystem, files: kind.sources }) ===
+                  onlyLanguage
+              ) {
+                mine += 1;
+              }
               process.stdout.write(
                 `${id} ${target.package} ${bump.from} -> ${bump.to} (${kind.sources.length} files)\n`,
               );

@@ -240,6 +240,14 @@ export async function replayGo(
       ),
       diagnosticsBefore: migrated.diagnosticsBefore.length,
       diagnosticsAfter: migrated.diagnosticsAfter.length,
+      // The first of each, to tell a base that did not compile from an
+      // upgrade the checker could not see.
+      firstBefore: migrated.diagnosticsBefore
+        .slice(0, 3)
+        .map(
+          (diagnostic) =>
+            `${relative(checkout.repo, diagnostic.file)}:${diagnostic.line} ${diagnostic.message.slice(0, 160)}`,
+        ),
       errors: migrated.errors.slice(0, 5),
       ...(migrated.unverified ? { unverified: migrated.unverified } : {}),
     });

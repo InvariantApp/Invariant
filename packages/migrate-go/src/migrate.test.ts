@@ -134,11 +134,11 @@ describe.skipIf(!hasGo)("migrating a Go consumer", () => {
     expect(text).toContain('sdk.CreateVariableRequest{Name: "A", Value: "b"}');
     // The literal's `Name` is EncryptedSecret's, which is never sent: untouched.
     expect(text).toContain('Name:  "TOKEN",');
-    // One Change's rename; the rest are the SDK's: four imports moved, two
+    // One Change's rename; the rest are the SDK's: five imports moved, two
     // renames, and three calls inlined.
     expect(result.edits.map((edit) => edit.changeId).sort()).toEqual([
       "chg_secret_name",
-      ...Array<string>(9).fill("sdk-upgrade"),
+      ...Array<string>(10).fill("sdk-upgrade"),
     ]);
   });
 
@@ -275,6 +275,21 @@ describe.skipIf(!hasGo)("migrating a Go consumer", () => {
     expect(sites.find((site) => site.from === 17)?.reason).toContain(
       "IssuesService.EditComment is now UpdateComment",
     );
+  });
+
+  it("follows a value written to a field the SDK dropped to where it is made", () => {
+    const sites = linesOf(result, `${CONSUMER}/reactions.go`);
+    expect(
+      sites.map((site) =>
+        site.from === site.to ? `${site.from}` : `${site.from}-${site.to}`,
+      ),
+    ).toEqual([
+      // The options no longer written that way, the helper whose page
+      // parameter fed the field, and the call that passes the page in.
+      "11-14",
+      "10",
+      "20",
+    ]);
   });
 
   it("shows a generated file with anything to change in it as one to regenerate", () => {

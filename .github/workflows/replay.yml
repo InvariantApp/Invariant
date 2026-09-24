@@ -30,6 +30,9 @@ on:
       ecosystem:
         description: "Which cases to replay: npm, pypi or go"
         default: pypi
+      case:
+        description: "One case to replay, as owner/repo#123, to read what the engine did there"
+        default: ""
   schedule:
     - cron: "41 4 * * 1"
 
@@ -75,10 +78,15 @@ jobs:
         env:
           ECOSYSTEM: ${{ inputs.ecosystem || 'pypi' }}
           SHARD: ${{ matrix.shard }}
+          CASE: ${{ inputs.case || '' }}
           REPLAY_GO_PARALLELISM: "4"
+          # A monorepo's program is held three times over while the npm engine
+          # checks it against both releases; the runner has the memory.
+          NODE_OPTIONS: --max-old-space-size=8192
         run: >-
           node --import tsx proving/replay/run.mts
           --ecosystem "$ECOSYSTEM"
+          ${CASE:+--case "$CASE"}
           --shard "$SHARD/4"
           --results "replay-$SHARD.json"
           --verbose

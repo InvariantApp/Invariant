@@ -17,17 +17,19 @@
  * What the engine is told comes from the SDK alone, the way `invariant sdk
  * stamp` records it: where the SDK's options name the API version, and which
  * version the upgraded release speaks. A package with nothing recorded is
- * replayed with no plan, so its sites count as missed rather than being left
- * out of the denominator.
+ * replayed with no plan. Either way the consumer is checked against both
+ * releases, TypeScript and JavaScript alike, and every place it stops
+ * type-checking across the upgrade is reported; what that does not reach
+ * counts as missed rather than being left out of the denominator.
  *
  * Usage:
  *   node --env-file-if-exists=.env --import tsx proving/replay/run.mts [--package stripe]
  *     [--ecosystem npm|pypi|go] [--case owner/repo#1] [--limit 10] [--keep] [--classify]
- *     [--recheck] [--again] [--shard 0/4] [--results shard-0.json] [--verbose]
+ *     [--recheck] [--settle] [--again] [--shard 0/4] [--results shard-0.json] [--verbose]
  *     [--minutes 200]
  *   node --import tsx proving/replay/run.mts --merge shard-*.json
  *   node --env-file-if-exists=.env --import tsx proving/replay/run.mts --rescore
- *     [--ecosystem pypi] [--classify] [--recheck]
+ *     [--ecosystem pypi] [--classify] [--recheck] [--settle]
  *
  * Cases already in the results are skipped, so a run resumes where the last
  * one stopped; `--again` replays them too.
@@ -50,8 +52,9 @@
  * checked against the new one.
  *
  * `--recheck` with `--classify` also settles classes recorded before the
- * rules and the second question existed; `--minutes` stops starting cases in
- * time for what was replayed to be kept.
+ * rules and the second question existed; `--settle` asks the third question
+ * of each site the first two disagreed about (`classify.mts`); `--minutes`
+ * stops starting cases in time for what was replayed to be kept.
  *
  * `--keep` leaves each case's checkout in place and prints what the engine
  * was told and did, for reading a miss; `--verbose` prints the same and keeps
@@ -71,6 +74,7 @@ import {
 import { buildPlan, migrate, type SymbolMap } from "@invariant-app/migrate-ts";
 import { ts } from "ts-morph";
 import { ROOT } from "../corpus/manifest.mts";
+import { workerChecker } from "./check.mts";
 import {
   type ClassRecord,
   cachedOutcomes,
@@ -184,15 +188,19 @@ const STAMPS: Record<string, StampReader> = {
   stripe: Object.assign(
     (dir: string): SdkStamp | undefined => {
       const apiVersion = findFile(dir, /^apiVersion\.js$/);
+      const declarations = existsSync(join(dir, "types/lib.d.ts"))
+        ? readFileSync(join(dir, "types/lib.d.ts"), "utf8")
+        : "";
+      // Before 12 the version was recorded only in the declarations, as the
+      // one `LatestApiVersion` allows.
       const label =
-        apiVersion &&
-        /ApiVersion = ['"]([^'"]+)['"]/.exec(readFileSync(apiVersion, "utf8"))?.[1];
+        (apiVersion &&
+          /ApiVersion = ['"]([^'"]+)['"]/.exec(readFileSync(apiVersion, "utf8"))?.[1]) ||
+        /type LatestApiVersion = ['"]([^'"]+)['"]/.exec(declarations)?.[1];
       if (!label) return undefined;
       // Up to 21 the options sit in `namespace Stripe` inside `declare module
       // "stripe"`; from 22 they are a top-level export of the compiled source.
-      const namespaced = existsSync(join(dir, "types/lib.d.ts"))
-        ? /interface StripeConfig/.test(readFileSync(join(dir, "types/lib.d.ts"), "utf8"))
-        : false;
+      const namespaced = /interface StripeConfig/.test(declarations);
       return {
         pinType: namespaced ? "Stripe.StripeConfig" : "StripeConfig",
         pinProperty: "apiVersion",
@@ -370,8 +378,14 @@ async function restoreAt(
   );
 }
 
-/** The SDK installed at `spec`, once per version, scripts off. */
-async function installed(name: string, spec: string): Promise<string> {
+/**
+ * The SDK installed at `spec`, once per version, scripts off: the package, and
+ * the prefix it and its dependencies resolve from.
+ */
+async function installed(
+  name: string,
+  spec: string,
+): Promise<{ sdk: string; prefix: string }> {
   const dir = join(CACHE, "npm", `${name.replaceAll("/", "+")}@${spec}`);
   const sdk = join(dir, "node_modules", name);
   if (!existsSync(join(sdk, "package.json"))) {
@@ -392,7 +406,7 @@ async function installed(name: string, spec: string): Promise<string> {
       { maxBuffer: 64 * 1024 * 1024 },
     );
   }
-  return realpathSync(sdk);
+  return { sdk: realpathSync(sdk), prefix: dir };
 }
 
 /** The version range the base's nearest manifest asks for, when the bump did not say. */
@@ -510,6 +524,8 @@ interface ReplayOptions {
   classifier?: { client: Parameters<typeof classify>[2]; model: string };
   /** Settle classes recorded before the rules and the second question existed. */
   recheck?: boolean;
+  /** Ask the third question of sites the first two disagreed about. */
+  settle?: boolean;
 }
 
 async function replay(entry: ReplayCase, options: ReplayOptions): Promise<ReplayResult> {
@@ -532,7 +548,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
               ? "contract"
               : STAMPS[entry.package]
                 ? "pin"
-                : "none",
+                : "verify",
   };
   const work = join(CACHE, "work", entry.id.replace(/[^\w.-]+/g, "_"));
   const repo = join(work, "repo");
@@ -635,7 +651,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       for (const [path, text] of go.files)
         engineText.set(path.slice(repo.length + 1), text);
     }
-    if (stamp) {
+    if (entry.ecosystem === "npm") {
       // Each file's blob id comes with the tree, before any blob is fetched.
       const blobs = new Map<string, string>();
       for (const line of (await git(repo, "ls-tree", "-r", entry.base)).split("\n")) {
@@ -694,24 +710,46 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
           entry.package,
           entry.to,
         ) || entry.to;
-      const oldSdk = await installed(entry.package, from);
-      const newSdk = await installed(entry.package, to);
-      const old = stamp(oldSdk);
-      const next = stamp(newSdk);
-      if (!old || !next) throw new Error("the SDK records no API version");
+      const oldRelease = await installed(entry.package, from);
+      const newRelease = await installed(entry.package, to);
+      const oldSdk = oldRelease.sdk;
+      const newSdk = newRelease.sdk;
+      // An SDK that records the API version it speaks is told the pin and,
+      // where its contracts are known, the Changes; every other one is still
+      // checked against both releases, and each place the upgrade breaks is
+      // reported.
+      // A release from before the SDK recorded its version (stripe-node
+      // before 12) is checked against the other all the same.
+      const old = stamp?.(oldSdk);
+      const next = stamp?.(newSdk);
+      if (!old || !next) base.engine = "verify";
 
-      await mkdir(join(repo, "node_modules"), { recursive: true });
+      // A scoped package's link sits in its scope's directory.
+      await mkdir(dirname(join(repo, "node_modules", entry.package)), {
+        recursive: true,
+      });
       await symlink(oldSdk, join(repo, "node_modules", entry.package), "dir");
       // What changed in the contract between the two releases, where the SDK
       // says which contracts they speak.
-      const contract = stamp.contract
-        ? await stamp.contract(
-            versionOf(oldSdk),
-            versionOf(newSdk),
-            oldSdk,
-            old.pinType.includes("."),
-          )
-        : undefined;
+      const contract =
+        stamp?.contract && old && next
+          ? await stamp
+              .contract(
+                versionOf(oldSdk),
+                versionOf(newSdk),
+                oldSdk,
+                old.pinType.includes("."),
+              )
+              .catch((error: unknown) => {
+                // A release too old to say which contract it was built from
+                // is replayed with its pin alone.
+                process.stderr.write(
+                  `${entry.id}: no contract for ${versionOf(oldSdk)}: ${(error instanceof Error ? error.message : String(error)).slice(0, 160)}\n`,
+                );
+                base.engine = "pin";
+                return undefined;
+              })
+          : undefined;
       const symbols: SymbolMap = {
         package: entry.package,
         upgradeTo: {
@@ -723,26 +761,41 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         types: contract?.types ?? {},
         ...(contract ? { operations: contract.operations } : {}),
         accessors: [],
-        pin: { type: old.pinType, property: old.pinProperty, label: next.label },
+        ...(old && next
+          ? { pin: { type: old.pinType, property: old.pinProperty, label: next.label } }
+          : {}),
       };
       const resolution = await pathsOf(repo, entry.base);
+      const sources = importing(repo, readable, entry.package);
+      const began = Date.now();
       const result = await migrate({
         repoDir: `${repo}/`,
         generated: [oldSdk],
-        sources: importing(repo, readable, entry.package),
+        sources,
         ...(resolution ? { resolution } : {}),
         plan: buildPlan(contract?.changes ?? [], symbols),
+        current: { package: entry.package, from: oldRelease.prefix },
+        upgraded: { package: entry.package, from: newRelease.prefix },
+        // Most cases check in seconds; one that has not in five minutes is
+        // left partly unchecked, and says so, rather than holding the shard.
+        checkFor: 5 * 60_000,
+        checker: workerChecker,
+        ...(keep || options.verbose
+          ? {
+              trace: (step: string) =>
+                process.stderr.write(
+                  `${entry.id} ${Math.round((Date.now() - began) / 1000)}s: ${step}\n`,
+                ),
+            }
+          : {}),
       });
-      for (const site of result.manual) {
-        const file = site.file.slice(repo.length + 1);
-        const text = before.get(file) ?? readFileSync(site.file, "utf8");
-        const lineAt = (offset: number) => text.slice(0, offset).split("\n").length - 1;
-        const range = [lineAt(site.offset), lineAt(site.end ?? site.offset) + 1] as const;
-        flagged.set(file, [...(flagged.get(file) ?? []), range]);
+      base.versions = [versionOf(oldSdk), versionOf(newSdk)];
+      for (const [file, ranges] of flaggedLines(result.manual, repo, before)) {
+        flagged.set(file, ranges);
       }
-      if (keep) {
+      if (keep || options.verbose) {
         process.stdout.write(
-          `${JSON.stringify({ versions: [versionOf(oldSdk), versionOf(newSdk)], contract: contract && { drafted: contract.drafted, removed: contract.removed, types: Object.keys(contract.types).length, subscription: contract.changes.filter((change) => change.id.includes("subscription")).map((change) => change.id) }, pin: symbols.pin, read: readable.length, edits: result.edits.map((edit) => `${edit.file}:${edit.start} ${edit.reason}`), manual: result.manual.map((site) => `${site.file}:${site.line} ${site.reason}`) }, null, 2)}\n`,
+          `${JSON.stringify({ versions: [versionOf(oldSdk), versionOf(newSdk)], sources: sources.length, seconds: Math.round((Date.now() - began) / 1000), unchecked: result.unchecked.map((file) => file.slice(repo.length + 1)), contract: contract && { drafted: contract.drafted, removed: contract.removed, types: Object.keys(contract.types).length, subscription: contract.changes.filter((change) => change.id.includes("subscription")).map((change) => change.id) }, pin: symbols.pin, read: readable.length, edits: result.edits.map((edit) => `${edit.file}:${edit.start} ${edit.reason}`), manual: result.manual.map((site) => `${site.file}:${site.line} ${site.reason}`) }, null, 2)}\n`,
         );
       }
       for (const [path, text] of result.files) {
@@ -798,7 +851,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
           options.classes,
           options.classifier.client,
           options.classifier.model,
-          { recheck: options.recheck ?? false },
+          { recheck: options.recheck ?? false, settle: options.settle ?? false },
         );
       } catch (error) {
         // The case is still scored; what could not be classed counts as
@@ -809,7 +862,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         delete options.classifier;
       }
     }
-    if (keep) {
+    if (keep || options.verbose) {
       // What the engine missed among the contract sites, to read beside the diff.
       for (const { site, outcome } of scored) {
         if (outcome !== "missed" || options.classes[siteKey(site)]?.class !== "contract")
@@ -920,6 +973,18 @@ const PYTHON_CONTRACTS: Record<string, true> = { stripe: true };
 const PYTHON_SKIPPED =
   /(^|\/)(\.?venv[^/]*|env|site-packages|__pycache__|\.tox|\.nox|\.eggs|migrations)\//;
 
+/** The 0-based line an offset is on, from each line's start offset. */
+export function lineOf(starts: readonly number[], offset: number): number {
+  let low = 0;
+  let high = starts.length - 1;
+  while (low < high) {
+    const middle = (low + high + 1) >> 1;
+    if ((starts[middle] as number) <= offset) low = middle;
+    else high = middle - 1;
+  }
+  return low;
+}
+
 /** Base lines each manual site covers, per file, as the score reads them. */
 function flaggedLines(
   manual: readonly ManualSite[],
@@ -927,12 +992,28 @@ function flaggedLines(
   before: Map<string, string>,
 ): Map<string, (readonly [number, number])[]> {
   const flagged = new Map<string, (readonly [number, number])[]>();
+  // Each file's line starts once: a file the upgrade broke all over has tens
+  // of thousands of sites, and counting lines from the top for each held
+  // decipad's replay for hours.
+  const starts = new Map<string, number[]>();
   for (const site of manual) {
     const file = site.file.slice(repo.length + 1);
-    const text = before.get(file) ?? readFileSync(site.file, "utf8");
-    const lineAt = (offset: number) => text.slice(0, offset).split("\n").length - 1;
-    const range = [lineAt(site.offset), lineAt(site.end ?? site.offset) + 1] as const;
-    flagged.set(file, [...(flagged.get(file) ?? []), range]);
+    let lines = starts.get(file);
+    if (!lines) {
+      const text = before.get(file) ?? readFileSync(site.file, "utf8");
+      lines = [0];
+      for (let at = text.indexOf("\n"); at !== -1; at = text.indexOf("\n", at + 1)) {
+        lines.push(at + 1);
+      }
+      starts.set(file, lines);
+    }
+    const range = [
+      lineOf(lines, site.offset),
+      lineOf(lines, site.end ?? site.offset) + 1,
+    ] as const;
+    const ranges = flagged.get(file);
+    if (ranges) ranges.push(range);
+    else flagged.set(file, [range]);
   }
   return flagged;
 }
@@ -1193,7 +1274,7 @@ async function main(): Promise<void> {
             classes,
             classifier.client,
             classifier.model,
-            { recheck: args.includes("--recheck") },
+            { recheck: args.includes("--recheck"), settle: args.includes("--settle") },
           );
         } catch (error) {
           // What could not be classed stays unclassified, and is counted so.
@@ -1224,6 +1305,7 @@ async function main(): Promise<void> {
       keep: args.includes("--keep"),
       verbose: args.includes("--verbose"),
       recheck: args.includes("--recheck"),
+      settle: args.includes("--settle"),
       classes,
       ...(classifier ? { classifier } : {}),
     });

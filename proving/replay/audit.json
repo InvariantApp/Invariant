@@ -1,0 +1,246 @@
+{
+  "about": "Rig E's classes checked by hand on a fixed sample: the first fifteen model-judged sites of each class by the digest of their keys (`audit.mts sample --per-class 15`), each read in full and labelled with the class a careful reader gives it. Contested sites are labelled too, and never agree, since contested is not a class a reader gives.",
+  "reader": "the agent that built the rig",
+  "labels": {
+    "theodore86/github-rate-limits-exporter#316|github_rate_limits_exporter/github.py|193|0985211a64ff04ac": {
+      "label": "unrelated",
+      "note": "a log message's wording"
+    },
+    "Kosuke-Org/kosuke-template#354|hooks/use-subscription-data.ts|19|23dbf6714410b175": {
+      "label": "unrelated",
+      "note": "a query option of the consumer's own UI"
+    },
+    "longhorn/longhorn-tests#1173|manager/integration/tests/test_recurring_job.py|1198|67329db65f7d3d92": {
+      "label": "contract",
+      "note": "CronJob left batch/v1beta1, which Kubernetes removed, for batch/v1"
+    },
+    "promptfoo/promptfoo#10206|test/providers.slack.test.ts|19|db6e89d17b922c91": {
+      "label": "unrelated",
+      "note": "a test mock of the consumer's own fetch helper"
+    },
+    "polarsource/polar#9275|server/polar/checkout/service.py|1096|2a94fdd785738323": {
+      "label": "sdk",
+      "note": "metadata typed as str by the SDK; the value sent is the same"
+    },
+    "Azure-Samples/azure-search-openai-demo#1017|tests/conftest.py|53|16f86dc2ccdbc9b8": {
+      "label": "sdk",
+      "note": "a mocked stream chunk given the fields the SDK's models now require; the API always sent them"
+    },
+    "polarsource/polar#1732|server/tests/subscription/service/test_subscription_tier.py|598|9fdecf9fecd564d2": {
+      "label": "sdk",
+      "note": "stripe-python 7 dropped the stripe_id alias of id"
+    },
+    "polarsource/polar#1732|server/polar/integrations/stripe/service.py|536|a70d7f50db434c5f": {
+      "label": "unrelated",
+      "note": "the consumer's own balance code removed"
+    },
+    "fossasia/eventyay-stripe#10|eventyay_stripe/views.py|25|dec6b3f68f4aba00": {
+      "label": "unrelated",
+      "note": "imports of the consumer's own framework"
+    },
+    "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|162|ae571545e44f668a": {
+      "label": "contract",
+      "note": "current_period_end moved to subscription items in basil"
+    },
+    "microsoft/deep-language-networks#51|tests/test_dln_operator.py|52|f21a19df0343b8f5": {
+      "label": "contract",
+      "note": "text-davinci-003 retired by the API"
+    },
+    "polarsource/polar#1732|server/tests/subscription/service/test_subscription_tier.py|563|9fdecf9fecd564d2": {
+      "label": "sdk",
+      "note": "stripe-python 7 dropped the stripe_id alias of id"
+    },
+    "Azure-Samples/azure-search-openai-demo#1017|tests/conftest.py|66|e1c726bf0d62c521": {
+      "label": "sdk",
+      "note": "a mocked stream chunk given the fields the SDK's models now require; the API always sent them"
+    },
+    "nabeken/go-github-apps#303|main.go|104|41ff5b0efc524454": {
+      "label": "unrelated",
+      "note": "a variable renamed"
+    },
+    "fossasia/eventyay-stripe#10|eventyay_stripe/views.py|182|635a123115ec1a7a": {
+      "label": "unrelated",
+      "note": "the consumer's own webhook routing refactored"
+    },
+    "boxyhq/saas-starter-kit#1253|lib/stripe.ts|6|a1c1e22a255ecad5": {
+      "label": "contract",
+      "note": "the API version the client pins"
+    },
+    "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|702|5f41445c59e18811": {
+      "label": "contract",
+      "note": "GET /v1/invoices/upcoming retired in basil for createPreview"
+    },
+    "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/services/stripe_service.py|121|4c4c5abb31daf7e3": {
+      "label": "contract",
+      "note": "client_secret read from Invoice.payments, which basil introduced"
+    },
+    "polarsource/polar#9275|server/polar/models/dispute.py|61|b0897f05beea552a": {
+      "label": "contract",
+      "note": "a dispute status the API added"
+    },
+    "MartialBE/one-hub#384|payment/gateway/stripe/payment.go|123|8f4808e77772ea45": {
+      "label": "contract",
+      "note": "the API version a webhook endpoint is created with"
+    },
+    "SabaTech-dev/QA-FRAMEWORK#230|dashboard/backend/tests/integration/test_billing_subscribe_smoke.py|0|f541987bc31a3653": {
+      "label": "contract",
+      "note": "a test of the basil invoice and subscription shapes; its last class tests an SDK error rename"
+    },
+    "fossasia/eventyay-stripe#10|eventyay_stripe/tests/test_webhook.py|234|0d1425b99ffbc448": {
+      "label": "unrelated",
+      "note": "a field set on a test fixture for the consumer's own refund logic"
+    },
+    "TryGhost/migrate#1658|packages/mg-stripe/src/test/utils/stripe.ts|252|7bca7ca09a483888": {
+      "label": "contract",
+      "note": "discount became discounts"
+    },
+    "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|227|ae571545e44f668a": {
+      "label": "contract",
+      "note": "current_period_end moved to subscription items in basil"
+    },
+    "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/same-account.test.ts|392|c583439dd53997cf": {
+      "label": "contract",
+      "note": "discount became discounts"
+    },
+    "sanidhyy/duolingo-clone#110|lib/stripe.ts|3|6527773ec72c5690": {
+      "label": "contract",
+      "note": "the API version the client pins"
+    },
+    "aikawame/rsslovers#1051|frontend/pages/api/checkouts.tsx|9|14874e2365857181": {
+      "label": "contract",
+      "note": "the API version the client pins"
+    },
+    "masumi-network/sokosumi#1595|web-app/src/lib/clients/stripe.client.ts|145|4935bd674eb03e2f": {
+      "label": "contract",
+      "note": "promotion codes' coupon moved under promotion"
+    },
+    "hiroppy/web-app-template#526|src/app/_actions/payment.test.ts|187|adbd69893c368408": {
+      "label": "contract",
+      "note": "current_period_end moved to subscription items in basil"
+    },
+    "TryGhost/migrate#1658|packages/mg-stripe/src/test/e2e/subscriptions.test.ts|998|c4f485f0fc032ac9": {
+      "label": "contract",
+      "note": "discount became discounts on invoices"
+    },
+    "ijwfly/chatgpt-tg#63|tests/conftest.py|156|f37bdf6ab7557bbb": {
+      "label": "unrelated",
+      "note": "aiogram's Dispatcher, another dependency"
+    },
+    "mdn/yari#9888|scripts/ai-help.ts|7|d8bc56e589c00c89": {
+      "label": "sdk",
+      "note": "openai-node 4's default export"
+    },
+    "angular/dev-infra#3359|github-actions/feature-request/main.js|24801|88e0550518a79681": {
+      "label": "sdk",
+      "note": "a rebuilt bundle of @actions/github"
+    },
+    "Alishahryar1/free-claude-code#1504|src/free_claude_code/providers/openai_chat/provider.py|161|0e8baed71bbe541b": {
+      "label": "sdk",
+      "note": "openai-python 3's own HTTP client"
+    },
+    "Tech-Haven/rupert#5|commands/dalle.js|0|3fa96ad91f4e6b07": {
+      "label": "sdk",
+      "note": "a command written against openai-node 3's classes removed"
+    },
+    "angular/dev-infra#3359|github-actions/feature-request/main.js|20496|30613bed2abbadce": {
+      "label": "sdk",
+      "note": "a rebuilt bundle of @actions/github"
+    },
+    "vpromise/SiliconWeaver#26|rtl-closure/tests/test_backend.py|97|a10993d4bdca806b": {
+      "label": "sdk",
+      "note": "a test of openai-python 3's HTTP transport"
+    },
+    "Jamyn/dispatch#196|tests/plugins/dispatch_openai/fake_openai.py|147|b2703e57bc97c2ca": {
+      "label": "sdk",
+      "note": "openai-python 3's own HTTP client"
+    },
+    "suzuki-shunsuke/go-pr-diff#31|prdiff/client.go|20|c7c4ed7b144676e9": {
+      "label": "sdk",
+      "note": "go-github's client options"
+    },
+    "microsoft/deep-language-networks#51|dln/operator.py|162|2f223cdff9e8d51a": {
+      "label": "sdk",
+      "note": "a base class constructed for the new client"
+    },
+    "hellej/pr-slack-reminder-action#30|testhelpers/mockslackclient/mockslackclient.go|21|f82086ca1615323e": {
+      "label": "sdk",
+      "note": "the consumer's mock of slack-go's client"
+    },
+    "ijwfly/chatgpt-tg#63|app/bot/user_role_manager.py|26|8d7a204001fd25ed": {
+      "label": "unrelated",
+      "note": "aiogram's keyboard builder, another dependency"
+    },
+    "thegeeklab/wp-github-comment#427|github/mocks/mock_IssueService.go|180|59260d34bd379829": {
+      "label": "sdk",
+      "note": "a mock generated for go-github's changed signature"
+    },
+    "piercefreeman/gpt-json#43|gpt_json/tests/test_gpt.py|321|2b5811ad2ec8703c": {
+      "label": "sdk",
+      "note": "openai-python 1 needs an API key to construct a client"
+    },
+    "ijwfly/chatgpt-tg#63|tests/e2e/test_web_agents.py|140|fca20e8aff0014e6": {
+      "label": "unrelated",
+      "note": "aiogram's update feeding, another dependency"
+    },
+    "mage-ai/mage-ai#3835|mage_integrations/mage_integrations/sources/stripe/__init__.py|629|4d6418e0464efa0e": {
+      "label": "unrelated",
+      "note": "logging"
+    },
+    "IINemo/lm-polygraph#240|src/lm_polygraph/generation_metrics/openai_fact_check.py|30|ab70e8eb340c8a1d": {
+      "label": "unrelated",
+      "note": "the consumer's own prompts refactored"
+    },
+    "wndhydrnt/rcmt#408|rcmt/database/migrations/versions/b3117b16eb76_add_model_extension.py|26|b97b3d764c5aecca": {
+      "label": "unrelated",
+      "note": "a database migration"
+    },
+    "foks-proj/go-foks#29|integration-tests/cli/webhook_json.go|152|f2c43b99b2beefac": {
+      "label": "unrelated",
+      "note": "a fixture's livemode flag"
+    },
+    "Vibe-Code-Agent/create-pull-request#49|lib/services/ai-description-generator.js|48|18343a9a8d244db0": {
+      "label": "unrelated",
+      "note": "an import style"
+    },
+    "LVTD-LLC/TuxSEO#15|core/utils.py|4|e00d525f0749ddef": {
+      "label": "unrelated",
+      "note": "an unused import removed"
+    },
+    "electron/build-tools#838|src/utils/reclient.ts|75|08b2381fe8385eb3": {
+      "label": "sdk",
+      "note": "ESM, which Octokit 22 requires"
+    },
+    "dimagi/commcare-hq#33775|corehq/apps/accounting/tests/test_autopay_with_api.py|131|c67d840be3d45526": {
+      "label": "unrelated",
+      "note": "a variable renamed"
+    },
+    "Vibe-Code-Agent/create-pull-request#49|jest.config.cjs|0|fefdf5f6d3b76238": {
+      "label": "sdk",
+      "note": "Jest told to transform Octokit's ESM"
+    },
+    "fossasia/eventyay-stripe#10|eventyay_stripe/tests/test_webhook.py|19|f8ba93d98700da41": {
+      "label": "unrelated",
+      "note": "the consumer's plugin name"
+    },
+    "streetsidesoftware/cspell-action#1404|action-src/src/getActionParams.ts|0|3af9d9421475c8d1": {
+      "label": "unrelated",
+      "note": "an import style"
+    },
+    "HumanSignal/Adala#78|server/app.py|31|53b59b4119129739": {
+      "label": "unrelated",
+      "note": "a trailing comma"
+    },
+    "amachino/command-ai#1|ai/ai.py|272|ffc74a0f0aeafc8f": {
+      "label": "unrelated",
+      "note": "a docstring"
+    },
+    "LVTD-LLC/TuxSEO#15|core/utils.py|32|f64b91459766db7d": {
+      "label": "unrelated",
+      "note": "the consumer's own functions removed"
+    },
+    "okfde/froide-payment#22|froide_payment/templatetags/froide_payment.py|2|ea0e54afbe8c7929": {
+      "label": "unrelated",
+      "note": "an import"
+    }
+  }
+}

@@ -23,13 +23,16 @@ import { type EditScope, type EngineResult, editable, runEngine } from "./engine
 import { assertWritable, repositoryPath } from "./paths.ts";
 import { bumpPins } from "./pins.ts";
 import { flagRetired } from "./retired.ts";
+import { type Checker, consumerFile, type Release, upgradeBreaks } from "./verify.ts";
 
 // The plan and the edits are shared with every language pack, and still
 // importable from here, where they began.
 export * from "@invariant-app/migrate-core";
+export { type CheckRequest, diagnosticsIn, type Found } from "./check.ts";
 export type { EditScope } from "./engine.ts";
 export { MigrationPathError } from "./paths.ts";
 export * from "./raw.ts";
+export type { Checker, Release } from "./verify.ts";
 
 export interface MigrateOptions {
   /** Root of the consumer repository. */
@@ -66,8 +69,29 @@ export interface MigrateOptions {
    */
   resolution?: { baseUrl: string; paths: Record<string, string[]> };
   plan: MigrationPlan;
+  /**
+   * The release being moved to. With it, the consumer's files are checked
+   * against it once the edits are in, and every error the upgrade brings is
+   * reported to a person (`verify.ts`).
+   */
+  upgraded?: Release;
+  /** The release used today, where it does not resolve through the repository itself. */
+  current?: Release;
   /** Write the result to disk. Off by default, so a dry run stays a dry run. */
   write?: boolean;
+  /** Told each step as it finishes, for seeing where a large repository's time goes. */
+  trace?: (step: string) => void;
+  /**
+   * How long the check against the upgraded release may take, in
+   * milliseconds; a file it has not reached by then is listed in `unchecked`.
+   */
+  checkFor?: number;
+  /**
+   * Runs each check against a release where it can be stopped, such as in a
+   * worker the caller ends at `checkFor`; by default the check runs here,
+   * and stops at `checkFor` only where the checker offers to.
+   */
+  checker?: Checker;
 }
 
 export interface MigrationResult {
@@ -77,6 +101,8 @@ export interface MigrationResult {
   files: Map<string, string>;
   diagnosticsBefore: string[];
   diagnosticsAfter: string[];
+  /** Files the check against the upgraded release ran out of time for. */
+  unchecked: string[];
 }
 
 function declarationsIn(source: SourceFile, name: string) {
@@ -338,8 +364,25 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
       [repositoryPath(options.repoDir, entry.path, "a regenerated file"), entry] as const,
   );
 
+  const trace = options.trace ?? (() => {});
   const project = projectFor(options);
+  trace(`read ${project.getSourceFiles().length} files`);
   const diagnosticsBefore = diagnosticsOf(project);
+  trace(`checked them: ${diagnosticsBefore.length} errors`);
+  // The consumer's own files as they were read, for the check against the
+  // upgraded release, which compares them with what the edits leave.
+  const original = new Map<string, string>();
+  if (options.upgraded) {
+    for (const source of project.getSourceFiles()) {
+      const path = source.getFilePath();
+      if (
+        consumerFile(options.repoDir, path) &&
+        !options.generated.some((entry) => path.startsWith(entry))
+      ) {
+        original.set(path, source.getFullText());
+      }
+    }
+  }
 
   // First pass: everything that follows from the Changes themselves.
   const scope: EditScope = {
@@ -351,6 +394,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
   renameTypes(project, options.plan, scope, result);
   bumpPins(project, options.plan.symbols, scope, result);
   flagRetired(project, options.plan, scope, result);
+  trace(`planned ${result.edits.length} edits and ${result.manual.length} flags`);
 
   const files = new Map<string, string>();
   for (const [file, edits] of groupByFile(result.edits)) {
@@ -400,6 +444,41 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
     project.createSourceFile(path, entry.source, { overwrite: true });
   }
 
+  const unchecked: string[] = [];
+  if (options.upgraded) {
+    const flagged = new Set(result.manual.map((site) => `${site.file}:${site.offset}`));
+    // The files that use the SDK, and whatever the edits touched: the rest of
+    // a monorepo reaches the SDK only through them, and checking all of it
+    // twice more ran decipad's replay out of memory.
+    const given = new Set<string | undefined>(
+      (options.sources ?? []).map((path) => project.getSourceFile(path)?.getFilePath()),
+    );
+    const checked = new Map(
+      [...original].filter(
+        ([path]) => options.sources === undefined || given.has(path) || files.has(path),
+      ),
+    );
+    const broken = await upgradeBreaks({
+      repoDir: options.repoDir,
+      original: checked,
+      edited: files,
+      edits: result.edits,
+      compilerOptions: project.getCompilerOptions(),
+      upgraded: options.upgraded,
+      ...(options.current ? { current: options.current } : {}),
+      trace,
+      ...(options.checker ? { checker: options.checker } : {}),
+      ...(options.checkFor !== undefined
+        ? { deadline: Date.now() + options.checkFor }
+        : {}),
+    });
+    unchecked.push(...broken.unchecked);
+    for (const site of broken.sites) {
+      if (!flagged.has(`${site.file}:${site.offset}`)) result.manual.push(site);
+    }
+    trace(`checked ${checked.size} files against the upgraded release`);
+  }
+
   // Manual sites were located in the source as it was read. Every edit above
   // one of them moves it, so the line a reviewer is sent to is recomputed
   // against the text they will actually open.
@@ -425,6 +504,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
     files,
     diagnosticsBefore,
     diagnosticsAfter,
+    unchecked,
   };
 }
 
