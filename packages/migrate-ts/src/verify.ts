@@ -52,6 +52,18 @@ export interface UpgradeCheck {
   current?: Release;
   upgraded: Release;
   trace?: (step: string) => void;
+  /**
+   * When to stop checking, as a time in milliseconds: a file not checked by
+   * then against both releases is listed as unchecked rather than holding
+   * the migration. decipad's checks against stripe-node 17 ran for hours.
+   */
+  deadline?: number;
+}
+
+export interface UpgradeBreaks {
+  sites: ManualSite[];
+  /** Files the deadline left unchecked against one release or both. */
+  unchecked: string[];
 }
 
 const UPGRADE = "sdk-upgrade";
@@ -60,7 +72,7 @@ const UPGRADE = "sdk-upgrade";
  * Each error the upgraded release brings to the consumer's files, as a site
  * in the file as it was read.
  */
-export function upgradeBreaks(check: UpgradeCheck): ManualSite[] {
+export function upgradeBreaks(check: UpgradeCheck): UpgradeBreaks {
   const files = [...check.original.keys()];
   const before = diagnosticsOf(check, files, check.original, check.current);
   check.trace?.(`checked ${files.length} files against the current release`);
@@ -73,16 +85,18 @@ export function upgradeBreaks(check: UpgradeCheck): ManualSite[] {
   const after = diagnosticsOf(check, files, now, check.upgraded);
   const byFile = groupByFile(check.edits);
   const sites: ManualSite[] = [];
+  const unchecked: string[] = [];
   const shown = new Set<string>();
   for (const file of files) {
+    const beforeFound = before.get(file);
+    const afterFound = after.get(file);
+    if (!beforeFound || !afterFound) {
+      unchecked.push(file);
+      continue;
+    }
     const original = check.original.get(file) as string;
     const text = now.get(file) as string;
-    const fresh = newErrors(
-      before.get(file) ?? [],
-      after.get(file) ?? [],
-      original,
-      text,
-    );
+    const fresh = newErrors(beforeFound, afterFound, original, text);
     if (fresh.length === 0) continue;
     const flat = flatEdits(file, original, byFile.get(file) ?? []);
     const tree = ts.createSourceFile(file, original, ts.ScriptTarget.Latest, true);
@@ -107,7 +121,7 @@ export function upgradeBreaks(check: UpgradeCheck): ManualSite[] {
       });
     }
   }
-  return sites;
+  return { sites, unchecked };
 }
 
 interface Found {
@@ -203,13 +217,27 @@ function diagnosticsOf(
   }
   const program = project.getProgram().compilerObject;
   const found = new Map<string, Found[]>();
+  const token: ts.CancellationToken = {
+    isCancellationRequested: () =>
+      check.deadline !== undefined && Date.now() > check.deadline,
+    throwIfCancellationRequested() {
+      if (this.isCancellationRequested()) throw new ts.OperationCanceledException();
+    },
+  };
   for (const file of files) {
     const source = program.getSourceFile(file);
-    if (!source) continue;
-    const diagnostics = [
-      ...program.getSyntacticDiagnostics(source),
-      ...program.getSemanticDiagnostics(source),
-    ];
+    if (!source || token.isCancellationRequested()) continue;
+    let diagnostics: ts.Diagnostic[];
+    try {
+      diagnostics = [
+        ...program.getSyntacticDiagnostics(source, token),
+        ...program.getSemanticDiagnostics(source, token),
+      ];
+    } catch (error) {
+      // Past the deadline the file is left out, and so listed as unchecked.
+      if (error instanceof ts.OperationCanceledException) continue;
+      throw error;
+    }
     found.set(
       file,
       diagnostics

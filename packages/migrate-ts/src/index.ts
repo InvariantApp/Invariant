@@ -80,6 +80,11 @@ export interface MigrateOptions {
   write?: boolean;
   /** Told each step as it finishes, for seeing where a large repository's time goes. */
   trace?: (step: string) => void;
+  /**
+   * How long the check against the upgraded release may take, in
+   * milliseconds; a file it has not reached by then is listed in `unchecked`.
+   */
+  checkFor?: number;
 }
 
 export interface MigrationResult {
@@ -89,6 +94,8 @@ export interface MigrationResult {
   files: Map<string, string>;
   diagnosticsBefore: string[];
   diagnosticsAfter: string[];
+  /** Files the check against the upgraded release ran out of time for. */
+  unchecked: string[];
 }
 
 function declarationsIn(source: SourceFile, name: string) {
@@ -430,6 +437,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
     project.createSourceFile(path, entry.source, { overwrite: true });
   }
 
+  const unchecked: string[] = [];
   if (options.upgraded) {
     const flagged = new Set(result.manual.map((site) => `${site.file}:${site.offset}`));
     // The files that use the SDK, and whatever the edits touched: the rest of
@@ -443,7 +451,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
         ([path]) => options.sources === undefined || given.has(path) || files.has(path),
       ),
     );
-    for (const site of upgradeBreaks({
+    const broken = upgradeBreaks({
       repoDir: options.repoDir,
       original: checked,
       edited: files,
@@ -452,7 +460,12 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
       upgraded: options.upgraded,
       ...(options.current ? { current: options.current } : {}),
       trace,
-    })) {
+      ...(options.checkFor !== undefined
+        ? { deadline: Date.now() + options.checkFor }
+        : {}),
+    });
+    unchecked.push(...broken.unchecked);
+    for (const site of broken.sites) {
       if (!flagged.has(`${site.file}:${site.offset}`)) result.manual.push(site);
     }
     trace(`checked ${checked.size} files against the upgraded release`);
@@ -483,6 +496,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
     files,
     diagnosticsBefore,
     diagnosticsAfter,
+    unchecked,
   };
 }
 

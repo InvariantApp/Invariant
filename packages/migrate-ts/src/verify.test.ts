@@ -133,6 +133,21 @@ describe("the check against the upgraded release", () => {
     );
   });
 
+  it("lists what it had no time to check, rather than guessing about it", async () => {
+    const repo = join(dir, "repo");
+    const result = await migrate({
+      repoDir: `${repo}/`,
+      generated: [join(dir, "releases", "v1", "node_modules", "paysdk")],
+      sources: [join(repo, "src", "billing.ts")],
+      plan: plan(),
+      current: { package: "paysdk", from: join(dir, "releases", "v1") },
+      upgraded: { package: "paysdk", from: join(dir, "releases", "v2") },
+      checkFor: -1,
+    });
+    expect(result.manual).toEqual([]);
+    expect(result.unchecked).toEqual([join(repo, "src", "billing.ts")]);
+  });
+
   it("reports nothing where the release changed nothing the consumer uses", async () => {
     const repo = join(dir, "repo");
     const result = await migrate({

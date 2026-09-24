@@ -761,6 +761,9 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         plan: buildPlan(contract?.changes ?? [], symbols),
         current: { package: entry.package, from: oldRelease.prefix },
         upgraded: { package: entry.package, from: newRelease.prefix },
+        // Most cases check in seconds; one that has not in ten minutes is
+        // left partly unchecked, and says so, rather than holding the shard.
+        checkFor: 10 * 60_000,
         ...(keep || options.verbose
           ? {
               trace: (step: string) =>
@@ -776,7 +779,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       }
       if (keep || options.verbose) {
         process.stdout.write(
-          `${JSON.stringify({ versions: [versionOf(oldSdk), versionOf(newSdk)], sources: sources.length, seconds: Math.round((Date.now() - began) / 1000), contract: contract && { drafted: contract.drafted, removed: contract.removed, types: Object.keys(contract.types).length, subscription: contract.changes.filter((change) => change.id.includes("subscription")).map((change) => change.id) }, pin: symbols.pin, read: readable.length, edits: result.edits.map((edit) => `${edit.file}:${edit.start} ${edit.reason}`), manual: result.manual.map((site) => `${site.file}:${site.line} ${site.reason}`) }, null, 2)}\n`,
+          `${JSON.stringify({ versions: [versionOf(oldSdk), versionOf(newSdk)], sources: sources.length, seconds: Math.round((Date.now() - began) / 1000), unchecked: result.unchecked.map((file) => file.slice(repo.length + 1)), contract: contract && { drafted: contract.drafted, removed: contract.removed, types: Object.keys(contract.types).length, subscription: contract.changes.filter((change) => change.id.includes("subscription")).map((change) => change.id) }, pin: symbols.pin, read: readable.length, edits: result.edits.map((edit) => `${edit.file}:${edit.start} ${edit.reason}`), manual: result.manual.map((site) => `${site.file}:${site.line} ${site.reason}`) }, null, 2)}\n`,
         );
       }
       for (const [path, text] of result.files) {
