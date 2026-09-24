@@ -456,54 +456,19 @@
     {
       "name": "inventree",
       "language": "Python",
-      "notes": "The suite is inventree-python 0.23.2, the one client release made while 1.3 was current; its own CI ran it against InvenTree's development branch, which a release's image stands in for. The server starts on SQLite with the admin its environment names, and the suite's fixtures are loaded into it the way the client's own compose file does, after which a restart makes that admin again, since the fixtures replace the first users. No background worker runs, so build tasks finish before they answer, as in the client's CI.",
+      "notes": "The suite is inventree-python 0.23.2, the one client release made while 1.3 was current; its own CI ran it against InvenTree's development branch, which a release's image stands in for. The server runs as the client's own test compose file runs it (compose/inventree.yaml): SQLite, the database migrated and the suite's fixtures loaded before the server starts, which then makes the administrator the suite signs in as.",
       "repo": "inventree/InvenTree",
       "image": "inventree/inventree",
       "server": {
         "port": 8000,
         "ready": "/api/",
         "readySeconds": 600,
-        "env": {
-          "INVENTREE_DEBUG": "True",
-          "INVENTREE_SITE_URL": "http://127.0.0.1:16333",
-          "INVENTREE_DB_ENGINE": "sqlite",
-          "INVENTREE_DB_NAME": "/home/inventree/data/test_db.sqlite3",
-          "INVENTREE_DEBUG_LEVEL": "error",
-          "INVENTREE_ADMIN_USER": "testuser",
-          "INVENTREE_ADMIN_PASSWORD": "{INVENTREE_PASSWORD}",
-          "INVENTREE_ADMIN_EMAIL": "test@test.com",
-          "INVENTREE_COOKIE_SAMESITE": "False"
-        },
-        "setup": [
-          {
-            "run": ["docker", "exec", "{container}", "invoke", "migrate"]
-          },
-          {
-            "run": ["docker", "exec", "{container}", "invoke", "dev.import-fixtures"]
-          },
-          {
-            "run": ["docker", "restart", "{container}"]
-          },
-          {
-            "run": [
-              "curl",
-              "-sf",
-              "-o",
-              "/dev/null",
-              "--retry",
-              "120",
-              "--retry-delay",
-              "5",
-              "--retry-all-errors",
-              "{url}/api/"
-            ]
-          }
-        ],
         "secrets": {
           "INVENTREE_PASSWORD": {
             "random": 16
           }
-        }
+        },
+        "compose": "compose/inventree.yaml"
       },
       "spec": {
         "served": "/api/schema/?format=json"
