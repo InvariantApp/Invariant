@@ -237,6 +237,77 @@ jobs:
           include-hidden-files: true
           if-no-files-found: ignore
 
+  # Rig B's pairs of consecutive stripe/openapi commits, one job each, from
+  # the manifest.
+  stripe-plan:
+    name: stripe (rig B, plan)
+    if: inputs.rigs != 'servers' && inputs.rigs != 'corpus'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    outputs:
+      pairs: ${{ steps.plan.outputs.pairs }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - id: plan
+        run: |
+          pairs=$(jq -c '.commits as $c
+            | [range(1; $c | length) | "\($c[. - 1].commit[0:7])..\($c[.].commit[0:7])"]' \
+            proving/stripe/manifest.json)
+          echo "pairs=$pairs" >> "$GITHUB_OUTPUT"
+
+  stripe:
+    name: stripe (rig B, ${{ matrix.pair }})
+    needs: stripe-plan
+    strategy:
+      fail-fast: false
+      matrix:
+        pair: ${{ fromJSON(needs.stripe-plan.outputs.pairs) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    # Runs Stripe's SDK suites and stripe-mock, which this project did not
+    # write, so the job holds no secret and no token.
+    permissions: {}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The gate that compiles each pair's program diffs with it.
+      - run: node --import tsx scripts/fetch-oasdiff.mts --host
+
+      # stripe-python's suite runs in a virtual environment uv makes.
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+
+      - name: Three arms per pair, both SDK suites in each
+        env:
+          # Two Stripe-sized documents through the gate in one process.
+          NODE_OPTIONS: --max-old-space-size=12288
+        run: pnpm proving:stripe --pair ${{ matrix.pair }}
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: stripe-${{ matrix.pair }}
+          path: |
+            .cache/stripe/results-${{ matrix.pair }}.json
+            .cache/stripe/pairs/${{ matrix.pair }}/*.xml
+            .cache/stripe/pairs/${{ matrix.pair }}/provider/invariant/changes/*.yaml
+          include-hidden-files: true
+          if-no-files-found: ignore
+
   fuzz:
     name: fuzz (rig F)
     if: inputs.rigs != 'servers' && inputs.rigs != 'corpus'
@@ -345,7 +416,7 @@ jobs:
     # in this organization and its check waits for a runner from the same
     # pool, so run beside forty other jobs it timed this workflow's own queue.
     # A Linux p95 of 13.5 minutes was checks waiting behind the corpus shards.
-    needs: [corpus, traffic, swagger, servers, fuzz, threats]
+    needs: [corpus, traffic, swagger, servers, stripe, fuzz, threats]
     if: ${{ !cancelled() && vars.JOURNEY_ENABLED == 'true' && inputs.rigs != 'servers' && inputs.rigs != 'corpus' }}
     strategy:
       fail-fast: false
@@ -390,7 +461,7 @@ jobs:
           if-no-files-found: ignore
 
   report:
-    needs: [corpus, traffic, swagger, servers, fuzz, threats, journey]
+    needs: [corpus, traffic, swagger, servers, stripe, fuzz, threats, journey]
     # Every rig's result is gathered even when one of them failed, so the
     # scoreboard says which; nothing is recorded unless all of them passed.
     if: always() && inputs.rigs != 'servers' && inputs.rigs != 'corpus'
@@ -435,6 +506,12 @@ jobs:
           merge-multiple: true
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: stripe-*
+          path: stripe-results
+          merge-multiple: true
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         if: vars.JOURNEY_ENABLED == 'true'
         with:
           pattern: journey-*
@@ -448,6 +525,13 @@ jobs:
       - name: Merge the corpus shards into one report
         id: corpus
         run: node --import tsx proving/corpus/run.mts --report corpus-*.json
+
+      - name: Merge the Stripe pairs into one report
+        if: always()
+        run: |
+          shopt -s nullglob
+          set -- stripe-results/.cache/stripe/results-*.json stripe-results/results-*.json
+          if [ "$#" -gt 0 ]; then node --import tsx proving/stripe/run.mts --report "$@"; fi
 
       - name: Merge the real-server projects into one report
         if: always()
@@ -499,6 +583,8 @@ jobs:
             proving/journey/results.json
             proving/skew/results.json
             proving/releases/results.json
+            proving/stripe/REPORT.md
+            proving/stripe/results.json
 
       # Recorded in the repository, so a number quoted anywhere can be traced
       # to the run that produced it. Nothing is committed when nothing changed.
@@ -507,7 +593,7 @@ jobs:
         run: |
           git config user.name "invariant-proving"
           git config user.email "proving@users.noreply.github.com"
-          git add proving/SCOREBOARD.md proving/corpus proving/traffic proving/servers proving/swagger proving/journey proving/skew proving/releases
+          git add proving/SCOREBOARD.md proving/corpus proving/traffic proving/servers proving/swagger proving/journey proving/skew proving/releases proving/stripe
           git diff --cached --quiet || git commit -m "Record the nightly proving run"
           git pull --rebase
           git push
