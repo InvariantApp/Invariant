@@ -162,7 +162,18 @@ describe("the cost of numeric fidelity", () => {
       `64 KiB list: double ${fast.p50.toFixed(2)}ms, preserve ${exact.p50.toFixed(2)}ms ` +
         `(${(exact.p50 / fast.p50).toFixed(1)}x)`,
     );
-    expect(exact.p50).toBeGreaterThan(fast.p50);
+    // The timing is printed, not asserted: two medians from one shared
+    // runner swapped order under load in the 0.4.0 release's CI (3.40ms
+    // preserve against 3.82ms double). What makes the default cheaper is
+    // which parse it takes, and that is asserted instead: a body with no
+    // number a double would change is read by plain JSON.parse into plain
+    // numbers, while preserve holds every number as its source text.
+    const holdsText = (fidelity: "double" | "preserve") => {
+      const parsed = parseJson(LIST, fidelity) as { data: { amount: unknown }[] };
+      return parsed.data.every((item) => JSON.isRawJSON(item.amount));
+    };
+    expect(holdsText("double")).toBe(false);
+    expect(holdsText("preserve")).toBe(true);
   });
 
   it("is exact either way for every amount a double can hold", () => {
