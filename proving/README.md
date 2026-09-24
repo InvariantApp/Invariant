@@ -210,7 +210,19 @@ kubernetes, openai and twilio on PyPI the miner also searches such titles, and
 for stripe the descriptions too (words ending `in:body`: the API version moved
 to, or `current_period_end`), reads what each pull request upgraded from its
 manifests' diff, and keeps it only where that moves the SDK forward across a
-major version.
+major version. anthropic, sendgrid and slack-sdk are searched the same way.
+No repository adds more than `--per-repo` cases (3 by default), so one
+project that bumped an SDK many times does not weigh more than the rest.
+
+The miner also runs in the replay workflow, one package to a job and one job
+at a time, with a token that can only read public data; the index it finds
+is uploaded, laid over the recorded one and committed:
+
+```console
+gh workflow run replay.yml -f ecosystem=pypi -f mine='["stripe", "openai"]'
+gh run download <run> --pattern 'index-*'
+node --import tsx proving/replay/mine.mts --merge index-*/index.json --per-repo 2
+```
 
 `replay/run.mts` replays them. Each repository is fetched at the bump's base
 with no history and no blob it does not need, the SDK alone is installed at
@@ -223,6 +235,22 @@ equivalent or wrong), flagged (the engine wrote nothing there and sent a
 person to it, which L8 counts as handled, apart from an edit), or missed. What
 the engine changed where no human did is counted as extra edits, and what it
 flagged where no human changed anything as extra flags: a reviewer's time.
+
+Where the humans rewrote code around a changed element rather than edited it
+in place, the rewrite is often several regions close together. They are read
+as git draws them, as one hunk, and where the engine flagged the changed
+element itself on a line the humans replaced in that hunk, each region of the
+hunk counts as flagged. A flag whose extent only reaches into the hunk, with
+its element outside every line the humans replaced, carries nothing. Each
+flag says where its element is written where what it shows is wider, the
+read of a moved field inside the statement a reviewer is shown.
+
+Lines the humans added with nothing before them that they replace are new
+code: a file the base did not have, or an insertion that is whole
+definitions and nothing else, a new helper, wherever the insertion could
+equally have been drawn. New code is no site of a contract change; it is
+counted apart per language, never as handled or missed, and is not classed.
+The calls to it the humans wrote into existing code remain sites.
 
 Every npm case, whatever its SDK, is also checked against both releases, as
 the Python and Go packs check theirs: the consumer's files that import the SDK
@@ -262,7 +290,11 @@ checks the result against the new one, and every error the upgrade brings is
 flagged. For stripe-python the pack is also told the Changes, the same way as
 for stripe-node, from the OpenAPI release each stripe-python release records,
 and the operations of the old specification, for requests made with
-`requests` or `httpx`. A release before 7 ships no types, so the checker is
+`requests` or `httpx`. A string literal sent as one of the SDK's parameters
+whose vocabulary lost it, as openai-python's `model` losing a retired model
+from `ChatModel`, is shown where it is written, or rewritten where a Change
+maps the value: the parameter takes any text as well, so the checker never
+says. A release before 7 ships no types, so the checker is
 given a copy of it with each class's fields declared from that specification
 (`replay/stubs.mts`), and finds a Change's field where it is referenced. The
 pack is also shown the files that import the consumer's own modules that use
