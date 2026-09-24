@@ -25,6 +25,7 @@ import type { WireOperation, WireTags } from "@invariant-app/migrate-core";
 import type { GoSymbol, SurfaceObject } from "@invariant-app/migrate-go";
 import { type Decision, propose, RulesJudge } from "@invariant-app/proposer";
 import { ROOT } from "../corpus/manifest.mts";
+import { type ClassFields, classFields } from "./stubs.mts";
 
 const SPECS = join(ROOT, ".cache/replay/specs");
 const TAGS = join(SPECS, "stripe-openapi-tags.json");
@@ -148,6 +149,8 @@ export interface ContractPlan {
   changes: Change[];
   /** The API as a plain HTTP client reaches it, from the old specification. */
   wire?: { servers: string[]; operations: WireOperation[] };
+  /** stripe-python's classes and their fields, from the old specification. */
+  classes?: ClassFields[];
   /**
    * How Stripe's objects name their schema, `"object": "invoice"`, read from
    * both specifications, and the API version the upgraded SDK speaks.
@@ -468,6 +471,8 @@ export async function stripePlan(
       changes,
       tags,
       types,
+      // What each class holds, for a release that ships no types (`stubs.mts`).
+      classes: classFields(before, types),
       wire: wireOf(before),
       // Retired operations are found through stripe-node's resource files;
       // stripe-python's are not read yet, and nothing is reported for them.
