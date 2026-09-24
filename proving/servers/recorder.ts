@@ -129,6 +129,7 @@ export async function startRecorder(options: {
               id,
               method: incoming.method ?? "GET",
               path: url.pathname,
+              ...(url.search ? { query: url.search } : {}),
               status: answer.statusCode ?? 0,
               ...(body === undefined ? {} : { body: body as Json }),
             });

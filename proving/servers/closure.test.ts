@@ -62,6 +62,42 @@ describe("judging adapted answers against the old server", () => {
       [[call(0, {})], [call(0, {})]],
     );
     expect(result.wrong[0]?.site).toBe("GET /items/{id} /region");
+    expect(result.wrong[0]?.why).toMatch(/at \/ it sent an object holding nothing/);
+  });
+
+  it("says whether the field alone was missing or everything around it was", () => {
+    const result = judgeClosure(
+      [
+        {
+          given: [call(0, { app: { features: { gpu: false } } })],
+          sent: [
+            {
+              ...call(0, { app: { features: { gpu: false, web: true } } }),
+              query: "?level=1",
+            },
+          ],
+        },
+      ],
+      [[call(0, { app: { name: "q" } })], [call(0, { app: { name: "q" } })]],
+    );
+    expect(result.wrong[0]?.why).toBe(
+      "the adapter sent true where the old server sent nothing " +
+        "(at /app it sent an object holding name, GET /items/42?level=1)",
+    );
+  });
+
+  it("does not judge against an old answer whose body was not recorded", () => {
+    const unrecorded: Exchange = { id: 0, method: "GET", path: "/items/42", status: 200 };
+    const result = judgeClosure(
+      [{ given: [call(0, {})], sent: [call(0, { region: "eu" })] }],
+      [[unrecorded], [call(0, {})]],
+    );
+    expect(result).toMatchObject({
+      adapted: 1,
+      compared: 0,
+      notComparable: 1,
+      wrong: [],
+    });
   });
 
   it("does not charge a Change for a status the release changed and the adapter passed on", () => {
