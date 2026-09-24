@@ -71,6 +71,7 @@ export function upgradeBreaks(check: UpgradeCheck): ManualSite[] {
   const after = diagnosticsOf(check, files, now, check.upgraded);
   const byFile = groupByFile(check.edits);
   const sites: ManualSite[] = [];
+  const shown = new Set<string>();
   for (const file of files) {
     const original = check.original.get(file) as string;
     const text = now.get(file) as string;
@@ -88,17 +89,9 @@ export function upgradeBreaks(check: UpgradeCheck): ManualSite[] {
       const end = Math.max(start, originalOffset(diagnostic.end, flat));
       const extent = statementAround(tree, start, end);
       const reason = `this no longer type-checks against the upgraded SDK: ${diagnostic.message}`;
-      if (
-        sites.some(
-          (site) =>
-            site.file === file &&
-            site.offset === extent.start &&
-            site.end === extent.end &&
-            site.reason === reason,
-        )
-      ) {
-        continue;
-      }
+      const key = `${file}:${extent.start}:${extent.end}:${reason}`;
+      if (shown.has(key)) continue;
+      shown.add(key);
       const { line, character } = tree.getLineAndCharacterOfPosition(extent.start);
       sites.push({
         file,
@@ -176,20 +169,30 @@ function diagnosticsOf(
   const project = new Project({
     compilerOptions: { ...check.compilerOptions, checkJs: true, noEmit: true },
     skipAddingFilesFromTsConfig: true,
-    resolutionHost: (host, options) => ({
-      resolveModuleNames: (names, containingFile) =>
-        names.map(
-          (name) =>
-            ts.resolveModuleName(
-              name,
-              redirect(name)
-                ? join((release as Release).from, "__invariant__.ts")
-                : containingFile,
-              options(),
-              host,
-            ).resolvedModule,
-        ),
-    }),
+    resolutionHost: (host, options) => {
+      // One cache for the whole program, as the compiler keeps its own: a
+      // monorepo's thousands of imports are each resolved once.
+      const cache = ts.createModuleResolutionCache(
+        host.getCurrentDirectory?.() ?? check.repoDir,
+        (name) => name,
+        options(),
+      );
+      return {
+        resolveModuleNames: (names, containingFile) =>
+          names.map(
+            (name) =>
+              ts.resolveModuleName(
+                name,
+                redirect(name)
+                  ? join((release as Release).from, "__invariant__.ts")
+                  : containingFile,
+                options(),
+                host,
+                cache,
+              ).resolvedModule,
+          ),
+      };
+    },
   });
   // Only the files checked are added; the compiler reads what they import
   // itself, as declarations, without their being checked.
