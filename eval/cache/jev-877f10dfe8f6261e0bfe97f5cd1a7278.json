@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "recurring",
+    "confidence": 0.74,
+    "scores": {
+      "recurring": 0.74,
+      "interval_count": 0.16
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 140.7216199999998,
+  "inputTokens": 1277,
+  "costUsd": 0.000053634
+}

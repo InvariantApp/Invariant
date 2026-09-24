@@ -1,0 +1,19 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.82,
+    "scores": {
+      "metadata": 0.005,
+      "migratedAccountCode": 0,
+      "platformPaymentConfiguration": 0.015,
+      "platformPaymentConfiguration.salesDayClosingTime": 0.005,
+      "platformPaymentConfiguration.settlementDelayDays": 0.005
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 146.7666879999997,
+  "inputTokens": 2593,
+  "costUsd": 0.000108906
+}

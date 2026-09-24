@@ -5,14 +5,14 @@
     "written": 293,
     "byFamily": {
       "adversarial": 57,
-      "ambiguous": 185,
-      "decoy": 162,
+      "ambiguous": 238,
+      "decoy": 183,
       "enum": 50,
-      "nesting": 60,
+      "nesting": 67,
       "removal": 309,
-      "rename": 136,
+      "rename": 133,
       "split-merge": 36,
-      "type-change": 62,
+      "type-change": 58,
       "unit": 51
     }
   },
@@ -20,7 +20,10 @@
     {
       "judge": "rules",
       "model": null,
-      "threshold": 0.6,
+      "threshold": {
+        "named": 0.6,
+        "none": 0.6
+      },
       "missing": 0,
       "overall": {
         "cases": 651,
@@ -48,14 +51,14 @@
           "precision": 1
         },
         "ambiguous": {
-          "cases": 185,
-          "answered": 9,
+          "cases": 238,
+          "answered": 10,
           "wrong": 0,
           "precision": 1
         },
         "decoy": {
-          "cases": 162,
-          "answered": 6,
+          "cases": 183,
+          "answered": 8,
           "wrong": 0,
           "precision": 1
         },
@@ -66,7 +69,7 @@
           "precision": 1
         },
         "nesting": {
-          "cases": 60,
+          "cases": 67,
           "answered": 1,
           "wrong": 0,
           "precision": 1
@@ -78,7 +81,7 @@
           "precision": 1
         },
         "rename": {
-          "cases": 136,
+          "cases": 133,
           "answered": 10,
           "wrong": 0,
           "precision": 1
@@ -90,7 +93,7 @@
           "precision": 1
         },
         "type-change": {
-          "cases": 62,
+          "cases": 58,
           "answered": 13,
           "wrong": 0,
           "precision": 1
@@ -107,197 +110,112 @@
     {
       "judge": "jev",
       "model": "jev-1.13.0",
-      "threshold": 0.6,
+      "threshold": {
+        "named": 0.95,
+        "none": 0.9
+      },
       "missing": 0,
       "overall": {
         "cases": 651,
-        "answered": 563,
-        "wrong": 15,
-        "precision": 0.9733570159857904
+        "answered": 386,
+        "wrong": 0,
+        "precision": 1
       },
       "mined": {
         "cases": 358,
-        "answered": 306,
-        "wrong": 15,
-        "precision": 0.9509803921568627
+        "answered": 220,
+        "wrong": 0,
+        "precision": 1
       },
       "written": {
         "cases": 293,
-        "answered": 257,
+        "answered": 166,
         "wrong": 0,
         "precision": 1
       },
       "byFamily": {
         "adversarial": {
           "cases": 57,
-          "answered": 53,
+          "answered": 38,
           "wrong": 0,
           "precision": 1
         },
         "ambiguous": {
-          "cases": 185,
-          "answered": 157,
-          "wrong": 4,
-          "precision": 0.9745222929936306
+          "cases": 238,
+          "answered": 139,
+          "wrong": 0,
+          "precision": 1
         },
         "decoy": {
-          "cases": 162,
-          "answered": 125,
-          "wrong": 3,
-          "precision": 0.976
+          "cases": 183,
+          "answered": 79,
+          "wrong": 0,
+          "precision": 1
         },
         "enum": {
           "cases": 50,
-          "answered": 46,
+          "answered": 33,
           "wrong": 0,
           "precision": 1
         },
         "nesting": {
-          "cases": 60,
-          "answered": 54,
-          "wrong": 8,
-          "precision": 0.8518518518518519
+          "cases": 67,
+          "answered": 21,
+          "wrong": 0,
+          "precision": 1
         },
         "removal": {
           "cases": 309,
-          "answered": 262,
-          "wrong": 3,
-          "precision": 0.9885496183206107
+          "answered": 193,
+          "wrong": 0,
+          "precision": 1
         },
         "rename": {
-          "cases": 136,
-          "answered": 119,
-          "wrong": 2,
-          "precision": 0.9831932773109243
+          "cases": 133,
+          "answered": 93,
+          "wrong": 0,
+          "precision": 1
         },
         "split-merge": {
           "cases": 36,
-          "answered": 28,
+          "answered": 6,
           "wrong": 0,
           "precision": 1
         },
         "type-change": {
-          "cases": 62,
-          "answered": 55,
-          "wrong": 2,
-          "precision": 0.9636363636363636
+          "cases": 58,
+          "answered": 24,
+          "wrong": 0,
+          "precision": 1
         },
         "unit": {
           "cases": 51,
-          "answered": 49,
+          "answered": 42,
           "wrong": 0,
           "precision": 1
         }
       },
-      "wrongCases": [
-        {
-          "id": "mined_adyen_transaction_rule_amount",
-          "said": null,
-          "expected": "ruleRestrictions",
-          "confidence": 0.62
-        },
-        {
-          "id": "mined_adyen_transaction_rule_countries",
-          "said": null,
-          "expected": "ruleRestrictions",
-          "confidence": 0.74
-        },
-        {
-          "id": "mined_adyen_transaction_rule_entry_modes",
-          "said": null,
-          "expected": "ruleRestrictions",
-          "confidence": 0.77
-        },
-        {
-          "id": "mined_adyen_transaction_rule_max_transactions",
-          "said": null,
-          "expected": "ruleRestrictions",
-          "confidence": 0.82
-        },
-        {
-          "id": "mined_adyen_transaction_rule_mccs",
-          "said": null,
-          "expected": "ruleRestrictions",
-          "confidence": 0.73
-        },
-        {
-          "id": "mined_adyen_payment_details_response_details",
-          "said": "threeDSPaymentData",
-          "expected": null,
-          "confidence": 0.675
-        },
-        {
-          "id": "mined_amazonaws_query_input_range_key_condition",
-          "said": "KeyConditionExpression",
-          "expected": "KeyConditions",
-          "confidence": 0.85
-        },
-        {
-          "id": "mined_googleapis_track_user_fraction",
-          "said": null,
-          "expected": "releases",
-          "confidence": 0.86
-        },
-        {
-          "id": "mined_twilio_conversations_v2_start_conversation_request_channel",
-          "said": null,
-          "expected": "action",
-          "confidence": 0.71
-        },
-        {
-          "id": "mined_datadoghq_recommendations_filter_request_scope",
-          "said": null,
-          "expected": "data",
-          "confidence": 0.73
-        },
-        {
-          "id": "mined_datadoghq_recommendations_filter_request_sort",
-          "said": null,
-          "expected": "data",
-          "confidence": 0.91
-        },
-        {
-          "id": "mined_datadoghq_recommendations_filter_request_view",
-          "said": null,
-          "expected": "data",
-          "confidence": 0.82
-        },
-        {
-          "id": "mined_paypal_payout_item_sender_item_id",
-          "said": "sender_batch_id",
-          "expected": null,
-          "confidence": 0.925
-        },
-        {
-          "id": "mined_okta_privileged_resource_credential_changed",
-          "said": null,
-          "expected": "credentialSyncInfo",
-          "confidence": 0.77
-        },
-        {
-          "id": "mined_okta_expire_password_and_get_temporary_password_200_response_temp_password",
-          "said": "credentials",
-          "expected": null,
-          "confidence": 0.655
-        }
-      ]
+      "wrongCases": []
     },
     {
       "judge": "s2",
       "model": "claude-opus-5",
-      "threshold": 0.85,
-      "missing": 0,
+      "threshold": {
+        "named": 0.85,
+        "none": 0.85
+      },
+      "missing": 157,
       "overall": {
         "cases": 651,
-        "answered": 514,
-        "wrong": 5,
-        "precision": 0.9902723735408561
+        "answered": 400,
+        "wrong": 0,
+        "precision": 1
       },
       "mined": {
         "cases": 358,
-        "answered": 270,
-        "wrong": 5,
-        "precision": 0.9814814814814815
+        "answered": 156,
+        "wrong": 0,
+        "precision": 1
       },
       "written": {
         "cases": 293,
@@ -313,38 +231,38 @@
           "precision": 1
         },
         "ambiguous": {
-          "cases": 185,
-          "answered": 125,
+          "cases": 238,
+          "answered": 103,
           "wrong": 0,
           "precision": 1
         },
         "decoy": {
-          "cases": 162,
-          "answered": 132,
+          "cases": 183,
+          "answered": 118,
           "wrong": 0,
           "precision": 1
         },
         "enum": {
           "cases": 50,
-          "answered": 38,
+          "answered": 27,
           "wrong": 0,
           "precision": 1
         },
         "nesting": {
-          "cases": 60,
-          "answered": 27,
-          "wrong": 4,
-          "precision": 0.8518518518518519
+          "cases": 67,
+          "answered": 19,
+          "wrong": 0,
+          "precision": 1
         },
         "removal": {
           "cases": 309,
-          "answered": 277,
+          "answered": 184,
           "wrong": 0,
           "precision": 1
         },
         "rename": {
-          "cases": 136,
-          "answered": 103,
+          "cases": 133,
+          "answered": 91,
           "wrong": 0,
           "precision": 1
         },
@@ -355,50 +273,19 @@
           "precision": 1
         },
         "type-change": {
-          "cases": 62,
-          "answered": 39,
-          "wrong": 1,
-          "precision": 0.9743589743589743
+          "cases": 58,
+          "answered": 38,
+          "wrong": 0,
+          "precision": 1
         },
         "unit": {
           "cases": 51,
-          "answered": 48,
+          "answered": 41,
           "wrong": 0,
           "precision": 1
         }
       },
-      "wrongCases": [
-        {
-          "id": "mined_adyen_transaction_rule_processing_types",
-          "said": null,
-          "expected": "ruleRestrictions",
-          "confidence": 0.85
-        },
-        {
-          "id": "mined_googleapis_track_user_fraction",
-          "said": null,
-          "expected": "releases",
-          "confidence": 0.85
-        },
-        {
-          "id": "mined_datadoghq_recommendations_filter_request_scope",
-          "said": null,
-          "expected": "data",
-          "confidence": 0.9
-        },
-        {
-          "id": "mined_datadoghq_recommendations_filter_request_sort",
-          "said": null,
-          "expected": "data",
-          "confidence": 0.9
-        },
-        {
-          "id": "mined_datadoghq_recommendations_filter_request_view",
-          "said": null,
-          "expected": "data",
-          "confidence": 0.86
-        }
-      ]
+      "wrongCases": []
     }
   ]
 }

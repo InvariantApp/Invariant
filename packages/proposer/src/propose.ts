@@ -65,18 +65,38 @@ const RENAME_GUESS_CONFIDENCE = 0.5;
 /** Below this, a draft is marked for explicit attention rather than assumed good. */
 export const DEFAULT_ATTENTION_THRESHOLD = 0.6;
 
+/** The confidence a judge's answer needs, by what the answer says. */
+export interface AnswerThreshold {
+  /** For an answer naming the field that replaced the removed one. */
+  named: number;
+  /** For an answer that nothing replaced it. */
+  none: number;
+}
+
 /**
  * The confidence each judge's answer needs before it becomes a draft, as
  * `eval/ownership.yaml` measured it. Confidence is not comparable between
- * judges: Jev is right on everything it answers from 0.6, while S2 was wrong
- * nine times between 0.6 and 0.8 and never above 0.81, so one floor for both
- * would let the second guess where the first would not.
+ * judges: S2 was wrong nine times between 0.6 and 0.8 and never above 0.81,
+ * so one floor for both would let one guess where the other would not.
+ *
+ * Nor is it comparable between Jev's two kinds of answer. On the 651 cases
+ * of 2026-09-24, its last wrong answer that nothing replaced a field was at
+ * 0.85 and its last wrong answer naming one at 0.93, so one floor of 0.6
+ * left fourteen wrong answers above it. Both floors sit above the last
+ * error; they were read off the same corpus they are measured on, so the
+ * next mined cases are what tests them.
  */
-export const ANSWER_THRESHOLDS: Readonly<Record<JudgeId, number>> = {
-  rules: DEFAULT_ATTENTION_THRESHOLD,
-  jev: 0.6,
-  s2: 0.85,
+export const ANSWER_THRESHOLDS: Readonly<Record<JudgeId, AnswerThreshold>> = {
+  rules: { named: DEFAULT_ATTENTION_THRESHOLD, none: DEFAULT_ATTENTION_THRESHOLD },
+  jev: { named: 0.95, none: 0.9 },
+  s2: { named: 0.85, none: 0.85 },
 };
+
+/** The floor an answer is held to, by the judge that gave it and what it says. */
+export function answerThreshold(judge: JudgeId, successor: string | null): number {
+  const floors = ANSWER_THRESHOLDS[judge];
+  return successor === null ? floors.none : floors.named;
+}
 
 export interface Proposal {
   change: Change;
@@ -490,8 +510,12 @@ async function drafted(
   newContract: Parameters<typeof schemaDeltas>[1],
   options: ProposeOptions,
 ): Promise<ProposeOutcome> {
+  // Only answers naming a field are held to it: one that nothing replaced a
+  // field drafts the same removal whether it is believed or not.
   const thresholdFor = (judge: JudgeId) =>
-    options.attentionThreshold ?? ANSWER_THRESHOLDS[judge] ?? DEFAULT_ATTENTION_THRESHOLD;
+    options.attentionThreshold ??
+    ANSWER_THRESHOLDS[judge]?.named ??
+    DEFAULT_ATTENTION_THRESHOLD;
   // Before anything about fields: did the whole API move? Versioning by URL
   // prefix is how most real APIs express a version, and left undetected it
   // reports every endpoint as removed and every new one as unrelated.

@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "risk",
+    "confidence": 0.875,
+    "scores": {
+      "risk": 0.875,
+      "risks": 0.25
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 146.136657,
+  "inputTokens": 1279,
+  "costUsd": 0.000053718
+}

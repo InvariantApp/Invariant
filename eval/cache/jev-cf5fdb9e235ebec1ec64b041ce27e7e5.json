@@ -1,0 +1,19 @@
+{
+  "answer": {
+    "successor": "alerts",
+    "confidence": 1,
+    "scores": {
+      "alerts": 1,
+      "alerts.*.message": 0.255,
+      "alerts.*.name": 0.4,
+      "alerts.*.severity": 0.115,
+      "alerts.*.type": 0.155
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 131.43112099999962,
+  "inputTokens": 2328,
+  "costUsd": 0.00009777600000000002
+}

@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "opening_hours",
+    "confidence": 1,
+    "scores": {
+      "opening_hours": 1,
+      "timezone": 0.005
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 145.7431579999975,
+  "inputTokens": 1273,
+  "costUsd": 0.000053466000000000006
+}

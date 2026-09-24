@@ -1,0 +1,28 @@
+{
+  "answer": {
+    "successor": "ConsumedCapacity",
+    "confidence": 0.24,
+    "scores": {
+      "ConsumedCapacity": 0.885,
+      "ItemCollectionMetrics": 0,
+      "ConsumedCapacity.TableName": 0.015,
+      "ConsumedCapacity.CapacityUnits": 0.875,
+      "ConsumedCapacity.ReadCapacityUnits": 0.17,
+      "ConsumedCapacity.WriteCapacityUnits": 0.825,
+      "ConsumedCapacity.Table": 0.465,
+      "ConsumedCapacity.Table.ReadCapacityUnits": 0.19,
+      "ConsumedCapacity.Table.WriteCapacityUnits": 0.665,
+      "ConsumedCapacity.Table.CapacityUnits": 0.835,
+      "ConsumedCapacity.LocalSecondaryIndexes": 0.21,
+      "ConsumedCapacity.GlobalSecondaryIndexes": 0.29,
+      "ItemCollectionMetrics.ItemCollectionKey": 0,
+      "ItemCollectionMetrics.SizeEstimateRangeGB": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 187.44155599999976,
+  "inputTokens": 5832,
+  "costUsd": 0.00024494400000000003
+}

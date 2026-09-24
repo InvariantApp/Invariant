@@ -1,0 +1,22 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.47,
+    "scores": {
+      "ref": 0.04,
+      "name": 0.015,
+      "type": 0.02,
+      "profileId": 0.17,
+      "agentConnectConnectionId": 0.03,
+      "addresses": 0.185,
+      "addresses.*.channel": 0.05,
+      "addresses.*.address": 0.345
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 157.691648,
+  "inputTokens": 3254,
+  "costUsd": 0.000136668
+}

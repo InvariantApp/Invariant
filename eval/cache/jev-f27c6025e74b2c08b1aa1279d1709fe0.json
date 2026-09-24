@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "street",
+    "confidence": 0.63,
+    "scores": {
+      "street": 0.63,
+      "line2": 0.095
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 136.68928099999994,
+  "inputTokens": 1251,
+  "costUsd": 0.000052542
+}

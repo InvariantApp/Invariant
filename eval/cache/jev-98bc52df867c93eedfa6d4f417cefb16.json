@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "granularity_ms",
+    "confidence": 0.89,
+    "scores": {
+      "granularity_ms": 0.96,
+      "retention_days": 0.03
+    },
+    "stated": true,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 131.72026600000027,
+  "inputTokens": 1307,
+  "costUsd": 0.00005489400000000001
+}

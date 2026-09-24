@@ -13,6 +13,7 @@
  */
 import {
   ANSWER_THRESHOLDS,
+  type AnswerThreshold,
   JEV_MODEL,
   JevJudge,
   type Judge,
@@ -35,7 +36,8 @@ export interface Precision {
 export interface JudgePrecision {
   judge: string;
   model: string | null;
-  threshold: number;
+  /** The floors drafting holds its answers to: naming a field, and saying none did. */
+  threshold: AnswerThreshold;
   /** Cases with no recorded answer: a judge with any is not measured. */
   missing: number;
   overall: Precision;
@@ -58,10 +60,16 @@ export interface CorpusShape {
   byFamily: Record<string, number>;
 }
 
-function precisionOf(outcomes: readonly Outcome[], threshold: number): Precision {
-  const answered = outcomes.filter(
-    (outcome) => !outcome.abstained && outcome.confidence >= threshold,
-  );
+/** Whether an answer clears the floor for what it says. */
+const clears = (outcome: Outcome, threshold: AnswerThreshold) =>
+  !outcome.abstained &&
+  outcome.confidence >= (outcome.actual === null ? threshold.none : threshold.named);
+
+function precisionOf(
+  outcomes: readonly Outcome[],
+  threshold: AnswerThreshold,
+): Precision {
+  const answered = outcomes.filter((outcome) => clears(outcome, threshold));
   const wrong = answered.filter((outcome) => !outcome.correct).length;
   return {
     cases: outcomes.length,
@@ -77,7 +85,7 @@ export function judgePrecision(
   judge: string,
   model: string | null,
   outcomes: readonly Outcome[],
-  threshold: number,
+  threshold: AnswerThreshold,
   missing: number,
 ): JudgePrecision {
   const families = [...new Set(outcomes.flatMap((outcome) => outcome.tags))].sort();
@@ -102,10 +110,7 @@ export function judgePrecision(
       ]),
     ),
     wrongCases: outcomes
-      .filter(
-        (outcome) =>
-          !outcome.abstained && outcome.confidence >= threshold && !outcome.correct,
-      )
+      .filter((outcome) => clears(outcome, threshold) && !outcome.correct)
       .map((outcome) => ({
         id: outcome.caseId,
         said: outcome.actual,

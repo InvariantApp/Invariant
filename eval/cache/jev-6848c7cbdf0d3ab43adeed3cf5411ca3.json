@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "political_exposure",
+    "confidence": 0.96,
+    "scores": {
+      "political_exposure": 0.99,
+      "relationship": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 170.712039,
+  "inputTokens": 1285,
+  "costUsd": 0.00005397
+}

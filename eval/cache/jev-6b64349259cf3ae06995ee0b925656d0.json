@@ -1,0 +1,21 @@
+{
+  "answer": {
+    "successor": "ContainerSpec.Healthcheck",
+    "confidence": 0.95,
+    "scores": {
+      "ContainerSpec.Healthcheck": 0.99,
+      "ContainerSpec.Healthcheck.Test": 0.58,
+      "ContainerSpec.Healthcheck.Interval": 0.235,
+      "ContainerSpec.Healthcheck.Timeout": 0.305,
+      "ContainerSpec.Healthcheck.Retries": 0.23,
+      "ContainerSpec.Healthcheck.StartPeriod": 0.265,
+      "ContainerSpec.Healthcheck.StartInterval": 0.165
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 137.85782300000028,
+  "inputTokens": 3290,
+  "costUsd": 0.00013818
+}

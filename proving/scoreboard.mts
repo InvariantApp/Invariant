@@ -506,6 +506,13 @@ const LABELLED_TARGET = 600;
 const MINED_SHARE = 0.4;
 const PRECISION_TARGET = 0.99;
 
+/** A judge's floors as the line reads them: one number where both are the same. */
+function floors(threshold: JudgeResults["judges"][number]["threshold"]): string {
+  return threshold.named === threshold.none
+    ? String(threshold.named)
+    : `${threshold.named} naming a field, ${threshold.none} saying none did`;
+}
+
 function judgeLine(
   results: JudgeResults | undefined,
   servers: ServerResult[] | undefined,
@@ -537,7 +544,7 @@ function judgeLine(
         judge.overall.answered > 0 &&
         families.every(([, at]) => at.precision >= PRECISION_TARGET),
       text:
-        `${judge.judge}${judge.model ? ` (${judge.model}${role})` : ""} at ${judge.threshold}: ` +
+        `${judge.judge}${judge.model ? ` (${judge.model}${role})` : ""} at ${floors(judge.threshold)}: ` +
         `${percent(judge.overall.answered - judge.overall.wrong, judge.overall.answered)} on ${judge.overall.answered} answered ` +
         `(mined ${percent(judge.mined.answered - judge.mined.wrong, judge.mined.answered)} on ${judge.mined.answered}), ` +
         `${judge.overall.wrong} wrong${lowest}${missing}`,

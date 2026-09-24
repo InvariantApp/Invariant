@@ -1,0 +1,29 @@
+{
+  "answer": {
+    "successor": "credentials",
+    "confidence": 0.61,
+    "scores": {
+      "activated": 0,
+      "created": 0,
+      "credentials": 0.64,
+      "id": 0.005,
+      "lastLogin": 0.005,
+      "lastUpdated": 0.005,
+      "passwordChanged": 0.055,
+      "profile": 0.05,
+      "realmId": 0.005,
+      "status": 0.055,
+      "statusChanged": 0.02,
+      "transitioningToStatus": 0.005,
+      "type": 0.005,
+      "_embedded": 0.02,
+      "_links": 0.035
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 170.26210600000013,
+  "inputTokens": 6219,
+  "costUsd": 0.00026119800000000003
+}

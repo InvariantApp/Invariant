@@ -1,0 +1,39 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.68,
+    "scores": {
+      "individual_owners.*.id": 0.005,
+      "individual_owners.*.addresses.*.inactive": 0.005,
+      "individual_owners.*.phones.*.inactive": 0.025,
+      "individual_owners.*.documents.*.id": 0,
+      "individual_owners.*.documents.*.links": 0,
+      "business_entity.names.*.id": 0,
+      "business_entity.addresses.*.inactive": 0.005,
+      "business_entity.phones.*.inactive": 0.03,
+      "business_entity.documents.*.id": 0,
+      "business_entity.documents.*.links": 0,
+      "business_entity.office_bearers.*.id": 0.005,
+      "business_entity.beneficial_owners.individual_beneficial_owners.*.id": 0.005,
+      "business_entity.office_bearers.*.addresses.*.inactive": 0.01,
+      "business_entity.office_bearers.*.phones.*.inactive": 0.015,
+      "business_entity.office_bearers.*.documents.*.id": 0.005,
+      "business_entity.office_bearers.*.documents.*.links": 0.005,
+      "individual_owners.*.documents.*.links.*.href": 0,
+      "individual_owners.*.documents.*.links.*.rel": 0,
+      "individual_owners.*.documents.*.links.*.method": 0,
+      "business_entity.documents.*.links.*.href": 0,
+      "business_entity.documents.*.links.*.rel": 0,
+      "business_entity.documents.*.links.*.method": 0,
+      "business_entity.office_bearers.*.documents.*.links.*.href": 0.005,
+      "business_entity.office_bearers.*.documents.*.links.*.rel": 0.005,
+      "business_entity.office_bearers.*.documents.*.links.*.method": 0.005
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 192.03357099999994,
+  "inputTokens": 9465,
+  "costUsd": 0.00039753
+}

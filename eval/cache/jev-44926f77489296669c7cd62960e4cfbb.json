@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "compensation",
+    "confidence": 0.935,
+    "scores": {
+      "compensation": 0.935,
+      "bonus_target": 0.01
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 127.04417599999942,
+  "inputTokens": 1282,
+  "costUsd": 0.000053844
+}

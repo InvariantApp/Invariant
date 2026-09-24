@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "lastTransactionAt",
+    "confidence": 0.175,
+    "scores": {
+      "lastTransactionAt": 0.175,
+      "firmwareVersion": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 137.62327500000174,
+  "inputTokens": 1300,
+  "costUsd": 0.0000546
+}

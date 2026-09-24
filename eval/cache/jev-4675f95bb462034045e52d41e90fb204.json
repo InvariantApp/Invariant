@@ -1,0 +1,23 @@
+{
+  "answer": {
+    "successor": "data.attributes.view",
+    "confidence": 0.99,
+    "scores": {
+      "data": 0.16,
+      "data.attributes": 0.325,
+      "data.attributes.scope": 0.01,
+      "data.attributes.sort": 0,
+      "data.attributes.sort.*.expression": 0.005,
+      "data.attributes.sort.*.order": 0.005,
+      "data.attributes.view": 1,
+      "data.id": 0.01,
+      "data.type": 0.01
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 182.1354539999993,
+  "inputTokens": 3626,
+  "costUsd": 0.000152292
+}

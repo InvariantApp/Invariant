@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.51,
+    "scores": {
+      "payout_batch_fee": 0.11,
+      "transaction_status": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 137.55514600000242,
+  "inputTokens": 1328,
+  "costUsd": 0.000055776
+}

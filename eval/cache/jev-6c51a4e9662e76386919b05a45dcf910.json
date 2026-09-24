@@ -1,0 +1,23 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.63,
+    "scores": {
+      "IntOptions": 0.18,
+      "DoubleOptions": 0.055,
+      "DateOptions": 0.02,
+      "LatLonOptions": 0.015,
+      "IntArrayOptions": 0.155,
+      "DoubleArrayOptions": 0.04,
+      "LiteralArrayOptions": 0.02,
+      "TextArrayOptions": 0.025,
+      "DateArrayOptions": 0.02
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 150.0502039999992,
+  "inputTokens": 3943,
+  "costUsd": 0.00016560600000000003
+}

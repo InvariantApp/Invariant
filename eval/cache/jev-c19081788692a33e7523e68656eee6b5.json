@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "prepaid",
+    "confidence": 0.25,
+    "scores": {
+      "funding": 0.95,
+      "prepaid": 0.79
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 124.31695000000036,
+  "inputTokens": 1288,
+  "costUsd": 0.000054096000000000005
+}

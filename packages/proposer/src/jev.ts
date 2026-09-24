@@ -57,19 +57,19 @@ const ALIGNMENT_LEVELS: ScoreCriteria = [
 /**
  * What the successor is chosen from, and what choosing none means.
  *
- * Both name nesting, because the candidates do: a field inside an object the
- * change added is offered by its dotted path, and a value that moved into a
- * new wrapper went to that field rather than to the wrapper. Before the
- * candidates included them, every such move was answered as nothing
- * replacing the field, since the wrapper alone plainly does not hold it.
+ * Kept as they were. Telling Jev how to read a dotted candidate, a field
+ * inside an object the change added, was tried when those candidates were
+ * first offered, and it did not earn its place: on the 651 cases at 0.6 it
+ * took nesting from 96.6% to 98.3%, and adversarial cases from 98.1% to
+ * 96.2%, an injected instruction followed at 0.70. The candidates did the
+ * work; the sentence did not.
  */
 const SUCCESSOR_QUESTION = {
   question: "Which entry in `candidate_fields`, if any, is what `removed_field` became?",
-  decide_from:
-    "The names, types, and descriptions of the fields themselves. A name with dots, such as `data.attributes.scope`, is a field inside an object the change added: when the removed value moved into that object, it is the field inside it that holds the value, not the object around it.",
+  decide_from: "The names, types, and descriptions of the fields themselves.",
 } as const;
 const NONE_OPTION =
-  "None of them. The information `removed_field` carried is simply gone, not moved into any candidate at any depth.";
+  "None of them. The information `removed_field` carried is simply gone.";
 
 /** Highest level index, so a raw score reads back as 0 to 1 with no magic number. */
 const TOP_LEVEL = ALIGNMENT_LEVELS.length - 1;

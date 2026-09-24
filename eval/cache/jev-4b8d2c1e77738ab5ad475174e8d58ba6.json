@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "transfer",
+    "confidence": 0.565,
+    "scores": {
+      "payment": 0.595,
+      "transfer": 0.565
+    },
+    "stated": true,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 255.6912900000002,
+  "inputTokens": 1278,
+  "costUsd": 0.000053676000000000006
+}

@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "assigned_agent_id",
+    "confidence": 0.96,
+    "scores": {
+      "requester_id": 0.105,
+      "assigned_agent_id": 0.99
+    },
+    "stated": true,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 143.89442299999973,
+  "inputTokens": 1302,
+  "costUsd": 0.000054684
+}

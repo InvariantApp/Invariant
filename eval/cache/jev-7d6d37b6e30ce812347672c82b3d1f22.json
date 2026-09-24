@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "document_title",
+    "confidence": 0.83,
+    "scores": {
+      "document_title": 0.97,
+      "checksum": 0.085
+    },
+    "stated": true,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 127.58810899999935,
+  "inputTokens": 1296,
+  "costUsd": 0.000054432
+}

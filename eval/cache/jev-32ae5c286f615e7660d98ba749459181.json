@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "evidence_details",
+    "confidence": 0.92,
+    "scores": {
+      "evidence_details": 0.92,
+      "evidence_submitted_at": 0.03
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 161.2396009999993,
+  "inputTokens": 1272,
+  "costUsd": 0.000053424
+}

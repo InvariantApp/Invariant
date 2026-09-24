@@ -28,7 +28,11 @@ corpus:
       # to search. The 32 either could not settle, or disagreed on, are left
       # out; labels and reasons are in eval/mined/labels.json. The readers were
       # Claude agents, the family S2 is from, so S2's agreement with them is
-      # the figure most likely to flatter. The other 45 came from changelogs:
+      # the figure most likely to flatter. When the fields inside new wrappers
+      # came to be offered, the 57 questions whose label that could change
+      # were read again the same way, by two more Claude agents: they agreed
+      # on all 57, and 25 labels moved from a wrapper to the field inside it.
+      # The other 45 came from changelogs:
       sources:
         - https://docs.github.com/en/rest/about-the-rest-api/breaking-changes
         - https://docs.stripe.com/changelog/basil
@@ -62,18 +66,24 @@ tasks:
     jev:
       verdict: owns
       model: jev-1.13.0
-      confidenceThreshold: 0.6
-      selectiveAccuracy: 0.958
-      coverage: 1.0
-      # The number the threshold exists for. Every one of the ten errors falls
-      # below it, so nothing above it is wrong, and that holds on the mined
-      # half as well as on the written one.
+      measuredOn: 2026-09-24
+      # Two floors, by what the answer says (ANSWER_THRESHOLDS in
+      # packages/proposer/src/propose.ts). On all 651 cases at the single
+      # floor of 0.6 it used to have, fourteen answers were wrong above it:
+      # the last wrong "nothing replaced it" at 0.85, the last wrong named
+      # field at 0.93. Each floor sits above its last error. They were read
+      # off the corpus they are measured on, and Jev's confidence moves
+      # between runs by a few hundredths (an injected case answered at 0.57
+      # once was 0.63 when asked again), so the margins are thin and the next
+      # mined cases are what test them.
+      confidenceThreshold: { named: 0.95, none: 0.9 }
+      atSinglePointSix: { answered: 573, selectiveAccuracy: 0.976, answeredAndWrong: 14 }
       atThreshold:
-        answered: 211
-        coverage: 0.879
+        answered: 386
+        coverage: 0.593
         selectiveAccuracy: 1.0
         answeredAndWrong: 0
-        mined: { answered: 35, outOf: 45, selectiveAccuracy: 1.0, answeredAndWrong: 0 }
+        mined: { answered: 220, outOf: 358, selectiveAccuracy: 1.0, answeredAndWrong: 0 }
       note: >-
         May draft a Change for a person to review. It cannot merge one, and
         nothing it produces reaches a request path without passing the closure
@@ -117,6 +127,13 @@ tasks:
         of real data to the wrong field. Adversarial cases, including the
         injected ones, were all right.
 
+        Not measured on the 157 mined questions whose candidates changed on
+        2026-09-24, when the fields inside new wrappers came to be offered,
+        which include every case it got wrong. They are recorded by the
+        proving workflow's `judges` job, where its key is, and that job's
+        first run was refused: the account's credit balance was too low. On
+        the 494 it has answers for, 400 clear 0.85 and none is wrong.
+
     escalation:
       # What drafts: rules and Jev together, handing a question to S2 only
       # where they are less than 0.9 sure.
@@ -138,16 +155,17 @@ tasks:
         without this split is quoting the easier half.
 
 byFamily:
-  # At each judge's threshold on all 651 cases (eval/results.json). Nesting is
-  # the weak family now, for both judges and for the same reason: a value
-  # moved into a new wrapper object (Adyen's transaction rule conditions into
-  # `ruleRestrictions`, Datadog's recommendation filter into `data`, a Google
-  # Play track's `userFraction` into `releases`) answered as having no
-  # successor. That drafts a removal for the provider to decide about rather
-  # than moving data to the wrong field, but it is below the 99% L4b asks.
-  # Removals, the weak family on the first 240 cases, are no longer.
-  jev: { nesting: 0.852, type-change: 0.964, ambiguous: 0.975, decoy: 0.976, rename: 0.983, removal: 0.989, others: 1.0 }
-  s2: { nesting: 0.852, type-change: 0.974, others: 1.0 }
+  # At each judge's floors on all 651 cases (eval/results.json). Nesting was
+  # the weak family for both judges: a value moved into a new wrapper object
+  # (Adyen's transaction rule conditions into `ruleRestrictions`, Datadog's
+  # recommendation filter into `data`, a Google Play track's `userFraction`
+  # into `releases`) answered as having no successor, because only the
+  # wrapper was on offer. The fields inside new wrappers are now offered, and
+  # 25 mined labels became the field inside, where both readers agreed. At
+  # Jev's old floor of 0.6 that alone took nesting from 85.2% of 54 to 96.6%
+  # of 59; the two floors take every family to 100%, at 59% coverage.
+  jev: { all: 1.0 }
+  s2: { all: 1.0, unmeasured: 157 }
   rules: { all: 1.0 }
 
 calibration:

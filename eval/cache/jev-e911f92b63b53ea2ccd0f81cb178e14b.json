@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "bank_account_id",
+    "confidence": 0.915,
+    "scores": {
+      "bank_account_id": 0.915,
+      "bank_name": 0.38
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 193.8946390000001,
+  "inputTokens": 1266,
+  "costUsd": 0.000053172000000000005
+}

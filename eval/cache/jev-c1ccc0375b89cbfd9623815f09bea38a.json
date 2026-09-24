@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "experience_context",
+    "confidence": 0.765,
+    "scores": {
+      "experience_context": 0.765,
+      "payee": 0.2
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 144.48724800000127,
+  "inputTokens": 1287,
+  "costUsd": 0.000054054
+}

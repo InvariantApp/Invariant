@@ -1,0 +1,18 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.98,
+    "scores": {
+      "mapping": 0,
+      "mapping.*.variable": 0,
+      "mapping.*.source": 0.005,
+      "mapping.*.jsonPath": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 167.83140599999933,
+  "inputTokens": 2211,
+  "costUsd": 0.000092862
+}

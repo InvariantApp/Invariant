@@ -59,7 +59,11 @@ export interface JudgeResult {
 /** A failure's message, short and on one line, for a report. */
 export function failureOf(error: unknown): string {
   const text = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-  return text.replace(/\s+/g, " ").slice(0, 300);
+  // Without the request's id, so one cause reads as one failure.
+  return text
+    .replace(/,?\s*"request_id"\s*:\s*"[^"]*"/g, "")
+    .replace(/\s+/g, " ")
+    .slice(0, 300);
 }
 
 export interface Judge {

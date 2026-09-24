@@ -1,0 +1,21 @@
+{
+  "answer": {
+    "successor": "createTime",
+    "confidence": 0.99,
+    "scores": {
+      "createTime": 0.995,
+      "displayName": 0,
+      "pendingTasks": 0,
+      "state": 0,
+      "timeZone": 0.005,
+      "timeZone.id": 0,
+      "timeZone.version": 0.005
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 154.15803100000085,
+  "inputTokens": 2972,
+  "costUsd": 0.000124824
+}

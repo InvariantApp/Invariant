@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "failure_code",
+    "confidence": 0.95,
+    "scores": {
+      "failure_code": 0.99,
+      "failure_message": 0.765
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 134.61696299999994,
+  "inputTokens": 1302,
+  "costUsd": 0.000054684
+}
