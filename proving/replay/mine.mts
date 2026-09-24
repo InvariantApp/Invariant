@@ -17,7 +17,11 @@
  * Usage:
  *   GITHUB_TOKEN=... node --import tsx proving/replay/mine.mts [--months 24] [--limit 200]
  *     [--package stripe] [--ecosystem pypi] [--per-package 60] [--minutes 40]
- *     [--language javascript]
+ *     [--language javascript] [--per-repo 3]
+ *   node --import tsx proving/replay/mine.mts --merge index-*.json [--per-repo 3]
+ *
+ * `--merge` lays indexes mined apart, one package to a job, over the recorded
+ * one, keeping each repository's cap across them.
  *
  * `--language` searches only repositories GitHub says are written in it, and
  * caps each package's cases in that language alone: npm's bumps are mostly
@@ -102,6 +106,23 @@ const TARGETS: Target[] = [
         "stripe dahlia in:body",
         "stripe 2025-03-31 in:body",
         "current_period_end in:body",
+        // Older majors, which moved fields and API versions too: the replay
+        // types releases that ship no types from their specifications.
+        "stripe v11",
+        "stripe 11",
+        "stripe v10",
+        "stripe 10",
+        "stripe v8",
+        "stripe 8",
+        "stripe v7",
+        "stripe 7",
+        "stripe migration",
+        "migrate stripe",
+        "stripe upgrade",
+        "stripe webhook",
+        "StripeClient",
+        "stripe api_version in:body",
+        "stripe_version in:body",
       ],
       // The same people's pull requests in JavaScript and TypeScript.
       npm: [
@@ -129,7 +150,19 @@ const TARGETS: Target[] = [
     package: "twilio",
     ecosystems: ["npm", "pypi"],
     titles: ["Bump twilio from", "update dependency twilio to"],
-    searches: { pypi: ["upgrade twilio", "update twilio", "bump twilio", "twilio sdk"] },
+    searches: {
+      pypi: [
+        "upgrade twilio",
+        "update twilio",
+        "bump twilio",
+        "twilio sdk",
+        "twilio python",
+        "twilio 7",
+        "twilio 8",
+        "twilio 9",
+        "twilio upgrade",
+      ],
+    },
   },
   {
     package: "plaid",
@@ -141,7 +174,18 @@ const TARGETS: Target[] = [
     ecosystems: ["pypi"],
     titles: ["Bump plaid-python from", "update dependency plaid-python to"],
     // Each plaid-python major pins a new Plaid API version.
-    searches: { pypi: ["upgrade plaid", "update plaid", "plaid api version"] },
+    searches: {
+      pypi: [
+        "upgrade plaid",
+        "update plaid",
+        "plaid api version",
+        "plaid-python",
+        "plaid python",
+        "plaid upgrade",
+        "bump plaid",
+        "plaid link",
+      ],
+    },
   },
   {
     package: "@octokit/rest",
@@ -166,7 +210,21 @@ const TARGETS: Target[] = [
     ecosystems: ["npm", "pypi"],
     titles: ["Bump openai from", "update dependency openai to"],
     searches: {
-      pypi: ["upgrade openai", "migrate openai", "openai v1", "openai sdk"],
+      pypi: [
+        "upgrade openai",
+        "migrate openai",
+        "openai v1",
+        "openai sdk",
+        "openai 1.0",
+        "openai 1.x",
+        "openai v1.0",
+        "openai python",
+        "openai library",
+        "openai client",
+        "openai 2.0",
+        "openai v2",
+        "ChatCompletion",
+      ],
       npm: ["openai v4", "upgrade openai", "migrate openai"],
     },
   },
@@ -179,6 +237,41 @@ const TARGETS: Target[] = [
     package: "slack-sdk",
     ecosystems: ["pypi"],
     titles: ["Bump slack-sdk from", "update dependency slack-sdk to"],
+    searches: { pypi: ["slack_sdk", "slack sdk", "upgrade slack", "slack api"] },
+  },
+  {
+    // Anthropic's API moved from text completions to messages, and its
+    // model names retire on a schedule; the SDK's 0.x minors are its majors.
+    package: "anthropic",
+    ecosystems: ["pypi"],
+    titles: ["Bump anthropic from", "update dependency anthropic to"],
+    searches: {
+      pypi: [
+        "upgrade anthropic",
+        "update anthropic",
+        "bump anthropic",
+        "anthropic sdk",
+        "anthropic messages",
+        "messages api",
+        "anthropic client",
+        "claude 3",
+        "claude model",
+      ],
+    },
+  },
+  {
+    package: "sendgrid",
+    ecosystems: ["pypi"],
+    titles: ["Bump sendgrid from", "update dependency sendgrid to"],
+    searches: {
+      pypi: [
+        "upgrade sendgrid",
+        "update sendgrid",
+        "sendgrid 6",
+        "sendgrid v6",
+        "sendgrid api",
+      ],
+    },
   },
   {
     package: "PyGithub",
@@ -540,6 +633,33 @@ function months(count: number): { from: string; to: string }[] {
   return windows;
 }
 
+/**
+ * Indexes mined apart laid over `index`: each case not already in it, in the
+ * order found, while its repository is under the cap.
+ */
+export function mergeIndexes(
+  index: ReplayIndex,
+  others: readonly ReplayIndex[],
+  perRepo: number,
+): { index: ReplayIndex; added: number } {
+  const cases = [...index.cases];
+  const known = new Set(cases.map((entry) => entry.id));
+  const repos = new Map<string, number>();
+  for (const entry of cases) repos.set(entry.repo, (repos.get(entry.repo) ?? 0) + 1);
+  let added = 0;
+  for (const other of others) {
+    for (const entry of other.cases) {
+      if (known.has(entry.id) || (repos.get(entry.repo) ?? 0) >= perRepo) continue;
+      cases.push(entry);
+      known.add(entry.id);
+      repos.set(entry.repo, (repos.get(entry.repo) ?? 0) + 1);
+      added += 1;
+    }
+  }
+  cases.sort((a, b) => a.id.localeCompare(b.id));
+  return { index: { ...index, cases }, added };
+}
+
 async function readIndex(): Promise<ReplayIndex> {
   try {
     return JSON.parse(await readFile(INDEX, "utf8")) as ReplayIndex;
@@ -563,6 +683,9 @@ async function mine(): Promise<void> {
   // No one package may fill the index: go-github alone has hundreds of bumps a
   // year, and left uncapped it crowded out every SDK in another language.
   const perPackage = Number(option("per-package") ?? 60);
+  // Nor may one repository: a project that bumped the same SDK six times
+  // would weigh six times in the rate, for one team's way of writing code.
+  const perRepo = Number(option("per-repo") ?? 3);
   const only = option("package");
   const ecosystem = option("ecosystem") as Ecosystem | undefined;
   const onlyLanguage = option("language");
@@ -578,6 +701,29 @@ async function mine(): Promise<void> {
 
   const index = await readIndex();
   const known = new Set(index.cases.map((entry) => entry.id));
+  const repos = new Map<string, number>();
+  for (const entry of index.cases)
+    repos.set(entry.repo, (repos.get(entry.repo) ?? 0) + 1);
+
+  if (args.includes("--merge")) {
+    const files = args
+      .slice(args.indexOf("--merge") + 1)
+      .filter((arg, at, all) => !arg.startsWith("--") && all[at - 1] !== "--per-repo");
+    const merged = mergeIndexes(
+      index,
+      await Promise.all(
+        files.map(
+          async (file) => JSON.parse(await readFile(file, "utf8")) as ReplayIndex,
+        ),
+      ),
+      perRepo,
+    );
+    await writeFile(INDEX, `${JSON.stringify(merged.index, null, 2)}\n`, "utf8");
+    process.stdout.write(
+      `${merged.added} cases added; ${merged.index.cases.length} in the index\n`,
+    );
+    return;
+  }
   const licences = new Map<string, { license: string; fork: boolean }>();
   let added = 0;
 
@@ -655,6 +801,7 @@ async function mine(): Promise<void> {
               );
               const id = `${repo}#${item.number}`;
               if (known.has(id)) continue;
+              if ((repos.get(repo) ?? 0) >= perRepo) continue;
               // A bot's title names the versions; a person's pull request
               // says what it upgraded in its manifests, read below.
               let bump = parseBump(item.title, target);
@@ -709,6 +856,7 @@ async function mine(): Promise<void> {
                 files: kind.sources,
               });
               known.add(id);
+              repos.set(repo, (repos.get(repo) ?? 0) + 1);
               added += 1;
               if (
                 !onlyLanguage ||

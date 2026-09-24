@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bumpInPatches, classify, isMajor, parseBump } from "./mine.mts";
+import { bumpInPatches, classify, isMajor, mergeIndexes, parseBump } from "./mine.mts";
 
 describe("what a person's pull request upgraded", () => {
   it("reads the versions from the manifests' diff", () => {
@@ -101,5 +101,41 @@ describe("classifying a pull request's files", () => {
     expect(
       classify(["Gemfile", "Gemfile.lock", "app/pay.rb"], ["npm", "pypi"]),
     ).toBeUndefined();
+  });
+});
+
+describe("indexes mined apart", () => {
+  const entry = (repo: string, pr: number) => ({
+    id: `${repo}#${pr}`,
+    repo,
+    pr,
+    base: "a",
+    head: "b",
+    package: "stripe",
+    ecosystem: "pypi" as const,
+    from: "11.0.0",
+    to: "12.0.0",
+    license: "MIT",
+    mergedAt: "2026-01-01T00:00:00Z",
+    files: ["app.py"],
+  });
+
+  it("are laid over the recorded one, each repository kept under its cap", () => {
+    const recorded = { about: "", cases: [entry("a/one", 1), entry("a/one", 2)] };
+    const merged = mergeIndexes(
+      recorded,
+      [
+        { about: "", cases: [entry("a/one", 1), entry("a/one", 3), entry("b/two", 1)] },
+        { about: "", cases: [entry("a/one", 4), entry("b/two", 1)] },
+      ],
+      3,
+    );
+    expect(merged.added).toBe(2);
+    expect(merged.index.cases.map((each) => each.id)).toEqual([
+      "a/one#1",
+      "a/one#2",
+      "a/one#3",
+      "b/two#1",
+    ]);
   });
 });
