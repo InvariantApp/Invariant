@@ -52,7 +52,15 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Record what is not yet recorded
+      # Jev first and on its own, so an S2 account without credit leaves
+      # Jev's answers recorded. Each step reads only the key it needs.
+      - name: Record Jev's answers not yet recorded
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: node --import tsx eval/record.mts --judges jev
+
+      - name: Record S2's answers not yet recorded
+        continue-on-error: true
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: node --import tsx eval/record.mts --judges s2 --prune
