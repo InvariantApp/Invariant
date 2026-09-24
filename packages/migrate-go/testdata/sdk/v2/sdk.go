@@ -47,6 +47,19 @@ func (s *IssuesService) UpdateComment(ctx context.Context, owner, repo string, i
 	return nil, nil
 }
 
+// ReactionsOptions pages through a user's reactions.
+type ReactionsOptions struct {
+	User   string `json:"user"`
+	Cursor string `json:"cursor"`
+}
+
+// ListReactions lists a user's reactions.
+//
+//meta:operation GET /reactions
+func (s *IssuesService) ListReactions(ctx context.Context, opts ReactionsOptions) ([]string, error) {
+	return nil, nil
+}
+
 // ActionsService is the Actions part of the API.
 type ActionsService struct{}
 
