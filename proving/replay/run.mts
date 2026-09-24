@@ -290,6 +290,46 @@ async function prefetch(repo: string, blobs: readonly string[]): Promise<void> {
  * constant they pass comes in through their own imports, which the engine
  * follows. Reading every file of a monorepo instead ran out of memory.
  */
+/**
+ * The files that import one of `sources` by a relative path and write one of
+ * `names`: a test of the consumer's own module holding a stand-in for a
+ * response the upgrade reshaped. hiroppy's web-app-template tests its
+ * subscription handler in a file that never imports the SDK, with
+ * `current_period_end` in the stand-in it passes; read only as the files
+ * that import the SDK, the replay never showed the engine that file.
+ */
+export function importers(
+  repo: string,
+  paths: readonly string[],
+  sources: readonly string[],
+  names: readonly string[],
+): string[] {
+  if (names.length === 0) return [];
+  const escaped = names.map((name) => name.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&"));
+  const named = new RegExp(`\\b(?:${escaped.join("|")})\\b`);
+  const stem = (path: string) => path.replace(/(\/index)?\.[cm]?[jt]sx?$/, "");
+  const imported = new Set(sources.map(stem));
+  const given = new Set(sources);
+  const specifier = /(?:from|import|require\()\s*['"](\.{1,2}\/[^'"]+)['"]/g;
+  return paths
+    .map((path) => join(repo, path))
+    .filter((path) => {
+      if (given.has(path)) return false;
+      let text: string;
+      try {
+        text = readFileSync(path, "utf8");
+      } catch {
+        return false;
+      }
+      if (!named.test(text)) return false;
+      for (const match of text.matchAll(specifier)) {
+        const target = stem(join(dirname(path), match[1] as string));
+        if (imported.has(target)) return true;
+      }
+      return false;
+    });
+}
+
 export function importing(
   repo: string,
   paths: readonly string[],
@@ -772,7 +812,21 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
           : {}),
       };
       const resolution = await pathsOf(repo, entry.base);
-      const sources = importing(repo, readable, entry.package);
+      const direct = importing(repo, readable, entry.package);
+      // The names of the fields the upgrade took away, for the files that
+      // hand the SDK's modules a stand-in holding one.
+      const gone = [
+        ...new Set(
+          (contract?.changes ?? []).flatMap((change) =>
+            change.ops.flatMap((op) =>
+              op.op === "remove" || op.op === "move"
+                ? [(op.op === "move" ? op.from : op.path).split("/").at(-1) ?? ""]
+                : [],
+            ),
+          ),
+        ),
+      ].filter((name) => /^[a-z]\w{3,}$/.test(name));
+      const sources = [...direct, ...importers(repo, readable, direct, gone)];
       const began = Date.now();
       const result = await migrate({
         repoDir: `${repo}/`,
