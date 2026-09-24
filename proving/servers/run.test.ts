@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  combineRuns,
   compareArms,
   expand,
   type PairResult,
@@ -85,6 +86,50 @@ describe("comparing the three arms", () => {
   });
 });
 
+describe("running an arm more than once", () => {
+  // Immich's library scan test waits on a job that makes thumbnails, and
+  // failed through the proxy once and passed the next time, against the same
+  // server: a serving that depended on the run, not on the adapter.
+  it("keeps what every run agreed on and sets aside what they did not", () => {
+    const combined = combineRuns([
+      { outcomes: { t1: "passed", t2: "failed", t3: "passed" }, messages: { t2: "no" } },
+      {
+        outcomes: { t1: "passed", t2: "failed", t3: "failed" },
+        messages: { t2: "no", t3: "late" },
+      },
+    ]);
+    expect(combined).toEqual({
+      outcomes: { t1: "passed", t2: "failed", t3: "failed" },
+      messages: { t2: "no", t3: "late" },
+      volatile: ["t3"],
+    });
+  });
+
+  it("is an arm that did not run when any run of it did not", () => {
+    expect(
+      combineRuns([{ outcomes: { t1: "passed" } }, { outcomes: {}, error: "no server" }]),
+    ).toEqual({ outcomes: {}, error: "no server" });
+  });
+
+  it("leaves a volatile test out of every count, whichever arm it wavered in", () => {
+    const arms = {
+      a: { outcomes: { t1: "passed", t2: "passed", t3: "passed" } as const },
+      b: { outcomes: { t1: "failed", t2: "failed", t3: "passed" } as const },
+      c: {
+        outcomes: { t1: "passed", t2: "failed", t3: "failed" } as const,
+        volatile: ["t2", "t3"],
+      },
+    };
+    expect(compareArms(arms)).toEqual({
+      valid: 1,
+      broken: ["t1"],
+      served: ["t1"],
+      regressions: [],
+      volatile: ["t2", "t3"],
+    });
+  });
+});
+
 function pair(
   project: string,
   language: string,
@@ -149,6 +194,7 @@ describe("what the pairs prove", () => {
       served: 2,
       regressions: 0,
       vacuous: 1,
+      volatile: 0,
     });
   });
 

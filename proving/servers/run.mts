@@ -57,6 +57,7 @@ import {
 import { ROOT } from "../corpus/manifest.mts";
 import {
   type ArmResult,
+  combineRuns,
   compareArms,
   expand,
   type GateSummary,
@@ -84,9 +85,17 @@ interface Release {
 /** A command, as an argument vector with `{placeholders}`. */
 type Command = string[];
 
+/**
+ * How many times each arm runs, unless a project says otherwise. Two is the
+ * fewest that can show a test disagreeing with itself.
+ */
+const RUNS = 2;
+
 interface Project {
   name: string;
   language: string;
+  /** How many times each arm runs, where the default is not enough or too many. */
+  runs?: number;
   /** Why the suite is run as it is, where that departs from the project's own CI. */
   notes?: string;
   repo: string;
@@ -789,8 +798,25 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
     }
   };
 
-  const a = await arm("a", from);
-  const b = await arm("b", to);
+  // Each arm runs the same number of times, each on a fresh server, and a
+  // test the runs of one arm disagree on is set aside rather than counted.
+  const runs = project.runs ?? RUNS;
+  const repeated = async (
+    label: string,
+    tag: string,
+    through?: { program: unknown },
+  ): Promise<ArmResult> => {
+    const results: ArmResult[] = [];
+    for (let run = 1; run <= runs; run += 1) {
+      const result = await arm(runs > 1 ? `${label}${run}` : label, tag, through);
+      results.push(result);
+      // An arm that cannot run at all will not run the second time either.
+      if (result.error) break;
+    }
+    return combineRuns(results);
+  };
+  const a = await repeated("a", from);
+  const b = await repeated("b", to);
 
   let gate: GateSummary;
   let c: ArmResult;
@@ -809,7 +835,7 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
     changes = checked.report.steps.at(-1)?.changes.length ?? 0;
     log(`  ${changes} Changes (${gate.changesFrom}), the gate says ${gate.result}`);
     c = checked.report.program
-      ? await arm("c", to, { program: checked.report.program })
+      ? await repeated("c", to, { program: checked.report.program })
       : {
           outcomes: {},
           error: "the gate blocks the release, so there is no program to run",
