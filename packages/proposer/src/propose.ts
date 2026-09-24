@@ -15,6 +15,7 @@ import {
   keepsNames,
   type OpenApiDocument,
   referencesAlike,
+  resolveRef,
   resolveSchema,
   schemaDirections,
   unannotated,
@@ -23,6 +24,7 @@ import {
   type Change,
   isJsonObject,
   type JsonValue,
+  movesBothWays,
   narrows,
   type Op,
   type ScalarType,
@@ -51,6 +53,7 @@ import { questionsFor } from "./judge.ts";
 import { describePrefixMove, detectPrefixMove, prefixChange } from "./prefix.ts";
 import { type Restatement, restatements } from "./restate.ts";
 import { stemOf, UNIT_SUFFIXES } from "./rules.ts";
+import { inlineVariantChanges } from "./variants.ts";
 import { foldDecisions, retiredValueDecisions, retiredValues } from "./vocabulary.ts";
 
 /**
@@ -609,6 +612,18 @@ async function drafted(
     };
   });
 
+  // A union written in place that gained kinds written in place, which no
+  // field comparison sees: the branches have no names to compare.
+  const widenedInPlace: Proposal[] = inlineVariantChanges(oldContract, newContract).map(
+    ({ change, notes }) => ({
+      change,
+      judge: "rules" as const,
+      confidence: 1,
+      attention: "normal" as const,
+      notes,
+    }),
+  );
+
   const altered = alteredProposals(deltas, oldContract, newContract);
   const added = additions(deltas, oldContract);
   const gone = removals(deltas, oldContract);
@@ -630,6 +645,7 @@ async function drafted(
     ...regrouped.proposals,
     ...added.proposals,
     ...gone.proposals,
+    ...widenedInPlace,
   );
   const unresolved: Unresolved[] = [
     ...altered.unresolved,
@@ -1485,16 +1501,24 @@ function sameValues(
   only?: "choice",
 ): boolean {
   if (!sides.request && !sides.response) return false;
-  const was = statementAt(
-    oldContract,
-    delta.roots?.old ?? { $ref: `#/components/schemas/${delta.schema}` },
-    pair.old.pointer,
-  );
-  const now = statementAt(
-    newContract,
-    delta.roots?.new ?? { $ref: `#/components/schemas/${delta.newSchema}` },
-    pair.new.pointer,
-  );
+  // A place compared under a name of its own making, as a field written out
+  // where a named schema was, has no root to read here, and is not restated.
+  const root = (document: OpenApiDocument, name: string) => {
+    const ref = `#/components/schemas/${name.replaceAll("~", "~0").replaceAll("/", "~1")}`;
+    return resolveRef(document, ref) === undefined ? undefined : { $ref: ref };
+  };
+  const oldRoot = delta.roots?.old ?? root(oldContract, delta.schema);
+  const newRoot = delta.roots?.new ?? root(newContract, delta.newSchema);
+  if (oldRoot === undefined || newRoot === undefined) return false;
+  let was: JsonValue | undefined;
+  let now: JsonValue | undefined;
+  try {
+    was = statementAt(oldContract, oldRoot, pair.old.pointer);
+    now = statementAt(newContract, newRoot, pair.new.pointer);
+  } catch {
+    // A reference on the way that leads nowhere: nothing to prove it on.
+    return false;
+  }
   if (was === undefined || now === undefined) return false;
   if (JSON.stringify(unannotated(was)) === JSON.stringify(unannotated(now))) return false;
   if (only === "choice") {
@@ -1566,7 +1590,15 @@ export function relaxOps(
     sides.request && narrowed.length > 0
       ? `\`${old.name}\` now allows less (${narrowed.join(", ")}) in requests, so old callers will be refused for values their contract allowed; no Change can hide that`
       : undefined;
-  const widened = changed.filter((keyword) => !narrowed.includes(keyword));
+  // A pattern or format replaced by one nothing can compare it with narrows
+  // and widens at once: declared on a response old callers only receive,
+  // and reported, as any narrowing is, where they send it too.
+  const widened = changed.filter(
+    (keyword) =>
+      !narrowed.includes(keyword) ||
+      (!sides.request &&
+        movesBothWays(keyword, before[keyword], set[keyword] as JsonValue)),
+  );
   const declared = unresolved === undefined ? changed : widened;
   if (!sides.response || widened.length === 0) {
     return { ops: [], notes: [], ...(unresolved ? { unresolved } : {}) };

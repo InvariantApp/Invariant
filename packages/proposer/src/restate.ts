@@ -161,7 +161,42 @@ function choicesMoved(
   const was = choicesIn(before, oldSchemas);
   const now = choicesIn(after, newSchemas);
   const places = new Set([...was.keys(), ...now.keys()]);
-  return [...places].filter((place) => was.get(place) !== now.get(place));
+  const moved = [...places].filter((place) => was.get(place) !== now.get(place));
+  // Null said one way on one side and the other way on the other: Resend's
+  // 3.1 document said an event's `schema` may be null with 3.0's flag, and
+  // later with a list of types. The differ reads the flag alone.
+  const nullBefore = nullSpellingsIn(before);
+  const nullAfter = nullSpellingsIn(after);
+  for (const [place, spelling] of nullBefore) {
+    const other = nullAfter.get(place);
+    if (other !== undefined && other !== spelling && !moved.includes(place)) {
+      moved.push(place);
+    }
+  }
+  return moved;
+}
+
+/** How each place written in place says it may be null, where it says so. */
+function nullSpellingsIn(
+  schema: JsonValue,
+  pointer = "",
+  found = new Map<string, "flag" | "types">(),
+  depth = 0,
+): Map<string, "flag" | "types"> {
+  if (!isJsonObject(schema) || depth > DEPTH) return found;
+  const type = schema["type"];
+  if (schema["nullable"] === true && !Array.isArray(type)) found.set(pointer, "flag");
+  else if (
+    Array.isArray(type) &&
+    type.includes("null") &&
+    schema["nullable"] === undefined
+  ) {
+    found.set(pointer, "types");
+  }
+  for (const [key, child] of Object.entries(childrenOf(schema))) {
+    nullSpellingsIn(child, `${pointer}/${key}`, found, depth + 1);
+  }
+  return found;
 }
 
 function choicesIn(

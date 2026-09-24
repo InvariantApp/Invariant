@@ -2827,3 +2827,347 @@ describe("a response vocabulary that opened, moved or grew from nothing", () => 
     expect(outcome.unresolved).toEqual([]);
   });
 });
+
+/** A document of one operation, answered with `response` and sent `request`, and these schemas. */
+function operation(
+  schemas: Record<string, Schema>,
+  { request, response }: { request?: Schema; response?: Schema },
+): OpenApiDocument {
+  const body = (schema: Schema) => ({ content: { "application/json": { schema } } });
+  return {
+    openapi: "3.1.0",
+    info: { title: "t", version: "1" },
+    paths: {
+      "/things": {
+        [request ? "patch" : "get"]: {
+          operationId: request ? "patchThings" : "listThings",
+          ...(request ? { requestBody: body(request) } : {}),
+          responses: {
+            "200": { description: "ok", ...(response ? body(response) : {}) },
+          },
+        },
+      },
+    },
+    components: { schemas },
+  } as unknown as OpenApiDocument;
+}
+
+describe("a body that is a list written in place", () => {
+  // Sentry lists an organization's dashboards as a list written into the
+  // operation, and each came to carry `isHidden`.
+  const dashboards = (fields: Record<string, Schema>, required: string[]) =>
+    operation(
+      {},
+      {
+        response: {
+          type: "array",
+          items: object({ id: { type: "string" }, ...fields }, ["id", ...required]),
+        },
+      },
+    );
+
+  it("is compared by its items", async () => {
+    const outcome = await propose(
+      dashboards({}, []),
+      dashboards({ isHidden: { type: "boolean" } }, ["isHidden"]),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.proposals.map((proposal) => proposal.change)).toMatchObject([
+      {
+        scopes: [{ operation: "listThings", response: "200" }],
+        ops: [{ op: "add", path: "/*/isHidden", value: null }],
+      },
+    ]);
+  });
+
+  it("asks what old callers are shown where a field each item carried went", async () => {
+    const outcome = await propose(
+      dashboards({ isHidden: { type: "boolean" } }, ["isHidden"]),
+      dashboards({}, []),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.decisions.map(decisionChange)).toMatchObject([
+      {
+        scopes: [{ operation: "listThings", response: "200" }],
+        ops: [{ op: "remove", path: "/*/isHidden", restore: CHOOSE_ONE }],
+      },
+    ]);
+  });
+});
+
+describe("a value of any kind, written three ways", () => {
+  // PayPal's JSON patch `value` was a choice of every JSON type, then a value
+  // that states nothing, then a list of every type. Each is any value.
+  const everyKind = {
+    anyOf: ["number", "integer", "string", "boolean", "null", "array", "object"].map(
+      (type) => ({ type }),
+    ),
+  };
+  const nothing = { title: "Patch Value" };
+  const everyType = {
+    title: "Patch Value",
+    type: ["number", "integer", "string", "boolean", "null", "array", "object"],
+  };
+  const patch = (value: Schema) =>
+    object({ op: { type: "string", enum: ["add", "remove"] }, value }, ["op"]);
+
+  it("is restated where a named schema's value stopped stating a type, and then listed every type", async () => {
+    const named = (value: Schema) =>
+      operation(
+        { Patch: patch(value) },
+        { request: { type: "array", items: { $ref: "#/components/schemas/Patch" } } },
+      );
+    const outcome = await propose(named(nothing), named(everyType), {
+      judge: new RulesJudge(),
+    });
+    expect(outcome.unresolved).toEqual([]);
+    expect(outcome.proposals.map((proposal) => proposal.change)).toMatchObject([
+      {
+        scopes: [{ schema: "#/components/schemas/Patch" }],
+        ops: [{ op: "restate", path: "/value" }],
+      },
+    ]);
+  });
+
+  it("is restated where a body written in place came to name the patch, and it may still be null", async () => {
+    const outcome = await propose(
+      operation({}, { request: { type: "array", items: patch(everyKind) } }),
+      operation(
+        { Patch: patch(nothing) },
+        { request: { type: "array", items: { $ref: "#/components/schemas/Patch" } } },
+      ),
+      { judge: new RulesJudge() },
+    );
+    // Nothing drops a null an old caller sends: the new value takes one too.
+    expect(outcome.proposals.map((proposal) => proposal.change)).toMatchObject([
+      {
+        scopes: [{ operation: "patchThings", location: "body" }],
+        ops: [{ op: "restate", path: "/*/value" }],
+      },
+    ]);
+  });
+
+  it("is not restated where old callers are sent fewer kinds of value than they were", async () => {
+    const outcome = await propose(
+      operation(
+        { Thing: object({ kind: { type: ["string", "integer"] } }) },
+        {
+          response: { $ref: "#/components/schemas/Thing" },
+        },
+      ),
+      operation(
+        { Thing: object({ kind: { type: "string" } }) },
+        { response: { $ref: "#/components/schemas/Thing" } },
+      ),
+      { judge: new RulesJudge() },
+    );
+    expect(
+      outcome.proposals.flatMap((proposal) => proposal.change.ops).map((op) => op.op),
+    ).not.toContain("restate");
+  });
+});
+
+describe("null said another way", () => {
+  // Resend's 3.1 document said an event's `schema` may be null with 3.0's
+  // flag, and a later release with a list of types.
+  it("is restated where the flag became a list of types", async () => {
+    const event = (schema: Schema) =>
+      operation(
+        { CreateEvent: object({ name: { type: "string" }, schema }) },
+        { request: { $ref: "#/components/schemas/CreateEvent" } },
+      );
+    const outcome = await propose(
+      event({ type: "object", nullable: true }),
+      event({ type: ["object", "null"] }),
+      { judge: new RulesJudge() },
+    );
+    // Proved for the whole schema, which says the same for everything in it.
+    expect(outcome.proposals.map((proposal) => proposal.change)).toMatchObject([
+      {
+        scopes: [{ schema: "#/components/schemas/CreateEvent" }],
+        ops: [{ op: "restate", path: "" }],
+      },
+    ]);
+  });
+});
+
+describe("a map of plain values", () => {
+  // Figma's rendered images map a node to a URL, and came to map a node that
+  // failed to render to null.
+  it("serves a value that may now be null as the map without it", async () => {
+    const images = (values: Schema) =>
+      operation(
+        {},
+        {
+          response: object({
+            images: { type: "object", additionalProperties: values },
+          }),
+        },
+      );
+    const outcome = await propose(
+      images({ type: "string", format: "uri" }),
+      images({ type: ["string", "null"], format: "uri" }),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.proposals.flatMap((proposal) => proposal.change.ops)).toEqual([
+      { op: "dropNull", path: "/images/{}", toward: "old" },
+    ]);
+  });
+});
+
+describe("a format replaced by one nothing can compare it with", () => {
+  // Twilio's phone number `capabilities` went from a `string-map` to
+  // `phone-number-capabilities`.
+  const phone = (format: string) =>
+    object({ capabilities: { type: "object", format, nullable: true } });
+
+  it("is declared on a response old callers only receive", async () => {
+    const outcome = await propose(
+      operation(
+        { Phone: phone("string-map") },
+        {
+          response: { $ref: "#/components/schemas/Phone" },
+        },
+      ),
+      operation(
+        { Phone: phone("phone-number-capabilities") },
+        {
+          response: { $ref: "#/components/schemas/Phone" },
+        },
+      ),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.proposals.flatMap((proposal) => proposal.change.ops)).toEqual([
+      {
+        op: "relax",
+        path: "/capabilities",
+        set: { format: "phone-number-capabilities" },
+      },
+    ]);
+  });
+
+  it("is reported, never relaxed, where old callers send it too", async () => {
+    const both = (format: string) =>
+      operation(
+        { Phone: phone(format) },
+        {
+          request: { $ref: "#/components/schemas/Phone" },
+          response: { $ref: "#/components/schemas/Phone" },
+        },
+      );
+    const outcome = await propose(both("string-map"), both("phone-number-capabilities"), {
+      judge: new RulesJudge(),
+    });
+    expect(
+      outcome.proposals.flatMap((proposal) => proposal.change.ops).map((op) => op.op),
+    ).not.toContain("relax");
+  });
+});
+
+describe("a value old callers send that lost values as others arrived", () => {
+  // Plaid's processor token request stopped taking `paynote` as two new
+  // processors arrived; an old caller never sends either new one.
+  it("asks which value each that went is sent as, among the ones accepted now", async () => {
+    const token = (values: string[]) =>
+      operation(
+        {
+          TokenCreate: object({ processor: { type: "string", enum: values } }, [
+            "processor",
+          ]),
+        },
+        { request: { $ref: "#/components/schemas/TokenCreate" } },
+      );
+    const outcome = await propose(
+      token(["dwolla", "paynote"]),
+      token(["dwolla", "seamlessach", "kikoff_enterprise"]),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.unresolved).toEqual([]);
+    expect(outcome.decisions).toMatchObject([
+      {
+        kind: "vocabulary",
+        direction: "request",
+        lost: ["paynote"],
+        gained: ["seamlessach", "kikoff_enterprise"],
+        choices: ["dwolla", "seamlessach", "kikoff_enterprise"],
+      },
+    ]);
+    expect(outcome.decisions.map(decisionChange)).toMatchObject([
+      {
+        ops: [
+          {
+            op: "convert",
+            path: "/processor",
+            codec: {
+              kind: "enumMap",
+              pairs: [
+                ["dwolla", "dwolla"],
+                ["paynote", CHOOSE_ONE],
+              ],
+            },
+          },
+        ],
+      },
+    ]);
+  });
+});
+
+describe("a union written in place that gained a kind written in place", () => {
+  // Supabase's upgrade eligibility lists what blocks an upgrade as a `oneOf`
+  // written into the list, and a release added a kind with no name.
+  const kind = (type: string, field: string) =>
+    object({ type: { type: "string", enum: [type] }, [field]: { type: "string" } }, [
+      "type",
+      field,
+    ]);
+  const eligibility = (kinds: Schema[]) =>
+    operation(
+      {
+        Eligibility: object({
+          validation_errors: { type: "array", items: { oneOf: kinds } },
+        }),
+      },
+      { response: { $ref: "#/components/schemas/Eligibility" } },
+    );
+  const extension = kind("unsupported_extension", "extension_name");
+  const indexes = kind("indexes_referencing_ll_to_earth", "index_name");
+
+  it("is widened by where the new kind is written, and left out of the list", async () => {
+    const outcome = await propose(
+      eligibility([extension]),
+      eligibility([extension, indexes]),
+      {
+        judge: new RulesJudge(),
+      },
+    );
+    expect(outcome.proposals.map((proposal) => proposal.change)).toMatchObject([
+      {
+        scopes: [{ schema: "#/components/schemas/Eligibility" }],
+        ops: [
+          {
+            op: "widen",
+            path: "/validation_errors/*",
+            variant:
+              "#/components/schemas/Eligibility/properties/validation_errors/items/oneOf/1",
+            show: "absent",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("is left alone where a kind it had changed, or the new one is not the last", async () => {
+    const changed = kind("unsupported_extension", "extension");
+    for (const after of [
+      [changed, indexes],
+      [indexes, extension],
+    ]) {
+      const outcome = await propose(eligibility([extension]), eligibility(after), {
+        judge: new RulesJudge(),
+      });
+      expect(
+        outcome.proposals.flatMap((proposal) => proposal.change.ops).map((op) => op.op),
+      ).not.toContain("widen");
+    }
+  });
+});

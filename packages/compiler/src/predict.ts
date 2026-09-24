@@ -26,7 +26,7 @@ import {
   type RouteOp,
   undecidedOps,
 } from "@invariant-app/ir";
-import { importReferences } from "./import.ts";
+import { importReferences, widenedBranch } from "./import.ts";
 import { applyParameterScope } from "./predict-parameters.ts";
 import { applyResponseScope, ownBody } from "./predict-responses.ts";
 import { proveRestated } from "./restate.ts";
@@ -641,11 +641,14 @@ export function predictDocument(
             }
             case "widen": {
               // The variant is the new contract's, and comes over with it.
-              if (resolveRef(newContract, op.variant) === undefined) {
-                throw new Error(`${op.variant} is not in the new contract`);
-              }
-              importReferences(document, newContract, { $ref: op.variant });
-              schemaWiden(document, schema, op.path, op.variant, op.show);
+              schemaWiden(
+                document,
+                schema,
+                op.path,
+                op.variant,
+                op.show,
+                widenedBranch(document, newContract, op.variant),
+              );
               break;
             }
             case "dropNull":

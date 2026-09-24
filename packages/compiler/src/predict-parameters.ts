@@ -31,7 +31,7 @@ import {
   type ParameterScope,
   parsePointer,
 } from "@invariant-app/ir";
-import { importReferences } from "./import.ts";
+import { importReferences, widenedBranch } from "./import.ts";
 import { PATH_PARAMETER_REFUSAL, servesPathParameter } from "./lens.ts";
 import {
   addressOf,
@@ -331,11 +331,14 @@ function applyToBody(
     case "widen":
       // A request body that accepts one more kind of value breaks nobody,
       // but saying so is still a true account of what changed.
-      if (resolveRef(newContract, op.variant) === undefined) {
-        throw new SchemaOpError(`${op.variant} is not in the new contract`);
-      }
-      importReferences(document, newContract, { $ref: op.variant });
-      schemaWiden(document, root, op.path, op.variant, op.show);
+      schemaWiden(
+        document,
+        root,
+        op.path,
+        op.variant,
+        op.show,
+        widenedBranch(document, newContract, op.variant),
+      );
       return;
   }
 }

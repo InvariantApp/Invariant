@@ -840,8 +840,16 @@ export function variantGuard(
   if (!isJsonObject(union)) return undefined;
   const branches = (union["anyOf"] ?? union["oneOf"]) as JsonValue[] | undefined;
   if (!Array.isArray(branches)) return undefined;
+  // A named variant is the branch that refers to it; one written in place is
+  // named by where it is written, and is the branch written as it is.
+  const written = resolveRef(document, variantRef);
   const index = branches.findIndex(
-    (branch) => isJsonObject(branch) && branch["$ref"] === variantRef,
+    (branch) =>
+      isJsonObject(branch) &&
+      (branch["$ref"] === variantRef ||
+        (typeof branch["$ref"] !== "string" &&
+          written !== undefined &&
+          JSON.stringify(branch) === JSON.stringify(written))),
   );
   return index < 0 ? undefined : guardFor(document, union, branches, index, "");
 }

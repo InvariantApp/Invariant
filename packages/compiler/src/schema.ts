@@ -725,6 +725,7 @@ export function schemaWiden(
   path: string,
   variant: string,
   show: "id" | "absent" | "null",
+  branch: JsonValue = { $ref: variant },
 ): void {
   const segments = parsePointer(path);
   const slot = readSlot(document, root, segments);
@@ -743,7 +744,8 @@ export function schemaWiden(
       : undefined;
   if (!key) throw new SchemaOpError(`${path} is not a union`);
   const branches = union[key] as JsonValue[];
-  if (branches.some((branch) => isJsonObject(branch) && branch["$ref"] === variant)) {
+  const written = JSON.stringify(branch);
+  if (branches.some((each) => JSON.stringify(each) === written)) {
     throw new SchemaOpError(`${path} already holds ${variant}`);
   }
   const kinds = branches.map((branch) => jsonKindOf(document, branch));
@@ -762,7 +764,7 @@ export function schemaWiden(
       `old callers cannot be sent ${path} left out: it is required`,
     );
   }
-  union[key] = [...branches, { $ref: variant }];
+  union[key] = [...branches, branch];
 }
 
 /**
@@ -1065,6 +1067,18 @@ export function setNullable(
   if (typeof version === "string" && version.startsWith("3.0")) {
     if (nullable) schema["nullable"] = true;
     else delete schema["nullable"];
+    return;
+  }
+  // A 3.1 document that still says it with 3.0's flag, as Resend's does for
+  // an attachment's file name, is written that way too: the list of types
+  // says the same, and the differ reads it as another statement.
+  if (
+    nullable &&
+    isJsonObject(written) &&
+    written["nullable"] === true &&
+    !Array.isArray(written["type"])
+  ) {
+    schema["nullable"] = true;
     return;
   }
 

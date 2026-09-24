@@ -628,10 +628,39 @@ function fieldsOf(
         ...boundsOf(itemSchema),
       });
     }
-    if (depth >= NESTING || !writtenHere(raw)) return [field, ...listed];
     const mapValues = isJsonObject(value["additionalProperties"])
       ? (value["additionalProperties"] as JsonObject)
       : undefined;
+    // A map of plain values, the same: each value is a field, and one that
+    // may now be null is served as a map without it. Figma's rendered images
+    // are a map from node to URL, and a node that failed to render came to
+    // map to null.
+    const mapValue = mapValues ? resolvedObject(document, mapValues) : undefined;
+    if (
+      mapValues &&
+      mapValue &&
+      typeof mapValues["$ref"] !== "string" &&
+      writtenHere(mapValues) &&
+      !["properties", "enum", "const", "anyOf", "oneOf", "allOf", "items"].some(
+        (keyword) => mapValue[keyword] !== undefined,
+      )
+    ) {
+      const declared = mapValue["type"];
+      listed.push({
+        name: `${here.name}.{}`,
+        pointer: `${here.pointer}/{}`,
+        type: typeOf(mapValue),
+        format: typeof mapValue["format"] === "string" ? mapValue["format"] : undefined,
+        enumValues: undefined,
+        description: undefined,
+        required: false,
+        nullable:
+          (Array.isArray(declared) && declared.includes("null")) ||
+          mapValue["nullable"] === true,
+        ...boundsOf(mapValue),
+      });
+    }
+    if (depth >= NESTING || !writtenHere(raw)) return [field, ...listed];
     const nested = isJsonObject(value["properties"])
       ? fieldsOf(document, value, here, depth + 1)
       : items && isJsonObject(resolveSchema(document, items))
@@ -656,20 +685,38 @@ function fieldsOf(
 
 /**
  * The fields of a body compared where it stands. A body that is a list has
- * its items' fields, under `*`: Sentry lists its dashboards as a list written
- * into the operation, and a field each came to carry was compared nowhere.
- * Items that name a schema are read through it, since a body is only
- * compared here where one side writes it out: PayPal's JSON patch requests
- * wrote each patch out and came to name `patch`.
+ * its items' fields, under `*`, where `itemsWrittenOut` says they are read:
+ * Sentry lists its dashboards as a list written into the operation, and a
+ * field each came to carry was compared nowhere. On the new side, items that
+ * name a schema are read through it: PayPal's JSON patch requests wrote each
+ * patch out, and came to name `patch`.
  */
-function bodyFieldsOf(document: OpenApiDocument, schema: JsonValue): FieldShape[] {
+function bodyFieldsOf(
+  document: OpenApiDocument,
+  schema: JsonValue,
+  items: "read" | "skip",
+): FieldShape[] {
   const resolved = resolveSchema(document, schema);
   if (!isJsonObject(resolved)) return [];
-  const items = resolved["items"];
-  if (resolved["properties"] !== undefined || !isJsonObject(items)) {
+  const listed = resolved["items"];
+  if (resolved["properties"] !== undefined || !isJsonObject(listed)) {
     return fieldsOf(document, schema);
   }
-  return fieldsOf(document, items, { name: "*", pointer: "/*" }, 1);
+  if (items === "skip") return [];
+  return fieldsOf(document, listed, { name: "*", pointer: "/*" }, 1);
+}
+
+/**
+ * Whether a list body's items are read where it stands: only where the old
+ * contract writes them out, with no reference but inside the fields they
+ * declare. Items that name a schema there, or are built from one, are
+ * compared under that name, and that schema's own Change is what serves this
+ * body; reading them here too would draft the same difference twice.
+ */
+function itemsWrittenOut(document: OpenApiDocument, schema: JsonValue): "read" | "skip" {
+  const resolved = resolveSchema(document, schema);
+  const listed = isJsonObject(resolved) ? resolved["items"] : undefined;
+  return isJsonObject(listed) && writtenHere(listed) ? "read" : "skip";
 }
 
 /**
@@ -2276,8 +2323,8 @@ export function schemaDeltas(
       newContract,
       oldSchemas,
       newSchemas,
-      sent(bodyFieldsOf(oldContract, body)),
-      sent(bodyFieldsOf(newContract, after)),
+      sent(bodyFieldsOf(oldContract, body, itemsWrittenOut(oldContract, body))),
+      sent(bodyFieldsOf(newContract, after, itemsWrittenOut(oldContract, body))),
       { name: `${operation.operationId} request body`, old: body, new: after, unmatched },
     );
     if (!compared) continue;
@@ -2332,8 +2379,8 @@ export function schemaDeltas(
         newContract,
         oldSchemas,
         newSchemas,
-        bodyFieldsOf(oldContract, schema),
-        bodyFieldsOf(newContract, next),
+        bodyFieldsOf(oldContract, schema, itemsWrittenOut(oldContract, schema)),
+        bodyFieldsOf(newContract, next, itemsWrittenOut(oldContract, schema)),
         {
           name: `${operation.operationId} ${status} response`,
           old: schema,

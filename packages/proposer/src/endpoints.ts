@@ -358,6 +358,11 @@ export interface ParameterShape {
   items?: { type: string | undefined; enumValues?: string[] };
   /** The bounds the schema puts on the value, by keyword, apart from its format. */
   bounds?: Record<string, JsonValue>;
+  /**
+   * The value is a named schema's, which is compared, and changed, under its
+   * own name wherever it is used.
+   */
+  named?: true;
 }
 
 const LOCATIONS = new Set(["query", "path", "header", "cookie"]);
@@ -409,6 +414,9 @@ function parameterShape(
         }
       : {}),
     ...boundsOf(schema),
+    ...(JSON.stringify(parameter["schema"] ?? {}).includes('"$ref"')
+      ? { named: true as const }
+      : {}),
   };
 }
 
@@ -828,17 +836,21 @@ export function parameterDrafts(deltas: readonly ParameterDelta[]): {
           }
           if (pairs.length !== from.length) {
             // Where nothing else about the parameter changed, which value
-            // each that went is sent as is asked, as for a body field.
-            const retired = onlyValuesChanged(before, after)
-              ? retiredValueDecision({
-                  schema: `${delta.operation} ${delta.location} parameters`,
-                  scope: { operation: delta.operation, location: delta.location },
-                  field: before.name,
-                  pointer: path,
-                  from,
-                  to,
-                })
-              : undefined;
+            // each that went is sent as is asked, as for a body field. Not
+            // where the values are a named schema's: Meilisearch's
+            // `matchingStrategy` is a `MatchingStrategy`, whose own Change
+            // already runs wherever it is used.
+            const retired =
+              !before.named && onlyValuesChanged(before, after)
+                ? retiredValueDecision({
+                    schema: `${delta.operation} ${delta.location} parameters`,
+                    scope: { operation: delta.operation, location: delta.location },
+                    field: before.name,
+                    pointer: path,
+                    from,
+                    to,
+                  })
+                : undefined;
             if (retired !== undefined) {
               decisions.push(retired);
             } else {
