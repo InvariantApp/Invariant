@@ -146,7 +146,13 @@ GITHUB_TOKEN=... node --import tsx proving/replay/mine.mts --months 36 --limit 1
 GITHUB_TOKEN=... node --import tsx proving/replay/mine.mts --package github.com/google/go-github
 ```
 
-The nightly run adds up to 150 cases.
+The nightly run adds up to 150 cases. `--language javascript` searches only
+repositories GitHub says are written in JavaScript and caps each package's
+cases in that language alone, since npm's bumps are mostly TypeScript
+repositories' and L8 counts JavaScript apart. Dependabot never moves a Go
+module across a major version, as the version is part of its import path, so
+for stripe-go, plaid-go and twilio-go the miner also searches people's own
+pull requests that name the SDK.
 
 A bot's bump carries mostly the SDK's own changes; the contract migrations
 are often a person's own pull request, titled for the API version it moves
@@ -166,6 +172,13 @@ equivalent or wrong), flagged (the engine wrote nothing there and sent a
 person to it, which L8 counts as handled, apart from an edit), or missed. What
 the engine changed where no human did is counted as extra edits, and what it
 flagged where no human changed anything as extra flags: a reviewer's time.
+
+Every npm case, whatever its SDK, is also checked against both releases, as
+the Python and Go packs check theirs: the consumer's files that import the SDK
+are type-checked as they were against the release used today and as the edits
+left them against the new one, JavaScript as `checkJs` would, and every error
+the upgrade brought is flagged with the whole statement it is in. An SDK with
+nothing else recorded is replayed on that check alone (`verify`).
 
 For Stripe the engine is told what a provider's release would tell it
 (`replay/stripe.mts`): each stripe-node release names the stripe/openapi
@@ -233,6 +246,21 @@ before they existed:
 ```console
 node --env-file-if-exists=.env --import tsx proving/replay/run.mts --rescore --ecosystem go --classify --recheck
 ```
+
+A site the two questions disagreed about is contested, and counted as
+neither. `--settle` asks it a third question, put as the test that separates
+the classes: whether a client calling the web API directly, with no SDK,
+would have needed the edit too. A sure answer settles the site, labelled
+`+settle`; any other leaves it contested. Most contested Python sites stay
+contested: stripe-python's `stripe_id` becoming `id`, or a read made safe for
+a field its types now call optional, are hard to call from the lines alone.
+
+```console
+node --env-file-if-exists=.env --import tsx proving/replay/run.mts --rescore --ecosystem pypi --classify --recheck --settle
+```
+
+One case replays on its own in Actions, printing what the engine was told
+and did: `gh workflow run replay.yml -f ecosystem=go -f case=owner/repo#123`.
 
 `replay/sites.mts` reads every case's human hunks from the GitHub API, which
 is the denominator at a glance without cloning anything.
