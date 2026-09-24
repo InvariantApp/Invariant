@@ -241,6 +241,24 @@ async function handle(
       destroy(outgoing);
     }
   }
+  // A request whose body was not read to the end, as a refusal for being too
+  // large leaves it, holds its connection: every request the caller sends on
+  // it after waits for an answer that never comes, and the socket is never
+  // closed, as the soak found. The rest is read and thrown away, as Node does
+  // with a body nobody started reading, so the connection serves the next
+  // request; the request timeout still bounds how long that takes.
+  if (!("stream" in outgoing) && !incoming.complete && !incoming.socket.destroyed) {
+    discardRest(incoming as IncomingMessage);
+  }
+}
+
+/** Reads what is left of a request's body and throws it away. */
+function discardRest(incoming: IncomingMessage): void {
+  // The stream the handler was given stopped pulling when it was abandoned,
+  // and would stop this reading too.
+  incoming.removeAllListeners("data");
+  incoming.on("data", () => {});
+  incoming.resume();
 }
 
 function toRequest(incoming: Incoming): Request {

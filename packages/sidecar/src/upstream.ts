@@ -17,7 +17,7 @@
 import type { IncomingMessage } from "node:http";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
-import { Readable, type Transform } from "node:stream";
+import { PassThrough, Readable, type Transform } from "node:stream";
 import * as zlib from "node:zlib";
 import { responseOf } from "@invariant-app/runtime";
 
@@ -67,6 +67,27 @@ function decoded(answer: IncomingMessage, headers: Headers): Readable {
   return stream;
 }
 
+/**
+ * The provider's answer broke off before its body was complete, or could not
+ * be decoded: its connection dropped mid-body, as a crashing or redeployed
+ * server's does. It is the provider's failure, not the proxy's, and a caller
+ * is told so rather than handed an internal error.
+ */
+export class UpstreamBodyError extends Error {
+  constructor(cause: unknown) {
+    super("The API's answer broke off before it was complete.", { cause });
+    this.name = "UpstreamBodyError";
+  }
+}
+
+/** The body, failing with an UpstreamBodyError whatever went wrong reading it. */
+function guarded(body: Readable): Readable {
+  const out = new PassThrough();
+  body.on("error", (error) => out.destroy(new UpstreamBodyError(error)));
+  body.pipe(out);
+  return out;
+}
+
 /** Statuses and methods whose answer never has a body to read. */
 const EMPTY = new Set([204, 304]);
 
@@ -98,7 +119,7 @@ export const sendUpstream = ((input: string | URL | Request, init: RequestInit =
           return;
         }
         const body = Readable.toWeb(
-          decoded(answer, headers),
+          guarded(decoded(answer, headers)),
         ) as ReadableStream<Uint8Array>;
         resolve(responseOf(body, status, headers));
       },

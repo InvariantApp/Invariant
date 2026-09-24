@@ -29,6 +29,7 @@ import {
   tally,
 } from "./servers/pairs.ts";
 import type { SkewResult } from "./skew/run.mts";
+import type { SoakResults } from "./soak/plan.ts";
 import { summarize as summarizeThreats, type ThreatManifest } from "./threats/summary.ts";
 import type { TrafficResult } from "./traffic/run.mts";
 
@@ -86,6 +87,7 @@ export function scoreboard(inputs: {
   ownership?: Ownership | undefined;
   journey?: JourneySummary | undefined;
   skew?: SkewResult | undefined;
+  soak?: SoakResults | undefined;
 }): Line[] {
   const lines: Line[] = [];
   const unmeasured = (id: string, claim: string, why: string): Line => ({
@@ -348,7 +350,7 @@ export function scoreboard(inputs: {
       evidence:
         "packages/runtime-node/src/conformance.test.ts (go net/http), required in CI by INVARIANT_REQUIRE_GO",
     },
-    unmeasured("L11", "A 24-hour proxy soak under chaos with zero violations.", "M10.4."),
+    soakLine(inputs.soak),
     {
       id: "L12",
       claim: "The Go engine passes every conformance vector.",
@@ -646,6 +648,33 @@ function chainLine(chains: (ChainCost & { budget: typeof BUDGET }) | undefined):
   };
 }
 
+/** L11, from the last recorded soak, with whichever of its criteria it missed. */
+function soakLine(soak: SoakResults | undefined): Line {
+  const claim =
+    "A 24-hour proxy soak at a stated rate under chaos: zero responses failing the old contract, a bounded memory trend, no leaked sockets.";
+  const evidence =
+    "proving/soak/results.json, from `node --import tsx proving/soak/soak.mts --record`";
+  if (!soak) return { id: "L11", claim, status: "not measured", value: "", evidence };
+  const missed = soak.verdict.criteria.filter((criterion) => !criterion.met);
+  const reloads = soak.disturbances.reloads;
+  return {
+    id: "L11",
+    claim,
+    status: soak.verdict.met ? "met" : "not met",
+    value:
+      `${soak.hours} hours at ${soak.rps.achieved} of ${soak.rps.stated} requests a second, ` +
+      `${soak.requests.issued} requests: ${soak.violations.responses} responses failing their contract, ` +
+      `${soak.violations.requests} requests failing the current one, ${soak.transport.otherwise} unanswered outside a restart; ` +
+      `${soak.disturbances.flagFlips} flag flips, ${reloads.written} program reloads (${reloads.broken} that did not load), ` +
+      `${soak.disturbances.restarts} restarts, ${soak.disturbances.crashes} crashes; ` +
+      `memory ${soak.rss.maxMb} MB at most, ${soak.sockets.leaked ?? "unmeasured"} sockets left open` +
+      (missed.length > 0
+        ? `. Missed: ${missed.map((criterion) => `${criterion.name} (${criterion.value})`).join("; ")}`
+        : ""),
+    evidence,
+  };
+}
+
 export function render(lines: readonly Line[]): string {
   const met = lines.filter((line) => line.status === "met").length;
   const measured = lines.filter((line) => line.status !== "not measured").length;
@@ -696,6 +725,7 @@ if (process.argv[1]?.endsWith("scoreboard.mts")) {
     ),
     journey: read<JourneySummary>("proving/journey/results.json"),
     skew: read<SkewResult>("proving/skew/results.json"),
+    soak: read<SoakResults>("proving/soak/results.json"),
   });
   const page = render(lines);
   await writeFile(join(ROOT, "proving/SCOREBOARD.md"), page, "utf8");

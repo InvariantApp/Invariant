@@ -37,7 +37,7 @@ import {
   type ShapedError,
   UnsupportedContractError,
 } from "@invariant-app/runtime";
-import { sendUpstream } from "./upstream.ts";
+import { sendUpstream, UpstreamBodyError } from "./upstream.ts";
 
 export interface ProxyOptions {
   runtime: InvariantRuntime;
@@ -284,6 +284,7 @@ export function createProxy(options: ProxyOptions): FetchHandler {
       if (described) headers.delete("content-type");
     }
     let answer: Response;
+    const deadline = AbortSignal.timeout(timeoutMs);
     try {
       answer = await send(target, {
         method,
@@ -293,7 +294,7 @@ export function createProxy(options: ProxyOptions): FetchHandler {
         // to this proxy. Following it would also let an upstream bounce a
         // request somewhere it was never meant to go.
         redirect: "manual",
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: deadline,
       } as RequestInit);
     } catch (error) {
       const timedOut = error instanceof Error && error.name === "TimeoutError";
@@ -317,13 +318,36 @@ export function createProxy(options: ProxyOptions): FetchHandler {
     out.delete("content-length");
 
     if (!adapted) return responseOf(answer.body, answer.status, out);
-    // The body has already been decoded, so it is read as it stands.
-    return runtime.adaptResponse(
-      adapted.site,
-      responseOf(answer.body, answer.status, out),
-      adapted.context,
-      { encoded: out.has("content-encoding"), method: request.method, errors },
-    );
+    // The body has already been decoded, so it is read as it stands. One
+    // that breaks off is the provider's failure, and said to be: the soak
+    // found an upstream dropping its connection mid-body answered as the
+    // proxy's own internal error.
+    try {
+      return await runtime.adaptResponse(
+        adapted.site,
+        responseOf(answer.body, answer.status, out),
+        adapted.context,
+        { encoded: out.has("content-encoding"), method: request.method, errors },
+      );
+    } catch (error) {
+      const cut =
+        error instanceof UpstreamBodyError
+          ? error
+          : error instanceof Error && error.cause instanceof UpstreamBodyError
+            ? error.cause
+            : undefined;
+      if (!cut) throw error;
+      // The body still arriving when the time ran out is a slow provider,
+      // and told apart from a dropped one as the headers' timeout is.
+      const late = deadline.aborted;
+      return shapedResponse({
+        ...errors.serverError(
+          late ? `The API did not finish answering within ${timeoutMs} ms.` : cut.message,
+          ERROR_CODES.upstreamUnavailable,
+        ),
+        status: late ? 504 : 502,
+      });
+    }
   }
 }
 
