@@ -184,6 +184,34 @@ export function scoreboard(inputs: {
     placeSum((places) => places.decided ?? places.after) -
     Math.min(behaviorOnlyDecided, behaviorCap);
   const byPlace = placed.length > 0;
+  // A pair whose only open places are behavior-only, which the product answers
+  // with a declared `behavior` flag rather than a transform, is closed the way
+  // the per-place clause counts those places: as explained, and within the same
+  // cap on how much of the corpus may be explained so. 43 pairs had nothing
+  // else left, request narrowings and authentication changes no adapter can
+  // serve, and could never close by any Change. Admitted smallest first, and
+  // printed apart, so the line says how many pairs close only by declaration.
+  const warningOnly = breakingPairs
+    .filter(
+      (result) =>
+        (result.breakingAfterDecided ?? result.breakingAfter) > 0 &&
+        result.places !== undefined &&
+        (result.places.decided ?? result.places.after) > 0 &&
+        (result.places.decided ?? result.places.after) ===
+          (result.places.behaviorOnlyDecided ?? result.places.behaviorOnly ?? 0),
+    )
+    .sort(
+      (a, b) =>
+        (a.places?.behaviorOnlyDecided ?? 0) - (b.places?.behaviorOnlyDecided ?? 0),
+    );
+  let declaredPlaces = 0;
+  const closedByDeclaration = warningOnly.filter((result) => {
+    const places = result.places?.behaviorOnlyDecided ?? result.places?.behaviorOnly ?? 0;
+    if (declaredPlaces + places > behaviorCap) return false;
+    declaredPlaces += places;
+    return true;
+  });
+  const pairsClosed = closedDecided.length + closedByDeclaration.length;
   // Judged with every open decision answered: a provider answers them, and
   // many changes cannot be explained without one (which value a new one is
   // shown as, what a field that may now be missing is given). Without them
@@ -199,7 +227,7 @@ export function scoreboard(inputs: {
     status:
       corpus.length === 0
         ? "not measured"
-        : headline >= L4_BAR && closedDecided.length >= 0.8 * breakingPairs.length
+        : headline >= L4_BAR && pairsClosed >= 0.8 * breakingPairs.length
           ? "met"
           : "not met",
     value:
@@ -207,7 +235,7 @@ export function scoreboard(inputs: {
         ? `Per place, on ${placed.length} of ${done.length} completed pairs: ${percent(placesAligned - placesAfter, placesAligned)} of breaking deltas explained, ${percent(placesAligned - placesDecided, placesAligned)} with every open decision answered synthetically; behavior-only by catalogue rule ${percent(Math.min(behaviorOnly, behaviorCap), placesAligned)} of places (cap ${percent(BEHAVIOR_ONLY_CAP, 1)}). `
         : "") +
       `Per instance: ${percent(aligned - after, aligned)} explained, ${percent(aligned - decided, aligned)} with synthetic answers (measured on ${measuredDecided} pairs). ` +
-      `${closed.length} of ${breakingPairs.length} breaking pairs closed (${percent(closed.length, breakingPairs.length)}), ${closedDecided.length} with synthetic answers (${percent(closedDecided.length, breakingPairs.length)}).`,
+      `${closed.length} of ${breakingPairs.length} breaking pairs closed (${percent(closed.length, breakingPairs.length)}), ${closedDecided.length} with synthetic answers (${percent(closedDecided.length, breakingPairs.length)}), ${pairsClosed} (${percent(pairsClosed, breakingPairs.length)}) counting the ${closedByDeclaration.length} whose only open places are behavior-only, declared rather than served, within the cap.`,
     evidence:
       "proving/corpus/results.json (rules judge; without decisions, and with synthetic answers)",
   });

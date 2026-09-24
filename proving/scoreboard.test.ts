@@ -56,6 +56,21 @@ describe("L4", () => {
     // 16 left, 11 after the cap: 90.0%.
     expect(l4([...closing, pair(20, 16, 16, 16)])?.status).toBe("met");
   });
+
+  it("closes a pair whose only open places are behavior-only, within the same cap", () => {
+    // Seven of ten pairs close by Changes. Two more have only behavior-only
+    // places left, 4 of 100, inside the cap of 5: nine of ten close.
+    const closing = Array.from({ length: 7 }, () => pair(10, 5, 0));
+    const open = pair(10, 3, 3);
+    const declared = l4([...closing, pair(10, 2, 2, 2), pair(10, 2, 2, 2), open]);
+    expect(declared?.status).toBe("met");
+    expect(declared?.value).toContain("counting the 2 whose only open places are");
+    // With 12 behavior-only places the cap of 5 admits neither pair, so
+    // seven of ten close and the line is not met, though places reach 90%.
+    const over = l4([...closing, pair(10, 6, 6, 6), pair(10, 6, 6, 6), open]);
+    expect(over?.status).toBe("not met");
+    expect(over?.value).toContain("counting the 0 whose only open places are");
+  });
 });
 
 /** L15 from the threat-model record as committed, with every gap closed when asked. */
