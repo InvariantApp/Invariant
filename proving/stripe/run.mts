@@ -44,6 +44,7 @@
  */
 import { type ChildProcess, execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
+import { once } from "node:events";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import {
@@ -62,7 +63,6 @@ import { brotliDecompressSync, gunzipSync, inflateSync } from "node:zlib";
 import { ROOT } from "../corpus/manifest.mts";
 import { readJunit } from "../servers/pairs.ts";
 import { Oracle } from "../traffic/oracle.mts";
-import { gateFor } from "./gate.mts";
 import {
   type ArmTally,
   type Commit,
@@ -811,7 +811,7 @@ async function runPair(
     try {
       log("  the gate: checking the pair's Changes");
       const began = Date.now();
-      const checked = await gateFor(
+      const checked = await gateApart(
         from,
         to,
         { from: oldDocs.spec, to: newDocs.spec },
@@ -822,9 +822,9 @@ async function runPair(
           `(${checked.gate.drafted} drafted, ${checked.gate.decided} answered synthetically)`,
       );
       gate = checked.gate;
-      if (checked.report.program) {
-        sites = programSites(checked.report.program, from.label);
-        const ran = await arm("c", newDocs, checked.report.program);
+      if (checked.program) {
+        sites = programSites(checked.program, from.label);
+        const ran = await arm("c", newDocs, checked.program);
         c = ran.tally;
         const inner = new Map(ran.inner.map((exchange) => [exchange.seq, exchange]));
         const touched = new Set<string>();
@@ -863,6 +863,40 @@ async function runPair(
     arms: { a, b, c },
     programSites: sites.length,
     adapted,
+  };
+}
+
+/**
+ * The gate in a process of its own (see gate.mts), so a pair whose documents
+ * need more memory than the machine has is recorded as blocked, with the
+ * reason, rather than taking the arms that already ran down with it.
+ */
+async function gateApart(
+  from: Commit,
+  to: Commit,
+  documents: { from: string; to: string },
+  work: string,
+): Promise<{ gate: StripeGate; program: unknown }> {
+  const input = join(work, "gate-input.json");
+  const output = join(work, "gate-output.json");
+  await rm(output, { force: true });
+  await writeFile(input, JSON.stringify({ from, to, documents, work }), "utf8");
+  const child = spawn(
+    process.execPath,
+    ["--import", "tsx", join(ROOT, "proving/stripe/gate.mts"), input, output],
+    { stdio: ["ignore", "inherit", "inherit"] },
+  );
+  const [code, signal] = (await once(child, "exit")) as [number | null, string | null];
+  if (code !== 0) {
+    throw new Error(
+      code === 134 || signal === "SIGABRT"
+        ? "the gate ran out of memory on this pair's documents"
+        : `the gate exited with ${code ?? signal}`,
+    );
+  }
+  return JSON.parse(await readFile(output, "utf8")) as {
+    gate: StripeGate;
+    program: unknown;
   };
 }
 

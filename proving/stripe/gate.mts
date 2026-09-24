@@ -4,7 +4,7 @@
  * rig B cannot.
  */
 import { existsSync } from "node:fs";
-import { copyFile, mkdir, readdir, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type CheckReport, check, loadConfig, runPropose } from "@invariant-app/cli";
 import { derive, missingAcknowledgement } from "@invariant-app/compiler";
@@ -100,4 +100,31 @@ export async function gateFor(
       ],
     },
   };
+}
+
+/**
+ * Run on its own, the gate reads its inputs from one file and writes its
+ * verdict and program to another. The rig runs it this way, in a process of
+ * its own, because on some pairs of Stripe-sized documents the gate needs
+ * more memory than the machine has, and a process that runs out takes
+ * everything in it down: the pair is then recorded as blocked, with the
+ * reason, beside the arms that did run.
+ *
+ *   node --import tsx proving/stripe/gate.mts <input.json> <output.json>
+ */
+if (process.argv[1]?.endsWith("gate.mts")) {
+  const [input, output] = process.argv.slice(2);
+  if (!input || !output) throw new Error("usage: gate.mts <input.json> <output.json>");
+  const { from, to, documents, work } = JSON.parse(await readFile(input, "utf8")) as {
+    from: Commit;
+    to: Commit;
+    documents: { from: string; to: string };
+    work: string;
+  };
+  const { report, gate } = await gateFor(from, to, documents, work);
+  await writeFile(
+    output,
+    JSON.stringify({ gate, program: report.program ?? null }),
+    "utf8",
+  );
 }
