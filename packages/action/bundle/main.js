@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 import { chmodSync, existsSync, statSync } from "node:fs";
-import { appendFile, chmod, copyFile, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
+import { appendFile, chmod, copyFile, mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { exec, execFile, spawn, spawnSync } from "node:child_process";
@@ -14432,7 +14432,7 @@ var BundleError = class extends Error {
 	}
 };
 /** How many files one document may pull in. A real split specification has hundreds, not thousands. */
-const MAX_FILES = 2e3;
+const MAX_FILES$1 = 2e3;
 /** Keys under which the value is a schema, or a map or list of them. */
 const SCHEMA_VALUE = /* @__PURE__ */ new Set([
 	"schema",
@@ -14508,7 +14508,7 @@ async function bundleDocument(path, options = {}) {
 		if (cached !== void 0) return cached;
 		const outsideAt = `${from} refers to ${file}, outside the repository at ${root}. A specification may only refer to files beside it.`;
 		if (!within$2(root, file)) throw new BundleError(outsideAt);
-		if (files.size >= MAX_FILES) throw new BundleError(`${entry} refers to more than ${MAX_FILES} files`);
+		if (files.size >= MAX_FILES$1) throw new BundleError(`${entry} refers to more than ${MAX_FILES$1} files`);
 		let text;
 		try {
 			if (file !== entry && !within$2(await realpath(root), await realpath(file))) throw new BundleError(outsideAt);
@@ -18386,6 +18386,162 @@ function numberToDecimalText(value) {
 	const text = String(value);
 	if (text.includes("e") || text.includes("E")) throw new DecimalError(`Exponential notation is not supported: ${text}`);
 	return text;
+}
+//#endregion
+//#region ../runtime/src/digest.ts
+/**
+* A compiled program's digest, computed here so the runtime can check the
+* program it was handed is the one `invariant compile` recorded.
+*
+* The same digest the evolution bundle records as `compiled.programDigest`:
+* SHA-256 over the program's canonical JSON (keys sorted at every level, no
+* whitespace), without `compiledBy`, which names the CLI that built it and
+* not what the program does.
+*
+* SHA-256 is written out rather than imported: the request path may import
+* nothing but exact decimal arithmetic (isolation.test.ts), and `crypto.subtle`
+* is asynchronous where loading a program is not. It runs once, at load, and
+* only when a digest is given to check.
+*/
+/** The digest `invariant compile` writes to invariant.lock, as `sha256:<hex>`. */
+function programDigest(program) {
+	const value = program !== null && typeof program === "object" && !Array.isArray(program) ? Object.fromEntries(Object.entries(program).filter(([key]) => key !== "compiledBy")) : program;
+	return `sha256:${sha256Hex(new TextEncoder().encode(canonical$2(value)))}`;
+}
+function canonical$2(value) {
+	if (value === null || typeof value === "boolean" || typeof value === "string") return JSON.stringify(value);
+	if (typeof value === "number") {
+		if (!Number.isFinite(value)) throw new TypeError(`not a JSON number: ${value}`);
+		return JSON.stringify(value);
+	}
+	if (Array.isArray(value)) return `[${value.map(canonical$2).join(",")}]`;
+	if (typeof value === "object") {
+		const record = value;
+		return `{${Object.keys(record).filter((key) => record[key] !== void 0).sort().map((key) => `${JSON.stringify(key)}:${canonical$2(record[key])}`).join(",")}}`;
+	}
+	throw new TypeError(`not JSON: ${typeof value}`);
+}
+const K = new Uint32Array([
+	1116352408,
+	1899447441,
+	3049323471,
+	3921009573,
+	961987163,
+	1508970993,
+	2453635748,
+	2870763221,
+	3624381080,
+	310598401,
+	607225278,
+	1426881987,
+	1925078388,
+	2162078206,
+	2614888103,
+	3248222580,
+	3835390401,
+	4022224774,
+	264347078,
+	604807628,
+	770255983,
+	1249150122,
+	1555081692,
+	1996064986,
+	2554220882,
+	2821834349,
+	2952996808,
+	3210313671,
+	3336571891,
+	3584528711,
+	113926993,
+	338241895,
+	666307205,
+	773529912,
+	1294757372,
+	1396182291,
+	1695183700,
+	1986661051,
+	2177026350,
+	2456956037,
+	2730485921,
+	2820302411,
+	3259730800,
+	3345764771,
+	3516065817,
+	3600352804,
+	4094571909,
+	275423344,
+	430227734,
+	506948616,
+	659060556,
+	883997877,
+	958139571,
+	1322822218,
+	1537002063,
+	1747873779,
+	1955562222,
+	2024104815,
+	2227730452,
+	2361852424,
+	2428436474,
+	2756734187,
+	3204031479,
+	3329325298
+]);
+const rotr = (x, n) => x >>> n | x << 32 - n;
+/** FIPS 180-4 SHA-256, as lowercase hex. */
+function sha256Hex(message) {
+	const length = message.length;
+	const padded = new Uint8Array((length + 8 >> 6) + 1 << 6);
+	padded.set(message);
+	padded[length] = 128;
+	const view = new DataView(padded.buffer);
+	view.setUint32(padded.length - 8, Math.floor(length / 536870912));
+	view.setUint32(padded.length - 4, length << 3 >>> 0);
+	const h = new Uint32Array([
+		1779033703,
+		3144134277,
+		1013904242,
+		2773480762,
+		1359893119,
+		2600822924,
+		528734635,
+		1541459225
+	]);
+	const w = /* @__PURE__ */ new Uint32Array(64);
+	for (let block = 0; block < padded.length; block += 64) {
+		for (let i = 0; i < 16; i++) w[i] = view.getUint32(block + i * 4);
+		for (let i = 16; i < 64; i++) {
+			const a = w[i - 15];
+			const b = w[i - 2];
+			const s0 = rotr(a, 7) ^ rotr(a, 18) ^ a >>> 3;
+			const s1 = rotr(b, 17) ^ rotr(b, 19) ^ b >>> 10;
+			w[i] = w[i - 16] + s0 + w[i - 7] + s1 >>> 0;
+		}
+		let [a, b, c, d, e, f, g, hh] = h;
+		for (let i = 0; i < 64; i++) {
+			const s1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+			const ch = e & f ^ ~e & g;
+			const t1 = hh + s1 + ch + K[i] + w[i] >>> 0;
+			const t2 = (rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) + (a & b ^ a & c ^ b & c) >>> 0;
+			hh = g;
+			g = f;
+			f = e;
+			e = d + t1 >>> 0;
+			d = c;
+			c = b;
+			b = a;
+			a = t1 + t2 >>> 0;
+		}
+		h[0] = h[0] + a >>> 0;
+		h[1] = h[1] + b >>> 0;
+		h[2] = h[2] + c >>> 0;
+		h[3] = h[3] + d >>> 0;
+		h[4] = h[4] + e >>> 0;
+		h[5] = h[5] + f >>> 0;
+		h[6] = h[6] + g >>> 0;
+		h[7] = h[7] + hh >>> 0;
+	}
+	return [...h].map((word) => word.toString(16).padStart(8, "0")).join("");
 }
 //#endregion
 //#region ../runtime/src/errors.ts
@@ -22529,6 +22685,10 @@ var InvariantRuntime = class {
 	#onOutcome;
 	#behaviors;
 	constructor(options) {
+		if (options.programDigest !== void 0) {
+			const actual = programDigest(options.program);
+			if (actual !== options.programDigest) throw new ProgramError(`The program hashes to ${actual}, not the ${options.programDigest} invariant.lock records. It was changed after it was compiled; compile it again from the reviewed Changes.`);
+		}
 		this.#program = decodeProgram(options.program);
 		this.#behaviors = [...new Set([...this.#program.contracts.values()].flatMap((contract) => contract.behaviors))].sort();
 		const identity = options.identity ?? this.#program.identity;
@@ -42546,6 +42706,85 @@ function run$1(document, ref, runs, seed, property) {
 	}];
 }
 //#endregion
+//#region ../cli/src/auth-lint.ts
+const SOURCE = /\.(?:[cm]?[jt]sx?|go|py|rb|java|kt|cs|php)$/;
+/** Directories that are not the provider's own source. */
+const SKIPPED = /* @__PURE__ */ new Set([
+	"node_modules",
+	".git",
+	"dist",
+	"build",
+	"out",
+	"coverage",
+	"vendor",
+	"target",
+	".next",
+	".venv",
+	"venv",
+	"__pycache__"
+]);
+/** A path segment that names authentication or authorization code. */
+const AUTH_PATH = /(?:^|[/._-])(?:auth|authn|authz|authori[sz]\w*|authenticat\w*|permissions?|rbac|acl|guards?|access[-_]?control|login)(?:[/._-]|$)/i;
+/** Words code that decides who a caller is, or what they may do, is written in. */
+const AUTH_WORDS = /\b(?:authori[sz]\w*|authenticat\w*|unauthori[sz]ed|forbidden|permissions?|hasRole|has_role|isAdmin|is_admin|canAccess|can_access|access denied|acl|rbac|requireAuth|require_auth|verifyToken|verify_token|jwt|401|403)\b/i;
+/** How many lines either side of a flag are read as its context. */
+const BEFORE = 2;
+const AFTER = 3;
+const MAX_FILES = 2e4;
+const MAX_BYTES = 1048576;
+async function sourceFiles(root, skip) {
+	const found = [];
+	const walk = async (dir) => {
+		if (found.length >= MAX_FILES) return;
+		let entries;
+		try {
+			entries = await readdir(dir, { withFileTypes: true });
+		} catch {
+			return;
+		}
+		for (const entry of entries) {
+			const path = join(dir, entry.name);
+			if (entry.isDirectory()) {
+				if (SKIPPED.has(entry.name) || path === skip) continue;
+				await walk(path);
+			} else if (entry.isFile() && SOURCE.test(entry.name)) {
+				found.push(path);
+				if (found.length >= MAX_FILES) return;
+			}
+		}
+	};
+	await walk(root);
+	return found.sort();
+}
+const literal = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/**
+* Every place a declared behavior flag is used in authentication or
+* authorization code, one message each, with the file relative to `root`.
+*/
+async function flagsInAuthCode(root, flags, options = {}) {
+	if (flags.length === 0) return [];
+	const quoted = new RegExp(`(["'\`])(${flags.map(literal).join("|")})\\1`, "g");
+	const found = [];
+	for (const path of await sourceFiles(root, options.skip ?? "")) {
+		if ((await stat(path)).size > MAX_BYTES) continue;
+		const text = await readFile(path, "utf8");
+		if (!flags.some((flag) => text.includes(flag))) continue;
+		const file = relative(root, path).split(sep).join("/");
+		const lines = text.split("\n");
+		lines.forEach((line, index) => {
+			for (const match of line.matchAll(quoted)) {
+				const flag = match[2];
+				const around = lines.slice(Math.max(0, index - BEFORE), index + AFTER + 1).join("\n");
+				const byPath = AUTH_PATH.test(file);
+				const byWords = AUTH_WORDS.test(around.replace(quoted, ""));
+				if (!byPath && !byWords) continue;
+				found.push(`${file}:${index + 1}: behavior flag ${flag} is used in ${byPath ? "authentication or authorization code" : "a decision about who a caller is or what they may do"}. A caller chooses its own contract, so a branch on it there lets a caller choose its own permissions: decide access from who the caller is, never from the contract it speaks.`);
+			}
+		});
+	}
+	return found;
+}
+//#endregion
 //#region ../cli/src/outcomes.ts
 /**
 * E9: what production reported after the release.
@@ -43763,6 +44002,9 @@ async function check(config, options = {}) {
 	if (config.currentLabel === void 0) warnings.push("spec.currentLabel is not set, so the contract being built is named after today's date. The same commit will compile to a different program tomorrow. Set it to make the build depend only on this repository.");
 	const verified = await verify(config, steps, current.label, current.document, options);
 	evidence.push(...verified.evidence);
+	const flags = [...new Set(declared.flatMap((change) => change.ops.flatMap((op) => op.op === "behavior" ? [op.flag] : [])))];
+	const inAuth = await flagsInAuthCode(config.root, flags, { skip: config.invariantDir });
+	verified.problems.push(...inAuth);
 	if (options.outcomes !== void 0) {
 		const observed = outcomeEvidence([...config.releasedSpecs.keys()].sort(), await readOutcomes(options.outcomes));
 		evidence.push(...observed);
