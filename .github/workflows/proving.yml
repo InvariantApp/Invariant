@@ -341,7 +341,12 @@ jobs:
   # to; its token is the only secret here, and nothing third-party runs.
   journey:
     name: journey (L9, ${{ matrix.os }}, run ${{ matrix.run }})
-    if: vars.JOURNEY_ENABLED == 'true' && inputs.rigs != 'servers' && inputs.rigs != 'corpus'
+    # After every other rig, whatever became of them: the scratch provider is
+    # in this organization and its check waits for a runner from the same
+    # pool, so run beside forty other jobs it timed this workflow's own queue.
+    # A Linux p95 of 13.5 minutes was checks waiting behind the corpus shards.
+    needs: [corpus, traffic, swagger, servers, fuzz, threats]
+    if: ${{ !cancelled() && vars.JOURNEY_ENABLED == 'true' && inputs.rigs != 'servers' && inputs.rigs != 'corpus' }}
     strategy:
       fail-fast: false
       max-parallel: 6
