@@ -262,10 +262,12 @@ checks the result against the new one, and every error the upgrade brings is
 flagged. For stripe-python the pack is also told the Changes, the same way as
 for stripe-node, from the OpenAPI release each stripe-python release records,
 and the operations of the old specification, for requests made with
-`requests` or `httpx`; it is also shown the files that import the consumer's
-own modules that use the SDK and write a field the upgrade took away, as a
-webhook route reading `data.get("subscription")` from what its billing
-service hands it. Where a bump's head pins the SDK in more than one file, the
+`requests` or `httpx`. A release before 7 ships no types, so the checker is
+given a copy of it with each class's fields declared from that specification
+(`replay/stubs.mts`), and finds a Change's field where it is referenced. The
+pack is also shown the files that import the consumer's own modules that use
+the SDK and write a field the upgrade took away, as a webhook route reading
+`data.get("subscription")` from what its billing service hands it. Where a bump's head pins the SDK in more than one file, the
 pin in the major the bump names is taken, or an exact one past it: a frozen
 requirements file left in the old major does not make the replay a no-op.
 
