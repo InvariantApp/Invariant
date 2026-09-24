@@ -3,7 +3,7 @@
     "id": "178inaba/third-party-test#59",
     "language": "go",
     "package": "github.com/stripe/stripe-go",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "v72.122.0",
       "v73.0.1"
@@ -411,26 +411,59 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 14
+      "contested": 4
     },
     "byClass": {
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 47
-      },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 14
+        "missed": 48
       },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 13
+        "missed": 22
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 4
+      }
+    }
+  },
+  {
+    "id": "ActionsDesk/ghec-enterprise-reporting#451",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "7.0.0",
+      "9.0.0"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 1,
+    "missed": 0,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 0
       }
     }
   },
@@ -707,7 +740,7 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 8
+      "contested": 7
     },
     "byClass": {
       "sdk": {
@@ -720,13 +753,13 @@
         "identical": 0,
         "differs": 0,
         "flagged": 7,
-        "missed": 1
+        "missed": 0
       },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 2
+        "missed": 3
       }
     }
   },
@@ -1035,27 +1068,20 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 6
+      "unclassified": 0
     },
     "byClass": {
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 12,
-        "missed": 66
-      },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 3,
-        "missed": 3
+        "missed": 68
       },
       "unrelated": {
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 3
+        "flagged": 3,
+        "missed": 4
       }
     }
   },
@@ -1199,21 +1225,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 8
+      "unclassified": 0
     },
     "byClass": {
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 8
-      },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 2
+        "missed": 10
       }
     }
   },
@@ -1768,14 +1787,14 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 15
+      "contested": 6
     },
     "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 8
+        "missed": 17
       },
       "sdk": {
         "identical": 0,
@@ -1787,7 +1806,7 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 15
+        "missed": 6
       }
     }
   },
@@ -1813,8 +1832,7 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 1
+      "unclassified": 0
     },
     "byClass": {
       "sdk": {
@@ -1827,9 +1845,32 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 2
-      },
-      "contested": {
+        "missed": 3
+      }
+    }
+  },
+  {
+    "id": "asteby/metacore-sdk#599",
+    "language": "go",
+    "package": "github.com/stripe/stripe-go",
+    "engine": "verify",
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
@@ -1841,7 +1882,7 @@
     "id": "Awis13/controlplane#41",
     "language": "go",
     "package": "github.com/stripe/stripe-go",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "v82.5.1",
       "v86.2.0"
@@ -1883,6 +1924,45 @@
     }
   },
   {
+    "id": "axelerant/platformsh-action#177",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "7.0.0",
+      "9.0.0"
+    ],
+    "sites": 4,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 4,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 3
+      }
+    }
+  },
+  {
     "id": "Azure-Samples/azure-search-openai-demo#1017",
     "language": "python",
     "package": "openai",
@@ -1905,7 +1985,7 @@
       "flagged": 0,
       "missed": 1,
       "unclassified": 0,
-      "contested": 13
+      "contested": 8
     },
     "byClass": {
       "sdk": {
@@ -1918,13 +1998,13 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 13
+        "missed": 8
       },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 7
+        "missed": 12
       },
       "contract": {
         "identical": 0,
@@ -2172,6 +2252,39 @@
     }
   },
   {
+    "id": "bitflight-devops/github-action-readme-generator#480",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "7.0.0",
+      "9.0.0"
+    ],
+    "sites": 6,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 3,
+    "missed": 3,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 3,
+        "missed": 3
+      }
+    }
+  },
+  {
     "id": "bitwise-media-group/patchy#212",
     "language": "go",
     "package": "github.com/google/go-github",
@@ -2193,8 +2306,7 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 1
+      "unclassified": 0
     },
     "byClass": {
       "sdk": {
@@ -2207,13 +2319,7 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 3
-      },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 1
+        "missed": 4
       }
     }
   },
@@ -2513,7 +2619,7 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 7
+      "contested": 5
     },
     "byClass": {
       "sdk": {
@@ -2526,13 +2632,13 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 1
+        "missed": 3
       },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 7
+        "missed": 5
       }
     }
   },
@@ -2599,6 +2705,45 @@
         "differs": 0,
         "flagged": 1,
         "missed": 2
+      }
+    }
+  },
+  {
+    "id": "CATcher-org/CATcher#1344",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "verify",
+    "versions": [
+      "16.37.0",
+      "17.11.0"
+    ],
+    "sites": 5,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 5,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 4
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
       }
     }
   },
@@ -3067,6 +3212,39 @@
         "flagged": 3,
         "missed": 8
       },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
+      }
+    }
+  },
+  {
+    "id": "chrisreddington/validate-dependabot#115",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "7.0.0",
+      "9.0.0"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
@@ -3690,6 +3868,45 @@
     }
   },
   {
+    "id": "CloudSnorkel/cdk-github-runners#640",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "verify",
+    "versions": [
+      "19.0.13",
+      "22.0.1"
+    ],
+    "sites": 21,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 21,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 20
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
+      }
+    }
+  },
+  {
     "id": "cncf/prow-github-actions#122",
     "language": "typescript",
     "package": "@octokit/rest",
@@ -3807,7 +4024,7 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 4
+      "contested": 2
     },
     "byClass": {
       "sdk": {
@@ -3816,11 +4033,17 @@
         "flagged": 0,
         "missed": 4
       },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2
+      },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 4
+        "missed": 2
       }
     }
   },
@@ -4019,6 +4242,45 @@
         "differs": 0,
         "flagged": 0,
         "missed": 0
+      }
+    }
+  },
+  {
+    "id": "danger/danger-js#1481",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "verify",
+    "versions": [
+      "18.12.0",
+      "20.1.2"
+    ],
+    "sites": 5,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 5,
+    "extra": 0,
+    "extraFlags": 3,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 3
       }
     }
   },
@@ -4228,14 +4490,13 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 1
+      "unclassified": 0
     },
     "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
-        "flagged": 2,
+        "flagged": 3,
         "missed": 5
       },
       "sdk": {
@@ -4243,12 +4504,6 @@
         "differs": 0,
         "flagged": 9,
         "missed": 34
-      },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 1,
-        "missed": 0
       }
     }
   },
@@ -4374,7 +4629,7 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 14
+      "contested": 7
     },
     "byClass": {
       "sdk": {
@@ -4387,13 +4642,13 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 3
+        "missed": 10
       },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 14
+        "missed": 7
       }
     }
   },
@@ -4513,7 +4768,7 @@
     "id": "distr-sh/distr#1480",
     "language": "go",
     "package": "github.com/stripe/stripe-go",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "v83.2.1",
       "v84.0.0"
@@ -4546,7 +4801,7 @@
     "id": "distr-sh/distr#2153",
     "language": "go",
     "package": "github.com/stripe/stripe-go",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "v84.4.1",
       "v85.0.0"
@@ -4565,7 +4820,7 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 4
+      "contested": 3
     },
     "byClass": {
       "sdk": {
@@ -4574,17 +4829,17 @@
         "flagged": 0,
         "missed": 0
       },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 4
-      },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 2
+        "missed": 3
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 3
       }
     }
   },
@@ -4592,7 +4847,7 @@
     "id": "distr-sh/distr#2597",
     "language": "go",
     "package": "github.com/stripe/stripe-go",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "v85.2.0",
       "v86.0.0"
@@ -4618,6 +4873,111 @@
         "differs": 0,
         "flagged": 0,
         "missed": 0
+      }
+    }
+  },
+  {
+    "id": "docker/actions-toolkit#960",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "7.0.0",
+      "9.0.0"
+    ],
+    "sites": 37,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 37,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 6
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 31
+      }
+    }
+  },
+  {
+    "id": "docker/metadata-action#597",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "6.0.1",
+      "9.0.0"
+    ],
+    "sites": 9,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 4,
+    "missed": 5,
+    "extra": 0,
+    "extraFlags": 4,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 4,
+        "missed": 5
+      }
+    }
+  },
+  {
+    "id": "dorny/test-reporter#718",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "6.0.1",
+      "9.0.0"
+    ],
+    "sites": 7,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 3,
+    "missed": 4,
+    "extra": 0,
+    "extraFlags": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 3,
+        "missed": 4
       }
     }
   },
@@ -4651,6 +5011,45 @@
         "differs": 0,
         "flagged": 0,
         "missed": 0
+      }
+    }
+  },
+  {
+    "id": "e-conomic/mergebot#1210",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "7.0.0",
+      "9.0.0"
+    ],
+    "sites": 22,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 10,
+    "missed": 12,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 8,
+        "missed": 12
       }
     }
   },
@@ -4996,6 +5395,46 @@
         "differs": 0,
         "flagged": 0,
         "missed": 64
+      }
+    }
+  },
+  {
+    "id": "electron/fiddle#1906",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "verify",
+    "versions": [
+      "17.11.2",
+      "22.0.1"
+    ],
+    "sites": 11,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 11,
+    "extra": 0,
+    "extraFlags": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 2
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 9
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2
       }
     }
   },
@@ -5506,6 +5945,45 @@
     }
   },
   {
+    "id": "flcdrg/remove-release-asset-action#1366",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "7.0.0",
+      "9.0.0"
+    ],
+    "sites": 18,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 18,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 15
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 3
+      }
+    }
+  },
+  {
     "id": "floomhq/floom#129",
     "language": "python",
     "package": "openai",
@@ -5528,26 +6006,26 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 29
+      "contested": 12
     },
     "byClass": {
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 57
+        "missed": 62
       },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 13
+        "missed": 25
       },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 29
+        "missed": 12
       }
     }
   },
@@ -5594,7 +6072,7 @@
     "id": "foks-proj/go-foks#29",
     "language": "go",
     "package": "github.com/stripe/stripe-go",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "v81.4.0",
       "v82.1.0"
@@ -5602,43 +6080,43 @@
     "sites": 80,
     "identical": 4,
     "differs": 0,
-    "flagged": 0,
-    "missed": 76,
+    "flagged": 28,
+    "missed": 48,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 8,
     "inScope": {
       "sites": 24,
       "identical": 0,
       "differs": 0,
-      "flagged": 0,
-      "missed": 24,
+      "flagged": 14,
+      "missed": 10,
       "unclassified": 0,
-      "contested": 39
+      "contested": 29
     },
     "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 7
+        "missed": 17
       },
       "contract": {
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 24
+        "flagged": 14,
+        "missed": 10
       },
       "contested": {
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 39
+        "flagged": 12,
+        "missed": 17
       },
       "sdk": {
         "identical": 4,
         "differs": 0,
-        "flagged": 0,
-        "missed": 6
+        "flagged": 2,
+        "missed": 4
       }
     }
   },
@@ -5698,19 +6176,13 @@
       "flagged": 0,
       "missed": 9,
       "unclassified": 0,
-      "contested": 58
+      "contested": 31
     },
     "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 34
-      },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 1,
         "missed": 57
       },
       "contract": {
@@ -5719,11 +6191,17 @@
         "flagged": 0,
         "missed": 9
       },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 30
+      },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 42
+        "missed": 46
       }
     }
   },
@@ -7052,22 +7530,127 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 9
+      "contested": 4
     },
     "byClass": {
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 1,
-        "missed": 8
-      },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 1,
-        "missed": 2
+        "missed": 7
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 3
       },
       "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
+      }
+    }
+  },
+  {
+    "id": "github/codeql-action#3398",
+    "language": "javascript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "6.0.1",
+      "7.0.0"
+    ],
+    "sites": 12,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 12,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 12
+      }
+    }
+  },
+  {
+    "id": "github/codeql-action#3432",
+    "language": "javascript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "7.0.0",
+      "8.0.0"
+    ],
+    "sites": 12,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 12,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 12
+      }
+    }
+  },
+  {
+    "id": "github/vscode-codeql#3700",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "verify",
+    "versions": [
+      "20.0.2",
+      "21.0.2"
+    ],
+    "sites": 8,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 8,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 7
+      },
+      "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
@@ -7375,6 +7958,171 @@
         "differs": 0,
         "flagged": 3,
         "missed": 3
+      }
+    }
+  },
+  {
+    "id": "googleapis/code-suggester#512",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "verify",
+    "versions": [
+      "19.0.5",
+      "20.1.1"
+    ],
+    "sites": 3,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 3,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 3
+      }
+    }
+  },
+  {
+    "id": "googleapis/release-please#2490",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "verify",
+    "versions": [
+      "19.0.13",
+      "20.1.2"
+    ],
+    "sites": 12,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 12,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 12
+      }
+    }
+  },
+  {
+    "id": "googleapis/repo-automation-bots#5680",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "verify",
+    "versions": [
+      "19.0.7",
+      "20.1.2"
+    ],
+    "sites": 4,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 4,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 4
+      }
+    }
+  },
+  {
+    "id": "googleapis/repo-automation-bots#5716",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "verify",
+    "versions": [
+      "19.0.5",
+      "20.1.2"
+    ],
+    "sites": 16,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 16,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 16
+      }
+    }
+  },
+  {
+    "id": "googleapis/repo-automation-bots#5724",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "verify",
+    "versions": [
+      "19.0.4",
+      "20.1.2"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2
       }
     }
   },
@@ -8026,24 +8774,24 @@
     "sites": 6,
     "identical": 0,
     "differs": 0,
-    "flagged": 1,
-    "missed": 5,
+    "flagged": 4,
+    "missed": 2,
     "extra": 0,
     "extraFlags": 1,
     "inScope": {
       "sites": 6,
       "identical": 0,
       "differs": 0,
-      "flagged": 1,
-      "missed": 5,
+      "flagged": 4,
+      "missed": 2,
       "unclassified": 0
     },
     "byClass": {
       "contract": {
         "identical": 0,
         "differs": 0,
-        "flagged": 1,
-        "missed": 5
+        "flagged": 4,
+        "missed": 2
       }
     }
   },
@@ -8070,7 +8818,7 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 33
+      "contested": 19
     },
     "byClass": {
       "sdk": {
@@ -8083,13 +8831,13 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 75
+        "missed": 89
       },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 33
+        "missed": 19
       }
     }
   },
@@ -8220,27 +8968,20 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 1
+      "unclassified": 0
     },
     "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 11
+        "missed": 12
       },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 2,
         "missed": 9
-      },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 1
       }
     }
   },
@@ -8267,7 +9008,7 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 16
+      "contested": 9
     },
     "byClass": {
       "sdk": {
@@ -8280,13 +9021,13 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 17
+        "missed": 24
       },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 16
+        "missed": 9
       }
     }
   },
@@ -8313,20 +9054,20 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 7
+      "contested": 6
     },
     "byClass": {
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 7
+        "missed": 6
       },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 7
+        "missed": 8
       },
       "unrelated": {
         "identical": 0,
@@ -8366,6 +9107,39 @@
         "differs": 0,
         "flagged": 0,
         "missed": 2
+      }
+    }
+  },
+  {
+    "id": "indielabio/zebrafish#128",
+    "language": "go",
+    "package": "github.com/stripe/stripe-go",
+    "engine": "contract",
+    "versions": [
+      "v82.5.1",
+      "v86.0.0"
+    ],
+    "sites": 2,
+    "identical": 1,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 1,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
       }
     }
   },
@@ -8490,11 +9264,10 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 2
+      "unclassified": 0
     },
     "byClass": {
-      "contested": {
+      "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 1,
@@ -8999,7 +9772,7 @@
     "flagged": 2,
     "missed": 17,
     "extra": 3,
-    "extraFlags": 3,
+    "extraFlags": 4,
     "inScope": {
       "sites": 0,
       "identical": 0,
@@ -9040,14 +9813,14 @@
       "flagged": 0,
       "missed": 3,
       "unclassified": 0,
-      "contested": 19
+      "contested": 13
     },
     "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 5
+        "missed": 11
       },
       "sdk": {
         "identical": 0,
@@ -9059,7 +9832,7 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 19
+        "missed": 13
       },
       "contract": {
         "identical": 0,
@@ -9487,26 +10260,59 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 4
+      "contested": 1
     },
     "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 4
+      },
       "contested": {
         "identical": 0,
         "differs": 1,
         "flagged": 0,
-        "missed": 3
+        "missed": 0
       },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 5
-      },
-      "unrelated": {
+      }
+    }
+  },
+  {
+    "id": "ken-matsui/notify-slack#345",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "6.0.1",
+      "9.1.1"
+    ],
+    "sites": 8,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 2,
+    "missed": 6,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 1
+        "flagged": 2,
+        "missed": 6
       }
     }
   },
@@ -9765,8 +10571,7 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 1
+      "unclassified": 0
     },
     "byClass": {
       "sdk": {
@@ -9775,7 +10580,7 @@
         "flagged": 0,
         "missed": 0
       },
-      "contested": {
+      "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 1,
@@ -9806,26 +10611,26 @@
       "flagged": 0,
       "missed": 1,
       "unclassified": 0,
-      "contested": 17
+      "contested": 8
     },
     "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 17
+      },
       "contested": {
         "identical": 1,
         "differs": 0,
         "flagged": 0,
-        "missed": 16
+        "missed": 7
       },
       "contract": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 1
-      },
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 8
       }
     }
   },
@@ -10194,27 +10999,20 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 3
+      "unclassified": 0
     },
     "byClass": {
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 10,
-        "missed": 74
+        "missed": 75
       },
       "unrelated": {
         "identical": 0,
         "differs": 0,
-        "flagged": 2,
+        "flagged": 4,
         "missed": 8
-      },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 2,
-        "missed": 1
       }
     }
   },
@@ -10511,7 +11309,7 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 2
+      "contested": 1
     },
     "byClass": {
       "sdk": {
@@ -10520,13 +11318,13 @@
         "flagged": 8,
         "missed": 7
       },
-      "contested": {
+      "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 2
       },
-      "unrelated": {
+      "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
@@ -10589,8 +11387,7 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 1
+      "unclassified": 0
     },
     "byClass": {
       "sdk": {
@@ -10599,17 +11396,11 @@
         "flagged": 1,
         "missed": 4
       },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 1
-      },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 1,
-        "missed": 2
+        "missed": 3
       }
     }
   },
@@ -10854,7 +11645,7 @@
     "id": "linuxfoundation/lfx-crowdfunding#79",
     "language": "go",
     "package": "github.com/stripe/stripe-go",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "v82.0.0",
       "v85.2.0"
@@ -10945,21 +11736,20 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 2
+      "unclassified": 0
     },
     "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 4
+        "missed": 5
       },
-      "contested": {
+      "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 2
+        "missed": 1
       }
     }
   },
@@ -11105,7 +11895,7 @@
     "id": "lukasaron/terraform-provider-stripe#69",
     "language": "go",
     "package": "github.com/stripe/stripe-go",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "v76.25.0",
       "v78.11.0"
@@ -11144,7 +11934,7 @@
     "id": "LumeWeb/portal-plugin-billing#136",
     "language": "go",
     "package": "github.com/stripe/stripe-go",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "v83.2.1",
       "v85.1.0"
@@ -11203,14 +11993,14 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 4
+      "contested": 1
     },
     "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 11
+        "missed": 14
       },
       "sdk": {
         "identical": 0,
@@ -11222,7 +12012,7 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 4
+        "missed": 1
       }
     }
   },
@@ -11249,14 +12039,14 @@
       "flagged": 1,
       "missed": 0,
       "unclassified": 0,
-      "contested": 15
+      "contested": 2
     },
     "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 24
+        "missed": 37
       },
       "sdk": {
         "identical": 0,
@@ -11268,7 +12058,7 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 15
+        "missed": 2
       },
       "contract": {
         "identical": 0,
@@ -11460,7 +12250,7 @@
     "id": "MartialBE/one-hub#384",
     "language": "go",
     "package": "github.com/stripe/stripe-go",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "v79.12.0",
       "v80.2.0"
@@ -11735,7 +12525,7 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 22
+      "contested": 20
     },
     "byClass": {
       "sdk": {
@@ -11748,13 +12538,13 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 22
+        "missed": 20
       },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 6
+        "missed": 8
       }
     }
   },
@@ -11788,6 +12578,39 @@
         "differs": 0,
         "flagged": 0,
         "missed": 5
+      }
+    }
+  },
+  {
+    "id": "microsoft/vscode-github-issue-notebooks#194",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "verify",
+    "versions": [
+      "21.1.1",
+      "22.0.0"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
       }
     }
   },
@@ -11847,7 +12670,7 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 2
+      "contested": 1
     },
     "byClass": {
       "sdk": {
@@ -11860,13 +12683,13 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 2
+        "missed": 1
       },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 1
+        "missed": 2
       }
     }
   },
@@ -12129,11 +12952,10 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 1
+      "unclassified": 0
     },
     "byClass": {
-      "contested": {
+      "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 1,
@@ -12236,14 +13058,20 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 2
+      "contested": 1
     },
     "byClass": {
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 2
+        "missed": 1
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
       },
       "sdk": {
         "identical": 0,
@@ -12322,26 +13150,92 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 3
+      "contested": 1
     },
     "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 5
+        "missed": 7
       },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 3
+        "missed": 1
       },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 2
+      }
+    }
+  },
+  {
+    "id": "OctoMind-dev/automagically-action-execute#694",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "7.0.0",
+      "9.0.0"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2
+      }
+    }
+  },
+  {
+    "id": "OctoMind-dev/automagically-action-execute#698",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "7.0.0",
+      "9.0.0"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
       }
     }
   },
@@ -12368,20 +13262,59 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 16
+      "contested": 10
     },
     "byClass": {
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 16
+        "missed": 10
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2
       },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 1
+        "missed": 5
+      }
+    }
+  },
+  {
+    "id": "oke-py/npm-audit-action#207",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "verify",
+    "versions": [
+      "19.0.13",
+      "21.1.1"
+    ],
+    "sites": 6,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 6,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 6
       }
     }
   },
@@ -12408,20 +13341,14 @@
       "flagged": 0,
       "missed": 4,
       "unclassified": 0,
-      "contested": 17
+      "contested": 9
     },
     "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 11
-      },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 17
+        "missed": 18
       },
       "contract": {
         "identical": 0,
@@ -12433,7 +13360,46 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 3
+        "missed": 4
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 9
+      }
+    }
+  },
+  {
+    "id": "One-Code-LLC/mergerisk-action#48",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "6.0.1",
+      "9.1.1"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 2,
+    "missed": 0,
+    "extra": 0,
+    "extraFlags": 4,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 0
       }
     }
   },
@@ -13036,32 +14002,32 @@
       "flagged": 0,
       "missed": 1,
       "unclassified": 0,
-      "contested": 19
+      "contested": 6
     },
     "byClass": {
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 2,
-        "missed": 15
-      },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 1,
-        "missed": 18
+        "missed": 16
       },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 3
+        "missed": 15
       },
       "contract": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 1
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 5
       }
     }
   },
@@ -13403,6 +14369,19 @@
     }
   },
   {
+    "id": "plaid/quickstart#524",
+    "language": "python",
+    "package": "plaid-python",
+    "engine": "verify",
+    "sites": 0,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 0,
+    "extra": 0,
+    "error": "plaid-python 28.0.0 publishes no pure-Python wheel; a source distribution is never built"
+  },
+  {
     "id": "Pocket/pocket-monorepo#299",
     "language": "typescript",
     "package": "stripe",
@@ -13458,26 +14437,26 @@
       "flagged": 0,
       "missed": 1,
       "unclassified": 0,
-      "contested": 41
+      "contested": 33
     },
     "byClass": {
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 51
+        "missed": 52
       },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 41
+        "missed": 33
       },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 1
+        "missed": 8
       },
       "contract": {
         "identical": 0,
@@ -13549,20 +14528,20 @@
       "flagged": 2,
       "missed": 0,
       "unclassified": 0,
-      "contested": 13
+      "contested": 8
     },
     "byClass": {
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 18,
-        "missed": 24
+        "missed": 25
       },
       "contested": {
         "identical": 0,
         "differs": 0,
-        "flagged": 5,
-        "missed": 8
+        "flagged": 3,
+        "missed": 5
       },
       "contract": {
         "identical": 0,
@@ -13573,8 +14552,8 @@
       "unrelated": {
         "identical": 0,
         "differs": 0,
-        "flagged": 2,
-        "missed": 2
+        "flagged": 4,
+        "missed": 4
       }
     }
   },
@@ -13648,6 +14627,45 @@
         "differs": 0,
         "flagged": 0,
         "missed": 18
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
+      }
+    }
+  },
+  {
+    "id": "princespaghetti/setup-conftest#550",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "8.0.0",
+      "9.0.0"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
       },
       "unrelated": {
         "identical": 0,
@@ -13818,27 +14836,20 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 4
+      "unclassified": 0
     },
     "byClass": {
-      "contested": {
+      "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 4
+        "missed": 6
       },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 15
-      },
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 2
       }
     }
   },
@@ -13865,26 +14876,59 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 7
+      "contested": 4
     },
     "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 6
+      },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 4,
-        "missed": 3
+        "missed": 0
       },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 3,
         "missed": 2
-      },
-      "unrelated": {
-        "identical": 0,
+      }
+    }
+  },
+  {
+    "id": "publira/publira#972",
+    "language": "go",
+    "package": "github.com/stripe/stripe-go",
+    "engine": "contract",
+    "versions": [
+      "v82.5.1",
+      "v86.3.0"
+    ],
+    "sites": 2,
+    "identical": 2,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 0,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 2,
         "differs": 0,
         "flagged": 0,
-        "missed": 3
+        "missed": 0
       }
     }
   },
@@ -14099,7 +15143,7 @@
     "id": "raystack/frontier#698",
     "language": "go",
     "package": "github.com/stripe/stripe-go",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "v75.10.0",
       "v79.5.0"
@@ -14118,26 +15162,26 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 12
+      "contested": 8
     },
     "byClass": {
       "sdk": {
         "identical": 6,
         "differs": 9,
         "flagged": 0,
-        "missed": 9
+        "missed": 10
       },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 5
+        "missed": 8
       },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 3,
-        "missed": 9
+        "missed": 5
       }
     }
   },
@@ -14334,8 +15378,7 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 1
+      "unclassified": 0
     },
     "byClass": {
       "sdk": {
@@ -14344,11 +15387,44 @@
         "flagged": 0,
         "missed": 24
       },
-      "contested": {
+      "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 1
+      }
+    }
+  },
+  {
+    "id": "relative-ci/agent#1647",
+    "language": "javascript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "6.0.1",
+      "8.0.0"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2
       }
     }
   },
@@ -14815,6 +15891,45 @@
     }
   },
   {
+    "id": "richardsimko/update-tag#122",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "8.0.1",
+      "9.1.1"
+    ],
+    "sites": 3,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 3,
+    "extra": 0,
+    "extraFlags": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
+      }
+    }
+  },
+  {
     "id": "rob-luke/conversations#74",
     "language": "python",
     "package": "openai",
@@ -15208,7 +16323,7 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 2
+      "contested": 1
     },
     "byClass": {
       "sdk": {
@@ -15221,13 +16336,13 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 7
+        "missed": 8
       },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 2
+        "missed": 1
       }
     }
   },
@@ -15457,8 +16572,7 @@
       "differs": 0,
       "flagged": 2,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 1
+      "unclassified": 0
     },
     "byClass": {
       "contract": {
@@ -15471,19 +16585,46 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 3
-      },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 1
+        "missed": 4
       },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 1
+      }
+    }
+  },
+  {
+    "id": "SAP/cloud-sdk-js#6283",
+    "language": "javascript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "6.0.1",
+      "9.0.0"
+    ],
+    "sites": 3,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 3,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 3
       }
     }
   },
@@ -15510,22 +16651,22 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 10
+      "contested": 1
     },
     "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 3
+        "missed": 12
       },
-      "contested": {
+      "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 10
+        "missed": 1
       },
-      "sdk": {
+      "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
@@ -15600,6 +16741,39 @@
     }
   },
   {
+    "id": "SierraSoftworks/actions-tap#11",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "6.0.1",
+      "9.1.1"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 1,
+    "missed": 0,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 0
+      }
+    }
+  },
+  {
     "id": "siro103/OpSyne#2",
     "language": "python",
     "package": "openai",
@@ -15629,6 +16803,39 @@
         "differs": 0,
         "flagged": 2,
         "missed": 0
+      }
+    }
+  },
+  {
+    "id": "skaut/wordpress-version-checker#1722",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "7.0.0",
+      "9.0.0"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2
       }
     }
   },
@@ -15699,6 +16906,52 @@
     }
   },
   {
+    "id": "softprops/action-gh-release#470",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "5.1.1",
+      "6.0.0"
+    ],
+    "sites": 9,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 2,
+    "missed": 7,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 6,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 2,
+      "missed": 4,
+      "unclassified": 0,
+      "contested": 2
+    },
+    "byClass": {
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 4
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
+      }
+    }
+  },
+  {
     "id": "Soju06/codex-lb#1807",
     "language": "python",
     "package": "openai",
@@ -15720,27 +16973,20 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 2
+      "unclassified": 0
     },
     "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 8
-      },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 2
+        "missed": 9
       },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 1
+        "missed": 2
       }
     }
   },
@@ -15799,8 +17045,7 @@
       "differs": 0,
       "flagged": 0,
       "missed": 2,
-      "unclassified": 0,
-      "contested": 2
+      "unclassified": 0
     },
     "byClass": {
       "sdk": {
@@ -15809,7 +17054,7 @@
         "flagged": 0,
         "missed": 28
       },
-      "contested": {
+      "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
@@ -18747,7 +19992,7 @@
     "flagged": 3,
     "missed": 23,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 2,
     "inScope": {
       "sites": 1,
       "identical": 0,
@@ -18755,20 +20000,20 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 23
+      "contested": 7
     },
     "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 3
+        "missed": 19
       },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 3,
-        "missed": 20
+        "missed": 4
       },
       "contract": {
         "identical": 0,
@@ -19296,7 +20541,7 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 3
+      "contested": 2
     },
     "byClass": {
       "sdk": {
@@ -19308,13 +20553,13 @@
       "unrelated": {
         "identical": 0,
         "differs": 0,
-        "flagged": 4,
+        "flagged": 5,
         "missed": 1
       },
       "contested": {
         "identical": 0,
         "differs": 0,
-        "flagged": 3,
+        "flagged": 2,
         "missed": 0
       }
     }
@@ -19342,26 +20587,26 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 2
+      "contested": 1
     },
     "byClass": {
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 2
-      },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 15
+        "missed": 16
       },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 10
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
       }
     }
   },
@@ -19369,7 +20614,7 @@
     "id": "theopenlane/core#1314",
     "language": "go",
     "package": "github.com/stripe/stripe-go",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "v82.5.1",
       "v83.0.2"
@@ -19402,6 +20647,39 @@
         "differs": 0,
         "flagged": 0,
         "missed": 3
+      }
+    }
+  },
+  {
+    "id": "tldr-pages/tldr-labeler-action#120",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "6.0.1",
+      "9.1.1"
+    ],
+    "sites": 4,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 4,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 4
       }
     }
   },
@@ -19567,20 +20845,20 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 2
+      "contested": 1
     },
     "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 21
+        "missed": 22
       },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 2
+        "missed": 1
       }
     }
   },
@@ -19673,7 +20951,7 @@
       "flagged": 90,
       "missed": 4,
       "unclassified": 0,
-      "contested": 21
+      "contested": 19
     },
     "byClass": {
       "contract": {
@@ -19685,14 +20963,14 @@
       "contested": {
         "identical": 0,
         "differs": 0,
-        "flagged": 12,
-        "missed": 9
+        "flagged": 11,
+        "missed": 8
       },
       "unrelated": {
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 22
+        "flagged": 1,
+        "missed": 23
       },
       "sdk": {
         "identical": 0,
@@ -19771,6 +21049,72 @@
         "differs": 0,
         "flagged": 0,
         "missed": 2
+      }
+    }
+  },
+  {
+    "id": "twk3/rollup-size-compare-action#429",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "6.0.1",
+      "9.1.1"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2
+      }
+    }
+  },
+  {
+    "id": "uhstray-io/agent-cloud#39",
+    "language": "go",
+    "package": "github.com/stripe/stripe-go",
+    "engine": "contract",
+    "versions": [
+      "v79.12.0",
+      "v82.5.1"
+    ],
+    "sites": 3,
+    "identical": 2,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 2,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
       }
     }
   },
@@ -20922,21 +22266,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 1
+      "unclassified": 0
     },
     "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 11
-      },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 1
+        "missed": 12
       }
     }
   },
@@ -21028,8 +22365,7 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 1
+      "unclassified": 0
     },
     "byClass": {
       "sdk": {
@@ -21042,13 +22378,7 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 2
-      },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 1
+        "missed": 3
       }
     }
   },
@@ -21074,8 +22404,7 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0,
-      "contested": 1
+      "unclassified": 0
     },
     "byClass": {
       "sdk": {
@@ -21088,13 +22417,7 @@
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 1
-      },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 1
+        "missed": 2
       }
     }
   },
@@ -21519,6 +22842,144 @@
         "differs": 0,
         "flagged": 3,
         "missed": 0
+      }
+    }
+  },
+  {
+    "id": "yungweng/github-things-sync#10",
+    "language": "typescript",
+    "package": "@octokit/rest",
+    "engine": "verify",
+    "versions": [
+      "21.1.1",
+      "22.0.1"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
+      }
+    }
+  },
+  {
+    "id": "yykamei/block-merge-based-on-time#2863",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "7.0.0",
+      "9.0.0"
+    ],
+    "sites": 37,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 37,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 23
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 14
+      }
+    }
+  },
+  {
+    "id": "yykamei/github-workflows-metrics#292",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "7.0.0",
+      "9.0.0"
+    ],
+    "sites": 15,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 4,
+    "missed": 11,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 4,
+        "missed": 11
+      }
+    }
+  },
+  {
+    "id": "yykamei/merge-branches-managed-on-issue#1091",
+    "language": "typescript",
+    "package": "@actions/github",
+    "engine": "verify",
+    "versions": [
+      "7.0.0",
+      "9.0.0"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2
       }
     }
   },
