@@ -18,6 +18,7 @@ product; the first two are what make it mean something.
 | E. Migration replay | `replay/` | The migration engine's edits against the edits humans actually made when they upgraded an SDK. | Code nobody published. |
 | F. Hostile input | `fuzz/` | The runtime, the proxy and the parsers survive input designed to break them. | Anything not fuzzed. |
 | Long chains | `chains/` | A 50-step chain over a Stripe-sized, generated API stays within stated budgets for program size, compile time, load time and p99 transform (L18), and means what its steps run in turn mean. | The cost of a real provider's history, whose steps reach fewer sites than these. |
+| Soak | `soak/` | The proxy at a stated rate for 24 hours under upstream stalls, resets, slow, cut and oversized bodies, kill-switch flips, program reloads and restarts, with no response failing the contract its caller named, a bounded memory trend and no leaked sockets (L11). | Load beyond one process at a modest rate, which the overhead rig and a provider's own load tests cover. |
 | Proxy overhead | `overhead/` | The proxy adds no more than a stated p99 to an old caller's list response, every item adapted, at a fixed request rate, with the upstream, proxy and client in separate processes (L19). | Overhead on the provider's own hardware, network and body sizes, which a shared CI runner only approximates. |
 | Signed webhooks | `webhooks/` | A real GitHub `issues` payload and a real Stripe charge event, from a release that renamed a field, reach a subscriber on the old contract as that contract describes them, and verify under each provider's own signature scheme when signed after adapting and fail when signed before (M4.6). | Every event type either provider sends; two payloads show the order is right, not that every schema is covered. |
 
@@ -113,6 +114,44 @@ judged. In CI each release pair is a job of its own, holding no token;
 alone. A pair the release did not break is reported as vacuous; a test that
 passes without the adapter and fails through it fails the run. Projects
 looked at and left out are listed in `projects.json` with the reason.
+
+A test a release broke by behavior neither release's document describes, an
+error message reworded or a rule for combining states changed, is named
+under the pair in `projects.json` with the words it fails with and why no
+document names it. It is set aside, and listed with that reason in the
+report, only while it fails with those words both without the adapter and
+through it, so it cannot hide a different failure or one the adapter caused.
+A pair whose every break is of this kind is vacuous.
+
+## The soak
+
+`soak/soak.mts` is L11: the sidecar, exactly as a provider runs it, in front
+of an upstream serving the fixture provider's current contract, with the
+committed program serving its two released ones, at 50 requests a second for
+24 hours. The upstream stalls, resets, cuts bodies short, dribbles them,
+answers late and answers with more than the proxy buffers, as each request
+asks; the caller sends slow and oversized bodies of its own. Meanwhile the
+kill switch is flipped, the program is replaced (every fourth time with one
+that does not load), and the proxy is stopped and started again every four
+hours. Every response is judged by the rig C oracle against the contract the
+caller named, and every body the proxy sends upstream against the current
+one; the proxy's memory and sockets are sampled every ten seconds.
+
+```console
+capped --mem 600 -- node --import tsx proving/soak/soak.mts --record    # 24 hours
+node --import tsx proving/soak/soak.mts --minutes 10                   # the same, compressed
+node --import tsx proving/soak/soak.mts --minutes 2 --calm --modes normal,bloated
+```
+
+It needs no Docker and holds one proxy and one driver, well under 400 MB, so
+it runs on any machine; GitHub's runners stop at six hours. It writes a
+checkpoint as it goes to `.cache/soak/<start>/`, and `results.json` at the
+end, with each criterion met or not; `--record` also writes
+`soak/results.json`, which the scoreboard reads. `--modes` and `--calm` narrow
+what goes wrong, to find which disturbance a failure needs. Its first runs
+found two things in the proxy: an answer broken off mid-body was answered 500
+as its own failure, and a body refused unread held its connection, so the
+caller's next request on it was never answered.
 
 ## Rig F: hostile input
 

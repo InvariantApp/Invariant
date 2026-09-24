@@ -43,7 +43,11 @@ itself was handled; if it changed something, it did.
 
 ## `invariant_upstream_unavailable`
 
-**502.** The proxy could not reach your service. Only the proxy raises it.
+**502** or **504.** The proxy could not reach your service, or your service's
+answer broke off before its body was complete (502), or it did not answer, or
+finish answering, within `upstreamTimeoutMs` (504). Only the proxy raises it.
+An answer the proxy streams unchanged, such as a current caller's, reaches the
+caller cut short instead, as it came.
 
 ## `invariant_encoding_unsupported`
 

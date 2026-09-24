@@ -129,10 +129,15 @@ export class Oracle {
     // A format no validator knows, such as GitHub's `repo.nwo`, is an
     // annotation under JSON Schema and asserts nothing, so it is ignored
     // without a warning per schema compiled.
+    // `multipleOf` is judged to nine decimal places: 1.11 is a multiple of
+    // 0.01, although 1.11 / 0.01 is 111.00000000000001 in binary floating
+    // point. Without it, every amount in cents whose last digits a double
+    // cannot hold exactly reads as wrong, as the soak found.
     const options = {
       strict: false,
       allErrors: true,
       validateFormats: true,
+      multipleOfPrecision: 9,
       logger: { log: () => {}, warn: () => {}, error: console.error },
     } as const;
     this.#ajv = is31 ? new Ajv2020(options) : new Ajv(options);

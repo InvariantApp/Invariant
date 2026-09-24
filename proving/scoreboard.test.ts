@@ -183,3 +183,50 @@ describe("L15", () => {
     ).toBe("not met");
   });
 });
+
+describe("L11", () => {
+  const l11 = (soak?: unknown) =>
+    scoreboard({
+      corpus: undefined,
+      manifestPairs: undefined,
+      traffic: undefined,
+      servers: undefined,
+      replay: undefined,
+      fuzz: undefined,
+      soak: soak as never,
+    }).find((line) => line.id === "L11");
+  const soak = (met: boolean) => ({
+    hours: met ? 24.01 : 0.17,
+    rps: { stated: 50, achieved: 50 },
+    requests: { issued: 30_000, completed: 30_000, shed: 0 },
+    violations: { responses: 0, requests: 0, samples: [] },
+    transport: { duringRestart: 3, streamedCut: 40, otherwise: 0, samples: [] },
+    disturbances: {
+      flagFlips: 12,
+      reloads: { written: 8, broken: 2, served: 6, kept: 2 },
+      restarts: 1,
+      crashes: 0,
+    },
+    rss: { maxMb: 140, trend: undefined, samples: 60 },
+    sockets: { baseline: 3, max: 90, final: 3, leaked: 0, upstreamLeftOpen: 0 },
+    verdict: {
+      met,
+      criteria: [
+        { name: "ran 24 hours", met, value: met ? "24.01 hours" : "0.17 hours" },
+        { name: "no socket leaked", met: true, value: "0 left open" },
+      ],
+    },
+  });
+
+  it("is not measured until a soak is recorded", () => {
+    expect(l11()?.status).toBe("not measured");
+  });
+
+  it("says what a recorded soak measured, and which criteria it missed", () => {
+    const short = l11(soak(false));
+    expect(short?.status).toBe("not met");
+    expect(short?.value).toContain("0.17 hours at 50 of 50 requests a second");
+    expect(short?.value).toContain("Missed: ran 24 hours (0.17 hours)");
+    expect(l11(soak(true))?.status).toBe("met");
+  });
+});

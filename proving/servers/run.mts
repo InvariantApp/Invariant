@@ -57,6 +57,7 @@ import {
 import { ROOT } from "../corpus/manifest.mts";
 import {
   type ArmResult,
+  type Behavioral,
   combineRuns,
   compareArms,
   expand,
@@ -172,6 +173,12 @@ interface Project {
   };
   releases: Record<string, Release>;
   pairs: [string, string][];
+  /**
+   * By pair, as `<from>..<to>`: tests the release broke by behavior neither
+   * document describes, each with what it says when it fails that way and
+   * why no document names it. Set aside only while they fail as recorded.
+   */
+  behavioral?: Record<string, Behavioral[]>;
 }
 
 interface Manifest {
@@ -853,7 +860,7 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
   }
 
   const arms = { a, b, c };
-  const compared = compareArms(arms);
+  const compared = compareArms(arms, project.behavioral?.[`${from}..${to}`] ?? []);
   log(
     `  ${compared.valid} tests valid, ${compared.broken.length} broken by the release, ` +
       `${compared.served.length} served, ${compared.regressions.length} regressions`,
@@ -869,6 +876,7 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
     return Object.keys(messages).length > 0 ? { ...rest, messages } : rest;
   };
   const unserved = compared.broken.filter((id) => !compared.served.includes(id));
+  const aside = (compared.behavioral ?? []).map((entry) => entry.test);
   return {
     project: project.name,
     language: project.language,
@@ -878,8 +886,8 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
     gate,
     arms: {
       a: keep(a, []),
-      b: keep(b, compared.broken),
-      c: keep(c, [...unserved, ...compared.regressions]),
+      b: keep(b, [...compared.broken, ...aside]),
+      c: keep(c, [...unserved, ...compared.regressions, ...aside]),
     },
     ...compared,
   };

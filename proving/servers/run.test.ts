@@ -86,6 +86,84 @@ describe("comparing the three arms", () => {
   });
 });
 
+describe("setting aside what the release broke by behavior", () => {
+  // Gitea 1.25 says "not found" where 1.24 said "The target couldn't be
+  // found.", and neither document gives the 404 a body.
+  const reworded = {
+    test: "t2",
+    says: 'expected: "The target couldn\'t be found." actual : "not found"',
+    reason: "the 404 was reworded",
+  };
+  const failing = (t2: string) => ({
+    outcomes: { t1: "passed", t2: "failed", t3: "failed" } as const,
+    messages: { t2 },
+  });
+  const said =
+    'Not equal:\n  expected: "The target couldn\'t be found."\n  actual  : "not found"';
+
+  it("sets aside a named test only while it fails as recorded, with and without the adapter", () => {
+    const arms = {
+      a: { outcomes: { t1: "passed", t2: "passed", t3: "passed" } as const },
+      b: failing(said),
+      c: {
+        ...failing(said),
+        outcomes: { t1: "passed", t2: "failed", t3: "passed" } as const,
+      },
+    };
+    expect(compareArms(arms, [reworded])).toEqual({
+      valid: 3,
+      broken: ["t3"],
+      served: ["t3"],
+      regressions: [],
+      behavioral: [{ test: "t2", reason: "the 404 was reworded" }],
+    });
+  });
+
+  it("keeps a named test broken when it fails for another reason, or the adapter serves it", () => {
+    const a = { outcomes: { t1: "passed", t2: "passed", t3: "passed" } as const };
+    const otherwise = compareArms(
+      { a, b: failing(said), c: failing("expected: 200 actual : 500") },
+      [reworded],
+    );
+    expect(otherwise.broken).toEqual(["t2", "t3"]);
+    expect(otherwise.behavioral).toBeUndefined();
+    const served = compareArms(
+      {
+        a,
+        b: failing(said),
+        c: { outcomes: { t1: "passed", t2: "passed", t3: "failed" } as const },
+      },
+      [reworded],
+    );
+    expect(served.served).toEqual(["t2"]);
+    expect(served.behavioral).toBeUndefined();
+    const blocked = compareArms(
+      { a, b: failing(said), c: { outcomes: {}, error: "the gate blocks the release" } },
+      [reworded],
+    );
+    expect(blocked.broken).toEqual(["t2", "t3"]);
+  });
+
+  it("calls a pair vacuous when behavior is all the release broke, and lists why", () => {
+    const arms = {
+      a: { outcomes: { t1: "passed", t2: "passed", t3: "failed" } as const },
+      b: failing(said),
+      c: failing(said),
+    };
+    const result = {
+      ...pair("gitea", "Go", { a: [], b: [], c: [] }),
+      arms,
+      ...compareArms(arms, [reworded]),
+    };
+    expect(verdict(result)).toBe("vacuous");
+    const text = render([result]);
+    expect(text).toContain("1 test broken by behavior no document describes, set aside");
+    expect(text).toContain(
+      '- `t2`: expected "The target couldn\'t be found.", got "not found". the 404 was reworded',
+    );
+  });
+});
+
 describe("running an arm more than once", () => {
   // Immich's library scan test waits on a job that makes thumbnails, and
   // failed through the proxy once and passed the next time, against the same
@@ -195,6 +273,7 @@ describe("what the pairs prove", () => {
       regressions: 0,
       vacuous: 1,
       volatile: 0,
+      behavioral: 0,
     });
   });
 
