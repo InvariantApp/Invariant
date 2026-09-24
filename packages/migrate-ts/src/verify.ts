@@ -83,6 +83,9 @@ export function upgradeBreaks(check: UpgradeCheck): UpgradeBreaks {
     ]),
   );
   const after = diagnosticsOf(check, files, now, check.upgraded);
+  check.trace?.(
+    `found ${[...after.values()].reduce((sum, found) => sum + found.length, 0)} errors against the upgraded release`,
+  );
   const byFile = groupByFile(check.edits);
   const sites: ManualSite[] = [];
   const unchecked: string[] = [];
@@ -216,6 +219,9 @@ function diagnosticsOf(
     project.createSourceFile(file, texts.get(file) ?? "", { overwrite: true });
   }
   const program = project.getProgram().compilerObject;
+  check.trace?.(
+    `read ${program.getSourceFiles().length} files for ${release?.from ?? "the repository's own release"}`,
+  );
   const found = new Map<string, Found[]>();
   const token: ts.CancellationToken = {
     isCancellationRequested: () =>
