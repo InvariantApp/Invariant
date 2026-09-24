@@ -1,6 +1,6 @@
 {
   "name": "@invariant-app/verifier",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Proves a release is safe: lens laws, chain equivalence, differential base-vs-head, conformance, and the evidence records for each",
   "license": "Apache-2.0",
   "type": "module",

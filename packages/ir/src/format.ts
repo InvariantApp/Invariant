@@ -99,16 +99,16 @@ export const FEATURE_SINCE: Readonly<Record<ProgramFeature, string>> = {
   retired: "0.1.0",
   behaviors: "0.1.0",
   identity: "0.1.0",
-  status: NEXT,
+  status: "0.4.0",
   // A `move` whose target lies beneath its source, as Meilisearch's list of
   // a rule's actions became the `pin` list of an object in its place. It is
   // the `move` instruction every runtime reads, and 0.3.0 reads it and then
   // fails at the first request, so a program that needs it says so.
-  "move-beneath": NEXT,
+  "move-beneath": "0.4.0",
   // A body written in XML, decoded, transformed and written back. An older
   // runtime passes XML through untouched, which is a response in a shape
   // nobody promised, so a program that needs it says so.
-  xml: NEXT,
+  xml: "0.4.0",
 };
 
 function instrFeatures(list: readonly Instr[], into: Set<ProgramFeature>): void {
