@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "fromAddress",
+    "confidence": 1,
+    "scores": {
+      "fromAddress": 1,
+      "toAddress": 0.01
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 159.143736,
+  "inputTokens": 1277,
+  "costUsd": 0.000053634
+}

@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "counterparty",
+    "confidence": 0.995,
+    "scores": {
+      "counterparty": 0.995,
+      "originator": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 132.90529099997366,
+  "inputTokens": 1267,
+  "costUsd": 0.000053213999999999996
+}

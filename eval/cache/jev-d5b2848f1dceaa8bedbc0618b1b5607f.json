@@ -1,0 +1,24 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.91,
+    "scores": {
+      "payment_source.bancontact": 0.015,
+      "payment_source.blik": 0.015,
+      "payment_source.eps": 0.015,
+      "payment_source.giropay": 0.01,
+      "payment_source.ideal": 0.01,
+      "payment_source.mybank": 0.01,
+      "payment_source.p24": 0.01,
+      "payment_source.sofort": 0.015,
+      "payment_source.trustly": 0.015,
+      "payment_source.crypto": 0.055
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 147.1405430000159,
+  "inputTokens": 3878,
+  "costUsd": 0.000162876
+}

@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "presetIdentifier",
+    "confidence": 0.73,
+    "scores": {
+      "presetIdentifier": 0.865
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 166.67096800000036,
+  "inputTokens": 913,
+  "costUsd": 0.000038346
+}

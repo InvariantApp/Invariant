@@ -55,6 +55,7 @@ import {
   runPropose,
 } from "@invariant-app/cli";
 import { ROOT } from "../corpus/manifest.mts";
+import { type Exchange, judgeClosure } from "./closure.ts";
 import {
   type ArmResult,
   type Behavioral,
@@ -67,6 +68,7 @@ import {
   render,
   type Skipped,
 } from "./pairs.ts";
+import { type Recorder, startRecorder } from "./recorder.ts";
 
 export type { PairResult } from "./pairs.ts";
 
@@ -201,6 +203,13 @@ const RECORDED = join(ROOT, "proving/servers/changes");
  */
 const SUITE_PORT = 16_333;
 const BEHIND_PORT = 16_334;
+/**
+ * In arm c the suite calls a recorder, which calls the proxy, which calls a
+ * second recorder in front of the server, so the adapter's answer and the
+ * answer it was made from are both written down. Arm a has the one recorder.
+ */
+const PROXY_PORT = 16_335;
+const INNER_PORT = 16_336;
 
 const suitePortOf = (project: Project) => project.server.suitePort ?? SUITE_PORT;
 
@@ -763,6 +772,13 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
     };
   }
 
+  // What the suite was told in arms a and c, run by run, for judging the
+  // adapter's answers against the old server's (closure.ts).
+  const recorded: {
+    old: Exchange[][];
+    adapter: { sent: Exchange[]; given: Exchange[] }[];
+  } = { old: [], adapter: [] };
+
   const arm = async (
     label: string,
     tag: string,
@@ -771,24 +787,41 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
     log(
       `  arm ${label}: ${through ? "through the proxy to " : ""}${project.name} ${tag}`,
     );
+    const recording = label.startsWith("a") || through !== undefined;
     let proxy: ChildProcess | undefined;
+    let outer: Recorder | undefined;
+    let inner: Recorder | undefined;
     try {
       const vars = await startServer(
         project,
         tag,
-        through ? BEHIND_PORT : suitePortOf(project),
+        recording ? BEHIND_PORT : suitePortOf(project),
         secrets,
         suite,
       );
       await dumpSpec(project, tag, vars);
+      let front = vars["url"] ?? "";
       if (through) {
+        inner = await startRecorder({
+          port: INNER_PORT,
+          upstream: front,
+          numbering: "read",
+        });
         proxy = await startProxy(
           through.program,
           from,
-          vars["url"] ?? "",
+          `http://127.0.0.1:${INNER_PORT}`,
           work,
-          suitePortOf(project),
+          PROXY_PORT,
         );
+        front = `http://127.0.0.1:${PROXY_PORT}`;
+      }
+      if (recording) {
+        outer = await startRecorder({
+          port: suitePortOf(project),
+          upstream: front,
+          numbering: "assign",
+        });
         vars["url"] = `http://127.0.0.1:${suitePortOf(project)}`;
       }
       return await runSuite(
@@ -800,6 +833,10 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
     } catch (error) {
       return failed(error);
     } finally {
+      const sent = await outer?.close();
+      const given = await inner?.close();
+      if (sent && given) recorded.adapter.push({ sent, given });
+      else if (sent) recorded.old.push(sent);
       proxy?.kill("SIGTERM");
       await stopServer(project);
     }
@@ -865,6 +902,18 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
     `  ${compared.valid} tests valid, ${compared.broken.length} broken by the release, ` +
       `${compared.served.length} served, ${compared.regressions.length} regressions`,
   );
+  // Only an arm that ran on a program the gate passed has answers to judge.
+  const closure =
+    recorded.adapter.length > 0 && !c.error
+      ? judgeClosure(recorded.adapter, recorded.old)
+      : undefined;
+  if (closure) {
+    log(
+      `  false closure: ${closure.adapted} adapted answers, ${closure.compared} set beside the old server's, ` +
+        `${closure.sites.length} sites, ${closure.wrong.length} wrong`,
+    );
+    for (const finding of closure.wrong) log(`    ${finding.site}: ${finding.why}`);
+  }
   // Only what explains a result is kept of what the tests said.
   const keep = (armResult: ArmResult, ids: readonly string[]): ArmResult => {
     const messages = Object.fromEntries(
@@ -890,6 +939,7 @@ async function runPair(project: Project, from: string, to: string): Promise<Pair
       c: keep(c, [...unserved, ...compared.regressions, ...aside]),
     },
     ...compared,
+    ...(closure ? { closure } : {}),
   };
 }
 

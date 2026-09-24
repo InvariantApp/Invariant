@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.97,
+    "scores": {
+      "payment_source.card.network_transaction_reference": 0.025
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 152.34670600000027,
+  "inputTokens": 951,
+  "costUsd": 0.000039942000000000005
+}

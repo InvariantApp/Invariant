@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "storePaymentMethodMode",
+    "confidence": 0.98,
+    "scores": {
+      "storePaymentMethodMode": 0.98,
+      "telephoneNumber": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 149.84447099996032,
+  "inputTokens": 1419,
+  "costUsd": 0.000059598
+}

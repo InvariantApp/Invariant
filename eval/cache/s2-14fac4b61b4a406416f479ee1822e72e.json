@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "signal_dbm",
+    "confidence": 0.9,
+    "scores": {
+      "signal_dbm": 0.9
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "claude-opus-5",
+  "latencyMs": 3618.2139219999663,
+  "inputTokens": 1304,
+  "costUsd": 0.008545
+}

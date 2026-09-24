@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "rdata",
+    "confidence": 1,
+    "scores": {
+      "rdata": 1,
+      "comment": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 131.03359099999943,
+  "inputTokens": 1283,
+  "costUsd": 0.000053886000000000006
+}

@@ -1,0 +1,14 @@
+{
+  "answer": {
+    "successor": "semanticRatio",
+    "confidence": 0.9799999999999999,
+    "scores": {
+      "semanticRatio": 0.7
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "latencyMs": 0.008293000000094253,
+  "inputTokens": 0,
+  "costUsd": 0
+}

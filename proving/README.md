@@ -123,6 +123,16 @@ report, only while it fails with those words both without the adapter and
 through it, so it cannot hide a different failure or one the adapter caused.
 A pair whose every break is of this kind is vacuous.
 
+The same runs measure false closure, the Rig D half of L4b: a Change that
+passes the gate and still changes what an answer means. A recorder
+(`servers/recorder.ts`) sits where the suite calls in arms a and c, and a
+second one between the proxy and the server in arm c, so every answer the
+adapter changed can be set beside the old server's answer to the same call.
+`servers/closure.ts` compares them place by place: a value where the old
+server sent none, none where it sent one, a different kind of value, or a
+different value where the old server gave the same one on both of its runs
+is a wrong site, and the report lists each with what the old server said.
+
 ## The soak
 
 `soak/soak.mts` is L11: the sidecar, exactly as a provider runs it, in front

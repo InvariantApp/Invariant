@@ -1,0 +1,25 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.51,
+    "scores": {
+      "adChoicesDestinationUrl": 0,
+      "corrections.*.contexts": 0.09,
+      "creativeStatusIdentityType": 0.015,
+      "dealsStatus": 0.16,
+      "detectedDomains": 0.005,
+      "languages": 0.005,
+      "nativeAd.clickLinkUrl": 0,
+      "nativeAd.videoURL": 0,
+      "openAuctionStatus": 0.16,
+      "servingRestrictions": 0.175,
+      "videoVastXML": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 211.3592880000001,
+  "inputTokens": 4691,
+  "costUsd": 0.000197022
+}

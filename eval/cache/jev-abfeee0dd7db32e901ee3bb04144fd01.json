@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "max_runtime",
+    "confidence": 0.98,
+    "scores": {
+      "max_runtime": 0.99,
+      "retry_delay": 0.01
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 149.06768099999863,
+  "inputTokens": 1293,
+  "costUsd": 0.000054306000000000005
+}

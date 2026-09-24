@@ -1,0 +1,19 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.94,
+    "scores": {
+      "bankAccountUUID": 0,
+      "invalidFields": 0.005,
+      "metadata": 0.01,
+      "payoutMethodCode": 0,
+      "payoutSpeed": 0.005
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 387.986621,
+  "inputTokens": 2446,
+  "costUsd": 0.000102732
+}

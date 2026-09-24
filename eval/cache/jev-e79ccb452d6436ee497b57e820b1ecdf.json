@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.44,
+    "scores": {
+      "company.administrative_address": 0.07,
+      "company.principal_place_of_business": 0.125
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 181.0225960000007,
+  "inputTokens": 1245,
+  "costUsd": 0.00005229
+}

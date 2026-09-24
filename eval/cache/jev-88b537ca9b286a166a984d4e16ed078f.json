@@ -1,0 +1,15 @@
+{
+  "answer": {
+    "successor": "TranscriptionConfigurationId",
+    "confidence": 1,
+    "scores": {
+      "TranscriptionConfigurationId": 1
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 207.5071149999858,
+  "inputTokens": 1036,
+  "costUsd": 0.000043512000000000006
+}

@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "customerKey",
+    "confidence": 0.985,
+    "scores": {
+      "customerKey": 0.985,
+      "accountHolderCode": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 133.09582500000033,
+  "inputTokens": 1288,
+  "costUsd": 0.000054096000000000005
+}

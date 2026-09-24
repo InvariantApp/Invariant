@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": "shipping_address",
+    "confidence": 0.9,
+    "scores": {
+      "shipping_address": 0.9,
+      "billing_address": 0.035
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 169.97007899999153,
+  "inputTokens": 1269,
+  "costUsd": 0.000053298000000000004
+}

@@ -1,0 +1,16 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.99,
+    "scores": {
+      "payment_method_options.payco.setup_future_usage": 0,
+      "payment_method_options.samsung_pay.setup_future_usage": 0
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 168.93464800005313,
+  "inputTokens": 1291,
+  "costUsd": 0.000054222000000000004
+}

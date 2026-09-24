@@ -1,0 +1,17 @@
+{
+  "answer": {
+    "successor": null,
+    "confidence": 0.98,
+    "scores": {
+      "affirm": 0.005,
+      "carnet": 0.01,
+      "bcmc.transactionDescription": 0.01
+    },
+    "stated": false,
+    "abstained": false
+  },
+  "model": "jev-1.13.0",
+  "latencyMs": 172.59082399999988,
+  "inputTokens": 2034,
+  "costUsd": 0.000085428
+}
