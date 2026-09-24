@@ -21,7 +21,11 @@ jobs:
       pull-requests: write
       # npm trusted publishing: a short-lived token from GitHub's OIDC issuer
       # instead of a long-lived secret, and provenance recorded automatically.
+      # The same identity signs the action's attestations.
       id-token: write
+      attestations: write
+    outputs:
+      published: ${{ steps.changesets.outputs.publishedPackages }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
@@ -56,6 +60,27 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
 
+      # Every npm package carries its CycloneDX bill of materials inside the
+      # tarball its provenance covers (scripts/prepack.mjs). The action is
+      # released as the bundle the v0 tag points at, not through npm, so its
+      # bill of materials and provenance are attested here, on the bundle.
+      - name: The action's bill of materials
+        if: steps.changesets.outputs.published == 'true'
+        run: pnpm --filter @invariant-app/action sbom --sbom-format cyclonedx --prod --out action.cdx.json
+
+      - name: Attest the action's bill of materials
+        if: steps.changesets.outputs.published == 'true'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: packages/action/bundle/main.js
+          sbom-path: action.cdx.json
+
+      - name: Attest the action's build provenance
+        if: steps.changesets.outputs.published == 'true'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: packages/action/bundle/main.js
+
       # The workflow `invariant init` writes uses InvariantApp/Invariant@v0,
       # so every provider's check runs the action from the latest release.
       - name: Move the v0 tag to this release
@@ -63,3 +88,15 @@ jobs:
         run: |
           git tag -f v0
           git push -f origin v0
+
+  # The proxy image of every sidecar version published, with the same version,
+  # its bill of materials and provenance attested and the image signed.
+  image:
+    needs: release
+    if: contains(needs.release.outputs.published, '"@invariant-app/sidecar"')
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/image.yml

@@ -8,7 +8,7 @@ import { existsSync } from "node:fs";
  * with the code it belongs to.
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { ControlPlaneError } from "@invariant-app/client";
 import { loadContract } from "@invariant-app/contract";
 import { scenariosFromDocument, scenarioYaml } from "@invariant-app/verifier";
@@ -17,6 +17,7 @@ import { renderComment } from "./comment.ts";
 import { loadConfig } from "./config.ts";
 import { doctor, renderDoctor } from "./doctor.ts";
 import { type InitOptions, init, renderInit } from "./init.ts";
+import { LOCK_FILE, lockFor, renderLock } from "./lock.ts";
 import { observe, renderObservation } from "./observe.ts";
 import { renderProposals, runPropose } from "./propose.ts";
 import { rebuildAt, release, renderRelease, verifyRelease } from "./release.ts";
@@ -444,7 +445,10 @@ async function main(argv: string[]): Promise<number> {
     );
     await mkdir(dirname(out), { recursive: true });
     await writeFile(out, `${JSON.stringify(report.program, null, 2)}\n`, "utf8");
-    process.stdout.write(`wrote ${out}\n`);
+    // Beside the program, naming it by digest, for the runtime to check it by.
+    const lock = join(dirname(out), LOCK_FILE);
+    await writeFile(lock, renderLock(lockFor(report.program, basename(out))), "utf8");
+    process.stdout.write(`wrote ${out}\nwrote ${lock}\n`);
     for (const [label, contract] of Object.entries(report.program.contracts)) {
       process.stdout.write(
         `  ${label}: ${contract.routes.length} routes, ${Object.keys(contract.sites).length} sites\n`,

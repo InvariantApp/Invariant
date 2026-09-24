@@ -24,6 +24,7 @@ import { Node, Project, type SourceFile, ts } from "ts-morph";
 import { type EditScope, type EngineResult, editable, runEngine } from "./engine.ts";
 import { assertWritable, repositoryPath } from "./paths.ts";
 import { bumpPins } from "./pins.ts";
+import { assistRepair, type Repair, type Repairer } from "./repair.ts";
 import { flagRetired } from "./retired.ts";
 import { type Checker, consumerFile, type Release, upgradeBreaks } from "./verify.ts";
 
@@ -34,6 +35,7 @@ export { type CheckRequest, diagnosticsIn, type Found } from "./check.ts";
 export type { EditScope } from "./engine.ts";
 export { MigrationPathError } from "./paths.ts";
 export * from "./raw.ts";
+export type { Repair, Repairer, RepairRequest } from "./repair.ts";
 export type { Checker, Release } from "./verify.ts";
 
 export interface MigrateOptions {
@@ -94,11 +96,19 @@ export interface MigrateOptions {
    * and stops at `checkFor` only where the checker offers to.
    */
   checker?: Checker;
+  /**
+   * A model to ask for each function a site was left to a person in, sent
+   * that function and nothing else of the consumer's source (`repair.ts`).
+   * Absent, no model is asked, which is how an integration turns it off.
+   */
+  repair?: Repairer;
 }
 
 export interface MigrationResult {
   edits: Edit[];
   manual: ManualSite[];
+  /** Functions a model rewrote, each kept only where it type-checks as well as before. */
+  repairs: Repair[];
   /** New contents per file, whether or not they were written. */
   files: Map<string, string>;
   diagnosticsBefore: string[];
@@ -503,6 +513,20 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
     trace(`checked ${checked.size} files against the upgraded release`);
   }
 
+  const repairs = options.repair
+    ? await assistRepair({
+        project,
+        repoDir: options.repoDir,
+        generated: options.generated,
+        changes: options.plan.changes,
+        manual: result.manual,
+        edits: result.edits,
+        files,
+        repair: options.repair,
+      })
+    : [];
+  if (options.repair) trace(`a model repaired ${repairs.length} functions`);
+
   // Manual sites were located in the source as it was read. Every edit above
   // one of them moves it, so the line a reviewer is sent to is recomputed
   // against the text they will actually open.
@@ -525,6 +549,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
   return {
     edits: result.edits,
     manual: result.manual,
+    repairs,
     files,
     diagnosticsBefore,
     diagnosticsAfter,

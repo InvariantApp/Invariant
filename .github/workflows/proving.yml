@@ -398,6 +398,9 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      # To pull the proxy image and read the attestations its release made.
+      packages: read
+      attestations: read
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
@@ -455,6 +458,26 @@ jobs:
         if: always()
         run: node --import tsx proving/skew/run.mts
 
+      # L15: what the latest release's artifacts carry, checked from npm and
+      # the registry as a stranger would. Its result is the scoreboard's to
+      # report; a release without them must not stop the rest being recorded.
+      - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3.9.1
+        if: always()
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        if: always()
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: The latest release's bills of materials and provenance
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node --import tsx proving/releases/verify.mts
+
       - name: The scoreboard
         if: always()
         env:
@@ -475,6 +498,7 @@ jobs:
             proving/swagger/REPORT.md
             proving/journey/results.json
             proving/skew/results.json
+            proving/releases/results.json
 
       # Recorded in the repository, so a number quoted anywhere can be traced
       # to the run that produced it. Nothing is committed when nothing changed.
@@ -483,7 +507,7 @@ jobs:
         run: |
           git config user.name "invariant-proving"
           git config user.email "proving@users.noreply.github.com"
-          git add proving/SCOREBOARD.md proving/corpus proving/traffic proving/servers proving/swagger proving/journey proving/skew
+          git add proving/SCOREBOARD.md proving/corpus proving/traffic proving/servers proving/swagger proving/journey proving/skew proving/releases
           git diff --cached --quiet || git commit -m "Record the nightly proving run"
           git pull --rebase
           git push

@@ -53,7 +53,16 @@ proposals; a person merging them is the decision.
 ## `invariant compile`
 
 Writes the compiled program the runtime loads, by default to
-`invariant/compiled/program.json`; `--out <path>` moves it.
+`invariant/compiled/program.json`; `--out <path>` moves it. Beside it goes
+`invariant.lock`, which names the program by its digest, the same digest the
+evolution bundle records. Commit both. Given that digest, the runtime refuses
+any other program at load, so one changed between your build and your server
+is never served:
+
+```ts
+const lock = JSON.parse(await readFile("invariant/compiled/invariant.lock", "utf8"));
+const runtime = createRuntime({ program, programDigest: lock.programDigest });
+```
 
 ## `invariant release`
 

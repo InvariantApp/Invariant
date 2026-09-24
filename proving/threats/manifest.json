@@ -21,20 +21,31 @@
     {
       "threat": "Artifact tampering",
       "status": "partly covered",
-      "here": "invariant verify refuses a bundle edited after signing, signed by another key, under a forged key id, stripped of signatures, lifted onto another payload type, of another predicate type, whose subject digest does not match its bundle, or of an unknown version; a signed commit is never handed to git as an option.",
+      "here": "invariant verify refuses a bundle edited after signing, signed by another key, under a forged key id, stripped of signatures, lifted onto another payload type, of another predicate type, whose subject digest does not match its bundle, or of an unknown version; a signed commit is never handed to git as an option; a runtime given the digest invariant compile records in invariant.lock refuses at load a program edited after it was compiled.",
       "tests": [
-        { "file": "proving/threats/artifacts.test.ts", "titles": ["invariant verify"] },
-        { "file": "proving/fuzz/trust.test.ts", "titles": ["a signed bundle"] }
+        {
+          "file": "proving/threats/artifacts.test.ts",
+          "titles": ["invariant verify"]
+        },
+        {
+          "file": "proving/fuzz/trust.test.ts",
+          "titles": ["a signed bundle"]
+        },
+        {
+          "file": "proving/threats/artifacts.test.ts",
+          "titles": ["a program checked against invariant.lock"]
+        },
+        {
+          "file": "packages/cli/src/lock.test.ts",
+          "titles": ["invariant.lock"]
+        }
       ],
-      "elsewhere": "The registry's own check of the signature and digest on upload lives in the service's repository.",
-      "gaps": [
-        "the runtime's optional check of a program's digest against invariant.lock"
-      ]
+      "elsewhere": "The registry's own check of the signature and digest on upload lives in the service's repository."
     },
     {
       "threat": "Tampered or spoofed contract labels",
-      "status": "partly covered",
-      "here": "An unknown label, or one named like a prototype, is refused 400 in the provider's shape before the provider; a caller's x-invariant- headers are dropped; credentials pass an adapted request untouched, and a program that addresses a credential or framing header is refused at load.",
+      "status": "covered",
+      "here": "An unknown label, or one named like a prototype, is refused 400 in the provider's shape before the provider; a caller's x-invariant- headers are dropped; credentials pass an adapted request untouched, and a program that addresses a credential or framing header is refused at load; invariant check refuses a release whose behavior flag is used in authentication or authorization code, found by the file's path or the words around it, and lets one through that only picks a request's shape.",
       "tests": [
         {
           "file": "proving/threats/proxy.test.ts",
@@ -43,9 +54,16 @@
             "the headers no program may touch",
             "drops every header a caller forges in the engine's name"
           ]
+        },
+        {
+          "file": "proving/threats/flags.test.ts",
+          "titles": ["behavior flags used in auth code paths"]
+        },
+        {
+          "file": "packages/cli/src/auth-lint.test.ts",
+          "titles": ["behavior flags in authentication and authorization code"]
         }
-      ],
-      "gaps": ["a lint in invariant check for behavior flags used in auth code paths"]
+      ]
     },
     {
       "threat": "Malicious payloads and transformation bombs",
@@ -79,7 +97,10 @@
           "file": "packages/runtime/src/depth.test.ts",
           "titles": ["a body nested too deeply"]
         },
-        { "file": "proving/fuzz/runtime.test.ts", "titles": ["Rig F: the runtime"] }
+        {
+          "file": "proving/fuzz/runtime.test.ts",
+          "titles": ["Rig F: the runtime"]
+        }
       ]
     },
     {
@@ -142,7 +163,7 @@
     {
       "threat": "Consumer source access",
       "status": "partly covered",
-      "here": "The migration engine can send nothing anywhere, and a delivery writes only plain paths inside the consumer's repository.",
+      "here": "The migration engine can send nothing anywhere, and a delivery writes only plain paths inside the consumer's repository; model-assisted repair is sent the Change, why the site was left and the enclosing function only, never the rest of the file, another file or a site outside any function, is asked nothing unless the integration allows it, and what it returns is kept only as that one function, type-checking as well as before, labelled as the model's.",
       "tests": [
         {
           "file": "proving/threats/workdirs.test.ts",
@@ -150,23 +171,29 @@
             "the engine imports nothing that can start a process, load code or send source anywhere",
             "delivering a migration"
           ]
+        },
+        {
+          "file": "packages/migrate-ts/src/repair.test.ts",
+          "titles": ["assisted repair"]
         }
       ],
-      "elsewhere": "Per-repository installation, the ephemeral clone and keeping no source are the service's, in its repository.",
-      "gaps": ["model-assisted repair that sends only the enclosing function"]
+      "elsewhere": "Per-repository installation, the ephemeral clone and keeping no source are the service's, in its repository."
     },
     {
       "threat": "Executing consumer code",
       "status": "covered",
       "here": "A migration over a repository with install scripts, a compiler plugin and module side effects runs none of them, and the engine imports nothing that can start a process or load code.",
       "tests": [
-        { "file": "proving/threats/workdirs.test.ts", "titles": ["consumer code"] }
+        {
+          "file": "proving/threats/workdirs.test.ts",
+          "titles": ["consumer code"]
+        }
       ]
     },
     {
       "threat": "Supply chain",
       "status": "covered",
-      "here": "The runtime depends on nothing but exact decimal arithmetic; every workflow installs from the lockfile; every third-party action is pinned to a commit; npm publishes carry provenance from a token the workflow is issued.",
+      "here": "The runtime depends on nothing but exact decimal arithmetic; every workflow installs from the lockfile; every third-party action is pinned to a commit; npm publishes carry provenance from a token the workflow is issued; every npm package carries a CycloneDX bill of materials inside the tarball its provenance covers, the action's bundle is attested with both, and the proxy image with both and signed with cosign, each checked every night from the registries by proving/releases/verify.mts.",
       "tests": [
         {
           "file": "proving/threats/structure.test.ts",
@@ -205,7 +232,10 @@
     {
       "attack": "Bundle tampering: signature, digest, predicate",
       "tests": [
-        { "file": "proving/threats/artifacts.test.ts", "titles": ["invariant verify"] }
+        {
+          "file": "proving/threats/artifacts.test.ts",
+          "titles": ["invariant verify"]
+        }
       ]
     },
     {
@@ -224,7 +254,10 @@
     {
       "attack": "Sponsored-link replay",
       "tests": [
-        { "file": "proving/threats/webhooks.test.ts", "titles": ["a sponsored link"] }
+        {
+          "file": "proving/threats/webhooks.test.ts",
+          "titles": ["a sponsored link"]
+        }
       ],
       "notes": "A link is a bearer grant to bind one installation to one named consumer until it expires; whether it may be redeemed more than once is decided where it is redeemed, in the service."
     },
@@ -304,7 +337,10 @@
     {
       "attack": "Prompt injection",
       "tests": [
-        { "file": "proving/threats/judges.test.ts", "titles": ["what a judge is sent"] }
+        {
+          "file": "proving/threats/judges.test.ts",
+          "titles": ["what a judge is sent"]
+        }
       ]
     }
   ],

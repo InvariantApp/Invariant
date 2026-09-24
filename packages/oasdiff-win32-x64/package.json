@@ -18,6 +18,7 @@
     "bin",
     "LICENSE",
     "NOTICE",
+    "sbom.cdx.json",
     "README.md"
   ],
   "publishConfig": {
