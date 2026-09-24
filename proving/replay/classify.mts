@@ -517,7 +517,13 @@ export async function classify(
     const ruled = ruleClass(site);
     if (ruled) {
       classes[key] = { class: ruled.class, confidence: 1, model: `rule:${ruled.rule}` };
-    } else if (known && known.confidence < SURE) {
+    } else if (
+      known &&
+      known.confidence < SURE &&
+      !/\+(settle|wire)\b/.test(known.model)
+    ) {
+      // A site settled by the third or the narrow questions was asked more
+      // than the second already, and is not asked again.
       rechecking.push({ site, picked: known.class, confidence: known.confidence });
     }
   }
@@ -565,7 +571,7 @@ export async function classify(
   if (options.settle) {
     const contested = distinct.filter((site) => {
       const known = classes[siteKey(site)];
-      return known?.class === "contested" && !known.model.endsWith("+settle");
+      return known?.class === "contested" && !/\+(settle|wire)\b/.test(known.model);
     });
     for (const batch of batches(contested)) {
       await settle(batch, classes, client, model, options.retryWait);
@@ -574,7 +580,7 @@ export async function classify(
   if (options.narrow) {
     const contested = distinct.filter((site) => {
       const known = classes[siteKey(site)];
-      return known?.class === "contested" && !known.model.endsWith("+wire");
+      return known?.class === "contested" && !known.model.includes("+wire");
     });
     // A few at once: each is its own small request.
     let next = 0;
@@ -656,8 +662,11 @@ async function narrow(
 ): Promise<void> {
   const answer = await narrowAnswer(site, client, model, wait);
   if (!answer) return;
-  const label = `${answer.model}+wire`;
   const known = classes[siteKey(site)];
+  // Every question a site was asked stays in its label, so none is asked
+  // again: a site asked the third question and then these is `+settle+wire`.
+  const asked = /\+settle\b/.test(known?.model ?? "") ? "+settle" : "";
+  const label = `${answer.model}${asked}+wire`;
   classes[siteKey(site)] = answer.settled
     ? { class: answer.settled, confidence: answer[answer.settled], model: label }
     : { class: "contested", confidence: known?.confidence ?? 0, model: label };

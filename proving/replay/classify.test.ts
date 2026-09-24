@@ -333,12 +333,24 @@ describe("classing a human site", () => {
     expect(classes[siteKey(refactor)]).toEqual({
       class: "unrelated",
       confidence: 0.9,
-      model: "jev-1.13.0+wire",
+      model: "jev-1.13.0+settle+wire",
     });
     // Neither is settled: one might be the contract, and none is ever
     // settled as the contract by these questions.
-    expect(classes[siteKey(alias)]).toEqual(contested("jev-1.13.0+wire"));
-    expect(classes[siteKey(pin)]).toEqual(contested("jev-1.13.0+wire"));
+    expect(classes[siteKey(alias)]).toEqual(contested("jev-1.13.0+settle+wire"));
+    expect(classes[siteKey(pin)]).toEqual(contested("jev-1.13.0+settle+wire"));
+
+    // Asked everything once, nothing is asked again, whatever else is asked
+    // for: an answer asked for twice could come back different.
+    const before = JSON.stringify(classes);
+    requests.length = 0;
+    await classify([refactor, alias, pin, asked], classes, client, "jev-1.13.0", {
+      recheck: true,
+      settle: true,
+      narrow: true,
+    });
+    expect(requests).toEqual([]);
+    expect(JSON.stringify(classes)).toBe(before);
   });
 
   it("waits out a busy service rather than leaving sites unclassed", async () => {
