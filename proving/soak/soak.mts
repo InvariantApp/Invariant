@@ -549,7 +549,10 @@ async function main(): Promise<void> {
     await writeAtomically(flagsPath, `${JSON.stringify(state)}\n`);
   };
 
+  let reloading: Promise<void> = Promise.resolve();
   const reload = async () => {
+    // Not in the middle of a deploy, which ships its own program.
+    if (restarting) return;
     reloads += 1;
     // Every fourth replacement does not load; the next one mends it.
     if (reloads % 4 === 0) {
@@ -568,6 +571,12 @@ async function main(): Promise<void> {
     const began = Date.now() - runStart;
     log(`restarting the proxy at ${round((Date.now() - runStart) / 1000, 1)}s`);
     try {
+      // A restart is a deploy, and a deploy ships a program that loads: the
+      // proxy refuses to start on one that does not, as it should, which the
+      // first ten-minute run found when a restart fell between a broken
+      // replacement and its mend.
+      await reloading;
+      await writeFile(programPath, programs[reloads % 2] as string, "utf8");
       await stopProxy();
       await startProxy();
       // Connections the old process closed may still surface as errors.
@@ -626,7 +635,9 @@ async function main(): Promise<void> {
       ? []
       : [
           setInterval(() => void flip(), schedule.flipMs),
-          setInterval(() => void reload(), schedule.reloadMs),
+          setInterval(() => {
+      reloading = reload();
+    }, schedule.reloadMs),
         ]),
   ];
   let nextRestart = calm ? Number.POSITIVE_INFINITY : runStart + schedule.restartMs;
