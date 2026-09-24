@@ -12,6 +12,7 @@
  * rolls back with the code it belongs to.
  */
 
+import { programDigest } from "./digest.ts";
 import { closeEnvelope, type EnvelopeRequest, openEnvelope } from "./envelope.ts";
 import {
   BodyTooLargeError,
@@ -66,6 +67,8 @@ export {
   type StringCase,
   type TimeFormat,
 } from "./codecs.ts";
+/** The digest `invariant compile` records in invariant.lock, for checking a program by. */
+export { programDigest } from "./digest.ts";
 export type { EnvelopeRequest, ParamCodec } from "./envelope.ts";
 export {
   BodyTooDeepError,
@@ -177,6 +180,13 @@ export interface RuntimeFlags {
 export interface RuntimeOptions {
   /** The compiled program, as shipped in the provider's build. */
   program: unknown;
+  /**
+   * The digest `invariant compile` recorded in `invariant.lock` beside the
+   * program. Given, a program that does not hash to it is refused at load
+   * with a `ProgramError`, so one edited or swapped after it was reviewed is
+   * never served.
+   */
+  programDigest?: string;
   /**
    * How a request names its contract. Absent means the program's own, which
    * `invariant compile` takes from `invariant.yaml`.
@@ -392,6 +402,16 @@ export class InvariantRuntime {
   readonly #behaviors: readonly string[];
 
   constructor(options: RuntimeOptions) {
+    if (options.programDigest !== undefined) {
+      const actual = programDigest(options.program);
+      if (actual !== options.programDigest) {
+        throw new ProgramError(
+          `The program hashes to ${actual}, not the ${options.programDigest} ` +
+            "invariant.lock records. It was changed after it was compiled; " +
+            "compile it again from the reviewed Changes.",
+        );
+      }
+    }
     this.#program = decodeProgram(options.program);
     this.#behaviors = [
       ...new Set(

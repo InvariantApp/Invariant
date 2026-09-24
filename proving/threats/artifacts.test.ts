@@ -9,7 +9,7 @@
  * it names is the digest the bundle inside it has. Anything else exits
  * non-zero and prints no bundle.
  */
-import { rm, writeFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   buildBundle,
@@ -20,7 +20,8 @@ import {
   statementFor,
 } from "@invariant-app/bundle";
 import { canonicalize, digestOf } from "@invariant-app/contract";
-import type { JsonValue } from "@invariant-app/ir";
+import { type JsonValue, withoutProvenance } from "@invariant-app/ir";
+import { createRuntime, ProgramError } from "@invariant-app/runtime";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { invariant, ROOT, workdir } from "./harness.ts";
 
@@ -211,5 +212,65 @@ describe("invariant verify", () => {
     const result = await verify(envelope, "hostile-commit", "--rebuild");
     expect(result.code).toBe(1);
     expect(result.output).toContain("which is not a commit id");
+  });
+});
+
+describe("a program checked against invariant.lock", () => {
+  // What `invariant compile` wrote, from the fixture provider's Changes.
+  let compiled: { program: Record<string, unknown>; lock: { programDigest: string } };
+
+  beforeAll(async () => {
+    const dir = await workdir("lock");
+    const result = await invariant([
+      "compile",
+      "--config",
+      CONFIG,
+      "--out",
+      join(dir, "program.json"),
+    ]);
+    expect(result.code, result.output).toBe(0);
+    compiled = {
+      program: JSON.parse(await readFile(join(dir, "program.json"), "utf8")),
+      lock: JSON.parse(await readFile(join(dir, "invariant.lock"), "utf8")),
+    };
+    await rm(dir, { recursive: true, force: true });
+  }, 120_000);
+
+  it("loads the program the lock names, by the digest the evolution bundle records", () => {
+    expect(compiled.lock.programDigest).toBe(
+      digestOf(withoutProvenance(compiled.program) as unknown as JsonValue),
+    );
+    expect(() =>
+      createRuntime({
+        program: compiled.program,
+        programDigest: compiled.lock.programDigest,
+      }),
+    ).not.toThrow();
+  });
+
+  it.each([
+    [
+      "a changed label",
+      (program: Record<string, unknown>) => ({ ...program, currentLabel: "x" }),
+    ],
+    [
+      "a dropped contract",
+      (program: Record<string, unknown>) => ({ ...program, contracts: {} }),
+    ],
+    [
+      "one byte of a transform",
+      (program: Record<string, unknown>) =>
+        JSON.parse(JSON.stringify(program).replace(/"amount/, '"amounT')) as Record<
+          string,
+          unknown
+        >,
+    ],
+  ])("refuses at load a program edited after it was compiled: %s", (_name, edit) => {
+    expect(() =>
+      createRuntime({
+        program: edit(compiled.program),
+        programDigest: compiled.lock.programDigest,
+      }),
+    ).toThrow(ProgramError);
   });
 });

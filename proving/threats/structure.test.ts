@@ -111,7 +111,14 @@ interface Workflow {
     string,
     {
       permissions?: Record<string, string>;
-      steps?: { uses?: string; run?: string; env?: Record<string, string> }[];
+      if?: string;
+      uses?: string;
+      steps?: {
+        uses?: string;
+        run?: string;
+        env?: Record<string, string>;
+        with?: Record<string, string | boolean>;
+      }[];
     }
   >;
 }
@@ -184,6 +191,72 @@ describe("the supply chain", () => {
     );
     expect(publish?.env?.["NPM_CONFIG_PROVENANCE"]).toBe("true");
     expect(JSON.stringify(release)).not.toMatch(/NPM_TOKEN|NODE_AUTH_TOKEN/);
+  });
+
+  it("ships a CycloneDX bill of materials inside every npm package, where its provenance covers it", async () => {
+    const prepack = await readFile(join(ROOT, "scripts/prepack.mjs"), "utf8");
+    expect(prepack).toContain('"cyclonedx"');
+    const fetch = await readFile(join(ROOT, "scripts/fetch-oasdiff.mts"), "utf8");
+    expect(fetch).toContain('bomFormat: "CycloneDX"');
+    for (const dir of await readdir(join(ROOT, "packages"))) {
+      let manifest: {
+        name: string;
+        private?: boolean;
+        os?: string[];
+        files?: string[];
+        scripts?: Record<string, string>;
+      };
+      try {
+        manifest = JSON.parse(
+          await readFile(join(ROOT, "packages", dir, "package.json"), "utf8"),
+        );
+      } catch {
+        continue;
+      }
+      if (manifest.private) continue;
+      // A platform package's is written beside its binary as it is fetched;
+      // every other package's as it is packed.
+      if (manifest.os) expect(manifest.files, manifest.name).toContain("sbom.cdx.json");
+      else expect(manifest.scripts?.["prepack"], manifest.name).toContain("prepack.mjs");
+    }
+  });
+
+  it("attests the action's bundle with a bill of materials and provenance as it moves v0", async () => {
+    const release = (await workflows()).find(([name]) => name === "release.yml")?.[1];
+    const job = release?.jobs["release"];
+    expect(job?.permissions?.["attestations"]).toBe("write");
+    const attests = (job?.steps ?? []).filter((step) =>
+      step.uses?.startsWith("actions/attest@"),
+    );
+    expect(attests.map((step) => step.with?.["subject-path"])).toEqual([
+      "packages/action/bundle/main.js",
+      "packages/action/bundle/main.js",
+    ]);
+    expect(attests.map((step) => step.with?.["sbom-path"] !== undefined)).toEqual([
+      true,
+      false,
+    ]);
+    const sbom = job?.steps?.find((step) => step.run?.includes("sbom"));
+    expect(sbom?.run).toContain("--sbom-format cyclonedx");
+  });
+
+  it("builds, signs and attests the proxy image of every sidecar version published", async () => {
+    const all = await workflows();
+    const release = all.find(([name]) => name === "release.yml")?.[1];
+    expect(release?.jobs["image"]?.uses).toBe("./.github/workflows/image.yml");
+    expect(release?.jobs["image"]?.if).toContain('"@invariant-app/sidecar"');
+    const image = all.find(([name]) => name === "image.yml")?.[1];
+    const steps = image?.jobs["publish"]?.steps ?? [];
+    const syft = steps.find((step) => step.uses?.startsWith("anchore/sbom-action@"));
+    expect(syft?.with?.["format"]).toBe("cyclonedx-json");
+    const attests = steps.filter((step) => step.uses?.startsWith("actions/attest@"));
+    expect(
+      attests.map((step) => [step.with?.["sbom-path"], step.with?.["push-to-registry"]]),
+    ).toEqual([
+      [syft?.with?.["output-file"], true],
+      [undefined, true],
+    ]);
+    expect(steps.some((step) => step.run?.includes("cosign sign --yes"))).toBe(true);
   });
 
   it("scans every commit in the history for secrets on every push", async () => {

@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import type { ReleaseResults } from "./releases/verify.mts";
 import { scoreboard } from "./scoreboard.mts";
 import type { ThreatManifest } from "./threats/summary.ts";
 
@@ -74,7 +75,12 @@ describe("L4", () => {
 });
 
 /** L15 from the threat-model record as committed, with every gap closed when asked. */
-const l15 = (inputs: { threatsResult?: string; fuzz?: string; closeGaps?: boolean }) => {
+const l15 = (inputs: {
+  threatsResult?: string;
+  fuzz?: string;
+  closeGaps?: boolean;
+  releases?: ReleaseResults;
+}) => {
   const manifest = JSON.parse(
     readFileSync(new URL("./threats/manifest.json", import.meta.url), "utf8"),
   ) as ThreatManifest;
@@ -90,6 +96,7 @@ const l15 = (inputs: { threatsResult?: string; fuzz?: string; closeGaps?: boolea
     fuzz: inputs.fuzz,
     threats: manifest,
     threatsResult: inputs.threatsResult,
+    releases: inputs.releases,
   }).find((line) => line.id === "L15");
 };
 
@@ -99,14 +106,80 @@ describe("L15", () => {
     expect(line?.value).toMatch(
       /^threat-model tests passing: of the 12 rows of DESIGN 11\.1, \d+ covered here, \d+ covered here for this repository's part/,
     );
-    expect(line?.value).toContain("not yet built:");
     expect(l15({})?.value).toMatch(/^threat-model tests not run here/);
     expect(l15({ threatsResult: "failure" })?.value).toMatch(/failing \(failure\)/);
   });
 
-  it("is not met while releases carry no SBOM and provenance, even with every test passing", () => {
-    const line = l15({ threatsResult: "success", fuzz: "success", closeGaps: true });
-    expect(line?.status).toBe("not met");
-    expect(line?.value).toContain("SBOM and provenance wait on the first publish");
+  it("is not met while the latest release is unchecked or lacks an SBOM or provenance", () => {
+    const passing = { threatsResult: "success", fuzz: "success", closeGaps: true };
+    const unchecked = l15(passing);
+    expect(unchecked?.status).toBe("not met");
+    expect(unchecked?.value).toContain(
+      "SBOM and provenance of the latest release not yet checked",
+    );
+    const missing = l15({
+      ...passing,
+      releases: {
+        artifacts: [
+          {
+            artifact: "@invariant-app/cli",
+            version: "0.3.0",
+            sbom: true,
+            provenance: true,
+          },
+          {
+            artifact: "@invariant-app/migrate-go",
+            version: "0.2.0",
+            sbom: true,
+            provenance: false,
+            problem: "no provenance on the registry",
+          },
+        ],
+      },
+    });
+    expect(missing?.status).toBe("not met");
+    expect(missing?.value).toContain(
+      "missing on 1 of 2 (@invariant-app/migrate-go@0.2.0: no provenance on the registry)",
+    );
+  });
+
+  it("is met once every artifact of the latest release carries both, and everything else holds", () => {
+    const releases: ReleaseResults = {
+      artifacts: [
+        {
+          artifact: "@invariant-app/cli",
+          version: "0.3.0",
+          sbom: true,
+          provenance: true,
+        },
+        {
+          artifact: "the action (v0)",
+          version: "301d55b9dcbf",
+          sbom: true,
+          provenance: true,
+        },
+        {
+          artifact: "ghcr.io/invariantapp/sidecar",
+          version: "0.3.0",
+          sbom: true,
+          provenance: true,
+          signed: true,
+        },
+      ],
+    };
+    const line = l15({
+      threatsResult: "success",
+      fuzz: "success",
+      closeGaps: true,
+      releases,
+    });
+    expect(line?.status).toBe("met");
+    expect(line?.value).toContain(
+      "the latest release's 1 npm package, the action and the proxy image each carry a CycloneDX SBOM and provenance",
+    );
+    expect(
+      l15({ threatsResult: "success", fuzz: "failure", closeGaps: true, releases })
+        ?.status,
+    ).toBe("not met");
   });
 });

@@ -87,7 +87,12 @@ for (const name of packages) {
       process.stdout.write(`checked ${manifest.name} (binary not fetched here)\n`);
       continue;
     }
-    for (const file of [join("bin", binary.executable), "LICENSE", "NOTICE"]) {
+    for (const file of [
+      join("bin", binary.executable),
+      "LICENSE",
+      "NOTICE",
+      "sbom.cdx.json",
+    ]) {
       if (!existsSync(join(dir, file))) {
         failures.push(
           `${manifest.name} has no ${file}. Run scripts/fetch-oasdiff.mts before packing.`,

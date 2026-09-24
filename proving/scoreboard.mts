@@ -19,6 +19,7 @@ import type { BUDGET, ChainCost } from "./chains/cost.ts";
 import { ROOT } from "./corpus/manifest.mts";
 import { type JourneySummary, met as journeyMet } from "./journey/summary.ts";
 import type { BUDGET as OVERHEAD_BUDGET, OverheadResult } from "./overhead/overhead.ts";
+import type { ReleaseResults } from "./releases/verify.mts";
 import { type AuditFile, agreement } from "./replay/audit.mts";
 import type { SiteClass } from "./replay/classify.mts";
 import type { ReplayIndex } from "./replay/mine.mts";
@@ -80,6 +81,8 @@ export function scoreboard(inputs: {
   /** The threat-model record, and how its tests last ran. */
   threats?: ThreatManifest | undefined;
   threatsResult?: string | undefined;
+  /** What the latest release's artifacts were found to carry. */
+  releases?: ReleaseResults | undefined;
   chains?: (ChainCost & { budget: typeof BUDGET }) | undefined;
   overhead?: (OverheadResult & { budget: typeof OVERHEAD_BUDGET }) | undefined;
   vectors?: VectorCounts | undefined;
@@ -373,7 +376,9 @@ export function scoreboard(inputs: {
     },
     unmeasured("L14", "Enterprise identity, audit, self-hosting and residency.", "M9."),
   );
-  lines.push(securityLine(inputs.threats, inputs.threatsResult, inputs.fuzz));
+  lines.push(
+    securityLine(inputs.threats, inputs.threatsResult, inputs.fuzz, inputs.releases),
+  );
   lines.push(
     {
       id: "L16",
@@ -391,11 +396,43 @@ export function scoreboard(inputs: {
 }
 
 /**
- * Whether every release is published with an SBOM and provenance. Nothing has
- * been published yet, so nothing can have been; this changes with the first
- * release, and L15 cannot be met before it does.
+ * What the latest release's artifacts carry, from proving/releases/verify.mts:
+ * attested only when every one of them has a CycloneDX bill of materials and
+ * provenance, and the image its signature.
  */
-const RELEASES_ATTESTED = false;
+function releasesAttested(releases: ReleaseResults | undefined): {
+  attested: boolean;
+  value: string;
+} {
+  if (!releases || releases.artifacts.length === 0) {
+    return {
+      attested: false,
+      value: "SBOM and provenance of the latest release not yet checked",
+    };
+  }
+  const missing = releases.artifacts.filter((entry) => entry.problem !== undefined);
+  const packages = releases.artifacts.filter((entry) =>
+    entry.artifact.startsWith("@"),
+  ).length;
+  const whole = `the latest release's ${packages} npm package${packages === 1 ? "" : "s"}, the action and the proxy image`;
+  if (missing.length === 0) {
+    return {
+      attested: true,
+      value: `${whole} each carry a CycloneDX SBOM and provenance, checked from the registries; the image is signed`,
+    };
+  }
+  return {
+    attested: false,
+    value:
+      `SBOM and provenance checked on ${whole}: missing on ${missing.length} of ${releases.artifacts.length} (` +
+      missing
+        .map(
+          (entry) => `${entry.artifact}@${entry.version.slice(0, 12)}: ${entry.problem}`,
+        )
+        .join("; ") +
+      ")",
+  };
+}
 
 /** A job's result, as the scoreboard says it. */
 const outcome = (result: string | undefined, passing = "passing") =>
@@ -409,7 +446,9 @@ function securityLine(
   threats: ThreatManifest | undefined,
   threatsResult: string | undefined,
   fuzz: string | undefined,
+  releases: ReleaseResults | undefined,
 ): Line {
+  const attested = releasesAttested(releases);
   const summary = threats ? summarizeThreats(threats) : undefined;
   const modelled = summary
     ? `threat-model tests ${outcome(threatsResult)}: of the ${summary.rows} rows of DESIGN 11.1, ` +
@@ -426,7 +465,7 @@ function securityLine(
     threatsResult === "success" &&
     summary.gaps.length === 0 &&
     fuzz === "success" &&
-    RELEASES_ATTESTED;
+    attested.attested;
   return {
     id: "L15",
     claim:
@@ -435,11 +474,9 @@ function securityLine(
     value:
       `${modelled}; nightly fuzzers ${outcome(fuzz)}; full-history secrets scan on every commit; ` +
       "restore drill 2026-09-22 (RPO 2.1s, RTO 3s, in the service's repository); " +
-      (RELEASES_ATTESTED
-        ? "SBOM and provenance on every release"
-        : "SBOM and provenance wait on the first publish"),
+      attested.value,
     evidence:
-      "proving/threats/manifest.json and its tests, on every commit; proving/fuzz/; the secrets job in .github/workflows/ci.yml",
+      "proving/threats/manifest.json and its tests, on every commit; proving/fuzz/; the secrets job in .github/workflows/ci.yml; proving/releases/results.json (verify.mts), every night",
   };
 }
 
@@ -683,6 +720,7 @@ if (process.argv[1]?.endsWith("scoreboard.mts")) {
     fuzz: process.env["FUZZ_RESULT"],
     threats: read<ThreatManifest>("proving/threats/manifest.json"),
     threatsResult: process.env["THREATS_RESULT"],
+    releases: read<ReleaseResults>("proving/releases/results.json"),
     chains: read<ChainCost & { budget: typeof BUDGET }>("proving/chains/results.json"),
     vectors: read<VectorCounts>("conformance/vectors.json"),
     ownership: existsSync(join(ROOT, "eval/ownership.yaml"))

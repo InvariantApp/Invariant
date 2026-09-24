@@ -35,6 +35,7 @@ import {
 } from "@invariant-app/diff";
 import type { Change, CompiledProgram } from "@invariant-app/ir";
 import { type Evidence, inputsDigest } from "@invariant-app/verifier";
+import { flagsInAuthCode } from "./auth-lint.ts";
 import type { InvariantConfig } from "./config.ts";
 import { outcomeEvidence, readOutcomes } from "./outcomes.ts";
 import { applyGatePolicy } from "./policy.ts";
@@ -337,6 +338,18 @@ export async function check(
 
   const verified = await verify(config, steps, current.label, current.document, options);
   evidence.push(...verified.evidence);
+
+  // A behavior flag deciding who a caller is or what they may do would let a
+  // caller pick its own permissions by naming an older contract.
+  const flags = [
+    ...new Set(
+      declared.flatMap((change) =>
+        change.ops.flatMap((op) => (op.op === "behavior" ? [op.flag] : [])),
+      ),
+    ),
+  ];
+  const inAuth = await flagsInAuthCode(config.root, flags, { skip: config.invariantDir });
+  verified.problems.push(...inAuth);
 
   // E9. The only evidence here that is an observation rather than a prediction,
   // and the only one that can say the predictions held. It never blocks: a
