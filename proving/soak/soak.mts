@@ -636,8 +636,8 @@ async function main(): Promise<void> {
       : [
           setInterval(() => void flip(), schedule.flipMs),
           setInterval(() => {
-      reloading = reload();
-    }, schedule.reloadMs),
+            reloading = reload();
+          }, schedule.reloadMs),
         ]),
   ];
   let nextRestart = calm ? Number.POSITIVE_INFINITY : runStart + schedule.restartMs;
