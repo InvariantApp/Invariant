@@ -310,8 +310,33 @@ export function newCodeIn(
 ): boolean {
   if (base.every((line) => line.trim() === "")) return region.lines.length > 0;
   if (region.oldEnd > region.oldStart) return false;
+  return slides(base, region).some((lines) => definitionsOnly(lines, language));
+}
+
+/**
+ * An insertion's lines at every place it could equally have been drawn. A
+ * helper added after a function that ends as it does, `return None`, is
+ * drawn by the shortest edit from the old function's last line on; slid
+ * down by that line, it is the helper alone, as git's diff would show it.
+ */
+function slides(base: readonly string[], region: Region): string[][] {
+  const found = [region.lines];
+  let lines = [...region.lines];
+  for (let at = region.oldStart; at > 0 && lines.at(-1) === base[at - 1]; at -= 1) {
+    lines = [base[at - 1] as string, ...lines.slice(0, -1)];
+    found.push(lines);
+  }
+  lines = [...region.lines];
+  for (let at = region.oldStart; at < base.length && lines[0] === base[at]; at += 1) {
+    lines = [...lines.slice(1), base[at] as string];
+    found.push(lines);
+  }
+  return found;
+}
+
+function definitionsOnly(inserted: readonly string[], language: CodeLanguage): boolean {
   const quiet = QUIET[language];
-  const lines = region.lines.filter((line) => !quiet.test(line));
+  const lines = inserted.filter((line) => !quiet.test(line));
   if (lines.length === 0) return false;
   const indent = (line: string) => /^\s*/.exec(line)?.[0].length ?? 0;
   if (language === "python") {

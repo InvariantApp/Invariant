@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { changedRegions, hunksOf, newCodeIn, score } from "./score.mts";
+import { changedRegions, hunksOf, newCodeIn, type Region, score } from "./score.mts";
 
 const lines = (text: string) => text.split("\n");
 
@@ -214,6 +214,46 @@ describe("new code", () => {
         "go",
       ),
     ).toBe(true);
+  });
+
+  it("is found wherever the insertion could equally have been drawn", () => {
+    const base = [
+      "def a():",
+      "    x = 1",
+      "    return None",
+      "",
+      "",
+      "def b():",
+      "    pass",
+    ];
+    const after = [
+      "def a():",
+      "    x = 1",
+      "    return None",
+      "",
+      "",
+      "def helper():",
+      "    y = 2",
+      "    return None",
+      "",
+      "",
+      "def b():",
+      "    pass",
+    ];
+    // Drawn keeping the helper's `return None` against the old one: the same
+    // result, starting from the old function's last line.
+    const region: Region = {
+      oldStart: 2,
+      oldEnd: 2,
+      lines: ["    return None", "", "", "def helper():", "    y = 2"],
+    };
+    const drawn = [
+      ...base.slice(0, region.oldStart),
+      ...region.lines,
+      ...base.slice(region.oldStart),
+    ];
+    expect(drawn).toEqual(after);
+    expect(newCodeIn(base, region, "python")).toBe(true);
   });
 
   it("is not a line added to what was there, or a change to existing lines", () => {
