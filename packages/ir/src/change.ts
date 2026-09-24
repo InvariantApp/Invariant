@@ -326,7 +326,12 @@ export const WidenOp = Type.Object(
   {
     op: Type.Literal("widen"),
     path: Pointer,
-    /** The new variant, as the new contract names it. */
+    /**
+     * The new variant, as the new contract names it: a named schema, or a
+     * reference to a branch written out in the union itself, as Supabase
+     * writes each kind of upgrade blocker into its `validation_errors` list,
+     * `#/components/schemas/Eligibility/properties/validation_errors/items/oneOf/8`.
+     */
     variant: Type.String({ pattern: "^#/components/schemas/" }),
     show: Type.Union([Type.Literal("id"), Type.Literal("absent"), Type.Literal("null")]),
   },

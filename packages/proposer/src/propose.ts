@@ -1513,13 +1513,19 @@ function sameValues(
   let was: JsonValue | undefined;
   let now: JsonValue | undefined;
   try {
-    was = statementAt(oldContract, oldRoot, pair.old.pointer);
+    // Written into the old contract where the place stands, so reached
+    // there without passing through another schema, whose own Changes would
+    // then miss the copy the restatement writes.
+    was = statementAt(oldContract, oldRoot, pair.old.pointer, { inPlace: true });
     now = statementAt(newContract, newRoot, pair.new.pointer);
   } catch {
     // A reference on the way that leads nowhere: nothing to prove it on.
     return false;
   }
   if (was === undefined || now === undefined) return false;
+  // A place that refers to a named schema is that schema's to change: its
+  // own Change runs here too, and a restatement would act beside it.
+  if (JSON.stringify(was).includes('"$ref"')) return false;
   if (JSON.stringify(unannotated(was)) === JSON.stringify(unannotated(now))) return false;
   if (only === "choice") {
     const written = (document: OpenApiDocument, schema: JsonValue) => {

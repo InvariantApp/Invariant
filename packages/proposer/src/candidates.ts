@@ -728,9 +728,24 @@ export function statementAt(
   document: OpenApiDocument,
   root: JsonValue,
   pointer: string,
+  options: { inPlace?: boolean } = {},
 ): JsonValue | undefined {
   let current: JsonValue | undefined = root;
-  for (const segment of pointer === "" ? [] : pointer.slice(1).split("/")) {
+  for (const [index, segment] of (pointer === ""
+    ? []
+    : pointer.slice(1).split("/")
+  ).entries()) {
+    // With `inPlace`, only through what is written where it stands: a place
+    // reached through another schema's name, or built from parts, is that
+    // schema's to change.
+    if (
+      options.inPlace &&
+      index > 0 &&
+      isJsonObject(current) &&
+      (typeof current["$ref"] === "string" || current["allOf"] !== undefined)
+    ) {
+      return undefined;
+    }
     const resolved = resolveSchema(document, current ?? {});
     if (!isJsonObject(resolved)) return undefined;
     const properties = resolved["properties"];
