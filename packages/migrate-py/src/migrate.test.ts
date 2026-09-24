@@ -16,6 +16,9 @@ const SDK_OLD = {
   // upgrade counts, not only the ones that break at runtime.
   "acme/py.typed": "",
   "acme/__init__.py": [
+    "from acme._calls import Completion as Completion",
+    "from acme._calls import Widget as Widget",
+    "from acme._calls import charge as charge",
     "from acme._subscription import Invoice as Invoice",
     "from acme._subscription import Subscription as Subscription",
     "",
@@ -27,6 +30,22 @@ const SDK_OLD = {
     "",
     "",
     "def legacy() -> None: ...",
+    "",
+  ].join("\n"),
+  "acme/_calls.py": [
+    "from typing import Any",
+    "",
+    "",
+    "class Completion:",
+    "    @classmethod",
+    "    def create(cls, **kwargs: Any) -> Any: ...",
+    "",
+    "",
+    "class Widget:",
+    "    def __init__(self, name: str, size: int) -> None: ...",
+    "",
+    "",
+    'def charge(amount: str, engine: str, prompt: str = "") -> None: ...',
     "",
   ].join("\n"),
   "acme/_subscription.py": [
@@ -65,7 +84,14 @@ const SDK_NEW = {
   "acme/py.typed": "",
   "acme/__init__.py": SDK_OLD["acme/__init__.py"]
     .replace('"2024-01-01"', '"2025-01-01"')
-    .replace("\n\ndef legacy() -> None: ...\n", "\n"),
+    .replace("\n\ndef legacy() -> None: ...\n", "\n")
+    .replace("from acme._calls import Completion as Completion\n", "")
+    .replace("from acme._calls import Widget as Widget\n", ""),
+  // `Completion` and `Widget` are gone, and `charge` renamed a parameter.
+  "acme/_calls.py": [
+    'def charge(amount: str, model: str, prompt: str = "") -> None: ...',
+    "",
+  ].join("\n"),
   "acme/_subscription.py": SDK_OLD["acme/_subscription.py"]
     .replace("    current_period_end: int\n", "")
     .replace("cancel_at:", "cancels_at:")
@@ -279,6 +305,111 @@ describe("a Python migration", () => {
   }, 60_000);
 });
 
+describe("what the checker cannot see", () => {
+  it("follows values and prebuilt keyword arguments to where they are written", async () => {
+    const repo = join(root, "flows");
+    const calls = [
+      "import acme",
+      "from acme import Widget",
+      "",
+      "",
+      "def pay(amount: str) -> None:",
+      '    params = {"amount": amount, "engine": "fast"}',
+      '    params["prompt"] = "hi"',
+      "    acme.charge(**params)",
+      "",
+      "",
+      "def legacy(prompt: str):",
+      "    raw_request = {",
+      '        "engine": "davinci",',
+      '        "prompt": prompt,',
+      "    }",
+      "",
+      "    def do_it():",
+      "        return acme.Completion.create(**raw_request)",
+      "",
+      "    return do_it()",
+      "",
+      "",
+      "WIDGETS = [",
+      "    Widget(",
+      '        name="a",',
+      "        size=1,",
+      "    ),",
+      "]",
+      "",
+      "",
+      "def period(sub):",
+      '    return sub["cancel_at"]',
+      "",
+      "",
+      "def run() -> None:",
+      '    period(acme.Subscription.retrieve("sub_1"))',
+      "",
+      "",
+      "def invoice_period(inv):",
+      '    return inv["cancel_at"]',
+      "",
+      "",
+      "def run_invoice(invoice: acme.Invoice) -> None:",
+      "    invoice_period(invoice)",
+      "",
+    ].join("\n");
+    await writeTree(repo, { "calls.py": calls });
+    const file = join(repo, "calls.py");
+    const result = await migrate({
+      repoDir: repo,
+      sources: [file],
+      packages: [join(root, "old")],
+      upgraded: [join(root, "new")],
+      plan: buildPlan(changes, {
+        package: "acme",
+        upgradeTo: { package: "acme", version: "2.0.0" },
+        types: { subscription: "acme.Subscription", invoice: "acme.Invoice" },
+        accessors: [],
+      }),
+    });
+    const at = (site: { offset: number; end?: number }) =>
+      calls.slice(site.offset, site.end ?? site.offset);
+    const reported = result.manual.map((site) => [site.line, site.reason.slice(0, 47)]);
+    // A key the new release's `charge` no longer takes, where it is written.
+    expect(reported).toContainEqual([
+      6,
+      "`engine` reaches `acme.charge` as a keyword arg",
+    ]);
+    const engine = result.manual.find((site) => site.line === 6);
+    expect(engine && at(engine)).toBe('"engine": "fast"');
+    // A callee that is gone: the call, and the dictionary it unpacks, whole.
+    const dictionary = result.manual.find((site) =>
+      site.reason.startsWith(
+        "these are the keyword arguments of `acme.Completion.create`",
+      ),
+    );
+    expect(dictionary && [dictionary.line, at(dictionary)]).toEqual([
+      12,
+      calls.slice(
+        calls.indexOf('{\n        "engine": "davinci"'),
+        calls.indexOf("}\n\n    def do_it") + 1,
+      ),
+    ]);
+    // A class whose import fails: each call that builds one, whole.
+    const widget = result.manual.find((site) =>
+      site.reason.startsWith("`Widget` is no longer"),
+    );
+    expect(widget && [widget.line, at(widget)]).toEqual([
+      24,
+      'Widget(\n        name="a",\n        size=1,\n    )',
+    ]);
+    // A value followed to the SDK's call that made it is certainly a
+    // Subscription, and its renamed field is rewritten; one followed to an
+    // Invoice is not the field at all.
+    const migrated = result.files.get(file) ?? "";
+    expect(migrated).toContain('return sub["cancels_at"]');
+    expect(migrated).toContain('return inv["cancel_at"]');
+    expect(result.manual.some((site) => site.line === 40)).toBe(false);
+  }, 60_000);
+});
+
 describe("the API version a consumer pins", () => {
   it("is shown where it is written, through a settings module, and never moved", async () => {
     const repo = join(root, "pins");
@@ -357,8 +488,19 @@ describe("which new errors count", () => {
         code: "reportAttributeAccessIssue",
         message: 'Cannot access attribute "id" for class "str"',
       },
-    ].map((diagnostic) => breaks({ range: at, ...diagnostic }));
-    expect(counted).toEqual([true, true, true, false, false]);
+      {
+        code: "reportAttributeAccessIssue",
+        message:
+          'Cannot access attribute "stripe_id" for class "Session"\n  Attribute "stripe_id" is unknown',
+      },
+      {
+        code: "reportAttributeAccessIssue",
+        message: 'Cannot access attribute "items" for class "AsyncResult[Unknown]"',
+      },
+    ].map((diagnostic) => breaks({ range: at, ...diagnostic }, new Set(["Session"])));
+    // A member missing from a class of the SDK's own counts; one missing from
+    // the standard library's `AsyncResult`, in a union with it, does not.
+    expect(counted).toEqual([true, true, true, false, false, true, false]);
   });
 });
 

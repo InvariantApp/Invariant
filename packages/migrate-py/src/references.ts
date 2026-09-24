@@ -15,6 +15,7 @@
  * disk.
  */
 import { readFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LineIndex } from "./offsets.ts";
 import type { Diagnostic, Location, Position, Pyright } from "./pyright.ts";
@@ -68,6 +69,8 @@ export const sameDeclaration = (a: Declaration, b: Declaration) =>
   a.file === b.file && a.line === b.line && a.character === b.character;
 
 const PROBE = "__invariant_probe__.py";
+/** A source's stand-in, checked beside it (`errorsAs`). */
+const SHADOW = "__invariant_shadow__.py";
 
 /** pyright as a `ReferenceProvider` and a `Verifier`, over the files it has open. */
 export class PyrightReferences implements ReferenceProvider, Verifier {
@@ -103,6 +106,7 @@ export class PyrightReferences implements ReferenceProvider, Verifier {
     if (
       !this.texts.has(file) &&
       file !== this.probe &&
+      !file.endsWith(`/${SHADOW}`) &&
       file.startsWith(`${this.root}/`)
     ) {
       // A file of the consumer's that no source imported by name, such as
@@ -162,6 +166,24 @@ export class PyrightReferences implements ReferenceProvider, Verifier {
     return this.probeAt(text, text.lastIndexOf(`.${leaf}`) + 1);
   }
 
+  async memberType(
+    typeName: string,
+    path: readonly string[],
+  ): Promise<string | undefined> {
+    const leaf = path.at(-1);
+    if (!leaf || !/^[A-Za-z_]\w*$/.test(leaf)) return undefined;
+    const reach = path
+      .map((segment) => (segment === "*" ? "[0]" : `.${segment}`))
+      .join("");
+    const module = typeName.split(".")[0] as string;
+    const text = `import ${module}\n\n\ndef __invariant_probe(value: "${typeName}") -> None:\n    value${reach}\n`;
+    await this.server.open(this.probe, text);
+    return this.server.hover(
+      this.probe,
+      new LineIndex(text).positionAt(text.lastIndexOf(`.${leaf}`) + 1),
+    );
+  }
+
   async moduleAttribute(module: string, name: string): Promise<Declaration | undefined> {
     const text = `import ${module}\n\n${module}.${name}\n`;
     return this.probeAt(text, text.lastIndexOf(`.${name}`) + 1);
@@ -189,6 +211,34 @@ export class PyrightReferences implements ReferenceProvider, Verifier {
 
   async typeAt(file: string, offset: number): Promise<string | undefined> {
     return this.server.hover(file, this.indexOf(file).positionAt(offset));
+  }
+
+  /** Every reference in the open files to the name at `offset` in a source file. */
+  async referencesAt(file: string, offset: number): Promise<Span[]> {
+    const locations = await this.server.references(
+      file,
+      this.indexOf(file).positionAt(offset),
+    );
+    return locations
+      .map((location) => this.placeOf(location))
+      .filter(
+        (place): place is Span =>
+          isSpan(place) &&
+          place.file !== this.probe &&
+          !place.file.endsWith(`/${SHADOW}`),
+      );
+  }
+
+  /**
+   * The errors in `text` checked as though it were `file`: opened beside it
+   * under another name, so its imports resolve as the file's own do, and
+   * never written to disk.
+   */
+  async errorsAs(file: string, text: string): Promise<Diagnostic[]> {
+    const beside = `${dirname(file)}/${SHADOW}`;
+    await this.server.open(beside, text);
+    const diagnostics = await this.server.diagnosticsOf(beside);
+    return diagnostics.filter((diagnostic) => (diagnostic.severity ?? 1) === 1);
   }
 
   async errors(files: readonly string[]): Promise<Map<string, Diagnostic[]>> {
