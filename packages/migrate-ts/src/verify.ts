@@ -16,7 +16,6 @@
  * through the SDK's declarations, and only what is new is reported, so a file
  * that was never clean under the checker costs nothing.
  */
-import { Worker } from "node:worker_threads";
 import {
   applyEdits,
   type Edit,
@@ -25,7 +24,7 @@ import {
   originalOffset,
 } from "@invariant-app/migrate-core";
 import { ts } from "ts-morph";
-import type { CheckMessage, CheckRequest, Found } from "./check.ts";
+import { type CheckRequest, diagnosticsIn, type Found } from "./check.ts";
 import { within } from "./paths.ts";
 
 /** Where a release of the SDK resolves from, as a package's dependents find it. */
@@ -53,6 +52,8 @@ export interface UpgradeCheck {
   current?: Release;
   upgraded: Release;
   trace?: (step: string) => void;
+  /** Runs one check where the caller can stop it (`MigrateOptions.checker`). */
+  checker?: Checker;
   /**
    * When to stop checking, as a time in milliseconds: a file not checked by
    * then against both releases is listed as unchecked rather than holding
@@ -60,6 +61,14 @@ export interface UpgradeCheck {
    */
   deadline?: number;
 }
+
+/**
+ * Runs one check, as `diagnosticsIn` would, where it can be stopped, and
+ * answers with nothing where it was.
+ */
+export type Checker = (
+  request: CheckRequest,
+) => Promise<Map<string, Found[]> | undefined>;
 
 export interface UpgradeBreaks {
   sites: ManualSite[];
@@ -168,16 +177,10 @@ export function newErrors(
   return fresh;
 }
 
-/** The check's own thread: its source in development, its build once published. */
-const CHECK = new URL(
-  import.meta.url.endsWith(".ts") ? "./check.ts" : "./check.js",
-  import.meta.url,
-);
-
 /**
  * The files' errors with the SDK resolved from `release`, or through the
- * repository's own `node_modules` where none is given, checked in a thread
- * of their own and given up on at the deadline.
+ * repository's own `node_modules` where none is given, by the caller's
+ * checker where it gave one; none, where the check was given up on.
  */
 async function diagnosticsOf(
   check: UpgradeCheck,
@@ -191,35 +194,14 @@ async function diagnosticsOf(
     texts: files.map((file) => [file, texts.get(file) ?? ""] as const),
     compilerOptions: check.compilerOptions,
     ...(release ? { release } : {}),
+    ...(check.deadline !== undefined ? { deadline: check.deadline } : {}),
   };
-  const worker = new Worker(CHECK, { workerData: request });
-  try {
-    return await new Promise<Map<string, Found[]> | undefined>((resolve, reject) => {
-      const timer =
-        check.deadline === undefined
-          ? undefined
-          : setTimeout(
-              () => resolve(undefined),
-              Math.max(0, check.deadline - Date.now()),
-            );
-      worker.on("message", (message: CheckMessage) => {
-        if ("read" in message) {
-          check.trace?.(
-            `read ${message.read} files for ${release?.from ?? "the repository's own release"}`,
-          );
-          return;
-        }
-        clearTimeout(timer);
-        resolve(new Map(message.found));
-      });
-      worker.once("error", (error) => {
-        clearTimeout(timer);
-        reject(error);
-      });
-    });
-  } finally {
-    await worker.terminate();
-  }
+  if (check.checker) return check.checker(request);
+  return diagnosticsIn(request, (read) =>
+    check.trace?.(
+      `read ${read} files for ${release?.from ?? "the repository's own release"}`,
+    ),
+  );
 }
 
 /**

@@ -1,13 +1,14 @@
 /**
- * One check of the consumer's files, in a thread of its own.
+ * One check of the consumer's files against one release.
  *
- * The check against a release runs here so that it can be stopped. Type
- * checking a file is one synchronous call the checker only sometimes offers
- * to cancel, and decipad's files against stripe-node 17 sat in one for hours;
- * a thread can be ended from outside whatever it is doing.
+ * It is a function of plain data so that whoever runs a migration can run it
+ * where it can be stopped. Type-checking a file is one synchronous call the
+ * checker only sometimes offers to cancel, and decipad's files against
+ * stripe-node 17 sat in one for hours. The engine starts no process and no
+ * thread of its own; a caller that needs a hard limit runs this in one
+ * (`MigrateOptions.checker`), and the replay does.
  */
 import { join } from "node:path";
-import { parentPort, workerData } from "node:worker_threads";
 import { Project, ts } from "ts-morph";
 import type { Release } from "./verify.ts";
 
@@ -17,6 +18,8 @@ export interface CheckRequest {
   texts: readonly (readonly [string, string])[];
   compilerOptions: ts.CompilerOptions;
   release?: Release;
+  /** When to stop, in milliseconds since the epoch, where the checker offers to. */
+  deadline?: number;
 }
 
 export interface Found {
@@ -26,8 +29,6 @@ export interface Found {
   start: number;
   end: number;
 }
-
-export type CheckMessage = { read: number } | { found: (readonly [string, Found[]])[] };
 
 /**
  * The files' errors with the SDK resolved from `release`, or through the
@@ -78,13 +79,27 @@ export function diagnosticsIn(
   const program = project.getProgram().compilerObject;
   onRead(program.getSourceFiles().length);
   const found = new Map<string, Found[]>();
+  const token: ts.CancellationToken = {
+    isCancellationRequested: () =>
+      request.deadline !== undefined && Date.now() > request.deadline,
+    throwIfCancellationRequested() {
+      if (this.isCancellationRequested()) throw new ts.OperationCanceledException();
+    },
+  };
   for (const file of request.files) {
     const source = program.getSourceFile(file);
-    if (!source) continue;
-    const diagnostics = [
-      ...program.getSyntacticDiagnostics(source),
-      ...program.getSemanticDiagnostics(source),
-    ];
+    if (!source || token.isCancellationRequested()) continue;
+    let diagnostics: ts.Diagnostic[];
+    try {
+      diagnostics = [
+        ...program.getSyntacticDiagnostics(source, token),
+        ...program.getSemanticDiagnostics(source, token),
+      ];
+    } catch (error) {
+      // Past the deadline the file is left out, and so listed as unchecked.
+      if (error instanceof ts.OperationCanceledException) continue;
+      throw error;
+    }
     found.set(
       file,
       diagnostics
@@ -112,12 +127,4 @@ export function diagnosticsIn(
 function firstLine(message: string | ts.DiagnosticMessageChain): string {
   const text = typeof message === "string" ? message : message.messageText;
   return text.split("\n")[0]?.trim() ?? "";
-}
-
-if (parentPort && workerData) {
-  const port = parentPort;
-  const found = diagnosticsIn(workerData as CheckRequest, (read) =>
-    port.postMessage({ read } satisfies CheckMessage),
-  );
-  port.postMessage({ found: [...found] } satisfies CheckMessage);
 }

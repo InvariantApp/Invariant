@@ -23,15 +23,16 @@ import { type EditScope, type EngineResult, editable, runEngine } from "./engine
 import { assertWritable, repositoryPath } from "./paths.ts";
 import { bumpPins } from "./pins.ts";
 import { flagRetired } from "./retired.ts";
-import { consumerFile, type Release, upgradeBreaks } from "./verify.ts";
+import { type Checker, consumerFile, type Release, upgradeBreaks } from "./verify.ts";
 
 // The plan and the edits are shared with every language pack, and still
 // importable from here, where they began.
 export * from "@invariant-app/migrate-core";
+export { type CheckRequest, diagnosticsIn, type Found } from "./check.ts";
 export type { EditScope } from "./engine.ts";
 export { MigrationPathError } from "./paths.ts";
 export * from "./raw.ts";
-export type { Release } from "./verify.ts";
+export type { Checker, Release } from "./verify.ts";
 
 export interface MigrateOptions {
   /** Root of the consumer repository. */
@@ -85,6 +86,12 @@ export interface MigrateOptions {
    * milliseconds; a file it has not reached by then is listed in `unchecked`.
    */
   checkFor?: number;
+  /**
+   * Runs each check against a release where it can be stopped, such as in a
+   * worker the caller ends at `checkFor`; by default the check runs here,
+   * and stops at `checkFor` only where the checker offers to.
+   */
+  checker?: Checker;
 }
 
 export interface MigrationResult {
@@ -460,6 +467,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
       upgraded: options.upgraded,
       ...(options.current ? { current: options.current } : {}),
       trace,
+      ...(options.checker ? { checker: options.checker } : {}),
       ...(options.checkFor !== undefined
         ? { deadline: Date.now() + options.checkFor }
         : {}),

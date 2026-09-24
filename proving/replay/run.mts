@@ -74,6 +74,7 @@ import {
 import { buildPlan, migrate, type SymbolMap } from "@invariant-app/migrate-ts";
 import { ts } from "ts-morph";
 import { ROOT } from "../corpus/manifest.mts";
+import { workerChecker } from "./check.mts";
 import {
   type ClassRecord,
   cachedOutcomes,
@@ -764,6 +765,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         // Most cases check in seconds; one that has not in five minutes is
         // left partly unchecked, and says so, rather than holding the shard.
         checkFor: 5 * 60_000,
+        checker: workerChecker,
         ...(keep || options.verbose
           ? {
               trace: (step: string) =>
