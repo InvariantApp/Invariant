@@ -7,7 +7,15 @@
  * other response work is filed under the status the provider answers with.
  */
 import type { OpenApiDocument } from "@invariant-app/contract";
-import { type Change, isJsonObject, parseChange } from "@invariant-app/ir";
+import {
+  type Change,
+  FEATURE_SINCE,
+  isJsonObject,
+  NEXT,
+  nextRelease,
+  PRODUCT_VERSION,
+  parseChange,
+} from "@invariant-app/ir";
 import { describe, expect, it } from "vitest";
 import { chainProgram } from "./chain.ts";
 import { derive } from "./derive.ts";
@@ -302,6 +310,12 @@ describe("a status that changed in two releases", () => {
     expect(text).toContain("chg_short");
     expect(text).toContain("chg_cents");
     expect(text.indexOf("chg_short")).toBeLessThan(text.indexOf("chg_cents"));
-    expect(chained.program.minRuntime).toMatch(/-next$/);
+    // A program that changes a status asks for the first runtime that can:
+    // the release after this one before it ships, and that release's number
+    // once `sync-versions` has written it in. Asserting the pre-release
+    // alone failed the 0.4.0 release's own pull request.
+    expect(chained.program.minRuntime).toBe(
+      FEATURE_SINCE.status === NEXT ? nextRelease(PRODUCT_VERSION) : FEATURE_SINCE.status,
+    );
   });
 });
