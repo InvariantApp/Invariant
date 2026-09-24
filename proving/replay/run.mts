@@ -804,7 +804,13 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         types: contract?.types ?? {},
         ...(contract ? { operations: contract.operations } : {}),
         ...(contract
-          ? { tags: withLabel(contract.tags, next?.label, entry.package) }
+          ? {
+              tags: withLabel(
+                contract.tags,
+                { from: old?.label, label: next?.label },
+                entry.package,
+              ),
+            }
           : {}),
         accessors: [],
         ...(old && next
@@ -982,14 +988,24 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
 }
 
 /**
- * A contract's tags with the version the upgraded SDK itself speaks, where it
- * says, rather than the one its specification describes, and the SDK named.
+ * A contract's tags with the versions the SDK's two releases themselves
+ * speak, where they say, rather than the ones their specifications
+ * describe, and the SDK named.
  */
-function withLabel(tags: WireTags, label: string | undefined, sdk: string): WireTags {
+function withLabel(
+  tags: WireTags,
+  versions: { from?: string | undefined; label?: string | undefined },
+  sdk: string,
+): WireTags {
   if (!tags.version) return tags;
   return {
     ...tags,
-    version: { ...tags.version, label: label ?? tags.version.label, sdk },
+    version: {
+      ...tags.version,
+      from: versions.from ?? tags.version.from,
+      label: versions.label ?? tags.version.label,
+      sdk,
+    },
   };
 }
 
@@ -1207,7 +1223,13 @@ async function replayPython(
     upgradeTo: { package: entry.package, version: next.version, types },
     types,
     ...(contract
-      ? { tags: withLabel(contract.tags, pin?.label, `stripe-python ${next.version}`) }
+      ? {
+          tags: withLabel(
+            contract.tags,
+            { from: pin?.from, label: pin?.label },
+            `stripe-python ${next.version}`,
+          ),
+        }
       : {}),
     accessors: [],
     ...(pin ? { pin } : {}),

@@ -36,6 +36,7 @@ const tags: WireTags = {
   version: {
     schema: "event",
     property: "api_version",
+    from: "2025-02-24.acacia",
     label: "2025-03-31.basil",
     sdk: "stripe-go v82",
   },
@@ -111,12 +112,16 @@ describe("taggedObjectSites", () => {
     expect(sites[0]?.reason).toContain("moved to `items.data.*.current_period_end`");
   });
 
-  it("leaves objects without the tag, with another tag, or already on the new version alone", () => {
+  it("leaves objects without the tag, with another tag, or not on the version the SDK had alone", () => {
     const text = [
       "{",
       '  "charge": "ch_1",',
       '  "nested": { "object": "charge", "charge": "x" },',
       '  "event": { "object": "event", "api_version": "2025-03-31.basil" },',
+      // Recorded long before the SDK the consumer has today: left behind
+      // already, not by this upgrade.
+      '  "older": { "object": "event", "api_version": "2015-04-07" },',
+      '  "empty": { "object": "event", "api_version": "" },',
       '  "other": { object: someVariable, charge: 1 }',
       "}",
     ].join("\n");

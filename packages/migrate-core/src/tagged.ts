@@ -28,9 +28,18 @@ export interface WireTags {
   schemas: Record<string, string>;
   /**
    * Where an object records the API version it was shaped by, as a Stripe
-   * event's `api_version`, and the version the upgraded SDK speaks.
+   * event's `api_version`, the version the consumer's SDK speaks today
+   * (`from`) and the one the upgraded SDK speaks (`label`). Only a fixture
+   * recording `from` followed the SDK and is moved by the upgrade; one
+   * recording a version older still was left behind long before it.
    */
-  version?: { schema: string; property: string; label: string; sdk?: string };
+  version?: {
+    schema: string;
+    property: string;
+    from: string;
+    label: string;
+    sdk?: string;
+  };
 }
 
 /** What the upgrade did to one field of a schema, as a path from the object. */
@@ -322,7 +331,7 @@ export function taggedObjectSites(
     if (version && schema === version.schema) {
       const entry = entries.find((each) => each.key === version.property);
       const recorded = entry && stringValue(text, entry);
-      if (entry && recorded !== undefined && recorded !== version.label) {
+      if (entry && recorded === version.from && recorded !== version.label) {
         sites.push(
           siteOf(
             file,

@@ -237,12 +237,15 @@ export function wireTags(before: OpenApiDocument, after: OpenApiDocument): WireT
     if (names.has(value)) schemas[value] = value;
     else if (names.size === 1) schemas[value] = [...names][0] as string;
   }
-  const label = (after as { info?: { version?: string } }).info?.version;
+  const versionOf = (document: OpenApiDocument) =>
+    (document as { info?: { version?: string } }).info?.version;
+  const from = versionOf(before);
+  const label = versionOf(after);
   return {
     property: "object",
     schemas,
-    ...(label && schemas["event"]
-      ? { version: { schema: "event", property: "api_version", label } }
+    ...(from && label && schemas["event"]
+      ? { version: { schema: "event", property: "api_version", from, label } }
       : {}),
   };
 }

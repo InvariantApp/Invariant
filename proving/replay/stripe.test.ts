@@ -42,7 +42,12 @@ describe("Stripe's tags", () => {
         event: "event",
         invoice_payment: "invoice_payment",
       },
-      version: { schema: "event", property: "api_version", label: "2025-04-30.basil" },
+      version: {
+        schema: "event",
+        property: "api_version",
+        from: "2025-02-24.acacia",
+        label: "2025-04-30.basil",
+      },
     });
   });
 
