@@ -762,12 +762,8 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         upgraded: { package: entry.package, from: newRelease.prefix },
       });
       base.versions = [versionOf(oldSdk), versionOf(newSdk)];
-      for (const site of result.manual) {
-        const file = site.file.slice(repo.length + 1);
-        const text = before.get(file) ?? readFileSync(site.file, "utf8");
-        const lineAt = (offset: number) => text.slice(0, offset).split("\n").length - 1;
-        const range = [lineAt(site.offset), lineAt(site.end ?? site.offset) + 1] as const;
-        flagged.set(file, [...(flagged.get(file) ?? []), range]);
+      for (const [file, ranges] of flaggedLines(result.manual, repo, before)) {
+        flagged.set(file, ranges);
       }
       if (keep || options.verbose) {
         process.stdout.write(
@@ -949,6 +945,18 @@ const PYTHON_CONTRACTS: Record<string, true> = { stripe: true };
 const PYTHON_SKIPPED =
   /(^|\/)(\.?venv[^/]*|env|site-packages|__pycache__|\.tox|\.nox|\.eggs|migrations)\//;
 
+/** The 0-based line an offset is on, from each line's start offset. */
+export function lineOf(starts: readonly number[], offset: number): number {
+  let low = 0;
+  let high = starts.length - 1;
+  while (low < high) {
+    const middle = (low + high + 1) >> 1;
+    if ((starts[middle] as number) <= offset) low = middle;
+    else high = middle - 1;
+  }
+  return low;
+}
+
 /** Base lines each manual site covers, per file, as the score reads them. */
 function flaggedLines(
   manual: readonly ManualSite[],
@@ -956,12 +964,28 @@ function flaggedLines(
   before: Map<string, string>,
 ): Map<string, (readonly [number, number])[]> {
   const flagged = new Map<string, (readonly [number, number])[]>();
+  // Each file's line starts once: a file the upgrade broke all over has tens
+  // of thousands of sites, and counting lines from the top for each held
+  // decipad's replay for hours.
+  const starts = new Map<string, number[]>();
   for (const site of manual) {
     const file = site.file.slice(repo.length + 1);
-    const text = before.get(file) ?? readFileSync(site.file, "utf8");
-    const lineAt = (offset: number) => text.slice(0, offset).split("\n").length - 1;
-    const range = [lineAt(site.offset), lineAt(site.end ?? site.offset) + 1] as const;
-    flagged.set(file, [...(flagged.get(file) ?? []), range]);
+    let lines = starts.get(file);
+    if (!lines) {
+      const text = before.get(file) ?? readFileSync(site.file, "utf8");
+      lines = [0];
+      for (let at = text.indexOf("\n"); at !== -1; at = text.indexOf("\n", at + 1)) {
+        lines.push(at + 1);
+      }
+      starts.set(file, lines);
+    }
+    const range = [
+      lineOf(lines, site.offset),
+      lineOf(lines, site.end ?? site.offset) + 1,
+    ] as const;
+    const ranges = flagged.get(file);
+    if (ranges) ranges.push(range);
+    else flagged.set(file, [range]);
   }
   return flagged;
 }

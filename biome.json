@@ -17,6 +17,7 @@
       "!proving/**/results*.json",
       "!proving/corpus/manifest.json",
       "!proving/replay/index.json",
+      "!proving/replay/classes.json",
       "!proving/replay/sites.json",
       "!packages/action/bundle",
       "!packages/client/src/schema.ts",
