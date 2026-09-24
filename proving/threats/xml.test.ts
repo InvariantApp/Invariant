@@ -82,6 +82,28 @@ function send(body: string): { refused?: Error; output?: string; ms: number } {
   }
 }
 
+/**
+ * How many times longer a document ten times the size takes. Linear work
+ * takes about ten times as long and quadratic work a hundred, on any machine;
+ * a bound in milliseconds is not the same test on a shared runner, which reads
+ * the same hundred thousand elements three times slower than a laptop.
+ */
+function growth(document: (count: number) => string): number {
+  const fastest = (count: number, runs: number) => {
+    const body = document(count);
+    return Math.min(...Array.from({ length: runs }, () => send(body).ms));
+  };
+  fastest(1_000, 3);
+  return fastest(100_000, 2) / fastest(10_000, 5);
+}
+
+/**
+ * Twice what reading a hundred thousand elements measures, about twenty, since
+ * the collector's share grows with the heap, and well short of the hundredfold
+ * that quadratic work takes.
+ */
+const LINEAR = 40;
+
 describe("XML that would make the runtime expand, fetch or read", () => {
   it("refuses the billion laughs before a single entity is expanded", () => {
     const laughs = [
@@ -125,13 +147,11 @@ describe("XML that would make the runtime expand, fetch or read", () => {
   });
 
   it("reads a document of a hundred thousand attributes in linear time", () => {
-    const attributes = Array.from(
-      { length: 100_000 },
-      (_, index) => ` a${index}="x"`,
-    ).join("");
-    const result = send(`<R${attributes}><S>a</S></R>`);
-    expect(result.output).toBe(`<R${attributes}><S>b</S></R>`);
-    expect(result.ms).toBeLessThan(1000);
+    const document = (count: number) =>
+      `<R${Array.from({ length: count }, (_, index) => ` a${index}="x"`).join("")}><S>a</S></R>`;
+    const result = send(document(100_000));
+    expect(result.output).toBe(document(100_000).replace("<S>a</S>", "<S>b</S>"));
+    expect(growth(document)).toBeLessThan(LINEAR);
   });
 
   it("refuses namespace declarations past any real document's, before they multiply", () => {
@@ -152,10 +172,11 @@ describe("XML that would make the runtime expand, fetch or read", () => {
   });
 
   it("answers a document of a hundred thousand elements nothing names in linear time", () => {
-    const body = `<R>${"<x><y>1</y></x>".repeat(100_000)}<S>a</S></R>`;
-    const result = send(body);
-    expect(result.output).toBe(body.replace("<S>a</S>", "<S>b</S>"));
-    expect(result.ms).toBeLessThan(1000);
+    const document = (count: number) =>
+      `<R>${"<x><y>1</y></x>".repeat(count)}<S>a</S></R>`;
+    const body = document(100_000);
+    expect(send(body).output).toBe(body.replace("<S>a</S>", "<S>b</S>"));
+    expect(growth(document)).toBeLessThan(LINEAR);
   });
 });
 
