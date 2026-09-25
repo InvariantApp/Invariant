@@ -8,7 +8,8 @@
  */
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { valueArbitrary } from "./arbitrary.ts";
+import { schemaArbitrary, valueArbitrary } from "./arbitrary.ts";
+import { validateAgainst } from "./validate.ts";
 
 const document = { openapi: "3.0.3", info: { title: "t", version: "1" }, paths: {} };
 const sample = (schema: object, runs = 50) =>
@@ -287,6 +288,55 @@ describe("oneOf", () => {
     };
     for (const value of sample(labels, 100)) {
       expect(value).not.toEqual({});
+    }
+  });
+});
+
+describe("schemas that reach every other schema", () => {
+  // Stripe's objects reach nearly every other object through expandable
+  // fields, each a union of an id and the object. Built in full, the
+  // generator for one of them held one for every path to the depth limit,
+  // and the release gate ran out of a 12 GB heap building it. Here each
+  // object has two unions of 30 objects, some 60^6 generators in full.
+  const names = Array.from({ length: 30 }, (_, index) => `object_${index}`);
+  const expandable = {
+    anyOf: [
+      { type: "string", maxLength: 8 },
+      ...names.map((name) => ({ $ref: `#/components/schemas/${name}` })),
+    ],
+  };
+  const connected = {
+    openapi: "3.0.3",
+    info: { title: "t", version: "1" },
+    paths: {},
+    components: {
+      schemas: Object.fromEntries(
+        names.map((name) => [
+          name,
+          {
+            type: "object",
+            required: ["id"],
+            properties: {
+              id: { type: "string", maxLength: 8 },
+              ...Object.fromEntries(
+                Array.from({ length: 2 }, (_, index) => [`link_${index}`, expandable]),
+              ),
+            },
+          },
+        ]),
+      ),
+    },
+  };
+
+  it("build only what the values reach, and the values hold", () => {
+    const ref = "#/components/schemas/object_0";
+    const values = fc.sample(schemaArbitrary(connected as never, ref), {
+      numRuns: 20,
+      seed: 3,
+    });
+    expect(values).toHaveLength(20);
+    for (const value of values) {
+      expect(validateAgainst(connected as never, ref, value)).toEqual([]);
     }
   });
 });

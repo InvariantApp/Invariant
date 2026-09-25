@@ -13,7 +13,7 @@
  * against exactly the values it claims to cover.
  */
 import { deref, type OpenApiDocument, resolveSchema } from "@invariant-app/contract";
-import { isJsonObject, type JsonValue } from "@invariant-app/ir";
+import { isJsonObject, type JsonObject, type JsonValue } from "@invariant-app/ir";
 import fc from "fast-check";
 import { validateSchema } from "./validate.ts";
 
@@ -242,15 +242,109 @@ function bounds(
   return { min, max: Math.max(min, max) };
 }
 
+/**
+ * A generator built the first time a value is drawn from it, and then drawn
+ * from exactly as the one it stands for would be: same values, same shrinks.
+ *
+ * Built eagerly, the generator for one schema holds one for every field of
+ * every schema it reaches, six levels down in full and then through every
+ * required field to the hard limit. Stripe's objects reach nearly every other
+ * object through expandable fields, so one of its schemas came to a tree of
+ * millions of generators and the gate ran out of a 12 GB heap building it,
+ * before drawing a single value. Deferred, only what the values actually
+ * reach is built.
+ */
+class Deferred extends fc.Arbitrary<JsonValue> {
+  #build: (() => fc.Arbitrary<JsonValue>) | undefined;
+  #built: fc.Arbitrary<JsonValue> | undefined;
+
+  constructor(build: () => fc.Arbitrary<JsonValue>) {
+    super();
+    this.#build = build;
+  }
+
+  get #arbitrary(): fc.Arbitrary<JsonValue> {
+    if (this.#built === undefined) {
+      this.#built = (this.#build as () => fc.Arbitrary<JsonValue>)();
+      this.#build = undefined;
+    }
+    return this.#built;
+  }
+
+  generate(random: fc.Random, biasFactor: number | undefined): fc.Value<JsonValue> {
+    return this.#arbitrary.generate(random, biasFactor);
+  }
+
+  canShrinkWithoutContext(value: unknown): value is JsonValue {
+    return this.#arbitrary.canShrinkWithoutContext(value);
+  }
+
+  shrink(value: JsonValue, context: unknown): fc.Stream<fc.Value<JsonValue>> {
+    return this.#arbitrary.shrink(value, context);
+  }
+}
+
+/**
+ * The generators already made for one schema, one per depth, since what is
+ * generated below a schema depends on how deep it sits and on nothing else.
+ * One schema reached along many paths is then one generator per depth rather
+ * than one per path, and the tree becomes the graph the document already is.
+ * Kept for one call, so nothing outlives the generator it was made for.
+ */
+interface Made {
+  byDepth: WeakMap<JsonObject, Map<number, fc.Arbitrary<JsonValue>>>;
+  /** Each `allOf` merged once, whatever depth it is reached at. */
+  merged: WeakMap<JsonObject, { schema: JsonValue } | undefined>;
+}
+
+function freshMade(): Made {
+  return { byDepth: new WeakMap(), merged: new WeakMap() };
+}
+
 function arbitraryFor(
   document: OpenApiDocument,
   raw: JsonValue,
   depth: number,
+  made: Made,
 ): fc.Arbitrary<JsonValue> {
   const resolved = deref(document, raw);
   if (!isJsonObject(resolved)) return fc.constant(null);
-  const schema = resolved;
+  let byDepth = made.byDepth.get(resolved);
+  if (byDepth === undefined) {
+    byDepth = new Map();
+    made.byDepth.set(resolved, byDepth);
+  }
+  let arbitrary = byDepth.get(depth);
+  if (arbitrary === undefined) {
+    arbitrary = new Deferred(() => buildFor(document, resolved, depth, made));
+    byDepth.set(depth, arbitrary);
+  }
+  return arbitrary;
+}
 
+/** Merges an `allOf` as the rest of the product reads it, once per schema. */
+function mergedOnce(
+  document: OpenApiDocument,
+  schema: JsonObject,
+  made: Made,
+): { schema: JsonValue } | undefined {
+  if (made.merged.has(schema)) return made.merged.get(schema);
+  let result: { schema: JsonValue } | undefined;
+  try {
+    result = { schema: resolveSchema(document, schema) };
+  } catch {
+    result = undefined;
+  }
+  made.merged.set(schema, result);
+  return result;
+}
+
+function buildFor(
+  document: OpenApiDocument,
+  schema: JsonObject,
+  depth: number,
+  made: Made,
+): fc.Arbitrary<JsonValue> {
   const constant = schema["const"];
   if (constant !== undefined) return fc.constant(constant);
 
@@ -284,7 +378,7 @@ function arbitraryFor(
       );
       const chosen = fc.oneof(
         ...alternatives.map((branch, index) => {
-          const value = arbitraryFor(document, branch, depth);
+          const value = arbitraryFor(document, branch, depth, made);
           if (key === "anyOf") return value;
           // oneOf means exactly one. Branches overlap in real contracts, as
           // GitHub's labels body where `{}` is both of its object forms, so a
@@ -316,14 +410,11 @@ function arbitraryFor(
     // with. Merging only the object branches lost every other kind: AWS's
     // specifications write nearly each field as allOf of a string and a
     // description, and those came out as `{}`.
-    let merged: JsonValue;
-    try {
-      merged = resolveSchema(document, schema);
-    } catch {
-      return fc.constant({});
-    }
+    const resolved = mergedOnce(document, schema, made);
+    if (resolved === undefined) return fc.constant({});
+    const merged = resolved.schema;
     if (isJsonObject(merged) && merged["allOf"] === undefined) {
-      return arbitraryFor(document, merged, depth);
+      return arbitraryFor(document, merged, depth, made);
     }
   }
 
@@ -360,7 +451,7 @@ function arbitraryFor(
         if (items === undefined || depth >= HARD_DEPTH) return fc.constant([]);
         if (depth >= MAX_DEPTH) {
           if (minItems === 0) return fc.constant([]);
-          return fc.array(arbitraryFor(document, items, depth + 1), {
+          return fc.array(arbitraryFor(document, items, depth + 1, made), {
             minLength: minItems,
             maxLength: minItems,
           });
@@ -369,7 +460,7 @@ function arbitraryFor(
           typeof schema["maxItems"] === "number"
             ? schema["maxItems"]
             : Math.max(minItems, 3);
-        return fc.array(arbitraryFor(document, items, depth + 1), {
+        return fc.array(arbitraryFor(document, items, depth + 1, made), {
           minLength: minItems,
           maxLength: Math.min(maxItems, minItems + 3),
         });
@@ -394,12 +485,12 @@ function arbitraryFor(
             return fc.constant({});
           }
           const value = isJsonObject(additional)
-            ? arbitraryFor(document, additional, depth + 1)
+            ? arbitraryFor(document, additional, depth + 1, made)
             : fc.string({ maxLength: 8, unit: "grapheme-ascii" });
           // A map: keys the provider chooses, written as `propertyNames` says
           // when it says, and values of one declared shape.
           const key = isJsonObject(keys)
-            ? arbitraryFor(document, keys, depth + 1).filter(
+            ? arbitraryFor(document, keys, depth + 1, made).filter(
                 (name): name is string => typeof name === "string",
               )
             : fc.string({ minLength: 1, maxLength: 8, unit: "grapheme-ascii" });
@@ -426,7 +517,7 @@ function arbitraryFor(
         const entries = Object.entries(properties)
           .filter(([name]) => !minimal || required.has(name))
           .map(([name, child]) => {
-            const value = arbitraryFor(document, child, depth + 1);
+            const value = arbitraryFor(document, child, depth + 1, made);
             return [
               name,
               required.has(name)
@@ -470,7 +561,7 @@ export function valueArbitrary(
   document: OpenApiDocument,
   schema: JsonValue,
 ): fc.Arbitrary<JsonValue> {
-  return arbitraryFor(document, schema, 0);
+  return arbitraryFor(document, schema, 0, freshMade());
 }
 
 /** A generator for values of one named schema in a contract. */
@@ -482,5 +573,5 @@ export function schemaArbitrary(
   if (!isJsonObject(resolved)) {
     throw new ArbitraryError(`${ref} is not a schema in this contract`);
   }
-  return arbitraryFor(document, resolved, 0);
+  return arbitraryFor(document, resolved, 0, freshMade());
 }
