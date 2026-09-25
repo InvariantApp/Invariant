@@ -90,6 +90,8 @@ export class ValueFlow {
   private readonly module: string;
   private readonly qualified = new Map<string, Promise<string | undefined>>();
   private readonly followed = new Map<string, Promise<string | undefined>>();
+  /** Values being followed now, down the one chain of calls that is running. */
+  private readonly following = new Set<string>();
 
   constructor(references: FlowProvider, sources: Sources, module: string) {
     this.references = references;
@@ -103,12 +105,19 @@ export class ValueFlow {
    */
   classOf(file: string, node: Node, depth = 0): Promise<string | undefined> {
     const key = `${file}:${node.startIndex}:${node.endIndex}`;
+    // A value that leads back to one still being followed ends there. Handing
+    // back that value's own unfinished answer would have it wait on itself,
+    // which is what happened once the cycle passed through an `await`: the
+    // run stopped with nothing left to happen. Calls are made one at a time,
+    // so a value met again while it is followed is always a cycle.
+    if (this.following.has(key)) return Promise.resolve(undefined);
     let found = this.followed.get(key);
     if (!found) {
-      // Recorded before it is followed, so a value that leads back to itself ends.
-      this.followed.set(key, Promise.resolve(undefined));
-      found =
-        depth > MAX_DEPTH ? Promise.resolve(undefined) : this.follow(file, node, depth);
+      if (depth > MAX_DEPTH) found = Promise.resolve(undefined);
+      else {
+        this.following.add(key);
+        found = this.follow(file, node, depth).finally(() => this.following.delete(key));
+      }
       this.followed.set(key, found);
     }
     return found;

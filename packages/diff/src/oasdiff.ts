@@ -354,7 +354,11 @@ async function changelogFiles(
       // surfaced as a child-process error rather than as anything a reader
       // could act on. The entries are held as text only until they are parsed,
       // and the differ that produced them is far larger while it runs.
-      maxBuffer: 512 * 1024 * 1024,
+      // It stays under the longest string V8 can hold (2^29 - 24 characters):
+      // at 512 MiB, output between the two was joined past that limit inside
+      // Node's own exit handler, which threw where no caller could catch it
+      // and took the process down, instead of refusing the diff as too large.
+      maxBuffer: 500 * 1024 * 1024,
       timeout: timeoutMs,
       // SIGKILL rather than SIGTERM. A differ that has run out of time is often
       // one thrashing its collector, and in that state it does not get around

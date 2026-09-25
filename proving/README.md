@@ -273,6 +273,20 @@ the contract sites, so `--classify` has Jev class each site as `contract`,
 labelled as such, kept in `replay/classes.json` without any code, and a sample
 is audited by hand before a number from them is quoted.
 
+A contract site can still be a choice: the humans adopting a new tool
+version, endpoint or flow while their old code went on working, which no
+migration engine should do on its own. So each contract site is also judged
+forced or not (`replay/forced.mts`), from the differ and the humans' text
+alone, never from what the engine did: it is forced where a line the humans
+removed or wrote names an element the pinned differ reports broken between the
+two releases' specifications, by the release gate's own policy. An entry is
+about the schema it names, or else the last element of the path it quotes
+(`amount_refunded`, not `data`); names are compared without case or
+underscores, so one check serves every language. L8's 90% is over the forced
+sites, and the rate over every contract site is published beside it. A case
+whose two specifications are not both known is not judged, and its sites are
+counted apart.
+
 ```console
 node --env-file-if-exists=.env --import tsx proving/replay/run.mts --classify
 node --import tsx proving/replay/run.mts --package stripe --limit 5 --keep
@@ -288,7 +302,11 @@ distribution; a release with no wheel is a case that could not be replayed.
 pyright reads the files that import the SDK against the old release and
 checks the result against the new one, and every error the upgrade brings is
 flagged. For stripe-python the pack is also told the Changes, the same way as
-for stripe-node, from the OpenAPI release each stripe-python release records,
+for stripe-node, and for anthropic and openai too (`replay/stainless.mts`),
+whose releases record the specification Stainless generated them from in
+`.stats.yml`; their schemas are found as the SDK names them (`BetaMessage`,
+`ToolParam`) or by their fields. For stripe-python the Changes come from the
+OpenAPI release each stripe-python release records,
 and the operations of the old specification, for requests made with
 `requests` or `httpx`. A string literal sent as one of the SDK's parameters
 whose vocabulary lost it, as openai-python's `model` losing a retired model

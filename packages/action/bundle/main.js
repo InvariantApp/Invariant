@@ -28671,7 +28671,7 @@ async function changelogFiles(baseFile, revisionFile, options) {
 	let stdout;
 	try {
 		({stdout} = await run$2(oasdiffBinary(), args, {
-			maxBuffer: 536870912,
+			maxBuffer: 524288e3,
 			timeout: timeoutMs,
 			killSignal: "SIGKILL",
 			env: memoryLimit === void 0 ? process.env : {

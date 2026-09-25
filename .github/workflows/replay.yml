@@ -126,6 +126,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Which contract sites an upgrade forced is read from the pinned
+      # differ's breaking entries (proving/replay/forced.mts).
+      - name: Fetch the pinned oasdiff release
+        run: node --import tsx scripts/fetch-oasdiff.mts --host
+
       # The Go pack builds its helper and the consumers' dependencies with the
       # toolchain that is installed and no other: the newest release, since
       # the consumers' go.mod files ask for up to it.
