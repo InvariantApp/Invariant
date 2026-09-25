@@ -332,6 +332,54 @@ describe("unions on the way to a schema", () => {
     expect(scan.sites[0]?.guards).toEqual([{ at: "/discount", lacks: "deleted" }]);
   });
 
+  it("looks through a branch that is itself a union to tell it apart", () => {
+    // Stripe's `payout.destination`: an id, `external_account` (a bank account
+    // or a card) or `deleted_external_account` (either, deleted). Each side is
+    // a union, so what it requires is what all its alternatives require.
+    const object = (
+      name: string,
+      extra: Record<string, unknown>,
+      required: string[],
+    ) => ({
+      type: "object",
+      required: ["id", "object", ...required],
+      properties: {
+        id: { type: "string" },
+        object: { type: "string", enum: [name] },
+        ...extra,
+      },
+    });
+    const deleted = { deleted: { type: "boolean", enum: [true] } };
+    const country = { country: { type: "string" } };
+    const scan = findSchemaSites(
+      {
+        ...document({
+          type: "object",
+          properties: {
+            destination: { anyOf: [{ type: "string" }, ref("Live"), ref("Gone")] },
+          },
+        }),
+        components: {
+          schemas: {
+            Live: { anyOf: [ref("Bank"), ref("Card")] },
+            Gone: { anyOf: [ref("DeletedBank"), ref("DeletedCard")] },
+            Bank: object("bank_account", country, ["country"]),
+            Card: object("card", country, ["country"]),
+            DeletedBank: object("bank_account", deleted, ["deleted"]),
+            DeletedCard: object("card", deleted, ["deleted"]),
+          },
+        },
+      } as never,
+      "#/components/schemas/Card",
+    );
+    expect(scan.unsupported).toEqual([]);
+    // Inside the live union, the card is then told from the bank account by its key.
+    expect(scan.sites[0]?.guards).toEqual([
+      { at: "/destination", has: "country" },
+      { at: "/destination", key: "/object", values: ["card"] },
+    ]);
+  });
+
   it("uses a key and a field together where neither alone tells the branch apart", () => {
     // bank_account beside card and deleted_bank_account: the key rules out
     // the card, and a field only the live account requires rules out its twin.

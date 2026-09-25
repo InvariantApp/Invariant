@@ -436,7 +436,7 @@
     "provider": "twilio.com",
     "fromVersion": "2025-03-20 b55425e",
     "toVersion": "2025-07-03 4ae76f3",
-    "changes": 7,
+    "changes": 9,
     "sites": [],
     "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
   },
@@ -490,7 +490,7 @@
     "provider": "twilio.com",
     "fromVersion": "2025-06-12 2af6c5b",
     "toVersion": "2025-07-03 4ae76f3",
-    "changes": 5,
+    "changes": 6,
     "sites": [],
     "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
   },
@@ -500,6 +500,15 @@
     "fromVersion": "2025-06-12 2af6c5b",
     "toVersion": "2025-07-03 4ae76f3",
     "changes": 1,
+    "sites": [],
+    "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
+  },
+  {
+    "api": "twilio.com:twilio_trunking_v1",
+    "provider": "twilio.com",
+    "fromVersion": "2025-07-03 4ae76f3",
+    "toVersion": "2025-12-17 a394867",
+    "changes": 2,
     "sites": [],
     "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
   },
@@ -517,7 +526,7 @@
     "provider": "twilio.com",
     "fromVersion": "2025-06-12 2af6c5b",
     "toVersion": "2025-07-03 4ae76f3",
-    "changes": 1,
+    "changes": 3,
     "sites": [],
     "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
   },
@@ -553,7 +562,7 @@
     "provider": "twilio.com",
     "fromVersion": "2025-04-07 ef3ca5d",
     "toVersion": "2025-07-03 4ae76f3",
-    "changes": 8,
+    "changes": 10,
     "sites": [],
     "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
   },
@@ -571,7 +580,7 @@
     "provider": "twilio.com",
     "fromVersion": "2025-06-12 2af6c5b",
     "toVersion": "2025-07-03 4ae76f3",
-    "changes": 7,
+    "changes": 14,
     "sites": [],
     "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
   },
@@ -580,7 +589,7 @@
     "provider": "twilio.com",
     "fromVersion": "2025-04-07 ef3ca5d",
     "toVersion": "2025-07-03 4ae76f3",
-    "changes": 9,
+    "changes": 13,
     "sites": [],
     "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
   },
@@ -607,7 +616,7 @@
     "provider": "twilio.com",
     "fromVersion": "2025-05-13 9524115",
     "toVersion": "2025-07-03 4ae76f3",
-    "changes": 2,
+    "changes": 4,
     "sites": [],
     "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
   },
@@ -743,6 +752,15 @@
     "fromVersion": "2026-09-17 533a830",
     "toVersion": "2026-09-17 78d47fa",
     "changes": 8,
+    "sites": [],
+    "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
+  },
+  {
+    "api": "sentry.io:openapi-derefed",
+    "provider": "sentry.io",
+    "fromVersion": "2026-09-14 db227f5",
+    "toVersion": "2026-09-14 c6c7b3b",
+    "changes": 1,
     "sites": [],
     "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
   },
@@ -902,6 +920,15 @@
   {
     "api": "paypal.com:checkout_orders_v2",
     "provider": "paypal.com",
+    "fromVersion": "2023-08-12 6f8a0f1",
+    "toVersion": "2023-10-17 9d3825c",
+    "changes": 4,
+    "sites": [],
+    "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
+  },
+  {
+    "api": "paypal.com:checkout_orders_v2",
+    "provider": "paypal.com",
     "fromVersion": "2023-12-20 2e9b528",
     "toVersion": "2024-02-02 fb6f126",
     "changes": 9,
@@ -943,6 +970,15 @@
     "changes": 13,
     "sites": [],
     "error": "the gate would block this release: the content-type header carries credentials, framing or a signature, and no Change may touch it"
+  },
+  {
+    "api": "paypal.com:billing_subscriptions_v1",
+    "provider": "paypal.com",
+    "fromVersion": "2023-07-27 c981e43",
+    "toVersion": "2023-08-02 8e1a818",
+    "changes": 5,
+    "sites": [],
+    "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
   },
   {
     "api": "paypal.com:billing_subscriptions_v1",
@@ -1012,7 +1048,7 @@
     "provider": "paypal.com",
     "fromVersion": "2023-08-02 8e1a818",
     "toVersion": "2023-08-12 6f8a0f1",
-    "changes": 2,
+    "changes": 3,
     "sites": [],
     "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
   },
@@ -1021,6 +1057,15 @@
     "provider": "paypal.com",
     "fromVersion": "2023-12-20 2e9b528",
     "toVersion": "2024-02-02 fb6f126",
+    "changes": 2,
+    "sites": [],
+    "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
+  },
+  {
+    "api": "paypal.com:catalogs_products_v1",
+    "provider": "paypal.com",
+    "fromVersion": "2023-07-27 c981e43",
+    "toVersion": "2023-08-02 8e1a818",
     "changes": 1,
     "sites": [],
     "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
@@ -1042,6 +1087,15 @@
     "changes": 5,
     "sites": [],
     "error": "the gate would block this release: the content-type header carries credentials, framing or a signature, and no Change may touch it"
+  },
+  {
+    "api": "paypal.com:catalogs_products_v1",
+    "provider": "paypal.com",
+    "fromVersion": "2024-02-02 fb6f126",
+    "toVersion": "2025-07-23 7bbed78",
+    "changes": 1,
+    "sites": [],
+    "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
   },
   {
     "api": "paypal.com:payments_payouts_batch_v1",
@@ -1091,9 +1145,27 @@
   {
     "api": "paypal.com:notifications_webhooks_v1",
     "provider": "paypal.com",
+    "fromVersion": "2023-07-27 c981e43",
+    "toVersion": "2023-08-02 8e1a818",
+    "changes": 1,
+    "sites": [],
+    "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
+  },
+  {
+    "api": "paypal.com:notifications_webhooks_v1",
+    "provider": "paypal.com",
     "fromVersion": "2023-08-02 8e1a818",
     "toVersion": "2023-08-12 6f8a0f1",
     "changes": 16,
+    "sites": [],
+    "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
+  },
+  {
+    "api": "paypal.com:notifications_webhooks_v1",
+    "provider": "paypal.com",
+    "fromVersion": "2024-02-02 fb6f126",
+    "toVersion": "2025-07-23 7bbed78",
+    "changes": 2,
     "sites": [],
     "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
   },
@@ -1136,9 +1208,27 @@
   {
     "api": "supabase.com:api_v1_openapi",
     "provider": "supabase.com",
+    "fromVersion": "2026-05-08 d717175",
+    "toVersion": "2026-05-18 6e17d85",
+    "changes": 1,
+    "sites": [],
+    "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
+  },
+  {
+    "api": "supabase.com:api_v1_openapi",
+    "provider": "supabase.com",
     "fromVersion": "2026-05-21 4972359",
     "toVersion": "2026-06-02 af24c39",
     "changes": 1,
+    "sites": [],
+    "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
+  },
+  {
+    "api": "supabase.com:api_v1_openapi",
+    "provider": "supabase.com",
+    "fromVersion": "2026-06-16 7d4ec09",
+    "toVersion": "2026-06-22 693bdc3",
+    "changes": 2,
     "sites": [],
     "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
   },
@@ -1296,6 +1386,15 @@
     "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
   },
   {
+    "api": "sentry.io:openapi-derefed",
+    "provider": "sentry.io",
+    "fromVersion": "2026-09-09 c848a1e",
+    "toVersion": "2026-09-10 90bd933",
+    "changes": 4,
+    "sites": [],
+    "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
+  },
+  {
     "api": "okta.com:management-minimal",
     "provider": "okta.com",
     "fromVersion": "2024-06-28 ce09068",
@@ -1382,6 +1481,24 @@
     "fromVersion": "2025-01-24 7b8d5a3",
     "toVersion": "2025-02-13 589c4aa",
     "changes": 2,
+    "sites": [],
+    "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
+  },
+  {
+    "api": "resend.com:resend",
+    "provider": "resend.com",
+    "fromVersion": "2026-05-11 2b03944",
+    "toVersion": "2026-05-11 73ae266",
+    "changes": 18,
+    "sites": [],
+    "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
+  },
+  {
+    "api": "resend.com:resend",
+    "provider": "resend.com",
+    "fromVersion": "2026-05-12 c5ee184",
+    "toVersion": "2026-05-12 a0f7c0b",
+    "changes": 8,
     "sites": [],
     "error": "the gate would block this release: closure could not be checked: Could not find oasdiff. Install it with \"go install github.com/oasdiff/oasdiff@v1.33.0-rc.1\" or set OASDIFF_BIN."
   },

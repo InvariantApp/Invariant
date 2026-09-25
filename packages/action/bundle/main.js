@@ -17098,6 +17098,49 @@ function onlyNullBeside(document, branches, index) {
 * closed set of values that do not overlap, as Adyen's payment methods each
 * fix `type`; and a field only this branch requires.
 */
+/**
+* The alternatives of a branch that is itself a union, as Stripe's
+* `payment_source` is any of an account, a bank account, a card or a source.
+*/
+function alternativesOf(document, branch) {
+	const resolved = resolveSchema(document, branch);
+	if (!isJsonObject(resolved)) return void 0;
+	const list = resolved["anyOf"] ?? resolved["oneOf"];
+	return Array.isArray(list) ? list : void 0;
+}
+/** How deep a union of unions is looked into before its fields count as unknown. */
+const MAX_UNION_DEPTH = 4;
+/** The fields every value of a branch has: for a union, those all its alternatives require. */
+function requiredOf(document, branch, depth = 0) {
+	const alternatives = depth < MAX_UNION_DEPTH ? alternativesOf(document, branch) : void 0;
+	if (alternatives) {
+		const [first = [], ...rest] = alternatives.map((each) => requiredOf(document, each, depth + 1));
+		return first.filter((name) => rest.every((list) => list.includes(name)));
+	}
+	const resolved = resolveSchema(document, branch);
+	return isJsonObject(resolved) && Array.isArray(resolved["required"]) ? resolved["required"].filter((name) => typeof name === "string") : [];
+}
+/**
+* The fields a branch declares, for a union those any alternative does, or
+* undefined where it could hold any field: an object schema that lists none,
+* or anything not an object schema at all.
+*/
+function declaredOf(document, branch, depth = 0) {
+	const alternatives = depth < MAX_UNION_DEPTH ? alternativesOf(document, branch) : void 0;
+	if (alternatives) {
+		const found = /* @__PURE__ */ new Set();
+		for (const each of alternatives) {
+			const kind = jsonKindOf(document, each);
+			if (kind !== void 0 && kind !== "object") continue;
+			const theirs = declaredOf(document, each, depth + 1);
+			if (theirs === void 0) return void 0;
+			for (const name of theirs) found.add(name);
+		}
+		return [...found];
+	}
+	const resolved = resolveSchema(document, branch);
+	return isJsonObject(resolved) && isJsonObject(resolved["properties"]) ? Object.keys(resolved["properties"]) : void 0;
+}
 function guardFor(document, union, branches, index, at) {
 	const branch = branches[index];
 	const kind = jsonKindOf(document, branch);
@@ -17146,13 +17189,12 @@ function guardFor(document, union, branches, index, at) {
 			values: mine
 		};
 	}
-	const required = isJsonObject(resolved) && Array.isArray(resolved["required"]) ? resolved["required"].filter((name) => typeof name === "string") : [];
+	const required = requiredOf(document, branch);
 	/** Whether a value of another branch could carry the field. */
 	const mayHave = (other, name) => {
 		const kind = jsonKindOf(document, other);
 		if (kind !== void 0 && kind !== "object") return false;
-		const theirs = resolveSchema(document, other);
-		return !isJsonObject(theirs) || !isJsonObject(theirs["properties"]) || theirs["properties"][name] !== void 0;
+		return declaredOf(document, other)?.includes(name) ?? true;
 	};
 	const others = branches.filter((_, at2) => at2 !== index);
 	for (const name of required) if (!others.some((other) => mayHave(other, name))) return {
@@ -17170,12 +17212,10 @@ function guardFor(document, union, branches, index, at) {
 			return kind === void 0 || kind === "object";
 		});
 		if (objects.length === 0) return void 0;
-		const requiredBy = (other) => {
-			const theirs = resolveSchema(document, other);
-			return isJsonObject(theirs) && Array.isArray(theirs["required"]) ? theirs["required"].filter((name) => typeof name === "string") : [];
-		};
-		const [first, ...rest] = objects.map(requiredBy);
-		return (first ?? []).filter((name) => rest.every((list) => list.includes(name))).find((name) => !own.includes(name));
+		const [first, ...rest] = objects.map((other) => requiredOf(document, other));
+		const declared = alternativesOf(document, branch) ? declaredOf(document, branch) : own;
+		if (declared === void 0) return void 0;
+		return (first ?? []).filter((name) => rest.every((list) => list.includes(name))).find((name) => !declared.includes(name));
 	};
 	const missing = absentHere(others);
 	if (missing !== void 0) return {

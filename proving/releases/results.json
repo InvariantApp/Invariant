@@ -1,0 +1,180 @@
+{
+  "artifacts": [
+    {
+      "artifact": "@invariant-app/bundle",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/cli",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/client",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/compiler",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/contract",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/decimal",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/diff",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/flags",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/github",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/ir",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/migrate-core",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/migrate-go",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/migrate-py",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/migrate-ts",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/oasdiff-darwin",
+      "version": "0.4.0",
+      "sbom": false,
+      "provenance": true,
+      "problem": "no sbom.cdx.json in the tarball"
+    },
+    {
+      "artifact": "@invariant-app/oasdiff-linux-arm64",
+      "version": "0.4.0",
+      "sbom": false,
+      "provenance": true,
+      "problem": "no sbom.cdx.json in the tarball"
+    },
+    {
+      "artifact": "@invariant-app/oasdiff-linux-x64",
+      "version": "0.4.0",
+      "sbom": false,
+      "provenance": true,
+      "problem": "no sbom.cdx.json in the tarball"
+    },
+    {
+      "artifact": "@invariant-app/oasdiff-win32-arm64",
+      "version": "0.4.0",
+      "sbom": false,
+      "provenance": true,
+      "problem": "no sbom.cdx.json in the tarball"
+    },
+    {
+      "artifact": "@invariant-app/oasdiff-win32-x64",
+      "version": "0.4.0",
+      "sbom": false,
+      "provenance": true,
+      "problem": "no sbom.cdx.json in the tarball"
+    },
+    {
+      "artifact": "@invariant-app/proposer",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/runtime",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/runtime-hono",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/runtime-node",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/sidecar",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/telemetry",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "@invariant-app/verifier",
+      "version": "0.4.0",
+      "sbom": true,
+      "provenance": true
+    },
+    {
+      "artifact": "the action (v0)",
+      "version": "301d55b9dcbf2fea9bee0bc5b356540d9b78a58b",
+      "sbom": false,
+      "provenance": false,
+      "problem": "Error: HTTP 404: Not Found (https://api.github.com/repos/InvariantApp/Invariant/attestations/sha256:8207e33c2b9a7014b7d5814bce047f643fe902fd8b1522fe551ae18e30db7590?per_page=30&predicate_type=https%3A%2F%2Fcyclonedx.org%2Fbom)"
+    },
+    {
+      "artifact": "ghcr.io/invariantapp/sidecar",
+      "version": "0.4.0",
+      "sbom": false,
+      "provenance": false,
+      "signed": false,
+      "problem": "Error: failed to fetch remote image: GET https://ghcr.io/v2/invariantapp/sidecar/manifests/0.4.0: MANIFEST_UNKNOWN: manifest unknown"
+    }
+  ]
+}
