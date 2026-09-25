@@ -31,7 +31,7 @@
  * differential check is the layer that catches it, and the test suite here says
  * so rather than implying otherwise.
  */
-import { derive, schemaLens } from "@invariant-app/compiler";
+import { derive, type SchemaLens, schemaLenses } from "@invariant-app/compiler";
 import { type OpenApiDocument, schemaDirections } from "@invariant-app/contract";
 import {
   type Change,
@@ -70,33 +70,74 @@ export interface LawReport {
   failures: LawFailure[];
 }
 
+/**
+ * The places a declared loss may change, parsed once and merged into one
+ * tree. A schema that sits in many places inside another lists its loss at
+ * each of them, and parsing the list again for every generated value, then
+ * walking the value once per place, was most of what the laws spent on
+ * Stripe's documents. Removing what the tree names in one walk leaves the
+ * same value: every removal deletes a field, and a field is gone at the end
+ * whichever order the places are visited in.
+ */
+interface Lossy {
+  pointers: string[];
+  /** The value itself is declared lossy. */
+  whole: boolean;
+  /** Built the first time a value needs it. */
+  tree?: LossTree;
+}
+
+/** Each segment's places: whether one ends here, and what lies beneath. */
+type LossTree = Map<string, { ends: boolean; beneath: LossTree }>;
+
+function lossyAt(pointers: readonly string[]): Lossy {
+  const distinct = [...new Set(pointers)];
+  return { pointers: distinct, whole: distinct.includes("") };
+}
+
+function lossTree(pointers: readonly string[]): LossTree {
+  const root: LossTree = new Map();
+  for (const pointer of pointers) {
+    let level = root;
+    const segments = parsePointer(pointer);
+    segments.forEach((segment, index) => {
+      let node = level.get(segment);
+      if (node === undefined) {
+        node = { ends: false, beneath: new Map() };
+        level.set(segment, node);
+      }
+      if (index === segments.length - 1) node.ends = true;
+      level = node.beneath;
+    });
+  }
+  return root;
+}
+
 /** Removes the pointers a declared loss is allowed to change, on both sides. */
-function withoutLossy(value: unknown, pointers: readonly string[]): unknown {
-  if (pointers.length === 0) return value;
+function withoutLossy(value: unknown, lossy: Lossy): unknown {
+  if (lossy.pointers.length === 0) return value;
   // The value itself declared lossy, as a fold on a vocabulary that is a
   // schema of its own is: there is nothing of it left to compare.
-  if (pointers.includes("")) return undefined;
+  if (lossy.whole) return undefined;
   const copy = structuredClone(value);
   // `*` is every item of a list and `{}` every value of a map.
-  const remove = (cursor: unknown, segments: readonly string[]): void => {
+  const remove = (cursor: unknown, tree: LossTree): void => {
     if (cursor === null || typeof cursor !== "object") return;
-    const [segment, ...rest] = segments;
-    if (segment === undefined) return;
     const holder = cursor as Record<string, unknown>;
-    const keys =
-      (segment === "*" && Array.isArray(cursor)) ||
-      (segment === "{}" && !Array.isArray(cursor))
-        ? Object.keys(cursor)
-        : [segment];
-    for (const key of keys) {
-      if (rest.length === 0) {
-        if (!Array.isArray(cursor)) delete holder[key];
-      } else {
-        remove(holder[key], rest);
+    for (const [segment, node] of tree) {
+      const keys =
+        (segment === "*" && Array.isArray(cursor)) ||
+        (segment === "{}" && !Array.isArray(cursor))
+          ? Object.keys(cursor)
+          : [segment];
+      for (const key of keys) {
+        if (node.ends && !Array.isArray(cursor)) delete holder[key];
+        if (node.beneath.size > 0) remove(holder[key], node.beneath);
       }
     }
   };
-  for (const pointer of pointers) remove(copy, parsePointer(pointer));
+  lossy.tree ??= lossTree(lossy.pointers);
+  remove(copy, lossy.tree);
   return copy;
 }
 
@@ -192,11 +233,11 @@ function undeclared(
  * other one's values too, and checking the outer schema without it once
  * reported a correct release as producing values the new contract refuses.
  */
-function casesFor(
+function* casesFor(
   oldContract: OpenApiDocument,
   predicted: OpenApiDocument,
   changes: readonly Change[],
-): Case[] {
+): Generator<Case> {
   const served = changes.filter((change) => derive(change).runtime !== "none");
   const scopes = new Set<string>();
   for (const change of served) {
@@ -204,10 +245,13 @@ function casesFor(
       if (isSchemaScope(scope)) scopes.add(scope.schema);
     }
   }
-  return [...scopes].map((scope) => ({
-    scope,
-    ...schemaLens(oldContract, served, scope, predicted),
-  }));
+  // One case at a time, each let go before the next is made: a release on
+  // Stripe's documents has dozens, each carrying its own instructions.
+  let lensOf: ((scope: string) => SchemaLens) | undefined;
+  for (const scope of scopes) {
+    lensOf ??= schemaLenses(oldContract, served, predicted);
+    yield { scope, ...lensOf(scope) };
+  }
 }
 
 /**
@@ -254,6 +298,10 @@ export function checkLaws(
       // The composition the compiler projects onto a site, so the lens under
       // test is the one that will run.
       const lens = lensFor(entry.forward, entry.backward, entry.blocks);
+      const lossy = {
+        forward: lossyAt(entry.lossy.forward),
+        backward: lossyAt(entry.lossy.backward),
+      };
 
       // Old shape to canonical and back. The values come from the contract the
       // caller was written against, which is exactly the traffic the adapter
@@ -273,8 +321,8 @@ export function checkLaws(
             const returned = lens.backward(canonical);
             if (
               !sameJson(
-                withoutLossy(returned, entry.lossy.forward),
-                withoutLossy(value, entry.lossy.forward),
+                withoutLossy(returned, lossy.forward),
+                withoutLossy(value, lossy.forward),
               )
             ) {
               return `undoing it did not return the original: ${JSON.stringify(returned)}`;
@@ -308,8 +356,8 @@ export function checkLaws(
             const returned = lens.forward(old);
             if (
               !sameJson(
-                withoutLossy(returned, entry.lossy.backward),
-                withoutLossy(value, entry.lossy.backward),
+                withoutLossy(returned, lossy.backward),
+                withoutLossy(value, lossy.backward),
               )
             ) {
               return `re-applying it did not return the original: ${JSON.stringify(returned)}`;
@@ -416,17 +464,74 @@ function run(
     }
   };
 
+  const bounded = new ShrinkBudget(schemaArbitrary(document, ref), SHRINK_BUDGET);
   const result = fc.check(
-    fc.property(schemaArbitrary(document, ref), (value) => why(value) === undefined),
+    fc.property(bounded, (value) => why(value) === undefined),
     { numRuns: runs, ...(seed === undefined ? {} : { seed }) },
   );
 
   if (!result.failed) return [];
 
   // fast-check shrinks before reporting, so the value in hand is the smallest
-  // one that still breaks the law. The reason is recomputed from that value
-  // rather than remembered from whichever larger value happened to fail first,
-  // so the message and the counterexample in the report describe one run.
+  // one that still breaks the law, or the smallest the budget reached. The
+  // reason is recomputed from that value rather than remembered from
+  // whichever larger value happened to fail first, so the message and the
+  // counterexample in the report describe one run.
   const shrunk = (result.counterexample?.[0] ?? null) as JsonValue;
-  return [{ counterexample: shrunk, detail: why(shrunk) ?? "the property did not hold" }];
+  const detail = why(shrunk) ?? "the property did not hold";
+  return [
+    {
+      counterexample: shrunk,
+      detail: bounded.exhausted
+        ? `${detail} (shrinking stopped after ${SHRINK_BUDGET} tries, so a smaller value may break it too)`
+        : detail,
+    },
+  ];
+}
+
+/**
+ * How many smaller values are tried once a law fails. A failure is reported
+ * the same whatever the budget; the budget only decides how small the value
+ * shown with it gets. Generated values of Stripe's objects run to a megabyte,
+ * since nearly every field is required and reaches another object, and one
+ * law on them was shrunk forty thousand times over an hour and a half.
+ * Everything smaller shrinks well within it.
+ */
+const SHRINK_BUDGET = 1000;
+
+/**
+ * A generator whose values are shrunk at most `budget` times, all told: the
+ * same values, and the same smaller ones in the same order, until the budget
+ * runs out.
+ */
+class ShrinkBudget extends fc.Arbitrary<JsonValue> {
+  readonly #inner: fc.Arbitrary<JsonValue>;
+  #left: number;
+  /** Whether a smaller value was left untried. */
+  exhausted = false;
+
+  constructor(inner: fc.Arbitrary<JsonValue>, budget: number) {
+    super();
+    this.#inner = inner;
+    this.#left = budget;
+  }
+
+  generate(random: fc.Random, biasFactor: number | undefined): fc.Value<JsonValue> {
+    return this.#inner.generate(random, biasFactor);
+  }
+
+  canShrinkWithoutContext(value: unknown): value is JsonValue {
+    return this.#inner.canShrinkWithoutContext(value);
+  }
+
+  shrink(value: JsonValue, context: unknown): fc.Stream<fc.Value<JsonValue>> {
+    return this.#inner.shrink(value, context).takeWhile(() => {
+      if (this.#left > 0) {
+        this.#left -= 1;
+        return true;
+      }
+      this.exhausted = true;
+      return false;
+    });
+  }
 }

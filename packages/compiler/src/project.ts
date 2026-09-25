@@ -129,6 +129,22 @@ export function variantGuardsFor(
   };
 }
 
+/** What a value of one schema goes through wherever it is a body. */
+export interface SchemaLens {
+  forward: Instr[];
+  backward: Instr[];
+  changes: Change[];
+  /** Where each direction may lose information by declaration, from the root, `*` for list items. */
+  lossy: { forward: string[]; backward: string[] };
+  /**
+   * Where a `relax` lets a value through as it came, from the root as `lossy`
+   * is: a value there may be one the other contract rules out, by declaration.
+   */
+  relaxed: string[];
+  /** The shared blocks the instructions call, for schemas whose places cannot be listed. */
+  blocks: Record<string, Instr[]>;
+}
+
 /**
  * What a value of `schemaRef` goes through wherever it is a body, with every
  * Change in the release placed where its schema sits inside it: the lens the
@@ -142,48 +158,61 @@ export function schemaLens(
   changes: readonly Change[],
   schemaRef: string,
   newContract?: OpenApiDocument,
-): {
-  forward: Instr[];
-  backward: Instr[];
-  changes: Change[];
-  /** Where each direction may lose information by declaration, from the root, `*` for list items. */
-  lossy: { forward: string[]; backward: string[] };
-  /**
-   * Where a `relax` lets a value through as it came, from the root as `lossy`
-   * is: a value there may be one the other contract rules out, by declaration.
-   */
-  relaxed: string[];
-  /** The shared blocks the instructions call, for schemas whose places cannot be listed. */
-  blocks: Record<string, Instr[]>;
-} {
+): SchemaLens {
+  return schemaLenses(oldContract, changes, newContract)(schemaRef);
+}
+
+/**
+ * `schemaLens` for any schema of one release. The shared blocks depend on the
+ * release alone, so they are compiled once and every schema's lens calls the
+ * same ones. Compiled again for each schema, as they were, a release with
+ * dozens of Changes on Stripe's documents did the same walk of the whole
+ * reference graph once per schema.
+ */
+export function schemaLenses(
+  oldContract: OpenApiDocument,
+  changes: readonly Change[],
+  newContract?: OpenApiDocument,
+): (schemaRef: string) => SchemaLens {
   const variants = variantGuardsFor(changes, newContract);
   const shared = sharedBlocks("lens", oldContract, changes, variants);
-  const forward: Instr[] = [];
-  const backward: Instr[][] = [];
-  const involved: Change[] = [];
-  const lossy = { forward: [] as string[], backward: [] as string[] };
-  const relaxed: string[] = [];
-  for (const change of changes) {
-    const dataOps = change.ops.filter(isDataOp);
-    if (dataOps.length === 0) continue;
-    const declared = derive(change).lossy;
-    const mine: Instr[] = [];
-    let back: Instr[] = [];
-    for (const scope of change.scopes ?? []) {
-      if (!isSchemaScope(scope)) continue;
-      const places = findSchemaWithin(oldContract, scope.schema, schemaRef).placements;
-      // A relax runs nothing, so it would otherwise leave no trace here, and
-      // the values it lets through would read as a fault of no Change at all.
-      for (const op of dataOps) {
-        if (op.op !== "relax") continue;
-        for (const place of places) relaxed.push(prefixed(place.prefix, op.path));
-        if (places.length > 0 && !involved.includes(change)) involved.push(change);
-      }
-      if (shared.targets.has(scope.schema)) {
-        // Run through the blocks below. Its declared loss is excused where the
-        // schema sits down to the depth its places can be listed, which is as
-        // deep as generated values of a recursive schema usually go.
-        if (places.length > 0 && !involved.includes(change)) involved.push(change);
+  return (schemaRef) => {
+    const forward: Instr[] = [];
+    const backward: Instr[][] = [];
+    const involved: Change[] = [];
+    const lossy = { forward: [] as string[], backward: [] as string[] };
+    const relaxed: string[] = [];
+    for (const change of changes) {
+      const dataOps = change.ops.filter(isDataOp);
+      if (dataOps.length === 0) continue;
+      const declared = derive(change).lossy;
+      const mine: Instr[] = [];
+      let back: Instr[] = [];
+      for (const scope of change.scopes ?? []) {
+        if (!isSchemaScope(scope)) continue;
+        const places = findSchemaWithin(oldContract, scope.schema, schemaRef).placements;
+        // A relax runs nothing, so it would otherwise leave no trace here, and
+        // the values it lets through would read as a fault of no Change at all.
+        for (const op of dataOps) {
+          if (op.op !== "relax") continue;
+          for (const place of places) relaxed.push(prefixed(place.prefix, op.path));
+          if (places.length > 0 && !involved.includes(change)) involved.push(change);
+        }
+        if (shared.targets.has(scope.schema)) {
+          // Run through the blocks below. Its declared loss is excused where the
+          // schema sits down to the depth its places can be listed, which is as
+          // deep as generated values of a recursive schema usually go.
+          if (places.length > 0 && !involved.includes(change)) involved.push(change);
+          for (const place of places) {
+            lossy.forward.push(
+              ...declared.forward.map((path) => prefixed(place.prefix, path)),
+            );
+            lossy.backward.push(
+              ...declared.backward.map((path) => prefixed(place.prefix, path)),
+            );
+          }
+          continue;
+        }
         for (const place of places) {
           lossy.forward.push(
             ...declared.forward.map((path) => prefixed(place.prefix, path)),
@@ -191,47 +220,38 @@ export function schemaLens(
           lossy.backward.push(
             ...declared.backward.map((path) => prefixed(place.prefix, path)),
           );
+          mine.push(
+            ...guarded(place, change, "forward", (prefix) =>
+              dataOps.flatMap((op) => forwardInstrs(op, prefix, change.id)),
+            ),
+          );
+          // Undone in the reverse of the order it was applied in.
+          back = [
+            ...guarded(place, change, "backward", (prefix) =>
+              [...dataOps]
+                .reverse()
+                .flatMap((op) => backwardInstrs(op, prefix, change.id, variants)),
+            ),
+            ...back,
+          ];
         }
-        continue;
       }
-      for (const place of places) {
-        lossy.forward.push(
-          ...declared.forward.map((path) => prefixed(place.prefix, path)),
-        );
-        lossy.backward.push(
-          ...declared.backward.map((path) => prefixed(place.prefix, path)),
-        );
-        mine.push(
-          ...guarded(place, change, "forward", (prefix) =>
-            dataOps.flatMap((op) => forwardInstrs(op, prefix, change.id)),
-          ),
-        );
-        // Undone in the reverse of the order it was applied in.
-        back = [
-          ...guarded(place, change, "backward", (prefix) =>
-            [...dataOps]
-              .reverse()
-              .flatMap((op) => backwardInstrs(op, prefix, change.id, variants)),
-          ),
-          ...back,
-        ];
-      }
+      if (mine.length === 0 && back.length === 0) continue;
+      if (!involved.includes(change)) involved.push(change);
+      forward.push(...mine);
+      backward.push(back);
     }
-    if (mine.length === 0 && back.length === 0) continue;
-    if (!involved.includes(change)) involved.push(change);
-    forward.push(...mine);
-    backward.push(back);
-  }
-  // As at a site: the shared blocks after the listed instructions on the way
-  // in, and before them on the way out.
-  const root = { $ref: schemaRef };
-  return {
-    forward: [...forward, ...shared.entry(root, "forward")],
-    backward: [...shared.entry(root, "backward"), ...backward.reverse().flat()],
-    changes: involved,
-    lossy,
-    relaxed,
-    blocks: shared.blocks,
+    // As at a site: the shared blocks after the listed instructions on the way
+    // in, and before them on the way out.
+    const root = { $ref: schemaRef };
+    return {
+      forward: [...forward, ...shared.entry(root, "forward")],
+      backward: [...shared.entry(root, "backward"), ...backward.reverse().flat()],
+      changes: involved,
+      lossy,
+      relaxed,
+      blocks: shared.blocks,
+    };
   };
 }
 

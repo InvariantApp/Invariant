@@ -39,8 +39,8 @@
  *     [--suites node,python] [--no-gate] [--workers 2]
  *   node --import tsx proving/stripe/run.mts --report <results.json>...
  *
- * `--no-gate` runs arms a and b alone, for trying the harness on a laptop,
- * where the gate on documents this size does not fit.
+ * `--no-gate` runs arms a and b alone, for trying the harness without the
+ * gate, which on documents this size needs up to 4 GB of its own.
  */
 import { type ChildProcess, execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -115,6 +115,11 @@ const PROXY_PORT = 12_131;
 const INNER_PORT = 12_141;
 /** Carried from the outer forwarder to the inner one, so the two sides of the proxy pair up. */
 const EXCHANGE_HEADER = "x-proving-exchange";
+/**
+ * The heap the gate is given on a pair. Stripe's documents are about the
+ * largest a provider publishes, and the gate has to fit a CI runner on them.
+ */
+const GATE_HEAP_MB = 4096;
 /** How long one suite may run before it is stopped, with everything it started. */
 const SUITE_MINUTES = 30;
 
@@ -867,9 +872,10 @@ async function runPair(
 }
 
 /**
- * The gate in a process of its own (see gate.mts), so a pair whose documents
- * need more memory than the machine has is recorded as blocked, with the
- * reason, rather than taking the arms that already ran down with it.
+ * The gate in a process of its own (see gate.mts), held to the 4 GB a
+ * provider's CI runner can give it. A pair whose documents need more is
+ * recorded as blocked, with the reason, rather than taking the arms that
+ * already ran down with it.
  */
 async function gateApart(
   from: Commit,
@@ -883,14 +889,21 @@ async function gateApart(
   await writeFile(input, JSON.stringify({ from, to, documents, work }), "utf8");
   const child = spawn(
     process.execPath,
-    ["--import", "tsx", join(ROOT, "proving/stripe/gate.mts"), input, output],
+    [
+      `--max-old-space-size=${GATE_HEAP_MB}`,
+      "--import",
+      "tsx",
+      join(ROOT, "proving/stripe/gate.mts"),
+      input,
+      output,
+    ],
     { stdio: ["ignore", "inherit", "inherit"] },
   );
   const [code, signal] = (await once(child, "exit")) as [number | null, string | null];
   if (code !== 0) {
     throw new Error(
       code === 134 || signal === "SIGABRT"
-        ? "the gate ran out of memory on this pair's documents"
+        ? `the gate ran out of its ${GATE_HEAP_MB / 1024} GB heap on this pair's documents`
         : `the gate exited with ${code ?? signal}`,
     );
   }

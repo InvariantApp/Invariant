@@ -341,10 +341,8 @@ jobs:
       # stripe-python's suite runs in a virtual environment uv makes.
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
 
+      # The gate runs in a process of its own, held to a 4 GB heap.
       - name: Three arms per pair, both SDK suites in each
-        env:
-          # Two Stripe-sized documents through the gate in one process.
-          NODE_OPTIONS: --max-old-space-size=12288
         run: pnpm proving:stripe --pair ${{ matrix.pair }}
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

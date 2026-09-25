@@ -147,6 +147,44 @@ describe("the lens laws", () => {
       /backward produced a value the old contract does not allow/,
     );
     expect(report.failures[0]?.detail).toMatch(/"done" is not one of/);
+    expect(report.failures[0]?.detail).not.toMatch(/shrinking stopped/);
+  });
+
+  /**
+   * A value that takes more shrinking than the budget allows is reported
+   * where the budget left it, and says so. Stripe's objects generate values
+   * a megabyte long, and shrinking one law's counterexample to the end took
+   * an hour and a half of a release check.
+   */
+  it("stop shrinking at the budget, and say so", () => {
+    const { old, head } = contracts();
+    const payment = (
+      old["components"] as { schemas: Record<string, Record<string, unknown>> }
+    ).schemas["Payment"] as {
+      required: string[];
+      properties: Record<string, unknown>;
+    };
+    payment.required.push("notes");
+    payment.properties["notes"] = {
+      type: "array",
+      minItems: 400,
+      items: { type: "string", minLength: 20, maxLength: 24 },
+    };
+    const report = laws(old, head, [
+      {
+        irVersion: 1,
+        id: "chg_status_dropped",
+        summary: "Status left the payload.",
+        scopes: [{ schema: "#/components/schemas/Payment" }],
+        ops: [{ op: "remove", path: "/status", restore: "done" }],
+        assertions: { loss_acknowledged: true },
+      },
+    ]);
+
+    expect(report.failures[0]?.detail).toMatch(/"done" is not one of/);
+    expect(report.failures[0]?.detail).toMatch(
+      /shrinking stopped after 1000 tries, so a smaller value may break it too/,
+    );
   });
 
   /** The same blind spot in the other direction: a default nobody validated. */

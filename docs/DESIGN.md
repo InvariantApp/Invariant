@@ -2314,6 +2314,56 @@ take to send a request, and logs each refusal with the id the caller was sent,
 including a caller naming a contract that does not exist, which was refused
 before any operation was chosen and so reported nowhere.
 
+### The gate on Stripe's documents, in 4 GB
+
+Rig B runs `invariant check` on consecutive commits of Stripe's
+specification, and on five of its six pairs the gate ran out of a 12 GB heap.
+Sampling the heap by allocation site, in CI, put nearly all of it in one
+place: the generators the lens laws draw values from. A schema's generator
+was built in full before the first value was drawn, one generator for every
+field of every schema it reaches, six levels down and then through every
+required field to the hard limit. Stripe's objects reach nearly every other
+object through expandable fields, so one schema came to a tree with a node
+for every path, and building it filled the heap in four minutes without a
+value drawn.
+
+A generator is now built the first time a value is drawn from it, and a
+schema reached along many paths shares one generator per depth, since what
+is generated below a schema depends on how deep it sits and on nothing else.
+Each `allOf` is merged once. The values drawn, and the shrinks, are the same
+as before: fast-check's generators keep no state between draws, and a
+deferred one hands every call to the one it stands for. That was checked on
+2,700 schemas from 40 corpus documents, drawing values and shrinking a
+failure from each with both builds; every one agreed.
+
+With the memory gone, the time showed. The laws parsed every pointer of a
+declared loss again for every value, and walked the value once per pointer;
+a schema that sits in many places lists its loss at each of them, so that
+was most of the laws' time on the slowest pairs. The pointers are now parsed
+once per schema into one tree and removed in one walk, which leaves the same
+value, since every removal deletes a field and a field is gone at the end
+whichever order the places are visited in. Every schema's lens also compiled
+the release's shared blocks again, walking the whole reference graph each
+time; they are compiled once per release, and the cases are made one at a
+time rather than all held at once.
+
+What was left was shrinking. Tracing each law on the slowest pairs found
+nearly all of an hour and a half in one of them: a law on Stripe's `refund`
+failed on its first value, 1.6 MB of JSON, since nearly every field of
+Stripe's objects is required and reaches another object, and fast-check then
+shrank it forty thousand times, each time running the whole value through the
+runtime both ways. A law now tries at most a thousand smaller values once it
+fails. The failure is reported just the same, and the budget only decides how
+small the value shown with it is; when the budget runs out the report says
+that a smaller value may break the law too. The largest shrink outside
+Stripe's documents seen in the traces took a few hundred tries.
+
+On the six pairs the gate now peaks at 1.7 GB resident, where it passed
+14 GB and ran out before, and the slowest pair takes eight minutes. Its
+verdicts, and the laws that fail on each pair, are the same from run to run
+through every step of this. Rig B now holds the gate to a 4 GB heap, so a pair
+that needs more is recorded as blocked rather than given more.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no
