@@ -103,7 +103,9 @@ export async function breakingBetween(
 ): Promise<string[] | undefined> {
   if (existsSync(cache)) return JSON.parse(readFileSync(cache, "utf8")) as string[];
   try {
-    const names = breakingNames(await diffDocuments(before, after));
+    // Only the breaking entries are needed, and the full changelog between
+    // releases years apart is too large to hold.
+    const names = breakingNames(await diffDocuments(before, after, { mode: "breaking" }));
     await mkdir(dirname(cache), { recursive: true });
     await writeFile(cache, `${JSON.stringify(names)}\n`);
     return names;
