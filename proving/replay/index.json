@@ -145,6 +145,22 @@
       ]
     },
     {
+      "id": "567-labs/instructor#1002",
+      "repo": "567-labs/instructor",
+      "pr": 1002,
+      "base": "352b45681ee319eb920576667616eae6494fe2b3",
+      "head": "52efdd0ad4915b96dab1d8295a51475880a37a32",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.27.0",
+      "to": "0.34.2",
+      "license": "MIT",
+      "mergedAt": "2024-09-18T15:41:23Z",
+      "files": [
+        "tests/dsl/test_partial.py"
+      ]
+    },
+    {
       "id": "5monkeys/cobertura-action#106",
       "repo": "5monkeys/cobertura-action",
       "pr": 106,
@@ -226,6 +242,28 @@
       "mergedAt": "2026-03-09T07:38:55Z",
       "files": [
         "src/utils.ts"
+      ]
+    },
+    {
+      "id": "AdamczykMaciej/llm-gateway#1",
+      "repo": "AdamczykMaciej/llm-gateway",
+      "pr": 1,
+      "base": "3af56389e74b9ea851560fa74e527c1e4ad566ea",
+      "head": "19db38ec80c25952435ab6a9ea7758f08aa4e835",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.41.0",
+      "to": "1.5.0",
+      "license": "MIT",
+      "mergedAt": "2026-09-14T08:28:39Z",
+      "files": [
+        "src/llm_gateway/providers/_anthropic_translate.py",
+        "src/llm_gateway/providers/anthropic.py",
+        "src/llm_gateway/providers/groq.py",
+        "src/llm_gateway/providers/openai.py",
+        "src/llm_gateway/service/app.py",
+        "tests/test_anthropic_provider.py",
+        "tests/test_sdk_compat.py"
       ]
     },
     {
@@ -313,6 +351,26 @@
         "autogen/oai/openai_responses.py",
         "autogen/tools/experimental/web_search_preview/web_search_preview.py",
         "test/agentchat/realtime_agent/realtime_test_utils.py"
+      ]
+    },
+    {
+      "id": "ag2ai/ag2#3218",
+      "repo": "ag2ai/ag2",
+      "pr": 3218,
+      "base": "40cff320c1e0e9da1c8dd1778ea760d15ee3225c",
+      "head": "918c9802da19003d4fd8f3ed835af610fd97fff1",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.116.0",
+      "to": "1.2.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-08-31T00:00:36Z",
+      "files": [
+        "ag2/config/anthropic/anthropic_client.py",
+        "ag2/config/anthropic/config.py",
+        "ag2/config/anthropic/mappers.py",
+        "test/config/anthropic/test_http_client.py",
+        "test/config/anthropic/test_request_body.py"
       ]
     },
     {
@@ -702,6 +760,23 @@
       "files": [
         "src/review/bot/misc.py",
         "src/review/bot/open_ai_interface.py"
+      ]
+    },
+    {
+      "id": "apache/airflow#72094",
+      "repo": "apache/airflow",
+      "pr": 72094,
+      "base": "31117014f3c5a8cd4d4acd4223309eb344e21981",
+      "head": "a2630d1d0ced01b97fe780c4c5e50982b024c13b",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.121.0",
+      "to": "1.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-09-08T08:17:32Z",
+      "files": [
+        "providers/anthropic/src/airflow/providers/anthropic/hooks/anthropic.py",
+        "providers/anthropic/tests/unit/anthropic/hooks/test_anthropic.py"
       ]
     },
     {
@@ -1170,6 +1245,22 @@
       ]
     },
     {
+      "id": "BEdasc/web_bot#9",
+      "repo": "BEdasc/web_bot",
+      "pr": 9,
+      "base": "b1632d41e47a6a49d58d3f5cf2b8f38239dddd77",
+      "head": "00d7da8dbe38e2a3c5042a742aa1e3106ff47268",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.39.0",
+      "to": "0.40.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2025-11-22T09:03:02Z",
+      "files": [
+        "test_anthropic.py"
+      ]
+    },
+    {
       "id": "bedrock-python/mattermind#27",
       "repo": "bedrock-python/mattermind",
       "pr": 27,
@@ -1331,6 +1422,46 @@
       "mergedAt": "2026-09-15T05:23:32Z",
       "files": [
         "github.go"
+      ]
+    },
+    {
+      "id": "calf-ai/calfkit-sdk#116",
+      "repo": "calf-ai/calfkit-sdk",
+      "pr": 116,
+      "base": "894588409026fa6f2b79e125a5f6ede54a81b152",
+      "head": "d583a9ded3bfcb9e8c4302def8b972223cf6be56",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.20.0",
+      "to": "0.80.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-04-02T21:44:00Z",
+      "files": [
+        "calfkit/__init__.py",
+        "calfkit/_vendor/pydantic_ai/models/anthropic.py",
+        "calfkit/providers/__init__.py",
+        "calfkit/providers/pydantic_ai/__init__.py",
+        "calfkit/providers/pydantic_ai/anthropic.py",
+        "calfkit/providers/pydantic_ai/openai.py"
+      ]
+    },
+    {
+      "id": "camel-ai/camel#1392",
+      "repo": "camel-ai/camel",
+      "pr": 1392,
+      "base": "6cb00f5bc1e4b6de8c588afc300b3ae85f4fb0c1",
+      "head": "3758c894ff3fd7a791f03c598e01b66c0b612748",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.40.0",
+      "to": "0.42.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2025-01-04T18:19:37Z",
+      "files": [
+        "camel/configs/anthropic_config.py",
+        "camel/models/anthropic_model.py",
+        "camel/utils/token_counting.py",
+        "examples/models/role_playing_with_claude.py"
       ]
     },
     {
@@ -1688,6 +1819,23 @@
         "src/openai.mjs",
         "src/subtitle.mjs",
         "src/translator.mjs"
+      ]
+    },
+    {
+      "id": "ch3njust1n/smart#76",
+      "repo": "ch3njust1n/smart",
+      "pr": 76,
+      "base": "8984f2848931236c8c73bcb035f5e06cea7b5216",
+      "head": "2e61fe2478fcd593ce2442f43928b971fdc32eae",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.2.9",
+      "to": "0.3.2",
+      "license": "MIT",
+      "mergedAt": "2023-07-02T01:58:52Z",
+      "files": [
+        "setup.py",
+        "tests/test_prompt.py"
       ]
     },
     {
@@ -2167,6 +2315,41 @@
       ]
     },
     {
+      "id": "CodeHalwell/Agent-Gantry#159",
+      "repo": "CodeHalwell/Agent-Gantry",
+      "pr": 159,
+      "base": "b9d010ef2d67b73c124da3a4133109e13de76d74",
+      "head": "dc9564e86ec0fa2aefb184477f55b804672f3146",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.97.0",
+      "to": "0.98.1",
+      "license": "MIT",
+      "mergedAt": "2026-05-05T11:51:52Z",
+      "files": [
+        "agent_gantry/adapters/tool_spec/providers.py",
+        "tests/test_tool_spec_adapters.py"
+      ]
+    },
+    {
+      "id": "CodeHalwell/Agent-Gantry#200",
+      "repo": "CodeHalwell/Agent-Gantry",
+      "pr": 200,
+      "base": "88b0b6fd28f917fba832ff72795cf5570e1ea323",
+      "head": "4b600fbe8f1147c49fea3bb04521328feae22a05",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.103.1",
+      "to": "0.104.1",
+      "license": "MIT",
+      "mergedAt": "2026-05-23T10:03:29Z",
+      "files": [
+        "agent_gantry/adapters/tool_spec/providers.py",
+        "agent_gantry/integrations/agent_framework_middleware.py",
+        "examples/llm_integration/google_genai_demo.py"
+      ]
+    },
+    {
       "id": "codeoverflow-org/nodecg-io#1087",
       "repo": "codeoverflow-org/nodecg-io",
       "pr": 1087,
@@ -2379,6 +2562,22 @@
         "pkg/dtgithub/github_repo_projects_store.go",
         "pkg/dtgithub/github_repo_projects_store_test.go",
         "pkg/dtgithub/github_storage.go"
+      ]
+    },
+    {
+      "id": "dchud/otzar#35",
+      "repo": "dchud/otzar",
+      "pr": 35,
+      "base": "2f851d8d8dc96fb16c3f8a87e86bed3e1d6c5834",
+      "head": "feea8f18517121ea8ddeaaeb50976342dd797a39",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.89.0",
+      "to": "1.3.0",
+      "license": "MIT",
+      "mergedAt": "2026-09-06T04:07:51Z",
+      "files": [
+        "tests/test_ocr_contract.py"
       ]
     },
     {
@@ -3189,6 +3388,22 @@
         "aidial_adapter_bedrock/llm/model/claude/v3/converters.py",
         "aidial_adapter_bedrock/llm/model/claude/v3/params.py",
         "aidial_adapter_bedrock/llm/model/claude/v3/tokenizer.py"
+      ]
+    },
+    {
+      "id": "epam/ai-dial-adapter-bedrock#471",
+      "repo": "epam/ai-dial-adapter-bedrock",
+      "pr": 471,
+      "base": "512d60a0881a9e4f55e0e779a55e5257f675310a",
+      "head": "48ff0a8a05684623313c432b3d8bd1b698674c45",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.95.0",
+      "to": "0.105.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-07-29T15:26:54Z",
+      "files": [
+        "tests/unit_tests/converse/test_converse_adapter.py"
       ]
     },
     {
@@ -4726,6 +4941,24 @@
       ]
     },
     {
+      "id": "hadijannat/idta-submodel-editor#188",
+      "repo": "hadijannat/idta-submodel-editor",
+      "pr": 188,
+      "base": "0026db2d2d09f37d71880d5e553a62a313de3cb2",
+      "head": "87e948c5db862e82bc415af62eae6286596562a3",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.18.0",
+      "to": "0.97.0",
+      "license": "MIT",
+      "mergedAt": "2026-04-27T11:09:14Z",
+      "files": [
+        "backend/tests/magic_import/test_llm_providers.py",
+        "backend/tests/test_anthropic_sdk_contract.py",
+        "backend/tests/test_settings_router.py"
+      ]
+    },
+    {
       "id": "hakwerk/gha-git-repo-tags#100",
       "repo": "hakwerk/gha-git-repo-tags",
       "pr": 100,
@@ -4949,6 +5182,40 @@
         "src/app/_actions/payment.test.ts",
         "src/app/_utils/payment.test.ts",
         "src/app/_utils/payment.ts"
+      ]
+    },
+    {
+      "id": "home-assistant/core#167793",
+      "repo": "home-assistant/core",
+      "pr": 167793,
+      "base": "4efb6b9b5609b424cece280313a0ca4e143fda70",
+      "head": "d1f511f408bd500c3fc39633ec0c4489207ce1b4",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.83.0",
+      "to": "0.92.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-04-09T13:18:22Z",
+      "files": [
+        "homeassistant/components/anthropic/__init__.py",
+        "tests/components/anthropic/__init__.py",
+        "tests/components/anthropic/conftest.py"
+      ]
+    },
+    {
+      "id": "home-assistant/core#182976",
+      "repo": "home-assistant/core",
+      "pr": 182976,
+      "base": "b2f1fad07dc60ee1592bb46d7a1b467a49283624",
+      "head": "5818e874ba987ccc9340535b3056b3be1a38eda5",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.108.0",
+      "to": "0.125.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-09-23T11:05:40Z",
+      "files": [
+        "homeassistant/components/anthropic/entity.py"
       ]
     },
     {
@@ -5332,6 +5599,22 @@
       ]
     },
     {
+      "id": "jackmpcollins/magentic#239",
+      "repo": "jackmpcollins/magentic",
+      "pr": 239,
+      "base": "6c911f5548d1cd9e005e256ff685d2f77c962e68",
+      "head": "c937e0e4fece39907989145ab3ae9ac535bcb04f",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.26.0",
+      "to": "0.28.1",
+      "license": "MIT",
+      "mergedAt": "2024-06-20T07:01:47Z",
+      "files": [
+        "src/magentic/chat_model/anthropic_chat_model.py"
+      ]
+    },
+    {
       "id": "jaegertracing/jaeger#7041",
       "repo": "jaegertracing/jaeger",
       "pr": 7041,
@@ -5382,6 +5665,23 @@
       "mergedAt": "2026-08-12T18:40:45Z",
       "files": [
         "tests/plugins/test_openai_plugin.py"
+      ]
+    },
+    {
+      "id": "jaypetez/glean#376",
+      "repo": "jaypetez/glean",
+      "pr": 376,
+      "base": "2200c62a0da071396af0ec0f93817edffba9c69e",
+      "head": "54c99d515025d1bb48177ed1b0ec8d5ecac4a351",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.120.2",
+      "to": "1.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-08-25T04:58:25Z",
+      "files": [
+        "src/glean/llm/anthropic_provider.py",
+        "src/glean/security/ssrf_transport.py"
       ]
     },
     {
@@ -6328,6 +6628,56 @@
       ]
     },
     {
+      "id": "langchain-ai/langchain#28820",
+      "repo": "langchain-ai/langchain",
+      "pr": 28820,
+      "base": "6526db48711d3da8be7617be2ff39fc45c4fc1cd",
+      "head": "79357f1c761836c15cccf9046226cc34a47e3884",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.39.0",
+      "to": "0.42.0",
+      "license": "MIT",
+      "mergedAt": "2024-12-19T15:39:21Z",
+      "files": [
+        "libs/partners/anthropic/langchain_anthropic/chat_models.py",
+        "libs/partners/anthropic/tests/unit_tests/test_chat_models.py"
+      ]
+    },
+    {
+      "id": "langchain-ai/langchain#7237",
+      "repo": "langchain-ai/langchain",
+      "pr": 7237,
+      "base": "6aa66fd2b0ad2a6068d61906b2f00264eb32f4b8",
+      "head": "2ec38a1db2e254eedb2960bd0e422d7ac9d443cd",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.2.10",
+      "to": "0.3.2",
+      "license": "MIT",
+      "mergedAt": "2023-07-06T01:02:36Z",
+      "files": [
+        "langchain/chat_models/anthropic.py",
+        "langchain/llms/anthropic.py"
+      ]
+    },
+    {
+      "id": "langgenius/dify-official-plugins#355",
+      "repo": "langgenius/dify-official-plugins",
+      "pr": 355,
+      "base": "5f02ec141b48759d845be2d58e5f26613b031bee",
+      "head": "cc48dce0a71e72ef1a108b42074be21284085e74",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.23.1",
+      "to": "0.48.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2025-03-03T02:49:11Z",
+      "files": [
+        "models/anthropic/models/llm/llm.py"
+      ]
+    },
+    {
       "id": "learning-unlimited/ESP-Website#5803",
       "repo": "learning-unlimited/ESP-Website",
       "pr": 5803,
@@ -6720,6 +7070,27 @@
       ]
     },
     {
+      "id": "LuthienResearch/luthien-proxy#269",
+      "repo": "LuthienResearch/luthien-proxy",
+      "pr": 269,
+      "base": "193550e3dd5280d36337e6024c1db873135e75c7",
+      "head": "bcff3fc24cc29b54b2b87e115bd5dcd94974add9",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.71.0",
+      "to": "0.84.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-03-05T01:07:22Z",
+      "files": [
+        "src/luthien_proxy/llm/anthropic_client.py",
+        "src/luthien_proxy/pipeline/anthropic_processor.py",
+        "tests/integration_tests/test_anthropic_gateway.py",
+        "tests/unit_tests/observability/test_redis_event_publisher.py",
+        "tests/unit_tests/pipeline/test_anthropic_processor.py",
+        "tests/unit_tests/test_requirement1_regression.py"
+      ]
+    },
+    {
       "id": "LVTD-LLC/TuxSEO#15",
       "repo": "LVTD-LLC/TuxSEO",
       "pr": 15,
@@ -7008,6 +7379,23 @@
       ]
     },
     {
+      "id": "meridianlabs-ai/inspect_scout#574",
+      "repo": "meridianlabs-ai/inspect_scout",
+      "pr": 574,
+      "base": "bbacfbb2200fdcc53ee716a326f2905002796871",
+      "head": "4359bdc58316376846a4371f09a79199f6279569",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.80.0",
+      "to": "1.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-08-21T10:44:44Z",
+      "files": [
+        "tests/observe/test_observe_stream_errors.py",
+        "tests/view/test_api_v2_search.py"
+      ]
+    },
+    {
       "id": "microsoft/deep-language-networks#51",
       "repo": "microsoft/deep-language-networks",
       "pr": 51,
@@ -7072,6 +7460,61 @@
       "files": [
         "controlpanel/api/kubernetes.py",
         "tests/api/test_kubernetes.py"
+      ]
+    },
+    {
+      "id": "Mirascope/mirascope#1481",
+      "repo": "Mirascope/mirascope",
+      "pr": 1481,
+      "base": "04d2afcb1cffeea4fe1612f6b489036a3f10697d",
+      "head": "180ac054f9fa02b73b2a99aed0f1d306951060c7",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.64.0",
+      "to": "0.72.0",
+      "license": "MIT",
+      "mergedAt": "2025-11-05T18:51:24Z",
+      "files": [
+        "python/mirascope/llm/clients/anthropic/_utils/encode.py"
+      ]
+    },
+    {
+      "id": "Mirascope/mirascope#173",
+      "repo": "Mirascope/mirascope",
+      "pr": 173,
+      "base": "096da8cf9323ddac672a7512e16f70c9136a0e57",
+      "head": "75864ec0b9e1d5093aba6a00be5d966abd334228",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.21.3",
+      "to": "0.23.1",
+      "license": "MIT",
+      "mergedAt": "2024-04-05T05:53:05Z",
+      "files": [
+        "mirascope/anthropic/calls.py",
+        "mirascope/anthropic/extractors.py",
+        "mirascope/anthropic/tools.py",
+        "mirascope/anthropic/types.py",
+        "tests/anthropic/conftest.py",
+        "tests/anthropic/test_extractors.py",
+        "tests/anthropic/test_tools.py",
+        "tests/anthropic/test_types.py"
+      ]
+    },
+    {
+      "id": "mlco2/ecologits#53",
+      "repo": "mlco2/ecologits",
+      "pr": 53,
+      "base": "4f1ec0057d896be4b6f01178a8e02b8b964bce1d",
+      "head": "df1edbc068b3d10f2a1bf7f70ced521477936d2a",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.18.1",
+      "to": "0.29.0",
+      "license": "MPL-2.0",
+      "mergedAt": "2024-06-20T16:44:20Z",
+      "files": [
+        "tests/test_anthropic.py"
       ]
     },
     {
@@ -7298,6 +7741,22 @@
       "files": [
         "copilotj/core/agent.py",
         "copilotj/server/threads.py"
+      ]
+    },
+    {
+      "id": "NousResearch/hermes-agent#26830",
+      "repo": "NousResearch/hermes-agent",
+      "pr": 26830,
+      "base": "6ba35ec336cfcf5e36f398750e630783f8715bac",
+      "head": "a3778f2a8e12e98410551ebcfeb2c4425b715a4c",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.86.0",
+      "to": "0.87.0",
+      "license": "MIT",
+      "mergedAt": "2026-05-16T08:25:26Z",
+      "files": [
+        "tools/lazy_deps.py"
       ]
     },
     {
@@ -7841,6 +8300,38 @@
         "tests/conftest.py",
         "tests/mock_cred.py",
         "tests/test_app.py"
+      ]
+    },
+    {
+      "id": "pangeacyber/pangea-anthropic-sdk-python#24",
+      "repo": "pangeacyber/pangea-anthropic-sdk-python",
+      "pr": 24,
+      "base": "17e4668d6ba4af9592cdf22ea283c47a83b3a80f",
+      "head": "cd46bd45985a0bb55cfa31ed97bb9238ec73a08b",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.68.0",
+      "to": "0.69.0",
+      "license": "MIT",
+      "mergedAt": "2025-10-11T14:52:32Z",
+      "files": [
+        "src/pangea_anthropic/resources/messages/messages.py"
+      ]
+    },
+    {
+      "id": "pangeacyber/pangea-anthropic-sdk-python#6",
+      "repo": "pangeacyber/pangea-anthropic-sdk-python",
+      "pr": 6,
+      "base": "10c6a1de6b0a4de59247cbaba2797caa7bd73848",
+      "head": "a843d06124c56c1ea90807f780d163354ea70d69",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.64.0",
+      "to": "0.66.0",
+      "license": "MIT",
+      "mergedAt": "2025-09-11T16:01:48Z",
+      "files": [
+        "src/pangea_anthropic/resources/messages/messages.py"
       ]
     },
     {
@@ -8684,6 +9175,54 @@
       ]
     },
     {
+      "id": "rdegges/django-twilio#206",
+      "repo": "rdegges/django-twilio",
+      "pr": 206,
+      "base": "3716600b69d86cb2a6595c46c068d33f65eb8315",
+      "head": "37455ac5e0dcda36a4da8d3ba7bb0b4a4fc426cf",
+      "package": "twilio",
+      "ecosystem": "pypi",
+      "from": "6.3.0",
+      "to": "7",
+      "license": "Unlicense",
+      "mergedAt": "2022-02-08T20:27:34Z",
+      "files": [
+        "setup.py"
+      ]
+    },
+    {
+      "id": "rdegges/django-twilio#234",
+      "repo": "rdegges/django-twilio",
+      "pr": 234,
+      "base": "6cdaa4a50873f1c2f2ab54c62d6ef591627db986",
+      "head": "3d33fbb505af087cd08346aca60b7272ae32cb75",
+      "package": "twilio",
+      "ecosystem": "pypi",
+      "from": "6.3.0",
+      "to": "7",
+      "license": "Unlicense",
+      "mergedAt": "2023-11-08T18:41:31Z",
+      "files": [
+        "setup.py"
+      ]
+    },
+    {
+      "id": "reboot-dev/reboot#172",
+      "repo": "reboot-dev/reboot",
+      "pr": 172,
+      "base": "07cfd3d9fef3e864246ef7df3249e0fb9b44b77d",
+      "head": "fdad7cbe3c9a0b5c2c6d948e1af931d6df3e5b3b",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.109.0",
+      "to": "0.125.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-09-15T09:12:51Z",
+      "files": [
+        "tests/reboot/agents/pydantic_ai/providers_tests.py"
+      ]
+    },
+    {
       "id": "RedHatInsights/release-confidence-score#113",
       "repo": "RedHatInsights/release-confidence-score",
       "pr": 113,
@@ -9238,6 +9777,39 @@
       ]
     },
     {
+      "id": "run-llama/llama_index#18817",
+      "repo": "run-llama/llama_index",
+      "pr": 18817,
+      "base": "5aeb047bd1828509148c55cfa7d9b3a21a0b2b49",
+      "head": "bd5ec60467466216298a5670778a4abb5115b7ac",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.51.0",
+      "to": "0.52.0",
+      "license": "MIT",
+      "mergedAt": "2025-05-22T17:27:27Z",
+      "files": [
+        "llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py",
+        "llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/utils.py"
+      ]
+    },
+    {
+      "id": "run-llama/llama_index#19624",
+      "repo": "run-llama/llama_index",
+      "pr": 19624,
+      "base": "8cb6bdefea82f448b0e2a87fbe5fda35d3e7f23e",
+      "head": "4c294938ec53ff2d23b0339072a7906c7a206483",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.57.1",
+      "to": "0.62.0",
+      "license": "MIT",
+      "mergedAt": "2025-08-08T16:37:40Z",
+      "files": [
+        "llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py"
+      ]
+    },
+    {
       "id": "rungalileo/galileo-python#557",
       "repo": "rungalileo/galileo-python",
       "pr": 557,
@@ -9545,6 +10117,24 @@
       ]
     },
     {
+      "id": "shotgun-sh/shotgun#494",
+      "repo": "shotgun-sh/shotgun",
+      "pr": 494,
+      "base": "16b47b104970c61a45f33222cc7b770c1536bb8c",
+      "head": "615e71553bc7563f25c01a488cfdb8d80cbdf45a",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.39.0",
+      "to": "0.80.0",
+      "license": "MIT",
+      "mergedAt": "2026-02-25T12:09:40Z",
+      "files": [
+        "src/shotgun/agents/router/router.py",
+        "test/unit/test_context7.py",
+        "test/unit/tui/test_markdown_parser.py"
+      ]
+    },
+    {
       "id": "SierraSoftworks/actions-tap#11",
       "repo": "SierraSoftworks/actions-tap",
       "pr": 11,
@@ -9675,6 +10265,30 @@
         "tests/e2e/test_openai_sdk_compat.py",
         "tests/e2e/test_v1_responses_openai_sdk.py",
         "tests/integration/test_openai_client_compat.py"
+      ]
+    },
+    {
+      "id": "sseshachala/conductai#1244",
+      "repo": "sseshachala/conductai",
+      "pr": 1244,
+      "base": "0b26ee2d66bb0d5360028d8b0e0074edb9313488",
+      "head": "5140ea409853411fe1dfd1d2890273dbb2ed5d1c",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.40.0",
+      "to": "0.125.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-08-26T19:16:34Z",
+      "files": [
+        "apps/api/app/compiler/compiler.py",
+        "apps/api/app/compiler/stream.py",
+        "apps/api/app/modules/guard/routers/policies.py",
+        "apps/api/app/routers/team_memory.py",
+        "apps/api/app/routers/workflows.py",
+        "apps/api/app/runtime/adapters/anthropic.py",
+        "apps/api/app/runtime/adapters/openai.py",
+        "apps/api/app/runtime/adapters/perplexity.py",
+        "apps/api/app/runtime/llm_client.py"
       ]
     },
     {
@@ -11857,6 +12471,44 @@
       ]
     },
     {
+      "id": "turnstonelabs/turnstone#1161",
+      "repo": "turnstonelabs/turnstone",
+      "pr": 1161,
+      "base": "954757a836eacf5f17fef07cce7ea945e773935f",
+      "head": "2e7a305e6f6e44a6c8f0b17ca226efe722e28258",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.117",
+      "to": "1",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-09-13T17:45:05Z",
+      "files": [
+        "scripts/livepass.py",
+        "tests/_wire_capture.py",
+        "tests/test_admin_model_registry_refresh.py",
+        "tests/test_empty_completion.py",
+        "tests/test_judge.py",
+        "tests/test_livepass_workspace_id.py",
+        "tests/test_model_provider_obo.py",
+        "tests/test_model_registry.py",
+        "tests/test_output_guard_judge.py",
+        "tests/test_provider_anthropic_compat.py",
+        "tests/test_providers.py",
+        "tests/test_sdk_stream_boundary.py",
+        "turnstone/api/console_schemas.py",
+        "turnstone/console/server.py",
+        "turnstone/core/judge.py",
+        "turnstone/core/model_registry.py",
+        "turnstone/core/model_turn.py",
+        "turnstone/core/output_guard_judge.py",
+        "turnstone/core/providers/__init__.py",
+        "turnstone/core/providers/_anthropic.py",
+        "turnstone/core/providers/_openai_chat.py",
+        "turnstone/core/providers/_openai_responses.py",
+        "turnstone/core/providers/_protocol.py"
+      ]
+    },
+    {
       "id": "twk3/rollup-size-compare-action#429",
       "repo": "twk3/rollup-size-compare-action",
       "pr": 429,
@@ -11887,6 +12539,46 @@
       "files": [
         "platform/services/uhhcraft/deployment/internal/app/app.go",
         "platform/services/uhhcraft/deployment/internal/checkout/handler.go"
+      ]
+    },
+    {
+      "id": "UiPath/coder_eval#133",
+      "repo": "UiPath/coder_eval",
+      "pr": 133,
+      "base": "3d09f0f4d966f619405058aca44aa982b1ba265a",
+      "head": "6be00aa7df727686f4d6c304d67f8ba282f33d74",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.86.0",
+      "to": "1.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-08-21T15:46:59Z",
+      "files": [
+        "src/coder_eval/evaluation/judge_anthropic.py",
+        "src/coder_eval/evaluation/judge_bedrock.py",
+        "src/coder_eval/evaluation/verdict_tool.py",
+        "tests/test_judge_anthropic.py",
+        "tests/test_judge_bedrock.py",
+        "tests/test_judge_burn_in_live.py"
+      ]
+    },
+    {
+      "id": "UKGovernmentBEIS/inspect_ai#3251",
+      "repo": "UKGovernmentBEIS/inspect_ai",
+      "pr": 3251,
+      "base": "77a45cbe8c313f8fc681c4407951ce267a50c922",
+      "head": "bcac8af219a669cbb395d0ffcd421a55e9c88e5a",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.78.0",
+      "to": "0.80.0",
+      "license": "MIT",
+      "mergedAt": "2026-02-17T21:26:04Z",
+      "files": [
+        "src/inspect_ai/agent/_bridge/anthropic_api_impl.py",
+        "src/inspect_ai/model/_providers/anthropic.py",
+        "src/inspect_ai/model/_providers/providers.py",
+        "tests/agent/test_agent_bridge.py"
       ]
     },
     {
@@ -12056,6 +12748,57 @@
         "github/user/fs.go",
         "github/user/fs_test.go",
         "github/user/user_suite_test.go"
+      ]
+    },
+    {
+      "id": "uripeled2/llm-client-sdk#25",
+      "repo": "uripeled2/llm-client-sdk",
+      "pr": 25,
+      "base": "f417c5b4376ef7ff231145b9996480840126b708",
+      "head": "170cf5e8c7fc9e67c314ef8776a9a62fca64df02",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.2.0",
+      "to": "0.3.2",
+      "license": "MIT",
+      "mergedAt": "2023-07-01T06:27:47Z",
+      "files": [
+        "llm_client/__init__.py",
+        "llm_client/llm_api_client/anthropic_client.py",
+        "tests/llm_api_client/anthropic_client/conftest.py",
+        "tests/llm_api_client/anthropic_client/test_anthropic_client.py"
+      ]
+    },
+    {
+      "id": "vatsalsaglani/claudetools#30",
+      "repo": "vatsalsaglani/claudetools",
+      "pr": 30,
+      "base": "10152bb202c677cf47a174e4309f8ac60b8de062",
+      "head": "e0df8848b97b98492f0f92cdc641c11edabdfcb0",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.19.1",
+      "to": "0.31.0",
+      "license": "MIT",
+      "mergedAt": "2024-07-15T05:16:33Z",
+      "files": [
+        "setup.py"
+      ]
+    },
+    {
+      "id": "vatsalsaglani/claudetools#31",
+      "repo": "vatsalsaglani/claudetools",
+      "pr": 31,
+      "base": "2eca119d16d44af09e68240c9af478f23eb24110",
+      "head": "d4f57e46e069a0efe06603e2c2b0985b2c24ebd3",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.19.1",
+      "to": "0.31.0",
+      "license": "MIT",
+      "mergedAt": "2024-07-15T05:22:50Z",
+      "files": [
+        "setup.py"
       ]
     },
     {
@@ -12528,6 +13271,22 @@
       ]
     },
     {
+      "id": "withmartian/llm-adapters#89",
+      "repo": "withmartian/llm-adapters",
+      "pr": 89,
+      "base": "34052f4d4307e0f90c92e4c38e52a68184b1dde7",
+      "head": "b23c201a0b24ee5c8d82d120035c131eb32f7cb1",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.31.2",
+      "to": "0.34.2",
+      "license": "MIT",
+      "mergedAt": "2024-09-14T17:52:50Z",
+      "files": [
+        "adapters/provider_adapters/openai_sdk_chat_provider_adapter.py"
+      ]
+    },
+    {
       "id": "wndhydrnt/rcmt#408",
       "repo": "wndhydrnt/rcmt",
       "pr": 408,
@@ -12935,6 +13694,22 @@
       "files": [
         "src/main.js",
         "src/post.js"
+      ]
+    },
+    {
+      "id": "zylon-ai/private-gpt#2262",
+      "repo": "zylon-ai/private-gpt",
+      "pr": 2262,
+      "base": "7595d25a4c9d71befe04882c93272efa19ebf97a",
+      "head": "e6998e18004a29748f5848ecd4b86cfa0fd5980f",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.105.2",
+      "to": "0.107.1",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-06-08T11:51:49Z",
+      "files": [
+        "tests/models/anthropic/test_openapi_schema.py"
       ]
     },
     {
