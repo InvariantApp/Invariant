@@ -22,7 +22,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -131,6 +138,13 @@
       "contested": 2
     },
     "byClass": {
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 0,
+        "new": 0
+      },
       "sdk": {
         "identical": 0,
         "differs": 0,
@@ -143,13 +157,6 @@
         "differs": 0,
         "flagged": 0,
         "missed": 3,
-        "new": 0
-      },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 2,
-        "missed": 0,
         "new": 0
       }
     }
@@ -298,7 +305,7 @@
     "id": "567-labs/instructor#1002",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.27.0",
       "0.34.2"
@@ -318,22 +325,29 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "newCode": 1
-    },
-    "byClass": {
-      "sdk": {
+      "forced": {
+        "sites": 0,
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 2,
-        "new": 0
+        "missed": 0
       },
+      "newCode": 1
+    },
+    "byClass": {
       "unclassified": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 0,
         "new": 1
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
+        "new": 0
       }
     }
   },
@@ -736,7 +750,7 @@
     "id": "ag2ai/ag2#2844",
     "language": "python",
     "package": "openai",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "1.99.3",
       "2.30.0"
@@ -747,7 +761,7 @@
     "flagged": 1,
     "missed": 19,
     "extra": 0,
-    "extraFlags": 4,
+    "extraFlags": 13,
     "newCode": 0,
     "inScope": {
       "sites": 0,
@@ -755,7 +769,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -778,7 +799,7 @@
     "id": "ag2ai/ag2#3218",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.125.0",
       "1.2.0"
@@ -798,6 +819,13 @@
       "flagged": 0,
       "missed": 1,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "newCode": 4
     },
     "byClass": {
@@ -808,19 +836,19 @@
         "missed": 16,
         "new": 0
       },
-      "unclassified": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 0,
-        "new": 4
-      },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 1,
         "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 4
       },
       "contract": {
         "identical": 0,
@@ -835,7 +863,7 @@
     "id": "agencyenterprise/GlossoGen#139",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.122.0",
       "1.0.0"
@@ -854,7 +882,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -1036,19 +1071,19 @@
         "missed": 66,
         "new": 0
       },
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 4,
-        "new": 1
-      },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 3,
         "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 4,
+        "new": 1
       },
       "contract": {
         "identical": 0,
@@ -1082,7 +1117,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -1582,7 +1624,7 @@
     "id": "apache/airflow#72094",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.121.0",
       "1.0.0"
@@ -1593,7 +1635,7 @@
     "flagged": 1,
     "missed": 8,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 28,
     "newCode": 1,
     "inScope": {
       "sites": 0,
@@ -1602,22 +1644,29 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "newCode": 1
-    },
-    "byClass": {
-      "unclassified": {
+      "forced": {
+        "sites": 0,
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 0,
-        "new": 1
+        "missed": 0
       },
+      "newCode": 1
+    },
+    "byClass": {
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 1,
         "missed": 7,
         "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 1
       },
       "unrelated": {
         "identical": 0,
@@ -2147,13 +2196,6 @@
       "newCode": 3
     },
     "byClass": {
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 16,
-        "new": 1
-      },
       "sdk": {
         "identical": 0,
         "differs": 0,
@@ -2166,6 +2208,13 @@
         "differs": 0,
         "flagged": 5,
         "missed": 0,
+        "new": 1
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 16,
         "new": 1
       }
     }
@@ -2363,6 +2412,13 @@
       "newCode": 4
     },
     "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 4,
+        "missed": 8,
+        "new": 0
+      },
       "sdk": {
         "identical": 0,
         "differs": 0,
@@ -2375,13 +2431,6 @@
         "differs": 0,
         "flagged": 1,
         "missed": 7,
-        "new": 0
-      },
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 4,
-        "missed": 8,
         "new": 0
       },
       "contract": {
@@ -2397,7 +2446,7 @@
     "id": "Azure-Samples/rag-with-azure-ai-search-notebooks#6",
     "language": "python",
     "package": "openai",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "1.109.1",
       "2.8.1"
@@ -2416,7 +2465,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -2556,7 +2612,14 @@
       "differs": 1,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -2607,7 +2670,7 @@
     "id": "BEdasc/web_bot#9",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.39.0",
       "0.40.0"
@@ -2627,6 +2690,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "newCode": 1
     },
     "byClass": {
@@ -2783,7 +2853,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -2825,7 +2902,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -2841,7 +2925,7 @@
     "id": "CaddisMaster/budget-buddy#286",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.122.0",
       "1.0.0"
@@ -2861,22 +2945,29 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "newCode": 1
-    },
-    "byClass": {
-      "unclassified": {
+      "forced": {
+        "sites": 0,
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 0,
-        "new": 1
+        "missed": 0
       },
+      "newCode": 1
+    },
+    "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 1,
         "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 1
       }
     }
   },
@@ -3048,7 +3139,7 @@
     "id": "camel-ai/camel#1392",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.40.0",
       "0.42.0"
@@ -3068,10 +3159,24 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 3,
       "newCode": 1
     },
     "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 4,
+        "new": 0
+      },
       "sdk": {
         "identical": 0,
         "differs": 0,
@@ -3084,13 +3189,6 @@
         "differs": 0,
         "flagged": 0,
         "missed": 3,
-        "new": 0
-      },
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 4,
         "new": 0
       },
       "unclassified": {
@@ -3265,11 +3363,11 @@
       "contested": 5
     },
     "byClass": {
-      "sdk": {
+      "contested": {
         "identical": 0,
         "differs": 0,
-        "flagged": 10,
-        "missed": 9,
+        "flagged": 0,
+        "missed": 5,
         "new": 0
       },
       "unrelated": {
@@ -3279,11 +3377,11 @@
         "missed": 3,
         "new": 0
       },
-      "contested": {
+      "sdk": {
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 5,
+        "flagged": 10,
+        "missed": 9,
         "new": 0
       }
     }
@@ -4020,14 +4118,14 @@
       "newCode": 1
     },
     "byClass": {
-      "contested": {
+      "contract": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 1,
         "new": 0
       },
-      "contract": {
+      "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
@@ -4577,7 +4675,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -4775,7 +4880,7 @@
     "id": "CodeHalwell/Agent-Gantry#159",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.97.0",
       "0.98.1"
@@ -4795,17 +4900,17 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "newCode": 2,
-      "contested": 3
-    },
-    "byClass": {
-      "unclassified": {
+      "forced": {
+        "sites": 0,
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 0,
-        "new": 2
+        "missed": 0
       },
+      "contested": 3,
+      "newCode": 2
+    },
+    "byClass": {
       "contested": {
         "identical": 0,
         "differs": 0,
@@ -4819,6 +4924,13 @@
         "flagged": 0,
         "missed": 1,
         "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 2
       }
     }
   },
@@ -4826,7 +4938,7 @@
     "id": "CodeHalwell/Agent-Gantry#200",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.103.1",
       "0.104.1"
@@ -4846,21 +4958,28 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 1
-    },
-    "byClass": {
-      "unrelated": {
+      "forced": {
+        "sites": 0,
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 4,
-        "new": 0
+        "missed": 0
       },
+      "contested": 1
+    },
+    "byClass": {
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 2,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 4,
         "new": 0
       },
       "contested": {
@@ -4962,6 +5081,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 2
     },
     "byClass": {
@@ -5314,7 +5440,7 @@
     "id": "dchud/otzar#35",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "1.3.0",
       "1.3.0"
@@ -5334,6 +5460,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "newCode": 1
     },
     "byClass": {
@@ -5373,18 +5506,18 @@
       "contested": 1
     },
     "byClass": {
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 20,
-        "new": 0
-      },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 17,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 20,
         "new": 0
       },
       "contested": {
@@ -5419,7 +5552,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 5,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -5500,19 +5640,19 @@
       "newCode": 1
     },
     "byClass": {
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 5,
-        "missed": 2,
-        "new": 1
-      },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 14,
         "missed": 29,
         "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 5,
+        "missed": 2,
+        "new": 1
       }
     }
   },
@@ -5645,8 +5785,8 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "newCode": 2,
-      "contested": 6
+      "contested": 6,
+      "newCode": 2
     },
     "byClass": {
       "sdk": {
@@ -5695,7 +5835,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -5731,16 +5878,16 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 1
-    },
-    "byClass": {
-      "unrelated": {
+      "forced": {
+        "sites": 0,
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 9,
-        "new": 0
+        "missed": 0
       },
+      "contested": 1
+    },
+    "byClass": {
       "sdk": {
         "identical": 0,
         "differs": 0,
@@ -5753,6 +5900,13 @@
         "differs": 0,
         "flagged": 0,
         "missed": 1,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 9,
         "new": 0
       }
     }
@@ -5816,7 +5970,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -5852,6 +6013,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 2,
       "newCode": 1
     },
@@ -5902,7 +6070,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -6158,7 +6333,7 @@
     "id": "Eigenwise/atomic-agents#190",
     "language": "python",
     "package": "openai",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "1.95.1",
       "2.8.1"
@@ -6177,7 +6352,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -6786,7 +6968,7 @@
     "id": "epam/ai-dial-adapter-anthropic#13",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.75.0",
       "0.79.0"
@@ -6806,16 +6988,16 @@
       "flagged": 0,
       "missed": 1,
       "unclassified": 0,
-      "contested": 1
-    },
-    "byClass": {
-      "contested": {
+      "forced": {
+        "sites": 1,
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 1,
-        "new": 0
+        "missed": 1
       },
+      "contested": 1
+    },
+    "byClass": {
       "sdk": {
         "identical": 0,
         "differs": 0,
@@ -6829,6 +7011,13 @@
         "flagged": 0,
         "missed": 1,
         "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
       }
     }
   },
@@ -6836,7 +7025,7 @@
     "id": "epam/ai-dial-adapter-bedrock#319",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.49.0",
       "0.71.0"
@@ -6847,7 +7036,7 @@
     "flagged": 6,
     "missed": 32,
     "extra": 0,
-    "extraFlags": 53,
+    "extraFlags": 60,
     "newCode": 0,
     "inScope": {
       "sites": 1,
@@ -6856,6 +7045,13 @@
       "flagged": 1,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 1,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 0
+      },
       "contested": 6
     },
     "byClass": {
@@ -6886,7 +7082,7 @@
     "id": "epam/ai-dial-adapter-bedrock#471",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.95.0",
       "0.105.0"
@@ -6905,7 +7101,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -6921,7 +7124,7 @@
     "id": "epam/ai-dial-adapter-openai#389",
     "language": "python",
     "package": "openai",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "1.90.0",
       "2.16.0"
@@ -6932,7 +7135,7 @@
     "flagged": 10,
     "missed": 49,
     "extra": 0,
-    "extraFlags": 20,
+    "extraFlags": 22,
     "newCode": 0,
     "inScope": {
       "sites": 0,
@@ -6941,6 +7144,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 6
     },
     "byClass": {
@@ -6971,7 +7181,7 @@
     "id": "epam/ai-dial-adapter-vertexai#357",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.52.0",
       "0.75.0"
@@ -6990,7 +7200,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 1,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 1,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
+      }
     },
     "byClass": {
       "sdk": {
@@ -7223,7 +7440,14 @@
       "differs": 0,
       "flagged": 1,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 1,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -7282,7 +7506,7 @@
     "id": "floomhq/floom#129",
     "language": "python",
     "package": "openai",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "1.35.3",
       "2.36.0"
@@ -7302,6 +7526,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "newCode": 3,
       "contested": 12
     },
@@ -7313,18 +7544,18 @@
         "missed": 59,
         "new": 3
       },
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 25,
-        "new": 0
-      },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 12,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 25,
         "new": 0
       }
     }
@@ -7395,6 +7626,13 @@
       "flagged": 19,
       "missed": 5,
       "unclassified": 0,
+      "forced": {
+        "sites": 10,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 8,
+        "missed": 2
+      },
       "contested": 29,
       "newCode": 2
     },
@@ -7499,13 +7737,6 @@
         "missed": 56,
         "new": 1
       },
-      "contract": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 9,
-        "new": 0
-      },
       "contested": {
         "identical": 0,
         "differs": 0,
@@ -7519,6 +7750,13 @@
         "flagged": 0,
         "missed": 45,
         "new": 1
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 9,
+        "new": 0
       }
     }
   },
@@ -7679,7 +7917,7 @@
     "id": "Gaurang8200/Agent-Applications#11",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.69.0",
       "0.120.0"
@@ -7698,7 +7936,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -8909,7 +9154,7 @@
     "id": "Giskard-AI/giskard-oss#2790",
     "language": "python",
     "package": "openai",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "2.43.0",
       "2.54.0"
@@ -8928,7 +9173,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -8944,7 +9196,7 @@
     "id": "Giskard-AI/giskard-oss#2810",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.111.0",
       "1.2.0"
@@ -8955,7 +9207,7 @@
     "flagged": 1,
     "missed": 13,
     "extra": 0,
-    "extraFlags": 2,
+    "extraFlags": 21,
     "newCode": 3,
     "inScope": {
       "sites": 0,
@@ -8964,8 +9216,15 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "newCode": 3,
-      "contested": 4
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
+      "contested": 4,
+      "newCode": 3
     },
     "byClass": {
       "sdk": {
@@ -8975,19 +9234,19 @@
         "missed": 9,
         "new": 0
       },
-      "unclassified": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 0,
-        "new": 3
-      },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 4,
         "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 3
       }
     }
   },
@@ -9690,7 +9949,7 @@
     "id": "gptme/gptme#2710",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.47.0",
       "0.105.2"
@@ -9701,7 +9960,7 @@
     "flagged": 4,
     "missed": 0,
     "extra": 0,
-    "extraFlags": 7,
+    "extraFlags": 13,
     "newCode": 0,
     "inScope": {
       "sites": 0,
@@ -9709,20 +9968,27 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
-    },
-    "byClass": {
-      "unrelated": {
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
         "identical": 0,
         "differs": 0,
-        "flagged": 1,
-        "missed": 0,
-        "new": 0
-      },
+        "flagged": 0,
+        "missed": 0
+      }
+    },
+    "byClass": {
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 3,
+        "missed": 0,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
         "missed": 0,
         "new": 0
       }
@@ -9902,7 +10168,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -10365,7 +10638,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -10400,7 +10680,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -10435,7 +10722,14 @@
       "differs": 0,
       "flagged": 4,
       "missed": 2,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 6,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 4,
+        "missed": 2
+      }
     },
     "byClass": {
       "contract": {
@@ -10451,7 +10745,7 @@
     "id": "home-assistant/core#167793",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.83.0",
       "0.92.0"
@@ -10470,21 +10764,28 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
-    },
-    "byClass": {
-      "sdk": {
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 11,
-        "new": 0
-      },
+        "missed": 0
+      }
+    },
+    "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 2,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 11,
         "new": 0
       }
     }
@@ -10493,7 +10794,7 @@
     "id": "home-assistant/core#182976",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.108.0",
       "0.125.0"
@@ -10504,7 +10805,7 @@
     "flagged": 0,
     "missed": 2,
     "extra": 0,
-    "extraFlags": 4,
+    "extraFlags": 9,
     "newCode": 0,
     "inScope": {
       "sites": 0,
@@ -10512,7 +10813,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -10548,23 +10856,23 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "newCode": 2,
-      "contested": 18
+      "contested": 18,
+      "newCode": 2
     },
     "byClass": {
-      "sdk": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 6,
-        "missed": 32,
-        "new": 1
-      },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 89,
         "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 6,
+        "missed": 32,
+        "new": 1
       },
       "contested": {
         "identical": 0,
@@ -10633,7 +10941,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -10714,19 +11029,19 @@
       "newCode": 1
     },
     "byClass": {
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 11,
-        "new": 1
-      },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 2,
         "missed": 9,
         "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 11,
+        "new": 1
       }
     }
   },
@@ -10754,8 +11069,8 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "newCode": 7,
-      "contested": 9
+      "contested": 9,
+      "newCode": 7
     },
     "byClass": {
       "sdk": {
@@ -10808,6 +11123,13 @@
       "contested": 6
     },
     "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 5,
+        "new": 0
+      },
       "contested": {
         "identical": 0,
         "differs": 0,
@@ -10820,13 +11142,6 @@
         "differs": 0,
         "flagged": 0,
         "missed": 8,
-        "new": 0
-      },
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 5,
         "new": 0
       }
     }
@@ -11137,18 +11452,18 @@
       "unclassified": 0
     },
     "byClass": {
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 2,
-        "new": 0
-      },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 1,
         "missed": 7,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
         "new": 0
       }
     }
@@ -11235,7 +11550,7 @@
     "id": "jackmpcollins/magentic#239",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.26.0",
       "0.28.1"
@@ -11246,7 +11561,7 @@
     "flagged": 5,
     "missed": 14,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 6,
     "newCode": 0,
     "inScope": {
       "sites": 0,
@@ -11255,6 +11570,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 1
     },
     "byClass": {
@@ -11349,7 +11671,7 @@
     "id": "Jamyn/dispatch#21",
     "language": "python",
     "package": "openai",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "1.77.0",
       "2.53.0"
@@ -11369,6 +11691,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "newCode": 1
     },
     "byClass": {
@@ -11385,7 +11714,7 @@
     "id": "jaypetez/glean#376",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.120.2",
       "1.0.0"
@@ -11405,6 +11734,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "newCode": 1
     },
     "byClass": {
@@ -11611,7 +11947,7 @@
     "id": "johnhughes3/LegalForecastBench#836",
     "language": "python",
     "package": "openai",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "2.53.0",
       "3.0.0"
@@ -11630,7 +11966,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -11646,7 +11989,7 @@
     "id": "johnhughes3/LegalForecastBench#973",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.116.0",
       "1.0.0"
@@ -11666,21 +12009,28 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 1
-    },
-    "byClass": {
-      "unrelated": {
+      "forced": {
+        "sites": 0,
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 2,
-        "new": 0
+        "missed": 0
       },
+      "contested": 1
+    },
+    "byClass": {
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 5,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
         "new": 0
       },
       "contested": {
@@ -11755,18 +12105,18 @@
       "newCode": 1
     },
     "byClass": {
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 11,
-        "new": 0
-      },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 9,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 11,
         "new": 0
       },
       "contested": {
@@ -11808,7 +12158,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -11843,7 +12200,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -11878,7 +12242,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -11913,7 +12284,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -11948,7 +12326,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -11983,7 +12368,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -12018,7 +12410,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -12488,7 +12887,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 1,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -12504,7 +12910,7 @@
     "id": "knostic/OpenAnt#354",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.125.0",
       "1.1.0"
@@ -12524,6 +12930,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "newCode": 1
     },
     "byClass": {
@@ -12647,6 +13060,13 @@
       "flagged": 0,
       "missed": 1,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "newCode": 2,
       "contested": 8
     },
@@ -12782,7 +13202,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -12817,7 +13244,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -13296,7 +13730,7 @@
     "id": "lagowski/dap#878",
     "language": "python",
     "package": "openai",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "2.53.0",
       "3.0.0"
@@ -13315,7 +13749,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -13331,7 +13772,7 @@
     "id": "langchain-ai/langchain#28820",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.39.0",
       "0.42.0"
@@ -13350,7 +13791,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -13436,31 +13884,10 @@
       "flagged": 2,
       "missed": 1,
       "unclassified": 0,
-      "contested": 8,
-      "newCode": 1
+      "newCode": 1,
+      "contested": 8
     },
     "byClass": {
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 5,
-        "missed": 3,
-        "new": 0
-      },
-      "contract": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 2,
-        "missed": 1,
-        "new": 0
-      },
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 2,
-        "missed": 2,
-        "new": 0
-      },
       "sdk": {
         "identical": 0,
         "differs": 0,
@@ -13474,6 +13901,27 @@
         "flagged": 0,
         "missed": 0,
         "new": 1
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 1,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 5,
+        "missed": 3,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 2,
+        "new": 0
       }
     }
   },
@@ -13503,18 +13951,18 @@
       "unclassified": 0
     },
     "byClass": {
-      "contract": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 1,
-        "missed": 0,
-        "new": 0
-      },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 1,
+        "new": 0
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 0,
         "new": 0
       }
     }
@@ -13940,7 +14388,7 @@
     "id": "log10-io/log10#355",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.37.1",
       "0.39.0"
@@ -13960,21 +14408,28 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 3
-    },
-    "byClass": {
-      "sdk": {
+      "forced": {
+        "sites": 0,
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 1,
-        "new": 0
+        "missed": 0
       },
+      "contested": 3
+    },
+    "byClass": {
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 1,
         "missed": 2,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
         "new": 0
       }
     }
@@ -14006,18 +14461,18 @@
       "contested": 2
     },
     "byClass": {
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 2,
-        "new": 0
-      },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 4,
         "missed": 27,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
         "new": 0
       }
     }
@@ -14145,7 +14600,7 @@
     "id": "Lucs1590/strava-to-trainingpeaks#168",
     "language": "python",
     "package": "openai",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "1.109.1",
       "2.3.0"
@@ -14164,7 +14619,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -14234,7 +14696,14 @@
       "differs": 0,
       "flagged": 7,
       "missed": 2,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 9,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 7,
+        "missed": 2
+      }
     },
     "byClass": {
       "sdk": {
@@ -14277,6 +14746,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 1
     },
     "byClass": {
@@ -14300,7 +14776,7 @@
     "id": "LuthienResearch/luthien-proxy#269",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.71.0",
       "0.84.0"
@@ -14320,21 +14796,28 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 19
     },
     "byClass": {
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 1,
-        "missed": 18,
-        "new": 0
-      },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 3,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 18,
         "new": 0
       },
       "sdk": {
@@ -14421,23 +14904,30 @@
       "flagged": 1,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 2,
       "newCode": 1
     },
     "byClass": {
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 36,
-        "new": 1
-      },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 10,
         "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 36,
+        "new": 1
       },
       "contested": {
         "identical": 0,
@@ -14459,7 +14949,7 @@
     "id": "MagnivOrg/prompt-layer-library#234",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.25.8",
       "0.49.0"
@@ -14478,7 +14968,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "unrelated": {
@@ -14668,7 +15165,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -14703,7 +15207,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 1,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -14726,7 +15237,7 @@
     "id": "masorange/titan-cli#204",
     "language": "python",
     "package": "openai",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "1.109.1",
       "2.8.1"
@@ -14746,6 +15257,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "newCode": 1
     },
     "byClass": {
@@ -14781,7 +15299,14 @@
       "differs": 0,
       "flagged": 2,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 2,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -14992,7 +15517,7 @@
     "id": "meridianlabs-ai/inspect_scout#574",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.97.0",
       "1.0.0"
@@ -15003,7 +15528,7 @@
     "flagged": 2,
     "missed": 3,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 34,
     "newCode": 0,
     "inScope": {
       "sites": 0,
@@ -15011,7 +15536,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -15058,18 +15590,18 @@
         "missed": 35,
         "new": 1
       },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 2,
-        "missed": 18,
-        "new": 0
-      },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 8,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 18,
         "new": 0
       }
     }
@@ -15183,7 +15715,7 @@
     "id": "Mirascope/mirascope#1481",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.64.0",
       "0.72.0"
@@ -15202,7 +15734,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -15334,11 +15873,11 @@
       "contested": 1
     },
     "byClass": {
-      "sdk": {
+      "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 1,
+        "missed": 2,
         "new": 0
       },
       "contested": {
@@ -15348,11 +15887,11 @@
         "missed": 1,
         "new": 0
       },
-      "unrelated": {
+      "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 2,
+        "missed": 1,
         "new": 0
       }
     }
@@ -15748,6 +16287,13 @@
       "contested": 1
     },
     "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 2,
+        "new": 0
+      },
       "contested": {
         "identical": 0,
         "differs": 0,
@@ -15761,13 +16307,6 @@
         "flagged": 0,
         "missed": 1,
         "new": 0
-      },
-      "sdk": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 1,
-        "missed": 2,
-        "new": 0
       }
     }
   },
@@ -15775,7 +16314,7 @@
     "id": "NousResearch/hermes-agent#26830",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.86.0",
       "0.87.0"
@@ -15794,7 +16333,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "unrelated": {
@@ -15861,7 +16407,7 @@
     "id": "NVIDIA/NeMo-Agent-Toolkit#1849",
     "language": "python",
     "package": "openai",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "1.109.1",
       "2.21.0"
@@ -15880,7 +16426,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -15926,18 +16479,18 @@
         "missed": 7,
         "new": 0
       },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 1,
-        "new": 0
-      },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 2,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
         "new": 0
       }
     }
@@ -16016,7 +16569,7 @@
     "id": "ogx-ai/ogx#3847",
     "language": "python",
     "package": "openai",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "1.107.0",
       "2.5.0"
@@ -16027,7 +16580,7 @@
     "flagged": 0,
     "missed": 16,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 5,
     "newCode": 1,
     "inScope": {
       "sites": 0,
@@ -16036,17 +16589,17 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 9,
-      "newCode": 1
-    },
-    "byClass": {
-      "contested": {
+      "forced": {
+        "sites": 0,
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 9,
-        "new": 1
+        "missed": 0
       },
+      "newCode": 1,
+      "contested": 9
+    },
+    "byClass": {
       "unrelated": {
         "identical": 0,
         "differs": 0,
@@ -16060,6 +16613,13 @@
         "flagged": 0,
         "missed": 5,
         "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 9,
+        "new": 1
       }
     }
   },
@@ -16122,8 +16682,15 @@
       "flagged": 0,
       "missed": 4,
       "unclassified": 0,
-      "contested": 8,
-      "newCode": 5
+      "forced": {
+        "sites": 1,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1
+      },
+      "newCode": 5,
+      "contested": 8
     },
     "byClass": {
       "unrelated": {
@@ -16132,13 +16699,6 @@
         "flagged": 0,
         "missed": 15,
         "new": 3
-      },
-      "contract": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 4,
-        "new": 0
       },
       "sdk": {
         "identical": 0,
@@ -16153,6 +16713,13 @@
         "flagged": 0,
         "missed": 8,
         "new": 1
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 4,
+        "new": 0
       }
     }
   },
@@ -16524,7 +17091,7 @@
     "id": "open-telemetry/semantic-conventions-conformance#79",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.125.0",
       "1.0.0"
@@ -16543,7 +17110,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -16621,7 +17195,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -16656,7 +17237,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -16868,13 +17456,6 @@
       "contested": 5
     },
     "byClass": {
-      "sdk": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 9,
-        "missed": 7,
-        "new": 2
-      },
       "unrelated": {
         "identical": 0,
         "differs": 0,
@@ -16882,12 +17463,12 @@
         "missed": 12,
         "new": 0
       },
-      "contract": {
+      "sdk": {
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 1,
-        "new": 0
+        "flagged": 9,
+        "missed": 7,
+        "new": 2
       },
       "contested": {
         "identical": 0,
@@ -16895,6 +17476,13 @@
         "flagged": 3,
         "missed": 2,
         "new": 1
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
       }
     }
   },
@@ -16902,7 +17490,7 @@
     "id": "pangeacyber/pangea-anthropic-sdk-python#24",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.68.0",
       "0.69.0"
@@ -16921,7 +17509,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -16937,7 +17532,7 @@
     "id": "pangeacyber/pangea-anthropic-sdk-python#6",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.64.0",
       "0.66.0"
@@ -16957,6 +17552,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 6
     },
     "byClass": {
@@ -17413,23 +18015,30 @@
       "flagged": 0,
       "missed": 1,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 33,
       "newCode": 2
     },
     "byClass": {
-      "sdk": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 51,
-        "new": 1
-      },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 33,
         "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 51,
+        "new": 1
       },
       "unrelated": {
         "identical": 0,
@@ -17470,7 +18079,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -17530,18 +18146,18 @@
         "missed": 4,
         "new": 0
       },
-      "contract": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 2,
-        "missed": 0,
-        "new": 0
-      },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 4,
         "missed": 4,
+        "new": 0
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 0,
         "new": 0
       }
     }
@@ -17573,14 +18189,14 @@
       "contested": 1
     },
     "byClass": {
-      "contested": {
+      "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 1,
         "new": 0
       },
-      "unrelated": {
+      "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
@@ -17593,7 +18209,7 @@
     "id": "posit-dev/chatlas#399",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.109.1",
       "1.0.0"
@@ -17604,7 +18220,7 @@
     "flagged": 4,
     "missed": 43,
     "extra": 0,
-    "extraFlags": 7,
+    "extraFlags": 30,
     "newCode": 0,
     "inScope": {
       "sites": 4,
@@ -17613,21 +18229,28 @@
       "flagged": 0,
       "missed": 4,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 6
     },
     "byClass": {
-      "sdk": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 4,
-        "missed": 30,
-        "new": 0
-      },
       "contract": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 4,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 4,
+        "missed": 30,
         "new": 0
       },
       "unrelated": {
@@ -17758,18 +18381,18 @@
       "contested": 1
     },
     "byClass": {
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 1,
-        "new": 0
-      },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 2,
         "missed": 4,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
         "new": 0
       }
     }
@@ -18047,7 +18670,7 @@
     "id": "pydantic/logfire#1062",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.50.0",
       "0.51.0"
@@ -18066,7 +18689,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 4,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 4,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 4
+      }
     },
     "byClass": {
       "unrelated": {
@@ -18089,7 +18719,7 @@
     "id": "pydantic/pydantic-ai#4345",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.78.0",
       "0.80.0"
@@ -18109,6 +18739,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 14
     },
     "byClass": {
@@ -18139,7 +18776,7 @@
     "id": "pydantic/pydantic-ai#4958",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.96.0",
       "0.97.0"
@@ -18159,9 +18796,23 @@
       "flagged": 0,
       "missed": 17,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 15
     },
     "byClass": {
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 15,
+        "new": 0
+      },
       "contract": {
         "identical": 0,
         "differs": 0,
@@ -18174,13 +18825,6 @@
         "differs": 0,
         "flagged": 0,
         "missed": 8,
-        "new": 0
-      },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 15,
         "new": 0
       },
       "unrelated": {
@@ -18486,6 +19130,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 8
     },
     "byClass": {
@@ -18586,7 +19237,7 @@
     "id": "reboot-dev/reboot#172",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.109.0",
       "0.61.0"
@@ -18606,6 +19257,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "newCode": 1
     },
     "byClass": {
@@ -19670,7 +20328,7 @@
     "id": "run-llama/llama_index#18817",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.49.0",
       "0.49.0"
@@ -19690,21 +20348,28 @@
       "flagged": 0,
       "missed": 1,
       "unclassified": 0,
-      "contested": 9
-    },
-    "byClass": {
-      "contract": {
+      "forced": {
+        "sites": 0,
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 1,
-        "new": 0
+        "missed": 0
       },
+      "contested": 9
+    },
+    "byClass": {
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 9,
+        "new": 0
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
         "new": 0
       }
     }
@@ -19713,7 +20378,7 @@
     "id": "run-llama/llama_index#19624",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.49.0",
       "0.49.0"
@@ -19733,6 +20398,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 1
     },
     "byClass": {
@@ -19756,7 +20428,7 @@
     "id": "rungalileo/galileo-python#557",
     "language": "python",
     "package": "openai",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "1.95.1",
       "2.32.0"
@@ -19775,7 +20447,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -19850,13 +20529,6 @@
       "contested": 1
     },
     "byClass": {
-      "contract": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 3,
-        "missed": 0,
-        "new": 3
-      },
       "sdk": {
         "identical": 0,
         "differs": 0,
@@ -19864,18 +20536,25 @@
         "missed": 21,
         "new": 1
       },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 1,
-        "missed": 0,
-        "new": 0
-      },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 1,
         "missed": 1,
+        "new": 0
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 3,
+        "missed": 0,
+        "new": 3
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 0,
         "new": 0
       }
     }
@@ -20002,7 +20681,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -20037,7 +20723,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -20072,7 +20765,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -20107,7 +20807,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -20184,7 +20891,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -20249,7 +20963,7 @@
     "id": "sanlee-ys/defense-news-classifier#202",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.122.0",
       "1.3.0"
@@ -20269,21 +20983,28 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
-      "contested": 1
-    },
-    "byClass": {
-      "contested": {
+      "forced": {
+        "sites": 0,
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 1,
-        "new": 0
+        "missed": 0
       },
+      "contested": 1
+    },
+    "byClass": {
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 2,
         "missed": 2,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
         "new": 0
       }
     }
@@ -20447,7 +21168,7 @@
     "id": "shotgun-sh/shotgun#494",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.79.0",
       "0.83.0"
@@ -20466,21 +21187,28 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
-    },
-    "byClass": {
-      "unrelated": {
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 5,
-        "new": 0
-      },
+        "missed": 0
+      }
+    },
+    "byClass": {
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 1,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 5,
         "new": 0
       }
     }
@@ -20749,18 +21477,18 @@
       "unclassified": 0
     },
     "byClass": {
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 9,
-        "new": 0
-      },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 2,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 9,
         "new": 0
       }
     }
@@ -20769,7 +21497,7 @@
     "id": "sseshachala/conductai#1244",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.40.0",
       "0.125.0"
@@ -20780,7 +21508,7 @@
     "flagged": 7,
     "missed": 21,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 30,
     "newCode": 0,
     "inScope": {
       "sites": 0,
@@ -20789,6 +21517,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 1
     },
     "byClass": {
@@ -23969,7 +24704,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 1,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "unrelated": {
@@ -24012,6 +24754,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 7
     },
     "byClass": {
@@ -24640,18 +25389,18 @@
       "contested": 1
     },
     "byClass": {
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 16,
-        "new": 0
-      },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 10,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 16,
         "new": 0
       },
       "contested": {
@@ -24698,18 +25447,18 @@
         "missed": 41,
         "new": 0
       },
-      "contract": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 2,
-        "missed": 2,
-        "new": 1
-      },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 8,
         "missed": 21,
+        "new": 1
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 2,
         "new": 1
       },
       "sdk": {
@@ -24745,6 +25494,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 3
     },
     "byClass": {
@@ -24863,18 +25619,18 @@
       "contested": 1
     },
     "byClass": {
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 1,
-        "new": 0
-      },
       "sdk": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 2,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
         "new": 0
       }
     }
@@ -24902,7 +25658,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -24938,6 +25701,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 1
     },
     "byClass": {
@@ -25188,7 +25958,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -25270,25 +26047,18 @@
       "newCode": 8
     },
     "byClass": {
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 40,
-        "new": 0
-      },
-      "unclassified": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 0,
-        "new": 8
-      },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 19,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 40,
         "new": 0
       },
       "sdk": {
@@ -25297,6 +26067,13 @@
         "flagged": 3,
         "missed": 44,
         "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 8
       }
     }
   },
@@ -25374,7 +26151,7 @@
     "id": "UiPath/coder_eval#133",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.102.0",
       "1.0.0"
@@ -25382,10 +26159,10 @@
     "sites": 37,
     "identical": 0,
     "differs": 0,
-    "flagged": 4,
-    "missed": 31,
+    "flagged": 6,
+    "missed": 29,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 6,
     "newCode": 2,
     "inScope": {
       "sites": 2,
@@ -25394,15 +26171,36 @@
       "flagged": 2,
       "missed": 0,
       "unclassified": 0,
-      "newCode": 2,
-      "contested": 1
+      "forced": {
+        "sites": 1,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 0
+      },
+      "contested": 1,
+      "newCode": 2
     },
     "byClass": {
       "sdk": {
         "identical": 0,
         "differs": 0,
-        "flagged": 2,
-        "missed": 22,
+        "flagged": 3,
+        "missed": 21,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 0,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 8,
         "new": 0
       },
       "unclassified": {
@@ -25412,25 +26210,11 @@
         "missed": 0,
         "new": 2
       },
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 8,
-        "new": 0
-      },
       "contract": {
         "identical": 0,
         "differs": 0,
         "flagged": 2,
         "missed": 0,
-        "new": 0
-      },
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 1,
         "new": 0
       }
     }
@@ -25439,7 +26223,7 @@
     "id": "UKGovernmentBEIS/inspect_ai#3251",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.79.0",
       "0.80.0"
@@ -25459,6 +26243,13 @@
       "flagged": 0,
       "missed": 2,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 1,
       "newCode": 1
     },
@@ -25470,18 +26261,18 @@
         "missed": 3,
         "new": 0
       },
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 1,
-        "new": 0
-      },
       "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 1,
         "missed": 0,
+        "new": 0
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
         "new": 0
       },
       "unclassified": {
@@ -25491,11 +26282,11 @@
         "missed": 0,
         "new": 1
       },
-      "contract": {
+      "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 2,
+        "missed": 1,
         "new": 0
       }
     }
@@ -25527,19 +26318,19 @@
       "newCode": 2
     },
     "byClass": {
-      "sdk": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 27,
-        "new": 2
-      },
       "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 0,
         "missed": 2,
         "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 27,
+        "new": 2
       }
     }
   },
@@ -25601,7 +26392,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -25636,7 +26434,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "unrelated": {
@@ -25678,7 +26483,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -25788,13 +26600,6 @@
       "newCode": 2
     },
     "byClass": {
-      "contested": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 7,
-        "new": 0
-      },
       "unrelated": {
         "identical": 0,
         "differs": 0,
@@ -25807,6 +26612,13 @@
         "differs": 0,
         "flagged": 2,
         "missed": 3,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 7,
         "new": 0
       },
       "unclassified": {
@@ -26431,7 +27243,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -26466,7 +27285,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -26613,7 +27439,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -26840,7 +27673,7 @@
     "id": "withmartian/llm-adapters#89",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.31.2",
       "0.34.2"
@@ -26860,6 +27693,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 1
     },
     "byClass": {
@@ -27302,14 +28142,14 @@
         "missed": 2,
         "new": 0
       },
-      "contract": {
+      "contested": {
         "identical": 0,
         "differs": 0,
         "flagged": 1,
         "missed": 0,
         "new": 0
       },
-      "contested": {
+      "contract": {
         "identical": 0,
         "differs": 0,
         "flagged": 1,
@@ -27352,13 +28192,6 @@
       "contested": 2
     },
     "byClass": {
-      "unrelated": {
-        "identical": 0,
-        "differs": 0,
-        "flagged": 0,
-        "missed": 1,
-        "new": 0
-      },
       "sdk": {
         "identical": 0,
         "differs": 0,
@@ -27371,6 +28204,13 @@
         "differs": 0,
         "flagged": 2,
         "missed": 0,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
         "new": 0
       }
     }
@@ -27702,7 +28542,7 @@
     "id": "zylon-ai/private-gpt#2262",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.105.2",
       "0.107.1"
@@ -27721,7 +28561,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 1,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
@@ -27737,7 +28584,7 @@
     "id": "zylon-ai/private-gpt#2347",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.120.2",
       "0.122.0"
@@ -27748,7 +28595,7 @@
     "flagged": 0,
     "missed": 1,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 2,
     "newCode": 0,
     "inScope": {
       "sites": 1,
@@ -27756,7 +28603,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 1,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "contract": {
