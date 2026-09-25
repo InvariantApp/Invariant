@@ -36,6 +36,9 @@ on:
       mine:
         description: 'Mine new cases instead of replaying: the packages to search, as a JSON list (["stripe", "openai"]), in the ecosystem above'
         default: ""
+      per-package:
+        description: "The most cases one package may have in the index, when mining"
+        default: "60"
   schedule:
     - cron: "41 4 * * 1"
 
@@ -86,10 +89,12 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           ECOSYSTEM: ${{ inputs.ecosystem || 'pypi' }}
           PACKAGE: ${{ matrix.package }}
+          PER_PACKAGE: ${{ inputs.per-package || '60' }}
         run: >-
           node --import tsx proving/replay/mine.mts
           --ecosystem "$ECOSYSTEM" --package "$PACKAGE"
-          --months 72 --limit 150 --per-repo 2 --minutes 60 --patience 25
+          --months 72 --limit 150 --per-package "$PER_PACKAGE" --per-repo 2
+          --minutes 60 --patience 25
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
