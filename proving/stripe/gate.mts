@@ -105,10 +105,9 @@ export async function gateFor(
 /**
  * Run on its own, the gate reads its inputs from one file and writes its
  * verdict and program to another. The rig runs it this way, in a process of
- * its own, because on some pairs of Stripe-sized documents the gate needs
- * more memory than the machine has, and a process that runs out takes
- * everything in it down: the pair is then recorded as blocked, with the
- * reason, beside the arms that did run.
+ * its own held to a 4 GB heap, because a process that runs out takes
+ * everything in it down: a pair whose documents need more is then recorded
+ * as blocked, with the reason, beside the arms that did run.
  *
  *   node --import tsx proving/stripe/gate.mts <input.json> <output.json>
  */

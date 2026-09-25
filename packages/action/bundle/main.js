@@ -25796,66 +25796,67 @@ function variantGuardsFor(changes, newContract) {
 	};
 }
 /**
-* What a value of `schemaRef` goes through wherever it is a body, with every
-* Change in the release placed where its schema sits inside it: the lens the
-* compiler projects onto such a site, for checking on values.
-*
-* Requests apply the Changes in declared order and responses undo them in
-* reverse, as a site does.
+* `schemaLens` for any schema of one release. The shared blocks depend on the
+* release alone, so they are compiled once and every schema's lens calls the
+* same ones. Compiled again for each schema, as they were, a release with
+* dozens of Changes on Stripe's documents did the same walk of the whole
+* reference graph once per schema.
 */
-function schemaLens(oldContract, changes, schemaRef, newContract) {
+function schemaLenses(oldContract, changes, newContract) {
 	const variants = variantGuardsFor(changes, newContract);
 	const shared = sharedBlocks("lens", oldContract, changes, variants);
-	const forward = [];
-	const backward = [];
-	const involved = [];
-	const lossy = {
-		forward: [],
-		backward: []
-	};
-	const relaxed = [];
-	for (const change of changes) {
-		const dataOps = change.ops.filter(isDataOp);
-		if (dataOps.length === 0) continue;
-		const declared = derive(change).lossy;
-		const mine = [];
-		let back = [];
-		for (const scope of change.scopes ?? []) {
-			if (!isSchemaScope(scope)) continue;
-			const places = findSchemaWithin(oldContract, scope.schema, schemaRef).placements;
-			for (const op of dataOps) {
-				if (op.op !== "relax") continue;
-				for (const place of places) relaxed.push(prefixed(place.prefix, op.path));
-				if (places.length > 0 && !involved.includes(change)) involved.push(change);
-			}
-			if (shared.targets.has(scope.schema)) {
-				if (places.length > 0 && !involved.includes(change)) involved.push(change);
+	return (schemaRef) => {
+		const forward = [];
+		const backward = [];
+		const involved = [];
+		const lossy = {
+			forward: [],
+			backward: []
+		};
+		const relaxed = [];
+		for (const change of changes) {
+			const dataOps = change.ops.filter(isDataOp);
+			if (dataOps.length === 0) continue;
+			const declared = derive(change).lossy;
+			const mine = [];
+			let back = [];
+			for (const scope of change.scopes ?? []) {
+				if (!isSchemaScope(scope)) continue;
+				const places = findSchemaWithin(oldContract, scope.schema, schemaRef).placements;
+				for (const op of dataOps) {
+					if (op.op !== "relax") continue;
+					for (const place of places) relaxed.push(prefixed(place.prefix, op.path));
+					if (places.length > 0 && !involved.includes(change)) involved.push(change);
+				}
+				if (shared.targets.has(scope.schema)) {
+					if (places.length > 0 && !involved.includes(change)) involved.push(change);
+					for (const place of places) {
+						lossy.forward.push(...declared.forward.map((path) => prefixed(place.prefix, path)));
+						lossy.backward.push(...declared.backward.map((path) => prefixed(place.prefix, path)));
+					}
+					continue;
+				}
 				for (const place of places) {
 					lossy.forward.push(...declared.forward.map((path) => prefixed(place.prefix, path)));
 					lossy.backward.push(...declared.backward.map((path) => prefixed(place.prefix, path)));
+					mine.push(...guarded(place, change, "forward", (prefix) => dataOps.flatMap((op) => forwardInstrs(op, prefix, change.id))));
+					back = [...guarded(place, change, "backward", (prefix) => [...dataOps].reverse().flatMap((op) => backwardInstrs(op, prefix, change.id, variants))), ...back];
 				}
-				continue;
 			}
-			for (const place of places) {
-				lossy.forward.push(...declared.forward.map((path) => prefixed(place.prefix, path)));
-				lossy.backward.push(...declared.backward.map((path) => prefixed(place.prefix, path)));
-				mine.push(...guarded(place, change, "forward", (prefix) => dataOps.flatMap((op) => forwardInstrs(op, prefix, change.id))));
-				back = [...guarded(place, change, "backward", (prefix) => [...dataOps].reverse().flatMap((op) => backwardInstrs(op, prefix, change.id, variants))), ...back];
-			}
+			if (mine.length === 0 && back.length === 0) continue;
+			if (!involved.includes(change)) involved.push(change);
+			forward.push(...mine);
+			backward.push(back);
 		}
-		if (mine.length === 0 && back.length === 0) continue;
-		if (!involved.includes(change)) involved.push(change);
-		forward.push(...mine);
-		backward.push(back);
-	}
-	const root = { $ref: schemaRef };
-	return {
-		forward: [...forward, ...shared.entry(root, "forward")],
-		backward: [...shared.entry(root, "backward"), ...backward.reverse().flat()],
-		changes: involved,
-		lossy,
-		relaxed,
-		blocks: shared.blocks
+		const root = { $ref: schemaRef };
+		return {
+			forward: [...forward, ...shared.entry(root, "forward")],
+			backward: [...shared.entry(root, "backward"), ...backward.reverse().flat()],
+			changes: involved,
+			lossy,
+			relaxed,
+			blocks: shared.blocks
+		};
 	};
 }
 function accumulatorFor(sites, key) {
@@ -41121,10 +41122,76 @@ function bounds(schema, integral) {
 		max: Math.max(min, max)
 	};
 }
-function arbitraryFor(document, raw, depth) {
+/**
+* A generator built the first time a value is drawn from it, and then drawn
+* from exactly as the one it stands for would be: same values, same shrinks.
+*
+* Built eagerly, the generator for one schema holds one for every field of
+* every schema it reaches, six levels down in full and then through every
+* required field to the hard limit. Stripe's objects reach nearly every other
+* object through expandable fields, so one of its schemas came to a tree of
+* millions of generators and the gate ran out of a 12 GB heap building it,
+* before drawing a single value. Deferred, only what the values actually
+* reach is built.
+*/
+var Deferred = class extends fast_check_default.Arbitrary {
+	#build;
+	#built;
+	constructor(build) {
+		super();
+		this.#build = build;
+	}
+	get #arbitrary() {
+		if (this.#built === void 0) {
+			this.#built = this.#build();
+			this.#build = void 0;
+		}
+		return this.#built;
+	}
+	generate(random, biasFactor) {
+		return this.#arbitrary.generate(random, biasFactor);
+	}
+	canShrinkWithoutContext(value) {
+		return this.#arbitrary.canShrinkWithoutContext(value);
+	}
+	shrink(value, context) {
+		return this.#arbitrary.shrink(value, context);
+	}
+};
+function freshMade() {
+	return {
+		byDepth: /* @__PURE__ */ new WeakMap(),
+		merged: /* @__PURE__ */ new WeakMap()
+	};
+}
+function arbitraryFor(document, raw, depth, made) {
 	const resolved = deref(document, raw);
 	if (!isJsonObject(resolved)) return fast_check_default.constant(null);
-	const schema = resolved;
+	let byDepth = made.byDepth.get(resolved);
+	if (byDepth === void 0) {
+		byDepth = /* @__PURE__ */ new Map();
+		made.byDepth.set(resolved, byDepth);
+	}
+	let arbitrary = byDepth.get(depth);
+	if (arbitrary === void 0) {
+		arbitrary = new Deferred(() => buildFor(document, resolved, depth, made));
+		byDepth.set(depth, arbitrary);
+	}
+	return arbitrary;
+}
+/** Merges an `allOf` as the rest of the product reads it, once per schema. */
+function mergedOnce(document, schema, made) {
+	if (made.merged.has(schema)) return made.merged.get(schema);
+	let result;
+	try {
+		result = { schema: resolveSchema(document, schema) };
+	} catch {
+		result = void 0;
+	}
+	made.merged.set(schema, result);
+	return result;
+}
+function buildFor(document, schema, depth, made) {
 	const constant = schema["const"];
 	if (constant !== void 0) return fast_check_default.constant(constant);
 	const enumValues = schema["enum"];
@@ -41139,7 +41206,7 @@ function arbitraryFor(document, raw, depth) {
 			const shared = Object.keys(parent).some((name) => name !== "description");
 			const alternatives = branches.map((branch) => shared ? { allOf: [parent, branch] } : branch);
 			const chosen = fast_check_default.oneof(...alternatives.map((branch, index) => {
-				const value = arbitraryFor(document, branch, depth);
+				const value = arbitraryFor(document, branch, depth, made);
 				if (key === "anyOf") return value;
 				const alone = (candidate) => alternatives.every((other, at) => at === index || validateSchema(document, other, candidate).length > 0);
 				return fast_check_default.sample(value, {
@@ -41158,13 +41225,10 @@ function arbitraryFor(document, raw, depth) {
 	}
 	const allOf = schema["allOf"];
 	if (Array.isArray(allOf) && allOf.length > 0) {
-		let merged;
-		try {
-			merged = resolveSchema(document, schema);
-		} catch {
-			return fast_check_default.constant({});
-		}
-		if (isJsonObject(merged) && merged["allOf"] === void 0) return arbitraryFor(document, merged, depth);
+		const resolved = mergedOnce(document, schema, made);
+		if (resolved === void 0) return fast_check_default.constant({});
+		const merged = resolved.schema;
+		if (isJsonObject(merged) && merged["allOf"] === void 0) return arbitraryFor(document, merged, depth, made);
 	}
 	const types = typesOf(schema);
 	const nullable = types.includes("null") || schema["nullable"] === true;
@@ -41186,13 +41250,13 @@ function arbitraryFor(document, raw, depth) {
 				if (items === void 0 || depth >= HARD_DEPTH) return fast_check_default.constant([]);
 				if (depth >= MAX_DEPTH$1) {
 					if (minItems === 0) return fast_check_default.constant([]);
-					return fast_check_default.array(arbitraryFor(document, items, depth + 1), {
+					return fast_check_default.array(arbitraryFor(document, items, depth + 1, made), {
 						minLength: minItems,
 						maxLength: minItems
 					});
 				}
 				const maxItems = typeof schema["maxItems"] === "number" ? schema["maxItems"] : Math.max(minItems, 3);
-				return fast_check_default.array(arbitraryFor(document, items, depth + 1), {
+				return fast_check_default.array(arbitraryFor(document, items, depth + 1, made), {
 					minLength: minItems,
 					maxLength: Math.min(maxItems, minItems + 3)
 				});
@@ -41204,11 +41268,11 @@ function arbitraryFor(document, raw, depth) {
 					const named = Array.isArray(schema["required"]) ? schema["required"].filter((entry) => typeof entry === "string") : [];
 					const keys = schema["propertyNames"];
 					if (!isJsonObject(additional) && !isJsonObject(keys) && named.length === 0 || depth >= MAX_DEPTH$1) return fast_check_default.constant({});
-					const value = isJsonObject(additional) ? arbitraryFor(document, additional, depth + 1) : fast_check_default.string({
+					const value = isJsonObject(additional) ? arbitraryFor(document, additional, depth + 1, made) : fast_check_default.string({
 						maxLength: 8,
 						unit: "grapheme-ascii"
 					});
-					const key = isJsonObject(keys) ? arbitraryFor(document, keys, depth + 1).filter((name) => typeof name === "string") : fast_check_default.string({
+					const key = isJsonObject(keys) ? arbitraryFor(document, keys, depth + 1, made).filter((name) => typeof name === "string") : fast_check_default.string({
 						minLength: 1,
 						maxLength: 8,
 						unit: "grapheme-ascii"
@@ -41223,7 +41287,7 @@ function arbitraryFor(document, raw, depth) {
 				const minimal = depth >= MAX_DEPTH$1;
 				const required = new Set(Array.isArray(schema["required"]) ? schema["required"].filter((entry) => typeof entry === "string") : []);
 				const entries = Object.entries(properties).filter(([name]) => !minimal || required.has(name)).map(([name, child]) => {
-					const value = arbitraryFor(document, child, depth + 1);
+					const value = arbitraryFor(document, child, depth + 1, made);
 					return [name, required.has(name) ? value : fast_check_default.option(value, {
 						nil: void 0,
 						freq: 4
@@ -41251,13 +41315,13 @@ function arbitraryFor(document, raw, depth) {
 }
 /** A generator for values of any schema in a contract, named or written inline. */
 function valueArbitrary(document, schema) {
-	return arbitraryFor(document, schema, 0);
+	return arbitraryFor(document, schema, 0, freshMade());
 }
 /** A generator for values of one named schema in a contract. */
 function schemaArbitrary(document, ref) {
 	const resolved = deref(document, { $ref: ref });
 	if (!isJsonObject(resolved)) throw new ArbitraryError(`${ref} is not a schema in this contract`);
-	return arbitraryFor(document, resolved, 0);
+	return arbitraryFor(document, resolved, 0, freshMade());
 }
 //#endregion
 //#region ../verifier/src/evidence.ts
@@ -42521,22 +42585,51 @@ function clean(sent) {
 	for (const [key, value] of Object.entries(sent)) if (value !== void 0 && isJsonObject(out)) out[key] = value;
 	return out;
 }
-/** Removes the pointers a declared loss is allowed to change, on both sides. */
-function withoutLossy(value, pointers) {
-	if (pointers.length === 0) return value;
-	if (pointers.includes("")) return void 0;
-	const copy = structuredClone(value);
-	const remove = (cursor, segments) => {
-		if (cursor === null || typeof cursor !== "object") return;
-		const [segment, ...rest] = segments;
-		if (segment === void 0) return;
-		const holder = cursor;
-		const keys = segment === "*" && Array.isArray(cursor) || segment === "{}" && !Array.isArray(cursor) ? Object.keys(cursor) : [segment];
-		for (const key of keys) if (rest.length === 0) {
-			if (!Array.isArray(cursor)) delete holder[key];
-		} else remove(holder[key], rest);
+function lossyAt(pointers) {
+	const distinct = [...new Set(pointers)];
+	return {
+		pointers: distinct,
+		whole: distinct.includes("")
 	};
-	for (const pointer of pointers) remove(copy, parsePointer(pointer));
+}
+function lossTree(pointers) {
+	const root = /* @__PURE__ */ new Map();
+	for (const pointer of pointers) {
+		let level = root;
+		const segments = parsePointer(pointer);
+		segments.forEach((segment, index) => {
+			let node = level.get(segment);
+			if (node === void 0) {
+				node = {
+					ends: false,
+					beneath: /* @__PURE__ */ new Map()
+				};
+				level.set(segment, node);
+			}
+			if (index === segments.length - 1) node.ends = true;
+			level = node.beneath;
+		});
+	}
+	return root;
+}
+/** Removes the pointers a declared loss is allowed to change, on both sides. */
+function withoutLossy(value, lossy) {
+	if (lossy.pointers.length === 0) return value;
+	if (lossy.whole) return void 0;
+	const copy = structuredClone(value);
+	const remove = (cursor, tree) => {
+		if (cursor === null || typeof cursor !== "object") return;
+		const holder = cursor;
+		for (const [segment, node] of tree) {
+			const keys = segment === "*" && Array.isArray(cursor) || segment === "{}" && !Array.isArray(cursor) ? Object.keys(cursor) : [segment];
+			for (const key of keys) {
+				if (node.ends && !Array.isArray(cursor)) delete holder[key];
+				if (node.beneath.size > 0) remove(holder[key], node.beneath);
+			}
+		}
+	};
+	lossy.tree ??= lossTree(lossy.pointers);
+	remove(copy, lossy.tree);
 	return copy;
 }
 /**
@@ -42595,14 +42688,18 @@ function undeclared(violations, relaxed) {
 * other one's values too, and checking the outer schema without it once
 * reported a correct release as producing values the new contract refuses.
 */
-function casesFor(oldContract, predicted, changes) {
+function* casesFor(oldContract, predicted, changes) {
 	const served = changes.filter((change) => derive(change).runtime !== "none");
 	const scopes = /* @__PURE__ */ new Set();
 	for (const change of served) for (const scope of change.scopes ?? []) if (isSchemaScope(scope)) scopes.add(scope.schema);
-	return [...scopes].map((scope) => ({
-		scope,
-		...schemaLens(oldContract, served, scope, predicted)
-	}));
+	let lensOf;
+	for (const scope of scopes) {
+		lensOf ??= schemaLenses(oldContract, served, predicted);
+		yield {
+			scope,
+			...lensOf(scope)
+		};
+	}
 }
 /**
 * Checks each schema's Changes against generated values of that schema.
@@ -42636,12 +42733,16 @@ function checkLaws(oldContract, predicted, changes, options = {}) {
 		const travels = schemaDirections(oldContract, entry.scope);
 		try {
 			const lens = lensFor(entry.forward, entry.backward, entry.blocks);
+			const lossy = {
+				forward: lossyAt(entry.lossy.forward),
+				backward: lossyAt(entry.lossy.backward)
+			};
 			const outbound = !travels.request ? [] : run$1(oldContract, entry.scope, runs, options.seed, (value) => {
 				const canonical = lens.forward(value);
 				const violations = undeclared(validateAgainst(predicted, entry.scope, canonical), entry.relaxed);
 				if (violations.length > 0) return `forward produced a value the new contract does not allow (${describe(violations)})`;
 				const returned = lens.backward(canonical);
-				if (!sameJson(withoutLossy(returned, entry.lossy.forward), withoutLossy(value, entry.lossy.forward))) return `undoing it did not return the original: ${JSON.stringify(returned)}`;
+				if (!sameJson(withoutLossy(returned, lossy.forward), withoutLossy(value, lossy.forward))) return `undoing it did not return the original: ${JSON.stringify(returned)}`;
 			});
 			for (const failure of outbound) found.push({
 				...failure,
@@ -42654,7 +42755,7 @@ function checkLaws(oldContract, predicted, changes, options = {}) {
 				const violations = undeclared(validateAgainst(oldContract, entry.scope, old), entry.relaxed);
 				if (violations.length > 0) return `backward produced a value the old contract does not allow (${describe(violations)})`;
 				const returned = lens.forward(old);
-				if (!sameJson(withoutLossy(returned, entry.lossy.backward), withoutLossy(value, entry.lossy.backward))) return `re-applying it did not return the original: ${JSON.stringify(returned)}`;
+				if (!sameJson(withoutLossy(returned, lossy.backward), withoutLossy(value, lossy.backward))) return `re-applying it did not return the original: ${JSON.stringify(returned)}`;
 			});
 			for (const failure of inbound) found.push({
 				...failure,
@@ -42718,17 +42819,60 @@ function run$1(document, ref, runs, seed, property) {
 			return `the transform refused a value the contract allows: ${error instanceof Error ? error.message : String(error)}`;
 		}
 	};
-	const result = fast_check_default.check(fast_check_default.property(schemaArbitrary(document, ref), (value) => why(value) === void 0), {
+	const bounded = new ShrinkBudget(schemaArbitrary(document, ref), SHRINK_BUDGET);
+	const result = fast_check_default.check(fast_check_default.property(bounded, (value) => why(value) === void 0), {
 		numRuns: runs,
 		...seed === void 0 ? {} : { seed }
 	});
 	if (!result.failed) return [];
 	const shrunk = result.counterexample?.[0] ?? null;
+	const detail = why(shrunk) ?? "the property did not hold";
 	return [{
 		counterexample: shrunk,
-		detail: why(shrunk) ?? "the property did not hold"
+		detail: bounded.exhausted ? `${detail} (shrinking stopped after ${SHRINK_BUDGET} tries, so a smaller value may break it too)` : detail
 	}];
 }
+/**
+* How many smaller values are tried once a law fails. A failure is reported
+* the same whatever the budget; the budget only decides how small the value
+* shown with it gets. Generated values of Stripe's objects run to a megabyte,
+* since nearly every field is required and reaches another object, and one
+* law on them was shrunk forty thousand times over an hour and a half.
+* Everything smaller shrinks well within it.
+*/
+const SHRINK_BUDGET = 1e3;
+/**
+* A generator whose values are shrunk at most `budget` times, all told: the
+* same values, and the same smaller ones in the same order, until the budget
+* runs out.
+*/
+var ShrinkBudget = class extends fast_check_default.Arbitrary {
+	#inner;
+	#left;
+	/** Whether a smaller value was left untried. */
+	exhausted = false;
+	constructor(inner, budget) {
+		super();
+		this.#inner = inner;
+		this.#left = budget;
+	}
+	generate(random, biasFactor) {
+		return this.#inner.generate(random, biasFactor);
+	}
+	canShrinkWithoutContext(value) {
+		return this.#inner.canShrinkWithoutContext(value);
+	}
+	shrink(value, context) {
+		return this.#inner.shrink(value, context).takeWhile(() => {
+			if (this.#left > 0) {
+				this.#left -= 1;
+				return true;
+			}
+			this.exhausted = true;
+			return false;
+		});
+	}
+};
 //#endregion
 //#region ../cli/src/auth-lint.ts
 const SOURCE = /\.(?:[cm]?[jt]sx?|go|py|rb|java|kt|cs|php)$/;
