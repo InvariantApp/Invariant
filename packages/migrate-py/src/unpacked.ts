@@ -388,6 +388,7 @@ export function unpackedIntoBroken(
           back(literal.endIndex),
           UPGRADE,
           `these are the keyword arguments of \`${calleeName(call)}\` (line ${lineOf(call)}), which no longer type-checks against the upgraded SDK: ${said}`,
+          back(start),
         ),
       ),
     );
@@ -555,6 +556,7 @@ export function usesOfRemoved(
       back(extent.end),
       UPGRADE,
       `\`${removed}\` is no longer in the upgraded SDK (its import on line ${importLine} fails), and this ${call ? "calls" : "uses"} it`,
+      back(node.startIndex),
     );
   });
 }

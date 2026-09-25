@@ -51,6 +51,7 @@ import {
   usesOfRemoved,
   type Written,
 } from "./unpacked.ts";
+import { retiredLiterals } from "./values.ts";
 import { wireSites } from "./wire.ts";
 
 export { originalOffset } from "@invariant-app/migrate-core";
@@ -131,6 +132,17 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
       untyped: !typedBefore,
     });
     await bumpPins(references, sources, options.plan.symbols, result);
+    // Values a parameter's vocabulary lost, sent as literals the checker
+    // passes because the parameter takes any text too.
+    if (options.packages[0] && options.upgraded?.[0]) {
+      await retiredLiterals(
+        references,
+        sources,
+        { old: options.packages[0], next: options.upgraded[0] },
+        options.plan.retiredValues,
+        result,
+      );
+    }
     // Requests to the API made over plain HTTP, read against the same Changes.
     const wire = options.plan.symbols.wire;
     if (wire) {
@@ -479,7 +491,9 @@ export function broken(
     ) {
       continue;
     }
-    sites.push(manualAt(file, original, extent.start, extent.end, UPGRADE, reason));
+    sites.push(
+      manualAt(file, original, extent.start, extent.end, UPGRADE, reason, start),
+    );
   }
   return sites;
 }

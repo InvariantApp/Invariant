@@ -33,17 +33,77 @@ on:
       case:
         description: "One case to replay, as owner/repo#123, to read what the engine did there"
         default: ""
+      mine:
+        description: 'Mine new cases instead of replaying: the packages to search, as a JSON list (["stripe", "openai"]), in the ecosystem above'
+        default: ""
+      per-package:
+        description: "The most cases one package may have in the index, when mining"
+        default: "60"
   schedule:
     - cron: "41 4 * * 1"
 
 concurrency:
-  group: replay-${{ github.ref }}
+  # Mining and each ecosystem's replay queue apart: an hours-long mining run
+  # does not hold back the replay of a change pushed beside it.
+  group: replay-${{ github.ref }}-${{ inputs.mine != '' && 'mine' || inputs.ecosystem || 'pypi' }}
   cancel-in-progress: false
 
 permissions: {}
 
 jobs:
+  # The miner (mine.mts), one package to a job and one job at a time, since
+  # they share the hour's requests. It reads only pull requests' metadata and
+  # manifests' diffs through the API, with a token that may do nothing but
+  # read public data, and writes the index as an artifact; the index is
+  # recorded from there, and the new cases replayed on the next push.
+  mine:
+    if: inputs.mine != ''
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        package: ${{ fromJSON(inputs.mine || '[""]') }}
+    name: mine
+    runs-on: ubuntu-latest
+    # An hour of searching, and a wait for the hourly limit to reset.
+    timeout-minutes: 100
+    permissions: {}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Find where people migrated code across the SDK's major releases
+        env:
+          # The job's own token, which `permissions: {}` leaves able to read
+          # public data and nothing else: it raises the search's pace.
+          GITHUB_TOKEN: ${{ github.token }}
+          ECOSYSTEM: ${{ inputs.ecosystem || 'pypi' }}
+          PACKAGE: ${{ matrix.package }}
+          PER_PACKAGE: ${{ inputs.per-package || '60' }}
+        run: >-
+          node --import tsx proving/replay/mine.mts
+          --ecosystem "$ECOSYSTEM" --package "$PACKAGE"
+          --months 72 --limit 150 --per-package "$PER_PACKAGE" --per-repo 2
+          --minutes 60 --patience 25
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: index-${{ strategy.job-index }}
+          path: proving/replay/index.json
+
   replay:
+    if: inputs.mine == ''
     name: replay (${{ inputs.ecosystem || 'pypi' }}, shard ${{ matrix.shard }} of 4)
     strategy:
       fail-fast: false
@@ -105,7 +165,7 @@ jobs:
 
   merge:
     needs: [replay]
-    if: always()
+    if: always() && inputs.mine == ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions: {}

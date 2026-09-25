@@ -24,4 +24,12 @@ export interface ManualSite {
   offset: number;
   /** Where the flagged node ends, also before any edit, so a reviewer sees its extent. */
   end?: number;
+  /**
+   * Where the changed element itself is written, as an offset like `offset`,
+   * where what is shown is wider than it: the read of a moved field inside
+   * the ten-line statement a reviewer is shown, or the name of a class the
+   * upgrade removed inside the call that builds one. Left out where the site
+   * starts at the element.
+   */
+  at?: number;
 }

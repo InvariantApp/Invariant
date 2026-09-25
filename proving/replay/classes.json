@@ -144,6 +144,16 @@
     "confidence": 1,
     "model": "rule:module-version"
   },
+  "567-labs/instructor#1002|tests/dsl/test_partial.py|74|8fb16c0fd86f7c3f": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "567-labs/instructor#1002|tests/dsl/test_partial.py|77|8202985747a5d71e": {
+    "class": "sdk",
+    "confidence": 0.9299999999999999,
+    "model": "jev-1.13.0"
+  },
   "5monkeys/cobertura-action#106|src/action.test.js|0|c18f0e305785145d": {
     "class": "unrelated",
     "confidence": 0.49,
@@ -749,6 +759,66 @@
     "confidence": 1,
     "model": "jev-1.13.0"
   },
+  "AdamczykMaciej/llm-gateway#1|src/llm_gateway/providers/_anthropic_translate.py|140|866222079dbc500c": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "AdamczykMaciej/llm-gateway#1|src/llm_gateway/providers/anthropic.py|107|48672b8e0592029f": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "AdamczykMaciej/llm-gateway#1|src/llm_gateway/providers/anthropic.py|154|48672b8e0592029f": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "AdamczykMaciej/llm-gateway#1|src/llm_gateway/providers/anthropic.py|24|4a4f41047f747f8f": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "AdamczykMaciej/llm-gateway#1|src/llm_gateway/providers/anthropic.py|3|87d1e1d1a3d6254c": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "AdamczykMaciej/llm-gateway#1|src/llm_gateway/providers/anthropic.py|40|17fd1da92e875ab6": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "AdamczykMaciej/llm-gateway#1|src/llm_gateway/providers/groq.py|2|44b29702229869de": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "AdamczykMaciej/llm-gateway#1|src/llm_gateway/providers/groq.py|21|eecee624f1040445": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "AdamczykMaciej/llm-gateway#1|src/llm_gateway/providers/openai.py|2|44b29702229869de": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "AdamczykMaciej/llm-gateway#1|src/llm_gateway/providers/openai.py|21|eecee624f1040445": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "AdamczykMaciej/llm-gateway#1|src/llm_gateway/service/app.py|41|b4e09fda6181f120": {
+    "class": "unrelated",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "AdamczykMaciej/llm-gateway#1|tests/test_anthropic_provider.py|144|abc1981bd1a49151": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
   "adyen-examples/adyen-node-online-payments#172|subscription-example/index.js|136|f4d4bdac374dd54c": {
     "class": "sdk",
     "confidence": 0.99,
@@ -887,6 +957,116 @@
   "ag2ai/ag2#2844|test/agentchat/realtime_agent/realtime_test_utils.py|15|d31cbc47de0f1ba1": {
     "class": "sdk",
     "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/anthropic_client.py|134|5d578462b9cf469a": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/anthropic_client.py|135|27b6d63acbd7bfee": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/anthropic_client.py|140|d3c565901dae0529": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/anthropic_client.py|150|002c2348fa939324": {
+    "class": "sdk",
+    "confidence": 0.8099999999999999,
+    "model": "jev-1.13.0"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/anthropic_client.py|156|0e83ad2c2d4e7f5e": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/anthropic_client.py|42|4a65e7234583fb11": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/anthropic_client.py|44|68d6c9db1f635dd1": {
+    "class": "sdk",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+check"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/anthropic_client.py|49|c7e7d3f766fd0ecd": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/anthropic_client.py|51|6dd5d0a9d9301826": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/anthropic_client.py|68|2589869ae7cdae8b": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/anthropic_client.py|85|e17fa9a03782a04b": {
+    "class": "sdk",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+check"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/anthropic_client.py|87|2effe2edc4f1a817": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/anthropic_client.py|9|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/config.py|15|709fffa7b1358069": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/config.py|30|3e318f7b75cc8f7a": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/config.py|51|bb1a3b3718891df4": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/config.py|7|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/config.py|71|2d04e55271880227": {
+    "class": "sdk",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+check"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/config.py|93|dad7e6a9e239bbde": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "ag2ai/ag2#3218|ag2/config/anthropic/mappers.py|227|d72701b60cf71315": {
+    "class": "contract",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "agencyenterprise/GlossoGen#139|src/glossogen/scenarios/veyru/scripts/repro_opus47_refusal.py|183|810ab688d26b7064": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "agencyenterprise/GlossoGen#139|src/glossogen/scenarios/veyru/scripts/repro_opus47_refusal.py|186|f91d534d3e0dc4c6": {
+    "class": "sdk",
+    "confidence": 0.99,
     "model": "jev-1.13.0"
   },
   "AI-Robotic-Labs/http-privacy#553|http-py/setup.py|14|ee17027d1f40f694": {
@@ -4029,6 +4209,51 @@
     "confidence": 0.95,
     "model": "jev-1.13.0"
   },
+  "apache/airflow#72094|providers/anthropic/src/airflow/providers/anthropic/hooks/anthropic.py|297|5fbe09cd17c7d7e8": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "apache/airflow#72094|providers/anthropic/src/airflow/providers/anthropic/hooks/anthropic.py|344|8f6ecb067f6979f9": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "apache/airflow#72094|providers/anthropic/src/airflow/providers/anthropic/hooks/anthropic.py|352|8cee88354074eff2": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "apache/airflow#72094|providers/anthropic/src/airflow/providers/anthropic/hooks/anthropic.py|358|e5c2cc9429ca374e": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "apache/airflow#72094|providers/anthropic/src/airflow/providers/anthropic/hooks/anthropic.py|52|d1792b0bff460a6b": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "apache/airflow#72094|providers/anthropic/tests/unit/anthropic/hooks/test_anthropic.py|285|82c25f72913e6828": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "apache/airflow#72094|providers/anthropic/tests/unit/anthropic/hooks/test_anthropic.py|47|b4f80a46dbc9766f": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "apache/airflow#72094|providers/anthropic/tests/unit/anthropic/hooks/test_anthropic.py|681|833800a8380a60f0": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "apache/airflow#72094|providers/anthropic/tests/unit/anthropic/hooks/test_anthropic.py|685|a3ffb866fd6a7693": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
   "app-sre/qontract-reconcile#2501|reconcile/utils/oc.py|1525|caafd5af97eedbb7": {
     "class": "sdk",
     "confidence": 0.98,
@@ -6104,6 +6329,11 @@
     "confidence": 0.98,
     "model": "jev-1.13.0"
   },
+  "CaddisMaster/budget-buddy#286|app/ai.py|413|667c5400af63733a": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
   "cailloumajor/update-gh-repos-secrets#37|github.go|28|53e9bb3f877a3ca1": {
     "class": "sdk",
     "confidence": 1,
@@ -6143,6 +6373,136 @@
     "class": "sdk",
     "confidence": 1,
     "model": "rule:module-version"
+  },
+  "calf-ai/calfkit-sdk#116|calfkit/__init__.py|24|bc4fd9ee80d250f8": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "calf-ai/calfkit-sdk#116|calfkit/__init__.py|5|4471ebc135bd2d05": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "calf-ai/calfkit-sdk#116|calfkit/_vendor/pydantic_ai/models/anthropic.py|138|7f8d6afb14682881": {
+    "class": "contested",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "calf-ai/calfkit-sdk#116|calfkit/_vendor/pydantic_ai/models/anthropic.py|621|e3a469d91a0c6152": {
+    "class": "contested",
+    "confidence": 0.76,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "calf-ai/calfkit-sdk#116|calfkit/providers/__init__.py|2|38d40a9b355749f8": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "calf-ai/calfkit-sdk#116|calfkit/providers/__init__.py|4|214e491cb0570163": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "calf-ai/calfkit-sdk#116|calfkit/providers/pydantic_ai/__init__.py|0|cb92d57ee0b684fb": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "calf-ai/calfkit-sdk#116|calfkit/providers/pydantic_ai/__init__.py|2|214e491cb0570163": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "calf-ai/calfkit-sdk#116|calfkit/providers/pydantic_ai/openai.py|58|6d6d7d6ef5ec573b": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "camel-ai/camel#1392|camel/configs/anthropic_config.py|15|ad64e88b8e6d10a6": {
+    "class": "unrelated",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "camel-ai/camel#1392|camel/configs/anthropic_config.py|18|1cfc4c41ee31b1cd": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "camel-ai/camel#1392|camel/configs/anthropic_config.py|31|f1017cbf3fce19e7": {
+    "class": "sdk",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "camel-ai/camel#1392|camel/configs/anthropic_config.py|37|de710ebb4a07f72a": {
+    "class": "sdk",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "camel-ai/camel#1392|camel/configs/anthropic_config.py|41|d79de18d3a399604": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "camel-ai/camel#1392|camel/configs/anthropic_config.py|48|6c11dd054e7f549f": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "camel-ai/camel#1392|camel/configs/anthropic_config.py|52|18271007049510b7": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "camel-ai/camel#1392|camel/configs/anthropic_config.py|59|003ea6d9baea8dff": {
+    "class": "contested",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "camel-ai/camel#1392|camel/configs/anthropic_config.py|62|0f50b0c7f0b9809c": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "camel-ai/camel#1392|camel/models/anthropic_model.py|103|7c38c11d1b170b51": {
+    "class": "sdk",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+check"
+  },
+  "camel-ai/camel#1392|camel/models/anthropic_model.py|14|00136dd7e5a6d418": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "camel-ai/camel#1392|camel/utils/token_counting.py|255|fa422b6af35e4ca2": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "camel-ai/camel#1392|camel/utils/token_counting.py|257|e86b8b2e0e93b99d": {
+    "class": "sdk",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+check"
+  },
+  "camel-ai/camel#1392|camel/utils/token_counting.py|259|b38c67a0ff7b37bd": {
+    "class": "sdk",
+    "confidence": 0.8200000000000001,
+    "model": "jev-1.13.0"
+  },
+  "camel-ai/camel#1392|examples/models/role_playing_with_claude.py|102|270499f8bee7ab6b": {
+    "class": "contested",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "camel-ai/camel#626|camel/configs/anthropic_config.py|17|6201c0058b55b81e": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "camel-ai/camel#626|camel/models/anthropic_model.py|16|f82ffb3608e12617": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
   },
   "canonical/github-runner-operators#212|internal/planner/consumer.go|16|07a1a7054c75b0c4": {
     "class": "sdk",
@@ -7109,6 +7469,36 @@
     "confidence": 0.95,
     "model": "jev-1.13.0"
   },
+  "ch3njust1n/smart#76|setup.py|7|aaca6442d70fa127": {
+    "class": "sdk",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "ch3njust1n/smart#76|tests/test_prompt.py|102|ce2aad55b49d9864": {
+    "class": "unrelated",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "ch3njust1n/smart#76|tests/test_prompt.py|84|60eed288be8b3c39": {
+    "class": "unrelated",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "ch3njust1n/smart#76|tests/test_prompt.py|87|6dfd9101a347e5a9": {
+    "class": "contested",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "ch3njust1n/smart#76|tests/test_prompt.py|89|4f9e3f8fa7539150": {
+    "class": "unrelated",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "ch3njust1n/smart#76|tests/test_prompt.py|97|c15b2e7fca5b7a81": {
+    "class": "unrelated",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
   "chenrui333/terraformer#706|providers/github/github_errors_test.go|11|7a032e869dc174f5": {
     "class": "sdk",
     "confidence": 1,
@@ -7232,6 +7622,16 @@
   "chrisreddington/validate-dependabot#115|rollup.config.ts|0|2bd29215eb61dbd6": {
     "class": "unrelated",
     "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "chrisrogers37/shitpost-alpha#102|shit_tests/conftest.py|393|21f2d8692ce43370": {
+    "class": "contested",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "chrisrogers37/shitpost-alpha#102|shit/llm/llm_client.py|174|788093a98f68fd17": {
+    "class": "contract",
+    "confidence": 0.85,
     "model": "jev-1.13.0"
   },
   "ChristianMP/foodbot#34|src/slack.ts|6|35f9a0573929e2f7": {
@@ -7693,6 +8093,61 @@
     "class": "sdk",
     "confidence": 0.99,
     "model": "jev-1.13.0"
+  },
+  "CodeHalwell/Agent-Gantry#159|agent_gantry/adapters/tool_spec/providers.py|300|c19e570c1a7eca39": {
+    "class": "contested",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "CodeHalwell/Agent-Gantry#159|agent_gantry/adapters/tool_spec/providers.py|307|e30ef6e25b2cac3e": {
+    "class": "contested",
+    "confidence": 0.58,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "CodeHalwell/Agent-Gantry#159|agent_gantry/adapters/tool_spec/providers.py|312|19e26954e42f8daa": {
+    "class": "unrelated",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "CodeHalwell/Agent-Gantry#159|agent_gantry/adapters/tool_spec/providers.py|317|c6d174e056fc8dda": {
+    "class": "contested",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "CodeHalwell/Agent-Gantry#200|agent_gantry/adapters/tool_spec/providers.py|311|30afd00d299dc692": {
+    "class": "sdk",
+    "confidence": 0.45,
+    "model": "jev-1.13.0+check"
+  },
+  "CodeHalwell/Agent-Gantry#200|agent_gantry/adapters/tool_spec/providers.py|319|3e3ed8e24fa36121": {
+    "class": "sdk",
+    "confidence": 0.44,
+    "model": "jev-1.13.0+check"
+  },
+  "CodeHalwell/Agent-Gantry#200|agent_gantry/adapters/tool_spec/providers.py|322|61edac2003decdbb": {
+    "class": "unrelated",
+    "confidence": 0.4,
+    "model": "jev-1.13.0+check"
+  },
+  "CodeHalwell/Agent-Gantry#200|agent_gantry/integrations/agent_framework_middleware.py|210|b960f8deb8489415": {
+    "class": "unrelated",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+check"
+  },
+  "CodeHalwell/Agent-Gantry#200|examples/llm_integration/google_genai_demo.py|77|28ceb16e3d7fd587": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "CodeHalwell/Agent-Gantry#200|examples/llm_integration/google_genai_demo.py|79|953ca4bb26e2250f": {
+    "class": "unrelated",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "CodeHalwell/Agent-Gantry#200|examples/llm_integration/google_genai_demo.py|85|05967ae3fbd009b6": {
+    "class": "contested",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+settle+wire"
   },
   "codeoverflow-org/nodecg-io#1087|samples/slack-post/extension/index.ts|12|a9f87f6dee6c9a00": {
     "class": "sdk",
@@ -10484,6 +10939,251 @@
     "confidence": 1,
     "model": "rule:module-version"
   },
+  "epam/ai-dial-adapter-anthropic#13|aidial_adapter_anthropic/adapter/_claude/adapter.py|25|5aca5b0ee15e8ab2": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-anthropic#13|aidial_adapter_anthropic/adapter/_claude/adapter.py|40|3ace33ca7919b777": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-anthropic#13|aidial_adapter_anthropic/adapter/_claude/adapter.py|451|71250c5dc5c2dde4": {
+    "class": "sdk",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-anthropic#13|aidial_adapter_anthropic/adapter/_claude/adapter.py|468|352f7c9560389921": {
+    "class": "sdk",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-anthropic#13|aidial_adapter_anthropic/adapter/_claude/adapter.py|532|438498af061c6adc": {
+    "class": "sdk",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-anthropic#13|aidial_adapter_anthropic/adapter/_claude/converters.py|224|bdd3c27ea0fcb71b": {
+    "class": "contract",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-anthropic#13|aidial_adapter_anthropic/adapter/_claude/tokenizer/approximate.py|166|2ac3a3bb8a6938e5": {
+    "class": "contested",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "epam/ai-dial-adapter-anthropic#13|aidial_adapter_anthropic/adapter/_claude/tokenizer/approximate.py|195|438498af061c6adc": {
+    "class": "sdk",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-anthropic#13|aidial_adapter_anthropic/adapter/_claude/tokenizer/approximate.py|46|3ace33ca7919b777": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|202|efc6761912995072": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|234|3d401f011c66d0a5": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|241|9cf54c0bab548ef1": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|246|4debbff727919bc3": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|249|15b899d69c6f88f7": {
+    "class": "sdk",
+    "confidence": 0.8200000000000001,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|257|51d926645216916e": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|259|1b8e2db9a848a753": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|263|e274ee1f25c0c5f2": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|27|6ef5e5a81d806944": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|40|ab1dd19091083778": {
+    "class": "sdk",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|402|3fd821a44c6d8d8f": {
+    "class": "sdk",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|408|d796a9f49578b583": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|41|75ee1967a8996b24": {
+    "class": "sdk",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|410|2359443dd0a986a4": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|412|94fe6658fafd6d02": {
+    "class": "contested",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|479|6fc2d2ac645e3a7f": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|49|cc0d9934f2cffad2": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/adapter.py|6|4b12b2832e36f3cb": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/converters.py|149|9b5e90543a672aac": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/converters.py|28|02e548cef26180c7": {
+    "class": "sdk",
+    "confidence": 0.76,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/converters.py|353|d2a4eddac0bfe1cc": {
+    "class": "sdk",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/converters.py|362|8ce5adddd8eb492c": {
+    "class": "contract",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/converters.py|364|e44cf9a7a79aba0e": {
+    "class": "contested",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/params.py|17|d9bd13374120e60f": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/params.py|2|705927e9bbec2458": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/tokenizer.py|102|6239ccab35632f7a": {
+    "class": "sdk",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/tokenizer.py|127|3d5bca7527bd600e": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/tokenizer.py|156|a5d33d82bb2ff884": {
+    "class": "contested",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/tokenizer.py|170|2ff4f6a5cefdbfaa": {
+    "class": "sdk",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/tokenizer.py|43|bf27bf8fe1aa0460": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/tokenizer.py|49|897bc0385b8655a4": {
+    "class": "sdk",
+    "confidence": 0.8200000000000001,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/tokenizer.py|51|08850aec5a06884c": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/tokenizer.py|55|7d602b6fb9d33843": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/tokenizer.py|59|9835da6846b8dae0": {
+    "class": "sdk",
+    "confidence": 0.58,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/tokenizer.py|62|2f73a82c15c10998": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/tokenizer.py|66|69d86f579afd1f56": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/tokenizer.py|69|c43eaa85a118d316": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-bedrock#319|aidial_adapter_bedrock/llm/model/claude/v3/tokenizer.py|72|eaea3980893af331": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "epam/ai-dial-adapter-bedrock#471|tests/unit_tests/converse/test_converse_adapter.py|524|dafa08ffa27adc92": {
+    "class": "sdk",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-bedrock#471|tests/unit_tests/converse/test_converse_adapter.py|598|dafa08ffa27adc92": {
+    "class": "sdk",
+    "confidence": 0.76,
+    "model": "jev-1.13.0+check"
+  },
   "epam/ai-dial-adapter-openai#389|aidial_adapter_openai/audio_api/transcribe/adapter.py|113|1a3efa59cb0be7ca": {
     "class": "sdk",
     "confidence": 0.78,
@@ -10777,6 +11477,171 @@
   "epam/ai-dial-adapter-openai#389|tests/utils/openai.py|7|01d4f1cc7206f523": {
     "class": "sdk",
     "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|12|28cedebd31ed3a22": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|16|da35f326b032462f": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|232|a2f924b6c446c631": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|24|10bd465dbd8ce936": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|244|09916a8910ed2061": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|248|698082a08b904f82": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|257|1e781662ab71af56": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|258|a4fab42d7b767a92": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|261|947fe852cd40ccc8": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|27|f3c2930702b9d594": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|310|9badf8c1c89f2d52": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|314|438a6f13401ab5f1": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|317|7aa9495a78e5ea9b": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|320|2c3d5041b16e8642": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0+settle"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|321|7a631899a69b5102": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|358|b511d6ae4e1fc761": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|47|75ee1967a8996b24": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|48|f6ac2df17bd46428": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|50|90149a6e8d311d85": {
+    "class": "sdk",
+    "confidence": 0.8200000000000001,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|52|9ba462eeef6fd805": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|68|9611da9986ca8d2d": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/adapter.py|7|abebad1475380f87": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/finish_reason.py|19|8ce5adddd8eb492c": {
+    "class": "contract",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/output.py|13|875965e9f9915725": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/output.py|86|4181df593a178ce5": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0+settle"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/params.py|18|225e5d39e257fff9": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/params.py|2|a6645c7e58d0e63f": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/params.py|24|46cd2cf904eb0c1f": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/params.py|28|3c16becb1622271c": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/params.py|39|737ab8f1b47de387": {
+    "class": "sdk",
+    "confidence": 0.9299999999999999,
+    "model": "jev-1.13.0"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/params.py|43|29188c80b354b268": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/params.py|46|b3fcb0c02b4c5230": {
+    "class": "sdk",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+check"
+  },
+  "epam/ai-dial-adapter-vertexai#357|aidial_adapter_vertexai/chat/claude/params.py|56|beb86c29e074f474": {
+    "class": "sdk",
+    "confidence": 0.92,
     "model": "jev-1.13.0"
   },
   "EvanGribar/Swarm-Review#80|src/context.ts|50|e975b90815a597a0": {
@@ -13064,6 +13929,11 @@
     "confidence": 0.94,
     "model": "jev-1.13.0"
   },
+  "Gaurang8200/Agent-Applications#11|backend/app/agents/tailor.py|201|c61180b1c18207fb": {
+    "class": "sdk",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+check"
+  },
   "gazebo-tooling/pr-collection-labeler#41|index.js|27|6760aee97951cef8": {
     "class": "sdk",
     "confidence": 1,
@@ -13864,6 +14734,76 @@
     "confidence": 0.64,
     "model": "jev-1.13.0+check"
   },
+  "Giskard-AI/giskard-oss#2810|libs/giskard-llm/src/giskard/llm/providers/anthropic.py|43|cdf6a84c90659878": {
+    "class": "sdk",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "Giskard-AI/giskard-oss#2810|libs/giskard-llm/src/giskard/llm/providers/anthropic.py|75|4e7e92b7e64667c1": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "Giskard-AI/giskard-oss#2810|libs/giskard-llm/src/giskard/llm/translators/anthropic.py|186|a089213e7111433b": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Giskard-AI/giskard-oss#2810|libs/giskard-llm/src/giskard/llm/translators/anthropic.py|281|d4d9a94d8242a826": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "Giskard-AI/giskard-oss#2810|libs/giskard-llm/src/giskard/llm/translators/anthropic.py|288|a6af72a18efc421f": {
+    "class": "sdk",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+check"
+  },
+  "Giskard-AI/giskard-oss#2810|libs/giskard-llm/src/giskard/llm/translators/anthropic.py|33|cf07862dbccf278d": {
+    "class": "sdk",
+    "confidence": 0.76,
+    "model": "jev-1.13.0+check"
+  },
+  "Giskard-AI/giskard-oss#2810|libs/giskard-llm/src/giskard/llm/translators/anthropic.py|4|5f804515d05283dc": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "Giskard-AI/giskard-oss#2810|libs/giskard-llm/src/giskard/llm/translators/anthropic.py|41|28a1dfeea05ca10d": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "Giskard-AI/giskard-oss#2810|libs/giskard-llm/src/giskard/llm/translators/anthropic.py|54|8a9e8dd8621c95f6": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Giskard-AI/giskard-oss#2810|libs/giskard-llm/tests/test_providers.py|35|24c8a0ed3b5efaa4": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "Giskard-AI/giskard-oss#2810|libs/giskard-llm/tests/test_providers.py|352|c22ab2f24578238e": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "Giskard-AI/giskard-oss#2810|libs/giskard-llm/tests/translators/test_anthropic_chat.py|413|4fb2a1fbd6e2bbad": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Giskard-AI/giskard-oss#2810|libs/giskard-llm/tests/translators/test_anthropic_chat.py|415|f974c298e3c8f2a7": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "Giskard-AI/giskard-oss#2810|libs/giskard-llm/tests/translators/test_anthropic_chat.py|418|184000b55a404adf": {
+    "class": "contested",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+settle+wire"
+  },
   "git-pkgs/forge#46|gitea/ci_test.go|106|6a3108a641999c72": {
     "class": "contested",
     "confidence": 0.49,
@@ -14539,6 +15479,26 @@
     "confidence": 0.93,
     "model": "jev-1.13.0"
   },
+  "gptme/gptme#2710|gptme/llm/llm_anthropic.py|781|9a433f32e25dfcad": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "rule:type-suppression"
+  },
+  "gptme/gptme#2710|gptme/llm/llm_anthropic.py|786|773c3c133814c04b": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "rule:type-suppression"
+  },
+  "gptme/gptme#2710|gptme/llm/llm_anthropic.py|788|b9a5b44e79379feb": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "rule:type-suppression"
+  },
+  "gptme/gptme#2710|gptme/llm/llm_anthropic.py|790|b284fc55ac5dcaf8": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
   "grafana/flagger-k6-webhook#203|pkg/slack/client.go|47|0a5327b7d64d1fa3": {
     "class": "sdk",
     "confidence": 0.6900000000000001,
@@ -14677,6 +15637,16 @@
   "graphql-hive/console#3089|packages/services/stripe-billing/src/billing-sync.ts|26|e53837f4132ff3e5": {
     "class": "contract",
     "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "hadijannat/idta-submodel-editor#188|backend/tests/magic_import/test_llm_providers.py|3|39179b1e60e5495a": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "hadijannat/idta-submodel-editor#188|backend/tests/magic_import/test_llm_providers.py|334|707fd96b5e13276b": {
+    "class": "sdk",
+    "confidence": 0.86,
     "model": "jev-1.13.0"
   },
   "hakwerk/gha-git-repo-tags#100|src/main.js|3|56ef11bab5b0fd85": {
@@ -14947,6 +15917,81 @@
   "hiroppy/web-app-template#526|src/app/_utils/payment.ts|19|211e9fd22b61f8ac": {
     "class": "contract",
     "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "home-assistant/core#167793|homeassistant/components/anthropic/__init__.py|39|da2489c60a9f7874": {
+    "class": "unrelated",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "home-assistant/core#167793|tests/components/anthropic/__init__.py|10|59b05d6d0cb3d885": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "home-assistant/core#167793|tests/components/anthropic/__init__.py|13|bec7f11b77a592ff": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "home-assistant/core#167793|tests/components/anthropic/__init__.py|14|54db0f77c6efa3ef": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "home-assistant/core#167793|tests/components/anthropic/__init__.py|15|63bfba281baac93a": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "home-assistant/core#167793|tests/components/anthropic/__init__.py|2|6c18920558cc058e": {
+    "class": "sdk",
+    "confidence": 0.49,
+    "model": "jev-1.13.0+check"
+  },
+  "home-assistant/core#167793|tests/components/anthropic/__init__.py|27|7eb36e80858d211d": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "home-assistant/core#167793|tests/components/anthropic/__init__.py|28|1cea68e5f1aa2fe8": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "home-assistant/core#167793|tests/components/anthropic/__init__.py|41|a0bbf963e461d340": {
+    "class": "sdk",
+    "confidence": 0.76,
+    "model": "jev-1.13.0+check"
+  },
+  "home-assistant/core#167793|tests/components/anthropic/conftest.py|11|0f20ece0c349f163": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "home-assistant/core#167793|tests/components/anthropic/conftest.py|144|c1d660375738ad62": {
+    "class": "sdk",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+check"
+  },
+  "home-assistant/core#167793|tests/components/anthropic/conftest.py|33|699ace8e62264691": {
+    "class": "unrelated",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "home-assistant/core#167793|tests/components/anthropic/conftest.py|83|a59e169f0b902595": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "home-assistant/core#182976|homeassistant/components/anthropic/entity.py|1012|3d67544775e2f636": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "home-assistant/core#182976|homeassistant/components/anthropic/entity.py|65|c43e5ae8af73e59f": {
+    "class": "sdk",
+    "confidence": 0.83,
     "model": "jev-1.13.0"
   },
   "HumanSignal/Adala#78|adala/agents/base.py|1|1a49bfa53f654d10": {
@@ -17844,6 +18889,101 @@
     "confidence": 0.74,
     "model": "jev-1.13.0+check"
   },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|139|c6b91e0f68298b7a": {
+    "class": "sdk",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+check"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|190|9553fd39f06e1289": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|200|6040dd3f2fb78b7b": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|212|f24b8fa32335a15d": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|216|9626ac23f27979eb": {
+    "class": "sdk",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+check"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|229|dd240cfc5d0152c8": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+check"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|233|9626ac23f27979eb": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|259|a5b8bac152a2aae0": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|265|764b5ecc6f93ee6d": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|287|2d78f8199b0db740": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|293|441abd56db25fb93": {
+    "class": "sdk",
+    "confidence": 0.76,
+    "model": "jev-1.13.0+check"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|429|e589bded1b6d2434": {
+    "class": "contested",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|48|f878180a7a2670bb": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|50|ef073adf5238c124": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|547|b03c5b29033590b3": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|56|4c6cf125650bd6ff": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|68|e37d8a8a7eea207a": {
+    "class": "sdk",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+check"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|75|dfddc4896c31f42f": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "jackmpcollins/magentic#239|src/magentic/chat_model/anthropic_chat_model.py|80|98af795cb7466af9": {
+    "class": "sdk",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+check"
+  },
   "jaegertracing/jaeger#7041|internal/storage/elasticsearch/config/config.go|21|d2f90fbf113529e9": {
     "class": "sdk",
     "confidence": 1,
@@ -17938,6 +19078,31 @@
     "class": "sdk",
     "confidence": 0.95,
     "model": "jev-1.13.0"
+  },
+  "jaypetez/glean#376|src/glean/llm/anthropic_provider.py|17|782df0e11aa2a076": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "jaypetez/glean#376|src/glean/llm/anthropic_provider.py|40|8898a1efb196ac3c": {
+    "class": "sdk",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+check"
+  },
+  "jaypetez/glean#376|src/glean/llm/anthropic_provider.py|44|fa08a7781fbdb96c": {
+    "class": "sdk",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+check"
+  },
+  "jaypetez/glean#376|src/glean/llm/anthropic_provider.py|6|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+check"
+  },
+  "jaypetez/glean#376|src/glean/security/ssrf_transport.py|5|897aba74c03b8261": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+check"
   },
   "jduepmeier/binary-package-manager#124|github.go|13|e1180d1d2524d8f4": {
     "class": "sdk",
@@ -18102,6 +19267,46 @@
   "johnhughes3/LegalForecastBench#836|tests/test_multiharness_external_adapters.py|210|3b883fcb04ad6dae": {
     "class": "sdk",
     "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "johnhughes3/LegalForecastBench#973|legalforecast/multiharness/tier0_production_factory.py|75|2e33014e2748ecb8": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "johnhughes3/LegalForecastBench#973|tests/test_multiharness_tier0_runner.py|32|6ff82acc52764cbd": {
+    "class": "sdk",
+    "confidence": 0.46,
+    "model": "jev-1.13.0+check"
+  },
+  "johnhughes3/LegalForecastBench#973|tests/test_multiharness_tier0_runner.py|33|02e4244fed7c5763": {
+    "class": "unrelated",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+check"
+  },
+  "johnhughes3/LegalForecastBench#973|tests/test_multiharness_tier0_runner.py|69|64663b5aeb3acdd4": {
+    "class": "unrelated",
+    "confidence": 0.88,
+    "model": "jev-1.13.0+settle"
+  },
+  "johnhughes3/LegalForecastBench#973|tests/test_tier0_sampling_defaults.py|2|7eb0d8f1ffd19e97": {
+    "class": "sdk",
+    "confidence": 0.47,
+    "model": "jev-1.13.0+check"
+  },
+  "johnhughes3/LegalForecastBench#973|tests/test_tier0_sampling_defaults.py|29|854059d060f17581": {
+    "class": "sdk",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+check"
+  },
+  "johnhughes3/LegalForecastBench#973|tests/test_tier0_sampling_defaults.py|52|e50e0eb8f60b0886": {
+    "class": "contested",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "johnhughes3/LegalForecastBench#973|tests/test_tier0_sampling_defaults.py|9|9b4869c58c8e87fa": {
+    "class": "sdk",
+    "confidence": 0.52,
     "model": "jev-1.13.0+check"
   },
   "JonasBaeumer/AgentWallet#159|src/payments/providers/stripe/balanceService.ts|1|b30cea85f5d9f594": {
@@ -18743,6 +19948,31 @@
     "class": "contract",
     "confidence": 0.87,
     "model": "jev-1.13.0+settle"
+  },
+  "knostic/OpenAnt#354|libs/openant-core/tests/_llm_factories/anthropic.py|17|43f7bb463e7d3236": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "knostic/OpenAnt#354|libs/openant-core/tests/_llm_factories/anthropic.py|54|183d6a8ce48d2d78": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "knostic/OpenAnt#354|libs/openant-core/tests/_llm_factories/bedrock.py|20|43f7bb463e7d3236": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "knostic/OpenAnt#354|libs/openant-core/utilities/llm/providers/bedrock.py|156|81a02a35789b7a25": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "knostic/OpenAnt#354|libs/openant-core/utilities/llm/providers/bedrock.py|20|33d07ab14acd1e8e": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
   },
   "konflux-ci/konflux-ci#8043|test/go-tests/pkg/clients/github/client.go|4|d09421242ea7622f": {
     "class": "sdk",
@@ -19754,6 +20984,291 @@
     "confidence": 0.89,
     "model": "jev-1.13.0"
   },
+  "langchain-ai/langchain#28820|libs/partners/anthropic/langchain_anthropic/chat_models.py|543|e28edd4aa3f5c8e7": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "rule:type-suppression"
+  },
+  "langchain-ai/langchain#28820|libs/partners/anthropic/tests/unit_tests/test_chat_models.py|112|47444c2b58a0662c": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "langchain-ai/langchain#28820|libs/partners/anthropic/tests/unit_tests/test_chat_models.py|119|b770d73d064a528a": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "langchain-ai/langchain#28820|libs/partners/anthropic/tests/unit_tests/test_chat_models.py|7|4f287c46c963836d": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "langchain-ai/langchain#7237|langchain/chat_models/anthropic.py|106|2402d21c7f61c98b": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "langchain-ai/langchain#7237|langchain/chat_models/anthropic.py|108|26808f6965108900": {
+    "class": "contested",
+    "confidence": 0.76,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langchain-ai/langchain#7237|langchain/chat_models/anthropic.py|115|37f765aacdbe0079": {
+    "class": "contested",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langchain-ai/langchain#7237|langchain/chat_models/anthropic.py|134|ce00e2b5cb560483": {
+    "class": "sdk",
+    "confidence": 0.58,
+    "model": "jev-1.13.0+check"
+  },
+  "langchain-ai/langchain#7237|langchain/chat_models/anthropic.py|136|26808f6965108900": {
+    "class": "contested",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langchain-ai/langchain#7237|langchain/chat_models/anthropic.py|143|0eca060f9491e67e": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|17|130c5f7d24fad0f2": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|192|a67bb45918c8f40a": {
+    "class": "contested",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|195|d7f64176b3188019": {
+    "class": "contested",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|199|e189aefef7132515": {
+    "class": "contested",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|202|acfabfd6156f32e8": {
+    "class": "sdk",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|204|e1b82a087afd59d3": {
+    "class": "contested",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|209|a85c1228d02b7e54": {
+    "class": "contested",
+    "confidence": 0.76,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|222|5cabf47e7f61ce4b": {
+    "class": "sdk",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+check"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|225|d7f64176b3188019": {
+    "class": "contested",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|229|e189aefef7132515": {
+    "class": "contested",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|232|9cbdfbe2a6977cde": {
+    "class": "sdk",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|234|d43ccd5d7b451946": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|239|a85c1228d02b7e54": {
+    "class": "contested",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|265|e8e47509eb55c306": {
+    "class": "contested",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|268|3818ea7410fba083": {
+    "class": "contested",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|3|a65358d7d48bcbfa": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|35|f5f50ce1bbb65f29": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|5|01e0338deba4df82": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|52|4a2b30ae63c27bab": {
+    "class": "unrelated",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|63|8ad382e204d52a0f": {
+    "class": "sdk",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+check"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|66|c598cd990a5e3a51": {
+    "class": "sdk",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+check"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|68|3220482bc761376f": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "langchain-ai/langchain#7237|langchain/llms/anthropic.py|70|21d6ff71ca58543a": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|119|eb1639bb588a8bd1": {
+    "class": "sdk",
+    "confidence": 0.49,
+    "model": "jev-1.13.0+check"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|121|8eda38a1cd93648b": {
+    "class": "sdk",
+    "confidence": 0.32,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|125|bece8b8a4c977080": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|130|ad4685a3c77d6099": {
+    "class": "contract",
+    "confidence": 0.81,
+    "model": "jev-1.13.0+settle"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|131|13514edcc8248cac": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|17|7e225c4cc13213f9": {
+    "class": "sdk",
+    "confidence": 0.9299999999999999,
+    "model": "jev-1.13.0"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|257|e5d99e1d46562a0c": {
+    "class": "contested",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|265|35ce95e558f67e4d": {
+    "class": "contract",
+    "confidence": 0.88,
+    "model": "jev-1.13.0+settle"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|292|b035df796228a472": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0+settle"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|304|87fc7efc273ec0e0": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|305|b9d7d112589932e1": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|306|7bde7fac507f8330": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|371|ca75aa4cc65f2188": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|373|c4bbc7f83ba330fa": {
+    "class": "sdk",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+check"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|375|67fce6a142847c22": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|378|eb241033da53f5d0": {
+    "class": "sdk",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+check"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|381|20e9abca48998298": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|384|9bdca76f1313fa8a": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|385|20a8d345af060624": {
+    "class": "contested",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|399|d15ecfe0f6884516": {
+    "class": "contested",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|417|c920d16f7d964e5e": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0+settle"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|563|6d5c0601b655849f": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|575|0b39f5e0205e71cd": {
+    "class": "unrelated",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "langgenius/dify-official-plugins#355|models/anthropic/models/llm/llm.py|98|defbf5b4ee45b0ae": {
+    "class": "contract",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
   "learning-unlimited/ESP-Website#5803|esp/esp/program/modules/handlers/creditcardmodule_stripe.py|290|1d156c23574ebef4": {
     "class": "unrelated",
     "confidence": 1,
@@ -20073,6 +21588,26 @@
     "class": "sdk",
     "confidence": 1,
     "model": "rule:module-version"
+  },
+  "log10-io/log10#355|src/log10/anthropic.py|121|ccd648a65f1ac54f": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "log10-io/log10#355|tests/test_langchain.py|26|bdf3e6363852fff6": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "log10-io/log10#355|tests/test_langchain.py|27|29c08d1ad969a5bd": {
+    "class": "contested",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "log10-io/log10#355|tests/test_langchain.py|29|43b702ee7880f42a": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0+settle"
   },
   "longhorn/longhorn-tests#1173|manager/integration/tests/common.py|1089|fd47e64500164fd6": {
     "class": "sdk",
@@ -20484,6 +22019,156 @@
     "confidence": 1,
     "model": "rule:module-version"
   },
+  "LuthienResearch/luthien-proxy#269|src/luthien_proxy/llm/anthropic_client.py|116|a7058c206db78a09": {
+    "class": "unrelated",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|src/luthien_proxy/llm/anthropic_client.py|121|3009564c8c3e6671": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|src/luthien_proxy/llm/anthropic_client.py|130|122a369aff63b164": {
+    "class": "contested",
+    "confidence": 0.47,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|src/luthien_proxy/llm/anthropic_client.py|133|be013706fb32e2f6": {
+    "class": "contested",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|src/luthien_proxy/llm/anthropic_client.py|138|3009564c8c3e6671": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|src/luthien_proxy/llm/anthropic_client.py|147|f0d3d94314d7bb35": {
+    "class": "contested",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|src/luthien_proxy/llm/anthropic_client.py|149|ab62c14f822537f4": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "rule:type-suppression"
+  },
+  "LuthienResearch/luthien-proxy#269|src/luthien_proxy/pipeline/anthropic_processor.py|159|919e6e0bd74f61fb": {
+    "class": "contested",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|src/luthien_proxy/pipeline/anthropic_processor.py|170|769a419549428f11": {
+    "class": "unrelated",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|src/luthien_proxy/pipeline/anthropic_processor.py|173|6a28465e303b20ba": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "LuthienResearch/luthien-proxy#269|src/luthien_proxy/pipeline/anthropic_processor.py|254|b2e11228bcaa2e0b": {
+    "class": "contested",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|src/luthien_proxy/pipeline/anthropic_processor.py|276|30e9a533ba2dbb76": {
+    "class": "contested",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|src/luthien_proxy/pipeline/anthropic_processor.py|363|4523d8a022af1808": {
+    "class": "contested",
+    "confidence": 0.4,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|src/luthien_proxy/pipeline/anthropic_processor.py|373|b0d56836f0c0bd0b": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|src/luthien_proxy/pipeline/anthropic_processor.py|90|1450178ce9da0eab": {
+    "class": "contested",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|src/luthien_proxy/pipeline/anthropic_processor.py|99|902d687d5056a278": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|tests/integration_tests/test_anthropic_gateway.py|240|9cbe0b159ca205bc": {
+    "class": "contested",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|tests/unit_tests/observability/test_redis_event_publisher.py|376|e5387c2ddc661f3d": {
+    "class": "unrelated",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "LuthienResearch/luthien-proxy#269|tests/unit_tests/pipeline/test_anthropic_processor.py|1314|52e5a091bccb4ed9": {
+    "class": "contested",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|tests/unit_tests/pipeline/test_anthropic_processor.py|325|27294f3b1a39ff6d": {
+    "class": "sdk",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+check"
+  },
+  "LuthienResearch/luthien-proxy#269|tests/unit_tests/pipeline/test_anthropic_processor.py|399|9cbe0b159ca205bc": {
+    "class": "contested",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|tests/unit_tests/pipeline/test_anthropic_processor.py|554|9cbe0b159ca205bc": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "LuthienResearch/luthien-proxy#269|tests/unit_tests/pipeline/test_anthropic_processor.py|736|36f911bb89690cfc": {
+    "class": "sdk",
+    "confidence": 0.76,
+    "model": "jev-1.13.0+check"
+  },
+  "LuthienResearch/luthien-proxy#269|tests/unit_tests/pipeline/test_anthropic_processor.py|799|36f911bb89690cfc": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|tests/unit_tests/test_requirement1_regression.py|1229|26f4e2b548db4568": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|tests/unit_tests/test_requirement1_regression.py|1314|26f4e2b548db4568": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "LuthienResearch/luthien-proxy#269|tests/unit_tests/test_requirement1_regression.py|324|26f4e2b548db4568": {
+    "class": "sdk",
+    "confidence": 0.8099999999999999,
+    "model": "jev-1.13.0"
+  },
+  "LuthienResearch/luthien-proxy#269|tests/unit_tests/test_requirement1_regression.py|776|26f4e2b548db4568": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|tests/unit_tests/test_requirement1_regression.py|845|26f4e2b548db4568": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "LuthienResearch/luthien-proxy#269|tests/unit_tests/test_requirement1_regression.py|919|26f4e2b548db4568": {
+    "class": "contested",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+settle+wire"
+  },
   "LVTD-LLC/TuxSEO#15|core/choices.py|74|d77b3a80fc2f4e9b": {
     "class": "unrelated",
     "confidence": 0.94,
@@ -20873,6 +22558,11 @@
     "class": "unrelated",
     "confidence": 0.59,
     "model": "jev-1.13.0+settle+wire"
+  },
+  "MagnivOrg/prompt-layer-library#234|promptlayer/__init__.py|2|190132b11da7528a": {
+    "class": "unrelated",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
   },
   "MaibornWolff/hybrid-cloud-operator-library#4|setup.py|16|36ec348db36d72b0": {
     "class": "sdk",
@@ -21309,6 +22999,31 @@
     "confidence": 0.87,
     "model": "jev-1.13.0"
   },
+  "meridianlabs-ai/inspect_scout#574|tests/observe/test_observe_stream_errors.py|15|b4f80a46dbc9766f": {
+    "class": "sdk",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+check"
+  },
+  "meridianlabs-ai/inspect_scout#574|tests/observe/test_observe_stream_errors.py|90|cd17a78c658b8943": {
+    "class": "sdk",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+check"
+  },
+  "meridianlabs-ai/inspect_scout#574|tests/view/test_api_v2_search.py|25|8e44750b2d1fa0c6": {
+    "class": "sdk",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+check"
+  },
+  "meridianlabs-ai/inspect_scout#574|tests/view/test_api_v2_search.py|351|54a7109ec787369e": {
+    "class": "sdk",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+check"
+  },
+  "meridianlabs-ai/inspect_scout#574|tests/view/test_api_v2_search.py|8|b4f80a46dbc9766f": {
+    "class": "sdk",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+check"
+  },
   "microsoft/deep-language-networks#51|dln/operator.py|162|2f223cdff9e8d51a": {
     "class": "sdk",
     "confidence": 0.92,
@@ -21738,6 +23453,276 @@
     "class": "sdk",
     "confidence": 0.99,
     "model": "jev-1.13.0"
+  },
+  "Mirascope/mirascope#1481|python/mirascope/llm/clients/anthropic/_utils/encode.py|45|585ab1f5aee6c56b": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "Mirascope/mirascope#1481|python/mirascope/llm/clients/anthropic/_utils/encode.py|8|23371339fa27ce33": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/calls.py|169|5a34cc5424379df8": {
+    "class": "contract",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/calls.py|176|9d33cf3d2f120b7e": {
+    "class": "contested",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/calls.py|2|904517fc67e01b68": {
+    "class": "unrelated",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/calls.py|63|91c769fcc14a78a9": {
+    "class": "contract",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/calls.py|64|d1d184a53a5980b8": {
+    "class": "unrelated",
+    "confidence": 0.46,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/calls.py|94|91c769fcc14a78a9": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/calls.py|95|d1d184a53a5980b8": {
+    "class": "unrelated",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/extractors.py|17|8140f82844d3ebea": {
+    "class": "contract",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/extractors.py|20|5d44c9775c5ff3b7": {
+    "class": "unrelated",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/tools.py|1|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/tools.py|106|f9ca875b51bae02a": {
+    "class": "contract",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/tools.py|107|60efe78b224c0e3d": {
+    "class": "contract",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/tools.py|162|d8c312a5c60b737e": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/tools.py|20|1df7421e9e4ce112": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0+settle"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/tools.py|3|03063f847d0c6d65": {
+    "class": "unrelated",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/tools.py|66|dcb45ecfd002646f": {
+    "class": "contract",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/tools.py|8|5ef2505007ffd4e5": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0+settle"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/tools.py|83|82be7b598051326d": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/tools.py|90|d98a05f31cdd766a": {
+    "class": "contested",
+    "confidence": 0.76,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/tools.py|93|c470862cb817e055": {
+    "class": "unrelated",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/tools.py|98|bb88eda36bedbb98": {
+    "class": "contract",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/types.py|1|e9e60b0965aaef3d": {
+    "class": "sdk",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+check"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/types.py|101|b6d9a6c01343dd9a": {
+    "class": "contested",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/types.py|106|0b64e34b406d760a": {
+    "class": "contract",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/types.py|109|cf4585f9d5a2e1bb": {
+    "class": "contract",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/types.py|121|d44b8a3e5989470a": {
+    "class": "contract",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/types.py|123|cba78428181eed86": {
+    "class": "contested",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/types.py|13|64c433c0967be095": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/types.py|137|598f5e5b8a47fd52": {
+    "class": "unrelated",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/types.py|145|3b49cd298dc25875": {
+    "class": "contract",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/types.py|2|ccac8d4f7ac5ef71": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/types.py|68|d8d392be39f939c0": {
+    "class": "contested",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|mirascope/anthropic/types.py|96|87ee5f82620de677": {
+    "class": "contract",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "Mirascope/mirascope#173|tests/anthropic/conftest.py|12|3a37ba5cde282ae9": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|tests/anthropic/conftest.py|62|f56f2df53afd0665": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|tests/anthropic/conftest.py|64|47629b0f760c6fde": {
+    "class": "contested",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|tests/anthropic/conftest.py|67|52902f0570ee72ba": {
+    "class": "contract",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "Mirascope/mirascope#173|tests/anthropic/conftest.py|81|362f844177141fa4": {
+    "class": "contract",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "Mirascope/mirascope#173|tests/anthropic/test_extractors.py|12|e7c01d993a3d4807": {
+    "class": "contested",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|tests/anthropic/test_extractors.py|25|5829a9dcb9d3d297": {
+    "class": "sdk",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|tests/anthropic/test_extractors.py|34|528aa306f145bf06": {
+    "class": "sdk",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
+  "Mirascope/mirascope#173|tests/anthropic/test_extractors.py|48|5829a9dcb9d3d297": {
+    "class": "sdk",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|tests/anthropic/test_tools.py|1|360f222ac773e06d": {
+    "class": "unrelated",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|tests/anthropic/test_tools.py|100|a5faacfb99f5be06": {
+    "class": "sdk",
+    "confidence": 0.46,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|tests/anthropic/test_tools.py|17|9749ee2253b8c7b2": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|tests/anthropic/test_tools.py|272|b37c381fdb149ccd": {
+    "class": "sdk",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "Mirascope/mirascope#173|tests/anthropic/test_types.py|10|d8f705851576368d": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "Mirascope/mirascope#173|tests/anthropic/test_types.py|45|e45f0956d797b25d": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "mlco2/ecologits#53|tests/test_anthropic.py|10|8ad9da59fb9edeb7": {
+    "class": "contested",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "mlco2/ecologits#53|tests/test_anthropic.py|23|8ad9da59fb9edeb7": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "mlco2/ecologits#53|tests/test_anthropic.py|37|8ad9da59fb9edeb7": {
+    "class": "contested",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "mlco2/ecologits#53|tests/test_anthropic.py|55|8ad9da59fb9edeb7": {
+    "class": "contested",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+settle+wire"
   },
   "moleculemaker/mmli-backend#72|app/services/kubejob_service.py|2|44d9616a34c997e3": {
     "class": "unrelated",
@@ -22564,6 +24549,16 @@
     "confidence": 0.98,
     "model": "jev-1.13.0"
   },
+  "NousResearch/hermes-agent#26830|tools/lazy_deps.py|127|f87444cc33800282": {
+    "class": "unrelated",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "NousResearch/hermes-agent#26830|tools/lazy_deps.py|80|c3c7dcc0edc009a6": {
+    "class": "unrelated",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+check"
+  },
   "NVIDIA/garak#477|garak/generators/openai.py|100|dcbd7bc8d6aa387b": {
     "class": "sdk",
     "confidence": 0.93,
@@ -22647,6 +24642,21 @@
   "NVIDIA/garak#477|tests/generators/test_openai.py|0|9bd1d462a2ed844e": {
     "class": "sdk",
     "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "NVIDIA/NeMo-Agent-Toolkit#1849|packages/nvidia_nat_openpipe_art/src/nat/plugins/openpipe/config.py|58|fed54013b6f221fa": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "NVIDIA/NeMo-Agent-Toolkit#1849|packages/nvidia_nat_openpipe_art/src/nat/plugins/openpipe/trainer_adapter.py|56|d31e2b0502a2f87e": {
+    "class": "sdk",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+check"
+  },
+  "NVIDIA/NeMo-Agent-Toolkit#1849|packages/nvidia_nat_openpipe_art/tests/test_trainer_adapter.py|53|f1a73fde25532c60": {
+    "class": "sdk",
+    "confidence": 0.65,
     "model": "jev-1.13.0+check"
   },
   "ocadotechnology/mirror-operator#69|mirroroperator/operator.py|153|e174b5f56c66fc93": {
@@ -23369,6 +25379,51 @@
     "confidence": 0.86,
     "model": "jev-1.13.0"
   },
+  "open-telemetry/semantic-conventions-conformance#79|scenarios/gen-ai/python/anthropic/scenarios/automatic_tool_calling.py|36|0185c4b8f6a769ca": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+check"
+  },
+  "open-telemetry/semantic-conventions-conformance#79|scenarios/gen-ai/python/anthropic/scenarios/inference.py|23|9ee05abdca8c3a6a": {
+    "class": "sdk",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+check"
+  },
+  "open-telemetry/semantic-conventions-conformance#79|scenarios/gen-ai/python/anthropic/scenarios/inference.py|27|6107c93fbd153fcf": {
+    "class": "sdk",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+check"
+  },
+  "open-telemetry/semantic-conventions-conformance#79|scenarios/gen-ai/python/anthropic/scenarios/multimodal.py|45|0185c4b8f6a769ca": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "open-telemetry/semantic-conventions-conformance#79|scenarios/gen-ai/python/anthropic/scenarios/multimodal.py|68|0185c4b8f6a769ca": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "open-telemetry/semantic-conventions-conformance#79|scenarios/gen-ai/python/anthropic/scenarios/streaming.py|16|9ee05abdca8c3a6a": {
+    "class": "sdk",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+check"
+  },
+  "open-telemetry/semantic-conventions-conformance#79|scenarios/gen-ai/python/anthropic/scenarios/streaming.py|20|6107c93fbd153fcf": {
+    "class": "sdk",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+check"
+  },
+  "open-telemetry/semantic-conventions-conformance#79|scenarios/gen-ai/python/anthropic/scenarios/tool_calling.py|39|0185c4b8f6a769ca": {
+    "class": "sdk",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+check"
+  },
+  "open-telemetry/semantic-conventions-conformance#79|scenarios/gen-ai/python/anthropic/scenarios/tool_calling.py|64|0185c4b8f6a769ca": {
+    "class": "sdk",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+check"
+  },
   "openclaw/slacrawl#44|internal/slackdesktop/desktop_test.go|164|9e1564deb7d110ef": {
     "class": "unrelated",
     "confidence": 0.51,
@@ -23697,6 +25752,211 @@
   "pamelafox/chatgpt-backend-fastapi#16|tests/test_app.py|8|a09a3510b7b4ae8b": {
     "class": "unrelated",
     "confidence": 0.56,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#24|src/pangea_anthropic/resources/messages/messages.py|1245|3d655c0ccb1db1d8": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#24|src/pangea_anthropic/resources/messages/messages.py|1260|22856ac16383fe91": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#24|src/pangea_anthropic/resources/messages/messages.py|1513|3d655c0ccb1db1d8": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#24|src/pangea_anthropic/resources/messages/messages.py|1528|22856ac16383fe91": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#24|src/pangea_anthropic/resources/messages/messages.py|1781|14430769ae2b817e": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#24|src/pangea_anthropic/resources/messages/messages.py|1797|22856ac16383fe91": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#24|src/pangea_anthropic/resources/messages/messages.py|330|3d655c0ccb1db1d8": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#24|src/pangea_anthropic/resources/messages/messages.py|345|22856ac16383fe91": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#24|src/pangea_anthropic/resources/messages/messages.py|598|3d655c0ccb1db1d8": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#24|src/pangea_anthropic/resources/messages/messages.py|61|669e9599bd327db6": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#24|src/pangea_anthropic/resources/messages/messages.py|613|22856ac16383fe91": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#24|src/pangea_anthropic/resources/messages/messages.py|77|22856ac16383fe91": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#24|src/pangea_anthropic/resources/messages/messages.py|8|589e1e1b707c52e8": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#24|src/pangea_anthropic/resources/messages/messages.py|866|14430769ae2b817e": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#24|src/pangea_anthropic/resources/messages/messages.py|882|22856ac16383fe91": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#24|src/pangea_anthropic/resources/messages/messages.py|976|669e9599bd327db6": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#24|src/pangea_anthropic/resources/messages/messages.py|992|22856ac16383fe91": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|1047|3f57617f1323551d": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|1138|50058e8a6ef1bc93": {
+    "class": "unrelated",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|1140|ef6253aa6c723203": {
+    "class": "unrelated",
+    "confidence": 0.41,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|12|6ff1c1b4593a6e47": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|1339|3f57617f1323551d": {
+    "class": "contested",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|1429|50058e8a6ef1bc93": {
+    "class": "unrelated",
+    "confidence": 0.41,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|1431|ef6253aa6c723203": {
+    "class": "unrelated",
+    "confidence": 0.4,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|154|50058e8a6ef1bc93": {
+    "class": "unrelated",
+    "confidence": 0.45,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|156|ef6253aa6c723203": {
+    "class": "unrelated",
+    "confidence": 0.46,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|1630|3f57617f1323551d": {
+    "class": "contested",
+    "confidence": 0.76,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|1720|50058e8a6ef1bc93": {
+    "class": "unrelated",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|1722|ef6253aa6c723203": {
+    "class": "unrelated",
+    "confidence": 0.46,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|1921|3f57617f1323551d": {
+    "class": "sdk",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+check"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|1959|b02a94815f822759": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|355|3f57617f1323551d": {
+    "class": "contested",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|445|50058e8a6ef1bc93": {
+    "class": "unrelated",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|447|ef6253aa6c723203": {
+    "class": "unrelated",
+    "confidence": 0.41,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|5|83a1679f28a93d91": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|63|3f57617f1323551d": {
+    "class": "sdk",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+check"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|646|3f57617f1323551d": {
+    "class": "contested",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|736|50058e8a6ef1bc93": {
+    "class": "unrelated",
+    "confidence": 0.45,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|738|ef6253aa6c723203": {
+    "class": "unrelated",
+    "confidence": 0.46,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|937|3f57617f1323551d": {
+    "class": "contested",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pangeacyber/pangea-anthropic-sdk-python#6|src/pangea_anthropic/resources/messages/messages.py|975|b02a94815f822759": {
+    "class": "contested",
+    "confidence": 0.79,
     "model": "jev-1.13.0+settle+wire"
   },
   "panodata/omniload#49|omniload/source/asana/helpers.py|16|71fda4ea6f8a7c09": {
@@ -24964,6 +27224,241 @@
     "confidence": 0.79,
     "model": "jev-1.13.0+settle+wire"
   },
+  "posit-dev/chatlas#399|chatlas/_provider_anthropic.py|773|bc79f7cc1b49f25d": {
+    "class": "contract",
+    "confidence": 0.94,
+    "model": "jev-1.13.0+settle"
+  },
+  "posit-dev/chatlas#399|chatlas/_provider_anthropic.py|776|e95cccd510f87422": {
+    "class": "contract",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|chatlas/_provider_posit.py|11|b4f80a46dbc9766f": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|chatlas/_provider_posit.py|184|b08739394202fa4f": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|chatlas/_provider_posit.py|193|5e6b7af904da635f": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|chatlas/_provider_posit.py|227|6a389299d7ad31ae": {
+    "class": "sdk",
+    "confidence": 0.76,
+    "model": "jev-1.13.0+check"
+  },
+  "posit-dev/chatlas#399|chatlas/_provider_posit.py|263|4576adb2fc442faf": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "posit-dev/chatlas#399|chatlas/_provider_posit.py|330|7fb735848b4a85e5": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|chatlas/_provider_posit.py|339|b85690f8110f6e8c": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|chatlas/_provider_posit.py|341|49898e6a568e5185": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "posit-dev/chatlas#399|chatlas/_provider_posit.py|349|09e31830e5d0de4c": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|chatlas/_provider_posit.py|352|c70a42a71ab87449": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "posit-dev/chatlas#399|chatlas/_provider_posit.py|383|53dd1992323be6c6": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|chatlas/_provider_posit.py|392|de6a19b002b3ec68": {
+    "class": "sdk",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+check"
+  },
+  "posit-dev/chatlas#399|chatlas/types/anthropic/_client_bedrock.py|17|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|chatlas/types/anthropic/_client_bedrock.py|27|45a1f450062ac876": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|chatlas/types/anthropic/_client_bedrock.py|32|3e318f7b75cc8f7a": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "posit-dev/chatlas#399|chatlas/types/anthropic/_client.py|20|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|chatlas/types/anthropic/_client.py|30|45a1f450062ac876": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|chatlas/types/anthropic/_client.py|35|3e318f7b75cc8f7a": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0+settle"
+  },
+  "posit-dev/chatlas#399|chatlas/types/anthropic/_submit.py|126|f25fe0a660c404e7": {
+    "class": "contract",
+    "confidence": 0.8099999999999999,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|chatlas/types/anthropic/_submit.py|84|0dacff15e1837b2b": {
+    "class": "unrelated",
+    "confidence": 0.41,
+    "model": "jev-1.13.0+check"
+  },
+  "posit-dev/chatlas#399|scripts/_generate_bedrock_apis.py|30|16ad91310691e33b": {
+    "class": "contested",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "posit-dev/chatlas#399|scripts/_generate_bedrock_apis.py|31|6e340b9cffb37a98": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "posit-dev/chatlas#399|scripts/_generate_bedrock_apis.py|59|afb29c88652254f6": {
+    "class": "contested",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "posit-dev/chatlas#399|tests/test_auto.py|222|e3f5dddd0c245684": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|tests/test_provider_anthropic.py|3|897aba74c03b8261": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|tests/test_provider_anthropic.py|915|1b3126c7bca79a51": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "posit-dev/chatlas#399|tests/test_provider_bedrock_mantle.py|334|edae08be8e1d145f": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|tests/test_provider_bedrock_mantle.py|5|897aba74c03b8261": {
+    "class": "sdk",
+    "confidence": 0.8099999999999999,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|tests/test_provider_posit.py|15|8649028e42fbce55": {
+    "class": "unrelated",
+    "confidence": 0.45,
+    "model": "jev-1.13.0+check"
+  },
+  "posit-dev/chatlas#399|tests/test_provider_posit.py|21|338a7a39a5ab5df0": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "posit-dev/chatlas#399|tests/test_provider_posit.py|263|c0b84012ab74218d": {
+    "class": "contested",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "posit-dev/chatlas#399|tests/test_provider_posit.py|291|f69ffcd1f64216ff": {
+    "class": "sdk",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "posit-dev/chatlas#399|tests/test_provider_posit.py|299|ac7f5623d3eb2e12": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|tests/test_provider_posit.py|318|f69ffcd1f64216ff": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|tests/test_provider_posit.py|326|de46d7d740801f85": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|tests/test_provider_posit.py|330|12724f60c6d648f8": {
+    "class": "sdk",
+    "confidence": 0.45,
+    "model": "jev-1.13.0+check"
+  },
+  "posit-dev/chatlas#399|tests/test_provider_posit.py|381|d668eb8a481704b9": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "posit-dev/chatlas#399|tests/test_provider_posit.py|405|1ed594503e28c4da": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|tests/test_provider_posit.py|421|7a96907975e275df": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "posit-dev/chatlas#399|tests/test_provider_posit.py|429|ac7f5623d3eb2e12": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|tests/test_provider_posit.py|6|b4f80a46dbc9766f": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "posit-dev/chatlas#399|tests/test_set_model_params.py|154|40c49d1c08108a0b": {
+    "class": "contested",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "posit-dev/chatlas#399|tests/test_set_model_params.py|157|1ad382f58e418f91": {
+    "class": "contract",
+    "confidence": 0.9,
+    "model": "jev-1.13.0+settle"
+  },
+  "posit-dev/chatlas#399|tests/test_set_model_params.py|502|888eeff2711b120e": {
+    "class": "contested",
+    "confidence": 0.47,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "posit-dev/chatlas#399|tests/test_set_model_params.py|504|7d5efa355aa4846d": {
+    "class": "contested",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+settle+wire"
+  },
   "primerhq/primer#207|tests/llm_adapters/test_openrouter_adapter_cov.py|14|d84c11800982bfe2": {
     "class": "sdk",
     "confidence": 0.89,
@@ -25557,6 +28052,401 @@
   "punt-labs/vox#431|tests/test_logging_config.py|243|0af58cd3e4f076b9": {
     "class": "sdk",
     "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/logfire#1062|tests/otel_integrations/test_anthropic_bedrock.py|97|13c1fea884daa3ca": {
+    "class": "contract",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/logfire#1062|tests/otel_integrations/test_anthropic.py|152|0f868c003eeb979a": {
+    "class": "unrelated",
+    "confidence": 0.47000000000000003,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/logfire#1062|tests/otel_integrations/test_anthropic.py|165|13c1fea884daa3ca": {
+    "class": "contract",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/logfire#1062|tests/otel_integrations/test_anthropic.py|179|ec6fb1b215f99289": {
+    "class": "unrelated",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/logfire#1062|tests/otel_integrations/test_anthropic.py|194|0147a85f8092f799": {
+    "class": "unrelated",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/logfire#1062|tests/otel_integrations/test_anthropic.py|238|13c1fea884daa3ca": {
+    "class": "contract",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/logfire#1062|tests/otel_integrations/test_anthropic.py|487|f1fa59723343d911": {
+    "class": "contract",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/_cli/__init__.py|162|4a28473aeca10ba4": {
+    "class": "contested",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/_cli/__init__.py|235|4e03e625d827e83a": {
+    "class": "contested",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/_cli/web.py|30|c9b75ad8dd2f6b88": {
+    "class": "sdk",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/agent/__init__.py|1663|97ba95a23a678bf5": {
+    "class": "sdk",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/agent/__init__.py|1665|eabcec99e7697ee6": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/agent/__init__.py|1694|25044650284ae0e2": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/models/__init__.py|100|4e0ddebb41ff3482": {
+    "class": "contested",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/models/__init__.py|109|d8f7afc7c734ec2a": {
+    "class": "sdk",
+    "confidence": 0.6799999999999999,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/models/__init__.py|134|d4f18146aa282ad3": {
+    "class": "contested",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/models/__init__.py|178|0a12b256b1e1f493": {
+    "class": "contested",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/models/__init__.py|193|c4b416ea691d4abe": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/models/__init__.py|202|55edc63bf26a6242": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/models/__init__.py|227|1fcc399ccdd12886": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/models/__init__.py|85|1b25a7b7516742ca": {
+    "class": "contested",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/models/anthropic.py|139|3c2287a5d590e282": {
+    "class": "contested",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/models/anthropic.py|142|210a858657db4e5e": {
+    "class": "contested",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/models/anthropic.py|642|2c3c5737aef326e2": {
+    "class": "contested",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/models/bedrock.py|121|6c8aebdfa305581b": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/profiles/anthropic.py|10|463f230c531cf77c": {
+    "class": "contested",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/providers/anthropic.py|109|56ba6ed8c03133d0": {
+    "class": "sdk",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/ui/_web/app.py|127|1fb0d8f61ae06cf9": {
+    "class": "sdk",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/pydantic-ai#4345|pydantic_ai_slim/pydantic_ai/ui/_web/app.py|129|f2c1f96244f35504": {
+    "class": "sdk",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/pydantic-ai#4345|tests/models/test_model.py|67|e07dec241e31a6e5": {
+    "class": "contested",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4345|tests/models/test_model.py|72|dd5e3415c75ca4a9": {
+    "class": "contested",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4345|tests/test_cli.py|17|d9e2022714047616": {
+    "class": "unrelated",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4345|tests/test_cli.py|456|8711320c91afdaf8": {
+    "class": "contested",
+    "confidence": 0.58,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4345|tests/test_cli.py|467|47f3f0af2c79b471": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/pydantic-ai#4345|tests/test_cli.py|695|b463d0c530d6e314": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/pydantic-ai#4345|tests/test_cli.py|703|6947080522581192": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/pydantic-ai#4345|tests/test_cli.py|8|f81bc21c7abdc72d": {
+    "class": "unrelated",
+    "confidence": 0.86,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|1083|f0b8746a87e20b42": {
+    "class": "contract",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|1139|5f6afeca8436c412": {
+    "class": "contract",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|1143|74a872b7d1425f79": {
+    "class": "contract",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|1187|b781e35b739c0541": {
+    "class": "contract",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|1190|78c1d875237bc232": {
+    "class": "contract",
+    "confidence": 0.83,
+    "model": "jev-1.13.0+settle"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|1191|ddc154c9abafd950": {
+    "class": "contested",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|146|0189e1dd4c9d7d79": {
+    "class": "contested",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|167|158b6ea17b4f8658": {
+    "class": "contested",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|1888|bfab74b7ca605c47": {
+    "class": "contract",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|1893|528fe69d8eef64e1": {
+    "class": "contract",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|1976|4928d6ca4d0de743": {
+    "class": "contract",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|2013|f0b8d775a943efa3": {
+    "class": "contested",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|2039|6f4e5eddbb7e28b8": {
+    "class": "contract",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|2077|1f2e68770066065f": {
+    "class": "contract",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|209|5f06c9d165f86d7b": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|314|966810c5dcc10ac2": {
+    "class": "contested",
+    "confidence": 0.47,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|55|3689c07307d3a87b": {
+    "class": "contested",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|618|2c867585526b9c24": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|779|2c867585526b9c24": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|815|f7b7f80db8fad723": {
+    "class": "unrelated",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|830|8367227fc9105e92": {
+    "class": "contract",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|914|b31c61af96e07e78": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0+settle"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|915|ffb3c497bf4bbf25": {
+    "class": "sdk",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|935|6b0f4d81c11da26d": {
+    "class": "contract",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|96|ad2faad4d47a4d96": {
+    "class": "contested",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/models/anthropic.py|99|e88b3d917deb8558": {
+    "class": "contract",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/profiles/anthropic.py|100|f65be1cf5f7ea555": {
+    "class": "contested",
+    "confidence": 0.45,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/profiles/anthropic.py|112|744ce7e299280458": {
+    "class": "contested",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/profiles/anthropic.py|114|7080f074b1b86f5d": {
+    "class": "contested",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/profiles/anthropic.py|3|471958aa313621f4": {
+    "class": "sdk",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/profiles/anthropic.py|54|b9b08cd813c692ec": {
+    "class": "contested",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/profiles/anthropic.py|7|89d59ec3f48fe791": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0+settle"
+  },
+  "pydantic/pydantic-ai#4958|pydantic_ai_slim/pydantic_ai/profiles/anthropic.py|8|101f1db7f632861a": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0+settle"
+  },
+  "pydantic/pydantic-ai#4958|tests/models/test_anthropic.py|123|87fb248e165777e8": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/pydantic-ai#4958|tests/models/test_google.py|2046|6f6d4e13f5ad4fd6": {
+    "class": "contested",
+    "confidence": 0.49,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|tests/models/test_google.py|2053|1ae9a01dbad70cd0": {
+    "class": "contested",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|tests/models/test_google.py|2055|6839442add8f51df": {
+    "class": "contested",
+    "confidence": 0.49,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|tests/test_capabilities.py|509|635ac6960511d4c9": {
+    "class": "unrelated",
+    "confidence": 0.49,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "pydantic/pydantic-ai#4958|tests/test_examples.py|825|62378285207609f1": {
+    "class": "contract",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/pydantic-ai#4958|tests/test_examples.py|830|4f0fee03eda5e507": {
+    "class": "contract",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/pydantic-ai#4958|tests/test_examples.py|837|1a36e26856d5e61c": {
+    "class": "contract",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "pydantic/pydantic-ai#4958|tests/test_examples.py|842|4f0fee03eda5e507": {
+    "class": "contract",
+    "confidence": 0.88,
     "model": "jev-1.13.0"
   },
   "raiyanyahya/freshenv#216|setup.py|43|e589f526703965dc": {
@@ -26399,6 +29289,16 @@
     "confidence": 0.6799999999999999,
     "model": "jev-1.13.0+check"
   },
+  "rdegges/django-twilio#206|setup.py|46|b91ab82e408171af": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "rdegges/django-twilio#234|setup.py|30|7307958a6285f324": {
+    "class": "sdk",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+check"
+  },
   "RedHatInsights/release-confidence-score#113|internal/git/github/client.go|3|290a18cbc0e196ca": {
     "class": "sdk",
     "confidence": 1,
@@ -26648,6 +29548,26 @@
     "class": "sdk",
     "confidence": 1,
     "model": "rule:module-version"
+  },
+  "refuel-ai/autolabel#597|src/autolabel/models/anthropic.py|33|79329e275fbbc28c": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "refuel-ai/autolabel#597|src/autolabel/models/anthropic.py|47|1bde42fbd92ffc50": {
+    "class": "sdk",
+    "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "refuel-ai/autolabel#597|src/autolabel/models/anthropic.py|60|5895d3fe9d5c8b34": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "refuel-ai/autolabel#597|src/autolabel/models/anthropic.py|62|b09d610517d4a089": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
   },
   "refuel-ai/autolabel#651|src/autolabel/cache/redis_cache.py|1|f05b64723ebafff9": {
     "class": "sdk",
@@ -27619,6 +30539,116 @@
     "confidence": 1,
     "model": "rule:module-version"
   },
+  "run-llama/llama_index#18817|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|155|4e4777cfd75586b8": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "run-llama/llama_index#18817|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|188|6c1ffb6289023703": {
+    "class": "contested",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "run-llama/llama_index#18817|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|209|e039321ab19f0c37": {
+    "class": "contested",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "run-llama/llama_index#18817|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|295|e43ea7d910ab9e61": {
+    "class": "contract",
+    "confidence": 0.86,
+    "model": "jev-1.13.0+settle"
+  },
+  "run-llama/llama_index#18817|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|335|1cf1b5aaa06791c5": {
+    "class": "contested",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "run-llama/llama_index#18817|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|376|1cf1b5aaa06791c5": {
+    "class": "contested",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "run-llama/llama_index#18817|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|480|b2120d32d5eed956": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "run-llama/llama_index#18817|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|521|b2120d32d5eed956": {
+    "class": "contested",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "run-llama/llama_index#18817|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/utils.py|55|a2fdad10699d34ec": {
+    "class": "contested",
+    "confidence": 0.38,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "run-llama/llama_index#18817|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/utils.py|77|8dbdf60fcddbc941": {
+    "class": "contested",
+    "confidence": 0.44,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "run-llama/llama_index#19624|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|357|135632487900025a": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "run-llama/llama_index#19624|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|363|c180cbcf40c73a3d": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "run-llama/llama_index#19624|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|381|8390abcbe8dc4c37": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "run-llama/llama_index#19624|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|383|ebd892d59230dee5": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "run-llama/llama_index#19624|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|397|a65ab9c2b88cdbea": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "run-llama/llama_index#19624|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|461|f23577599ec3c80a": {
+    "class": "sdk",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+check"
+  },
+  "run-llama/llama_index#19624|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|486|f2a5c10a09463f21": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "run-llama/llama_index#19624|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|51|e7429e77b1179a12": {
+    "class": "sdk",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+check"
+  },
+  "run-llama/llama_index#19624|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|535|02ed46b985eee090": {
+    "class": "sdk",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+check"
+  },
+  "run-llama/llama_index#19624|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|60|aab0efafb4fe51fa": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "run-llama/llama_index#19624|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|639|f23577599ec3c80a": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "run-llama/llama_index#19624|llama-index-integrations/llms/llama-index-llms-anthropic/llama_index/llms/anthropic/base.py|664|f2a5c10a09463f21": {
+    "class": "sdk",
+    "confidence": 0.58,
+    "model": "jev-1.13.0+check"
+  },
   "rungalileo/galileo-python#557|tests/utils/test_serialization.py|353|d5827acd3d05105a": {
     "class": "sdk",
     "confidence": 0.72,
@@ -28109,6 +31139,31 @@
     "confidence": 0.88,
     "model": "jev-1.13.0"
   },
+  "sanlee-ys/defense-news-classifier#202|src/classify.py|431|b9cf1405d6f50d06": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "sanlee-ys/defense-news-classifier#202|src/classify.py|493|edfbb74d78ec198f": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "sanlee-ys/defense-news-classifier#202|src/classify.py|503|05d4e1987c7c5336": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "sanlee-ys/defense-news-classifier#202|src/classify.py|576|3ab678db4186c62b": {
+    "class": "contested",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "sanlee-ys/defense-news-classifier#202|src/classify.py|597|22549452b793ae36": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
   "SAP/cloud-sdk-js#6283|.github/actions/changesets-fixed-version-bump/index.js|3|6e30927857ce3325": {
     "class": "sdk",
     "confidence": 0.71,
@@ -28202,6 +31257,36 @@
   "sethrylan/issue-digest#63|src/models.ts|0|c4b04165ab890b5d": {
     "class": "sdk",
     "confidence": 0.99,
+    "model": "jev-1.13.0"
+  },
+  "shotgun-sh/shotgun#494|src/shotgun/agents/router/router.py|109|0f9fb9850b250f41": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "rule:type-suppression"
+  },
+  "shotgun-sh/shotgun#494|test/unit/test_context7.py|86|8f2cd7fe01e43e4a": {
+    "class": "unrelated",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "shotgun-sh/shotgun#494|test/unit/tui/test_markdown_parser.py|39|1b712724574626de": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "shotgun-sh/shotgun#494|test/unit/tui/test_markdown_parser.py|52|1b712724574626de": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "shotgun-sh/shotgun#494|test/unit/tui/test_markdown_parser.py|65|6264b367f89f5ad1": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:whitespace"
+  },
+  "shotgun-sh/shotgun#494|test/unit/tui/test_markdown_parser.py|88|192339f164ceeea4": {
+    "class": "unrelated",
+    "confidence": 0.92,
     "model": "jev-1.13.0"
   },
   "SierraSoftworks/actions-tap#11|src/auth.ts|1|44edcea3a3035d51": {
@@ -28377,6 +31462,146 @@
   "Soju06/codex-lb#1807|tests/integration/test_openai_client_compat.py|93|776ce292a45c7c3a": {
     "class": "unrelated",
     "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "sseshachala/conductai#1244|apps/api/app/compiler/compiler.py|13|10622152c90aa866": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "sseshachala/conductai#1244|apps/api/app/compiler/compiler.py|58|c26071b35a5b77ae": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "sseshachala/conductai#1244|apps/api/app/compiler/compiler.py|62|ad1e74c3bd06e1eb": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "sseshachala/conductai#1244|apps/api/app/compiler/compiler.py|78|e5db7de2145eec39": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "sseshachala/conductai#1244|apps/api/app/compiler/stream.py|66|e1188286f40d0bdb": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "sseshachala/conductai#1244|apps/api/app/compiler/stream.py|72|0d6f4c2d99e44f37": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "sseshachala/conductai#1244|apps/api/app/compiler/stream.py|8|10622152c90aa866": {
+    "class": "unrelated",
+    "confidence": 0.44,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "sseshachala/conductai#1244|apps/api/app/modules/guard/routers/policies.py|567|6e4760570a0d37e3": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "sseshachala/conductai#1244|apps/api/app/modules/guard/routers/policies.py|574|0f1bc7bd2d99deac": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "sseshachala/conductai#1244|apps/api/app/routers/team_memory.py|57|e3779deebbdc9ee2": {
+    "class": "sdk",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "sseshachala/conductai#1244|apps/api/app/routers/team_memory.py|71|d45748d99195a529": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "sseshachala/conductai#1244|apps/api/app/routers/workflows.py|1017|5e7c9b720b23a906": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "sseshachala/conductai#1244|apps/api/app/routers/workflows.py|1020|2ce3b864818a189d": {
+    "class": "contested",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "sseshachala/conductai#1244|apps/api/app/routers/workflows.py|1022|b890dc4ec47b8703": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "sseshachala/conductai#1244|apps/api/app/routers/workflows.py|992|d85de0110ee23d6f": {
+    "class": "sdk",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+check"
+  },
+  "sseshachala/conductai#1244|apps/api/app/runtime/adapters/anthropic.py|12|5afce9cb7f771a06": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "sseshachala/conductai#1244|apps/api/app/runtime/adapters/anthropic.py|242|77f25209aa658177": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "sseshachala/conductai#1244|apps/api/app/runtime/adapters/anthropic.py|54|fa691a582fe29b72": {
+    "class": "sdk",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+check"
+  },
+  "sseshachala/conductai#1244|apps/api/app/runtime/adapters/anthropic.py|79|eb062b0f44966e98": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "sseshachala/conductai#1244|apps/api/app/runtime/adapters/openai.py|151|ab6c53c8963f5c76": {
+    "class": "unrelated",
+    "confidence": 0.57,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "sseshachala/conductai#1244|apps/api/app/runtime/adapters/openai.py|48|fa691a582fe29b72": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "sseshachala/conductai#1244|apps/api/app/runtime/adapters/perplexity.py|10|5afce9cb7f771a06": {
+    "class": "sdk",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "sseshachala/conductai#1244|apps/api/app/runtime/adapters/perplexity.py|107|f9afd4e72243ba3b": {
+    "class": "unrelated",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "sseshachala/conductai#1244|apps/api/app/runtime/adapters/perplexity.py|42|fa691a582fe29b72": {
+    "class": "sdk",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+check"
+  },
+  "sseshachala/conductai#1244|apps/api/app/runtime/llm_client.py|112|129094b2430a71b4": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "sseshachala/conductai#1244|apps/api/app/runtime/llm_client.py|115|cb1057e535d4ecbe": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "sseshachala/conductai#1244|apps/api/app/runtime/llm_client.py|19|084f35a9156c9c8e": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "sseshachala/conductai#1244|apps/api/app/runtime/llm_client.py|98|fa691a582fe29b72": {
+    "class": "sdk",
+    "confidence": 0.77,
     "model": "jev-1.13.0+check"
   },
   "stacklok/frizbee#397|pkg/replacer/actions/actions.go|28|e1180d1d2524d8f4": {
@@ -31689,6 +34914,21 @@
     "confidence": 0.95,
     "model": "jev-1.13.0"
   },
+  "topoteretes/cognee#1406|cognee/infrastructure/llm/structured_output_framework/litellm_instructor/llm/anthropic/adapter.py|14|7b5a2b3f05760d3e": {
+    "class": "sdk",
+    "confidence": 0.61,
+    "model": "jev-1.13.0+check"
+  },
+  "topoteretes/cognee#1406|cognee/infrastructure/llm/structured_output_framework/litellm_instructor/llm/anthropic/adapter.py|29|27a6f3c0a99732ea": {
+    "class": "sdk",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+check"
+  },
+  "topoteretes/cognee#1406|cognee/infrastructure/llm/structured_output_framework/litellm_instructor/llm/anthropic/adapter.py|59|45405da553cd9b54": {
+    "class": "contested",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+settle+wire"
+  },
   "tough-dev-school/education-backend#2330|src/core/conf/integrations/banking/stripe.py|0|bdd535b69e60223b": {
     "class": "sdk",
     "confidence": 0.86,
@@ -32829,6 +36069,536 @@
     "confidence": 0.89,
     "model": "jev-1.13.0"
   },
+  "turnstonelabs/turnstone#1161|scripts/livepass.py|26|787983436e85c361": {
+    "class": "unrelated",
+    "confidence": 0.87,
+    "model": "jev-1.13.0+settle"
+  },
+  "turnstonelabs/turnstone#1161|scripts/livepass.py|465|2df3cf4cf4cda1c6": {
+    "class": "contested",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|scripts/livepass.py|481|7c4b3ef665bfea6c": {
+    "class": "unrelated",
+    "confidence": 0.88,
+    "model": "jev-1.13.0+settle"
+  },
+  "turnstonelabs/turnstone#1161|scripts/livepass.py|600|001ceac020a47552": {
+    "class": "unrelated",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|scripts/livepass.py|624|73d4ef2f5ec1cb3d": {
+    "class": "unrelated",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/_wire_capture.py|12|94f149124ace11f5": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|tests/_wire_capture.py|16|7eb0d8f1ffd19e97": {
+    "class": "sdk",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|tests/_wire_capture.py|76|7c061f81e4fea1fe": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_admin_model_registry_refresh.py|2675|a81ac38f2b51252c": {
+    "class": "unrelated",
+    "confidence": 0.92,
+    "model": "jev-1.13.0+settle"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_empty_completion.py|197|e4c14e0f8103d625": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_empty_completion.py|210|993e233498f65800": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_empty_completion.py|228|adc9f6271cfc3ed8": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_empty_completion.py|8|b4f80a46dbc9766f": {
+    "class": "sdk",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_model_provider_obo.py|361|af9aab69f27d46f0": {
+    "class": "sdk",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_model_registry.py|4725|095b7a31bb03cf42": {
+    "class": "sdk",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_model_registry.py|5123|38ce25433d77e168": {
+    "class": "contested",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_provider_anthropic_compat.py|125|0ee173c6ff7fb447": {
+    "class": "contested",
+    "confidence": 0.41,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_provider_anthropic_compat.py|151|02d81ff782acb79f": {
+    "class": "contested",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_provider_anthropic_compat.py|169|2e61b91b1f0e3993": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_provider_anthropic_compat.py|228|7720cf69d5d1a8c9": {
+    "class": "sdk",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_provider_anthropic_compat.py|231|7d819943f354ce3f": {
+    "class": "contested",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_provider_anthropic_compat.py|237|49f6c112b4b72411": {
+    "class": "contested",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_provider_anthropic_compat.py|246|1494e7f6f4bfd7cf": {
+    "class": "sdk",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_provider_anthropic_compat.py|255|6df19b0f617c9592": {
+    "class": "contested",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_provider_anthropic_compat.py|258|74bbf99f69579ea2": {
+    "class": "sdk",
+    "confidence": 0.82,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_provider_anthropic_compat.py|260|1f6935e554894ab3": {
+    "class": "contested",
+    "confidence": 0.41000000000000003,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_provider_anthropic_compat.py|262|74bbf99f69579ea2": {
+    "class": "sdk",
+    "confidence": 0.5599999999999999,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_provider_anthropic_compat.py|267|e4d1a4690a37852d": {
+    "class": "contested",
+    "confidence": 0.43,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_provider_anthropic_compat.py|281|6df19b0f617c9592": {
+    "class": "contested",
+    "confidence": 0.41,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_provider_anthropic_compat.py|291|b28d0ffe6f23da9d": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_provider_anthropic_compat.py|301|49f6c112b4b72411": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_provider_anthropic_compat.py|313|8337ed8256418ef2": {
+    "class": "contested",
+    "confidence": 0.45,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_provider_anthropic_compat.py|344|6df19b0f617c9592": {
+    "class": "contested",
+    "confidence": 0.44,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_providers.py|4683|93a1d22ffb638d84": {
+    "class": "sdk",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_providers.py|4685|2891a20a18784593": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_providers.py|4698|d904f3ccec1c9066": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_providers.py|4772|5017e4578f745b34": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_providers.py|4774|93a1d22ffb638d84": {
+    "class": "contested",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_providers.py|6585|01a345cd9eafcc29": {
+    "class": "sdk",
+    "confidence": 0.79,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_providers.py|6589|fdd9c1cfcb21fe67": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_providers.py|6624|3b9b928910f10c15": {
+    "class": "sdk",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|10|8299baeeb9034eb2": {
+    "class": "sdk",
+    "confidence": 0.88,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|1000|2dad3950cfab1e27": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|2|f26b626583e0c2ad": {
+    "class": "unrelated",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|21|2b454446a5119a6d": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|35|ee8c81457de3257c": {
+    "class": "sdk",
+    "confidence": 0.86,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|43|ebbf1dc8c5ec47b4": {
+    "class": "unrelated",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|755|76fcbff318e8421a": {
+    "class": "sdk",
+    "confidence": 0.74,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|760|387409efcdf4606c": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|770|e273fdfb3159a315": {
+    "class": "sdk",
+    "confidence": 0.97,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|778|302bfcdb55ba205d": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|817|ae37328e2462f931": {
+    "class": "contested",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|820|26c746020b2f0068": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|825|7d339f09d5055796": {
+    "class": "contested",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|832|ef1571a1394a262f": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|870|687856e8ec808b19": {
+    "class": "contested",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|879|f5fb9f9075c95da8": {
+    "class": "sdk",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|886|03b4f46e0a419bfe": {
+    "class": "sdk",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|tests/test_sdk_stream_boundary.py|996|1eb393bd62fab24f": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/api/console_schemas.py|1373|867006a440db798e": {
+    "class": "contested",
+    "confidence": 0.51,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/console/server.py|13492|8dbde7fd8746de9d": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/console/server.py|13762|a3fcea0d240c0a56": {
+    "class": "unrelated",
+    "confidence": 0.81,
+    "model": "jev-1.13.0+settle"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/console/server.py|13766|2f3b6b582e338483": {
+    "class": "contested",
+    "confidence": 0.43,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/console/server.py|14076|74c8a34c9137c03e": {
+    "class": "contested",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/console/server.py|14079|986428f2d357b2d6": {
+    "class": "contested",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/console/server.py|14080|6b9f3a6043fd870f": {
+    "class": "contested",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/console/server.py|14087|928bddb68d230a5d": {
+    "class": "contested",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/console/server.py|14178|c800a23a9a9afba6": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/judge.py|1334|ea1bf7d29fb01516": {
+    "class": "unrelated",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/judge.py|1336|8258dfc09aeb14d7": {
+    "class": "sdk",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/model_registry.py|1076|3029f8837b74dc71": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/model_registry.py|1102|01daea1c64271709": {
+    "class": "sdk",
+    "confidence": 0.34,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/model_registry.py|1106|4796fae14c697a10": {
+    "class": "contested",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/model_registry.py|1182|804c3ead62ed3e99": {
+    "class": "unrelated",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/model_registry.py|1189|fb4b04db13431e6a": {
+    "class": "sdk",
+    "confidence": 0.34,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/model_registry.py|1337|382132daa4676095": {
+    "class": "unrelated",
+    "confidence": 0.58,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/model_registry.py|1471|64b5a5725f5542d5": {
+    "class": "unrelated",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/model_registry.py|1836|b3cf4f08d5a2b46c": {
+    "class": "contested",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/model_registry.py|1862|a801b19035b2c9c5": {
+    "class": "contested",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/model_registry.py|391|8efc71ffc4c66240": {
+    "class": "contested",
+    "confidence": 0.52,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/model_registry.py|606|cb7e9d2deb89e26c": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/model_registry.py|71|a04d40e65c731189": {
+    "class": "contested",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/model_registry.py|953|1df8b00425268932": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/model_registry.py|966|d6997d137d17fd76": {
+    "class": "contested",
+    "confidence": 0.43,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/model_turn.py|1337|945abbd31bd08018": {
+    "class": "sdk",
+    "confidence": 0.78,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/output_guard_judge.py|424|ea1bf7d29fb01516": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/output_guard_judge.py|426|8258dfc09aeb14d7": {
+    "class": "sdk",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/__init__.py|153|e2737d213f8a77cf": {
+    "class": "contested",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/__init__.py|165|41e39795231a86dd": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/__init__.py|198|5a9cafc317b6c963": {
+    "class": "sdk",
+    "confidence": 0.84,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/__init__.py|201|676c17a33115afee": {
+    "class": "contested",
+    "confidence": 0.6,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/__init__.py|22|dbf66cfce6492a1c": {
+    "class": "unrelated",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/__init__.py|28|132fe662fcec963d": {
+    "class": "unrelated",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/__init__.py|46|e4afab92cfae2d34": {
+    "class": "sdk",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/_anthropic.py|27|dbf66cfce6492a1c": {
+    "class": "contested",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/_anthropic.py|539|26d4a7972dfad6e1": {
+    "class": "contested",
+    "confidence": 0.5,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/_anthropic.py|562|0d096ac917ea5eb4": {
+    "class": "sdk",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/_anthropic.py|565|cd28b24ba2e88799": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/_anthropic.py|984|d8de496c66689b23": {
+    "class": "sdk",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/_openai_chat.py|332|d8de496c66689b23": {
+    "class": "unrelated",
+    "confidence": 0.44,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/_openai_chat.py|35|dbf66cfce6492a1c": {
+    "class": "contested",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/_openai_responses.py|45|dbf66cfce6492a1c": {
+    "class": "sdk",
+    "confidence": 0.59,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/_openai_responses.py|526|d8de496c66689b23": {
+    "class": "unrelated",
+    "confidence": 0.55,
+    "model": "jev-1.13.0+check"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/_protocol.py|255|0510898989fddd52": {
+    "class": "sdk",
+    "confidence": 0.81,
+    "model": "jev-1.13.0"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/_protocol.py|273|36efb17f965460ef": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "turnstonelabs/turnstone#1161|turnstone/core/providers/_protocol.py|94|b23b16e258dc9907": {
+    "class": "sdk",
+    "confidence": 0.44,
+    "model": "jev-1.13.0+check"
+  },
   "twk3/rollup-size-compare-action#429|src/main.ts|1|db7abf0b1891c1ee": {
     "class": "sdk",
     "confidence": 0.97,
@@ -32853,6 +36623,216 @@
     "class": "sdk",
     "confidence": 0.98,
     "model": "jev-1.13.0+settle"
+  },
+  "UiPath/coder_eval#133|src/coder_eval/evaluation/judge_anthropic.py|42|91fd3adde98ae222": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "UiPath/coder_eval#133|src/coder_eval/evaluation/judge_anthropic.py|53|c3876710c4fde5ff": {
+    "class": "contested",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "UiPath/coder_eval#133|src/coder_eval/evaluation/judge_anthropic.py|56|79bb4be4d8f1d4da": {
+    "class": "sdk",
+    "confidence": 0.75,
+    "model": "jev-1.13.0+check"
+  },
+  "UiPath/coder_eval#133|src/coder_eval/evaluation/judge_anthropic.py|61|54649e961a4b3795": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0+settle"
+  },
+  "UiPath/coder_eval#133|src/coder_eval/evaluation/judge_bedrock.py|16|20f86e4e054d774e": {
+    "class": "sdk",
+    "confidence": 0.69,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "UiPath/coder_eval#133|src/coder_eval/evaluation/judge_bedrock.py|29|952f08b7614ddaa5": {
+    "class": "sdk",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "UiPath/coder_eval#133|src/coder_eval/evaluation/judge_bedrock.py|92|b0579d0a70f8229a": {
+    "class": "unrelated",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "UiPath/coder_eval#133|src/coder_eval/evaluation/judge_bedrock.py|98|96373e268bf68fc4": {
+    "class": "sdk",
+    "confidence": 0.71,
+    "model": "jev-1.13.0+check"
+  },
+  "UiPath/coder_eval#133|src/coder_eval/evaluation/verdict_tool.py|134|6c714d884ef6e4bb": {
+    "class": "unrelated",
+    "confidence": 1,
+    "model": "rule:comments"
+  },
+  "UiPath/coder_eval#133|src/coder_eval/evaluation/verdict_tool.py|42|37c2280900744c8e": {
+    "class": "unrelated",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_anthropic.py|12|ddb61db664e4caf7": {
+    "class": "sdk",
+    "confidence": 0.63,
+    "model": "jev-1.13.0+check"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_anthropic.py|31|54b91a84361d5d8b": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0+settle"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_anthropic.py|81|12d0f3081c4f2ca6": {
+    "class": "contract",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_anthropic.py|85|6328961af5436271": {
+    "class": "contract",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_anthropic.py|92|7ca4671d4337c0e0": {
+    "class": "sdk",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_anthropic.py|98|57e4810c903b0e60": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_bedrock.py|101|f5600efae4361aab": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_bedrock.py|11|897aba74c03b8261": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_bedrock.py|117|0b86937e20eeeeba": {
+    "class": "sdk",
+    "confidence": 0.85,
+    "model": "jev-1.13.0"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_bedrock.py|127|f5600efae4361aab": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_bedrock.py|151|d459c8699ada2b47": {
+    "class": "unrelated",
+    "confidence": 0.62,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_bedrock.py|154|bc27c2109f76e7b9": {
+    "class": "sdk",
+    "confidence": 0.94,
+    "model": "jev-1.13.0"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_bedrock.py|156|2360423c16309151": {
+    "class": "sdk",
+    "confidence": 1,
+    "model": "jev-1.13.0"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_bedrock.py|160|34764985b773e26c": {
+    "class": "sdk",
+    "confidence": 0.98,
+    "model": "jev-1.13.0"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_bedrock.py|170|4eacdc17d49cbd0c": {
+    "class": "sdk",
+    "confidence": 0.91,
+    "model": "jev-1.13.0"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_bedrock.py|191|8c0b2ca1c76e21e0": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_bedrock.py|207|0b86937e20eeeeba": {
+    "class": "sdk",
+    "confidence": 0.83,
+    "model": "jev-1.13.0"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_bedrock.py|217|d459c8699ada2b47": {
+    "class": "unrelated",
+    "confidence": 0.7,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_bedrock.py|224|5cf3d6d2a727ce79": {
+    "class": "unrelated",
+    "confidence": 0.43,
+    "model": "jev-1.13.0+check"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_bedrock.py|227|c98df5ff011780a8": {
+    "class": "sdk",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_bedrock.py|239|267a771231bb72ad": {
+    "class": "sdk",
+    "confidence": 0.92,
+    "model": "jev-1.13.0"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_bedrock.py|53|4aafbda87bdb35ea": {
+    "class": "sdk",
+    "confidence": 0.89,
+    "model": "jev-1.13.0"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_bedrock.py|85|4eacdc17d49cbd0c": {
+    "class": "sdk",
+    "confidence": 0.9,
+    "model": "jev-1.13.0"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_burn_in_live.py|3|2b5011c83422f973": {
+    "class": "unrelated",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "UiPath/coder_eval#133|tests/test_judge_burn_in_live.py|95|59d20438b98416d3": {
+    "class": "unrelated",
+    "confidence": 0.66,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "UKGovernmentBEIS/inspect_ai#3251|src/inspect_ai/agent/_bridge/anthropic_api_impl.py|18|a12cf24156828c3f": {
+    "class": "sdk",
+    "confidence": 0.56,
+    "model": "jev-1.13.0+check"
+  },
+  "UKGovernmentBEIS/inspect_ai#3251|src/inspect_ai/agent/_bridge/anthropic_api_impl.py|422|cf673f2d2174bcfb": {
+    "class": "contested",
+    "confidence": 0.72,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "UKGovernmentBEIS/inspect_ai#3251|src/inspect_ai/model/_providers/anthropic.py|107|650fcf517c9d9519": {
+    "class": "sdk",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+check"
+  },
+  "UKGovernmentBEIS/inspect_ai#3251|src/inspect_ai/model/_providers/anthropic.py|2059|806a15dc47bf36cf": {
+    "class": "contract",
+    "confidence": 0.8200000000000001,
+    "model": "jev-1.13.0"
+  },
+  "UKGovernmentBEIS/inspect_ai#3251|src/inspect_ai/model/_providers/anthropic.py|2094|806a15dc47bf36cf": {
+    "class": "contract",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "UKGovernmentBEIS/inspect_ai#3251|src/inspect_ai/model/_providers/providers.py|332|7cbc28465c65efc7": {
+    "class": "sdk",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+check"
+  },
+  "UKGovernmentBEIS/inspect_ai#3251|tests/agent/test_agent_bridge.py|325|2cfaa0342f722b1d": {
+    "class": "unrelated",
+    "confidence": 0.53,
+    "model": "jev-1.13.0+settle+wire"
   },
   "UKGovernmentBEIS/inspect_evals#2187|src/inspect_evals/abstention_bench/utils.py|224|e09530035b34235f": {
     "class": "unrelated",
@@ -33293,6 +37273,106 @@
     "class": "sdk",
     "confidence": 1,
     "model": "rule:module-version"
+  },
+  "uripeled2/llm-client-sdk#25|llm_client/__init__.py|0|84856380706980c3": {
+    "class": "unrelated",
+    "confidence": 0.54,
+    "model": "jev-1.13.0+check"
+  },
+  "uripeled2/llm-client-sdk#25|llm_client/llm_api_client/anthropic_client.py|12|48006be29b056663": {
+    "class": "contested",
+    "confidence": 0.42,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "uripeled2/llm-client-sdk#25|llm_client/llm_api_client/anthropic_client.py|2|bd1c4e04ce038577": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "uripeled2/llm-client-sdk#25|llm_client/llm_api_client/anthropic_client.py|21|20657a9a3d8926d4": {
+    "class": "contested",
+    "confidence": 0.5700000000000001,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "uripeled2/llm-client-sdk#25|llm_client/llm_api_client/anthropic_client.py|42|2f17f01c5dfb8867": {
+    "class": "sdk",
+    "confidence": 0.93,
+    "model": "jev-1.13.0"
+  },
+  "uripeled2/llm-client-sdk#25|tests/llm_api_client/anthropic_client/conftest.py|0|704dffa0c104b88e": {
+    "class": "unrelated",
+    "confidence": 0.73,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "uripeled2/llm-client-sdk#25|tests/llm_api_client/anthropic_client/conftest.py|2|0c3b99a89b86680e": {
+    "class": "contested",
+    "confidence": 0.67,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "uripeled2/llm-client-sdk#25|tests/llm_api_client/anthropic_client/test_anthropic_client.py|0|5bbd92f11e82d07c": {
+    "class": "unrelated",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "uripeled2/llm-client-sdk#25|tests/llm_api_client/anthropic_client/test_anthropic_client.py|20|9c9df58d644ba434": {
+    "class": "contested",
+    "confidence": 0.44,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "uripeled2/llm-client-sdk#25|tests/llm_api_client/anthropic_client/test_anthropic_client.py|31|c9c49de6c5ffd3e6": {
+    "class": "contract",
+    "confidence": 0.95,
+    "model": "jev-1.13.0"
+  },
+  "uripeled2/llm-client-sdk#25|tests/llm_api_client/anthropic_client/test_anthropic_client.py|4|6374d2671a3a1204": {
+    "class": "sdk",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "uripeled2/llm-client-sdk#25|tests/llm_api_client/anthropic_client/test_anthropic_client.py|45|aef8e2f70bc8728f": {
+    "class": "unrelated",
+    "confidence": 0.34,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "uripeled2/llm-client-sdk#25|tests/llm_api_client/anthropic_client/test_anthropic_client.py|58|c9c49de6c5ffd3e6": {
+    "class": "contested",
+    "confidence": 0.64,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "uripeled2/llm-client-sdk#25|tests/llm_api_client/anthropic_client/test_anthropic_client.py|66|3fed06954b4c6a42": {
+    "class": "contract",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "uripeled2/llm-client-sdk#25|tests/llm_api_client/anthropic_client/test_anthropic_client.py|7|41897bd71751da80": {
+    "class": "contested",
+    "confidence": 0.48,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "uripeled2/llm-client-sdk#25|tests/llm_api_client/anthropic_client/test_anthropic_client.py|77|c9c49de6c5ffd3e6": {
+    "class": "contested",
+    "confidence": 0.65,
+    "model": "jev-1.13.0+settle+wire"
+  },
+  "uripeled2/llm-client-sdk#25|tests/llm_api_client/anthropic_client/test_anthropic_client.py|86|eeec25726db20abe": {
+    "class": "sdk",
+    "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "uripeled2/llm-client-sdk#25|tests/llm_api_client/anthropic_client/test_anthropic_client.py|90|7ec1353e8c860eab": {
+    "class": "sdk",
+    "confidence": 0.8,
+    "model": "jev-1.13.0"
+  },
+  "vatsalsaglani/claudetools#30|setup.py|4|c1d57cef814d05f9": {
+    "class": "unrelated",
+    "confidence": 0.77,
+    "model": "jev-1.13.0+check"
+  },
+  "vatsalsaglani/claudetools#31|setup.py|4|c1d57cef814d05f9": {
+    "class": "unrelated",
+    "confidence": 0.76,
+    "model": "jev-1.13.0+check"
   },
   "vercel/next.js#41550|examples/with-stripe-typescript/components/Cart.tsx|1|096df22bd38cf2be": {
     "class": "sdk",
@@ -34984,6 +39064,11 @@
     "confidence": 1,
     "model": "rule:module-version"
   },
+  "withmartian/llm-adapters#89|adapters/provider_adapters/openai_sdk_chat_provider_adapter.py|146|959b0684e6fa878f": {
+    "class": "contested",
+    "confidence": 0.68,
+    "model": "jev-1.13.0+settle+wire"
+  },
   "wndhydrnt/rcmt#408|rcmt/database/__init__.py|4|9cad79fac3c4f657": {
     "class": "unrelated",
     "confidence": 0.8,
@@ -36207,6 +40292,16 @@
   "zgosalvez/github-actions-report-lcov#369|src/post.js|8|834809e2b36bd2ce": {
     "class": "sdk",
     "confidence": 0.87,
+    "model": "jev-1.13.0"
+  },
+  "zylon-ai/private-gpt#2262|tests/models/anthropic/test_openapi_schema.py|10|c7a39211d97ff25c": {
+    "class": "contract",
+    "confidence": 0.96,
+    "model": "jev-1.13.0"
+  },
+  "zylon-ai/private-gpt#2347|tests/models/anthropic/test_openapi_schema.py|10|4cae45433d1dc49f": {
+    "class": "contract",
+    "confidence": 0.96,
     "model": "jev-1.13.0"
   }
 }

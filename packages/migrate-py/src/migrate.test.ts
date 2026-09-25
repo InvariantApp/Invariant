@@ -493,6 +493,123 @@ describe("the API version a consumer pins", () => {
   }, 60_000);
 });
 
+describe("values a parameter no longer takes", () => {
+  it("rewrites a literal a Change maps and shows one it does not, only where the SDK's own parameter lost it", async () => {
+    // A models SDK: `model` takes any text or one of the listed models, and
+    // the next release lists fewer. `size` lists its values in place.
+    const models = (listed: string[], sizes: string[]) => ({
+      "models/py.typed": "",
+      "models/__init__.py": [
+        "from models._types import ChatModel as ChatModel",
+        "from models._client import Client as Client",
+        "",
+      ].join("\n"),
+      "models/_types.py": [
+        "from typing import Literal",
+        "from typing_extensions import TypeAlias",
+        "",
+        `ChatModel: TypeAlias = Literal[${listed.map((name) => `"${name}"`).join(", ")}]`,
+        "",
+      ].join("\n"),
+      "models/_client.py": [
+        "from typing import Literal, Union, overload",
+        "",
+        "from models._types import ChatModel",
+        "",
+        "",
+        "class Completions:",
+        "    @overload",
+        "    def create(self, *, model: Union[str, ChatModel], stream: Literal[True]) -> str: ...",
+        "    @overload",
+        "    def create(self, *, model: Union[str, ChatModel], stream: bool = False) -> str: ...",
+        "    def create(self, *, model: Union[str, ChatModel], stream: bool = False) -> str: ...",
+        "",
+        `    def image(self, *, size: Union[str, Literal[${sizes.map((size) => `"${size}"`).join(", ")}]]) -> str: ...`,
+        "",
+        "",
+        "class Client:",
+        "    completions: Completions",
+        "",
+      ].join("\n"),
+    });
+    await writeTree(
+      join(root, "models-old"),
+      models(["m-1", "m-old", "m-gone"], ["256x256", "1024x1024"]),
+    );
+    await writeTree(join(root, "models-new"), models(["m-1", "m-2"], ["1024x1024"]));
+    const repo = join(root, "values");
+    await writeTree(repo, {
+      "app.py": [
+        "from models import Client",
+        "",
+        'DEFAULT = "m-gone"',
+        "",
+        "",
+        "def ask(client: Client) -> None:",
+        '    client.completions.create(model="m-old")',
+        "    client.completions.create(model=DEFAULT, stream=True)",
+        '    client.completions.create(model="m-1")',
+        '    client.completions.image(size="256x256")',
+        '    mine(model="m-old")',
+        "",
+        "",
+        "def mine(model: str) -> str:",
+        "    return model",
+        "",
+      ].join("\n"),
+    });
+    const plan = buildPlan(
+      [
+        {
+          irVersion: 1,
+          id: "chg_model",
+          summary: "`m-old` is now `m-2`.",
+          scopes: [{ operation: "createCompletion", location: "body" }],
+          ops: [
+            {
+              op: "convert",
+              path: "/model",
+              codec: { kind: "enumMap", pairs: [["m-old", "m-2"]] },
+            },
+          ],
+        },
+      ] as Change[],
+      {
+        package: "models",
+        upgradeTo: { package: "models", version: "2.0.0" },
+        types: {},
+        accessors: [],
+      },
+    );
+    const app = join(repo, "app.py");
+    const result = await migrate({
+      repoDir: repo,
+      sources: [app],
+      packages: [join(root, "models-old")],
+      upgraded: [join(root, "models-new")],
+      plan,
+    });
+    // The Change maps `m-old`: rewritten where the SDK's `model` is sent,
+    // and not in the consumer's own function that takes the same name.
+    const migrated = result.files.get(app) ?? "";
+    expect(migrated).toContain('client.completions.create(model="m-2")');
+    expect(migrated).toContain('mine(model="m-old")');
+    // Nothing maps `m-gone` or the smaller size: each is shown where it is
+    // written, the constant where it is bound.
+    expect(
+      result.manual
+        .filter((site) => /no longer lists it/.test(site.reason))
+        .map((site) => [site.line, site.snippet]),
+    ).toEqual([
+      [3, 'DEFAULT = "m-gone"'],
+      [10, 'client.completions.image(size="256x256")'],
+    ]);
+    // A value both releases list is left alone, and nothing else broke.
+    expect(migrated).toContain('client.completions.create(model="m-1")');
+    expect(result.diagnosticsAfter).toEqual([]);
+  }, 60_000);
+});
+
 describe("which new errors count", () => {
   const at = { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } };
   it("counts what breaks, and not the checker first seeing an SDK's types", () => {

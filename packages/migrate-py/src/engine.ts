@@ -104,6 +104,8 @@ export function manualAt(
   end: number,
   changeId: string,
   reason: string,
+  /** Where the changed element is written, where the extent shown starts before it. */
+  at?: number,
 ): ManualSite {
   const before = text.slice(0, start);
   const line = before.split("\n").length;
@@ -121,6 +123,7 @@ export function manualAt(
       .slice(0, 120),
     offset: start,
     end,
+    ...(at !== undefined && at !== start ? { at } : {}),
   };
 }
 
@@ -262,7 +265,15 @@ function applyComposed(
   const flag = (reason: string, node: Node = site.node.parent ?? site.node) => {
     const extent = shownExtent(site.node.tree, site.text, node.startIndex, node.endIndex);
     result.manual.push(
-      manualAt(site.file, site.text, extent.start, extent.end, changeId, reason),
+      manualAt(
+        site.file,
+        site.text,
+        extent.start,
+        extent.end,
+        changeId,
+        reason,
+        site.node.startIndex,
+      ),
     );
   };
 
@@ -410,6 +421,7 @@ export async function runTargets(
               extent.end,
               composed.changeIds[0] ?? "",
               `this expands \`${expansion.path.slice(0, at + 1).join(".")}\`; ${composed.unsupported ?? composed.reasons.join("; ")}`,
+              expansion.node.startIndex,
             ),
           );
           break;
@@ -659,6 +671,7 @@ async function flagByName(
           evidence === "sdk" || evidence === "near"
             ? `${reason}; read here by name from a ${target.typeName.split(".").at(-1)}`
             : `${reason}; read here by name from a value the type checker cannot type, so check it is the API's`,
+          candidate.node.startIndex,
         ),
       );
     }

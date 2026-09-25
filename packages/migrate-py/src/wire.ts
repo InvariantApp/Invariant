@@ -338,9 +338,14 @@ export function wireSites(
   },
   result: EngineResult,
 ): void {
-  const report = (node: Node, changeId: string, reason: string): ManualSite => {
+  const report = (
+    node: Node,
+    changeId: string,
+    reason: string,
+    at = node.startIndex,
+  ): ManualSite => {
     const extent = shownExtent(tree, text, node.startIndex, node.endIndex);
-    return manualAt(file, text, extent.start, extent.end, changeId, reason);
+    return manualAt(file, text, extent.start, extent.end, changeId, reason, at);
   };
   const apply = (key: Node, fate: Fate, where: string) => {
     if (fate.renamed && stringValue(key) !== undefined) {
@@ -355,7 +360,12 @@ export function wireSites(
       });
     } else {
       result.manual.push(
-        report(key.parent ?? key, fate.changeId, `${fate.reason}; ${where}`),
+        report(
+          key.parent ?? key,
+          fate.changeId,
+          `${fate.reason}; ${where}`,
+          key.startIndex,
+        ),
       );
     }
   };

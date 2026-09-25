@@ -59,6 +59,7 @@ describe("a value whose encoding changed", () => {
         },
         targets: [],
         typeRenames: [],
+        retiredValues: [],
         accessorRenames: [],
         retired: [],
         changes: [change],
