@@ -25,9 +25,10 @@ import type { WireOperation, WireTags } from "@invariant-app/migrate-core";
 import type { GoSymbol, SurfaceObject } from "@invariant-app/migrate-go";
 import { type Decision, propose, RulesJudge } from "@invariant-app/proposer";
 import { ROOT } from "../corpus/manifest.mts";
+import { breakingBetween } from "./forced.mts";
 import { type ClassFields, classFields } from "./stubs.mts";
 
-const SPECS = join(ROOT, ".cache/replay/specs");
+export const SPECS = join(ROOT, ".cache/replay/specs");
 const TAGS = join(SPECS, "stripe-openapi-tags.json");
 
 /** Which of Stripe's SDKs a release number belongs to. */
@@ -163,6 +164,8 @@ export interface ContractPlan {
   /** Drafts, and removals no judge could pair, for the record. */
   drafted: number;
   removed: number;
+  /** The names the upgrade broke (`forced.mts`), where the differ could say. */
+  breaking?: string[] | undefined;
 }
 
 /**
@@ -213,7 +216,7 @@ const pythonTypeOf = (schema: string) => {
 
 type Schemas = Record<string, { properties?: Record<string, unknown> }>;
 
-const schemasOf = (document: OpenApiDocument): Schemas =>
+export const schemasOf = (document: OpenApiDocument): Schemas =>
   ((
     (document as Record<string, unknown>)["components"] as
       | { schemas?: Schemas }
@@ -340,6 +343,7 @@ async function changesBetween(
   changes: Change[];
   drafted: number;
   removed: number;
+  breaking: string[] | undefined;
 }> {
   // One after the other: each records what it found in the same file.
   const oldRelease = await openapiRelease(from, flavour);
@@ -348,6 +352,27 @@ async function changesBetween(
     specification(oldRelease),
     specification(newRelease),
   ]);
+  return {
+    before,
+    after,
+    ...(await draftChanges(before, after)),
+    breaking: await breakingBetween(
+      before,
+      after,
+      join(SPECS, "breaking", `stripe-${oldRelease}-${newRelease}.json`),
+    ),
+  };
+}
+
+/**
+ * What a provider's release would publish between two specifications, drafted
+ * with the rules judge alone: the proposals, a removal for each field no judge
+ * paired, and the removals a decision names.
+ */
+export async function draftChanges(
+  before: OpenApiDocument,
+  after: OpenApiDocument,
+): Promise<{ changes: Change[]; drafted: number; removed: number }> {
   const outcome = await propose(before, after, { judge: new RulesJudge() });
   const removals: Change[] = outcome.unresolved
     .filter((entry) => entry.side === "removed")
@@ -366,8 +391,6 @@ async function changesBetween(
     ...removals,
   ]);
   return {
-    before,
-    after,
     changes: [
       ...outcome.proposals.map((proposal) => proposal.change),
       ...removals,
@@ -390,8 +413,17 @@ export async function stripeGoPlan(
   from: string,
   to: string,
   surface: readonly SurfaceObject[],
-): Promise<{ changes: Change[]; types: Record<string, GoSymbol>; tags: WireTags }> {
-  const { before, after, changes } = await changesBetween(from, to, "stripe-go");
+): Promise<{
+  changes: Change[];
+  types: Record<string, GoSymbol>;
+  tags: WireTags;
+  breaking: string[] | undefined;
+}> {
+  const { before, after, changes, breaking } = await changesBetween(
+    from,
+    to,
+    "stripe-go",
+  );
   const fields = new Map<string, Set<string>>();
   for (const object of surface) {
     if (object.kind !== "field" || object.package !== "" || !object.json) continue;
@@ -410,7 +442,7 @@ export async function stripeGoPlan(
       types[schema] = { package: "", key: name };
     }
   }
-  return { changes, types, tags: wireTags(before, after) };
+  return { changes, types, tags: wireTags(before, after), breaking };
 }
 
 /**
@@ -424,7 +456,7 @@ export async function stripePlan(
   namespaced: boolean,
   flavour: StripeSdk = "stripe-node",
 ): Promise<ContractPlan> {
-  const { before, changes, drafted, removed, after } = await changesBetween(
+  const { before, changes, drafted, removed, after, breaking } = await changesBetween(
     from,
     to,
     flavour,
@@ -479,6 +511,7 @@ export async function stripePlan(
       operations: {},
       drafted,
       removed,
+      breaking,
     };
   }
   const declared = declaredInterfaces(sdk);
@@ -496,5 +529,6 @@ export async function stripePlan(
     operations: operationsOf(sdk, namespaced),
     drafted,
     removed,
+    breaking,
   };
 }

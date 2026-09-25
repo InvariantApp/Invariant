@@ -295,10 +295,12 @@ export function scoreboard(inputs: {
   lines.push({
     id: "L8",
     claim:
-      "Migration replay on at least 50 human migrations each for TypeScript, Python and Go, and 25 for JavaScript: 90% handled, no wrong edits. " +
+      "Migration replay on at least 50 human migrations each for TypeScript, Python and Go, and 25 for JavaScript: 90% of the sites the upgrade forced handled, no wrong edits. " +
       "A site is a region of existing code the humans changed because the contract changed. " +
       "One they replaced or restructured around a changed contract element counts as handled where the engine flagged a line inside the hunk they changed, pointing at that element. " +
-      "Lines they added with nothing before them that they replace, a new file or a new helper, are no site: they are counted apart per language as new code written, never as handled or missed, and the calls to them they wrote into existing code remain sites, scored as any other.",
+      "Lines they added with nothing before them that they replace, a new file or a new helper, are no site: they are counted apart per language as new code written, never as handled or missed, and the calls to them they wrote into existing code remain sites, scored as any other. " +
+      "A contract site is forced where a line the humans removed or wrote names an element the pinned differ reports broken between the two releases' contracts; one that names nothing broken is a choice made while the old code still worked, such as adopting a new tool version, and is no migration. " +
+      "The rate is given over every contract site and over the forced ones; a case whose two contracts are not both known is not judged, and its sites are counted apart.",
     status: replayed.length === 0 ? "not measured" : "not met",
     value:
       `${cases.length} cases mined (npm ${count("npm")}, pypi ${count("pypi")}, go ${count("go")}). ` +
@@ -331,7 +333,18 @@ export function scoreboard(inputs: {
               // Every site, the SDK's own changes included, which L8 does not
               // count but a person upgrading does.
               const everywhere = sum((entry) => entry.identical + entry.flagged);
-              return `${language} ${mine.length} cases: of ${sites - newCode} human sites, ${inScope} follow from a contract change; ${identical + flagged} handled (${percent(identical + flagged, inScope)}: ${identical} identical, ${flagged} flagged for a person${contested > 0 ? `; ${percent(identical + flagged, inScope + contested)} at worst, were every contested site a contract change nothing handled` : ""}), ${differs} to adjudicate; ${newCode} new code written, counted apart; ${extraFlags} flags where no human changed anything; ${contested} contested and ${unclassified} not yet classed, counted as neither; over every human site, the SDK's own changes included, ${everywhere} handled (${percent(everywhere, sites - newCode)})`;
+              // The forced sites, over the cases whose two contracts are known.
+              const judged = sum((entry) =>
+                entry.inScope?.forced ? entry.inScope.sites : 0,
+              );
+              const forced = sum((entry) => entry.inScope?.forced?.sites ?? 0);
+              const forcedHandled = sum(
+                (entry) =>
+                  (entry.inScope?.forced?.identical ?? 0) +
+                  (entry.inScope?.forced?.flagged ?? 0),
+              );
+              const forcedLine = `forced: ${forced} of ${judged} contract sites in judged cases, ${forcedHandled} handled (${percent(forcedHandled, forced)}), ${inScope - judged} in cases not judged; `;
+              return `${language} ${mine.length} cases: of ${sites - newCode} human sites, ${inScope} follow from a contract change; ${identical + flagged} handled (${percent(identical + flagged, inScope)}: ${identical} identical, ${flagged} flagged for a person${contested > 0 ? `; ${percent(identical + flagged, inScope + contested)} at worst, were every contested site a contract change nothing handled` : ""}), ${differs} to adjudicate; ${forcedLine}${newCode} new code written, counted apart; ${extraFlags} flags where no human changed anything; ${contested} contested and ${unclassified} not yet classed, counted as neither; over every human site, the SDK's own changes included, ${everywhere} handled (${percent(everywhere, sites - newCode)})`;
             })
             .join("; ")}. ` +
           `${failed.length} could not be replayed. ` +

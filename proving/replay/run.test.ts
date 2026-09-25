@@ -3,7 +3,8 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { importers, importing, lineOf, lockedVersion, pathsOf } from "./run.mts";
+import { type ClassRecord, type Site, siteKey } from "./classify.mts";
+import { importers, importing, lineOf, lockedVersion, pathsOf, scopeOf } from "./run.mts";
 
 describe("the version a commit installed", () => {
   it("is read from npm's, pnpm's and yarn's lockfiles", () => {
@@ -159,5 +160,46 @@ describe("the line a flagged place is on", () => {
       0, 0, 1, 1, 2, 3, 3,
     ]);
     expect(text.slice(starts[3])).toBe("d");
+  });
+});
+
+describe("scopeOf", () => {
+  const base = [
+    "charge = stripe.Charge.retrieve(id)",
+    "refunded = charge.amount_refunded",
+    "x = 1",
+  ];
+  const site = (oldStart: number, lines: string[]): Site => ({
+    caseId: "c#1",
+    package: "stripe",
+    from: "1",
+    to: "2",
+    file: "a.py",
+    base,
+    region: { oldStart, oldEnd: oldStart + 1, lines },
+  });
+  const forced = site(1, ["refunded = charge.refunds.total"]);
+  const chosen = site(2, ["x = client.new_feature()"]);
+  const contract: ClassRecord = { class: "contract", confidence: 0.9, model: "test" };
+  const classes = { [siteKey(forced)]: contract, [siteKey(chosen)]: contract };
+  const scored = [
+    { site: forced, outcome: "flagged" as const },
+    { site: chosen, outcome: "missed" as const },
+  ];
+
+  it("counts a contract site as forced only where it names what the upgrade broke", () => {
+    const scope = scopeOf(scored, classes, new Set(["amountrefunded"]));
+    expect(scope.sites).toBe(2);
+    expect(scope.forced).toEqual({
+      sites: 1,
+      identical: 0,
+      differs: 0,
+      flagged: 1,
+      missed: 0,
+    });
+  });
+
+  it("does not judge a case whose contracts are not both known", () => {
+    expect(scopeOf(scored, classes).forced).toBeUndefined();
   });
 });

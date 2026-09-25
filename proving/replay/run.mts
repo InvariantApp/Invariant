@@ -89,6 +89,7 @@ import {
   siteKey,
   writeClasses,
 } from "./classify.mts";
+import { forcedBy } from "./forced.mts";
 import { replayGo } from "./go.mts";
 import type { ReplayCase, ReplayIndex } from "./mine.mts";
 import {
@@ -110,6 +111,7 @@ import {
   score,
 } from "./score.mts";
 import { type Language, languageOf } from "./sites.mts";
+import { STAINLESS, stainlessPlan } from "./stainless.mts";
 import { type ContractPlan, stripePlan } from "./stripe.mts";
 import { typedCopy } from "./stubs.mts";
 
@@ -170,6 +172,18 @@ export interface ScopedScore {
   contested?: number;
   /** New code the humans wrote: no site of a contract change, whatever its class. */
   newCode?: number;
+  /**
+   * Of the contract sites, those the upgrade forced (`forced.mts`), by how
+   * the engine did on each; absent where the case's two contracts are not
+   * both known, so the case is not judged.
+   */
+  forced?: {
+    sites: number;
+    identical: number;
+    differs: number;
+    flagged: number;
+    missed: number;
+  };
 }
 
 /** What an SDK records about itself, read from the installed package. */
@@ -667,6 +681,8 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
     const engineText = new Map<string, string>();
     /** What the engine reported to a person rather than edited, per file, in base lines. */
     const flagged = new Map<string, Flag[]>();
+    /** The names the upgrade broke, where both contracts are known (`forced.mts`). */
+    let breaking: string[] | undefined;
     if (entry.ecosystem === "pypi") {
       const python = await replayPython(
         entry,
@@ -678,6 +694,8 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       for (const [file, ranges] of python.flagged) flagged.set(file, ranges);
       for (const [file, text] of python.files) engineText.set(file, text);
       base.versions = python.versions;
+      breaking = python.breaking;
+      if (python.contract) base.engine = "contract";
     }
     if (entry.ecosystem === "go") {
       const blobs = await treeAt(repo, entry.base);
@@ -693,6 +711,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
         CACHE,
       );
       base.engine = go.engine;
+      breaking = go.breaking;
       if (go.versions) base.versions = go.versions;
       if (keep || options.verbose) {
         process.stdout.write(`${JSON.stringify(go.notes, null, 2)}\n`);
@@ -802,6 +821,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
                 return undefined;
               })
           : undefined;
+      breaking = contract?.breaking;
       const symbols: SymbolMap = {
         package: entry.package,
         upgradeTo: {
@@ -981,7 +1001,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       ...base,
       sites,
       ...total,
-      inScope: scopeOf(scored, options.classes),
+      inScope: scopeOf(scored, options.classes, breaking && new Set(breaking)),
       byClass: byClassOf(scored, options.classes),
     };
   } catch (error) {
@@ -1027,6 +1047,7 @@ function withLabel(
 export function scopeOf(
   scored: readonly { site: Site; outcome: Outcome }[],
   classes: Record<string, ClassRecord>,
+  breaking?: ReadonlySet<string>,
 ): ScopedScore {
   const scope: ScopedScore = {
     sites: 0,
@@ -1035,6 +1056,9 @@ export function scopeOf(
     flagged: 0,
     missed: 0,
     unclassified: 0,
+    ...(breaking
+      ? { forced: { sites: 0, identical: 0, differs: 0, flagged: 0, missed: 0 } }
+      : {}),
   };
   for (const { site, outcome } of scored) {
     // New code is no site of a contract change, whatever it was classed.
@@ -1054,6 +1078,15 @@ export function scopeOf(
     if (record.class !== "contract") continue;
     scope.sites += 1;
     scope[outcome] += 1;
+    const { oldStart, oldEnd, lines } = site.region;
+    if (
+      breaking &&
+      scope.forced &&
+      forcedBy([...site.base.slice(oldStart, oldEnd), ...lines], breaking)
+    ) {
+      scope.forced.sites += 1;
+      scope.forced[outcome] += 1;
+    }
   }
   return scope;
 }
@@ -1080,9 +1113,11 @@ export function byClassOf(
 }
 
 /**
- * The PyPI packages whose contracts the pack is told about. Every other SDK
- * is replayed with no Changes: the engine is still checked against both
- * releases, and reports where the consumer stops type-checking.
+ * The PyPI packages whose contracts the pack is told about, beside the
+ * Stainless SDKs (`stainless.mts`), which are told where their releases
+ * record a specification. Every other SDK is replayed with no Changes: the
+ * engine is still checked against both releases, and reports where the
+ * consumer stops type-checking.
  */
 const PYTHON_CONTRACTS: Record<string, true> = { stripe: true };
 
@@ -1154,6 +1189,9 @@ async function replayPython(
   flagged: Map<string, Flag[]>;
   files: Map<string, string>;
   versions: [string, string];
+  /** Whether the engine was told the Changes between the two contracts. */
+  contract: boolean;
+  breaking: string[] | undefined;
 }> {
   const tree = async (commit: string) => {
     const blobs = new Map<string, string>();
@@ -1221,11 +1259,30 @@ async function replayPython(
   let types: Record<string, string> = {};
   let pin: SymbolMap["pin"];
   let contract: ContractPlan | undefined;
+  let breaking: string[] | undefined;
+  if (STAINLESS[entry.package]) {
+    // A release that records no specification is replayed with no Changes.
+    contract = await stainlessPlan(
+      entry.package,
+      old.version,
+      next.version,
+      old.site,
+    ).catch((error: unknown) => {
+      process.stderr.write(
+        `${entry.id}: no contract: ${(error instanceof Error ? error.message : String(error)).slice(0, 160)}\n`,
+      );
+      return undefined;
+    });
+    changes = contract?.changes ?? [];
+    types = contract?.types ?? {};
+  }
   if (PYTHON_CONTRACTS[entry.package] && entry.package === "stripe") {
     const label = stripePythonVersion(next.site);
     const was = stripePythonVersion(old.site);
     // stripe-python before 8 records no version of its own, and speaks
     // whatever the account is pinned to; there is nothing to compare.
+    // Two releases speaking one API version broke nothing in the contract.
+    if (label && was && label === was) breaking = [];
     if (label && was && label !== was) {
       contract = await stripePlan(
         old.version,
@@ -1333,6 +1390,8 @@ async function replayPython(
     flagged: flaggedLines(result.manual, repo, before),
     files,
     versions: [old.version, next.version],
+    contract: contract !== undefined,
+    breaking: contract?.breaking ?? breaking,
   };
 }
 

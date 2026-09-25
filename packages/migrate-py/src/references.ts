@@ -21,6 +21,19 @@ import { LineIndex } from "./offsets.ts";
 import type { Diagnostic, Location, Position, Pyright } from "./pyright.ts";
 
 /** A place in one of the consumer's sources, as offsets into its text. */
+/**
+ * What a probe imports so a qualified type resolves: its module path, the
+ * segments before the first class. `import anthropic` alone does not load
+ * `anthropic.types.beta`, so `anthropic.types.beta.BetaMessage` would not
+ * resolve; a class nested in another, `stripe.Subscription.AutomaticTax`,
+ * still imports `stripe`.
+ */
+export function importedFor(typeName: string): string {
+  const segments = typeName.split(".");
+  const firstClass = segments.findIndex((segment) => /^[A-Z]/.test(segment));
+  return segments.slice(0, firstClass <= 0 ? 1 : firstClass).join(".");
+}
+
 export interface Span {
   file: string;
   start: number;
@@ -161,7 +174,7 @@ export class PyrightReferences implements ReferenceProvider, Verifier {
     const reach = path
       .map((segment) => (segment === "*" ? "[0]" : `.${segment}`))
       .join("");
-    const module = typeName.split(".")[0] as string;
+    const module = importedFor(typeName);
     const text = `import ${module}\n\n\ndef __invariant_probe(value: "${typeName}") -> None:\n    value${reach}\n`;
     return this.probeAt(text, text.lastIndexOf(`.${leaf}`) + 1);
   }
@@ -175,7 +188,7 @@ export class PyrightReferences implements ReferenceProvider, Verifier {
     const reach = path
       .map((segment) => (segment === "*" ? "[0]" : `.${segment}`))
       .join("");
-    const module = typeName.split(".")[0] as string;
+    const module = importedFor(typeName);
     const text = `import ${module}\n\n\ndef __invariant_probe(value: "${typeName}") -> None:\n    value${reach}\n`;
     await this.server.open(this.probe, text);
     return this.server.hover(

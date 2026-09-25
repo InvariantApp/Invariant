@@ -53,6 +53,8 @@ export interface GoReplay {
   versions?: [string, string];
   /** What the engine was told and found, for `--keep`. */
   notes: Record<string, unknown>[];
+  /** The names the upgrade broke, where both contracts are known (`forced.mts`). */
+  breaking?: string[] | undefined;
 }
 
 const SKIPPED = /(^|\/)(vendor|testdata|node_modules|\.git)\//;
@@ -223,6 +225,7 @@ export async function replayGo(
       }
     }
     if (contract || stripe) result.engine = "contract";
+    if (stripe?.breaking) result.breaking = stripe.breaking;
     const plan = buildGoPlan(
       contract?.changes ?? stripe?.changes ?? [],
       {
