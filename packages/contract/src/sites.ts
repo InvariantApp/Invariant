@@ -344,6 +344,70 @@ function onlyNullBeside(
  * closed set of values that do not overlap, as Adyen's payment methods each
  * fix `type`; and a field only this branch requires.
  */
+/**
+ * The alternatives of a branch that is itself a union, as Stripe's
+ * `payment_source` is any of an account, a bank account, a card or a source.
+ */
+function alternativesOf(
+  document: OpenApiDocument,
+  branch: JsonValue,
+): JsonValue[] | undefined {
+  const resolved = resolveSchema(document, branch);
+  if (!isJsonObject(resolved)) return undefined;
+  const list = resolved["anyOf"] ?? resolved["oneOf"];
+  return Array.isArray(list) ? list : undefined;
+}
+
+/** How deep a union of unions is looked into before its fields count as unknown. */
+const MAX_UNION_DEPTH = 4;
+
+/** The fields every value of a branch has: for a union, those all its alternatives require. */
+function requiredOf(document: OpenApiDocument, branch: JsonValue, depth = 0): string[] {
+  const alternatives =
+    depth < MAX_UNION_DEPTH ? alternativesOf(document, branch) : undefined;
+  if (alternatives) {
+    const [first = [], ...rest] = alternatives.map((each) =>
+      requiredOf(document, each, depth + 1),
+    );
+    return first.filter((name) => rest.every((list) => list.includes(name)));
+  }
+  const resolved = resolveSchema(document, branch);
+  return isJsonObject(resolved) && Array.isArray(resolved["required"])
+    ? (resolved["required"] as JsonValue[]).filter(
+        (name): name is string => typeof name === "string",
+      )
+    : [];
+}
+
+/**
+ * The fields a branch declares, for a union those any alternative does, or
+ * undefined where it could hold any field: an object schema that lists none,
+ * or anything not an object schema at all.
+ */
+function declaredOf(
+  document: OpenApiDocument,
+  branch: JsonValue,
+  depth = 0,
+): string[] | undefined {
+  const alternatives =
+    depth < MAX_UNION_DEPTH ? alternativesOf(document, branch) : undefined;
+  if (alternatives) {
+    const found = new Set<string>();
+    for (const each of alternatives) {
+      const kind = jsonKindOf(document, each);
+      if (kind !== undefined && kind !== "object") continue;
+      const theirs = declaredOf(document, each, depth + 1);
+      if (theirs === undefined) return undefined;
+      for (const name of theirs) found.add(name);
+    }
+    return [...found];
+  }
+  const resolved = resolveSchema(document, branch);
+  return isJsonObject(resolved) && isJsonObject(resolved["properties"])
+    ? Object.keys(resolved["properties"])
+    : undefined;
+}
+
 function guardFor(
   document: OpenApiDocument,
   union: JsonObject,
@@ -413,24 +477,16 @@ function guardFor(
     if (disjoint) return { at, key: `/${escapeSegment(property)}`, values: mine };
   }
 
-  const required =
-    isJsonObject(resolved) && Array.isArray(resolved["required"])
-      ? (resolved["required"] as JsonValue[]).filter(
-          (name): name is string => typeof name === "string",
-        )
-      : [];
+  // A branch that is itself a union has what every alternative requires,
+  // and may have what any declares.
+  const required = requiredOf(document, branch);
   /** Whether a value of another branch could carry the field. */
   const mayHave = (other: JsonValue, name: string): boolean => {
     // A string, a number or a list never has a field, so a branch that is
     // one cannot be mistaken for this one by it.
     const kind = jsonKindOf(document, other);
     if (kind !== undefined && kind !== "object") return false;
-    const theirs = resolveSchema(document, other);
-    return (
-      !isJsonObject(theirs) ||
-      !isJsonObject(theirs["properties"]) ||
-      (theirs["properties"] as JsonObject)[name] !== undefined
-    );
+    return declaredOf(document, other)?.includes(name) ?? true;
   };
   const others = branches.filter((_, at2) => at2 !== index);
   for (const name of required) {
@@ -447,18 +503,16 @@ function guardFor(
       return kind === undefined || kind === "object";
     });
     if (objects.length === 0) return undefined;
-    const requiredBy = (other: JsonValue): string[] => {
-      const theirs = resolveSchema(document, other);
-      return isJsonObject(theirs) && Array.isArray(theirs["required"])
-        ? (theirs["required"] as JsonValue[]).filter(
-            (name): name is string => typeof name === "string",
-          )
-        : [];
-    };
-    const [first, ...rest] = objects.map(requiredBy);
+    const [first, ...rest] = objects.map((other) => requiredOf(document, other));
+    // This branch never having the field is what marks it, so it must be
+    // known not to declare it, through every alternative where it is a union.
+    const declared = alternativesOf(document, branch)
+      ? declaredOf(document, branch)
+      : own;
+    if (declared === undefined) return undefined;
     return (first ?? [])
       .filter((name) => rest.every((list) => list.includes(name)))
-      .find((name) => !own.includes(name));
+      .find((name) => !declared.includes(name));
   };
   const missing = absentHere(others);
   if (missing !== undefined) return { at, lacks: missing };
