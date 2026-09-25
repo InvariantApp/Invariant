@@ -355,8 +355,15 @@ export async function runTargets(
   let unresolved = 0;
   /** Read once, the first time a field that moved or went needs them. */
   let expansions: Expansion[] | undefined;
+  // A field is referenced only where its name is written, as an attribute or
+  // a key, so one no file spells needs no probe of the checker: on an SDK with
+  // hundreds of Changes those probes were nearly all of a run.
+  const words = new Set(
+    [...sources.texts.values()].flatMap((text) => text.match(/\w+/g) ?? []),
+  );
   for (const targets of groupTargets(plan)) {
     const first = targets[0] as TargetSymbol;
+    if (!words.has(first.property)) continue;
     const declaration = await references.declarationOf(first.typeName, [
       ...(first.within ?? []),
       first.property,
