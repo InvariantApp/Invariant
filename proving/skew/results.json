@@ -1,9 +1,9 @@
 {
-  "published": "0.3.0",
+  "published": "0.4.0",
   "compiledBy": "@invariant-app/compiler@0.1.0",
   "cases": 83,
-  "same": 74,
-  "refusedAtLoad": 9,
+  "same": 75,
+  "refusedAtLoad": 8,
   "different": [],
   "untyped": []
 }
