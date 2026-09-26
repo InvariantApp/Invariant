@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"strings"
 	"testing"
 )
 
@@ -28,9 +29,10 @@ func checked(t *testing.T, sdk, consumer string) (*token.FileSet, *ast.File, *ty
 		t.Fatal(err)
 	}
 	info := &types.Info{
-		Types: map[ast.Expr]types.TypeAndValue{},
-		Uses:  map[*ast.Ident]types.Object{},
-		Defs:  map[*ast.Ident]types.Object{},
+		Types:      map[ast.Expr]types.TypeAndValue{},
+		Uses:       map[*ast.Ident]types.Object{},
+		Defs:       map[*ast.Ident]types.Object{},
+		Selections: map[*ast.SelectorExpr]*types.Selection{},
 	}
 	config := &types.Config{Importer: importerFunc(func(path string) (*types.Package, error) {
 		if path == "example.com/sdk" {
@@ -61,6 +63,12 @@ type Customer struct {
 	Nickname string ` + "`json:\"nickname\"`" + `
 	Status   Status ` + "`json:\"status\"`" + `
 }
+
+type Params struct {
+	Status Status ` + "`json:\"status\"`" + `
+}
+
+func Raw() map[string]any { return nil }
 `
 
 func TestValuesAreFoundByTheirType(t *testing.T) {
@@ -68,56 +76,92 @@ func TestValuesAreFoundByTheirType(t *testing.T) {
 
 import (
 	"reflect"
+	"slices"
 
 	"example.com/sdk"
 )
 
-func f(c *sdk.Customer, payload map[string]any, labels map[string]string) []any {
+func isLive(status sdk.Status) bool {
+	return status == "active"
+}
+
+func f(c *sdk.Customer, payload map[string]any, labels map[string]string, s sdk.Status) []any {
 	own := "active"
+	raw := sdk.Raw()
 	return []any{
 		c.Status == "active",
-		[]sdk.Status{"active", "gone"},
+		slices.Contains([]sdk.Status{"active", "gone"}, c.Status),
 		own == "active",
 		&sdk.Customer{Nickname: "Ada", Status: "active"},
+		&sdk.Params{Status: "active"},
+		string(c.Status) == "gone",
+		s == "active",
+		isLive(c.Status),
 		reflect.ValueOf(c).Elem().FieldByName("Email"),
 		reflect.ValueOf(c).FieldByName("Nickname"),
 		payload["nickname"],
+		raw["nickname"],
 		labels["nickname"],
 	}
 }
+
+func g() bool { return f(nil, nil, nil, "gone") != nil }
 `
 	fset, file, info := checked(t, sdkSource, consumer)
 	offset := func(pos token.Pos) int { return fset.Position(pos).Offset }
 	line := func(pos token.Pos) int { return fset.Position(pos).Line }
 	names := &keys{cache: map[*types.Package]map[types.Object]string{}}
-	targets := []string{"example.com/sdk"}
+	trace := &tracer{
+		fset:    fset,
+		targets: []string{"example.com/sdk"},
+		names:   names,
+		calls:   map[string][]tracedCall{},
+		params:  map[string]parameter{},
+	}
+	trace.index(file, info)
 
-	constants, literals := valuesIn(file, info, "main.go", targets, names, offset, line)
+	constants, literals := trace.valuesIn(file, info, "main.go", offset, line)
 	var found []string
 	for _, constant := range constants {
-		found = append(found, constant.Key+"="+constant.Value)
-	}
-	// The literal of plain string compared with `own` is not the SDK's.
-	want := []string{"Status=active", "Status=active", "Status=gone", "Status=active"}
-	if len(found) != len(want) {
-		t.Fatalf("constants = %q, want %q", found, want)
-	}
-	for index := range want {
-		if found[index] != want[index] {
-			t.Errorf("constant %d = %q, want %q", index, found[index], want[index])
+		fields := []string{}
+		for _, field := range constant.Fields {
+			fields = append(fields, field.Key)
 		}
+		entry := constant.Key + "=" + constant.Value + " " + strings.Join(fields, ",")
+		if constant.Unknown {
+			entry += " ?"
+		}
+		found = append(found, entry)
 	}
-	if len(literals) != 1 || literals[0].Key != "Customer" || len(literals[0].Keys) != 2 {
+	// The literal of plain string compared with `own` is not the SDK's. The
+	// one compared with `s` meets whatever `g` passes, a literal, which leads
+	// to no field; the one in `isLive` meets what its one caller passes.
+	want := []string{
+		"Status=active Customer.Status",
+		"Status=active Customer.Status",
+		"Status=active Customer.Status",
+		"Status=gone Customer.Status",
+		"Status=active Customer.Status",
+		"Status=active Params.Status",
+		"Status=gone Customer.Status",
+		"Status=active  ?",
+		"Status=gone  ?",
+	}
+	if strings.Join(found, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("constants =\n%s\nwant\n%s", strings.Join(found, "\n"), strings.Join(want, "\n"))
+	}
+	if len(literals) != 2 || literals[0].Key != "Customer" || len(literals[0].Keys) != 2 {
 		t.Errorf("literals = %+v", literals)
 	}
 
-	references, keys := namedIn(file, info, "main.go", targets, names, offset, line)
+	references, keys := trace.namedIn(file, info, "main.go", offset, line)
 	// `FieldByName` on the pointer itself, without `Elem`, names nothing.
 	if len(references) != 1 || references[0].Key != "Base.Email" || references[0].Role != "name" {
 		t.Errorf("reflected = %+v", references)
 	}
-	// Only the map of untyped JSON, not the consumer's own `map[string]string`.
-	if len(keys) != 1 || keys[0].Key != "nickname" {
+	// Only the untyped JSON the SDK returned: not a parameter nothing ties to
+	// the SDK, and not the consumer's own `map[string]string`.
+	if len(keys) != 1 || keys[0].Key != "nickname" || keys[0].Line != 29 {
 		t.Errorf("keys = %+v", keys)
 	}
 }

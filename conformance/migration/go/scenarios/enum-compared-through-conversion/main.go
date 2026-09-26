@@ -1,0 +1,11 @@
+// A renamed enum value compared with the response's field as plain text.
+package scenario
+
+import (
+	"example.com/sdk"
+)
+
+// IsLive reports whether a customer is live.
+func IsLive(customer *sdk.Customer) bool {
+	return string(customer.Status) == "active"
+}

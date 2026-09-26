@@ -3,7 +3,8 @@
  * not edited: a field inherited from a base other types share, read from a
  * value that is only the base; request parameters gathered in an object
  * that is also read on its own; an untyped parameter one caller passes
- * something else to.
+ * something else to; a value of a type the SDK shares between fields, where
+ * nothing says which field it is.
  */
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -128,5 +129,48 @@ describe("a rewrite whose evidence stops short", () => {
     );
     expect(after).toBeUndefined();
     expect(manual.map((site) => site.line)).toContain(7);
+  });
+
+  it("renames a shared value type's literal only on the field the Change covers", async () => {
+    const statusRenamed: Change = {
+      irVersion: 1,
+      id: "chg_status",
+      summary: "The status `active` is now `enabled`.",
+      scopes: [{ schema: "#/components/schemas/customer" }],
+      ops: [
+        {
+          op: "convert",
+          path: "/status",
+          codec: { kind: "enumMap", pairs: [["active", "enabled"]] },
+        },
+      ],
+    };
+    const { after, manual } = await run(
+      "shared.ts",
+      [
+        'import Acme, { type CustomerStatus } from "acme";',
+        "",
+        'const client = new Acme("sk_test");',
+        'const fallback: CustomerStatus = "active";',
+        "",
+        "function isLive(status: CustomerStatus): boolean {",
+        '  return status === "active";',
+        "}",
+        "",
+        "export async function go(id: string) {",
+        "  const customer = await client.customers.retrieve(id);",
+        '  await client.customers.create({ status: "active" });',
+        "  return [isLive(customer.status), fallback];",
+        "}",
+        "",
+      ],
+      [statusRenamed],
+    );
+    // The helper only ever sees the response's status; the request keeps its
+    // own values; and a constant nothing ties to either is shown.
+    expect(after).toContain('return status === "enabled";');
+    expect(after).toContain('await client.customers.create({ status: "active" });');
+    expect(after).toContain('const fallback: CustomerStatus = "active";');
+    expect(manual.map((site) => site.line)).toEqual([4]);
   });
 });

@@ -82,6 +82,12 @@ export interface GoFlag {
 export interface GoValueRename {
   /** The named type, as `CustomerStatus`, whose literals are the field's values. */
   type: GoSymbol;
+  /**
+   * The fields whose values the Change renamed. An SDK may give a response's
+   * field and a request's the same named type, and a Change scoped to one
+   * leaves the other's values as they were.
+   */
+  fields: GoSymbol[];
   from: string;
   to: string;
   changeId: string;
@@ -455,17 +461,21 @@ export function buildGoPlan(
             op.codec.kind === "enumMap" ? vocabularyOf(before, field) : undefined;
           if (vocabulary && op.codec.kind === "enumMap") {
             for (const [from, to] of op.codec.pairs) {
-              if (
-                from === to ||
-                values.some(
-                  (value) =>
-                    symbolId(value.type) === symbolId(vocabulary) &&
-                    value.from === String(from),
-                )
-              )
+              if (from === to) continue;
+              const same = values.find(
+                (value) =>
+                  symbolId(value.type) === symbolId(vocabulary) &&
+                  value.from === String(from) &&
+                  value.to === String(to),
+              );
+              if (same) {
+                if (!same.fields.some((each) => symbolId(each) === symbolId(symbol)))
+                  same.fields.push(symbol);
                 continue;
+              }
               values.push({
                 type: vocabulary,
+                fields: [symbol],
                 from: String(from),
                 to: String(to),
                 changeId: change.id,

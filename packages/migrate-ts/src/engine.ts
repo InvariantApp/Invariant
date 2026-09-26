@@ -443,6 +443,18 @@ function applyEnum(
     if (!access) return;
     if (replace(otherSideOf(access.getParent() as Node, access))) return;
 
+    // `String(customer.status) === "active"` compares the field as text.
+    const text = access.getParent();
+    if (
+      Node.isCallExpression(text) &&
+      isGlobalString(text.getExpression()) &&
+      text.getArguments().length === 1 &&
+      text.getArguments()[0] === access &&
+      isEquality(text.getParent() as Node) &&
+      replace(otherSideOf(text.getParent() as Node, text))
+    )
+      return;
+
     // `switch (customer.status)` compares the field with each case's value.
     const holder = access.getParent();
     if (Node.isSwitchStatement(holder) && holder.getExpression() === access) {
@@ -522,6 +534,10 @@ function applyContextualEnums(
   changeId: string,
   scope: EditScope,
   result: EngineResult,
+  /** The field whose values the Change renamed. */
+  covered: Node,
+  /** Sites to show unless the value is rewritten after all (`runEngine`). */
+  unsure: ManualSite[],
   /**
    * The alias the SDK declares the field's values as, `CustomerStatus`: a
    * literal whose position expects exactly that type expects the field's
@@ -554,6 +570,28 @@ function applyContextualEnums(
           })) ||
         (vocabulary !== undefined && comparedWithVocabulary(literal, vocabulary));
       if (!expectsContractValues) continue;
+
+      // The type says the literal is one of a vocabulary's values; which
+      // field's, only the fields it meets can say. An SDK often gives a
+      // response's field and a request's the same type, and a Change scoped
+      // to one leaves the other's values as they were.
+      const met = fieldsMet(literal);
+      const mine = met.fields.filter((field) => field === covered);
+      if (!met.unknown && met.fields.length > 0 && mine.length === 0) continue;
+      if (met.unknown || mine.length !== met.fields.length) {
+        unsure.push(
+          manualFrom(
+            literal,
+            changeId,
+            `"${value}" is one of the values the contract now calls "${mapped}" on this field, and ${
+              met.unknown
+                ? "where it comes from or goes cannot be followed to that field"
+                : "it also meets fields whose values did not change"
+            }; check which it is`,
+          ),
+        );
+        continue;
+      }
 
       const key = `${source.getFilePath()}:${literal.getStart()}`;
       if (edited.has(key)) continue;
@@ -593,6 +631,192 @@ function applyContextualEnums(
       });
     }
   }
+}
+
+/** The SDK fields a value meets, and whether it meets something that cannot be followed. */
+interface Met {
+  fields: Node[];
+  unknown: boolean;
+}
+
+const UNKNOWN: Met = { fields: [], unknown: true };
+
+/** How deep a value is followed through the consumer's own functions. */
+const MOST_STEPS = 4;
+
+/**
+ * The SDK fields a literal is compared with or given as: the property of the
+ * request it is written into, the field it is compared with by `===`,
+ * switched on or looked for in a list, followed back through the
+ * consumer's own variables and functions.
+ */
+function fieldsMet(literal: Node): Met {
+  let node = literal;
+  let parent = node.getParent();
+  while (
+    Node.isParenthesizedExpression(parent) ||
+    Node.isAsExpression(parent) ||
+    Node.isSatisfiesExpression(parent)
+  ) {
+    node = parent;
+    parent = node.getParent();
+  }
+  if (Node.isPropertyAssignment(parent) && parent.getInitializer() === node) {
+    const holder = parent.getParent();
+    const property = Node.isObjectLiteralExpression(holder)
+      ? holder.getContextualType()?.getProperty(parent.getName())
+      : undefined;
+    return declaredFields(property?.getDeclarations() ?? []);
+  }
+  if (Node.isBinaryExpression(parent) && isEquality(parent)) {
+    return valueFields(
+      parent.getLeft() === node ? parent.getRight() : parent.getLeft(),
+      0,
+    );
+  }
+  if (Node.isCaseClause(parent) && parent.getExpression() === node) {
+    const switched = parent.getParent()?.getParent();
+    return Node.isSwitchStatement(switched)
+      ? valueFields(switched.getExpression(), 0)
+      : UNKNOWN;
+  }
+  if (Node.isArrayLiteralExpression(parent)) {
+    const callee = parent.getParent();
+    const call = callee?.getParent();
+    const sought = Node.isCallExpression(call) ? call.getArguments()[0] : undefined;
+    return Node.isPropertyAccessExpression(callee) &&
+      callee.getExpression() === parent &&
+      ["includes", "indexOf"].includes(callee.getName()) &&
+      sought
+      ? valueFields(sought, 0)
+      : UNKNOWN;
+  }
+  return UNKNOWN;
+}
+
+function isEquality(expression: Node): boolean {
+  if (!Node.isBinaryExpression(expression)) return false;
+  return [
+    SyntaxKind.EqualsEqualsEqualsToken,
+    SyntaxKind.ExclamationEqualsEqualsToken,
+    SyntaxKind.EqualsEqualsToken,
+    SyntaxKind.ExclamationEqualsToken,
+  ].includes(expression.getOperatorToken().getKind());
+}
+
+/** Declarations that are all properties of a type: fields, or nothing known. */
+function declaredFields(declarations: readonly Node[]): Met {
+  return declarations.length > 0 &&
+    declarations.every(
+      (each) => Node.isPropertySignature(each) || Node.isPropertyDeclaration(each),
+    )
+    ? { fields: [...declarations], unknown: false }
+    : UNKNOWN;
+}
+
+/** Whether an identifier is the global `String`, as the language's own library declares it. */
+function isGlobalString(node: Node): boolean {
+  if (!Node.isIdentifier(node) || node.getText() !== "String") return false;
+  const declarations = node.getSymbol()?.getDeclarations() ?? [];
+  return (
+    declarations.length > 0 &&
+    declarations.every((each) =>
+      /[\\/]typescript[\\/]lib[\\/]lib\.[^\\/]*\.d\.ts$/.test(
+        each.getSourceFile().getFilePath(),
+      ),
+    )
+  );
+}
+
+/** The SDK fields a value comes from. */
+function valueFields(value: Node, steps: number): Met {
+  if (steps > MOST_STEPS) return UNKNOWN;
+  let node = value;
+  while (true) {
+    if (
+      Node.isParenthesizedExpression(node) ||
+      Node.isAsExpression(node) ||
+      Node.isNonNullExpression(node) ||
+      Node.isSatisfiesExpression(node)
+    ) {
+      node = node.getExpression();
+      continue;
+    }
+    // `String(customer.status)` is the same value as text.
+    if (
+      Node.isCallExpression(node) &&
+      isGlobalString(node.getExpression()) &&
+      node.getArguments().length === 1
+    ) {
+      node = node.getArguments()[0] as Node;
+      continue;
+    }
+    break;
+  }
+  if (Node.isPropertyAccessExpression(node)) {
+    return declaredFields(node.getNameNode().getSymbol()?.getDeclarations() ?? []);
+  }
+  if (Node.isElementAccessExpression(node)) {
+    return declaredFields(
+      node.getArgumentExpression()?.getSymbol()?.getDeclarations() ?? [],
+    );
+  }
+  if (!Node.isIdentifier(node)) return UNKNOWN;
+  const declaration = node.getSymbol()?.getDeclarations()[0];
+  if (Node.isVariableDeclaration(declaration)) {
+    const initializer = declaration.getInitializer();
+    const constant =
+      declaration.getVariableStatement()?.getDeclarationList().getDeclarationKind() ===
+      "const";
+    return constant && initializer && Node.isIdentifier(declaration.getNameNode())
+      ? valueFields(initializer, steps + 1)
+      : UNKNOWN;
+  }
+  if (Node.isBindingElement(declaration)) {
+    // `const { status } = customer` reads the field `status` of what it
+    // destructures.
+    const pattern = declaration.getParent();
+    const holder = pattern?.getParent();
+    const name = (
+      declaration.getPropertyNameNode() ?? declaration.getNameNode()
+    ).getText();
+    const type =
+      Node.isVariableDeclaration(holder) && Node.isObjectBindingPattern(pattern)
+        ? holder.getType()
+        : undefined;
+    return declaredFields(type?.getProperty(name)?.getDeclarations() ?? []);
+  }
+  if (!Node.isParameterDeclaration(declaration)) return UNKNOWN;
+  const fn = declaration.getParent();
+  if (!Node.isFunctionDeclaration(fn)) return UNKNOWN;
+  const name = fn.getNameNode();
+  const own = declaration.getNameNode();
+  if (!name || !Node.isIdentifier(own) || declaration.isRestParameter()) return UNKNOWN;
+  const assigned = own.findReferencesAsNodes().some((reference) => {
+    const holder = reference.getParent();
+    return (
+      Node.isBinaryExpression(holder) &&
+      holder.getLeft() === reference &&
+      holder.getOperatorToken().getKind() === SyntaxKind.EqualsToken
+    );
+  });
+  if (assigned) return UNKNOWN;
+  const index = fn.getParameters().indexOf(declaration);
+  const calls = name.findReferencesAsNodes().filter((reference) => reference !== name);
+  if (calls.length === 0) return UNKNOWN;
+  const fields: Node[] = [];
+  for (const reference of calls) {
+    const call = reference.getParent();
+    const argument =
+      Node.isCallExpression(call) && call.getExpression() === reference
+        ? call.getArguments()[index]
+        : undefined;
+    if (!argument) return UNKNOWN;
+    const met = valueFields(argument, steps + 1);
+    if (met.unknown) return UNKNOWN;
+    fields.push(...met.fields);
+  }
+  return { fields, unknown: false };
 }
 
 /**
@@ -1105,12 +1329,6 @@ function flagUntyped(
           );
         } else shown = untyped(receiver.getType());
       } else if (
-        Node.isBindingElement(parent) &&
-        (parent.getPropertyNameNode() ?? parent.getNameNode()) === node
-      ) {
-        // `const { nickname = "friend" } = payload`, from a value nothing types.
-        shown = untyped(parent.getParent()?.getType());
-      } else if (
         Node.isElementAccessExpression(parent) &&
         parent.getArgumentExpression() === node
       ) {
@@ -1205,6 +1423,8 @@ export function runEngine(
   const groups = new Map<string, TargetSymbol[]>();
   /** Each moved or removed field's name, for the places nothing types. */
   const untypedFields = new Map<string, UntypedField>();
+  /** Values the contextual pass could not place on a field (`applyContextualEnums`). */
+  const unsure: ManualSite[] = [];
   for (const target of plan.targets) {
     // Neither edits an existing reference: a field that must now be sent is
     // written into the literals below, and one that may now be missing or
@@ -1241,6 +1461,8 @@ export function runEngine(
         target.changeId,
         scope,
         result,
+        declaration,
+        unsure,
         vocabulary,
       );
     }
@@ -1403,6 +1625,19 @@ export function runEngine(
         });
       }
     }
+  }
+
+  // A value one field's pass could not place is shown, unless another pass,
+  // or the rewrite beside a field it is compared with, rewrote it after all.
+  for (const site of unsure) {
+    const rewritten = result.edits.some(
+      (edit) =>
+        edit.file === site.file && edit.start <= site.offset && site.offset < edit.end,
+    );
+    const shown = result.manual.some(
+      (other) => other.file === site.file && other.offset === site.offset,
+    );
+    if (!rewritten && !shown) result.manual.push(site);
   }
 
   // A value renamed both beside the field it is compared with and by the

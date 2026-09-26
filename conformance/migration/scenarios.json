@@ -655,7 +655,13 @@
       "changes": ["chg_customer_nickname"],
       "sdk": "handwritten",
       "expect": "flag",
-      "place": "the key read of the renamed field"
+      "place": "the key read of the renamed field",
+      "gaps": {
+        "go": {
+          "observed": "none",
+          "reason": "A key of a `map[string]any` is shown only where the map provably holds the SDK's data (returned by, or passed to, a call into the SDK); this one is decoded from a webhook body the SDK never touches, and the key's name alone is no evidence."
+        }
+      }
     },
     {
       "id": "key-with-fallback-on-untyped-json",
@@ -664,7 +670,17 @@
       "changes": ["chg_customer_nickname"],
       "sdk": "handwritten",
       "expect": "flag",
-      "place": "the read with a fallback"
+      "place": "the read with a fallback",
+      "gaps": {
+        "go": {
+          "observed": "none",
+          "reason": "A key of a `map[string]any` is shown only where the map provably holds the SDK's data (returned by, or passed to, a call into the SDK); this one is decoded from a webhook body the SDK never touches, and the key's name alone is no evidence."
+        },
+        "typescript": {
+          "observed": "none",
+          "reason": "A destructuring of a value typed `any` ties the key to the SDK by its name alone, which is no evidence, so it is not shown."
+        }
+      }
     },
     {
       "id": "key-own-mapping",
@@ -805,6 +821,30 @@
       "changes": ["chg_customer_status"],
       "sdk": "handwritten",
       "expect": "none"
+    },
+    {
+      "id": "enum-shared-type-request-untouched",
+      "group": "enums",
+      "situation": "The SDK gives the response's field and the request's the same value type, only the response's values were renamed, and the consumer sends the old value in a request.",
+      "changes": ["chg_customer_status"],
+      "sdk": "handwritten",
+      "expect": "none"
+    },
+    {
+      "id": "enum-shared-type-response-untouched",
+      "group": "enums",
+      "situation": "The SDK gives the response's field and the request's the same value type, only the request's values were renamed, and the consumer compares the response's field with the old value.",
+      "changes": ["chg_params_status"],
+      "sdk": "handwritten",
+      "expect": "none"
+    },
+    {
+      "id": "enum-compared-through-conversion",
+      "group": "enums",
+      "situation": "A renamed enum value is compared with the response's field converted to plain text first.",
+      "changes": ["chg_customer_status"],
+      "sdk": "handwritten",
+      "expect": "edit"
     },
     {
       "id": "unrelated-own-type",

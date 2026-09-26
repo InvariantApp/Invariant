@@ -9,7 +9,7 @@ A Python migration now rewrites more of what the Changes determine, where it use
 - A request field that became required, with the value it always had when left out, is written into each call and dictionary the checker says builds that request.
 - A request field that moved into a nested object is written as that object, `phone=mobile` becoming `contact={"phone": mobile}`, unless the call already passes it.
 - The cases of a `match` over a field whose values were renamed are renamed, and so is a class pattern's keyword for a renamed field (`case acme.Address(postcode=zip_code)`), where the checker resolves the pattern's class to the SDK's.
-- A renamed value is also rewritten where it is compared with a name the consumer annotated with the SDK's own type for the field's values, as inside a helper that takes a `acme.CustomerStatus`.
+- A renamed value is also rewritten where it is compared with the field as text (`str(customer.status) == "active"`), and where it is compared with a parameter the consumer annotated with the SDK's own type for the field's values, as a helper that takes an `acme.CustomerStatus`, when every call to it passes the field the Change covers. A parameter that is also passed something else is shown.
 - A renamed key of a dictionary built from literals and unpacked into the SDK's call (`create(**params)`) is rewritten, where the checker, reading the unpacking as keywords, says the key is the field, and the dictionary is used for nothing else.
 - A test's stand-in built with the response's class is shown where the response gained a field it lacks.
 - A key read from a dictionary the code binds only to literals it writes out, such as its own table of labels, is no longer shown as a possible read of the API's JSON.

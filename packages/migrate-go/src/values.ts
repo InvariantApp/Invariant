@@ -25,13 +25,17 @@ import type { GoImport, GoReference } from "./engine.ts";
 import type { GoMigrationPlan, GoMove, GoScale, GoSupply } from "./plan.ts";
 import { type GoSymbol, symbolId } from "./surface.ts";
 
-/** A string literal the checker gives one of the SDK's named types (byte offsets). */
+/** A string literal that is a value of one of the SDK's named types (byte offsets). */
 export interface GoConstant extends GoSymbol {
   file: string;
   start: number;
   end: number;
   line: number;
   value: string;
+  /** The SDK fields the value is compared with or given as. */
+  fields?: GoSymbol[];
+  /** Whether it also meets something that could not be followed to a field. */
+  unknown?: boolean;
 }
 
 /** A string key read from a map of untyped JSON (byte offsets). */
@@ -176,19 +180,54 @@ export async function valueEdits(
     reason: string,
   ): Edit => ({ file, start, end, replacement, changeId, author: "codemod", reason });
 
-  // Values of the SDK's named types the contract renamed.
-  const renamed = new Map(
-    (plan.values ?? []).map((value) => [
-      `${symbolId(value.type)}\u0000${value.from}`,
-      value,
-    ]),
-  );
+  // Values of the SDK's named types the contract renamed, on the fields it
+  // renamed them on. A value that meets only fields the Change covers is
+  // rewritten; one that meets only others is theirs, and left; and one that
+  // meets both, or something that could not be followed, is shown.
   for (const constant of facts.constants ?? []) {
-    const rename = renamed.get(`${symbolId(constant)}\u0000${constant.value}`);
-    if (!rename) continue;
+    const entries = (plan.values ?? []).filter(
+      (value) =>
+        symbolId(value.type) === symbolId(constant) && value.from === constant.value,
+    );
+    if (entries.length === 0) continue;
+    const met = constant.fields ?? [];
+    const covering = (field: GoSymbol) =>
+      entries.filter((entry) =>
+        entry.fields.some((each) => symbolId(each) === symbolId(field)),
+      );
+    const covered = met.filter((field) => covering(field).length > 0);
+    if (covered.length === 0 && !constant.unknown) continue;
     const text = await textOf(constant.file);
     const start = indexOf(constant.file, constant.start);
     const end = indexOf(constant.file, constant.end);
+    const targets = new Set(
+      met.flatMap((field) => covering(field).map((each) => each.to)),
+    );
+    const rename = covered.length > 0 ? covering(covered[0] as GoSymbol)[0] : entries[0];
+    if (
+      !rename ||
+      constant.unknown ||
+      covered.length !== met.length ||
+      targets.size !== 1
+    ) {
+      const which = (rename ?? entries[0]) as (typeof entries)[number];
+      const fields = which.fields.map((field) => `\`${field.key}\``).join(", ");
+      manual.push(
+        siteIn(
+          constant.file,
+          text,
+          start,
+          end,
+          which.changeId,
+          `"${constant.value}" is a ${constant.key} value, which is "${which.to}" now on ${fields}; ${
+            constant.unknown
+              ? "where this value comes from or goes could not be followed, so check whether it is one of those"
+              : "it also meets fields whose values did not change, so which it is is for a person to say"
+          }`,
+        ),
+      );
+      continue;
+    }
     const raw = text[start] === "`" && !rename.to.includes("`");
     edits.push(
       codemod(

@@ -8,12 +8,11 @@ import (
 	"strconv"
 )
 
-// Constant is a string literal the type checker gives one of the SDK's named
-// types: `"active"` compared with a `CustomerStatus`, sent as one, or listed
-// in a `[]CustomerStatus`. The type is what says the literal is one of the
-// SDK's values, wherever it is written, so a value the SDK renamed is found
-// through the consumer's own helpers and switches as surely as beside the
-// field it came from.
+// Constant is a string literal that is a value of one of the SDK's named
+// string types: `"active"` compared with a `CustomerStatus`, sent as one,
+// listed in a `[]CustomerStatus`, or compared with one converted to a plain
+// string. The type says the literal is one of the SDK's values; the fields
+// it meets say which field's values, since one type can serve several.
 type Constant struct {
 	File  string `json:"file"`
 	Start int    `json:"start"`
@@ -24,6 +23,12 @@ type Constant struct {
 	// Package and Key name the type as the SDK's surface does.
 	Package string `json:"package"`
 	Key     string `json:"key"`
+	// Fields are the SDK fields the value is compared with or given as,
+	// followed through the consumer's own functions.
+	Fields []FieldRef `json:"fields"`
+	// Unknown marks a value that meets something that could not be followed
+	// to a field: a local variable, a call's result, a function's argument.
+	Unknown bool `json:"unknown,omitempty"`
 }
 
 // Literal is a composite literal of one of the SDK's struct types: a request
@@ -63,38 +68,47 @@ func sdkNamed(typ types.Type, targets []string) *types.Named {
 	return named
 }
 
-// valuesIn finds the SDK-typed string literals and the SDK struct literals
-// in one file.
-func valuesIn(
+// valuesIn finds the SDK's string values and the SDK struct literals in one
+// file.
+func (t *tracer) valuesIn(
 	file *ast.File,
 	info *types.Info,
 	path string,
-	targets []string,
-	names *keys,
 	offset func(token.Pos) int,
 	line func(token.Pos) int,
 ) ([]Constant, []Literal) {
+	targets, names := t.targets, t.names
 	constants := []Constant{}
 	literals := []Literal{}
+	var stack []ast.Node
 	ast.Inspect(file, func(node ast.Node) bool {
-		switch node := node.(type) {
+		if node == nil {
+			stack = stack[:len(stack)-1]
+			return true
+		}
+		switch node.(type) {
 		case *ast.ImportSpec, *ast.Field:
 			// An import path and a struct tag are strings of no type.
 			return false
+		}
+		stack = append(stack, node)
+		switch node := node.(type) {
 		case *ast.BasicLit:
 			if node.Kind != token.STRING {
-				return true
+				break
 			}
 			typed, ok := info.Types[node]
 			if !ok || typed.Value == nil || typed.Value.Kind() != constant.String {
-				return true
+				break
 			}
-			// Only the type itself, not a pointer to one: a literal is never that.
-			named, ok := types.Unalias(typed.Type).(*types.Named)
-			if !ok || sdkNamed(named, targets) == nil {
-				return true
+			named, fields, unknown := t.meets(info, node, stack[:len(stack)-1])
+			if named == nil {
+				break
 			}
 			object := named.Obj()
+			if fields == nil {
+				fields = []FieldRef{}
+			}
 			constants = append(constants, Constant{
 				File:    path,
 				Start:   offset(node.Pos()),
@@ -103,6 +117,8 @@ func valuesIn(
 				Value:   constant.StringVal(typed.Value),
 				Package: relativePackage(object.Pkg().Path(), moduleOf(object.Pkg().Path(), targets)),
 				Key:     names.of(object),
+				Fields:  fields,
+				Unknown: unknown,
 			})
 		case *ast.CompositeLit:
 			named := sdkNamed(info.TypeOf(node), targets)
@@ -214,19 +230,21 @@ type Key struct {
 // namedIn finds, in one file, the fields named in strings through reflection
 // on a value whose type is one of the SDK's structs, as references with the
 // role `name`, and the keys read from untyped JSON maps.
-func namedIn(
+func (t *tracer) namedIn(
 	file *ast.File,
 	info *types.Info,
 	path string,
-	targets []string,
-	names *keys,
 	offset func(token.Pos) int,
 	line func(token.Pos) int,
 ) ([]Reference, []Key) {
+	targets, names := t.targets, t.names
 	references := []Reference{}
 	found := []Key{}
+	var body ast.Node
 	ast.Inspect(file, func(node ast.Node) bool {
 		switch node := node.(type) {
+		case *ast.FuncDecl:
+			body = node.Body
 		case *ast.IndexExpr:
 			key, ok := node.Index.(*ast.BasicLit)
 			if !ok || key.Kind != token.STRING || !untypedJSON(info.TypeOf(node.X)) {
@@ -234,6 +252,25 @@ func namedIn(
 			}
 			value, err := strconv.Unquote(key.Value)
 			if err != nil {
+				return true
+			}
+			// Only a map that provably holds the SDK's data: its keys are read
+			// by name, and a name alone says nothing.
+			root := node.X
+			for {
+				switch inner := ast.Unparen(root).(type) {
+				case *ast.IndexExpr:
+					root = inner.X
+					continue
+				case *ast.TypeAssertExpr:
+					root = inner.X
+					continue
+				}
+				break
+			}
+			ident, ok := ast.Unparen(root).(*ast.Ident)
+			variable, isVariable := info.Uses[ident].(*types.Var)
+			if !ok || !isVariable || !t.holdsSDKData(info, variable, body, 0) {
 				return true
 			}
 			found = append(found, Key{

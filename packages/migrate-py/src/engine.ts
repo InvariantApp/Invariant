@@ -24,7 +24,7 @@ import {
   type TargetSymbol,
 } from "@invariant-app/migrate-core";
 import { exactLiteral, Helpers } from "./amounts.ts";
-import { classIn, hoverType, type ValueFlow } from "./flows.ts";
+import { classIn, hoverType, parameterOf, type ValueFlow } from "./flows.ts";
 import {
   classDeclaration,
   type Declaration,
@@ -302,16 +302,53 @@ function holderOf(site: Site): Node | undefined {
   return literal?.parent?.type === "pair" ? literal.parent : undefined;
 }
 
-function renameValues(site: Site, composed: Composed, result: EngineResult): void {
-  const literals =
-    site.role === "attribute-read" && site.node.parent
-      ? [...comparedLiterals(site.node.parent), ...casedLiterals(site.node.parent)]
-      : site.role === "keyword" || site.role === "dict-key"
-        ? [holderOf(site)?.childForFieldName("value")].filter(
-            (value): value is Node => value?.type === "string",
-          )
-        : [];
+async function renameValues(
+  references: ReferenceProvider,
+  site: Site,
+  composed: Composed,
+  result: EngineResult,
+): Promise<void> {
+  const attribute = site.role === "attribute-read" ? site.node.parent : null;
+  const literals = attribute
+    ? [
+        ...comparedLiterals(attribute),
+        ...casedLiterals(attribute),
+        ...(await asText(references, site.file, attribute)).flatMap(comparedLiterals),
+      ]
+    : site.role === "keyword" || site.role === "dict-key"
+      ? [holderOf(site)?.childForFieldName("value")].filter(
+          (value): value is Node => value?.type === "string",
+        )
+      : [];
   for (const literal of literals) renameValue(site.file, literal, composed, result);
+}
+
+/**
+ * `str(customer.status)`, the field's value as text, where `str` is the
+ * builtin the checker resolves it to: compared with a literal, it compares
+ * the field.
+ */
+async function asText(
+  references: ReferenceProvider,
+  file: string,
+  value: Node,
+): Promise<Node[]> {
+  const args = value.parent;
+  const call = args?.parent;
+  const callee = call?.childForFieldName("function");
+  if (
+    args?.type !== "argument_list" ||
+    call?.type !== "call" ||
+    callee?.type !== "identifier" ||
+    callee.text !== "str" ||
+    args.namedChildren.filter((arg) => arg?.type !== "comment").length !== 1
+  )
+    return [];
+  const points = await references.definitionAt(file, callee.startIndex);
+  const builtin =
+    points.length > 0 &&
+    points.every((point) => !isSpan(point) && /(?:^|\/)builtins\.pyi$/.test(point.file));
+  return builtin ? [call] : [];
 }
 
 function renameValue(
@@ -511,7 +548,8 @@ async function applyComposed(
     );
   };
 
-  if (composed.values.size > 0) renameValues(site, composed, result);
+  if (composed.values.size > 0)
+    await renameValues(context.references, site, composed, result);
   if (composed.unsupported) {
     flag(composed.unsupported);
     return;
@@ -655,6 +693,8 @@ async function vocabularyComparisons(
   references: ReferenceProvider,
   sources: Sources,
   target: TargetSymbol,
+  /** Where the SDK declares the field whose values the Change renamed. */
+  declaration: Declaration,
   composed: Composed,
   result: EngineResult,
 ): Promise<void> {
@@ -698,9 +738,122 @@ async function vocabularyComparisons(
         !(await declaredAs(references, sources, file, operand, vocabulary))
       )
         continue;
+      // The type says the value is one of the vocabulary's; which field's,
+      // only where it comes from can say. An SDK often gives a response's
+      // field and a request's the same type, and a Change scoped to one
+      // leaves the other's values as they were.
+      const met = await passedFields(references, sources, file, operand);
+      const mine = met.fields.filter((field) => sameDeclaration(field, declaration));
+      if (!met.unknown && met.fields.length > 0 && mine.length === 0) continue;
+      if (met.unknown || mine.length !== met.fields.length) {
+        const extent = shownExtent(tree, text, operand.startIndex, operand.endIndex);
+        result.manual.push(
+          manualAt(
+            file,
+            text,
+            extent.start,
+            extent.end,
+            composed.changeIds[0] ?? "",
+            `\`${operand.text}\` holds one of the SDK's \`${shown}\` values, which the contract renamed on \`${target.property}\`, and ${
+              met.unknown
+                ? "where it comes from cannot be followed to that field"
+                : "it also comes from fields whose values did not change"
+            }; check the values it is compared with`,
+            operand.startIndex,
+          ),
+        );
+        continue;
+      }
       for (const literal of literals) renameValue(file, literal, composed, result);
     }
   }
+}
+
+/**
+ * The SDK fields a parameter of the consumer's function is passed, read
+ * from every call to the function: `is_live(customer.status)` passes the
+ * field `status` of a customer. A call that passes anything else, or a
+ * name that is not a parameter, cannot be followed.
+ */
+async function passedFields(
+  references: ReferenceProvider,
+  sources: Sources,
+  file: string,
+  operand: Node,
+): Promise<{ fields: Declaration[]; unknown: boolean }> {
+  const unknown = { fields: [], unknown: true };
+  const finder = references as ReferenceProvider & {
+    referencesAt?(file: string, offset: number): Promise<Span[]>;
+  };
+  if (!finder.referencesAt) return unknown;
+  const points = await references.definitionAt(file, operand.startIndex);
+  const point = points[0];
+  if (points.length !== 1 || !point || !isSpan(point)) return unknown;
+  const tree = await sources.tree(point.file);
+  // The checker points at the whole annotated parameter, or at its name.
+  const found = tree && nodeAt(tree, point.start, point.end);
+  const kinds = ["typed_parameter", "typed_default_parameter"];
+  const typed = found
+    ? kinds.includes(found.type)
+      ? found
+      : found.parent && kinds.includes(found.parent.type)
+        ? found.parent
+        : undefined
+    : undefined;
+  const name = typed?.namedChildren.find((child) => child?.type === "identifier");
+  const parameter = typed && parameterOf(typed);
+  const fnName = parameter?.fn.childForFieldName("name");
+  if (!parameter || !fnName || !name) return unknown;
+  // Assigned in the function, it may hold something else where it is read.
+  const body = parameter.fn.childForFieldName("body");
+  const assigned = descendantsOfType(body ?? parameter.fn, [
+    "assignment",
+    "augmented_assignment",
+  ]).some((assignment) => assignment.childForFieldName("left")?.text === name.text);
+  if (assigned) return unknown;
+  const uses = await finder.referencesAt(point.file, fnName.startIndex);
+  const calls = uses.filter(
+    (use) => use.start !== fnName.startIndex || use.file !== point.file,
+  );
+  if (calls.length === 0) return unknown;
+  const fields: Declaration[] = [];
+  for (const use of calls) {
+    const useTree = await sources.tree(use.file);
+    const node = useTree && nodeAt(useTree, use.start, use.end);
+    const callee =
+      node?.parent?.type === "attribute" &&
+      node.parent.childForFieldName("attribute")?.id === node.id
+        ? node.parent
+        : node;
+    const call = callee?.parent;
+    if (
+      !callee ||
+      call?.type !== "call" ||
+      call.childForFieldName("function")?.id !== callee.id
+    )
+      return unknown;
+    const args = (call.childForFieldName("arguments")?.namedChildren ?? []).filter(
+      (arg): arg is Node => arg !== null && arg.type !== "comment",
+    );
+    if (args.some((arg) => arg.type === "list_splat" || arg.type === "dictionary_splat"))
+      return unknown;
+    const bound = parameter.method && callee.type === "attribute" ? 1 : 0;
+    const keyword = args.find(
+      (arg) =>
+        arg.type === "keyword_argument" &&
+        arg.childForFieldName("name")?.text === name.text,
+    );
+    const positional = args.filter((arg) => arg.type !== "keyword_argument");
+    const arg =
+      keyword?.childForFieldName("value") ?? positional[parameter.index - bound];
+    const field = arg?.type === "attribute" ? arg.childForFieldName("attribute") : null;
+    if (!field) return unknown;
+    const declared = await references.definitionAt(use.file, field.startIndex);
+    const sdk = declared.filter((each): each is Declaration => !isSpan(each));
+    if (sdk.length !== 1 || declared.length !== 1) return unknown;
+    fields.push(sdk[0] as Declaration);
+  }
+  return { fields, unknown: false };
 }
 
 /**
@@ -918,7 +1071,14 @@ export async function runTargets(
       await patternKeywords(references, sources, first, composed, result);
     }
     if (composed.values.size > 0) {
-      await vocabularyComparisons(references, sources, first, composed, result);
+      await vocabularyComparisons(
+        references,
+        sources,
+        first,
+        declaration,
+        composed,
+        result,
+      );
     }
     // Keys of a dictionary unpacked into the SDK's call.
     if (

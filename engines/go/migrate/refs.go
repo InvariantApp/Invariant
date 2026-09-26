@@ -296,7 +296,9 @@ func references(request Request) (RefsResponse, error) {
 	}
 	response.Errors = loadErrors(loaded)
 	names := &keys{cache: map[*types.Package]map[types.Object]string{}}
-	for _, entry := range filesOf(loaded, request.Within) {
+	files := filesOf(loaded, request.Within)
+	trace := newTracer(fset, files, request.Targets, names)
+	for _, entry := range files {
 		file := entry.pkg.Syntax[entry.file]
 		response.Files = append(response.Files, entry.path)
 		offset := func(pos token.Pos) int { return fset.Position(pos).Offset }
@@ -326,10 +328,10 @@ func references(request Request) (RefsResponse, error) {
 		}
 
 		info := entry.pkg.TypesInfo
-		constants, literals := valuesIn(file, info, entry.path, request.Targets, names, offset, line)
+		constants, literals := trace.valuesIn(file, info, entry.path, offset, line)
 		response.Constants = append(response.Constants, constants...)
 		response.Literals = append(response.Literals, literals...)
-		reflected, keys := namedIn(file, info, entry.path, request.Targets, names, offset, line)
+		reflected, keys := trace.namedIn(file, info, entry.path, offset, line)
 		response.References = append(response.References, reflected...)
 		if importsTarget {
 			response.Keys = append(response.Keys, keys...)
