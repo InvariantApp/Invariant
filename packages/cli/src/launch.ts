@@ -171,7 +171,20 @@ function behindProxy(
     runtime: createRuntime({ program }),
     upstream: target.base,
   });
-  return { fetch: (request) => proxy(request), close: () => target.close() };
+  return {
+    // As a caller's request arrives at the proxy over HTTP: with its length.
+    // A Request made in this process has none until it is sent, and a body
+    // passed on without one goes out chunked, which NetBox's server refuses
+    // with a 411 no caller of it would ever see.
+    fetch: async (request) => {
+      if (request.body === null) return proxy(request);
+      const body = new Uint8Array(await request.arrayBuffer());
+      const headers = new Headers(request.headers);
+      headers.set("content-length", String(body.byteLength));
+      return proxy(new Request(request.url, { method: request.method, headers, body }));
+    },
+    close: () => target.close(),
+  };
 }
 
 async function launchBare(

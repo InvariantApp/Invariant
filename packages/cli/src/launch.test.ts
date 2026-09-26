@@ -222,6 +222,12 @@ describe("the current build behind the proxy", () => {
       join(repository, "server.mjs"),
       `import { createServer } from "node:http";
 createServer((request, response) => {
+  // As NetBox's server does: a body with no length is refused.
+  if (request.method === "POST" && request.headers["content-length"] === undefined) {
+    response.statusCode = 411;
+    response.end();
+    return;
+  }
   response.setHeader("content-type", "application/json");
   response.end(JSON.stringify(request.url === "/__health" ? {} : { title: "a kettle" }));
 }).listen(Number(process.env.PORT), "127.0.0.1");
@@ -277,6 +283,11 @@ createServer((request, response) => {
       expect(await (await proxied.fetch(new Request("http://x/item"))).json()).toEqual({
         name: "a kettle",
       });
+      // Sent with its length, as a caller's request reaches the proxy.
+      const posted = await proxied.fetch(
+        new Request("http://x/item", { method: "POST", body: "{}" }),
+      );
+      expect(posted.status).toBe(200);
     } finally {
       await proxied.close();
     }

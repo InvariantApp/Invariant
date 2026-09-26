@@ -44309,7 +44309,17 @@ function behindProxy(target, program) {
 		upstream: target.base
 	});
 	return {
-		fetch: (request) => proxy(request),
+		fetch: async (request) => {
+			if (request.body === null) return proxy(request);
+			const body = new Uint8Array(await request.arrayBuffer());
+			const headers = new Headers(request.headers);
+			headers.set("content-length", String(body.byteLength));
+			return proxy(new Request(request.url, {
+				method: request.method,
+				headers,
+				body
+			}));
+		},
 		close: () => target.close()
 	};
 }
