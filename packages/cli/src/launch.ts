@@ -246,11 +246,8 @@ function pulled(image: string): Promise<void> {
         stdio: "ignore",
       });
       if (present.status === 0) return;
-      const fetched = await run(
-        "docker",
-        ["pull", "--quiet", image],
-        process.cwd(),
-        1_800_000,
+      const fetched = await patiently(() =>
+        run("docker", ["pull", "--quiet", image], process.cwd(), 1_800_000),
       );
       if (!fetched.ok) {
         throw new LaunchError(`could not pull ${image}: ${lastLines(fetched.stderr)}`);
@@ -261,18 +258,42 @@ function pulled(image: string): Promise<void> {
   return pull;
 }
 
+/**
+ * A pull, tried again after a pause when the registry says to slow down or
+ * the network drops, and not otherwise: a name that does not exist fails at
+ * once. A registry's rate limit is a fact of shared CI runners, and one
+ * refusal used to fail every scenario of the run.
+ */
+async function patiently(
+  pull: () => Promise<{ ok: boolean; stderr: string }>,
+): Promise<{ ok: boolean; stderr: string }> {
+  let result = await pull();
+  for (let attempt = 1; attempt < 5 && !result.ok; attempt += 1) {
+    if (
+      !/toomanyrequests|rate limit|timeout|reset by peer|EOF|503|502/i.test(result.stderr)
+    ) {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 15_000 * attempt));
+    result = await pull();
+  }
+  return result;
+}
+
 /** Every image a Compose file names, fetched once per run for the same reason. */
 function pulledCompose(file: string, env: Record<string, string>): Promise<void> {
   const key = `${file}\0${JSON.stringify(env)}`;
   let pull = pulls.get(key);
   if (!pull) {
     pull = (async () => {
-      const fetched = await run(
-        "docker",
-        ["compose", "-f", file, "pull", "--quiet", "--ignore-buildable"],
-        dirname(file),
-        1_800_000,
-        { ...env, PORT: "0" },
+      const fetched = await patiently(() =>
+        run(
+          "docker",
+          ["compose", "-f", file, "pull", "--quiet", "--ignore-buildable"],
+          dirname(file),
+          1_800_000,
+          { ...env, PORT: "0" },
+        ),
       );
       if (!fetched.ok) {
         throw new LaunchError(

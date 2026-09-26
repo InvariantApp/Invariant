@@ -44354,16 +44354,31 @@ function pulled(image) {
 				"inspect",
 				image
 			], { stdio: "ignore" }).status === 0) return;
-			const fetched = await run("docker", [
+			const fetched = await patiently(() => run("docker", [
 				"pull",
 				"--quiet",
 				image
-			], process.cwd(), 18e5);
+			], process.cwd(), 18e5));
 			if (!fetched.ok) throw new LaunchError(`could not pull ${image}: ${lastLines(fetched.stderr)}`);
 		})();
 		pulls.set(image, pull);
 	}
 	return pull;
+}
+/**
+* A pull, tried again after a pause when the registry says to slow down or
+* the network drops, and not otherwise: a name that does not exist fails at
+* once. A registry's rate limit is a fact of shared CI runners, and one
+* refusal used to fail every scenario of the run.
+*/
+async function patiently(pull) {
+	let result = await pull();
+	for (let attempt = 1; attempt < 5 && !result.ok; attempt += 1) {
+		if (!/toomanyrequests|rate limit|timeout|reset by peer|EOF|503|502/i.test(result.stderr)) break;
+		await new Promise((resolve) => setTimeout(resolve, 15e3 * attempt));
+		result = await pull();
+	}
+	return result;
 }
 /** Every image a Compose file names, fetched once per run for the same reason. */
 function pulledCompose(file, env) {
@@ -44371,7 +44386,7 @@ function pulledCompose(file, env) {
 	let pull = pulls.get(key);
 	if (!pull) {
 		pull = (async () => {
-			const fetched = await run("docker", [
+			const fetched = await patiently(() => run("docker", [
 				"compose",
 				"-f",
 				file,
@@ -44381,7 +44396,7 @@ function pulledCompose(file, env) {
 			], dirname(file), 18e5, {
 				...env,
 				PORT: "0"
-			});
+			}));
 			if (!fetched.ok) throw new LaunchError(`could not pull the images ${file} names: ${lastLines(fetched.stderr)}`);
 		})();
 		pulls.set(key, pull);

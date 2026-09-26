@@ -170,6 +170,13 @@ async function gate(project: Project): Promise<GateRun> {
     run.summaries = e6.slice(0, 5).map((entry) => `${entry.subject}: ${entry.summary}`);
     run.unexplained = report.steps.flatMap((step) => step.unexplained).slice(0, 10);
     run.problems = report.problems.slice(0, 20);
+    // A check whose every scenario could not be run did not compare
+    // anything, whatever it says: that is the run failing, not a finding.
+    const unrun = (entry: (typeof e6)[number]) =>
+      (entry.detail ?? []).some((line) => line.includes("could not be run"));
+    if (e6.length > 0 && e6.every(unrun)) {
+      run.error = "no scenario could be run";
+    }
   } catch (error) {
     run.error = error instanceof Error ? error.message : String(error);
   }
