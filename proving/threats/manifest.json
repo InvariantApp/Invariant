@@ -244,6 +244,34 @@
       ]
     },
     {
+      "threat": "A wrong, compromised or impersonated bundle service",
+      "status": "partly covered",
+      "here": "A consumer reading published bundles opens each only with a key its provider serves from its own domain at /.well-known/invariant.json, over HTTPS, following redirects only on that host and reading at most 64 KiB; a signature is verified against the listed public key, whose id is recomputed from the key, so a bundle labelled with a listed key id but signed by another is refused, as is one signed by a key the document does not list, one signed before its key was added or after it stopped signing, anything a revoked key signed, and a bundle for another API than asked.",
+      "elsewhere": "When a bundle was published is the time the distributing service records, since a bundle carries none; a service that backdated it could only matter for a key past not_after that also leaked, which its provider revokes. Recording publication times and serving the endpoint from a CDN are the service's, in its repository.",
+      "tests": [
+        {
+          "file": "packages/bundle/src/well-known.test.ts",
+          "titles": [
+            "opens one the current key signed",
+            "opens one a retired key signed while it still signed, and refuses one it signed after",
+            "refuses one published before its key was added",
+            "refuses everything a revoked key signed, whenever it was signed",
+            "refuses one signed by a key the provider does not list, however valid its signature",
+            "refuses an API the document does not list, or a bundle for another API than asked",
+            "is refused when a key's id is not its key's, a time has no zone, or a key is listed twice"
+          ]
+        },
+        {
+          "file": "packages/cli/src/discover.test.ts",
+          "titles": [
+            "is read from its own domain over https",
+            "follows a redirect on its own host, and no other",
+            "is read no further than 64 KiB, whether or not it says how long it is"
+          ]
+        }
+      ]
+    },
+    {
       "threat": "Supply chain",
       "status": "covered",
       "here": "The runtime depends on nothing but exact decimal arithmetic; every workflow installs from the lockfile; every third-party action is pinned to a commit; npm publishes carry provenance from a token the workflow is issued; every npm package carries a CycloneDX bill of materials inside the tarball its provenance covers, the action's bundle is attested with both, and the proxy image with both and signed with cosign, each checked every night from the registries by proving/releases/verify.mts.",
