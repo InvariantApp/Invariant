@@ -451,6 +451,16 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
         options.generated.some((entry) => path.startsWith(entry))
       )
         continue;
+      // An entry the typed engine already rewrote for the same Change is
+      // shaped as the upgraded SDK expects, and has nothing left to show.
+      const rewritten = (site: ManualSite) =>
+        result.edits.some(
+          (edit) =>
+            edit.file === path &&
+            edit.changeId === site.changeId &&
+            edit.start <= site.offset &&
+            site.offset < edit.end,
+        );
       result.manual.push(
         ...taggedObjectSites(
           path,
@@ -458,7 +468,7 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
           options.plan.changes,
           tags,
           gone,
-        ),
+        ).filter((site) => !rewritten(site)),
       );
     }
   }
