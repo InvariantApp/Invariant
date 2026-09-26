@@ -12,5 +12,6 @@ A Python migration now rewrites more of what the Changes determine, where it use
 - A renamed value is also rewritten where it is compared with a name the consumer annotated with the SDK's own type for the field's values, as inside a helper that takes a `acme.CustomerStatus`.
 - A renamed key of a dictionary built from literals and unpacked into the SDK's call (`create(**params)`) is rewritten, where the checker, reading the unpacking as keywords, says the key is the field, and the dictionary is used for nothing else.
 - A test's stand-in built with the response's class is shown where the response gained a field it lacks.
+- A key read from a dictionary the code binds only to literals it writes out, such as its own table of labels, is no longer shown as a possible read of the API's JSON.
 
 `@invariant-app/migrate-core` exports `exactMinorUnits`, the exact literal conversion every language pack shares.

@@ -672,13 +672,7 @@
       "situation": "The consumer's own typed mapping has an entry with the renamed field's name, in a file that uses the SDK.",
       "changes": ["chg_customer_nickname"],
       "sdk": "handwritten",
-      "expect": "none",
-      "gaps": {
-        "python": {
-          "observed": "flag",
-          "reason": "A subscript of a `dict[str, ...]` is read as possibly the API's JSON, so the consumer's own mapping is shown."
-        }
-      }
+      "expect": "none"
     },
     {
       "id": "optional-renamed-field",

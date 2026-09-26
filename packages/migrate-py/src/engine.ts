@@ -46,7 +46,13 @@ import {
   type Tree,
   withStringValue,
 } from "./syntax.ts";
-import { keyToken, onlyUnpacked, unpackingsIn, writtenOut } from "./unpacked.ts";
+import {
+  dictionaryAt,
+  keyToken,
+  onlyUnpacked,
+  unpackingsIn,
+  writtenOut,
+} from "./unpacked.ts";
 
 export interface EngineResult {
   edits: Edit[];
@@ -1301,6 +1307,11 @@ async function receiverEvidence(
   flow?: ValueFlow,
 ): Promise<"sdk" | "near" | "untyped" | "other"> {
   if (!receiver) return "untyped";
+  // A name bound to nothing but dictionaries written out in the code, and
+  // given no key it does not write out, is the consumer's own data, as
+  // `LABELS = {"nickname": "Nickname"}` is: whatever the API renames, the
+  // key read from it is the one the code wrote.
+  if (receiver.type === "identifier" && dictionaryAt(receiver)) return "other";
   // Where the checker cannot type the value, it is followed to where it
   // came from: provably the field's class, or provably some other.
   const followed = async (): Promise<"sdk" | "untyped" | "other"> => {
