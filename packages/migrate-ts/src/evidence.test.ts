@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Change } from "@invariant-app/ir";
 import { buildPlan } from "@invariant-app/migrate-core";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import { ROOT } from "../../../conformance/migration/harness.ts";
 import { migrate } from "./index.ts";
 
@@ -31,15 +31,15 @@ const types = {
 };
 
 describe("a rewrite whose evidence stops short", () => {
-  let dir: string;
-  beforeAll(async () => {
-    dir = await mkdtemp(join(tmpdir(), "invariant-evidence-"));
-  });
+  // A repository of its own for each case, so no case reads another's files.
+  const dirs: string[] = [];
   afterAll(async () => {
-    await rm(dir, { recursive: true, force: true });
+    await Promise.all(dirs.map((dir) => rm(dir, { recursive: true, force: true })));
   });
 
   const run = async (name: string, lines: string[], changes: Change[]) => {
+    const dir = await mkdtemp(join(tmpdir(), "invariant-evidence-"));
+    dirs.push(dir);
     const file = join(dir, name);
     await writeFile(file, lines.join("\n"));
     const result = await migrate({

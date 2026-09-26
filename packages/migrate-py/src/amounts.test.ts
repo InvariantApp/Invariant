@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Change } from "@invariant-app/ir";
 import { buildPlan, type SymbolMap } from "@invariant-app/migrate-core";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import { ROOT } from "../../../conformance/migration/harness.ts";
 import { migrate } from "./index.ts";
 
@@ -56,15 +56,18 @@ const symbols = (helpers: SymbolMap["helpers"]): SymbolMap => {
 const HELPERS = { toMinor: "to_minor_units", fromMinor: "from_minor_units" };
 
 describe("amounts converted with the SDK's helpers", () => {
-  let dir: string;
-  beforeAll(async () => {
-    dir = await mkdtemp(join(tmpdir(), "invariant-amounts-"));
-  });
+  // A repository of its own for each case: pyright reads the whole root it
+  // is started in, and reports a reference in any file there, whether or not
+  // the migration was handed it, so a case beside another sees that one's
+  // reads of the same field too.
+  const dirs: string[] = [];
   afterAll(async () => {
-    await rm(dir, { recursive: true, force: true });
+    await Promise.all(dirs.map((dir) => rm(dir, { recursive: true, force: true })));
   });
 
   const run = async (name: string, lines: string[], helpers = HELPERS) => {
+    const dir = await mkdtemp(join(tmpdir(), "invariant-amounts-"));
+    dirs.push(dir);
     const file = join(dir, name);
     await writeFile(file, lines.join("\n"));
     const result = await migrate({
