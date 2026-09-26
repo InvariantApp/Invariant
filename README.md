@@ -513,6 +513,7 @@ packages/migrate-core what every language's migration shares: plan, edits, offse
 packages/migrate-ts   editing customer code safely
 packages/migrate-py   the same for Python, through pyright
 packages/migrate-go   the same for Go, through a helper on go/types (engines/go/migrate)
+packages/sandbox      where a migration runs: a fetch that reaches only the registries, an analysis with no network
 packages/github       delivering pull requests
 packages/flags        the off switch
 packages/cli          the invariant command, run in the company's own CI

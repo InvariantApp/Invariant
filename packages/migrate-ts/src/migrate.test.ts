@@ -7,10 +7,14 @@
  * the Changes the provider already confirmed, with no changelog anywhere in the
  * pipeline.
  */
+import { cp, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { loadPendingChanges, loadReleaseStep } from "@invariant-app/contract";
 import type { Change } from "@invariant-app/ir";
 import type { SymbolMap } from "@invariant-app/migrate-core";
 import { buildPlan } from "@invariant-app/migrate-core";
+import { Project, ts } from "ts-morph";
 import { beforeAll, describe, expect, it } from "vitest";
 import { migrate } from "./index.ts";
 
@@ -169,5 +173,64 @@ describe("scope", () => {
     expect(template).toBeDefined();
     expect(template?.file.endsWith("billing.test.ts")).toBe(true);
     expect(template?.line).toBeGreaterThan(0);
+  });
+});
+
+describe("an SDK installed the usual way", () => {
+  it("is migrated through a tsconfig when its declarations are in node_modules", async () => {
+    // What npm leaves: declarations, not source, under node_modules, which a
+    // project resolves imports into without listing those files as its own.
+    const root = await mkdtemp(join(tmpdir(), "invariant-installed-"));
+    try {
+      const installed = join(root, "prefix", "node_modules", "@acme", "sdk-v1");
+      await mkdir(installed, { recursive: true });
+      const emitter = new Project({
+        compilerOptions: {
+          declaration: true,
+          emitDeclarationOnly: true,
+          module: ts.ModuleKind.NodeNext,
+          moduleResolution: ts.ModuleResolutionKind.NodeNext,
+          rootDir: `${SDK_DIR}src`,
+          outDir: installed,
+        },
+      });
+      emitter.addSourceFileAtPath(`${SDK_DIR}src/index.ts`);
+      for (const file of emitter.emitToMemory({ emitOnlyDtsFiles: true }).getFiles()) {
+        await writeFile(file.filePath, file.text);
+      }
+      await writeFile(
+        join(installed, "package.json"),
+        JSON.stringify({ name: "@acme/sdk-v1", type: "module", types: "./index.d.ts" }),
+      );
+      const consumer = join(root, "consumer");
+      await cp(`${CONSUMER}src`, join(consumer, "src"), { recursive: true });
+      await mkdir(join(consumer, "node_modules", "@acme"), { recursive: true });
+      await symlink(installed, join(consumer, "node_modules", "@acme", "sdk-v1"), "dir");
+      await writeFile(
+        join(consumer, "tsconfig.json"),
+        JSON.stringify({
+          compilerOptions: {
+            module: "nodenext",
+            moduleResolution: "nodenext",
+            strict: true,
+            noEmit: true,
+            allowImportingTsExtensions: true,
+            types: [],
+          },
+          include: ["src/**/*.ts"],
+        }),
+      );
+      const result = await migrate({
+        repoDir: consumer,
+        generated: [installed],
+        tsConfigFilePath: join(consumer, "tsconfig.json"),
+        plan: buildPlan(changes, SYMBOLS),
+      });
+      expect(result.files.get(join(consumer, "src/billing.ts"))).toContain(
+        "client.payments.create",
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

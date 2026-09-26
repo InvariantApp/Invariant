@@ -114,10 +114,20 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      # The migration sandbox's tests start real containers through the
+      # runner's docker, and check the Kubernetes manifests against the
+      # schema with kubeconform. The image is pulled first so no test's
+      # timeout is spent downloading it.
+      - name: Prepare the sandbox tests
+        run: |
+          go install github.com/yannh/kubeconform/cmd/kubeconform@v0.7.0
+          docker pull "$(node --input-type=module -e 'import("./packages/sandbox/src/oci.ts").then((m) => console.log(m.NODE_IMAGE))')"
+
       - name: Test
         run: pnpm test
         env:
           INVARIANT_REQUIRE_GO: "1"
+          INVARIANT_REQUIRE_SANDBOX: "1"
 
       # A latency gate, so in a step of its own: beside other tests competing
       # for the runner's CPU it would fail for reasons that are not the proxy's.

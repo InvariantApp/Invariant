@@ -52,12 +52,33 @@
     "@invariant-app/contract": "workspace:*",
     "@invariant-app/diff": "workspace:*",
     "@invariant-app/ir": "workspace:*",
+    "@invariant-app/migrate-core": "workspace:*",
     "@invariant-app/proposer": "workspace:*",
+    "@invariant-app/sandbox": "workspace:*",
     "@invariant-app/verifier": "workspace:*",
     "ajv": "^8.20.0",
     "yaml": "^2.8.2"
   },
+  "peerDependencies": {
+    "@invariant-app/migrate-go": "workspace:*",
+    "@invariant-app/migrate-py": "workspace:*",
+    "@invariant-app/migrate-ts": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@invariant-app/migrate-go": {
+      "optional": true
+    },
+    "@invariant-app/migrate-py": {
+      "optional": true
+    },
+    "@invariant-app/migrate-ts": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@invariant-app/migrate-go": "workspace:*",
+    "@invariant-app/migrate-py": "workspace:*",
+    "@invariant-app/migrate-ts": "workspace:*",
     "@invariant-app/runtime": "workspace:*"
   }
 }

@@ -286,7 +286,15 @@ function addHelperImports(
 
 function projectFor(options: MigrateOptions): Project {
   if (options.tsConfigFilePath) {
-    return new Project({ tsConfigFilePath: options.tsConfigFilePath });
+    const project = new Project({ tsConfigFilePath: options.tsConfigFilePath });
+    // A project resolves an installed SDK's declarations from node_modules
+    // without listing them as its own files, and the engine looks for the
+    // contract's declarations among its files: without this, a consumer
+    // with a tsconfig and an SDK installed the usual way got no edits.
+    for (const entry of options.generated) {
+      for (const path of declarationFiles(entry)) project.addSourceFileAtPath(path);
+    }
+    return project;
   }
   const project = new Project({
     compilerOptions: {

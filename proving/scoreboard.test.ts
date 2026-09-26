@@ -104,7 +104,7 @@ describe("L15", () => {
   it("reports threat-model coverage from the record, and whether its tests passed", () => {
     const line = l15({ threatsResult: "success", fuzz: "success" });
     expect(line?.value).toMatch(
-      /^threat-model tests passing: of the 12 rows of DESIGN 11\.1, \d+ covered here, \d+ covered here for this repository's part/,
+      /^threat-model tests passing: of the 13 rows of DESIGN 11\.1, \d+ covered here, \d+ covered here for this repository's part/,
     );
     expect(l15({})?.value).toMatch(/^threat-model tests not run here/);
     expect(l15({ threatsResult: "failure" })?.value).toMatch(/failing \(failure\)/);
