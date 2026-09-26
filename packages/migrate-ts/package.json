@@ -39,8 +39,7 @@
   "dependencies": {
     "@invariant-app/ir": "workspace:*",
     "@invariant-app/migrate-core": "workspace:*",
-    "ts-morph": "^28.0.0",
-    "@invariant-app/decimal": "workspace:*"
+    "ts-morph": "^28.0.0"
   },
   "devDependencies": {
     "@invariant-app/contract": "workspace:*"

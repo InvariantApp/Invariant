@@ -20,6 +20,7 @@
 import type { AddOp, DataOp, DefaultOp } from "@invariant-app/ir";
 import {
   type Edit,
+  exactMinorUnits,
   type ManualSite,
   type MigrationPlan,
   type Replacement,
@@ -28,15 +29,17 @@ import {
   type TargetSymbol,
 } from "@invariant-app/migrate-core";
 import {
+  type InterfaceDeclaration,
   Node,
   type ObjectLiteralExpression,
   type Project,
   type PropertySignature,
+  type StringLiteral,
   SyntaxKind,
+  type Symbol as TsSymbol,
   type Type,
   type TypeElementTypes,
 } from "ts-morph";
-import { exactMinorUnits } from "./numbers.ts";
 import { within } from "./paths.ts";
 
 export type { ManualSite };
@@ -367,8 +370,42 @@ function applyComposed(
       return;
     }
 
-    default:
-      result.manual.push(manualFrom(node, changeId, `cannot rewrite a ${role}`));
+    default: {
+      // `customer["nickname"]`: the checker resolved the key to the field,
+      // so a field renamed in place is renamed inside the string.
+      const key =
+        Node.isStringLiteral(node) &&
+        Node.isElementAccessExpression(parent) &&
+        parent.getArgumentExpression() === node;
+      const head = composed.path[0] as string;
+      if (
+        key &&
+        composed.path.length === 1 &&
+        !composed.wrapRead &&
+        !composed.convertWrite
+      ) {
+        const quote = node.getText()[0] ?? '"';
+        result.edits.push(
+          editFrom(
+            node,
+            node.getStart(),
+            node.getEnd(),
+            quote === "'" && !head.includes("'") ? `'${head}'` : JSON.stringify(head),
+            composed,
+          ),
+        );
+        return;
+      }
+      result.manual.push(
+        manualFrom(
+          node,
+          changeId,
+          key
+            ? `this reads the field by a string key: ${composed.reasons.join("; ")}`
+            : `cannot rewrite a ${role}`,
+        ),
+      );
+    }
   }
 }
 
@@ -405,6 +442,43 @@ function applyEnum(
     const access = node.getParent();
     if (!access) return;
     if (replace(otherSideOf(access.getParent() as Node, access))) return;
+
+    // `String(customer.status) === "active"` compares the field as text.
+    const text = access.getParent();
+    if (
+      Node.isCallExpression(text) &&
+      isGlobalString(text.getExpression()) &&
+      text.getArguments().length === 1 &&
+      text.getArguments()[0] === access &&
+      isEquality(text.getParent() as Node) &&
+      replace(otherSideOf(text.getParent() as Node, text))
+    )
+      return;
+
+    // `switch (customer.status)` compares the field with each case's value.
+    const holder = access.getParent();
+    if (Node.isSwitchStatement(holder) && holder.getExpression() === access) {
+      for (const clause of holder.getClauses()) {
+        if (Node.isCaseClause(clause)) replace(clause.getExpression());
+      }
+      return;
+    }
+    // `["active", "past_due"].includes(customer.status)` compares it with
+    // each item of the list, as `indexOf` does.
+    if (Node.isCallExpression(holder) && holder.getArguments()[0] === access) {
+      const callee = holder.getExpression();
+      const list = Node.isPropertyAccessExpression(callee)
+        ? callee.getExpression()
+        : undefined;
+      if (
+        Node.isPropertyAccessExpression(callee) &&
+        ["includes", "indexOf"].includes(callee.getName()) &&
+        Node.isArrayLiteralExpression(list)
+      ) {
+        for (const item of list.getElements()) replace(item);
+        return;
+      }
+    }
 
     // `expect(payment.object).toBe("charge")` compares just as much as `===`
     // does, it simply routes the comparison through a call. When the property
@@ -460,6 +534,16 @@ function applyContextualEnums(
   changeId: string,
   scope: EditScope,
   result: EngineResult,
+  /** The field whose values the Change renamed. */
+  covered: Node,
+  /** Sites to show unless the value is rewritten after all (`runEngine`). */
+  unsure: ManualSite[],
+  /**
+   * The alias the SDK declares the field's values as, `CustomerStatus`: a
+   * literal whose position expects exactly that type expects the field's
+   * values, whatever else the union holds.
+   */
+  vocabulary?: TsSymbol,
 ): void {
   const olds = new Set(Object.keys(map));
   const edited = new Set<string>();
@@ -479,12 +563,35 @@ function applyContextualEnums(
           ? [contextual]
           : [];
       const expectsContractValues =
-        members.length > 0 &&
-        members.every((member) => {
-          const literalValue = member.getLiteralValue();
-          return typeof literalValue === "string" && olds.has(literalValue);
-        });
+        (members.length > 0 &&
+          members.every((member) => {
+            const literalValue = member.getLiteralValue();
+            return typeof literalValue === "string" && olds.has(literalValue);
+          })) ||
+        (vocabulary !== undefined && comparedWithVocabulary(literal, vocabulary));
       if (!expectsContractValues) continue;
+
+      // The type says the literal is one of a vocabulary's values; which
+      // field's, only the fields it meets can say. An SDK often gives a
+      // response's field and a request's the same type, and a Change scoped
+      // to one leaves the other's values as they were.
+      const met = fieldsMet(literal);
+      const mine = met.fields.filter((field) => field === covered);
+      if (!met.unknown && met.fields.length > 0 && mine.length === 0) continue;
+      if (met.unknown || mine.length !== met.fields.length) {
+        unsure.push(
+          manualFrom(
+            literal,
+            changeId,
+            `"${value}" is one of the values the contract now calls "${mapped}" on this field, and ${
+              met.unknown
+                ? "where it comes from or goes cannot be followed to that field"
+                : "it also meets fields whose values did not change"
+            }; check which it is`,
+          ),
+        );
+        continue;
+      }
 
       const key = `${source.getFilePath()}:${literal.getStart()}`;
       if (edited.has(key)) continue;
@@ -524,6 +631,244 @@ function applyContextualEnums(
       });
     }
   }
+}
+
+/** The SDK fields a value meets, and whether it meets something that cannot be followed. */
+interface Met {
+  fields: Node[];
+  unknown: boolean;
+}
+
+const UNKNOWN: Met = { fields: [], unknown: true };
+
+/** How deep a value is followed through the consumer's own functions. */
+const MOST_STEPS = 4;
+
+/**
+ * The SDK fields a literal is compared with or given as: the property of the
+ * request it is written into, the field it is compared with by `===`,
+ * switched on or looked for in a list, followed back through the
+ * consumer's own variables and functions.
+ */
+function fieldsMet(literal: Node): Met {
+  let node = literal;
+  let parent = node.getParent();
+  while (
+    Node.isParenthesizedExpression(parent) ||
+    Node.isAsExpression(parent) ||
+    Node.isSatisfiesExpression(parent)
+  ) {
+    node = parent;
+    parent = node.getParent();
+  }
+  if (Node.isPropertyAssignment(parent) && parent.getInitializer() === node) {
+    const holder = parent.getParent();
+    const property = Node.isObjectLiteralExpression(holder)
+      ? holder.getContextualType()?.getProperty(parent.getName())
+      : undefined;
+    return declaredFields(property?.getDeclarations() ?? []);
+  }
+  if (Node.isBinaryExpression(parent) && isEquality(parent)) {
+    return valueFields(
+      parent.getLeft() === node ? parent.getRight() : parent.getLeft(),
+      0,
+    );
+  }
+  if (Node.isCaseClause(parent) && parent.getExpression() === node) {
+    const switched = parent.getParent()?.getParent();
+    return Node.isSwitchStatement(switched)
+      ? valueFields(switched.getExpression(), 0)
+      : UNKNOWN;
+  }
+  if (Node.isArrayLiteralExpression(parent)) {
+    const callee = parent.getParent();
+    const call = callee?.getParent();
+    const sought = Node.isCallExpression(call) ? call.getArguments()[0] : undefined;
+    return Node.isPropertyAccessExpression(callee) &&
+      callee.getExpression() === parent &&
+      ["includes", "indexOf"].includes(callee.getName()) &&
+      sought
+      ? valueFields(sought, 0)
+      : UNKNOWN;
+  }
+  return UNKNOWN;
+}
+
+function isEquality(expression: Node): boolean {
+  if (!Node.isBinaryExpression(expression)) return false;
+  return [
+    SyntaxKind.EqualsEqualsEqualsToken,
+    SyntaxKind.ExclamationEqualsEqualsToken,
+    SyntaxKind.EqualsEqualsToken,
+    SyntaxKind.ExclamationEqualsToken,
+  ].includes(expression.getOperatorToken().getKind());
+}
+
+/** Declarations that are all properties of a type: fields, or nothing known. */
+function declaredFields(declarations: readonly Node[]): Met {
+  return declarations.length > 0 &&
+    declarations.every(
+      (each) => Node.isPropertySignature(each) || Node.isPropertyDeclaration(each),
+    )
+    ? { fields: [...declarations], unknown: false }
+    : UNKNOWN;
+}
+
+/** Whether an identifier is the global `String`, as the language's own library declares it. */
+function isGlobalString(node: Node): boolean {
+  if (!Node.isIdentifier(node) || node.getText() !== "String") return false;
+  const declarations = node.getSymbol()?.getDeclarations() ?? [];
+  return (
+    declarations.length > 0 &&
+    declarations.every((each) =>
+      /[\\/]typescript[\\/]lib[\\/]lib\.[^\\/]*\.d\.ts$/.test(
+        each.getSourceFile().getFilePath(),
+      ),
+    )
+  );
+}
+
+/** The SDK fields a value comes from. */
+function valueFields(value: Node, steps: number): Met {
+  if (steps > MOST_STEPS) return UNKNOWN;
+  let node = value;
+  while (true) {
+    if (
+      Node.isParenthesizedExpression(node) ||
+      Node.isAsExpression(node) ||
+      Node.isNonNullExpression(node) ||
+      Node.isSatisfiesExpression(node)
+    ) {
+      node = node.getExpression();
+      continue;
+    }
+    // `String(customer.status)` is the same value as text.
+    if (
+      Node.isCallExpression(node) &&
+      isGlobalString(node.getExpression()) &&
+      node.getArguments().length === 1
+    ) {
+      node = node.getArguments()[0] as Node;
+      continue;
+    }
+    break;
+  }
+  if (Node.isPropertyAccessExpression(node)) {
+    return declaredFields(node.getNameNode().getSymbol()?.getDeclarations() ?? []);
+  }
+  if (Node.isElementAccessExpression(node)) {
+    return declaredFields(
+      node.getArgumentExpression()?.getSymbol()?.getDeclarations() ?? [],
+    );
+  }
+  if (!Node.isIdentifier(node)) return UNKNOWN;
+  const declaration = node.getSymbol()?.getDeclarations()[0];
+  if (Node.isVariableDeclaration(declaration)) {
+    const initializer = declaration.getInitializer();
+    const constant =
+      declaration.getVariableStatement()?.getDeclarationList().getDeclarationKind() ===
+      "const";
+    return constant && initializer && Node.isIdentifier(declaration.getNameNode())
+      ? valueFields(initializer, steps + 1)
+      : UNKNOWN;
+  }
+  if (Node.isBindingElement(declaration)) {
+    // `const { status } = customer` reads the field `status` of what it
+    // destructures.
+    const pattern = declaration.getParent();
+    const holder = pattern?.getParent();
+    const name = (
+      declaration.getPropertyNameNode() ?? declaration.getNameNode()
+    ).getText();
+    const type =
+      Node.isVariableDeclaration(holder) && Node.isObjectBindingPattern(pattern)
+        ? holder.getType()
+        : undefined;
+    return declaredFields(type?.getProperty(name)?.getDeclarations() ?? []);
+  }
+  if (!Node.isParameterDeclaration(declaration)) return UNKNOWN;
+  const fn = declaration.getParent();
+  if (!Node.isFunctionDeclaration(fn)) return UNKNOWN;
+  const name = fn.getNameNode();
+  const own = declaration.getNameNode();
+  if (!name || !Node.isIdentifier(own) || declaration.isRestParameter()) return UNKNOWN;
+  const assigned = own.findReferencesAsNodes().some((reference) => {
+    const holder = reference.getParent();
+    return (
+      Node.isBinaryExpression(holder) &&
+      holder.getLeft() === reference &&
+      holder.getOperatorToken().getKind() === SyntaxKind.EqualsToken
+    );
+  });
+  if (assigned) return UNKNOWN;
+  const index = fn.getParameters().indexOf(declaration);
+  const calls = name.findReferencesAsNodes().filter((reference) => reference !== name);
+  if (calls.length === 0) return UNKNOWN;
+  const fields: Node[] = [];
+  for (const reference of calls) {
+    const call = reference.getParent();
+    const argument =
+      Node.isCallExpression(call) && call.getExpression() === reference
+        ? call.getArguments()[index]
+        : undefined;
+    if (!argument) return UNKNOWN;
+    const met = valueFields(argument, steps + 1);
+    if (met.unknown) return UNKNOWN;
+    fields.push(...met.fields);
+  }
+  return { fields, unknown: false };
+}
+
+/**
+ * Whether a literal sits where the SDK's vocabulary type for a field is what
+ * it is compared with or given as: its position expects that type, or it is
+ * compared by `===` with a value of it, is a case of a `switch` over one, or
+ * is an item of a list a value of it is looked for in. A value of that type
+ * is one of the field's values wherever the consumer carries it, into a
+ * helper of its own that takes a `CustomerStatus` as much as beside the
+ * field itself.
+ */
+function comparedWithVocabulary(literal: StringLiteral, vocabulary: TsSymbol): boolean {
+  const isVocabulary = (node: Node | undefined) =>
+    node !== undefined &&
+    node.getType().getAliasSymbol()?.compilerSymbol === vocabulary.compilerSymbol;
+  if (
+    literal.getContextualType()?.getAliasSymbol()?.compilerSymbol ===
+    vocabulary.compilerSymbol
+  )
+    return true;
+  const parent = literal.getParent();
+  if (Node.isBinaryExpression(parent)) {
+    const operator = parent.getOperatorToken().getKind();
+    if (
+      ![
+        SyntaxKind.EqualsEqualsEqualsToken,
+        SyntaxKind.ExclamationEqualsEqualsToken,
+        SyntaxKind.EqualsEqualsToken,
+        SyntaxKind.ExclamationEqualsToken,
+      ].includes(operator)
+    )
+      return false;
+    return isVocabulary(
+      parent.getLeft() === literal ? parent.getRight() : parent.getLeft(),
+    );
+  }
+  if (Node.isCaseClause(parent) && parent.getExpression() === literal) {
+    const switched = parent.getParent()?.getParent();
+    return Node.isSwitchStatement(switched) && isVocabulary(switched.getExpression());
+  }
+  if (Node.isArrayLiteralExpression(parent)) {
+    const callee = parent.getParent();
+    const call = callee?.getParent();
+    return (
+      Node.isPropertyAccessExpression(callee) &&
+      callee.getExpression() === parent &&
+      ["includes", "indexOf"].includes(callee.getName()) &&
+      Node.isCallExpression(call) &&
+      isVocabulary(call.getArguments()[0])
+    );
+  }
+  return false;
 }
 
 /**
@@ -622,6 +967,51 @@ export function membersOf(
 }
 
 /**
+ * The interface a symbol map names, where the name is one: top level, or
+ * qualified by the namespaces it is declared in.
+ */
+function interfaceNamed(
+  project: Project,
+  path: string,
+  scope: EditScope,
+): InterfaceDeclaration | undefined {
+  for (const source of project.getSourceFiles()) {
+    if (!isGenerated(source.getFilePath(), scope)) continue;
+    if (!path.includes(".")) {
+      const found = source.getInterface(path);
+      if (found) return found;
+      continue;
+    }
+    for (const declaration of source.getDescendantsOfKind(
+      SyntaxKind.InterfaceDeclaration,
+    )) {
+      if (qualifiedName(declaration) === path) return declaration;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Whether a reference to a field is certainly on a value of `type`: the
+ * object read from, the literal written, or the value destructured is of
+ * that type or one assignable to it, and not something nothing types.
+ */
+function readFrom(node: Node, role: Role, type: Type): boolean {
+  const parent = node.getParent();
+  let holder: Type | undefined;
+  if (role === "read-access" && Node.isPropertyAccessExpression(parent)) {
+    holder = parent.getExpression().getType();
+  } else if (role === "write-literal" || role === "write-expression") {
+    const literal = parent?.getParent();
+    if (Node.isObjectLiteralExpression(literal)) holder = literal.getContextualType();
+  } else if (role === "destructure" && Node.isBindingElement(parent)) {
+    holder = parent.getParent()?.getType();
+  }
+  if (!holder || holder.isAny() || holder.isUnknown()) return false;
+  return holder.getNonNullableType().isAssignableTo(type);
+}
+
+/**
  * A declaration's name with the namespaces around it, leaving out an ambient
  * module's quoted name, which is the package and not part of the type's name.
  */
@@ -695,19 +1085,130 @@ function suppliesField(op: DataOp): op is AddOp | DefaultOp {
   );
 }
 
+/** A field by the name it is read and written by where nothing types it. */
+interface UntypedField {
+  changeId: string;
+  reason: string;
+  /** References the checker already found, which are not looked at again. */
+  typed: Set<string>;
+  /**
+   * Each declaration of a field by this name that a Change touched, and,
+   * where it only moved, where it now is.
+   */
+  moved: { declaration: Node; path?: string[]; changeId: string; reason: string }[];
+}
+
+/**
+ * The declaration of `field` on the type a value of `type` is, among those
+ * a Change touched, where it is certainly one of them.
+ */
+function movedOn(
+  type: Type | undefined,
+  field: string,
+  moved: UntypedField["moved"],
+): UntypedField["moved"][number] | undefined {
+  if (!type || type.isAny() || type.isUnknown()) return undefined;
+  const declarations =
+    type.getNonNullableType().getProperty(field)?.getDeclarations() ?? [];
+  const found = moved.filter((each) => declarations.includes(each.declaration as never));
+  return found.length === 1 ? found[0] : undefined;
+}
+
+/**
+ * Where an object literal nothing types goes, when it is certain: it is a
+ * `const`'s value, and every use of the `const` passes it to a call whose
+ * parameter is a type the Change touched the field of, as request
+ * parameters gathered first and handed to the SDK are. Its key is then the
+ * field, by the types of the calls it flows into.
+ */
+function passedOnlyAs(
+  literal: ObjectLiteralExpression,
+  field: string,
+  moved: UntypedField["moved"],
+): UntypedField["moved"][number] | undefined {
+  const holder = literal.getParent();
+  if (!Node.isVariableDeclaration(holder) || holder.getInitializer() !== literal)
+    return undefined;
+  const name = holder.getNameNode();
+  if (
+    holder.getVariableStatement()?.getDeclarationList().getDeclarationKind() !==
+      "const" ||
+    !Node.isIdentifier(name)
+  )
+    return undefined;
+  const checker = literal.getProject().getTypeChecker();
+  const uses = name.findReferencesAsNodes().filter((reference) => reference !== name);
+  const into = uses.map((reference) => {
+    const call = reference.getParent();
+    if (!Node.isCallExpression(call)) return undefined;
+    const index = call.getArguments().indexOf(reference);
+    const parameter =
+      index === -1
+        ? undefined
+        : checker.getResolvedSignature(call)?.getParameters()[index];
+    return parameter && movedOn(parameter.getTypeAtLocation(call), field, moved);
+  });
+  const first = into[0];
+  return first && into.every((each) => each === first) ? first : undefined;
+}
+
+/**
+ * What every call passes to the untyped parameter a value is, when it is
+ * certain: the value is a parameter of a function of the consumer's that
+ * nothing assigns to, the function is called by name, and every call passes
+ * a value whose type declares the field as one the Change touched.
+ */
+function passedByEveryCaller(
+  value: Node,
+  field: string,
+  moved: UntypedField["moved"],
+): UntypedField["moved"][number] | undefined {
+  if (!Node.isIdentifier(value)) return undefined;
+  const parameter = value.getSymbol()?.getDeclarations()[0];
+  if (!Node.isParameterDeclaration(parameter)) return undefined;
+  const fn = parameter.getParent();
+  if (!Node.isFunctionDeclaration(fn)) return undefined;
+  const name = fn.getNameNode();
+  const own = parameter.getNameNode();
+  if (!name || !Node.isIdentifier(own)) return undefined;
+  const index = fn.getParameters().indexOf(parameter);
+  // Reassigned anywhere, it may hold something else where it is read.
+  const assigned = own.findReferencesAsNodes().some((reference) => {
+    const holder = reference.getParent();
+    return (
+      Node.isBinaryExpression(holder) &&
+      holder.getLeft() === reference &&
+      holder.getOperatorToken().getKind() === SyntaxKind.EqualsToken
+    );
+  });
+  if (assigned) return undefined;
+  const calls = name.findReferencesAsNodes().filter((reference) => reference !== name);
+  const into = calls.map((reference) => {
+    const call = reference.getParent();
+    if (!Node.isCallExpression(call) || call.getExpression() !== reference)
+      return undefined;
+    return movedOn(call.getArguments()[index]?.getType(), field, moved);
+  });
+  const first = into[0];
+  return first && into.every((each) => each === first) ? first : undefined;
+}
+
 /**
  * Uses of a field's name that nothing types: a key of an object literal with
- * no type to fit, a read or a subscript of a value typed `any`. A test's
- * stand-in for a subscription, `{ current_period_end: 123 }` handed to a
- * mock, is invisible to the checker, and is the ordinary way a consumer's
- * tests hold a response. There is no evidence it is the field the Change is
- * about, only its name, so each is shown to a person and never rewritten,
- * as the Python pack does with a dictionary's keys. A use typed as anything
- * at all is the checker's to decide, and is left to it.
+ * no type to fit, a read, a subscript or a destructuring of a value typed
+ * `any`. A test's stand-in for a subscription, `{ current_period_end: 123 }`
+ * handed to a mock, is invisible to the checker, and is the ordinary way a
+ * consumer's tests hold a response. Its name alone is no evidence it is the
+ * field the Change is about, so each is shown to a person, as the Python pack
+ * does with a dictionary's keys, unless the value flows certainly to or from
+ * the SDK's type: an object every use of which passes it where that type is
+ * expected (`passedOnlyAs`), or a parameter every call passes it to
+ * (`passedByEveryCaller`). Those are rewritten. A use typed as anything at
+ * all is the checker's to decide, and is left to it.
  */
 function flagUntyped(
   project: Project,
-  fields: ReadonlyMap<string, { changeId: string; reason: string; typed: Set<string> }>,
+  fields: ReadonlyMap<string, UntypedField>,
   sdk: string,
   scope: EditScope,
   result: EngineResult,
@@ -747,6 +1248,22 @@ function flagUntyped(
       }
       const parent = node.getParent();
       let shown = false;
+      const rename = (
+        start: number,
+        end: number,
+        replacement: string,
+        moved: UntypedField["moved"][number],
+        through: string,
+      ) =>
+        result.edits.push({
+          file: source.getFilePath(),
+          start,
+          end,
+          replacement,
+          changeId: moved.changeId,
+          author: "codemod",
+          reason: `${moved.reason}; ${through}`,
+        });
       if (
         (Node.isPropertyAssignment(parent) ||
           Node.isShorthandPropertyAssignment(parent)) &&
@@ -758,7 +1275,30 @@ function flagUntyped(
           untyped(literal.getContextualType())
         ) {
           const passed = importsSdk ? undefined : passedAsSdk(literal, match[0], scope);
-          if (importsSdk) shown = true;
+          const into = importsSdk
+            ? passedOnlyAs(literal, match[0], field.moved)
+            : undefined;
+          const head = into?.path?.length === 1 ? into.path[0] : undefined;
+          if (into && head !== undefined) {
+            const key = /^[A-Za-z_$][\w$]*$/.test(head) ? head : JSON.stringify(head);
+            if (Node.isShorthandPropertyAssignment(parent)) {
+              rename(
+                parent.getStart(),
+                parent.getEnd(),
+                `${key}: ${node.getText()}`,
+                into,
+                "the object is only ever passed where the SDK's type is expected",
+              );
+            } else {
+              rename(
+                node.getStart(),
+                node.getEnd(),
+                key,
+                into,
+                "the object is only ever passed where the SDK's type is expected",
+              );
+            }
+          } else if (importsSdk) shown = true;
           else if (passed) {
             result.manual.push(
               manualFrom(
@@ -775,7 +1315,19 @@ function flagUntyped(
         Node.isPropertyAccessExpression(parent) &&
         parent.getNameNode() === node
       ) {
-        shown = untyped(parent.getExpression().getType());
+        const receiver = parent.getExpression();
+        const from = untyped(receiver.getType())
+          ? passedByEveryCaller(receiver, match[0], field.moved)
+          : undefined;
+        if (from?.path) {
+          rename(
+            node.getStart(),
+            node.getEnd(),
+            from.path.join("."),
+            from,
+            "every call passes the SDK's object to the parameter it is read from",
+          );
+        } else shown = untyped(receiver.getType());
       } else if (
         Node.isElementAccessExpression(parent) &&
         parent.getArgumentExpression() === node
@@ -843,14 +1395,36 @@ export function runEngine(
       : membersOf(project, target.typeName, scope);
   const propertyIn = (target: TargetSymbol) =>
     propertyOf(membersFor(target), target.property);
+  /**
+   * A field the type inherits from an interface it extends, as `email` on a
+   * `Customer` that extends `CustomerBase`, with the type itself, which each
+   * reference has to be proven to read it from.
+   */
+  const inheritedIn = (
+    target: TargetSymbol,
+  ): { declaration: PropertySignature; type: Type } | undefined => {
+    if (target.within) return undefined;
+    const root = interfaceNamed(project, target.typeName, scope);
+    const declaration = root
+      ?.getType()
+      .getProperty(target.property)
+      ?.getDeclarations()
+      .find((each) => Node.isPropertySignature(each));
+    if (
+      !root ||
+      !Node.isPropertySignature(declaration) ||
+      !isGenerated(declaration.getSourceFile().getFilePath(), scope)
+    )
+      return undefined;
+    return { declaration, type: root.getType() };
+  };
 
   // One group per field, so every op that touches it composes into one edit.
   const groups = new Map<string, TargetSymbol[]>();
   /** Each moved or removed field's name, for the places nothing types. */
-  const untypedFields = new Map<
-    string,
-    { changeId: string; reason: string; typed: Set<string> }
-  >();
+  const untypedFields = new Map<string, UntypedField>();
+  /** Values the contextual pass could not place on a field (`applyContextualEnums`). */
+  const unsure: ManualSite[] = [];
   for (const target of plan.targets) {
     // Neither edits an existing reference: a field that must now be sent is
     // written into the literals below, and one that may now be missing or
@@ -862,7 +1436,9 @@ export function runEngine(
 
   for (const targets of groups.values()) {
     const first = targets[0] as TargetSymbol;
-    const declaration = propertyIn(first);
+    const own = propertyIn(first);
+    const inherited = own ? undefined : inheritedIn(first);
+    const declaration = own ?? inherited?.declaration;
     if (!declaration) continue;
 
     const composed = compose(targets, plan.symbols.helpers);
@@ -870,6 +1446,13 @@ export function runEngine(
     const enums = targets.filter(
       (target) => target.op.op === "convert" && target.op.codec.kind === "enumMap",
     );
+    // The alias the SDK declares the field's values as, where it declares one.
+    const alias = declaration.getType().getAliasSymbol();
+    const vocabulary = alias
+      ?.getDeclarations()
+      .every((each) => isGenerated(each.getSourceFile().getFilePath(), scope))
+      ? alias
+      : undefined;
     for (const target of enums) {
       if (target.op.op !== "convert" || target.op.codec.kind !== "enumMap") continue;
       applyContextualEnums(
@@ -878,6 +1461,9 @@ export function runEngine(
         target.changeId,
         scope,
         result,
+        declaration,
+        unsure,
+        vocabulary,
       );
     }
 
@@ -886,6 +1472,25 @@ export function runEngine(
       typed.add(`${node.getSourceFile().getFilePath()}:${node.getStart()}`);
       const role = roleOf(node);
       if (role === "type-reference") continue;
+      // A field the type inherits is declared on a base other types may
+      // share, so a reference is the Change's only where the value it is
+      // read from, written into or destructured from is certainly the type.
+      if (inherited && !readFrom(node, role, inherited.type)) {
+        if (
+          composed.path.join(".") !== first.property ||
+          composed.wrapRead ||
+          composed.unsupported
+        ) {
+          result.manual.push(
+            manualFrom(
+              node,
+              first.changeId,
+              `\`${first.property}\` is declared on a base that \`${first.typeName}\` shares, and this value is not certainly a \`${first.typeName}\`; if it is one, ${composed.unsupported ?? composed.reasons.join("; ")}`,
+            ),
+          );
+        }
+        continue;
+      }
 
       for (const target of enums) {
         if (target.op.op !== "convert" || target.op.codec.kind !== "enumMap") continue;
@@ -919,8 +1524,15 @@ export function runEngine(
     ) {
       const name = first.property;
       const seen = untypedFields.get(name);
+      const moved = {
+        declaration: declaration as Node,
+        ...(composed.wrapRead || composed.unsupported ? {} : { path: composed.path }),
+        changeId: first.changeId,
+        reason: composed.reasons.join("; "),
+      };
       if (seen) {
         for (const position of typed) seen.typed.add(position);
+        seen.moved.push(moved);
       } else {
         const what =
           composed.unsupported ??
@@ -929,6 +1541,7 @@ export function runEngine(
           changeId: first.changeId,
           reason: `nothing types this \`${name}\`, so it is shown rather than rewritten; if it is the contract's field, ${what}`,
           typed,
+          moved: [moved],
         });
       }
     }
@@ -1014,5 +1627,28 @@ export function runEngine(
     }
   }
 
+  // A value one field's pass could not place is shown, unless another pass,
+  // or the rewrite beside a field it is compared with, rewrote it after all.
+  for (const site of unsure) {
+    const rewritten = result.edits.some(
+      (edit) =>
+        edit.file === site.file && edit.start <= site.offset && site.offset < edit.end,
+    );
+    const shown = result.manual.some(
+      (other) => other.file === site.file && other.offset === site.offset,
+    );
+    if (!rewritten && !shown) result.manual.push(site);
+  }
+
+  // A value renamed both beside the field it is compared with and by the
+  // type its position expects is one edit, not two of the same span.
+  const written = new Set<string>();
+  result.edits = result.edits.filter((edit) => {
+    if (typeof edit.replacement !== "string") return true;
+    const key = `${edit.file}\u0000${edit.start}\u0000${edit.end}\u0000${edit.replacement}`;
+    if (written.has(key)) return false;
+    written.add(key);
+    return true;
+  });
   return result;
 }

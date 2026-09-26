@@ -1,0 +1,149 @@
+{
+  "openapi": "3.0.0",
+  "info": { "title": "Stripe API", "version": "2025-02-24.acacia" },
+  "servers": [{ "url": "https://api.stripe.com/" }],
+  "paths": {
+    "/v1/checkout/sessions": {
+      "post": {
+        "operationId": "PostCheckoutSessions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/checkout.session" } }
+            },
+            "description": "Successful response."
+          }
+        }
+      }
+    },
+    "/v1/checkout/sessions/{session}": {
+      "get": {
+        "operationId": "GetCheckoutSessionsSession",
+        "parameters": [
+          { "in": "path", "name": "session", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/checkout.session" } }
+            },
+            "description": "Successful response."
+          }
+        }
+      }
+    },
+    "/v1/invoices/upcoming": {
+      "get": {
+        "operationId": "GetInvoicesUpcoming",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/line_item" } }
+            },
+            "description": "Successful response."
+          }
+        }
+      }
+    },
+    "/v1/customers/{customer}": {
+      "delete": {
+        "operationId": "DeleteCustomersCustomer",
+        "parameters": [
+          { "in": "path", "name": "customer", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/deleted_customer" } }
+            },
+            "description": "Successful response."
+          }
+        }
+      },
+      "get": {
+        "operationId": "GetCustomersCustomer",
+        "parameters": [
+          { "in": "path", "name": "customer", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/customer" } }
+            },
+            "description": "Successful response."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "checkout.session": {
+        "properties": {
+          "amount_subtotal": { "nullable": true, "type": "integer" },
+          "amount_total": { "nullable": true, "type": "integer" },
+          "automatic_tax": {
+            "$ref": "#/components/schemas/payment_pages_checkout_session_automatic_tax"
+          },
+          "id": { "maxLength": 5000, "type": "string" },
+          "object": { "enum": ["checkout.session"], "type": "string" }
+        },
+        "type": "object"
+      },
+      "payment_pages_checkout_session_automatic_tax": {
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "status": { "enum": ["complete", "failed", "requires_location_inputs"], "nullable": true, "type": "string" }
+        },
+        "type": "object"
+      },
+      "customer": {
+        "properties": {
+          "address": { "anyOf": [{ "$ref": "#/components/schemas/address" }], "nullable": true },
+          "balance": { "type": "integer" },
+          "email": { "maxLength": 5000, "nullable": true, "type": "string" },
+          "id": { "maxLength": 5000, "type": "string" },
+          "object": { "enum": ["customer"], "type": "string" }
+        },
+        "type": "object"
+      },
+      "deleted_customer": {
+        "properties": {
+          "deleted": { "enum": [true], "type": "boolean" },
+          "id": { "maxLength": 5000, "type": "string" },
+          "object": { "enum": ["customer"], "type": "string" }
+        },
+        "type": "object"
+      },
+      "address": {
+        "properties": {
+          "city": { "nullable": true, "type": "string" },
+          "country": { "nullable": true, "type": "string" }
+        },
+        "type": "object"
+      },
+      "line_item": {
+        "properties": {
+          "amount": { "type": "integer" },
+          "currency": { "type": "string" },
+          "id": { "maxLength": 5000, "type": "string" },
+          "invoice": { "nullable": true, "type": "string" },
+          "object": { "enum": ["line_item"], "type": "string" },
+          "period": { "type": "object" }
+        },
+        "type": "object"
+      },
+      "item": {
+        "properties": {
+          "amount_discount": { "type": "integer" },
+          "amount_subtotal": { "type": "integer" },
+          "amount_total": { "type": "integer" },
+          "currency": { "type": "string" },
+          "id": { "maxLength": 5000, "type": "string" },
+          "object": { "enum": ["item"], "type": "string" }
+        },
+        "type": "object"
+      }
+    }
+  }
+}

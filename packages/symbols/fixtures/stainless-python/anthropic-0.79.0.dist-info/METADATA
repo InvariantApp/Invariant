@@ -1,0 +1,4 @@
+Metadata-Version: 2.3
+Name: anthropic
+Version: 0.79.0
+Summary: The official Python library for the anthropic API

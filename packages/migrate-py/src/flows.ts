@@ -349,7 +349,7 @@ function agreed(found: readonly (string | undefined)[]): string | undefined {
 }
 
 /** The function an unannotated parameter belongs to, and where in its list it is. */
-function parameterOf(
+export function parameterOf(
   name: Node,
 ): { fn: Node; index: number; name: string; method: boolean } | undefined {
   const parameters = name.parent;

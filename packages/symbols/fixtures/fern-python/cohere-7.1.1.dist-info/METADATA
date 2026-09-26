@@ -1,0 +1,8 @@
+Metadata-Version: 2.1
+Name: cohere
+Version: 7.1.1
+Summary:
+
+# Cohere Python SDK
+
+[![fern shield](https://img.shields.io/badge/%F0%9F%8C%BF-SDK%20generated%20by%20Fern-brightgreen)](https://github.com/fern-api/fern)

@@ -16,14 +16,18 @@ import { scenariosFromDocument, scenarioYaml } from "@invariant-app/verifier";
 import { check, renderReport, reportJson } from "./check.ts";
 import { renderComment } from "./comment.ts";
 import { loadConfig } from "./config.ts";
+import { defaultCacheDir, fileCache } from "./discover.ts";
 import { doctor, renderDoctor } from "./doctor.ts";
 import { type InitOptions, init, renderInit } from "./init.ts";
 import { LOCK_FILE, lockFor, renderLock } from "./lock.ts";
 import {
+  inProcess,
   MigrateError,
+  type MigrationJob,
   type MigrationOutcome,
-  migrateInProcess,
+  migrateRepository,
   migrateSandboxed,
+  planPackages,
   readJob,
   renderOutcome,
   runPhase,
@@ -45,6 +49,7 @@ import {
 } from "./service.ts";
 import { readLedger } from "./usage.ts";
 import { watchChecks } from "./watch.ts";
+import { wellKnownDocument } from "./well-known.ts";
 
 const USAGE = `invariant <command>
 
@@ -61,6 +66,11 @@ const USAGE = `invariant <command>
             Send the SDK maps in invariant/sdks and the signed releases in
             invariant/bundles to the service. Safe to run again: a release
             it already has is not sent twice.
+  well-known
+            Print /.well-known/invariant.json, the document to serve from
+            your own domain that lists the keys you sign releases with, so
+            consumers can trust a published release without trusting the
+            service that serves it.
   status    What production is using: each contract, and who is still on it.
   retire    Say which old contracts nobody is using any more.
   observe   Stand in front of the API, adapt nothing, and report where its
@@ -75,7 +85,8 @@ const USAGE = `invariant <command>
   migrate <job.json>
             Move one consumer repository to a release: fetch both SDK
             releases, then read and edit the repository against them with
-            no network. With --sandbox, each step runs in a container.
+            no network. With --sandbox, each step runs in a container. A
+            monorepo is migrated package by package, into one result.
 
 Options
   --spec <path>     init: the OpenAPI document, when there is more than one
@@ -119,13 +130,24 @@ Options
   --allow-host <h>  migrate: a host the fetch may reach beyond the public
                     registries, such as a private one; repeatable
   --key <path>      migrate: the publisher's public key, for a job's bundle
+  --service <url>   migrate: the service a job's release is read from
+                    (default: the one the provider names, else the hosted one)
   --write           migrate: apply the edits to the repository
   --out <path>      migrate: where to write the result as JSON
+  --key <path>      well-known: a public key to list; repeatable
+  --from <path>     well-known: the document published today, whose keys
+                    are kept as they are
+  --revoke <keyid>  well-known: withdraw a key and everything it signed
+  --retire <keyid>  well-known: stop a key signing from now; what it signed
+                    stays trusted
+  --out <path>      well-known: where to write the document
 
 Environment
-  INVARIANT_SIGNING_KEY   release: the ed25519 private key, in PEM form
+  INVARIANT_SIGNING_KEY   release: the ed25519 private key, in PEM form;
+                          well-known: its public half is listed
   INVARIANT_TOKEN         publish, status: a token from the dashboard
-  INVARIANT_URL           publish, status: the service, if not the hosted one
+  INVARIANT_URL           publish, status: the service, if not the hosted one;
+                          well-known: named as where bundles are published
 `;
 
 function flag(argv: readonly string[], name: string): string | undefined {
@@ -159,12 +181,24 @@ async function runMigrate(argv: readonly string[]): Promise<number> {
   const keys = await Promise.all(
     flags(argv, "key").map((key) => readFile(resolve(key), "utf8")),
   );
-  const job = await readJob(resolve(path), { keys });
+  const service = flag(argv, "service");
+  const job = await readJob(resolve(path), {
+    keys,
+    discovery: {
+      cache: fileCache(defaultCacheDir()),
+      ...(service ? { service } : {}),
+    },
+  });
   const sandbox = flag(argv, "sandbox") ?? "in-process";
-  let outcome: MigrationOutcome;
-  let phases: PhaseResult[] | undefined;
+  let run: (job: MigrationJob) => Promise<{
+    outcome: MigrationOutcome;
+    phases?: PhaseResult[];
+  }>;
+  let close = async () => {};
   if (sandbox === "in-process") {
-    outcome = await migrateInProcess(job);
+    const local = inProcess();
+    run = async (each) => ({ outcome: await local.run(each) });
+    close = local.close;
   } else if (sandbox === "oci-rootless") {
     const runtime = flag(argv, "runtime");
     if (runtime !== undefined && runtime !== "docker" && runtime !== "podman") {
@@ -172,18 +206,28 @@ async function runMigrate(argv: readonly string[]): Promise<number> {
     }
     const image = flag(argv, "image");
     const allow = flags(argv, "allow-host");
-    ({ outcome, phases } = await migrateSandboxed(job, {
-      ...(image ? { image } : {}),
-      ...(runtime ? { runtime } : {}),
-      ...(allow.length > 0 ? { allow } : {}),
-      onOutput: (chunk) => process.stderr.write(chunk),
-    }));
+    run = (each) =>
+      migrateSandboxed(each, {
+        ...(image ? { image } : {}),
+        ...(runtime ? { runtime } : {}),
+        ...(allow.length > 0 ? { allow } : {}),
+        onOutput: (chunk) => process.stderr.write(chunk),
+      });
   } else if (sandbox === "k8s-job" || sandbox === "fly-machine") {
     throw new MigrateError(
       `${sandbox} runs where the hosted service does, with a workspace on the cluster or a Fly volume; from here, use --sandbox oci-rootless`,
     );
   } else {
     throw new MigrateError(`there is no sandbox called ${sandbox}`);
+  }
+
+  const { plans } = await planPackages(job);
+  let outcome: MigrationOutcome;
+  let phases: PhaseResult[];
+  try {
+    ({ outcome, phases } = await migrateRepository(job, plans, run));
+  } finally {
+    await close();
   }
 
   const out = flag(argv, "out");
@@ -193,12 +237,13 @@ async function runMigrate(argv: readonly string[]): Promise<number> {
     : undefined;
   process.stdout.write(
     renderOutcome(job, outcome, {
-      ...(sandbox === "in-process" ? {} : { sandbox }),
-      ...(phases ? { phases } : {}),
+      ...(sandbox === "in-process" ? {} : { sandbox, phases }),
       ...(written ? { written } : {}),
     }),
   );
-  return 0;
+  // Every package that could be migrated was, and the result says so; a
+  // package that failed still fails the command, so a script notices.
+  return outcome.packages?.some((pkg) => pkg.status === "failed") ? 1 : 0;
 }
 
 async function main(argv: string[]): Promise<number> {
@@ -380,6 +425,33 @@ async function main(argv: string[]): Promise<number> {
       }
       throw error;
     }
+  }
+
+  if (command === "well-known") {
+    const from = flag(argv, "from");
+    const signingKeyPem = process.env["INVARIANT_SIGNING_KEY"];
+    const bundlesUrl = process.env["INVARIANT_URL"];
+    const document = wellKnownDocument(config, {
+      keys: await Promise.all(
+        flags(argv, "key").map((key) => readFile(resolve(key), "utf8")),
+      ),
+      ...(signingKeyPem ? { signingKeyPem } : {}),
+      ...(from ? { previous: await readFile(resolve(from), "utf8") } : {}),
+      revoke: flags(argv, "revoke"),
+      retire: flags(argv, "retire"),
+      ...(bundlesUrl ? { bundlesUrl } : {}),
+    });
+    const text = `${JSON.stringify(document, null, 2)}\n`;
+    const out = flag(argv, "out");
+    if (out) {
+      await writeFile(resolve(out), text, "utf8");
+      process.stdout.write(
+        `wrote ${resolve(out)}; serve it at https://<your domain>/.well-known/invariant.json\n`,
+      );
+    } else {
+      process.stdout.write(text);
+    }
+    return 0;
   }
 
   if (command === "retire") {

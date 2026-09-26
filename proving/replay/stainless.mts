@@ -9,19 +9,25 @@
  * depends on a model. A release that records no specification is replayed
  * with none, and the case says so through its engine.
  *
- * Stainless names a response model after its schema (`BetaMessage`) and a
- * request type with `Param` after it (`ToolParam`). What neither name finds
- * is found by its fields, as stripe-go's types are: the one class whose
- * fields are the schema's properties. A class its package re-exports is named
- * through the package (`anthropic.types.beta.BetaMessage`), any other through
- * its own module.
+ * What the SDK calls each schema is the symbol map `@invariant-app/symbols`
+ * makes from the old release (`releaseSymbols`): Stainless names a response
+ * model after its schema (`BetaMessage`) and a request type with `Param`
+ * after it (`ToolParam`), and what neither name finds is found by its
+ * fields. A class is named by the shortest path a consumer imports it by
+ * (`anthropic.types.beta.BetaMessage`).
  */
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 import { type OpenApiDocument, readDocument } from "@invariant-app/contract";
 import { breakingBetween } from "./forced.mts";
-import { type ContractPlan, draftChanges, SPECS, schemasOf, wireOf } from "./stripe.mts";
+import {
+  type ContractPlan,
+  draftChanges,
+  releaseSymbols,
+  SPECS,
+  wireOf,
+} from "./stripe.mts";
 
 /** The PyPI packages Stainless generates, and the repositories their tags are in. */
 export const STAINLESS: Record<string, string> = {
@@ -79,99 +85,12 @@ async function specification(
   return { name, document: await readDocument(path) };
 }
 
-interface PythonClass {
-  name: string;
-  /** Dotted path the class is reached by. */
-  qualified: string;
-  fields: Set<string>;
-}
-
-/** Every top-level class under the package's `types`, with its annotated fields. */
-export function stainlessClasses(site: string, pkg: string): PythonClass[] {
-  const found: PythonClass[] = [];
-  const walk = (dir: string) => {
-    if (!existsSync(dir)) return;
-    const exported = existsSync(join(dir, "__init__.py"))
-      ? readFileSync(join(dir, "__init__.py"), "utf8")
-      : "";
-    const packagePath = relative(site, dir).split("/").join(".");
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const path = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        walk(path);
-        continue;
-      }
-      if (!entry.name.endsWith(".py")) continue;
-      const text = readFileSync(path, "utf8");
-      const module =
-        entry.name === "__init__.py"
-          ? packagePath
-          : `${packagePath}.${entry.name.slice(0, -3)}`;
-      // Each class runs to the next line that starts at the margin.
-      for (const match of text.matchAll(
-        /^class (\w+)\b[^\n]*:\n((?:[ \t]+[^\n]*\n|\n)*)/gm,
-      )) {
-        const name = match[1] as string;
-        const fields = new Set(
-          [...(match[2] ?? "").matchAll(/^ {4}(\w+)\s*:/gm)].map(
-            (field) => field[1] as string,
-          ),
-        );
-        const reexported = new RegExp(`\\b${name}\\b`).test(exported);
-        found.push({
-          name,
-          qualified: `${reexported ? packagePath : module}.${name}`,
-          fields,
-        });
-      }
-    }
-  };
-  walk(join(site, pkg, "types"));
-  return found;
-}
-
-/**
- * Schema name to the SDK's class for it: by the name Stainless gives a model,
- * then a request type, then, for a schema with at least two properties, the
- * one class sharing at least 80% of its fields with it.
- */
-export function stainlessTypes(
-  document: OpenApiDocument,
-  classes: readonly PythonClass[],
-): Record<string, string> {
-  const byName = new Map<string, PythonClass>();
-  for (const each of classes) if (!byName.has(each.name)) byName.set(each.name, each);
-  const loose = (name: string) => name.replace(/_/g, "").toLowerCase();
-  const byLoose = new Map<string, PythonClass[]>();
-  for (const each of classes) {
-    byLoose.set(loose(each.name), [...(byLoose.get(loose(each.name)) ?? []), each]);
-  }
-  const types: Record<string, string> = {};
-  for (const [schema, definition] of Object.entries(schemasOf(document))) {
-    const named =
-      byName.get(schema) ??
-      byName.get(`${schema}Param`) ??
-      (byLoose.get(loose(schema))?.length === 1
-        ? byLoose.get(loose(schema))?.[0]
-        : undefined);
-    if (named) {
-      types[schema] = named.qualified;
-      continue;
-    }
-    const properties = Object.keys(definition.properties ?? {});
-    if (properties.length < 2) continue;
-    let best: { share: number; classes: PythonClass[] } = { share: 0, classes: [] };
-    for (const each of classes) {
-      const shared = properties.filter((property) => each.fields.has(property)).length;
-      const share = shared / new Set([...properties, ...each.fields]).size;
-      if (share > best.share) best = { share, classes: [each] };
-      else if (share === best.share) best.classes.push(each);
-    }
-    if (best.share >= 0.8 && best.classes.length === 1) {
-      types[schema] = (best.classes[0] as PythonClass).qualified;
-    }
-  }
-  return types;
+/** The specification a Stainless release was built from. */
+export async function stainlessSpecification(
+  pkg: string,
+  version: string,
+): Promise<OpenApiDocument> {
+  return (await specification(await specUrl(pkg, version))).document;
 }
 
 /**
@@ -191,7 +110,12 @@ export async function stainlessPlan(
     specification(newUrl),
   ]);
   const drafted = await draftChanges(before.document, after.document);
-  const types = stainlessTypes(before.document, stainlessClasses(site, pkg));
+  const { types, operations } = await releaseSymbols(
+    site,
+    "python",
+    before.document,
+    pkg,
+  );
   return {
     ...drafted,
     types,
@@ -199,7 +123,7 @@ export async function stainlessPlan(
     // How a Stainless API tags its objects is not read yet; the engine finds
     // them through the SDK's types instead.
     tags: { property: "type", schemas: {} },
-    operations: {},
+    operations,
     breaking:
       oldUrl === newUrl
         ? []

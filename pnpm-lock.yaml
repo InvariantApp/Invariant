@@ -80,6 +80,9 @@ importers:
       '@invariant-app/sidecar':
         specifier: workspace:*
         version: link:packages/sidecar
+      '@invariant-app/symbols':
+        specifier: workspace:*
+        version: link:packages/symbols
       '@invariant-app/verifier':
         specifier: workspace:*
         version: link:packages/verifier
@@ -396,6 +399,9 @@ importers:
       ajv:
         specifier: ^8.20.0
         version: 8.20.0
+      smol-toml:
+        specifier: ^1.8.0
+        version: 1.9.0
       yaml:
         specifier: ^2.8.2
         version: 2.9.1
@@ -539,6 +545,9 @@ importers:
 
   packages/migrate-core:
     dependencies:
+      '@invariant-app/decimal':
+        specifier: workspace:*
+        version: link:../decimal
       '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
@@ -578,9 +587,6 @@ importers:
 
   packages/migrate-ts:
     dependencies:
-      '@invariant-app/decimal':
-        specifier: workspace:*
-        version: link:../decimal
       '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
@@ -715,6 +721,21 @@ importers:
       '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
+
+  packages/symbols:
+    dependencies:
+      '@invariant-app/contract':
+        specifier: workspace:*
+        version: link:../contract
+      '@invariant-app/ir':
+        specifier: workspace:*
+        version: link:../ir
+      '@invariant-app/migrate-core':
+        specifier: workspace:*
+        version: link:../migrate-core
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
 
   packages/telemetry:
     dependencies:
@@ -3952,6 +3973,10 @@ packages:
   slash@3.0.0:
     resolution: {integrity: sha512-g9Q1haeby36OSStwb4ntCGGGaKsaVSjQ68fBxoQcutl5fS1vuY18H3wSt3jFyFtrkx+Kz0V1G85A4MyAdDMi2Q==}
     engines: {node: '>=8'}
+
+  smol-toml@1.9.0:
+    resolution: {integrity: sha512-hpd+HLON7HdZXqYchMM/+LaTTbdK0AU3NngIJ4KVyWbY9bfQqdL9cD+4yf6dUoU2Ap4VsU0JkQi6FxAI1B2mXQ==}
+    engines: {node: '>= 18'}
 
   sonic-boom@3.8.1:
     resolution: {integrity: sha512-y4Z8LCDBuum+PBP3lSV7RHrXscqksve/bi0as7mhwVnBW+/wUqKT/2Kb7um8yqcFy0duYbbPxzt89Zy2nOCaxg==}
@@ -7730,6 +7755,8 @@ snapshots:
       unicode-emoji-modifier-base: 1.0.0
 
   slash@3.0.0: {}
+
+  smol-toml@1.9.0: {}
 
   sonic-boom@3.8.1:
     dependencies:

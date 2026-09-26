@@ -75,6 +75,10 @@ describe.skipIf(!hasGo)("the Go pack's conformance", () => {
           upgradeTo: { path: "example.com/sdk", version: "v2.0.0" },
           types: TYPES[scenario.sdk],
           tags: { property: "object", schemas: { customer: "customer" } },
+          helpers: {
+            toMinor: { package: "", key: "ToMinorUnits" },
+            fromMinor: { package: "", key: "FromMinorUnits" },
+          },
         },
         surfaces,
       );

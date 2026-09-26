@@ -1,0 +1,66 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Mistral AI API", "version": "1.0.0" },
+  "servers": [{ "url": "https://api.mistral.ai", "description": "Production server" }],
+  "paths": {
+    "/v1/chat/completions": {
+      "post": {
+        "operationId": "chat_completion_v1_chat_completions_post",
+        "summary": "Chat Completion",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ChatCompletionResponse" } }
+            },
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/v1/models/{model_id}": {
+      "get": {
+        "operationId": "retrieve_model_v1_models__model_id__get",
+        "parameters": [
+          { "in": "path", "name": "model_id", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Successful Response" } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ChatCompletionResponseBase": {
+        "properties": {
+          "created": { "type": "integer" },
+          "id": { "type": "string" },
+          "model": { "type": "string" },
+          "object": { "type": "string" },
+          "usage": { "$ref": "#/components/schemas/UsageInfo" }
+        },
+        "type": "object"
+      },
+      "ChatCompletionResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ChatCompletionResponseBase" },
+          {
+            "properties": { "choices": { "items": { "type": "object" }, "type": "array" } },
+            "title": "ChatCompletionResponse",
+            "type": "object"
+          }
+        ]
+      },
+      "UsageInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "completion_tokens": { "default": 0, "type": "integer" },
+          "prompt_audio_seconds": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+          "prompt_tokens": { "default": 0, "type": "integer" },
+          "service_tier": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "total_tokens": { "default": 0, "type": "integer" }
+        },
+        "title": "UsageInfo",
+        "type": "object"
+      }
+    }
+  }
+}

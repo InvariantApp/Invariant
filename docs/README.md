@@ -21,6 +21,8 @@ Change your API without breaking the integrations built on it.
 
 - [Migrating your consumers](migrations.md): a draft pull request in every connected
   repository when you release.
+- [Publishing your signing keys](well-known.md): `/.well-known/invariant.json`, so anyone can
+  migrate from your published releases without trusting the service that serves them.
 
 ## Reference
 

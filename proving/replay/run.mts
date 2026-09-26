@@ -205,12 +205,7 @@ interface SdkStamp {
 interface StampReader {
   (dir: string): SdkStamp | undefined;
   /** The Changes between two releases' contracts, and what the SDK calls each schema. */
-  contract?: (
-    from: string,
-    to: string,
-    sdk: string,
-    namespaced: boolean,
-  ) => Promise<ContractPlan>;
+  contract?: (from: string, to: string, sdk: string) => Promise<ContractPlan>;
 }
 
 /** How to read a stamp from each SDK that has one. */
@@ -811,12 +806,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       const contract =
         stamp?.contract && old && next
           ? await stamp
-              .contract(
-                versionOf(oldSdk),
-                versionOf(newSdk),
-                oldSdk,
-                old.pinType.includes("."),
-              )
+              .contract(versionOf(oldSdk), versionOf(newSdk), oldSdk)
               .catch((error: unknown) => {
                 // A release too old to say which contract it was built from
                 // is replayed with its pin alone.
@@ -1321,13 +1311,7 @@ async function replayPython(
     // Two releases speaking one API version broke nothing in the contract.
     if (label && was && label === was) breaking = [];
     if (label && was && label !== was) {
-      contract = await stripePlan(
-        old.version,
-        next.version,
-        old.site,
-        false,
-        "stripe-python",
-      );
+      contract = await stripePlan(old.version, next.version, old.site, "stripe-python");
       changes = contract.changes;
       types = contract.types;
     }

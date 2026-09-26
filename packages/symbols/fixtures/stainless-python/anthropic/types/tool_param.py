@@ -1,0 +1,47 @@
+# File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+
+from __future__ import annotations
+
+from typing import Dict, Union, Optional
+from typing_extensions import Literal, Required, TypeAlias, TypedDict
+
+from .._types import SequenceNotStr
+from .._models import set_pydantic_config
+
+__all__ = ["ToolParam", "InputSchema"]
+
+
+class InputSchemaTyped(TypedDict, total=False):
+    """[JSON schema](https://json-schema.org/draft/2020-12) for this tool's input.
+
+    This defines the shape of the `input` that your tool accepts and that the model will produce.
+    """
+
+    type: Required[Literal["object"]]
+
+    properties: Optional[Dict[str, object]]
+
+    required: Optional[SequenceNotStr[str]]
+
+
+set_pydantic_config(InputSchemaTyped, {"extra": "allow"})
+
+InputSchema: TypeAlias = Union[InputSchemaTyped, Dict[str, object]]
+
+
+class ToolParam(TypedDict, total=False):
+    input_schema: Required[InputSchema]
+    """[JSON schema](https://json-schema.org/draft/2020-12) for this tool's input.
+
+    This defines the shape of the `input` that your tool accepts and that the model
+    will produce.
+    """
+
+    name: Required[str]
+    """Name of the tool.
+
+    This is how the tool will be called by the model and in `tool_use` blocks.
+    """
+
+    description: str
+    """Description of what this tool does."""

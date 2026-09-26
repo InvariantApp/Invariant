@@ -1,0 +1,45 @@
+{
+  "name": "@invariant-app/symbols",
+  "version": "0.4.0",
+  "description": "Maps a contract's schemas and operations to the types and methods a generated SDK release declares for them",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/InvariantApp/Invariant.git",
+    "directory": "packages/symbols"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "sbom.cdx.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "node ../../scripts/prepack.mjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "dependencies": {
+    "@invariant-app/contract": "workspace:*",
+    "@invariant-app/ir": "workspace:*",
+    "@invariant-app/migrate-core": "workspace:*",
+    "typescript": "^6.0.3"
+  }
+}

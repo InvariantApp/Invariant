@@ -37,6 +37,7 @@
     }
   },
   "dependencies": {
+    "@invariant-app/decimal": "workspace:*",
     "@invariant-app/ir": "workspace:*"
   }
 }

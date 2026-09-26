@@ -55,6 +55,7 @@
     "@invariant-app/runtime": "workspace:*",
     "@invariant-app/sandbox": "workspace:*",
     "@invariant-app/sidecar": "workspace:*",
+    "@invariant-app/symbols": "workspace:*",
     "@invariant-app/verifier": "workspace:*",
     "@types/node": "^22.20.4",
     "@types/qs": "^6.15.1",

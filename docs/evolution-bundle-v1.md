@@ -61,8 +61,9 @@ digest, and `invariant verify --rebuild` checks a published bundle that way rath
 
 ## Verifying
 
-1. Check a signature against a public key you trust: the publisher's, from their dashboard or
-   their own documentation.
+1. Check a signature against a public key you trust: the publisher's, from the
+   [`/.well-known/invariant.json`](well-known.md) they serve on their own domain, their dashboard
+   or their own documentation.
 2. Check `predicateType` is this page's address and `bundleVersion` is `1`.
 3. Check the subject's digest is the digest of the predicate you were given.
 

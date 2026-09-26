@@ -14,10 +14,12 @@
   },
   "sideEffects": false,
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./well-known.schema.json": "./well-known.schema.json"
   },
   "files": [
     "dist",
+    "well-known.schema.json",
     "README.md",
     "LICENSE",
     "NOTICE",
@@ -33,7 +35,8 @@
       ".": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
-      }
+      },
+      "./well-known.schema.json": "./well-known.schema.json"
     }
   },
   "dependencies": {

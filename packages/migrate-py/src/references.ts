@@ -67,11 +67,29 @@ export interface ReferenceProvider {
   definitionAt(file: string, offset: number): Promise<(Span | Declaration)[]>;
   /** What the checker says the name at `offset` is, as hover text. */
   typeAt(file: string, offset: number): Promise<string | undefined>;
+  /**
+   * Where the name at `offset` in `text` is declared, `text` checked as
+   * though it were `file` (`PyrightReferences.errorsAs`).
+   */
+  definitionAs?(
+    file: string,
+    text: string,
+    offset: number,
+  ): Promise<(Span | Declaration)[]>;
 }
 
 export interface Verifier {
   /** Errors in each file, against whatever packages the checker was started with. */
   errors(files: readonly string[]): Promise<Map<string, Diagnostic[]>>;
+}
+
+/** Where the SDK declares the class a qualified name names. */
+export function classDeclaration(
+  references: ReferenceProvider,
+  typeName: string,
+): Promise<Declaration | undefined> {
+  const module = importedFor(typeName);
+  return references.moduleAttribute(module, typeName.slice(module.length + 1));
 }
 
 export function isSpan(place: Span | Declaration): place is Span {
@@ -247,6 +265,20 @@ export class PyrightReferences implements ReferenceProvider, Verifier {
    * under another name, so its imports resolve as the file's own do, and
    * never written to disk.
    */
+  async definitionAs(
+    file: string,
+    text: string,
+    offset: number,
+  ): Promise<(Span | Declaration)[]> {
+    const beside = `${dirname(file)}/${SHADOW}`;
+    await this.server.open(beside, text);
+    const locations = await this.server.definition(
+      beside,
+      new LineIndex(text).positionAt(offset),
+    );
+    return locations.map((location) => this.placeOf(location));
+  }
+
   async errorsAs(file: string, text: string): Promise<Diagnostic[]> {
     const beside = `${dirname(file)}/${SHADOW}`;
     await this.server.open(beside, text);
