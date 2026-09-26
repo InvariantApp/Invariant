@@ -19,11 +19,14 @@
  * code genuinely cannot decide, and a literal path is not one of those places.
  */
 
-import type { Edit, MigrationPlan } from "@invariant-app/migrate-core";
+import {
+  type Edit,
+  exactMinorUnits,
+  type MigrationPlan,
+} from "@invariant-app/migrate-core";
 import { Node, type Project, SyntaxKind } from "ts-morph";
 import type { EditScope, ManualSite } from "./engine.ts";
 import { editable, recoding } from "./engine.ts";
-import { exactMinorUnits } from "./numbers.ts";
 
 export interface RawOptions {
   /**

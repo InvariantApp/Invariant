@@ -20,6 +20,7 @@
 import type { AddOp, DataOp, DefaultOp } from "@invariant-app/ir";
 import {
   type Edit,
+  exactMinorUnits,
   type ManualSite,
   type MigrationPlan,
   type Replacement,
@@ -36,7 +37,6 @@ import {
   type Type,
   type TypeElementTypes,
 } from "ts-morph";
-import { exactMinorUnits } from "./numbers.ts";
 import { within } from "./paths.ts";
 
 export type { ManualSite };

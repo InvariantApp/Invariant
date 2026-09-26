@@ -74,6 +74,15 @@ export interface Verifier {
   errors(files: readonly string[]): Promise<Map<string, Diagnostic[]>>;
 }
 
+/** Where the SDK declares the class a qualified name names. */
+export function classDeclaration(
+  references: ReferenceProvider,
+  typeName: string,
+): Promise<Declaration | undefined> {
+  const module = importedFor(typeName);
+  return references.moduleAttribute(module, typeName.slice(module.length + 1));
+}
+
 export function isSpan(place: Span | Declaration): place is Span {
   return "start" in place;
 }

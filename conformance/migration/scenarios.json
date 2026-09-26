@@ -375,10 +375,6 @@
       "sdk": "handwritten",
       "expect": "edit",
       "gaps": {
-        "python": {
-          "observed": "flag",
-          "reason": "A `scale10` re-encoding is shown, not rewritten through the SDK's exact conversion helpers."
-        },
         "go": {
           "observed": "flag",
           "reason": "Every re-encoding is shown (`encoded differently now (scale10)`); the SDK's exact conversion is never written in."
@@ -442,10 +438,6 @@
       "sdk": "handwritten",
       "expect": "edit",
       "gaps": {
-        "python": {
-          "observed": "flag",
-          "reason": "A `scale10` re-encoding is shown, not rewritten through the SDK's exact conversion helpers."
-        },
         "go": {
           "observed": "flag",
           "reason": "Every re-encoding is shown (`encoded differently now (scale10)`); the SDK's exact conversion is never written in."
@@ -460,10 +452,6 @@
       "sdk": "handwritten",
       "expect": "edit",
       "gaps": {
-        "python": {
-          "observed": "flag",
-          "reason": "A `scale10` re-encoding is shown, not rewritten through the SDK's exact conversion helpers."
-        },
         "go": {
           "observed": "flag",
           "reason": "Every re-encoding is shown (`encoded differently now (scale10)`); the SDK's exact conversion is never written in."
@@ -478,10 +466,6 @@
       "sdk": "handwritten",
       "expect": "edit",
       "gaps": {
-        "python": {
-          "observed": "flag",
-          "reason": "A keyword argument whose field moved into a nested object is shown (`the value is now nested at contact.phone`), not rewritten into the nested dictionary."
-        },
         "go": {
           "observed": "flag",
           "reason": "A rename is claimed only within the struct that held the field, so one that moved into another struct is shown."
@@ -496,10 +480,6 @@
       "sdk": "handwritten",
       "expect": "edit",
       "gaps": {
-        "python": {
-          "observed": "none",
-          "reason": "A field that became required is not supplied where a request is built."
-        },
         "go": {
           "observed": "none",
           "reason": "An `add` is not planned, so a field that became required is not supplied in the composite literals that build a request."
@@ -585,10 +565,6 @@
       "expect": "flag",
       "place": "the stand-in that lacks the new field",
       "gaps": {
-        "python": {
-          "observed": "none",
-          "reason": "A response field that is new is not looked for in the stand-ins the consumer builds."
-        },
         "go": {
           "observed": "none",
           "reason": "An `add` is not planned, so a stand-in that lacks a new response field is not shown."
@@ -705,13 +681,7 @@
       "situation": "The renamed field is matched structurally into a local of another name (a renamed destructuring binding, a class pattern, a composite literal compared).",
       "changes": ["chg_address_postal_code"],
       "sdk": "handwritten",
-      "expect": "edit",
-      "gaps": {
-        "python": {
-          "observed": "none",
-          "reason": "A keyword of a class pattern (`case Address(postal_code=...)`) is not among the references rewritten or shown."
-        }
-      }
+      "expect": "edit"
     },
     {
       "id": "destructure-removed-field",
@@ -733,10 +703,6 @@
         "typescript": {
           "observed": "edit",
           "reason": "The converted amount is bound under the field's own name, redeclaring the local it was destructured into (`const balance = fromMinorUnits(balance)`)."
-        },
-        "python": {
-          "observed": "flag",
-          "reason": "A `scale10` re-encoding is shown, not rewritten through the SDK's exact conversion helpers."
         },
         "go": {
           "observed": "flag",
@@ -941,10 +907,6 @@
         "typescript": {
           "observed": "none",
           "reason": "A value is renamed where it is compared with `===` or where its contextual type is exactly the renamed values; a case label's is the whole union, so it is left."
-        },
-        "python": {
-          "observed": "none",
-          "reason": "The cases of a `match` over the field are not renamed; only comparisons, keywords and dictionary values are."
         },
         "go": {
           "observed": "flag",

@@ -42,6 +42,7 @@ import { LineIndex } from "./offsets.ts";
 import { bumpPins } from "./pins.ts";
 import { type Diagnostic, Pyright } from "./pyright.ts";
 import { PyrightReferences } from "./references.ts";
+import { suppliedFields } from "./supplied.ts";
 import { enclosing, parsePython, type Tree } from "./syntax.ts";
 import {
   rejectedKeySite,
@@ -132,6 +133,8 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
       ...(module ? { flow: new ValueFlow(references, sources, module) } : {}),
       untyped: !typedBefore,
     });
+    // Fields a request must now send, written where each request is built.
+    await suppliedFields(references, sources, options.plan, result);
     await bumpPins(references, sources, options.plan.symbols, result);
     // Values a parameter's vocabulary lost, sent as literals the checker
     // passes because the parameter takes any text too.
