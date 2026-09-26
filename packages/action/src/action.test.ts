@@ -10,6 +10,8 @@
  */
 import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { COMMENT_MARKER, init } from "@invariant-app/cli";
@@ -77,7 +79,16 @@ async function brokenPullRequest(): Promise<{ workspace: string; env: Env }> {
   );
 
   const event = join(runner, "event.json");
-  await writeFile(event, JSON.stringify({ pull_request: { number: 42 } }), "utf8");
+  await writeFile(
+    event,
+    JSON.stringify({
+      pull_request: {
+        number: 42,
+        head: { ref: "drop-currency", repo: { full_name: "acme/payments-api" } },
+      },
+    }),
+    "utf8",
+  );
   await writeFile(join(runner, "summary.md"), "", "utf8");
   await writeFile(join(runner, "output"), "", "utf8");
 
@@ -135,6 +146,77 @@ describe.skipIf(!hasOasdiff)("the GitHub Action", () => {
     expect(await readFile(env["GITHUB_STEP_SUMMARY"] as string, "utf8")).toContain(
       "Not safe to merge",
     );
+  });
+
+  it("offers a drafted Change for what nothing explains, one click from the branch", async () => {
+    const { env } = await brokenPullRequest();
+    const { send, calls } = github([]);
+
+    await runAction(env, { fetch: send, log: () => {} });
+
+    const body = JSON.parse(calls.find((call) => call.method === "POST")?.body ?? "{}")
+      .body as string;
+    expect(body).toMatch(/### (A drafted Change|\d+ drafted Changes) to explain them/);
+    // GitHub's editor, on the pull request's own branch, with the file named
+    // from the repository's root and its text filled in.
+    const link = /\[Add it to this branch\]\((\S+)\)/.exec(body)?.[1];
+    expect(link).toBeDefined();
+    const url = new URL(link as string);
+    expect(url.origin + url.pathname).toBe(
+      "https://github.com/acme/payments-api/new/drop-currency",
+    );
+    const file = url.searchParams.get("filename") as string;
+    expect(file).toMatch(/^invariant\/changes\/chg_[a-z0-9_]+\.yaml$/);
+    const text = url.searchParams.get("value") as string;
+    expect(text).toContain("irVersion: 1");
+    // The same text is in the comment, to read or copy on any host.
+    expect(body).toContain(`<summary><code>${file}</code></summary>`);
+    expect(body).toContain(text.trimEnd());
+  });
+
+  it("asks the service who is still on each old contract when told to", async () => {
+    const { env } = await brokenPullRequest();
+    const asked: string[] = [];
+    const service = createServer((request, response) => {
+      asked.push(`${request.url} ${request.headers.authorization}`);
+      response.setHeader("content-type", "application/json");
+      response.end(
+        JSON.stringify({
+          days: 30,
+          contracts: [
+            {
+              label: "2026-09-01",
+              consumers: 7,
+              requests: 1200,
+              changes: [],
+              retirable: false,
+            },
+          ],
+        }),
+      );
+    });
+    await new Promise<void>((done) => service.listen(0, "127.0.0.1", done));
+    const { port } = service.address() as AddressInfo;
+    const before = process.env["INVARIANT_TOKEN"];
+    try {
+      const result = await runAction(
+        {
+          ...env,
+          INPUT_IMPACT: "true",
+          "INPUT_INVARIANT-TOKEN": "inv_read_test",
+          INVARIANT_URL: `http://127.0.0.1:${port}`,
+          INPUT_COMMENT: "false",
+        },
+        { log: () => {} },
+      );
+      expect(asked).toEqual(["/v1/impact?days=30 Bearer inv_read_test"]);
+      expect(result.report.impact?.contracts[0]?.consumers).toBe(7);
+    } finally {
+      service.close();
+      if (before === undefined) delete process.env["INVARIANT_TOKEN"];
+      else process.env["INVARIANT_TOKEN"] = before;
+      delete process.env["INVARIANT_URL"];
+    }
   });
 
   it("edits its own comment on the next push instead of adding another", async () => {

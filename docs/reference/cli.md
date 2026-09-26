@@ -39,6 +39,12 @@ old contract and says so in its report, so a change nothing can serve is read
 next to the number of people it would reach. It needs `INVARIANT_TOKEN`, and a
 service that cannot be reached is said so rather than counted as nobody.
 
+A blocked report written as a comment (`--format markdown` or `--comment`)
+carries the Changes `invariant propose --offline` would draft for its
+unexplained deltas, each file in full under a folded block, ready to copy into
+`invariant/changes`. The GitHub Action adds a link that commits each one to the
+pull request's branch from GitHub's editor.
+
 ## `invariant propose`
 
 Drafts Change files for whatever this release has not explained. Drafts are
@@ -159,6 +165,36 @@ standard output: for a gateway that validates requests per version.
 
 Writes the scenarios `check --full` would make from each released contract's
 document (or `--label <c>`'s) into `invariant/scenarios`, to keep and edit.
+
+## `invariant scenarios import`
+
+Writes scenarios from traffic you already have, a HAR file saved from a
+browser or a proxy, or a Postman collection (v2.0 or v2.1), into
+`invariant/scenarios`:
+
+```
+invariant scenarios import recording.har --label 2026-01-15 --base https://api.example.com
+invariant scenarios import pets.postman_collection.json --label 2026-01-15 --var species=cat
+```
+
+- `--label <c>`: the contract the recorded traffic speaks. It can be left out
+  when only one contract is released.
+- `--base <url>`: keep only requests under this URL or path prefix. Without
+  it, a HAR file keeps the requests that sent or answered JSON.
+- `--var <n=v>`: a value for a Postman `{{variable}}`, before the
+  collection's own. Repeatable.
+
+A HAR file becomes one scenario per page it names; a collection, one per
+top-level folder and one for the requests at the top. A value an earlier
+answer minted, an id found again in a later request's path, query or body, is
+captured and referred to, so a fresh build is sent its own ids. A Postman test
+script that sets a variable from the response, such as
+`pm.collectionVariables.set("petId", pm.response.json().id)`, becomes the same
+capture. Recorded credentials, cookies and other headers that describe the
+recording are dropped, and `scenarios.headers` is added. What cannot be
+replayed faithfully, a body that is not JSON or a variable only a script could
+have set, is left out and named. A file already in `invariant/scenarios` is
+never overwritten: what is there is yours, and it is what `check --full` runs.
 
 ## `invariant migrate`
 

@@ -7,5 +7,6 @@ export * from "./outcomes.ts";
 export * from "./propose.ts";
 export * from "./release.ts";
 export * from "./retire.ts";
+export * from "./suggest.ts";
 export * from "./usage.ts";
 export * from "./verify.ts";

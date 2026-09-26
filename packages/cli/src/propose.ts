@@ -119,6 +119,46 @@ function renderVocabularyDecision(decision: FoldDecision, change: Change): strin
   return `${header.join("\n")}\n${stringifyYaml(change as unknown as Record<string, unknown>)}`;
 }
 
+/** One drafted Change file, exactly as `propose --write` would write it. */
+export interface DraftFile {
+  id: string;
+  summary: string;
+  /** The file's text, header comments included. */
+  text: string;
+  /** A decision whose answer is left as a placeholder the gate refuses. */
+  needsAnswer: boolean;
+  /** The proposer asked for a close look rather than a skim. */
+  closeLook: boolean;
+}
+
+/**
+ * The files a proposal would write, without writing them, so the same text
+ * can be offered somewhere else, such as a pull request comment. Sharing the
+ * rendering is what keeps a file accepted from a comment identical to one
+ * written by `propose --write`.
+ */
+export function draftFiles(result: ProposeResult): DraftFile[] {
+  return [
+    ...result.proposals.map((proposal) => ({
+      id: proposal.change.id,
+      summary: proposal.change.summary,
+      text: render(proposal),
+      needsAnswer: false,
+      closeLook: proposal.attention === "explicit",
+    })),
+    ...result.decisions.map((decision) => {
+      const change = decisionChange(decision);
+      return {
+        id: change.id,
+        summary: change.summary,
+        text: renderDecision(decision, change),
+        needsAnswer: true,
+        closeLook: true,
+      };
+    }),
+  ];
+}
+
 export async function runPropose(
   config: InvariantConfig,
   options: { write?: boolean; context?: string; offline?: boolean } = {},

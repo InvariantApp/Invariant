@@ -17,8 +17,12 @@ import {
   type CheckReport,
   COMMENT_MARKER,
   check,
+  githubNewFileUrl,
   loadConfig,
   renderComment,
+  type Suggestion,
+  suggestChanges,
+  wantsSuggestions,
 } from "@invariant-app/cli";
 import {
   assertPinnedVersion,
@@ -62,14 +66,40 @@ async function ensureOasdiff(env: Env): Promise<string> {
   return executable;
 }
 
+interface PullRequestEvent {
+  pull_request?: {
+    number?: number;
+    head?: { ref?: string; repo?: { full_name?: string } | null };
+  };
+}
+
+async function pullRequestEvent(env: Env): Promise<PullRequestEvent> {
+  const path = env["GITHUB_EVENT_PATH"];
+  if (!path || !existsSync(path)) return {};
+  return JSON.parse(await readFile(path, "utf8")) as PullRequestEvent;
+}
+
 /** The pull request this run is for, if it is for one. */
 async function pullRequestNumber(env: Env): Promise<number | undefined> {
-  const path = env["GITHUB_EVENT_PATH"];
-  if (!path || !existsSync(path)) return undefined;
-  const event = JSON.parse(await readFile(path, "utf8")) as {
-    pull_request?: { number?: number };
-  };
-  return event.pull_request?.number;
+  return (await pullRequestEvent(env)).pull_request?.number;
+}
+
+/**
+ * Where a drafted Change can be added in one click: GitHub's editor, on the
+ * branch the pull request is built from, in the repository that branch lives
+ * in. A head repository that has been deleted leaves nowhere to link to.
+ */
+async function newFileLink(
+  env: Env,
+): Promise<((path: string, text: string) => string | undefined) | undefined> {
+  const head = (await pullRequestEvent(env)).pull_request?.head;
+  const repository = head?.repo?.full_name;
+  if (!head?.ref || !repository) return undefined;
+  return githubNewFileUrl({
+    ...(env["GITHUB_SERVER_URL"] ? { server: env["GITHUB_SERVER_URL"] } : {}),
+    repository,
+    branch: head.ref,
+  });
 }
 
 /**
@@ -196,10 +226,42 @@ export async function runAction(
   const config = await loadConfig(
     resolve(workspace, input(env, "config", "invariant.yaml")),
   );
+  // The service's counters, asked for only when the workflow says so and
+  // given a token, since a check must also run with neither. The client reads
+  // its token from the environment, so an input is passed on through it.
+  const impact = input(env, "impact", "false") === "true";
+  const serviceToken = input(env, "invariant-token") || env["INVARIANT_TOKEN"];
+  if (impact && serviceToken) process.env["INVARIANT_TOKEN"] = serviceToken;
+  if (impact && env["INVARIANT_URL"]) process.env["INVARIANT_URL"] = env["INVARIANT_URL"];
   const report = await check(config, {
     full: input(env, "full", "false") === "true",
+    ...(impact ? { impact: true } : {}),
   });
-  const comment = renderComment(report);
+
+  // Drafts only for what a new Change file can fix. Drafting is a courtesy
+  // on top of the verdict, so it failing leaves the comment without drafts
+  // rather than the job without a result.
+  let suggestions: Suggestion[] = [];
+  if (wantsSuggestions(report)) {
+    try {
+      suggestions = (await suggestChanges(config)).map((suggestion) => ({
+        ...suggestion,
+        // The editor link and the reader both want the repository's own path.
+        path: relative(workspace, suggestion.file),
+      }));
+    } catch (error) {
+      log(
+        `::notice title=No drafted Changes::${escapeData(
+          error instanceof Error ? error.message : String(error),
+        )}`,
+      );
+    }
+  }
+  const newFileUrl = await newFileLink(env);
+  const comment = renderComment(report, {
+    suggestions,
+    ...(newFileUrl ? { newFileUrl } : {}),
+  });
 
   const specText = await readFile(config.currentSpec, "utf8").catch(() => "");
   for (const line of annotations(
