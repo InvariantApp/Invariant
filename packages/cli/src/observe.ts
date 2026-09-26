@@ -25,6 +25,7 @@
 import { writeFile } from "node:fs/promises";
 import { createServer, request as httpRequest, type IncomingMessage } from "node:http";
 import type { AddressInfo } from "node:net";
+import { brotliDecompressSync, gunzipSync, inflateSync } from "node:zlib";
 import {
   loadContract,
   type OpenApiDocument,
@@ -248,7 +249,10 @@ export async function observe(
                 incoming.method ?? "GET",
                 incoming.url ?? "/",
                 response.statusCode ?? 0,
-                Buffer.concat(copy).toString("utf8"),
+                decoded(
+                  Buffer.concat(copy),
+                  String(response.headers["content-encoding"] ?? ""),
+                ).toString("utf8"),
               );
             } catch {
               report.undescribed += 1;
@@ -283,6 +287,28 @@ export async function observe(
       return final;
     },
   };
+}
+
+/**
+ * A body as its bytes were before the server compressed it for the wire.
+ *
+ * The caller asked for compression and is sent the answer as it came; the
+ * copy checked here has to be read the way the caller will read it, or every
+ * compressed answer counts as one nothing could check, which on a server
+ * that compresses everything is every answer.
+ */
+function decoded(body: Buffer, encoding: string): Buffer {
+  let out = body;
+  // Applied in the order listed, so undone in reverse.
+  for (const coding of encoding
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .reverse()) {
+    if (coding === "gzip" || coding === "x-gzip") out = gunzipSync(out);
+    else if (coding === "deflate") out = inflateSync(out);
+    else if (coding === "br") out = brotliDecompressSync(out);
+  }
+  return out;
 }
 
 /** The report as a person reads it: what held, what did not, and where. */

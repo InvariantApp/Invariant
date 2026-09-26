@@ -12,6 +12,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { brotliCompressSync, gzipSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadConfig } from "./config.ts";
 import { observe, renderObservation } from "./observe.ts";
@@ -49,6 +50,8 @@ const SPEC = {
 let root: string;
 let upstream: Server;
 let answer: unknown;
+/** How the upstream compresses its answers, as a real server does when asked. */
+let encoding: "gzip" | "br" | undefined;
 
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), "invariant-observe-"));
@@ -62,9 +65,19 @@ beforeEach(async () => {
       '  currentLabel: "2026-01-15"',
     ].join("\n"),
   );
+  encoding = undefined;
   upstream = createServer((_request, response) => {
-    response.writeHead(200, { "content-type": "application/json" });
-    response.end(JSON.stringify(answer));
+    const body = Buffer.from(JSON.stringify(answer));
+    if (encoding === undefined) {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(body);
+      return;
+    }
+    response.writeHead(200, {
+      "content-type": "application/json; charset=utf-8",
+      "content-encoding": encoding,
+    });
+    response.end(encoding === "gzip" ? gzipSync(body) : brotliCompressSync(body));
   });
   await new Promise<void>((resolve) => upstream.listen(0, resolve));
 });
@@ -114,6 +127,20 @@ describe("observing an API", () => {
     const report = await observer.close();
     expect(report).toMatchObject({ checked: 1, held: 1, broke: 0 });
     expect(renderObservation(report)).toContain("Every answer checked matched");
+  });
+
+  it("reads a compressed answer the way its caller does", async () => {
+    // Jellyfin compresses every answer a client asks to have compressed, and
+    // the copy checked used to be the compressed bytes: nothing was checked.
+    for (const coding of ["gzip", "br"] as const) {
+      encoding = coding;
+      answer = { id: "1", state: "archived" };
+      const observer = await observing();
+      await fetch(`${observer.url}/v1/things/1`);
+      const report = await observer.close();
+      expect(report).toMatchObject({ checked: 1, broke: 1, undescribed: 0 });
+      expect(report.places.map((place) => place.pointer)).toEqual(["/state"]);
+    }
   });
 
   it("counts an answer for a path the contract does not describe", async () => {

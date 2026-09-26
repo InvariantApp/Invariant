@@ -1,0 +1,18 @@
+{
+  "server": "jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db",
+  "document": "/api-docs/openapi.json, as the same server serves it",
+  "requests": 65,
+  "statuses": {
+    "200": 58,
+    "204": 5,
+    "404": 1,
+    "405": 1
+  },
+  "answers": 65,
+  "checked": 58,
+  "held": 58,
+  "broke": 0,
+  "unknownOperations": 0,
+  "undescribed": 0,
+  "places": []
+}

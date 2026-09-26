@@ -1,0 +1,107 @@
+name: Full check on real servers
+
+# M5's exit, run where Docker and the network are: `invariant check --full`
+# on every Rig D project from the configuration a stranger would write
+# (proving/servers/gate/), retroactive onboarding on Qdrant against the 1.18
+# deployment it retires (proving/retro/), and `invariant observe` in front of
+# Jellyfin (proving/observe/). On a pull request that touches them, weekly,
+# and on demand. Each writes what it found as an artifact; a run that could
+# not complete fails, a check that blocks is a finding and does not.
+on:
+  pull_request:
+    paths:
+      - proving/servers/gate/**
+      - proving/servers/gate.mts
+      - proving/retro/**
+      - proving/observe/**
+      - packages/cli/src/launch.ts
+      - packages/cli/src/verify.ts
+      - packages/cli/src/history.ts
+      - packages/cli/src/observe.ts
+      - packages/verifier/src/differential.ts
+      - packages/verifier/src/generate.ts
+      - .github/workflows/full-check.yml
+  schedule:
+    - cron: "41 4 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: full-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: check --full (${{ matrix.project }})
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [gitea, immich, meilisearch, netbox, qdrant]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    # Runs the projects' own released images, which this project did not
+    # write, so the job holds no secret and no token.
+    permissions: {}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: node --import tsx scripts/fetch-oasdiff.mts --host
+
+      - name: invariant check --full from proving/servers/gate/${{ matrix.project }}
+        run: node --import tsx proving/servers/gate.mts ${{ matrix.project }}
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: gate-${{ matrix.project }}
+          path: |
+            .cache/servers/gate-${{ matrix.project }}.json
+            .cache/servers/${{ matrix.project }}/gate/gate.txt
+            .cache/servers/${{ matrix.project }}/gate/gate.json
+          include-hidden-files: true
+          if-no-files-found: ignore
+
+  retro:
+    name: retroactive onboarding (Qdrant)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions: {}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: node --import tsx scripts/fetch-oasdiff.mts --host
+
+      - name: history import, then check --full against the running 1.18
+        run: node --import tsx proving/retro/qdrant.mts --record
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: retro-qdrant
+          path: |
+            proving/retro/qdrant/results.json
+            .cache/retro/qdrant/gate.txt
+            .cache/retro/qdrant/gate.json
+          include-hidden-files: true
+          if-no-files-found: ignore
