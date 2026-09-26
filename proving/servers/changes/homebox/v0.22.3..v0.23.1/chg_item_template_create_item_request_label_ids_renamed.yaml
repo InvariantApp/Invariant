@@ -1,0 +1,16 @@
+# Written by hand, as Homebox's maintainers would (sysadminsmedia/homebox
+# 0.23.0, labels renamed to tags throughout): `labelIds` is `tagIds`, the labels of an item made from a template,
+# the same values under the new name, which the proposer, run without a
+# judge, could not tell from a field dropped and another added.
+irVersion: 1
+id: chg_item_template_create_item_request_label_ids_renamed
+summary: "`labelIds` is `tagIds` on v1.ItemTemplateCreateItemRequest."
+scopes:
+  - schema: "#/components/schemas/v1.ItemTemplateCreateItemRequest"
+ops:
+  - op: move
+    from: /labelIds
+    to: /tagIds
+assertions:
+  same_concept: true
+  side_effects_unchanged: true

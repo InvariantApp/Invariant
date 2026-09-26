@@ -1,0 +1,46 @@
+# Written by hand, as Homebox's maintainers would (sysadminsmedia/homebox
+# 0.23.0, labels renamed to tags throughout): every label operation is the
+# same operation on tags, taking and answering the same fields. The drafted
+# retirements would have refused them.
+irVersion: 1
+id: chg_labels_are_tags
+summary: Labels are served as tags, under /v1/tags.
+ops:
+  - op: route
+    from:
+      method: get
+      path: /v1/labels
+    to:
+      method: get
+      path: /v1/tags
+  - op: route
+    from:
+      method: post
+      path: /v1/labels
+    to:
+      method: post
+      path: /v1/tags
+  - op: route
+    from:
+      method: get
+      path: /v1/labels/{id}
+    to:
+      method: get
+      path: /v1/tags/{id}
+  - op: route
+    from:
+      method: put
+      path: /v1/labels/{id}
+    to:
+      method: put
+      path: /v1/tags/{id}
+  - op: route
+    from:
+      method: delete
+      path: /v1/labels/{id}
+    to:
+      method: delete
+      path: /v1/tags/{id}
+assertions:
+  same_concept: true
+  side_effects_unchanged: true

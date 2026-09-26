@@ -1,0 +1,16 @@
+# Written by hand, as Homebox's maintainers would (sysadminsmedia/homebox
+# 0.23.0, labels renamed to tags throughout): `labelIds` is `tagIds`, an item's labels, sent by id,
+# the same values under the new name, which the proposer, run without a
+# judge, could not tell from a field dropped and another added.
+irVersion: 1
+id: chg_item_create_label_ids_renamed
+summary: "`labelIds` is `tagIds` on repo.ItemCreate."
+scopes:
+  - schema: "#/components/schemas/repo.ItemCreate"
+ops:
+  - op: move
+    from: /labelIds
+    to: /tagIds
+assertions:
+  same_concept: true
+  side_effects_unchanged: true

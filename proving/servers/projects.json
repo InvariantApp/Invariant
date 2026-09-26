@@ -563,6 +563,55 @@
         }
       },
       "pairs": [["v1.137.3", "v1.138.0"]]
+    },
+    {
+      "name": "homebox",
+      "language": "Go",
+      "notes": "The suite is the frontend's own API integration tests (frontend/lib/api/__test__), which Homebox's CI runs with vitest against a live server on 127.0.0.1:7745, the address its test config names, so the server answers on that port and the proxy takes it in arm c. They register their own users, so the server needs only registration on, as the release's Taskfile starts it. The document is the release's OpenAPI 3 file beside its Swagger 2 one, which describes the same API.",
+      "repo": "sysadminsmedia/homebox",
+      "image": "ghcr.io/sysadminsmedia/homebox",
+      "server": {
+        "port": 7745,
+        "suitePort": 7745,
+        "ready": "/api/v1/status",
+        "env": {
+          "HBOX_OPTIONS_ALLOW_REGISTRATION": "true",
+          "UNSAFE_DISABLE_PASSWORD_PROJECTION": "yes_i_am_sure"
+        }
+      },
+      "spec": {
+        "path": "backend/app/api/static/docs/openapi-3.json"
+      },
+      "suite": {
+        "sparse": ["frontend"],
+        "dir": "frontend",
+        "install": [["pnpm", "install", "--frozen-lockfile", "--ignore-workspace"]],
+        "run": [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "--config",
+          "./test/vitest.config.ts",
+          "--no-file-parallelism",
+          "--reporter=default",
+          "--reporter=junit",
+          "--outputFile.junit={report}"
+        ],
+        "select": ["-t", "{select}"],
+        "env": {}
+      },
+      "releases": {
+        "v0.22.3": {
+          "commit": "473027c1aea3b10de56832188fd4ad583a01f0e3",
+          "digest": "sha256:b6c1362ab0450ca8fc1a347c13614a0b4f5674e1ecfa9a57a8c456612921842b"
+        },
+        "v0.23.1": {
+          "commit": "248862a7785bc9e86797620be334c161317a1d16",
+          "digest": "sha256:facd9b795952602d5c54eacfcd0f3533040e6b556f461e423a2d2445ed8736f9"
+        }
+      },
+      "pairs": [["v0.22.3", "v0.23.1"]]
     }
   ],
   "skipped": [

@@ -1,0 +1,16 @@
+# Written by hand, as Homebox's maintainers would (sysadminsmedia/homebox
+# 0.23.0, labels renamed to tags throughout): `defaultLabels` is `defaultTags`, a template's default labels,
+# the same values under the new name, which the proposer, run without a
+# judge, could not tell from a field dropped and another added.
+irVersion: 1
+id: chg_item_template_out_default_labels_renamed
+summary: "`defaultLabels` is `defaultTags` on repo.ItemTemplateOut."
+scopes:
+  - schema: "#/components/schemas/repo.ItemTemplateOut"
+ops:
+  - op: move
+    from: /defaultLabels
+    to: /defaultTags
+assertions:
+  same_concept: true
+  side_effects_unchanged: true
