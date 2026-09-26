@@ -56,6 +56,15 @@ export function goEnvironment(options: GoOptions = {}): NodeJS.ProcessEnv {
     "LOCALAPPDATA",
     "APPDATA",
     "SystemRoot",
+    // The way out, where there is only one: a sandboxed fetch reaches the
+    // module proxy through the egress proxy, and a network behind a
+    // corporate proxy reaches it no other way either.
+    "HTTPS_PROXY",
+    "https_proxy",
+    "HTTP_PROXY",
+    "http_proxy",
+    "NO_PROXY",
+    "no_proxy",
   ];
   const env: NodeJS.ProcessEnv = {};
   for (const name of inherited) {
