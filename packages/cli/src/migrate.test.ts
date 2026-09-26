@@ -21,12 +21,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import {
+  buildWellKnown,
+  type DsseEnvelope,
   type EvolutionBundle,
   generateSigningKey,
   signBundle,
 } from "@invariant-app/bundle";
 import { digestOf, loadPendingChanges, loadReleaseStep } from "@invariant-app/contract";
-import type { JsonValue } from "@invariant-app/ir";
+import type { Change, JsonValue } from "@invariant-app/ir";
 import { detectRuntime } from "@invariant-app/sandbox";
 import { Project, ts } from "ts-morph";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -34,7 +36,11 @@ import {
   checkOutcome,
   engineMount,
   fetchPlanOf,
+  inProcess,
+  type MigrationJob,
   type MigrationOutcome,
+  migrateRepository,
+  planPackages,
   readJob,
   writeOutcome,
 } from "./migrate.ts";
@@ -64,6 +70,22 @@ const SDK = {
   accessors: [],
 };
 
+/** How the acme fixture SDK names what the acme provider's contract describes. */
+const ACME_SDK = {
+  package: "@acme/sdk-v1",
+  upgradeTo: { package: "@acme/sdk-v3", version: "3.0.0" },
+  types: {
+    Charge: "Charge",
+    ChargeCreateParams: "ChargeCreateParams",
+    Payment: "Charge",
+    PaymentCreateParams: "ChargeCreateParams",
+    Refund: "Refund",
+    RefundCreateParams: "RefundCreateParams",
+  },
+  accessors: [{ from: ["charges"], to: ["payments"] }],
+  helpers: { toMinor: "toMinorUnits", fromMinor: "fromMinorUnits" },
+};
+
 describe("reading a job", () => {
   it("reads the Changes and the SDK map in, and resolves the repository", async () => {
     await writeFile(join(scratch, "sdk.json"), JSON.stringify(SDK));
@@ -82,7 +104,9 @@ describe("reading a job", () => {
       sdk: SDK,
       tsconfig: "tsconfig.json",
     });
-    expect(await fetchPlanOf(job)).toEqual({
+    const { plans } = await planPackages(job);
+    expect(plans).toHaveLength(1);
+    expect(await fetchPlanOf(plans[0]?.job as MigrationJob)).toEqual({
       npm: [
         { name: "@acme/sdk-v1", version: "1.4.0" },
         { name: "@acme/sdk-v3", version: "3.0.0" },
@@ -97,7 +121,16 @@ describe("reading a job", () => {
     [{ sdk: { ...SDK, package: "--registry=http://evil" } }, /not a package name/],
     [{ sources: ["../elsewhere.ts"] }, /inside the repository/],
     [{ sources: ["/etc/passwd"] }, /inside the repository/],
+    [{ package: "../other-repo" }, /inside the repository/],
     [{ changes: undefined }, /bundle.*or changes/],
+    [
+      { bundle: "release.json" },
+      /one of bundle, release and changes, not bundle and changes/,
+    ],
+    [
+      { changes: undefined, release: { provider: "acme.example" } },
+      /names the provider's domain and the API/,
+    ],
   ])("refuses %o", async (change, message) => {
     const path = await jobFile("bad", {
       language: "typescript",
@@ -148,7 +181,104 @@ describe("reading a job", () => {
     );
     expect(job.changes.length).toBeGreaterThan(0);
   });
+
+  it("reads a provider's published release with no key given, trusting only the provider's own domain", async () => {
+    const changes = await loadPendingChanges(
+      join(ROOT, "fixtures/provider-acme/invariant"),
+    );
+    const provider = generateSigningKey();
+    const impostor = generateSigningKey();
+    const trusted = published(changes, provider.privateKeyPem);
+    const forged = published(changes, impostor.privateKeyPem);
+    const path = await jobFile("released", {
+      language: "typescript",
+      repo: "consumer",
+      release: { provider: "acme.example", api: "acme-payments" },
+      sdk: SDK,
+      from: "1.4.0",
+    });
+    const job = await readJob(path, {
+      discovery: {
+        fetch: providerNetwork(provider.publicKeyPem, trusted).fetch,
+        service: "https://bundles.test",
+      },
+    });
+    expect(job.changes.map((change) => change.id)).toEqual(
+      changes.map((change) => change.id),
+    );
+    expect(job.release).toMatchObject({
+      provider: "acme.example",
+      api: "acme-payments",
+      wellKnown: "https://acme.example/.well-known/invariant.json",
+      service: "https://bundles.test",
+      steps: [{ digest: trusted.digest, from: "2026-03-01", to: "next" }],
+    });
+    // The service serves a bundle the provider never signed: refused.
+    await expect(
+      readJob(path, {
+        discovery: {
+          fetch: providerNetwork(provider.publicKeyPem, forged).fetch,
+          service: "https://bundles.test",
+        },
+      }),
+    ).rejects.toThrow(/no key the provider vouches for signed this bundle/);
+  });
 });
+
+/** A release of `changes`, signed, as the service would list and serve it. */
+function published(changes: Change[], privateKeyPem: string) {
+  const bundle = {
+    bundleVersion: 1,
+    api: "acme-payments",
+    from: { label: "2026-03-01", digest: "sha256:0" },
+    to: { label: "next", digest: "sha256:1" },
+    source: { repo: "acme/api", commit: "c0ffee" },
+    changes,
+    evidence: [],
+    compiled: { programDigest: "sha256:2" },
+    gate: { result: "pass", unexplained: [] },
+  } as unknown as EvolutionBundle;
+  const digest = digestOf(bundle as unknown as JsonValue);
+  return { envelope: signBundle(bundle, digest, privateKeyPem), digest };
+}
+
+/**
+ * The network a consumer with no account reaches, faked: the provider's
+ * domain serving its keys, and a service serving its bundles.
+ */
+function providerNetwork(
+  publicKeyPem: string,
+  release: { envelope: DsseEnvelope; digest: string },
+) {
+  const document = buildWellKnown({
+    apis: ["acme-payments"],
+    keys: [{ publicKeyPem, addedAt: "2026-01-01T00:00:00Z" }],
+  });
+  const answers: Record<string, unknown> = {
+    "https://acme.example/.well-known/invariant.json": document,
+    "https://bundles.test/public/v1/apis/acme-payments/bundles": {
+      bundles: [
+        {
+          digest: release.digest,
+          from: "2026-03-01",
+          to: "next",
+          keyid: release.envelope.signatures[0]?.keyid,
+          publishedAt: Date.parse("2026-09-20T00:00:00Z") / 1000,
+        },
+      ],
+    },
+    [`https://bundles.test/public/v1/apis/acme-payments/bundles/${release.digest}`]:
+      release.envelope,
+  };
+  const fetch = (async (input: string | URL | Request) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    const answer = answers[`${url.origin}${url.pathname}`];
+    return answer === undefined
+      ? new Response("{}", { status: 404 })
+      : new Response(JSON.stringify(answer), { status: 200 });
+  }) as typeof globalThis.fetch;
+  return { fetch };
+}
 
 describe("what a sandbox hands back", () => {
   const outcome = (files: Record<string, unknown>): unknown => ({
@@ -316,6 +446,7 @@ describe("invariant migrate, in this process", () => {
     await mkdir(packed, { recursive: true });
     const tarballs = [];
     for (const [dir, name, version] of [
+      ["sdk-acme-v1", "@acme/sdk-v1", "1.3.0"],
       ["sdk-acme-v1", "@acme/sdk-v1", "1.4.0"],
       ["sdk-acme-v3", "@acme/sdk-v3", "3.0.0"],
     ] as const) {
@@ -363,22 +494,49 @@ describe("invariant migrate, in this process", () => {
       language: "typescript",
       repo: "consumer-a",
       changes: "changes.json",
-      sdk: {
-        package: "@acme/sdk-v1",
-        upgradeTo: { package: "@acme/sdk-v3", version: "3.0.0" },
-        types: {
-          Charge: "Charge",
-          ChargeCreateParams: "ChargeCreateParams",
-          Payment: "Charge",
-          PaymentCreateParams: "ChargeCreateParams",
-          Refund: "Refund",
-          RefundCreateParams: "RefundCreateParams",
-        },
-        accessors: [{ from: ["charges"], to: ["payments"] }],
-        helpers: { toMinor: "toMinorUnits", fromMinor: "fromMinorUnits" },
-      },
+      sdk: ACME_SDK,
       from: "1.4.0",
     });
+
+    // A monorepo of two copies of consumer A, one on each release of the
+    // SDK, and a package that does not use it, as npm workspaces leave one.
+    const mono = join(scratch, "mono");
+    for (const name of ["billing", "legacy"]) {
+      await cp(join(consumer, "src"), join(mono, "packages", name, "src"), {
+        recursive: true,
+      });
+      await cp(
+        join(consumer, "tsconfig.json"),
+        join(mono, "packages", name, "tsconfig.json"),
+      );
+      await writeFile(
+        join(mono, "packages", name, "package.json"),
+        JSON.stringify({
+          name: `@shop/${name}`,
+          dependencies: { "@acme/sdk-v1": "^1.3.0" },
+        }),
+      );
+    }
+    await mkdir(join(mono, "packages/docs"), { recursive: true });
+    await writeFile(
+      join(mono, "packages/docs/package.json"),
+      JSON.stringify({ name: "@shop/docs", dependencies: {} }),
+    );
+    await writeFile(
+      join(mono, "package.json"),
+      JSON.stringify({ name: "shop", private: true, workspaces: ["packages/*"] }),
+    );
+    await writeFile(
+      join(mono, "package-lock.json"),
+      JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          "": { name: "shop" },
+          "node_modules/@acme/sdk-v1": { version: "1.4.0" },
+          "packages/legacy/node_modules/@acme/sdk-v1": { version: "1.3.0" },
+        },
+      }),
+    );
   }, 120_000);
 
   afterAll(async () => {
@@ -409,6 +567,100 @@ describe("invariant migrate, in this process", () => {
     // A dry run is a dry run.
     expect(await readFile(join(consumer, "src/billing.ts"), "utf8")).toBe(before);
   }, 180_000);
+
+  it("migrates a monorepo package by package, each from its own release, into one result", async () => {
+    const path = await jobFile("mono", {
+      language: "typescript",
+      repo: "mono",
+      changes: "changes.json",
+      sdk: ACME_SDK,
+    });
+    const out = join(scratch, "mono-outcome.json");
+    const { stdout } = await run(
+      process.execPath,
+      [MAIN, "migrate", path, "--out", out],
+      {
+        env: {
+          ...process.env,
+          npm_config_registry: registry.url,
+          npm_config_cache: join(scratch, "npm-cache"),
+        },
+        maxBuffer: 16 * 1024 * 1024,
+      },
+    );
+    const outcome = JSON.parse(await readFile(out, "utf8")) as MigrationOutcome;
+    expect(Object.keys(outcome.files).sort()).toEqual([
+      "packages/billing/src/billing.test.ts",
+      "packages/billing/src/billing.ts",
+      "packages/legacy/src/billing.test.ts",
+      "packages/legacy/src/billing.ts",
+    ]);
+    expect(outcome.files["packages/legacy/src/billing.ts"]).toMatch(/\.payments\./);
+    expect(
+      outcome.packages?.map((pkg) => [pkg.dir, pkg.status, pkg.from, pkg.fromSource]),
+    ).toEqual([
+      [".", "skipped", undefined, undefined],
+      ["packages/billing", "migrated", "1.4.0", "package-lock.json"],
+      ["packages/docs", "skipped", undefined, undefined],
+      ["packages/legacy", "migrated", "1.3.0", "package-lock.json"],
+    ]);
+    expect(outcome.edits).toBe(
+      (outcome.packages ?? []).reduce((sum, pkg) => sum + pkg.edits, 0),
+    );
+    expect(stdout).toContain("@acme/sdk-v1 -> @acme/sdk-v3 3.0.0");
+    expect(stdout).toMatch(
+      /packages\/legacy \(1\.3\.0, from package-lock\.json\): \d+ edits in 2 files/,
+    );
+    expect(stdout).toContain(
+      "packages/docs: skipped, it does not depend on @acme/sdk-v1",
+    );
+  }, 300_000);
+
+  it("migrates a monorepo from a provider's published release, with no account and no key", async () => {
+    const changes = JSON.parse(await readFile(join(scratch, "changes.json"), "utf8"));
+    const provider = generateSigningKey();
+    const path = await jobFile("mono-released", {
+      language: "typescript",
+      repo: "mono",
+      release: {
+        provider: "acme.example",
+        api: "acme-payments",
+        service: "https://bundles.test",
+      },
+      sdk: ACME_SDK,
+    });
+    const job = await readJob(path, {
+      discovery: {
+        fetch: providerNetwork(
+          provider.publicKeyPem,
+          published(changes, provider.privateKeyPem),
+        ).fetch,
+      },
+    });
+    const { plans } = await planPackages(job);
+    const saved = { ...process.env };
+    process.env["npm_config_registry"] = registry.url;
+    process.env["npm_config_cache"] = join(scratch, "npm-cache");
+    const runner = inProcess();
+    try {
+      const { outcome } = await migrateRepository(job, plans, async (each) => ({
+        outcome: await runner.run(each),
+      }));
+      expect(outcome.release?.steps.map((step) => step.to)).toEqual(["next"]);
+      expect(
+        outcome.packages
+          ?.filter((pkg) => pkg.status === "migrated")
+          .map((pkg) => [pkg.dir, pkg.from]),
+      ).toEqual([
+        ["packages/billing", "1.4.0"],
+        ["packages/legacy", "1.3.0"],
+      ]);
+      expect(outcome.files["packages/billing/src/billing.ts"]).toMatch(/\.payments\./);
+    } finally {
+      await runner.close();
+      process.env = saved;
+    }
+  }, 300_000);
 });
 
 const required = process.env["INVARIANT_REQUIRE_SANDBOX"] === "1";
@@ -515,6 +767,120 @@ describe("invariant migrate, for Python and Go", () => {
       expect(outcome.files["go.mod"]).toContain("github.com/google/uuid v1.6.0");
     },
     600_000,
+  );
+
+  it.skipIf(!online)(
+    `migrates a Python monorepo per pyproject.toml, each from the release it pins${offline}`,
+    async () => {
+      const mono = join(scratch, "py-mono");
+      for (const [name, pinned] of [
+        ["api", "3.6"],
+        ["worker", "3.7"],
+      ] as const) {
+        await mkdir(join(mono, name), { recursive: true });
+        await writeFile(
+          join(mono, name, "pyproject.toml"),
+          `[project]\nname = "${name}"\nversion = "0.1.0"\ndependencies = ["idna==${pinned}"]\n`,
+        );
+        await writeFile(
+          join(mono, name, "app.py"),
+          'import idna\n\nprint(idna.encode("example.com"))\n',
+        );
+      }
+      const path = await jobFile("py-mono", {
+        language: "python",
+        repo: "py-mono",
+        changes: [],
+        sdk: {
+          package: "idna",
+          upgradeTo: { package: "idna", version: "3.7" },
+          types: {},
+        },
+      });
+      const out = join(scratch, "py-mono-outcome.json");
+      await run(process.execPath, [MAIN, "migrate", path, "--out", out], {
+        maxBuffer: 16 * 1024 * 1024,
+      });
+      const outcome = JSON.parse(await readFile(out, "utf8")) as MigrationOutcome;
+      expect(outcome.packages?.map((pkg) => [pkg.dir, pkg.status, pkg.from])).toEqual([
+        ["api", "unchanged", "3.6"],
+        ["worker", "unchanged", "3.7"],
+      ]);
+      expect(outcome.diagnostics).toEqual({ before: 0, after: 0 });
+    },
+    600_000,
+  );
+
+  it.skipIf(noGo !== "")(
+    `migrates the modules of a go.work, each from the release its go.mod requires${noGo}`,
+    async () => {
+      const mono = join(scratch, "go-mono");
+      const sums: string[] = [];
+      for (const version of ["v1.4.0", "v1.5.0"]) {
+        const { stdout } = await run(
+          "go",
+          ["mod", "download", "-json", `github.com/google/uuid@${version}`],
+          {
+            env: {
+              ...process.env,
+              GOMODCACHE: join(scratch, "go-sums"),
+              GOFLAGS: "-modcacherw",
+            },
+          },
+        );
+        const sum = JSON.parse(stdout) as { Sum: string; GoModSum: string };
+        sums.push(
+          `github.com/google/uuid ${version} ${sum.Sum}\ngithub.com/google/uuid ${version}/go.mod ${sum.GoModSum}\n`,
+        );
+      }
+      for (const [index, [name, version]] of (
+        [
+          ["orders", "v1.4.0"],
+          ["refunds", "v1.5.0"],
+        ] as const
+      ).entries()) {
+        await mkdir(join(mono, name), { recursive: true });
+        await writeFile(
+          join(mono, name, "go.mod"),
+          `module example.com/${name}\n\ngo 1.22\n\nrequire github.com/google/uuid ${version}\n`,
+        );
+        await writeFile(join(mono, name, "go.sum"), sums[index] ?? "");
+        await writeFile(
+          join(mono, name, "main.go"),
+          'package main\n\nimport "github.com/google/uuid"\n\nfunc main() { println(uuid.NewString()) }\n',
+        );
+      }
+      await writeFile(
+        join(mono, "go.work"),
+        "go 1.22\n\nuse (\n\t./orders\n\t./refunds\n)\n",
+      );
+      const path = await jobFile("go-mono", {
+        language: "go",
+        repo: "go-mono",
+        changes: [],
+        sdk: {
+          module: { path: "github.com/google/uuid" },
+          upgradeTo: { path: "github.com/google/uuid", version: "v1.6.0" },
+          types: {},
+        },
+      });
+      const out = join(scratch, "go-mono-outcome.json");
+      await run(process.execPath, [MAIN, "migrate", path, "--out", out], {
+        maxBuffer: 16 * 1024 * 1024,
+      });
+      const outcome = JSON.parse(await readFile(out, "utf8")) as MigrationOutcome;
+      expect(outcome.packages?.map((pkg) => [pkg.dir, pkg.from, pkg.fromSource])).toEqual(
+        [
+          ["orders", "v1.4.0", "orders/go.mod"],
+          ["refunds", "v1.5.0", "refunds/go.mod"],
+        ],
+      );
+      // Each module moves to the new release in its own go.mod, in one result.
+      expect(outcome.files["orders/go.mod"]).toContain("github.com/google/uuid v1.6.0");
+      expect(outcome.files["refunds/go.mod"]).toContain("github.com/google/uuid v1.6.0");
+      expect(outcome.diagnostics).toEqual({ before: 0, after: 0 });
+    },
+    900_000,
   );
 });
 if (required && (!runtime || !online)) {
