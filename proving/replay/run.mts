@@ -112,7 +112,12 @@ import {
   score,
 } from "./score.mts";
 import { type Language, languageOf } from "./sites.mts";
-import { STAINLESS, stainlessPlan } from "./stainless.mts";
+import {
+  STAINLESS,
+  STAINLESS_NPM,
+  stainlessNpmBreaking,
+  stainlessPlan,
+} from "./stainless.mts";
 import { type ContractPlan, stripePlan } from "./stripe.mts";
 import { typedCopy } from "./stubs.mts";
 
@@ -825,6 +830,20 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       breaking = contract?.breaking;
       // An SDK typed by Octokit is judged against the octokit/openapi releases
       // the consumer's lockfiles pin on each side.
+      // A Stainless SDK is judged against the specifications its two
+      // releases record.
+      if (breaking === undefined && STAINLESS_NPM[entry.package]) {
+        breaking = await stainlessNpmBreaking(
+          entry.package,
+          versionOf(oldSdk),
+          versionOf(newSdk),
+        ).catch((error: unknown) => {
+          process.stderr.write(
+            `${entry.id}: no specification: ${(error instanceof Error ? error.message : String(error)).slice(0, 160)}\n`,
+          );
+          return undefined;
+        });
+      }
       if (breaking === undefined && OCTOKIT_SDKS.has(entry.package)) {
         const types = "@octokit/openapi-types";
         const oldTypes = lockedVersion(await lockfilesAt(repo, entry.base, root), types);
