@@ -1,5 +1,73 @@
 # @invariant-app/cli
 
+## 0.5.0
+
+### Minor Changes
+
+- d9cad85: A consumer can migrate from a provider's published release with no account and no key, and a monorepo is migrated package by package into one result.
+  
+  `/.well-known/invariant.json` is new: a small, versioned document a provider serves from its own domain, listing the APIs it publishes and the Ed25519 keys it signs their releases with, each with `added_at` and optionally `not_after`, `revoked`, `revoked_reason` and the APIs it signs for, and optionally where its bundles are published. `@invariant-app/bundle` exports its schema as `@invariant-app/bundle/well-known.schema.json`, and `parseWellKnown`, `buildWellKnown`, `keyRefusal` and `openWithWellKnown`, which opens a bundle only if a key the document lists for that API, added before the bundle was published, not past its `not_after` and never revoked, signed it; anything else is an `UntrustedBundleError` that says which rule failed.
+  
+  `invariant well-known` prints the document from `invariant.yaml` and the keys given with `--key` (and the public half of `INVARIANT_SIGNING_KEY`), keeps every key of the document given with `--from`, and retires (`--retire`) or revokes (`--revoke`) a key by its id.
+  
+  A migration job can name `release: { provider, api, to?, since?, service? }` instead of a bundle: the Changes are read from the service's public bundle endpoint, every step from `since` to `to`, and trusted only if the provider's own document, read from `https://<provider>/.well-known/invariant.json`, vouches for the key that signed each one, whatever the service says. Every request is HTTPS (plain HTTP only to a service on this machine), follows redirects only on the same host, and is held to a size and a time limit; what is read is cached briefly in the user's cache directory and checked again when read back. `--service` overrides where bundles are read from.
+  
+  `invariant migrate` now detects workspaces: npm, pnpm and yarn workspaces, several `pyproject.toml` files, and Go modules under a `go.work` or side by side. Each package is migrated from the release of the SDK its own manifest and lockfile say it uses (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock` or what is installed; a pin, `uv.lock`, `poetry.lock` or `pdm.lock`; its `go.mod`), so a job's `from` is now optional, and a job can name one `package`. The result is one set of edits for the repository, with a `packages` report saying what happened to each package and why any was skipped; a file two packages would edit differently is left alone with a note, and a package that fails does not stop the others but fails the command.
+- 8f3e365: A migration can now run in a sandbox, in two phases.
+  
+  `@invariant-app/sandbox` is new. Its `Sandbox` interface runs a fetch phase, which downloads the SDK releases a migration reads with install scripts off and can reach only the package registries (`registry.npmjs.org`, `pypi.org`, `files.pythonhosted.org`, `proxy.golang.org`, `sum.golang.org`, and any host a caller adds) through an egress proxy, and an analyse phase, which reads the repository with no network at all, read-only inputs and one writable output directory. Each phase runs under limits on memory, CPUs, CPU time and the wall clock, and a failure says which: `timeout`, `memory`, `cpu`, `exit`, `driver` or `unavailable`. The egress proxy is an HTTP CONNECT proxy that opens tunnels only to allowlisted host names, on 443 by default, never to a name that resolves to a private, loopback or link-local address, and never for plain HTTP; it also runs on its own as `invariant-egress-proxy`. Three drivers: `oci-rootless` runs each phase in a docker or podman container as a non-root user with a read-only root filesystem, no capabilities and `--network=none` for the analysis, and the fetch on an internal network whose only way out is the proxy; `k8s-job` runs each phase as a Job under a gVisor or Kata RuntimeClass with a NetworkPolicy that denies an analysis all traffic and a fetch everything but the proxy; `fly-machine` runs each phase in a one-shot Fly Machine that is destroyed when it exits and never restarted.
+  
+  `invariant migrate <job.json>` is new: it moves one consumer repository to a release with the same engine the hosted service runs, for TypeScript, Python and Go. By default it runs in this process; `--sandbox oci-rootless` runs each phase in a container, with this same installation of the CLI mounted read-only. The language packs are optional peer dependencies of the CLI, loaded only when a job needs one.
+  
+  The go command the Go pack runs now keeps `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` from the environment, so it reaches the module proxy from behind a proxy, as a sandboxed fetch does; nothing else of the caller's environment is kept.
+  
+  A TypeScript consumer migrated through its tsconfig now gets edits when its SDK is installed the usual way, as declarations under node_modules: the engine now reads the SDK's declarations it is given even where the project resolves them without listing them.
+- eeeb512: `invariant compile` writes `invariant.lock` beside the program, naming it by the digest the evolution bundle records. Given that digest as `programDigest`, `createRuntime` refuses at load any other program, so one changed between the build and the server is never served; `programDigest` is exported for checking a program by hand.
+  
+  `invariant check` refuses a release whose behavior flag is used in authentication or authorization code, found by the file's path or the words around the flag. A caller chooses its own contract, so a branch on it there would let a caller choose its own permissions.
+  
+  `migrate` takes an optional `repair`, a model asked for each function a site was left to a person in. It is sent the Change, why the site was left, and that function only; what it returns is kept only as that one function, type-checking as well as before, and is reported in `repairs` as the model's. Without `repair` no model is asked.
+  
+  The oasdiff platform packages carry a CycloneDX bill of materials naming the upstream binary by version, source and hash, as every other package already does.
+
+### Patch Changes
+
+- 353f443: `invariant check` fits in memory on Stripe-sized specifications. The lens laws built the generator for a schema in full before drawing a value, one generator for every path through the schemas it reaches, and where nearly every object reaches nearly every other, as Stripe's do through expandable fields, that ran out of a 12 GB heap. A schema's generator is now built the first time a value is drawn from it, and one schema reached along many paths shares one generator per depth. The values drawn, and their shrinks, are the same as before.
+  
+  The lens laws also finish in reasonable time there. Declared losses are parsed once per schema and removed in one walk, the release's shared blocks are compiled once rather than for every schema, and a law that fails tries at most a thousand smaller values before reporting the smallest it found, saying so when a smaller one may exist. A law on one Stripe object had been shrinking a 1.6 MB value for an hour and a half.
+  
+  `schemaLenses` returns the lens of any schema of one release, compiling the release's shared blocks once; `schemaLens` is the same for one schema.
+- Updated dependencies [d9cad85]
+- Updated dependencies [0672745]
+- Updated dependencies [96ba46a]
+- Updated dependencies [353f443]
+- Updated dependencies [19b8562]
+- Updated dependencies [c1f600c]
+- Updated dependencies [2308653]
+- Updated dependencies [8f3e365]
+- Updated dependencies [2ab33a0]
+- Updated dependencies [82928ae]
+- Updated dependencies [eeeb512]
+- Updated dependencies [44e1f3b]
+- Updated dependencies [af96b68]
+- Updated dependencies [2ab33a0]
+- Updated dependencies [415673a]
+- Updated dependencies [5fed925]
+- Updated dependencies [268385d]
+  - @invariant-app/bundle@0.5.0
+  - @invariant-app/diff@0.5.0
+  - @invariant-app/migrate-py@0.5.0
+  - @invariant-app/verifier@0.5.0
+  - @invariant-app/compiler@0.5.0
+  - @invariant-app/migrate-go@0.5.0
+  - @invariant-app/migrate-ts@0.5.0
+  - @invariant-app/sandbox@0.5.0
+  - @invariant-app/proposer@0.5.0
+  - @invariant-app/migrate-core@0.5.0
+  - @invariant-app/contract@0.5.0
+  - @invariant-app/client@0.5.0
+  - @invariant-app/ir@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes

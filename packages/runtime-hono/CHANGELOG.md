@@ -1,5 +1,12 @@
 # @invariant-app/runtime-hono
 
+## 0.5.0
+
+### Patch Changes
+
+- Updated dependencies [eeeb512]
+  - @invariant-app/runtime@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes

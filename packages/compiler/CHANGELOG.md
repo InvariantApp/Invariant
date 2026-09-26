@@ -1,5 +1,32 @@
 # @invariant-app/compiler
 
+## 0.5.0
+
+### Minor Changes
+
+- 353f443: `invariant check` fits in memory on Stripe-sized specifications. The lens laws built the generator for a schema in full before drawing a value, one generator for every path through the schemas it reaches, and where nearly every object reaches nearly every other, as Stripe's do through expandable fields, that ran out of a 12 GB heap. A schema's generator is now built the first time a value is drawn from it, and one schema reached along many paths shares one generator per depth. The values drawn, and their shrinks, are the same as before.
+  
+  The lens laws also finish in reasonable time there. Declared losses are parsed once per schema and removed in one walk, the release's shared blocks are compiled once rather than for every schema, and a law that fails tries at most a thousand smaller values before reporting the smallest it found, saying so when a smaller one may exist. A law on one Stripe object had been shrinking a 1.6 MB value for an hour and a half.
+  
+  `schemaLenses` returns the lens of any schema of one release, compiling the release's shared blocks once; `schemaLens` is the same for one schema.
+
+### Patch Changes
+
+- 2ab33a0: A value a Change puts back or fills in (`remove` with `restore`, `default`,
+  and the value `add` gives an old caller's request) is now written only where
+  the object the Change is scoped to is there. It used to create every object
+  on the way that was missing, so an answer that left out an optional object
+  reached an old caller with one holding only the restored field, where the
+  old server had sent no object at all.
+- Updated dependencies [0672745]
+- Updated dependencies [eeeb512]
+- Updated dependencies [268385d]
+  - @invariant-app/diff@0.5.0
+  - @invariant-app/runtime@0.5.0
+  - @invariant-app/contract@0.5.0
+  - @invariant-app/decimal@0.5.0
+  - @invariant-app/ir@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
