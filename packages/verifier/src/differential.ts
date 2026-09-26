@@ -353,6 +353,30 @@ export function inDeclaredOrder(
   });
 }
 
+/**
+ * Whether two values of one header say the same thing.
+ *
+ * A media type is compared as one: its type and parameter names are
+ * case-insensitive and the space around its separators means nothing, and a
+ * server that started writing `text/plain; charset=utf-8` where it wrote
+ * `text/plain;charset=utf-8` has not changed what any caller reads.
+ */
+function sameHeader(name: string, a: string | undefined, b: string | undefined): boolean {
+  if (a === b) return true;
+  if (a === undefined || b === undefined || name !== "content-type") return false;
+  const media = (value: string) =>
+    value
+      .split(";")
+      .map((part) => part.trim().replace(/\s*=\s*/, "="))
+      .map((part, index) => (index === 0 ? part.toLowerCase() : part))
+      .map((part) => {
+        const at = part.indexOf("=");
+        return at === -1 ? part : `${part.slice(0, at).toLowerCase()}${part.slice(at)}`;
+      })
+      .join(";");
+  return media(a) === media(b);
+}
+
 function kindOf(value: JsonValue): string {
   if (value === null) return "null";
   if (Array.isArray(value)) return "array";
@@ -389,14 +413,13 @@ function compare(
     }
 
     for (const [name, value] of Object.entries(left.headers)) {
-      if (right.headers[name] !== value) {
-        out.push({
-          scenario,
-          step: left.id,
-          pointer: `header ${name}`,
-          detail: `was ${value}, now ${right.headers[name] ?? "absent"}`,
-        });
-      }
+      if (sameHeader(name, right.headers[name], value)) continue;
+      out.push({
+        scenario,
+        step: left.id,
+        pointer: `header ${name}`,
+        detail: `was ${value}, now ${right.headers[name] ?? "absent"}`,
+      });
     }
 
     const leftPaths = flatten(left.body);

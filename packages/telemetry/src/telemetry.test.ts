@@ -5,7 +5,6 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { readOutcomes } from "@invariant-app/cli";
 import { createClient } from "@invariant-app/client";
 import { loadContract } from "@invariant-app/contract";
 import {
@@ -317,32 +316,6 @@ describe("the file sink", () => {
   beforeAll(async () => {
     dir = await mkdtemp(join(tmpdir(), "invariant-telemetry-"));
     return () => rm(dir, { recursive: true, force: true });
-  });
-
-  it("writes outcomes the release's runtime evidence reads", async () => {
-    const path = join(dir, "outcomes.jsonl");
-    const counted = telemetry({ sinks: [jsonlSink(path)], now: at(0) });
-    counted.onUsage(usage("acct_1", [["chg_money", 1]]));
-    counted.onOutcome(outcome("adapted"));
-    counted.onOutcome(outcome("failed", "no exact value"));
-    await counted.flush();
-    expect(await readOutcomes(path)).toEqual([
-      {
-        contract: "2026-01-15",
-        operation: "createPayment",
-        direction: "response",
-        outcome: "adapted",
-        count: 1,
-      },
-      {
-        contract: "2026-01-15",
-        operation: "createPayment",
-        direction: "response",
-        outcome: "failed",
-        count: 1,
-        reason: "no exact value",
-      },
-    ]);
   });
 
   it("rotates by size, keeping a bounded number of old files", async () => {

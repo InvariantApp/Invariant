@@ -421,6 +421,9 @@ importers:
       '@invariant-app/migrate-ts':
         specifier: workspace:*
         version: link:../migrate-ts
+      '@invariant-app/telemetry':
+        specifier: workspace:*
+        version: link:../telemetry
 
   packages/client:
     devDependencies:
@@ -746,9 +749,6 @@ importers:
         specifier: workspace:*
         version: link:../client
     devDependencies:
-      '@invariant-app/cli':
-        specifier: workspace:*
-        version: link:../cli
       '@invariant-app/contract':
         specifier: workspace:*
         version: link:../contract

@@ -158,3 +158,43 @@ describe("starting builds once per contract", () => {
     expect(starts).toHaveLength(6);
   });
 });
+
+describe("comparing a media type", () => {
+  const one: Scenario = {
+    name: "read",
+    contract: "2026-01-15",
+    steps: [
+      {
+        id: "read",
+        method: "GET",
+        path: "/thing",
+        headers: {},
+        body: undefined,
+        capture: {},
+        expectStatus: undefined,
+      },
+    ],
+    acknowledged: [],
+  };
+  const answering = (old: string, now: string) => async (build: string) => ({
+    fetch: async () =>
+      new Response("{}", { headers: { "content-type": build === "head" ? now : old } }),
+    close: async () => {},
+  });
+
+  it("reads the same media type written with other spacing as the same", async () => {
+    const report = await checkDifferential([one], {
+      launch: answering("text/plain;charset=utf-8", "text/plain; charset=utf-8"),
+    });
+    expect(report.differences).toEqual([]);
+  });
+
+  it("still tells two media types apart", async () => {
+    const report = await checkDifferential([one], {
+      launch: answering("application/json", "text/plain"),
+    });
+    expect(report.differences.map((entry) => entry.pointer)).toEqual([
+      "header content-type",
+    ]);
+  });
+});

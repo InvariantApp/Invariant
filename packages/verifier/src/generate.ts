@@ -18,6 +18,7 @@
  * contract's own shapes, like any scenario, because that is the traffic whose
  * meaning has to survive.
  */
+import { servedUnder } from "@invariant-app/compiler";
 import {
   deref,
   type OpenApiDocument,
@@ -249,6 +250,9 @@ function stepFor(
     }
   }
 
+  // Paths are written under the servers' own path: Immich serves `/albums`
+  // at `/api/albums`, and asked without it, it answers with its web app.
+  path = `${servedUnder(document) ?? ""}${path}`;
   return {
     id,
     method: operation.method.toUpperCase(),

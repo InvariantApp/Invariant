@@ -41932,6 +41932,23 @@ function inDeclaredOrder(observations, unordered) {
 		return sorted;
 	});
 }
+/**
+* Whether two values of one header say the same thing.
+*
+* A media type is compared as one: its type and parameter names are
+* case-insensitive and the space around its separators means nothing, and a
+* server that started writing `text/plain; charset=utf-8` where it wrote
+* `text/plain;charset=utf-8` has not changed what any caller reads.
+*/
+function sameHeader(name, a, b) {
+	if (a === b) return true;
+	if (a === void 0 || b === void 0 || name !== "content-type") return false;
+	const media = (value) => value.split(";").map((part) => part.trim().replace(/\s*=\s*/, "=")).map((part, index) => index === 0 ? part.toLowerCase() : part).map((part) => {
+		const at = part.indexOf("=");
+		return at === -1 ? part : `${part.slice(0, at).toLowerCase()}${part.slice(at)}`;
+	}).join(";");
+	return media(a) === media(b);
+}
 function kindOf(value) {
 	if (value === null) return "null";
 	if (Array.isArray(value)) return "array";
@@ -41956,12 +41973,15 @@ function compare$1(scenario, base, head, volatile) {
 			pointer: "/",
 			detail: `the old build answered ${left.status}, the new one answered ${right.status}`
 		});
-		for (const [name, value] of Object.entries(left.headers)) if (right.headers[name] !== value) out.push({
-			scenario,
-			step: left.id,
-			pointer: `header ${name}`,
-			detail: `was ${value}, now ${right.headers[name] ?? "absent"}`
-		});
+		for (const [name, value] of Object.entries(left.headers)) {
+			if (sameHeader(name, right.headers[name], value)) continue;
+			out.push({
+				scenario,
+				step: left.id,
+				pointer: `header ${name}`,
+				detail: `was ${value}, now ${right.headers[name] ?? "absent"}`
+			});
+		}
 		const leftPaths = flatten(left.body);
 		const rightPaths = flatten(right.body);
 		for (const [pointer, value] of leftPaths) {
@@ -42603,6 +42623,7 @@ function stepFor(document, operation, id, known, options) {
 			headers["content-type"] = "application/json";
 		}
 	}
+	path = `${servedUnder(document) ?? ""}${path}`;
 	return {
 		id,
 		method: operation.method.toUpperCase(),

@@ -40,7 +40,6 @@
     "@invariant-app/client": "workspace:*"
   },
   "devDependencies": {
-    "@invariant-app/cli": "workspace:*",
     "@invariant-app/contract": "workspace:*",
     "@invariant-app/runtime": "workspace:*"
   },

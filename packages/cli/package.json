@@ -79,6 +79,7 @@
     }
   },
   "devDependencies": {
+    "@invariant-app/telemetry": "workspace:*",
     "@invariant-app/migrate-go": "workspace:*",
     "@invariant-app/migrate-py": "workspace:*",
     "@invariant-app/migrate-ts": "workspace:*",
