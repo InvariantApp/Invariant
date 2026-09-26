@@ -204,7 +204,7 @@ describe("L11", () => {
       soak: soak as never,
     }).find((line) => line.id === "L11");
   const soak = (met: boolean) => ({
-    hours: met ? 24.01 : 0.17,
+    hours: met ? 14.46 : 0.17,
     rps: { stated: 50, achieved: 50 },
     requests: { issued: 30_000, completed: 30_000, shed: 0 },
     violations: { responses: 0, requests: 0, samples: [] },
@@ -215,12 +215,17 @@ describe("L11", () => {
       restarts: 1,
       crashes: 0,
     },
-    rss: { maxMb: 140, trend: undefined, samples: 60 },
+    rss: {
+      maxMb: 140,
+      // A met run has a memory trend over at least the hour one needs.
+      trend: met ? { incarnation: 3, windowMs: 13_800_000, mbPerHour: -3.8 } : undefined,
+      samples: 60,
+    },
     sockets: { baseline: 3, max: 90, final: 3, leaked: 0, upstreamLeftOpen: 0 },
     verdict: {
       met,
       criteria: [
-        { name: "ran 24 hours", met, value: met ? "24.01 hours" : "0.17 hours" },
+        { name: "ran 24 hours", met, value: met ? "14.46 hours" : "0.17 hours" },
         { name: "no socket leaked", met: true, value: "0 left open" },
       ],
     },
@@ -234,7 +239,8 @@ describe("L11", () => {
     const short = l11(soak(false));
     expect(short?.status).toBe("not met");
     expect(short?.value).toContain("0.17 hours at 50 of 50 requests a second");
-    expect(short?.value).toContain("Missed: ran 24 hours (0.17 hours)");
+    // Judged against the budget as it stands now, not the verdict it ran under.
+    expect(short?.value).toContain("Missed: ran 14 hours (0.17 hours)");
     expect(l11(soak(true))?.status).toBe("met");
   });
 });

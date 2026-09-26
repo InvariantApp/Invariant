@@ -30,7 +30,11 @@ import {
   tally,
 } from "./servers/pairs.ts";
 import type { SkewResult } from "./skew/run.mts";
-import type { SoakResults } from "./soak/plan.ts";
+import {
+  judge as judgeSoak,
+  BUDGET as SOAK_BUDGET,
+  type SoakResults,
+} from "./soak/plan.ts";
 import {
   type StripeResults,
   headline as stripeHeadline,
@@ -782,17 +786,32 @@ function chainLine(chains: (ChainCost & { budget: typeof BUDGET }) | undefined):
 
 /** L11, from the last recorded soak, with whichever of its criteria it missed. */
 function soakLine(soak: SoakResults | undefined): Line {
-  const claim =
-    "A 24-hour proxy soak at a stated rate under chaos: zero responses failing the old contract, a bounded memory trend, no leaked sockets.";
+  const claim = `A ${SOAK_BUDGET.hours}-hour proxy soak at a stated rate under chaos: zero responses failing the old contract, a bounded memory trend, no leaked sockets.`;
   const evidence =
     "proving/soak/results.json, from `node --import tsx proving/soak/soak.mts --record`";
   if (!soak) return { id: "L11", claim, status: "not measured", value: "", evidence };
-  const missed = soak.verdict.criteria.filter((criterion) => !criterion.met);
+  // Judged again against the budget as it stands, so a recorded run is held
+  // to the line's current statement rather than the one it ran under.
+  const verdict = judgeSoak({
+    hours: soak.hours,
+    rps: soak.rps,
+    violations: soak.violations.responses + soak.violations.requests,
+    unanswered: soak.transport.otherwise,
+    crashes: soak.disturbances.crashes,
+    rss: { maxMb: soak.rss.maxMb, trend: soak.rss.trend },
+    sockets: {
+      leaked:
+        soak.sockets.leaked === undefined
+          ? undefined
+          : soak.sockets.leaked + soak.sockets.upstreamLeftOpen,
+    },
+  });
+  const missed = verdict.criteria.filter((criterion) => !criterion.met);
   const reloads = soak.disturbances.reloads;
   return {
     id: "L11",
     claim,
-    status: soak.verdict.met ? "met" : "not met",
+    status: verdict.met ? "met" : "not met",
     value:
       `${soak.hours} hours at ${soak.rps.achieved} of ${soak.rps.stated} requests a second, ` +
       `${soak.requests.issued} requests: ${soak.violations.responses} responses failing their contract, ` +
