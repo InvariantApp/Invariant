@@ -454,13 +454,7 @@
       "situation": "Request parameters are gathered in a mapping or struct first and then handed to the SDK's call (spread, `**kwargs`, a params value).",
       "changes": ["chg_params_nickname"],
       "sdk": "handwritten",
-      "expect": "edit",
-      "gaps": {
-        "python": {
-          "observed": "none",
-          "reason": "Keys of a dictionary unpacked into the SDK's call are checked only against an upgraded release, and never renamed from the Change."
-        }
-      }
+      "expect": "edit"
     },
     {
       "id": "request-nested-object",
@@ -808,13 +802,7 @@
       "situation": "The field is handed to the consumer's own helper, whose parameter carries the SDK's value type, and the helper compares it with a renamed value.",
       "changes": ["chg_customer_status"],
       "sdk": "handwritten",
-      "expect": "edit",
-      "gaps": {
-        "python": {
-          "observed": "none",
-          "reason": "A comparison with a parameter typed by the SDK's `Literal` alias is not followed into the helper."
-        }
-      }
+      "expect": "edit"
     },
     {
       "id": "enum-own-status-field",

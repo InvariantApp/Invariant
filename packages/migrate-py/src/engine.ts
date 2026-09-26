@@ -28,6 +28,7 @@ import { classIn, hoverType, type ValueFlow } from "./flows.ts";
 import {
   classDeclaration,
   type Declaration,
+  importedFor,
   isSpan,
   type ReferenceProvider,
   type Span,
@@ -45,6 +46,7 @@ import {
   type Tree,
   withStringValue,
 } from "./syntax.ts";
+import { keyToken, onlyUnpacked, unpackingsIn, writtenOut } from "./unpacked.ts";
 
 export interface EngineResult {
   edits: Edit[];
@@ -226,14 +228,15 @@ interface Site {
   role: PyRole;
 }
 
-/** The string literals a read of the field is compared with: `sub.status == "active"`. */
-function comparedLiterals(read: Node): Node[] {
-  // `sub.status` is the attribute; the comparison holds it.
-  const attribute = read.parent;
-  const comparison = attribute?.parent;
-  if (!attribute || comparison?.type !== "comparison_operator") return [];
+/**
+ * The string literals a value is compared with: `sub.status == "active"`,
+ * or `status in ("active", "past_due")`.
+ */
+function comparedLiterals(operand: Node): Node[] {
+  const comparison = operand.parent;
+  if (comparison?.type !== "comparison_operator") return [];
   const others = comparison.namedChildren.filter(
-    (child): child is Node => child !== null && child.id !== attribute.id,
+    (child): child is Node => child !== null && child.id !== operand.id,
   );
   return others.flatMap((other) =>
     other.type === "string"
@@ -250,14 +253,12 @@ function comparedLiterals(read: Node): Node[] {
  * not. A literal inside a class, mapping or sequence pattern is compared
  * with something else, and is left alone.
  */
-function casedLiterals(read: Node): Node[] {
-  const attribute = read.parent;
-  const match = attribute?.parent;
+function casedLiterals(subject: Node): Node[] {
+  const match = subject.parent;
   if (
-    !attribute ||
     match?.type !== "match_statement" ||
     match.childrenForFieldName("subject").length !== 1 ||
-    match.childForFieldName("subject")?.id !== attribute.id
+    match.childForFieldName("subject")?.id !== subject.id
   )
     return [];
   const found: Node[] = [];
@@ -297,8 +298,8 @@ function holderOf(site: Site): Node | undefined {
 
 function renameValues(site: Site, composed: Composed, result: EngineResult): void {
   const literals =
-    site.role === "attribute-read"
-      ? [...comparedLiterals(site.node), ...casedLiterals(site.node)]
+    site.role === "attribute-read" && site.node.parent
+      ? [...comparedLiterals(site.node.parent), ...casedLiterals(site.node.parent)]
       : site.role === "keyword" || site.role === "dict-key"
         ? [holderOf(site)?.childForFieldName("value")].filter(
             (value): value is Node => value?.type === "string",
@@ -637,6 +638,108 @@ async function applyComposed(
 }
 
 /**
+ * Values compared with a name the consumer declared as the SDK's own type
+ * for the field's values: `def is_live(status: acme.CustomerStatus)` and
+ * `status == "active"` inside it. The field is annotated with that type, so
+ * a value of it is one of the field's values wherever the consumer carries
+ * it; the annotation is resolved by the checker to the SDK's declaration of
+ * the type, never matched by its name.
+ */
+async function vocabularyComparisons(
+  references: ReferenceProvider,
+  sources: Sources,
+  target: TargetSymbol,
+  composed: Composed,
+  result: EngineResult,
+): Promise<void> {
+  const members = references as ReferenceProvider & {
+    memberType?(typeName: string, path: readonly string[]): Promise<string | undefined>;
+  };
+  if (!members.memberType) return;
+  const shown = hoverType(
+    await members.memberType(target.typeName, [
+      ...(target.within ?? []),
+      target.property,
+    ]),
+  );
+  if (!shown || !/^[A-Za-z_]\w*$/.test(shown)) return;
+  const vocabulary = await references.moduleAttribute(
+    importedFor(target.typeName),
+    shown,
+  );
+  if (!vocabulary) return;
+  const olds = [...composed.values.keys()];
+  for (const [file, text] of sources.texts) {
+    if (!olds.some((value) => text.includes(value))) continue;
+    const tree = await sources.tree(file);
+    if (!tree) continue;
+    const operands = [
+      ...descendantsOfType(tree.rootNode, ["comparison_operator"]).flatMap((comparison) =>
+        comparison.namedChildren.filter(
+          (child): child is Node => child?.type === "identifier",
+        ),
+      ),
+      ...descendantsOfType(tree.rootNode, ["match_statement"]).flatMap((match) =>
+        match
+          .childrenForFieldName("subject")
+          .filter((subject): subject is Node => subject?.type === "identifier"),
+      ),
+    ];
+    for (const operand of operands) {
+      const literals = [...comparedLiterals(operand), ...casedLiterals(operand)];
+      if (
+        !literals.some((literal) => composed.values.has(stringValue(literal) ?? "")) ||
+        !(await declaredAs(references, sources, file, operand, vocabulary))
+      )
+        continue;
+      for (const literal of literals) renameValue(file, literal, composed, result);
+    }
+  }
+}
+
+/**
+ * Whether the name at `operand` is declared with an annotation the checker
+ * resolves to `type`: a parameter `status: acme.CustomerStatus`, or a
+ * variable annotated so.
+ */
+async function declaredAs(
+  references: ReferenceProvider,
+  sources: Sources,
+  file: string,
+  operand: Node,
+  type: Declaration,
+): Promise<boolean> {
+  const annotated = ["typed_parameter", "typed_default_parameter", "assignment"];
+  for (const point of await references.definitionAt(file, operand.startIndex)) {
+    if (!isSpan(point)) continue;
+    const tree = await sources.tree(point.file);
+    const declared = tree && nodeAt(tree, point.start, point.end);
+    const holder = declared
+      ? annotated.includes(declared.type)
+        ? declared
+        : declared.parent && annotated.includes(declared.parent.type)
+          ? declared.parent
+          : undefined
+      : undefined;
+    const annotation = holder?.childForFieldName("type");
+    const written =
+      annotation?.type === "type" ? annotation.namedChildren[0] : annotation;
+    // The annotation's last name: `CustomerStatus` of `acme.CustomerStatus`.
+    const last =
+      written?.type === "attribute"
+        ? written.childForFieldName("attribute")
+        : written?.type === "identifier"
+          ? written
+          : null;
+    if (!last) continue;
+    const resolved = await references.definitionAt(point.file, last.startIndex);
+    if (resolved.some((each) => !isSpan(each) && sameDeclaration(each, type)))
+      return true;
+  }
+  return false;
+}
+
+/**
  * Keywords of class patterns that match the field's own class: `case
  * acme.Address(postal_code=zip_code)`. A keyword there is an attribute of
  * the matched object, but the checker reports no reference to the field at
@@ -808,6 +911,18 @@ export async function runTargets(
     if (changesReads(composed, first) || composed.values.size > 0) {
       await patternKeywords(references, sources, first, composed, result);
     }
+    if (composed.values.size > 0) {
+      await vocabularyComparisons(references, sources, first, composed, result);
+    }
+    // Keys of a dictionary unpacked into the SDK's call.
+    if (
+      !composed.unsupported &&
+      composed.scale === undefined &&
+      composed.path.length === 1 &&
+      composed.path[0] !== first.property
+    ) {
+      await unpackedKeys(references, sources, first, declaration, composed, result);
+    }
     // What the checker could not type is found by name, and only reported.
     if (changesReads(composed, first)) {
       await flagByName(references, sources, first, declaration, composed, typed, result, {
@@ -850,6 +965,64 @@ export async function runTargets(
     result.edits.push(...helpers.importEdits(rescaled?.changeId ?? ""));
   }
   return { resolved, unresolved };
+}
+
+/**
+ * Keys of a dictionary built from literals and unpacked into a call, `params
+ * = {"nickname": name}` and `create(**params)`, renamed where the checker
+ * says the key is the field. The checker types the dictionary as a
+ * `dict[str, str]` and reads none of its keys against the call, so the
+ * file is checked again with the unpacking written out as keywords, and the
+ * keyword the key becomes is asked where it is declared: where it is the
+ * field the Change renamed, the key is that field. Only a dictionary used
+ * for nothing but that one call is renamed; any other is left to the check
+ * against the upgraded release, which shows the key it rejects.
+ */
+async function unpackedKeys(
+  references: ReferenceProvider,
+  sources: Sources,
+  target: TargetSymbol,
+  declaration: Declaration,
+  composed: Composed,
+  result: EngineResult,
+): Promise<void> {
+  if (!references.definitionAs) return;
+  const renamed = composed.path[0] as string;
+  for (const [file, text] of sources.texts) {
+    if (!text.includes("**") || !text.includes(target.property)) continue;
+    const tree = await sources.tree(file);
+    if (!tree) continue;
+    for (const unpacking of unpackingsIn(tree)) {
+      const keys = unpacking.keys.filter((key) => key.key === target.property);
+      if (keys.length === 0 || !onlyUnpacked(unpacking)) continue;
+      const out = writtenOut(text, [unpacking]);
+      const written = out.written.find((each) => each.key.key === target.property);
+      if (!written) continue;
+      const points = await references.definitionAs(file, out.text, written.start);
+      if (!points.some((point) => !isSpan(point) && sameDeclaration(point, declaration)))
+        continue;
+      for (const key of keys) {
+        const token = keyToken(key);
+        if (!token) continue;
+        const replacement =
+          token.type === "identifier"
+            ? renamed
+            : stringValue(token) === undefined
+              ? undefined
+              : withStringValue(token, renamed);
+        if (replacement === undefined) continue;
+        result.edits.push({
+          file,
+          start: token.startIndex,
+          end: token.endIndex,
+          replacement,
+          changeId: composed.changeIds[0] ?? "",
+          author: "codemod",
+          reason: `${composed.reasons.join("; ")}; the dictionary is unpacked into the SDK's call`,
+        });
+      }
+    }
+  }
 }
 
 /** Whether what the Changes do to a field leaves a read of it wrong as written. */

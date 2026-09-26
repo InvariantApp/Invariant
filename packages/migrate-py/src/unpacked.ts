@@ -245,6 +245,66 @@ export function unpackingsIn(tree: Tree): Unpacking[] {
   return found;
 }
 
+/**
+ * Whether the name a dictionary is unpacked from is used for nothing but
+ * building it and unpacking it: bound, given keys, updated and passed on
+ * with `**`. A dictionary read, returned or handed anywhere else holds its
+ * keys for more than the one call, and renaming one is not the call's to do.
+ */
+export function onlyUnpacked(unpacking: Unpacking): boolean {
+  const name = unpacking.name;
+  if (name === undefined) return true;
+  const value = unpacking.splat.namedChildren[0];
+  const scope = value && bindingScope(value, name);
+  if (!scope) return false;
+  return descendantsOfType(scope, ["identifier"]).every((identifier) => {
+    if (identifier.text !== name) return true;
+    const parent = identifier.parent;
+    if (!parent) return false;
+    if (parent.id === unpacking.splat.id) return true;
+    if (
+      (parent.type === "assignment" || parent.type === "augmented_assignment") &&
+      parent.childForFieldName("left")?.id === identifier.id
+    )
+      return parent.type === "assignment";
+    // `params["key"] = value`
+    if (
+      parent.type === "subscript" &&
+      parent.childForFieldName("value")?.id === identifier.id &&
+      parent.parent?.type === "assignment" &&
+      parent.parent.childForFieldName("left")?.id === parent.id
+    )
+      return true;
+    // `params.update(...)` and `params.setdefault(...)`
+    return (
+      parent.type === "attribute" &&
+      parent.childForFieldName("object")?.id === identifier.id &&
+      ["update", "setdefault"].includes(
+        parent.childForFieldName("attribute")?.text ?? "",
+      ) &&
+      parent.parent?.type === "call" &&
+      parent.parent.childForFieldName("function")?.id === parent.id
+    );
+  });
+}
+
+/** The key's own token in the statement that gives a dictionary a key. */
+export function keyToken(key: UnpackedKey): Node | undefined {
+  const node = key.node;
+  if (node.type === "pair") return node.childForFieldName("key") ?? undefined;
+  if (node.type === "keyword_argument")
+    return node.childForFieldName("name") ?? undefined;
+  // `params["key"] = value`, and `params.setdefault("key", value)`, as statements.
+  const inner = node.type === "expression_statement" ? node.namedChildren[0] : node;
+  if (inner?.type === "assignment") {
+    return inner.childForFieldName("left")?.childForFieldName("subscript") ?? undefined;
+  }
+  if (inner?.type === "call") {
+    return inner.childForFieldName("arguments")?.namedChildren[0] ?? undefined;
+  }
+  return undefined;
+}
+
 /** A keyword written out in the checked copy, and the key it stands for. */
 export interface Written {
   start: number;

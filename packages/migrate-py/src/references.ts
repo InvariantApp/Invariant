@@ -67,6 +67,15 @@ export interface ReferenceProvider {
   definitionAt(file: string, offset: number): Promise<(Span | Declaration)[]>;
   /** What the checker says the name at `offset` is, as hover text. */
   typeAt(file: string, offset: number): Promise<string | undefined>;
+  /**
+   * Where the name at `offset` in `text` is declared, `text` checked as
+   * though it were `file` (`PyrightReferences.errorsAs`).
+   */
+  definitionAs?(
+    file: string,
+    text: string,
+    offset: number,
+  ): Promise<(Span | Declaration)[]>;
 }
 
 export interface Verifier {
@@ -256,6 +265,20 @@ export class PyrightReferences implements ReferenceProvider, Verifier {
    * under another name, so its imports resolve as the file's own do, and
    * never written to disk.
    */
+  async definitionAs(
+    file: string,
+    text: string,
+    offset: number,
+  ): Promise<(Span | Declaration)[]> {
+    const beside = `${dirname(file)}/${SHADOW}`;
+    await this.server.open(beside, text);
+    const locations = await this.server.definition(
+      beside,
+      new LineIndex(text).positionAt(offset),
+    );
+    return locations.map((location) => this.placeOf(location));
+  }
+
   async errorsAs(file: string, text: string): Promise<Diagnostic[]> {
     const beside = `${dirname(file)}/${SHADOW}`;
     await this.server.open(beside, text);
