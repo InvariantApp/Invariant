@@ -1513,8 +1513,15 @@ async function main(): Promise<void> {
         await writeClasses(classes);
       }
       // Whether the case was judged forced or not was settled by the replay,
-      // which read the differ; rescoring keeps it.
-      result.inScope = scopeOf(scored, classes, result.inScope?.forced !== undefined);
+      // which read the differ; rescoring keeps it. Sites cached before the
+      // replay recorded each judgement carry none, and their case keeps the
+      // counts it was replayed with rather than losing them.
+      const before = result.inScope?.forced;
+      const recorded = scored.every((each) => each.forced !== undefined);
+      result.inScope = {
+        ...scopeOf(scored, classes, before !== undefined && recorded),
+        ...(before !== undefined && !recorded ? { forced: before } : {}),
+      };
       result.byClass = byClassOf(scored, classes);
     }
     await save();
