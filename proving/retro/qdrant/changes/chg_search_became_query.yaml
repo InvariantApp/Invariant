@@ -1,0 +1,23 @@
+# Written by hand, replacing the draft that retired search: 1.19 removed
+# POST /points/search, and a query with the vector as its `query` answers the
+# same thing, so an old caller's search is sent to the query handler instead
+# of being refused.
+irVersion: 1
+id: chg_search_became_query
+summary: "Searching for the points nearest a vector is now a query, with the vector as the query."
+scopes:
+  - schema: "#/components/schemas/SearchRequest"
+ops:
+  - op: route
+    from: { method: post, path: "/collections/{collection_name}/points/search" }
+    to: { method: post, path: "/collections/{collection_name}/points/query" }
+    operationId: { from: search_points, to: query_points }
+  - op: move
+    from: /vector
+    to: /query
+  - op: dropNull
+    path: /limit
+    toward: old
+assertions:
+  same_concept: true
+  side_effects_unchanged: true

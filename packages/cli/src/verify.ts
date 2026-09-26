@@ -215,8 +215,12 @@ export async function verify(
       : []),
   ];
   evidence.push(
-    ...differential.evidence.map((record) =>
-      record.kind === "E6-differential" && notes.length > 0
+    // Said once, on the first record: the same sentences on each of a
+    // hundred generated scenarios bury the one line that differs.
+    ...differential.evidence.map((record, index) =>
+      index ===
+        differential.evidence.findIndex((entry) => entry.kind === "E6-differential") &&
+      notes.length > 0
         ? { ...record, summary: `${record.summary} ${notes.join(" ")}` }
         : record,
     ),

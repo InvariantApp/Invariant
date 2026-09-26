@@ -1,0 +1,29 @@
+# Immich 1.137 -> 1.138, configured the way a stranger to Invariant would
+# from the docs alone. Immich needs its database and cache, so each build is
+# a Compose file. Nothing here signs anyone up, so what is compared is what
+# Immich answers before it has an administrator.
+api: immich
+spec:
+  current: specs/v1.138.0.json
+  currentLabel: v1.138.0
+  released:
+    v1.137.3: specs/v1.137.3.json
+
+identity:
+  - kind: default
+    label: v1.137.3
+
+build:
+  head:
+    compose: compose.yaml
+    env:
+      IMMICH_IMAGE: ghcr.io/immich-app/immich-server:v1.138.0@sha256:12cee930e2cc211a95acae12ad780c0b2eecaea0479a06e255c73a4deb0b3efb
+    proxy: true
+  contracts:
+    v1.137.3:
+      compose: compose.yaml
+      env:
+        IMMICH_IMAGE: ghcr.io/immich-app/immich-server:v1.137.3@sha256:e517f806457057d44695152a0af2dfa094225a7d85eb37f518925e68864c658d
+  healthPath: /api/server/ping
+  readyTimeout: 300
+  startPer: contract

@@ -1,0 +1,35 @@
+# NetBox 3.5 -> 3.6, configured the way a stranger to Invariant would from
+# the docs alone. NetBox needs a database and two caches, so each build is a
+# Compose file; it serves its own document, and every request carries the
+# throwaway token compose.yaml gives its superuser.
+api: netbox
+spec:
+  current: specs/v3.6.9.json
+  currentLabel: v3.6.9
+  released:
+    v3.5.9: specs/v3.5.9.json
+
+identity:
+  - kind: default
+    label: v3.5.9
+
+scenarios:
+  headers:
+    authorization: Token 0000000000000000000000000000000000000000
+    accept: application/json
+
+build:
+  head:
+    compose: compose.yaml
+    env:
+      NETBOX_IMAGE: netboxcommunity/netbox:v3.6.9@sha256:cf8a16f61d96c5d15cf5c639129662390e4b42685ed9c94ab4e344edeceb9a70
+    proxy: true
+  contracts:
+    v3.5.9:
+      compose: compose.yaml
+      env:
+        NETBOX_IMAGE: netboxcommunity/netbox:v3.5.9@sha256:673b90015e6bc916d712a2e94ac62849ee9c221ccd7bce8c226e2d060e333ddf
+  healthPath: /api/
+  # Migrations run as the container starts.
+  readyTimeout: 600
+  startPer: contract

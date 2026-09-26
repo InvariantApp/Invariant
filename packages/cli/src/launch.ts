@@ -303,9 +303,9 @@ async function planFor(
 ): Promise<Plan> {
   const build = options.build;
   // Named for the contract and the port, which is unique while it runs, so
-  // two builds of the same contract never share a container or a volume.
-  const name =
-    `invariant-${label.replace(/[^a-zA-Z0-9_.-]/g, "-")}-${port}`.toLowerCase();
+  // two builds of the same contract never share a container or a volume. No
+  // dots, which Compose refuses in a project name.
+  const name = `invariant-${label.replace(/[^a-zA-Z0-9_-]/g, "-")}-${port}`.toLowerCase();
   if (source?.kind === "image") {
     // Run in the foreground so the process is the container's lifetime, and
     // removed by name afterwards, since killing the client does not stop it.

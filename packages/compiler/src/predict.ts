@@ -179,6 +179,24 @@ function applyRoute(
   }
 
   const target = paths[op.to.path];
+  if (isJsonObject(target) && isJsonObject(target[op.to.method])) {
+    // Two operations of one contract landing on one: the adapter finds its
+    // work by where a call lands, so once routed it cannot tell a caller of
+    // one from a caller of the other and would apply each one's transforms to
+    // both. Writing the moved operation over the other here also hid the
+    // other's own changes from closure, so the gate passed what it had never
+    // compared.
+    issues.push({
+      changeId,
+      message:
+        `routes ${op.from.method.toUpperCase()} ${op.from.path} onto ` +
+        `${op.to.method.toUpperCase()} ${op.to.path}, which this contract already ` +
+        "serves as an operation of its own. Once routed, the adapter cannot tell " +
+        "the two callers apart, so serving two old operations from one new one " +
+        "is not supported.",
+    });
+    return;
+  }
   if (isJsonObject(target)) {
     target[op.to.method] = moved;
   } else {

@@ -480,6 +480,22 @@ export function renderReport(report: CheckReport): string {
     for (const issue of pending.issues) lines.push(`  ! ${issue}`);
   }
 
+  // An earlier step is released and usually settled, so it is said only when
+  // it is not: after `history import` or a hand edit, its Changes are what
+  // the gate is refusing, and a count on its own would not say which.
+  for (const step of report.steps.slice(0, -1)) {
+    if (step.unexplained.length + step.issues.length + step.stale.length === 0) continue;
+    lines.push("", `Released step ${step.from} -> ${step.to}`);
+    if (step.unexplained.length > 0) {
+      lines.push(`  ${step.unexplained.length} breaking deltas nothing accounts for:`);
+      for (const entry of step.unexplained) lines.push(`    - ${entry}`);
+    }
+    for (const entry of step.stale) {
+      lines.push(`  ! a behavior Change covers "${entry}", which no longer happens`);
+    }
+    for (const issue of step.issues) lines.push(`  ! ${issue}`);
+  }
+
   const served = report.steps.map((step) => step.from);
   if (served.length > 0) {
     lines.push("", `Historical contracts still served: ${served.join(", ")}`);

@@ -23,6 +23,7 @@ import { renderComment } from "./comment.ts";
 import { loadConfig } from "./config.ts";
 import { defaultCacheDir, fileCache } from "./discover.ts";
 import { doctor, renderDoctor } from "./doctor.ts";
+import { importHistory, renderHistory } from "./history.ts";
 import { type InitOptions, init, renderInit } from "./init.ts";
 import { LOCK_FILE, lockFor, renderLock } from "./lock.ts";
 import {
@@ -92,6 +93,11 @@ const USAGE = `invariant <command>
             Write scenarios from traffic already recorded, a HAR file or a
             Postman collection, into invariant/scenarios, with each id an
             answer minted carried into the requests after it.
+  history import <label>=<spec> [<label>=<spec> ...]
+            Put contracts served before adopting Invariant in front of the
+            chain, oldest first, and draft the Changes between them into
+            invariant/released, for check --full to compare with the old
+            versions still running.
   migrate <job.json>
             Move one consumer repository to a release: fetch both SDK
             releases, then read and edit the repository against them with
@@ -701,6 +707,20 @@ async function main(argv: string[]): Promise<number> {
       process.stdout.write(`wrote ${relative(process.cwd(), path)}\n`);
     }
     for (const reason of made.skipped) process.stdout.write(`left out ${reason}\n`);
+    return 0;
+  }
+
+  if (command === "history" && argv[1] === "import") {
+    const entries = argv
+      .slice(2)
+      .filter((arg) => !arg.startsWith("--") && arg !== flag(argv, "config"))
+      .map((arg) => {
+        const at = arg.indexOf("=");
+        if (at < 1) throw new Error(`history import takes <label>=<spec>, not ${arg}`);
+        return { label: arg.slice(0, at), spec: resolve(arg.slice(at + 1)) };
+      });
+    const result = await importHistory(config, entries);
+    process.stdout.write(`${renderHistory(result, config.root)}\n`);
     return 0;
   }
 

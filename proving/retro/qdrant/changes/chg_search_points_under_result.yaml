@@ -1,0 +1,15 @@
+# Written by hand, with chg_search_became_query: a query answers with the
+# points under result.points, where a search answered with them as result.
+irVersion: 1
+id: chg_search_points_under_result
+summary: "A search's points are a query's result.points."
+scopes:
+  - operation: search_points
+    response: "200"
+ops:
+  - op: move
+    from: /result
+    to: /result/points
+assertions:
+  same_concept: true
+  side_effects_unchanged: true

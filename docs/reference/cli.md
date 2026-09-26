@@ -196,6 +196,35 @@ replayed faithfully, a body that is not JSON or a variable only a script could
 have set, is left out and named. A file already in `invariant/scenarios` is
 never overwritten: what is there is yours, and it is what `check --full` runs.
 
+## `invariant history import`
+
+Puts contracts you served before adopting Invariant in front of the chain,
+for an API that already runs several versions side by side (`/v1` and `/v2`
+handlers, a `-v70` and a `-v71`) and wants to delete the old handlers:
+
+```
+invariant history import 2024-03-01=legacy/v1.yaml 2025-02-01=legacy/v2.yaml
+```
+
+Labels are given oldest first and must sort before every contract already
+released, since contracts are ordered by label; dates are the usual choice.
+Each document is snapshotted into `invariant/contracts`, added to
+`spec.released`, and the Changes between neighbours, ending at the oldest
+contract you already had, are drafted with rules only into
+`invariant/released/<label>`. They are drafts: read them, answer every
+`CHOOSE_ONE`, write what the proposer lists as left open, and `invariant check`
+refuses the chain until they explain it.
+
+Then prove the adapter answers the way the old handler does, before deleting
+it: point each imported contract at the deployment still serving it, and run
+`check --full`.
+
+```yaml
+build:
+  contracts:
+    "2025-02-01": { url: https://v2.internal.example.com }
+```
+
 ## `invariant migrate`
 
 Moves one consumer repository to a release, with the same engine the hosted
