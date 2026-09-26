@@ -567,7 +567,7 @@
     {
       "name": "homebox",
       "language": "Go",
-      "notes": "The suite is the frontend's own API integration tests (frontend/lib/api/__test__), which Homebox's CI runs with vitest against a live server on 127.0.0.1:7745, the address its test config names, so the server answers on that port and the proxy takes it in arm c. They register their own users, so the server needs only registration on, as the release's Taskfile starts it. The document is the release's OpenAPI 3 file beside its Swagger 2 one, which describes the same API.",
+      "notes": "The suite is the frontend's own API integration tests (frontend/lib/api/__test__), which Homebox's CI runs with vitest against a live server on 127.0.0.1:7745, the address its test config names, so the server answers on that port and the proxy takes it in arm c. They register their own users, so the server needs only registration on, as the release's Taskfile starts it. The document is the release's OpenAPI 3 file beside its Swagger 2 one, which describes the same API. Its lock file is installed with the dependencies' own build scripts left unrun, which the pnpm this rig runs refuses by default and the release's CI, on pnpm 9, ran; the suite needs none of them, as esbuild ships its binary as a package of its own.",
       "repo": "sysadminsmedia/homebox",
       "image": "ghcr.io/sysadminsmedia/homebox",
       "server": {
@@ -585,7 +585,15 @@
       "suite": {
         "sparse": ["frontend"],
         "dir": "frontend",
-        "install": [["pnpm", "install", "--frozen-lockfile", "--ignore-workspace"]],
+        "install": [
+          [
+            "pnpm",
+            "install",
+            "--frozen-lockfile",
+            "--ignore-workspace",
+            "--config.strict-dep-builds=false"
+          ]
+        ],
         "run": [
           "pnpm",
           "exec",
@@ -615,6 +623,61 @@
     }
   ],
   "skipped": [
+    {
+      "name": "airflow",
+      "language": "Python",
+      "reason": "3.1.8 -> 3.2.0 turns a task's retry_exponential_backoff from a flag into a multiplier, 0 for off, and the release's own Python client test fails on it, but the runtime cannot yet read a number as a flag, so a cast from one to the other would be refused. Its only live suite (clients/python/test_python_client.py) is one test, and no other pair's delta reaches it."
+    },
+    {
+      "name": "nautobot",
+      "language": "Python",
+      "reason": "pynautobot's live integration suite never breaks on a documented delta: from 2.0 Nautobot changes its REST API additively between minors, and the two minors that broke existing assertions did it by behavior no document gives (2.3's Prefix display string, 3.2's default interface ordering). 1.x pins the default API version, and 1.x -> 2.0 removes features."
+    },
+    {
+      "name": "influxdb",
+      "language": "Go",
+      "reason": "The OSS document is pinned to the same influxdata/openapi commit from 2.2.0 to 2.9.1, so no later pair has an ERR-level delta, and 2.0 -> 2.2 differ only in documentation. The client suites broke only on behavior: the version header's v prefix, and empty writes accepted."
+    },
+    {
+      "name": "typesense",
+      "language": "C++",
+      "reason": "The only ERR-level deltas are 29 -> 30, which moves synonyms and overrides into sets that must be created and linked first and restructures analytics rules, so the typesense-go integration tests that break cannot be served by any op; the document lives in an untagged repository."
+    },
+    {
+      "name": "weaviate",
+      "language": "Go",
+      "reason": "Its ERR-level deltas are removed features and permissions split one into four (1.28 -> 1.29, 1.37 -> 1.38), and its acceptance suite and clients start their own servers or talk gRPC, so none can be pointed at the proxy unmodified."
+    },
+    {
+      "name": "owncast",
+      "language": "Go",
+      "reason": "0.2.5 -> 0.3.0 moves the favicon upload from a multipart file to a JSON data URL, which its own API tests exercise, but serving it needs a body codec from multipart to JSON that the runtime does not have; every other pair's document has no ERR-level delta or does not load."
+    },
+    {
+      "name": "logto",
+      "language": "TypeScript",
+      "reason": "Management API changes since 1.0 are additive or behavioral, no document is kept per release, and the integration suite needs mock connectors the published images do not ship."
+    },
+    {
+      "name": "supabase-auth",
+      "language": "Go",
+      "reason": "Its hand-kept document's ERR-level deltas are documentation fixes, apart from two wire changes auth-js's tests never call, and the suite needs four differently configured servers."
+    },
+    {
+      "name": "nginx-proxy-manager",
+      "language": "JavaScript",
+      "reason": "Its document's ERR-level deltas are documentation rewrites; the one wire break its Cypress suite hits, certificate meta dropping letsencrypt_agree in 2.13.0, is WARN-level, and the default admin it signs in with was removed by behavior."
+    },
+    {
+      "name": "stirling-pdf",
+      "language": "Java",
+      "reason": "Across 60 releases its behave suite never changed an existing scenario's endpoint, parameter or status because of a documented change; the edits were to error statuses and text no document gives."
+    },
+    {
+      "name": "karakeep",
+      "language": "TypeScript",
+      "reason": "Its ERR-level deltas are enum values added to responses or generator noise, and the e2e suite builds and starts its own server from source, so it cannot be pointed at a released image unmodified."
+    },
     {
       "name": "jellyfin",
       "language": "C#",
