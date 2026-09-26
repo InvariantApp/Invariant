@@ -2368,6 +2368,24 @@ verdicts, and the laws that fail on each pair, are the same from run to run
 through every step of this. Rig B now holds the gate to a 4 GB heap, so a pair
 that needs more is recorded as blocked rather than given more.
 
+### Migration measured against what the public record holds
+
+L8 asks for 90% of the sites an upgrade forced to be handled, over real
+human migrations. Judging a site forced needs both releases' specifications,
+and the rate is counted only once an engine has 30 forced sites, since below
+that one site moves it by more than three points. Mining every SDK whose
+releases record their specifications (Stripe, the Stainless SDKs, go-github,
+Octokit) brought 1,105 cases, and TypeScript and JavaScript reach 19 forced
+sites, Go 14 and Python 9. Most of what humans change on an SDK upgrade is the
+SDK's own surface: 159 more go-github cases held no contract site at all.
+
+So the migration milestone is counted as built when its engines are, and L8
+is kept apart as a line the public record limits: the scoreboard says an
+engine's sample is too small rather than quoting a rate as met or missed, and
+the weekly miner keeps adding cases. What the engines do is held instead by
+the conformance suite, the same 68 scenarios in every language, where a gap
+is recorded with its reason and must be closed on purpose.
+
 ### Still to build
 
 E8 is produced: a release records who merged each Change, and a Change with no
@@ -2389,8 +2407,9 @@ kill switch and no usage counters, all of which are planned work.
 runs it, so webhook receipt and sponsored-link redemption have never been
 exercised against a live service.
 
-**Consumer migration is TypeScript only.** A consumer written in anything else
-receives no pull request.
+**Consumer migration was TypeScript only, and no longer is.** Python and Go
+packs sit beside it, held to the same 68 conformance scenarios; a consumer in
+any other language still receives no pull request.
 
 Where a phase's acceptance criteria could not be met without credentials, that
 is said here rather than quietly counted as done.
