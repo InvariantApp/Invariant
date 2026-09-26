@@ -36,6 +36,7 @@ import {
   shownExtent,
 } from "./engine.ts";
 import { ValueFlow } from "./flows.ts";
+import { grownVocabularies, grownVocabularySites } from "./grown.ts";
 import { narrowedParameters } from "./narrowed.ts";
 import { LineIndex } from "./offsets.ts";
 import { bumpPins } from "./pins.ts";
@@ -140,6 +141,12 @@ export async function migrate(options: MigrateOptions): Promise<MigrationResult>
         sources,
         { old: options.packages[0], next: options.upgraded[0] },
         options.plan.retiredValues,
+        result,
+      );
+      // Values an SDK's vocabulary gained, where the consumer decides on one.
+      await grownVocabularySites(
+        sources,
+        grownVocabularies(options.packages[0], options.upgraded[0]),
         result,
       );
     }
