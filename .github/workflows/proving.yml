@@ -13,7 +13,7 @@ on:
         options: [all, servers, corpus, judges]
         default: all
       servers:
-        description: Rig D projects to run, comma-separated. Empty runs every one.
+        description: Rig D projects or single pairs to run, comma-separated, as `qdrant` or `qdrant-v1.16.0..v1.17.0`. Empty runs every one.
         type: string
         default: ""
 
@@ -216,14 +216,16 @@ jobs:
       - id: plan
         env:
           WANTED: ${{ inputs.servers }}
+        # Each name wanted is a project, for every pair it has, or one pair's
+        # job id, so a fix can be tried on the one pair it is for.
         run: |
           pairs=$(jq -c --arg wanted "$WANTED" '
             ($wanted | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(. != ""))) as $only
             | [.projects[]
-                | select(($only | length) == 0 or (.name as $n | $only | index($n)))
                 | .name as $project
                 | .pairs[]
-                | { project: $project, pair: "\(.[0]):\(.[1])", id: "\($project)-\(.[0])..\(.[1])" }]
+                | { project: $project, pair: "\(.[0]):\(.[1])", id: "\($project)-\(.[0])..\(.[1])" }
+                | select(($only | length) == 0 or (.project as $p | $only | index($p)) or (.id as $i | $only | index($i)))]
           ' proving/servers/projects.json)
           echo "pairs=$pairs" >> "$GITHUB_OUTPUT"
 

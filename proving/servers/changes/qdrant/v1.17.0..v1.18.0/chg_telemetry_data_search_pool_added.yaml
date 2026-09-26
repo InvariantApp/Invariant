@@ -1,0 +1,17 @@
+# Written by hand, as Qdrant's maintainers would: 1.18 reports its search
+# thread pool in telemetry, which no caller of 1.17 was shown. It is optional,
+# so nothing drafts it, but an old caller that reads telemetry's sections as a
+# set (Qdrant's own telemetry test does) sees one it never had. Taking it out
+# of old callers' responses shows them telemetry as 1.17 described it.
+irVersion: 1
+id: chg_telemetry_data_search_pool_added
+summary: "`search_pool` is new on TelemetryData."
+scopes:
+  - schema: "#/components/schemas/TelemetryData"
+ops:
+  - op: add
+    path: /search_pool
+    value: null
+assertions:
+  loss_acknowledged: true
+  side_effects_unchanged: true
