@@ -43,6 +43,11 @@ describe("a build that is already running", () => {
   let url: string;
   beforeAll(async () => {
     running = createServer((request, response) => {
+      if (request.url === "/login") {
+        response.writeHead(302, { location: "app.immich:///oauth-callback" });
+        response.end();
+        return;
+      }
       response.end(request.url === "/__health" ? "ok" : `seen ${request.url}`);
     });
     await new Promise<void>((resolve) => running.listen(0, "127.0.0.1", resolve));
@@ -60,6 +65,17 @@ describe("a build that is already running", () => {
     await target.close();
     // Still answering: closing a target it did not start does nothing.
     expect((await fetch(`${url}/__health`)).ok).toBe(true);
+  });
+
+  it("answers a redirect as the redirect, without following it", async () => {
+    const target = await launchBuild("2026-01-01", {
+      build: build([["2026-01-01", { kind: "url", url }]]),
+      cwd: tmpdir(),
+    });
+    const response = await target.fetch(new Request("http://x/login"));
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("app.immich:///oauth-callback");
+    await target.close();
   });
 
   it("says which one did not answer", async () => {

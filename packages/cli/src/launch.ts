@@ -507,6 +507,10 @@ async function forward(base: string, request: Request): Promise<Response> {
   return fetch(`${base}${url.pathname}${url.search}`, {
     method: request.method,
     headers: request.headers,
+    // A redirect is the answer being compared, not an instruction to go and
+    // fetch somewhere else: Immich's OAuth redirect points at a mobile app's
+    // scheme, which following turned into a failure of the check itself.
+    redirect: "manual",
     ...(request.body === null ? {} : { body: await request.text(), duplex: "half" }),
   } as RequestInit);
 }

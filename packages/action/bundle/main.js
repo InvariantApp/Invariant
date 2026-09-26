@@ -44585,6 +44585,7 @@ async function forward(base, request) {
 	return fetch(`${base}${url.pathname}${url.search}`, {
 		method: request.method,
 		headers: request.headers,
+		redirect: "manual",
 		...request.body === null ? {} : {
 			body: await request.text(),
 			duplex: "half"

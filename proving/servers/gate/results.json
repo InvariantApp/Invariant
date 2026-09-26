@@ -1,0 +1,190 @@
+{
+  "source": "Full check on real servers, Actions run 36272844528",
+  "runs": [
+    {
+      "project": "gitea",
+      "from": "v1.24.2",
+      "to": "v1.25.4",
+      "result": "block",
+      "seconds": 34,
+      "differential": {
+        "pass": 362,
+        "fail": 17,
+        "skipped": 0
+      },
+      "summaries": [
+        "v1.24.2: make /admin/hooks and use it (generated): 5 requests answered the same by both builds, ignoring 0 generated values the old build did not keep stable Historical builds: v1.24.2 from image gitea/gitea:1.24.2@sha256:8e2e3f40c5ff3fee920c6d0faac0db9cca2183d80ff23965d1022434d37e7910. Current build: the current build from image gitea/gitea:1.25.4@sha256:17d18218be2dad1f8ed402a4f906989505c90ab8b66ee9befcecfb5d470133e7; the current build behind the proxy, running the program this check compiled. Each build was started once per run and asked every scenario in turn. 379 scenarios were made from the released documents; left out: v1.24.2 POST /repos/{owner}/{repo}/issues/comments/{id}/assets: its body is not JSON; v1.24.2 POST /repos/{owner}/{repo}/issues/{index}/assets: its body is not JSON; v1.24.2 POST /markdown/raw: its body is not JSON; v1.24.2 POST /repos/{owner}/{repo}/issues/comments/{id}/assets: its body is not JSON; v1.24.2 POST /repos/{owner}/{repo}/issues/{index}/assets: its body is not JSON.",
+        "v1.24.2: make /orgs and use it (generated): 5 requests answered the same by both builds, ignoring 0 generated values the old build did not keep stable",
+        "v1.24.2: make /orgs/{org}/hooks and use it (generated): 5 requests answered the same by both builds, ignoring 0 generated values the old build did not keep stable",
+        "v1.24.2: make /orgs/{org}/labels and use it (generated): 5 requests answered the same by both builds, ignoring 0 generated values the old build did not keep stable",
+        "v1.24.2: make /repos/{owner}/{repo}/hooks and use it (generated): 5 requests answered the same by both builds, ignoring 0 generated values the old build did not keep stable"
+      ],
+      "unexplained": [],
+      "problems": [
+        "GET /gitignore/templates/{name} (generated) / call /message: was \"The target couldn't be found.\", now \"not found\"",
+        "GET /label/templates/{name} (generated) / call /message: was \"The target couldn't be found.\", now \"not found\"",
+        "GET /licenses/{name} (generated) / call /message: was \"The target couldn't be found.\", now \"not found\"",
+        "GET /signing-key.gpg (generated) / call /: the old build answered 200, the new one answered 404",
+        "GET /signing-key.gpg (generated) / call /: the old build returned this, the new one does not",
+        "GET /signing-key.gpg (generated) / call /errors: the new build returned this, which the old contract never had",
+        "GET /signing-key.gpg (generated) / call /message: the new build returned this, which the old contract never had",
+        "GET /signing-key.gpg (generated) / call /url: the new build returned this, which the old contract never had",
+        "GET /teams/{id} (generated) / call /message: was \"The target couldn't be found.\", now \"not found\"",
+        "DELETE /teams/{id} (generated) / call /message: was \"The target couldn't be found.\", now \"not found\"",
+        "PATCH /teams/{id} (generated) / call /message: was \"The target couldn't be found.\", now \"not found\"",
+        "GET /teams/{id}/activities/feeds (generated) / call /message: was \"The target couldn't be found.\", now \"not found\"",
+        "GET /teams/{id}/members (generated) / call /message: was \"The target couldn't be found.\", now \"not found\"",
+        "GET /teams/{id}/members/{username} (generated) / call /message: was \"The target couldn't be found.\", now \"not found\"",
+        "PUT /teams/{id}/members/{username} (generated) / call /message: was \"The target couldn't be found.\", now \"not found\"",
+        "DELETE /teams/{id}/members/{username} (generated) / call /message: was \"The target couldn't be found.\", now \"not found\"",
+        "GET /teams/{id}/repos (generated) / call /message: was \"The target couldn't be found.\", now \"not found\"",
+        "GET /teams/{id}/repos/{org}/{repo} (generated) / call /message: was \"The target couldn't be found.\", now \"not found\"",
+        "PUT /teams/{id}/repos/{org}/{repo} (generated) / call /message: was \"The target couldn't be found.\", now \"not found\"",
+        "DELETE /teams/{id}/repos/{org}/{repo} (generated) / call /message: was \"The target couldn't be found.\", now \"not found\""
+      ]
+    },
+    {
+      "project": "immich",
+      "from": "v1.137.3",
+      "to": "v1.138.0",
+      "result": "block",
+      "seconds": 97,
+      "differential": {
+        "pass": 165,
+        "fail": 3,
+        "skipped": 0
+      },
+      "summaries": [
+        "v1.137.3: make /admin/users and use it (generated): 5 requests answered the same by both builds, ignoring 5 generated values the old build did not keep stable Historical builds: v1.137.3 from compose.yaml. Current build: the current build from compose.yaml; the current build behind the proxy, running the program this check compiled. Each build was started once per run and asked every scenario in turn. 168 scenarios were made from the released documents; left out: v1.137.3 POST /assets: its body is not JSON; v1.137.3 POST /assets: its body is not JSON; v1.137.3 PUT /assets/{id}/original: its body is not JSON; v1.137.3 PUT /server/license: its body has no example and a required field nothing can fill; v1.137.3 PUT /users/me/license: its body has no example and a required field nothing can fill; and 1 more.",
+        "v1.137.3: make /albums and use it (generated): 5 requests answered the same by both builds, ignoring 5 generated values the old build did not keep stable",
+        "v1.137.3: make /libraries and use it (generated): 5 requests answered the same by both builds, ignoring 5 generated values the old build did not keep stable",
+        "v1.137.3: make /memories and use it (generated): 5 requests answered the same by both builds, ignoring 5 generated values the old build did not keep stable",
+        "v1.137.3: make /people and use it (generated): 5 requests answered the same by both builds, ignoring 5 generated values the old build did not keep stable"
+      ],
+      "unexplained": [],
+      "problems": [
+        "GET /oauth/mobile-redirect (generated) / - /: the scenario could not be run: fetch failed",
+        "GET /server/version (generated) / call /minor: was 137, now 138",
+        "GET /server/version (generated) / call /patch: was 3, now 0",
+        "GET /server/version-history (generated) / call /0/version: was \"1.137.3\", now \"1.138.0\""
+      ]
+    },
+    {
+      "project": "meilisearch",
+      "from": "v1.53.2",
+      "to": "v1.54.0",
+      "result": "block",
+      "seconds": 13,
+      "differential": {
+        "pass": 131,
+        "fail": 5,
+        "skipped": 0
+      },
+      "summaries": [
+        "v1.53.2: GET /batches (generated): 1 requests answered the same by both builds, ignoring 0 generated values the old build did not keep stable Historical builds: v1.53.2 from image getmeili/meilisearch-enterprise:v1.53.2@sha256:9ff4496a42a7c1837eba030a09af21ccbcac992542231afdb50253b440ec5a89. Current build: the current build from image getmeili/meilisearch-enterprise:v1.54.0@sha256:dc420c61577771ed00fbfc418e8da6cf9aa85198e28f5b32e83e882b40574d06; the current build behind the proxy, running the program this check compiled. Each build was started once per run and asked every scenario in turn. 136 scenarios were made from the released documents; left out: v1.53.2 PUT /indexes/{index_uid}/documents: its body has no example and a required field nothing can fill; v1.53.2 POST /indexes/{index_uid}/documents: its body has no example and a required field nothing can fill; v1.53.2 POST /indexes/{index_uid}/documents/delete: its body has no example and a required field nothing can fill; v1.53.2 PUT /indexes/{index_uid}/settings/distinct-attribute: its body is not JSON; v1.53.2 PUT /indexes/{index_uid}/settings/facet-search: its body is not JSON; and 1 more.",
+        "v1.53.2: GET /batches/stream (generated): 1 requests answered the same by both builds, ignoring 0 generated values the old build did not keep stable",
+        "v1.53.2: GET /batches/{batch_id} (generated): 1 requests answered the same by both builds, ignoring 0 generated values the old build did not keep stable",
+        "v1.53.2: GET /chats (generated): 1 requests answered the same by both builds, ignoring 0 generated values the old build did not keep stable",
+        "v1.53.2: GET /chats/{workspace_uid} (generated): 1 requests answered the same by both builds, ignoring 0 generated values the old build did not keep stable"
+      ],
+      "unexplained": [],
+      "problems": [
+        "GET /experimental-features (generated) / call /mcpRoute: the new build returned this, which the old contract never had",
+        "PATCH /experimental-features (generated) / call /mcpRoute: the new build returned this, which the old contract never had",
+        "GET /stats (generated) / call /usedDatabaseSize: was 196608, now 192512",
+        "GET /tasks (generated) / call /results/1/batchUid: was 50, now 49",
+        "GET /tasks (generated) / call /results/2/batchUid: was 49, now 48",
+        "GET /tasks (generated) / call /results/3/batchUid: was 48, now 47",
+        "GET /tasks (generated) / call /results/4/batchUid: was 47, now 46",
+        "GET /tasks (generated) / call /results/5/batchUid: was 46, now 45",
+        "GET /tasks (generated) / call /results/6/batchUid: was 45, now 44",
+        "GET /version (generated) / call /commitSha: was \"ec006cecec6f684b1dcaee093a45ab4c05707127\", now \"1380adaacebad8a019d88549a06bae2dd90de249\"",
+        "GET /version (generated) / call /pkgVersion: was \"1.53.2\", now \"1.54.0\""
+      ]
+    },
+    {
+      "project": "netbox",
+      "from": "v3.5.9",
+      "to": "v3.6.9",
+      "result": "block",
+      "seconds": 619,
+      "differential": {
+        "pass": 819,
+        "fail": 14,
+        "skipped": 0
+      },
+      "summaries": [
+        "v3.5.9: GET /api/circuits/circuit-terminations/ (generated): 1 requests answered the same by both builds, ignoring 0 generated values the old build did not keep stable Historical builds: v3.5.9 from compose.yaml. Current build: the current build from compose.yaml; the current build behind the proxy, running the program this check compiled. Each build was started once per run and asked every scenario in turn. 833 scenarios were made from the released documents; left out: v3.5.9 POST /api/circuits/circuit-types/: its body has no example and a required field nothing can fill; v3.5.9 PUT /api/circuits/circuit-types/{id}/: its body has no example and a required field nothing can fill; v3.5.9 POST /api/circuits/providers/: its body has no example and a required field nothing can fill; v3.5.9 PUT /api/circuits/providers/{id}/: its body has no example and a required field nothing can fill; v3.5.9 POST /api/dcim/device-roles/: its body has no example and a required field nothing can fill; and 51 more.",
+        "v3.5.9: PUT /api/circuits/circuit-terminations/ (generated): 1 requests answered the same by both builds, ignoring 0 generated values the old build did not keep stable",
+        "v3.5.9: POST /api/circuits/circuit-terminations/ (generated): 1 requests answered the same by both builds, ignoring 0 generated values the old build did not keep stable",
+        "v3.5.9: DELETE /api/circuits/circuit-terminations/ (generated): 1 requests answered the same by both builds, ignoring 0 generated values the old build did not keep stable",
+        "v3.5.9: PATCH /api/circuits/circuit-terminations/ (generated): 1 requests answered the same by both builds, ignoring 0 generated values the old build did not keep stable"
+      ],
+      "unexplained": [],
+      "problems": [
+        "POST /api/dcim/devices/ (generated) / call /device_role[]: the old build returned this, the new one does not",
+        "POST /api/dcim/devices/ (generated) / call /device_role/0: the old build returned this, the new one does not",
+        "POST /api/dcim/devices/ (generated) / call /role[]: the new build returned this, which the old contract never had",
+        "POST /api/dcim/devices/ (generated) / call /role/0: the new build returned this, which the old contract never had",
+        "POST /api/dcim/virtual-chassis/ (generated) / call /member_count: the new build returned this, which the old contract never had",
+        "GET /api/extras/content-types/ (generated) / call /count: was 125, now 128",
+        "GET /api/extras/content-types/ (generated) / call /results/0/id: was 1, now 19",
+        "GET /api/extras/content-types/ (generated) / call /results/0/display: was \"admin | log entry\", now \"account | token\"",
+        "GET /api/extras/content-types/ (generated) / call /results/0/app_label: was \"admin\", now \"account\"",
+        "GET /api/extras/content-types/ (generated) / call /results/0/model: was \"logentry\", now \"usertoken\"",
+        "GET /api/extras/content-types/ (generated) / call /results/1/id: was 3, now 1",
+        "GET /api/extras/content-types/ (generated) / call /results/1/display: was \"auth | group\", now \"admin | log entry\"",
+        "GET /api/extras/content-types/ (generated) / call /results/1/app_label: was \"auth\", now \"admin\"",
+        "GET /api/extras/content-types/ (generated) / call /results/1/model: was \"group\", now \"logentry\"",
+        "GET /api/extras/content-types/ (generated) / call /results/2/id: was 2, now 3",
+        "GET /api/extras/content-types/ (generated) / call /results/2/display: was \"auth | permission\", now \"auth | group\"",
+        "GET /api/extras/content-types/ (generated) / call /results/2/model: was \"permission\", now \"group\"",
+        "GET /api/extras/content-types/ (generated) / call /results/3/id: was 4, now 2",
+        "GET /api/extras/content-types/ (generated) / call /results/3/display: was \"auth | user\", now \"auth | permission\"",
+        "GET /api/extras/content-types/ (generated) / call /results/3/model: was \"user\", now \"permission\""
+      ]
+    },
+    {
+      "project": "qdrant",
+      "from": "v1.18.0",
+      "to": "v1.19.0",
+      "result": "block",
+      "seconds": 10,
+      "differential": {
+        "pass": 68,
+        "fail": 7,
+        "skipped": 0
+      },
+      "summaries": [
+        "v1.18.0: GET / (generated): 2 observable differences between the old build and the new one Historical builds: v1.18.0 from image qdrant/qdrant:v1.18.0@sha256:b3063c673f3973877c038eeecc392bad5011f072ee7892b56c9a8e204a3bdea9. Current build: the current build from image qdrant/qdrant:v1.19.0@sha256:057ee3a8da769fe7310dd3537b4dc7583bf87a95ce8ac43c0af5a46bc580d1fc; the current build behind the proxy, running the program this check compiled. Each build was started once per run and asked every scenario in turn. 75 scenarios were made from the released documents.",
+        "v1.18.0: GET /aliases (generated): 1 requests answered the same by both builds, ignoring 1 generated values the old build did not keep stable",
+        "v1.18.0: GET /cluster (generated): 1 requests answered the same by both builds, ignoring 1 generated values the old build did not keep stable",
+        "v1.18.0: DELETE /cluster/peer/{peer_id} (generated): 2 observable differences between the old build and the new one",
+        "v1.18.0: POST /cluster/recover (generated): 2 observable differences between the old build and the new one"
+      ],
+      "unexplained": [],
+      "problems": [
+        "GET / (generated) / call /version: was \"1.18.0\", now \"1.19.0\"",
+        "GET / (generated) / call /commit: was \"db3fca327851e360c521065649e0f65a57fe7d3c\", now \"74f3e85b9473c62560006c043e13737ce6b48412\"",
+        "DELETE /cluster/peer/{peer_id} (generated) / call /: the old build answered 400, the new one answered 405",
+        "DELETE /cluster/peer/{peer_id} (generated) / call /status/error: was \"Bad request: Distributed mode disabled.\", now \"Qdrant is running in standalone mode\"",
+        "POST /cluster/recover (generated) / call /: the old build answered 500, the new one answered 405",
+        "POST /cluster/recover (generated) / call /status/error: was \"Service internal error: Qdrant is running in standalone mode\", now \"Qdrant is running in standalone mode\"",
+        "POST /collections/{collection_name}/points/count (generated) / call /time: was 5.61e-7, now 5.51e-7",
+        "PUT /collections/{collection_name}/shards (generated) / call /: the old build answered 400, the new one answered 405",
+        "PUT /collections/{collection_name}/shards (generated) / call /status/error: was \"Bad request: Distributed mode disabled\", now \"Qdrant is running in standalone mode\"",
+        "POST /collections/{collection_name}/shards/delete (generated) / call /: the old build answered 400, the new one answered 405",
+        "POST /collections/{collection_name}/shards/delete (generated) / call /status/error: was \"Bad request: Distributed mode disabled\", now \"Qdrant is running in standalone mode\"",
+        "GET /telemetry (generated) / call /result/app/version: was \"1.18.0\", now \"1.19.0\"",
+        "GET /telemetry (generated) / call /result/requests/rest/responses/POST /collections/{collection_name}/points/discover/batch/404/avg_duration_micros: was 60, now 22",
+        "GET /telemetry (generated) / call /result/requests/rest/responses/POST /cluster/recover/500/count: the old build returned this, the new one does not",
+        "GET /telemetry (generated) / call /result/requests/rest/responses/POST /cluster/recover/500/avg_duration_micros: the old build returned this, the new one does not",
+        "GET /telemetry (generated) / call /result/requests/rest/responses/POST /collections/{collection_name}/shards/delete/400/count: the old build returned this, the new one does not",
+        "GET /telemetry (generated) / call /result/requests/rest/responses/POST /collections/{collection_name}/shards/delete/400/avg_duration_micros: the old build returned this, the new one does not",
+        "GET /telemetry (generated) / call /result/requests/rest/responses/GET /collections/{collection_name}/exists/200/avg_duration_micros: was 33, now 9",
+        "GET /telemetry (generated) / call /result/requests/rest/responses/GET /collections/200/avg_duration_micros: was 37, now 9",
+        "GET /telemetry (generated) / call /result/requests/rest/responses/PUT /collections/{collection_name}/shards/400/count: the old build returned this, the new one does not"
+      ]
+    }
+  ]
+}
