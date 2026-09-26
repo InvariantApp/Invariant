@@ -1,0 +1,100 @@
+{
+  "openapi": "3.0.0",
+  "info": { "title": "Stripe API", "version": "2023-10-16" },
+  "servers": [{ "url": "https://api.stripe.com/" }],
+  "paths": {
+    "/v1/subscriptions/{subscription_exposed_id}": {
+      "delete": {
+        "operationId": "DeleteSubscriptionsSubscriptionExposedId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "subscription_exposed_id",
+            "required": true,
+            "schema": { "maxLength": 5000, "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/subscription" } }
+            },
+            "description": "Successful response."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "subscription": {
+        "properties": {
+          "automatic_tax": { "$ref": "#/components/schemas/subscription_automatic_tax" },
+          "customer": { "anyOf": [{ "maxLength": 5000, "type": "string" }] },
+          "id": { "maxLength": 5000, "type": "string" },
+          "object": { "enum": ["subscription"], "type": "string" },
+          "status": { "enum": ["active", "canceled"], "type": "string" }
+        },
+        "type": "object"
+      },
+      "subscription_automatic_tax": {
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "liability": {
+            "anyOf": [{ "$ref": "#/components/schemas/connect_account_reference" }],
+            "nullable": true
+          }
+        },
+        "type": "object"
+      },
+      "connect_account_reference": {
+        "properties": {
+          "account": { "anyOf": [{ "maxLength": 5000, "type": "string" }] },
+          "type": { "enum": ["account", "self"], "type": "string" }
+        },
+        "type": "object"
+      },
+      "checkout.session": {
+        "properties": {
+          "amount_subtotal": { "nullable": true, "type": "integer" },
+          "amount_total": { "nullable": true, "type": "integer" },
+          "automatic_tax": {
+            "$ref": "#/components/schemas/payment_pages_checkout_session_automatic_tax"
+          },
+          "id": { "maxLength": 5000, "type": "string" },
+          "object": { "enum": ["checkout.session"], "type": "string" }
+        },
+        "type": "object"
+      },
+      "payment_pages_checkout_session_automatic_tax": {
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "status": { "enum": ["complete", "failed", "requires_location_inputs"], "nullable": true, "type": "string" }
+        },
+        "type": "object"
+      },
+      "line_item": {
+        "properties": {
+          "amount": { "type": "integer" },
+          "currency": { "type": "string" },
+          "id": { "maxLength": 5000, "type": "string" },
+          "invoice": { "nullable": true, "type": "string" },
+          "object": { "enum": ["line_item"], "type": "string" },
+          "period": { "type": "object" }
+        },
+        "type": "object"
+      },
+      "item": {
+        "properties": {
+          "amount_discount": { "type": "integer" },
+          "amount_subtotal": { "type": "integer" },
+          "amount_total": { "type": "integer" },
+          "currency": { "type": "string" },
+          "id": { "maxLength": 5000, "type": "string" },
+          "object": { "enum": ["item"], "type": "string" }
+        },
+        "type": "object"
+      }
+    }
+  }
+}

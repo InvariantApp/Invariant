@@ -1,0 +1,5 @@
+export declare namespace Stripe {
+    export { Customer, DeletedCustomer, CustomerCreateParams, CustomerRetrieveParams, CustomerUpdateParams, CustomerListParams, CustomerDeleteParams, CustomerCreateBalanceTransactionParams, CustomerCreateFundingInstructionsParams, CustomerCreateSourceParams, CustomerCreateTaxIdParams, CustomerDeleteDiscountParams, CustomerDeleteSourceParams, CustomerDeleteTaxIdParams, CustomerListBalanceTransactionsParams, CustomerListCashBalanceTransactionsParams, CustomerListPaymentMethodsParams, CustomerListSourcesParams, CustomerListTaxIdsParams, CustomerRetrieveBalanceTransactionParams, CustomerRetrieveCashBalanceParams, CustomerRetrieveCashBalanceTransactionParams, CustomerRetrievePaymentMethodParams, CustomerRetrieveSourceParams, CustomerRetrieveTaxIdParams, CustomerSearchParams, CustomerUpdateBalanceTransactionParams, CustomerUpdateCashBalanceParams, CustomerUpdateSourceParams, CustomerVerifySourceParams, CustomerResource, };
+    export { Checkout };
+    export type Decimal = import('./shared.js').Decimal;
+}

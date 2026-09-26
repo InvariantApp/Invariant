@@ -3,9 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { OpenApiDocument } from "@invariant-app/contract";
 import { describe, expect, it } from "vitest";
-import { stainlessClasses, stainlessTypes } from "./stainless.mts";
+import { releaseSymbols } from "./stripe.mts";
 
-describe("stainlessTypes", () => {
+describe("a Stainless release's types, as the replay reads them", () => {
   const site = mkdtempSync(join(tmpdir(), "stainless-"));
   const beta = join(site, "sdk/types/beta");
   mkdirSync(join(beta, "sessions"), { recursive: true });
@@ -29,6 +29,8 @@ describe("stainlessTypes", () => {
     "class SessionStats(BaseModel):\n    turns: int\n    tokens: int\n",
   );
   const document = {
+    openapi: "3.1.0",
+    paths: {},
     components: {
       schemas: {
         Message: { properties: { id: {}, content: {} } },
@@ -40,8 +42,8 @@ describe("stainlessTypes", () => {
     },
   } as unknown as OpenApiDocument;
 
-  it("finds each schema's class by name, request name, or fields", () => {
-    expect(stainlessTypes(document, stainlessClasses(site, "sdk"))).toEqual({
+  it("finds each schema's class by name, request name, or fields", async () => {
+    expect((await releaseSymbols(site, "python", document, "sdk")).types).toEqual({
       Message: "sdk.types.Message",
       Tool: "sdk.types.tool_param.ToolParam",
       Usage_Report: "sdk.types.beta.BetaUsage",

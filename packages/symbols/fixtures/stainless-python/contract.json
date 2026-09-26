@@ -1,0 +1,125 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Anthropic API", "version": "0.0.0" },
+  "servers": [{ "url": "https://api.anthropic.com" }],
+  "paths": {
+    "/v1/messages": {
+      "post": {
+        "operationId": "messages_post",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CreateMessageParams" } }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Message" } } },
+            "description": "Message object."
+          }
+        }
+      }
+    },
+    "/v1/messages/batches": {
+      "post": {
+        "operationId": "message_batches_post",
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MessageBatch" } } },
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/v1/messages/batches/{message_batch_id}": {
+      "get": {
+        "operationId": "message_batches_retrieve",
+        "parameters": [
+          { "in": "path", "name": "message_batch_id", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MessageBatch" } } },
+            "description": "Successful Response"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreateMessageParams": {
+        "properties": {
+          "messages": { "items": { "$ref": "#/components/schemas/InputMessage" }, "type": "array" },
+          "model": { "type": "string" },
+          "tools": { "items": { "$ref": "#/components/schemas/Tool" }, "type": "array" }
+        },
+        "type": "object"
+      },
+      "InputMessage": {
+        "properties": {
+          "content": { "items": { "$ref": "#/components/schemas/RequestTextBlock" }, "type": "array" },
+          "role": { "enum": ["user", "assistant"], "type": "string" }
+        },
+        "type": "object"
+      },
+      "Tool": {
+        "properties": {
+          "description": { "type": "string" },
+          "input_schema": { "type": "object" },
+          "name": { "type": "string" }
+        },
+        "type": "object"
+      },
+      "RequestTextBlock": {
+        "properties": {
+          "citations": { "items": { "type": "object" }, "type": "array" },
+          "text": { "type": "string" },
+          "type": { "const": "text", "enum": ["text"], "type": "string" }
+        },
+        "type": "object"
+      },
+      "ResponseTextBlock": {
+        "properties": {
+          "citations": { "items": { "type": "object" }, "type": "array" },
+          "text": { "type": "string" },
+          "type": { "const": "text", "default": "text", "enum": ["text"], "type": "string" }
+        },
+        "type": "object"
+      },
+      "ContentBlock": {
+        "discriminator": { "propertyName": "type" },
+        "oneOf": [{ "$ref": "#/components/schemas/ResponseTextBlock" }]
+      },
+      "Message": {
+        "properties": {
+          "content": { "items": { "$ref": "#/components/schemas/ContentBlock" }, "type": "array" },
+          "id": { "type": "string" },
+          "model": { "type": "string" },
+          "role": { "const": "assistant", "enum": ["assistant"], "type": "string" },
+          "stop_reason": { "type": "string" },
+          "type": { "const": "message", "enum": ["message"], "type": "string" },
+          "usage": { "type": "object" }
+        },
+        "type": "object"
+      },
+      "BetaMessage": {
+        "properties": {
+          "content": { "items": { "type": "object" }, "type": "array" },
+          "id": { "type": "string" },
+          "model": { "type": "string" },
+          "role": { "const": "assistant", "enum": ["assistant"], "type": "string" },
+          "type": { "const": "message", "enum": ["message"], "type": "string" }
+        },
+        "type": "object"
+      },
+      "MessageBatch": {
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "const": "message_batch", "enum": ["message_batch"], "type": "string" }
+        },
+        "type": "object"
+      }
+    }
+  }
+}

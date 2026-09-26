@@ -10,13 +10,14 @@
  * the field is simply gone, a declared loss, and the engine sends a person to
  * every place the consumer still reads or writes it.
  *
- * The schemas' types are read from the old SDK's own declarations, the
- * simplest form of the symbol map M6.1 generates: `subscription` is
- * `Stripe.Subscription` and `checkout.session` is `Stripe.Checkout.Session`,
- * where the release declares that interface; the engine then finds each by
- * its qualified name, or not at all.
+ * What the old SDK calls each schema and which of its methods calls each
+ * operation is the symbol map `@invariant-app/symbols` makes from the
+ * release itself, as a migration run would: `subscription` is
+ * `Stripe.Subscription` and `checkout.session` is `Stripe.Checkout.Session`
+ * in stripe-node, `stripe.checkout.Session` in stripe-python. The engine
+ * then finds each by its qualified name, or not at all.
  */
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type OpenApiDocument, readDocument } from "@invariant-app/contract";
@@ -24,6 +25,15 @@ import type { Change } from "@invariant-app/ir";
 import type { WireOperation, WireTags } from "@invariant-app/migrate-core";
 import type { GoSymbol, SurfaceObject } from "@invariant-app/migrate-go";
 import { type Decision, propose, RulesJudge } from "@invariant-app/proposer";
+import {
+  cachedSymbols,
+  type Declaration,
+  directoryCache,
+  goSymbolsOf,
+  type Language,
+  matchRelease,
+  symbolMapOf,
+} from "@invariant-app/symbols";
 import { ROOT } from "../corpus/manifest.mts";
 import { breakingBetween } from "./forced.mts";
 import { type ClassFields, classFields } from "./stubs.mts";
@@ -61,7 +71,8 @@ async function openapiRelease(version: string, sdk: StripeSdk): Promise<string> 
   return release;
 }
 
-async function specification(release: string): Promise<OpenApiDocument> {
+/** The specification a stripe/openapi release holds, as `v1505`. */
+export async function specification(release: string): Promise<OpenApiDocument> {
   const path = join(SPECS, `stripe-${release}.json`);
   if (!existsSync(path)) {
     const response = await fetch(
@@ -74,76 +85,76 @@ async function specification(release: string): Promise<OpenApiDocument> {
   return readDocument(path);
 }
 
-const pascal = (name: string) =>
-  name
-    .split("_")
-    .filter(Boolean)
-    .map((part) => (part[0] ?? "").toUpperCase() + part.slice(1))
-    .join("");
-
-/**
- * What stripe-node calls a schema's type: each dot is a namespace, so
- * `checkout.session` is `Checkout.Session` and `payment_intent` is
- * `PaymentIntent`.
- */
-const typeNameOf = (schema: string) => schema.split(".").map(pascal).join(".");
-
-/** Every interface an SDK's declarations name, by its bare name. */
-function declaredInterfaces(
-  dir: string,
-  found = new Set<string>(),
-  depth = 0,
-): Set<string> {
-  if (depth > 4) return found;
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const path = join(dir, entry.name);
-    if (entry.isDirectory() && entry.name !== "node_modules") {
-      declaredInterfaces(path, found, depth + 1);
-    } else if (entry.isFile() && entry.name.endsWith(".d.ts")) {
-      for (const match of readFileSync(path, "utf8").matchAll(/\binterface (\w+)/g)) {
-        found.add(match[1] as string);
-      }
-    }
-  }
-  return found;
+/** The specification of the API version one of Stripe's SDK releases speaks. */
+export async function stripeSpecification(
+  version: string,
+  sdk: StripeSdk,
+): Promise<OpenApiDocument> {
+  return specification(await openapiRelease(version, sdk));
 }
 
 /**
- * The SDK method that calls each operation, read from stripe-node's own
- * resource files as data: `retrieveUpcoming: stripeMethod({ method: 'GET',
- * fullPath: '/v1/invoices/upcoming' })` in `resources/Invoices.js` is
- * `Stripe.InvoicesResource.retrieveUpcoming`, and one in
- * `resources/Checkout/Sessions.js` is on `Stripe.Checkout.SessionsResource`.
+ * Symbol maps already made, per release and contract digest, so a case
+ * replayed again, or a second case on the same upgrade, does not read the
+ * release again.
  */
-function operationsOf(
+const SYMBOLS = directoryCache(join(ROOT, ".cache/replay/symbols"));
+
+/**
+ * What a release unpacked at `sdk` calls each of the contract's schemas and
+ * which of its methods calls each operation, as `@invariant-app/symbols`
+ * reads them from the release. `module` picks one top-level package out of
+ * a `site-packages`.
+ */
+export async function releaseSymbols(
   sdk: string,
-  namespaced: boolean,
-): Record<string, { type: string; method: string }> {
-  const operations: Record<string, { type: string; method: string }> = {};
-  const root = ["cjs/resources", "lib/resources", "esm/resources"]
-    .map((dir) => join(sdk, dir))
-    .find((dir) => existsSync(dir));
-  if (!root) return operations;
-  const walk = (dir: string, namespaces: string[]) => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
-        walk(join(dir, entry.name), [...namespaces, entry.name]);
-        continue;
-      }
-      if (!entry.name.endsWith(".js")) continue;
-      const resource = `${entry.name.slice(0, -3)}Resource`;
-      const type = [...(namespaced ? ["Stripe"] : []), ...namespaces, resource].join(".");
-      const text = readFileSync(join(dir, entry.name), "utf8");
-      const pattern =
-        /(\w+):\s*stripeMethod\(\{\s*method:\s*'(\w+)',\s*fullPath:\s*'([^']+)'/g;
-      for (const match of text.matchAll(pattern)) {
-        const key = `${(match[2] as string).toLowerCase()} ${match[3] as string}`;
-        operations[key] ??= { type, method: match[1] as string };
-      }
-    }
-  };
-  walk(root, []);
-  return operations;
+  language: Language,
+  document: OpenApiDocument,
+  module?: string,
+): Promise<{
+  types: Record<string, string>;
+  operations: Record<string, { type: string; method: string }>;
+}> {
+  return symbolMapOf(
+    await cachedSymbols(
+      { sdk, language, contract: document, ...(module ? { module } : {}) },
+      SYMBOLS,
+    ),
+  );
+}
+
+/**
+ * What stripe-go calls each schema, from the old release's surface: each
+ * struct of the module's root package with the wire names its fields' `json`
+ * tags give, matched as `@invariant-app/symbols` matches any Go release. The
+ * surface comes from the Go helper, through `go/types`, so the package's own
+ * source reader is not needed here.
+ */
+export async function stripeGoSymbols(
+  document: OpenApiDocument,
+  surface: readonly SurfaceObject[],
+): Promise<Record<string, GoSymbol>> {
+  const fields = new Map<string, Set<string>>();
+  for (const object of surface) {
+    if (object.kind !== "field" || object.package !== "" || !object.json) continue;
+    const [holder, field, ...rest] = object.key.split(".");
+    if (!holder || !field || rest.length > 0) continue;
+    fields.set(holder, (fields.get(holder) ?? new Set()).add(object.json));
+  }
+  const declarations: Declaration[] = [...fields].map(([name, wire]) => ({
+    qualified: name,
+    name,
+    kind: "object",
+    fields: [...wire],
+    package: "",
+    file: "",
+  }));
+  const matched = await matchRelease(
+    { declarations, calls: [], generators: ["stripe"] },
+    document,
+    { language: "go" },
+  );
+  return goSymbolsOf(matched).types;
 }
 
 export interface ContractPlan {
@@ -168,29 +179,6 @@ export interface ContractPlan {
   breaking?: string[] | undefined;
 }
 
-/**
- * Every class a stripe-python release declares, by its name: at the top of a
- * module, as `Subscription` in `stripe/_subscription.py`, and nested in
- * another, as `AutomaticTax` inside it.
- */
-function declaredClasses(
-  dir: string,
-  found = { top: new Set<string>(), nested: new Set<string>() },
-  depth = 0,
-): { top: Set<string>; nested: Set<string> } {
-  if (depth > 4) return found;
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) declaredClasses(path, found, depth + 1);
-    else if (entry.isFile() && entry.name.endsWith(".py")) {
-      for (const match of readFileSync(path, "utf8").matchAll(/^( *)class (\w+)\b/gm)) {
-        (match[1] === "" ? found.top : found.nested).add(match[2] as string);
-      }
-    }
-  }
-  return found;
-}
-
 /** The one schema a property refers to, directly or as the only non-null choice. */
 function refOf(property: unknown): string | undefined {
   if (typeof property !== "object" || property === null) return undefined;
@@ -203,16 +191,6 @@ function refOf(property: unknown): string | undefined {
     .filter((ref) => ref !== undefined);
   return choices.length === 1 ? choices[0] : undefined;
 }
-
-/**
- * What stripe-python calls a schema's class: namespaces are modules and keep
- * their names, so `checkout.session` is `stripe.checkout.Session` and
- * `subscription_item` is `stripe.SubscriptionItem`.
- */
-const pythonTypeOf = (schema: string) => {
-  const parts = schema.split(".");
-  return ["stripe", ...parts.slice(0, -1), pascal(parts.at(-1) ?? "")].join(".");
-};
 
 type Schemas = Record<string, { properties?: Record<string, unknown> }>;
 
@@ -403,9 +381,9 @@ export async function draftChanges(
 
 /**
  * The Changes, tags and types for an upgrade of stripe-go, whose types are
- * read from the old release's surface: a schema is the type its name spells
- * in the module's root package (`checkout.session` is `CheckoutSession`)
- * only where that type's wire names are the schema's, since stripe-go's
+ * read from the old release's surface (`stripeGoSymbols`): a schema is the
+ * type its name spells in the module's root package (`checkout.session` is
+ * `CheckoutSession`), unless the fields say otherwise, since stripe-go's
  * `LineItem` is a checkout session's item and an invoice's is
  * `InvoiceLineItem`.
  */
@@ -424,24 +402,7 @@ export async function stripeGoPlan(
     to,
     "stripe-go",
   );
-  const fields = new Map<string, Set<string>>();
-  for (const object of surface) {
-    if (object.kind !== "field" || object.package !== "" || !object.json) continue;
-    const holder = object.key.split(".")[0] as string;
-    if (object.key.split(".").length !== 2) continue;
-    fields.set(holder, (fields.get(holder) ?? new Set()).add(object.json));
-  }
-  const types: Record<string, GoSymbol> = {};
-  for (const [schema, definition] of Object.entries(schemasOf(before))) {
-    const name = schema.split(".").map(pascal).join("");
-    const declared = fields.get(name);
-    const properties = Object.keys(definition.properties ?? {});
-    if (!declared || properties.length === 0) continue;
-    const shared = properties.filter((property) => declared.has(property)).length;
-    if (shared / new Set([...properties, ...declared]).size >= 0.8) {
-      types[schema] = { package: "", key: name };
-    }
-  }
+  const types = await stripeGoSymbols(before, surface);
   return { changes, types, tags: wireTags(before, after), breaking };
 }
 
@@ -453,7 +414,6 @@ export async function stripePlan(
   from: string,
   to: string,
   sdk: string,
-  namespaced: boolean,
   flavour: StripeSdk = "stripe-node",
 ): Promise<ContractPlan> {
   const { before, changes, drafted, removed, after, breaking } = await changesBetween(
@@ -462,71 +422,21 @@ export async function stripePlan(
     flavour,
   );
   const tags = wireTags(before, after);
-  const schemas = Object.keys(
-    (
-      (before as Record<string, unknown>)["components"] as
-        | { schemas?: object }
-        | undefined
-    )?.schemas ?? {},
+  const python = flavour === "stripe-python";
+  const { types, operations } = await releaseSymbols(
+    sdk,
+    python ? "python" : "typescript",
+    before,
+    python ? "stripe" : undefined,
   );
-  const types: Record<string, string> = {};
-  if (flavour === "stripe-python") {
-    const classes = declaredClasses(join(sdk, "stripe"));
-    for (const schema of schemas) {
-      const name = pythonTypeOf(schema);
-      if (classes.top.has(name.split(".").at(-1) ?? name)) types[schema] = name;
-    }
-    // A schema only one object holds is a class nested in that object's:
-    // `subscription_automatic_tax` is `stripe.Subscription.AutomaticTax`,
-    // named after the property, found through the property that refers to
-    // it, as deep as the nesting goes.
-    const components = (
-      (before as Record<string, unknown>)["components"] as {
-        schemas: Record<string, { properties?: Record<string, unknown> }>;
-      }
-    ).schemas;
-    for (let grew = true; grew; ) {
-      grew = false;
-      for (const [parent, schema] of Object.entries(components)) {
-        const holder = types[parent];
-        if (!holder) continue;
-        for (const [property, value] of Object.entries(schema.properties ?? {})) {
-          const target = refOf(value);
-          const nested = pascal(property);
-          if (!target || types[target] || !classes.nested.has(nested)) continue;
-          types[target] = `${holder}.${nested}`;
-          grew = true;
-        }
-      }
-    }
-    return {
-      changes,
-      tags,
-      types,
-      // What each class holds, for a release that ships no types (`stubs.mts`).
-      classes: classFields(before, types),
-      wire: wireOf(before),
-      // Retired operations are found through stripe-node's resource files;
-      // stripe-python's are not read yet, and nothing is reported for them.
-      operations: {},
-      drafted,
-      removed,
-      breaking,
-    };
-  }
-  const declared = declaredInterfaces(sdk);
-  for (const schema of schemas) {
-    const name = typeNameOf(schema);
-    // The interface itself is declared by its last name, inside its namespaces.
-    if (declared.has(name.split(".").at(-1) ?? name)) {
-      types[schema] = namespaced ? `Stripe.${name}` : name;
-    }
-  }
   return {
     changes,
     tags,
     types,
-    operations: operationsOf(sdk, namespaced),
+    operations,
+    // What each class holds, for a release that ships no types (`stubs.mts`),
+    // and the API as a plain HTTP client reaches it.
+    ...(python ? { classes: classFields(before, types), wire: wireOf(before) } : {}),
     drafted,
     removed,
     breaking,

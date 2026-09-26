@@ -1,0 +1,37 @@
+{
+  "openapi": "3.0.1",
+  "info": { "title": "Cohere API", "version": "1.0.0" },
+  "servers": [{ "url": "https://api.cohere.com/v1" }],
+  "paths": {
+    "/v2/chat": {
+      "post": {
+        "operationId": "chatv2",
+        "summary": "Chat API (v2)",
+        "x-fern-sdk-group-name": "v2",
+        "x-fern-sdk-method-name": "chat",
+        "responses": { "200": { "description": "OK" } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AssistantMessageV2": {
+        "description": "A message from the assistant role can contain text and tool call information.",
+        "properties": {
+          "citations": { "items": { "type": "object" }, "type": "array" },
+          "content": {
+            "oneOf": [{ "type": "string" }, { "items": { "type": "object" }, "type": "array" }],
+            "x-fern-type-name": "AssistantMessageV2Content"
+          },
+          "role": { "enum": ["assistant"], "type": "string" },
+          "tool_calls": { "items": { "type": "object" }, "type": "array" },
+          "tool_plan": { "type": "string" }
+        },
+        "required": ["role"],
+        "title": "Assistant Message",
+        "type": "object",
+        "x-fern-type-name": "AssistantMessage"
+      }
+    }
+  }
+}

@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# A published SDK's own build output, kept as a fixture.
+!packages/symbols/fixtures/*/dist/
 *.tsbuildinfo
 .DS_Store
 .env
