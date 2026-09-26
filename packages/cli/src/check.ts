@@ -336,7 +336,23 @@ export async function check(
     );
   }
 
-  const verified = await verify(config, steps, current.label, current.document, options);
+  // Each step is projected once for every historical contract it lies on the
+  // way from, so the same issue arrives several times.
+  const chained = chainProgram(config.api, current.label, current.digest, steps, {
+    ...(config.identity ? { identity: config.identity } : {}),
+    ...(config.retirement.size > 0 ? { retirement: config.retirement } : {}),
+  });
+  const unservable = [
+    ...new Set(chained.issues.map((issue) => `${issue.changeId}: ${issue.message}`)),
+  ];
+
+  // The program just compiled is the one the full check puts in front of the
+  // current build when the provider runs the proxy, so what is compared is
+  // this release's adapter rather than whichever was compiled last.
+  const verified = await verify(config, steps, current.label, current.document, {
+    ...options,
+    program: chained.program,
+  });
   evidence.push(...verified.evidence);
 
   // A behavior flag deciding who a caller is or what they may do would let a
@@ -367,16 +383,6 @@ export async function check(
       );
     }
   }
-
-  // Each step is projected once for every historical contract it lies on the
-  // way from, so the same issue arrives several times.
-  const chained = chainProgram(config.api, current.label, current.digest, steps, {
-    ...(config.identity ? { identity: config.identity } : {}),
-    ...(config.retirement.size > 0 ? { retirement: config.retirement } : {}),
-  });
-  const unservable = [
-    ...new Set(chained.issues.map((issue) => `${issue.changeId}: ${issue.message}`)),
-  ];
 
   const blocked =
     reports.some(
@@ -472,6 +478,22 @@ export function renderReport(report: CheckReport): string {
       lines.push(`  ! a behavior Change covers "${entry}", which no longer happens`);
     }
     for (const issue of pending.issues) lines.push(`  ! ${issue}`);
+  }
+
+  // An earlier step is released and usually settled, so it is said only when
+  // it is not: after `history import` or a hand edit, its Changes are what
+  // the gate is refusing, and a count on its own would not say which.
+  for (const step of report.steps.slice(0, -1)) {
+    if (step.unexplained.length + step.issues.length + step.stale.length === 0) continue;
+    lines.push("", `Released step ${step.from} -> ${step.to}`);
+    if (step.unexplained.length > 0) {
+      lines.push(`  ${step.unexplained.length} breaking deltas nothing accounts for:`);
+      for (const entry of step.unexplained) lines.push(`    - ${entry}`);
+    }
+    for (const entry of step.stale) {
+      lines.push(`  ! a behavior Change covers "${entry}", which no longer happens`);
+    }
+    for (const issue of step.issues) lines.push(`  ! ${issue}`);
   }
 
   const served = report.steps.map((step) => step.from);

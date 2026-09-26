@@ -14,6 +14,7 @@ import { derive } from "@invariant-app/compiler";
 import { catalogueEntry, kindsOf } from "@invariant-app/diff";
 import type { EvidenceKind } from "@invariant-app/verifier";
 import type { CheckReport } from "./check.ts";
+import type { Suggestion } from "./suggest.ts";
 
 const HEADINGS: Record<GateVerdict, string> = {
   pass: "Safe to merge",
@@ -113,7 +114,60 @@ function callersNotice(
   return lines;
 }
 
-export function renderComment(report: CheckReport): string {
+export interface CommentOptions {
+  /** Drafted Changes for the unexplained deltas, from `suggestChanges`. */
+  suggestions?: readonly Suggestion[];
+  /**
+   * A link that opens the host's editor on a new file with this text, on the
+   * branch under review, or nothing where the host cannot make one.
+   */
+  newFileUrl?: (path: string, text: string) => string | undefined;
+}
+
+/**
+ * The drafts, each a link that adds it to the branch in one click where the
+ * host allows, and the file itself folded underneath in a fence, whose copy
+ * button works on every host whether a link could be made or not.
+ */
+function suggestionLines(options: CommentOptions): string[] {
+  const suggestions = options.suggestions ?? [];
+  if (suggestions.length === 0) return [];
+  const lines = [
+    `### ${suggestions.length === 1 ? "A drafted Change" : `${suggestions.length} drafted Changes`} to explain them`,
+    "",
+    "Drafted from the two documents with rules only, as `invariant propose` would. " +
+      "Each is a proposal: read it, fix what is wrong, and commit it. The commit is " +
+      "what records that you confirmed it, and this check runs again on the push.",
+    "",
+  ];
+  for (const suggestion of suggestions) {
+    const url = options.newFileUrl?.(suggestion.path, suggestion.text);
+    const note = suggestion.needsAnswer
+      ? " **Needs your answer:** replace every `CHOOSE_ONE` before committing."
+      : suggestion.closeLook
+        ? " Worth a close look."
+        : "";
+    lines.push(
+      `**\`${suggestion.id}\`**: ${suggestion.summary}${note}` +
+        (url ? ` [Add it to this branch](${url})` : ""),
+      "",
+      "<details>",
+      `<summary><code>${suggestion.path}</code></summary>`,
+      "",
+    );
+    // A fence longer than any run of backticks inside the file, so nothing in
+    // it can close the block early.
+    const longest = Math.max(
+      2,
+      ...[...suggestion.text.matchAll(/`+/g)].map((match) => match[0].length),
+    );
+    const fence = "`".repeat(longest + 1);
+    lines.push(`${fence}yaml`, suggestion.text.trimEnd(), fence, "", "</details>", "");
+  }
+  return lines;
+}
+
+export function renderComment(report: CheckReport, options: CommentOptions = {}): string {
   const lines: string[] = [COMMENT_MARKER, ""];
   const verdict = report.result as GateVerdict;
   const pending = report.steps[report.steps.length - 1];
@@ -138,8 +192,12 @@ export function renderComment(report: CheckReport): string {
     lines.push(
       `### ${unexplained.length} breaking ${unexplained.length === 1 ? "delta" : "deltas"} nothing accounts for`,
       "",
-      "The old contract cannot be served until each of these has a Change that",
-      "explains it. `invariant propose` will draft what it can.",
+      // One line per paragraph: GitHub renders a comment's line breaks as
+      // written, so prose wrapped here would arrive ragged.
+      "The old contract cannot be served until each of these has a Change that " +
+        ((options.suggestions?.length ?? 0) > 0
+          ? "explains it. Drafts for them are below."
+          : "explains it. `invariant propose` will draft what it can."),
       "",
     );
     for (const entry of unexplained) lines.push(`- ${entry}`);
@@ -147,7 +205,7 @@ export function renderComment(report: CheckReport): string {
     for (const id of kindsOf(unexplained)) {
       lines.push(`- \`${id}\`: ${catalogueEntry(id).sentence}`);
     }
-    lines.push("");
+    lines.push("", ...suggestionLines(options));
   }
 
   const issues = report.steps.flatMap((step) => step.issues);
@@ -167,8 +225,8 @@ export function renderComment(report: CheckReport): string {
     lines.push(
       "### Changes the adapter cannot carry out",
       "",
-      "Each of these explains part of the release, and the runtime has no way to",
-      "apply it. Old callers would reach your code untranslated.",
+      "Each of these explains part of the release, and the runtime has no way to " +
+        "apply it. Old callers would reach your code untranslated.",
       "",
     );
     for (const entry of report.unservable) lines.push(`- ${entry}`);

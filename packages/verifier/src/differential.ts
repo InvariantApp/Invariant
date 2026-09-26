@@ -90,6 +90,13 @@ export interface DifferentialOptions {
    * silent ten minutes is indistinguishable from a hang, so it says where it is.
    */
   onProgress?: (message: string) => void;
+  /**
+   * `scenario`, the default, starts fresh builds for every scenario.
+   * `contract` starts each build once per run and asks it every scenario of
+   * a contract in turn, for builds that take a minute to start. Each run still
+   * begins from fresh state and asks the same things in the same order.
+   */
+  startPer?: "scenario" | "contract";
 }
 
 export interface DifferentialReport {
@@ -346,6 +353,30 @@ export function inDeclaredOrder(
   });
 }
 
+/**
+ * Whether two values of one header say the same thing.
+ *
+ * A media type is compared as one: its type and parameter names are
+ * case-insensitive and the space around its separators means nothing, and a
+ * server that started writing `text/plain; charset=utf-8` where it wrote
+ * `text/plain;charset=utf-8` has not changed what any caller reads.
+ */
+function sameHeader(name: string, a: string | undefined, b: string | undefined): boolean {
+  if (a === b) return true;
+  if (a === undefined || b === undefined || name !== "content-type") return false;
+  const media = (value: string) =>
+    value
+      .split(";")
+      .map((part) => part.trim().replace(/\s*=\s*/, "="))
+      .map((part, index) => (index === 0 ? part.toLowerCase() : part))
+      .map((part) => {
+        const at = part.indexOf("=");
+        return at === -1 ? part : `${part.slice(0, at).toLowerCase()}${part.slice(at)}`;
+      })
+      .join(";");
+  return media(a) === media(b);
+}
+
 function kindOf(value: JsonValue): string {
   if (value === null) return "null";
   if (Array.isArray(value)) return "array";
@@ -382,14 +413,13 @@ function compare(
     }
 
     for (const [name, value] of Object.entries(left.headers)) {
-      if (right.headers[name] !== value) {
-        out.push({
-          scenario,
-          step: left.id,
-          pointer: `header ${name}`,
-          detail: `was ${value}, now ${right.headers[name] ?? "absent"}`,
-        });
-      }
+      if (sameHeader(name, right.headers[name], value)) continue;
+      out.push({
+        scenario,
+        step: left.id,
+        pointer: `header ${name}`,
+        detail: `was ${value}, now ${right.headers[name] ?? "absent"}`,
+      });
     }
 
     const leftPaths = flatten(left.body);
@@ -462,10 +492,133 @@ export async function checkDifferential(
   options: DifferentialOptions,
 ): Promise<DifferentialReport> {
   const compared = options.compareHeaders ?? DEFAULT_COMPARED_HEADERS;
+  const note = options.onProgress ?? (() => {});
   const differences: Difference[] = [];
   const acknowledgedOut: Difference[] = [];
   const evidence: Evidence[] = [];
   const volatileByScenario = new Map<string, string[]>();
+
+  // What each scenario came to, filled in group by group and reported in the
+  // order the scenarios were given, whichever way the builds were started.
+  const outcomes = new Map<
+    Scenario,
+    { found: Difference[]; volatile: Set<string>; clock: number }
+  >();
+  const runnable: Scenario[] = [];
+  for (const scenario of scenarios) {
+    if (isCurrent(scenario.contract, options.currentLabel)) continue;
+    if (options.knownContracts && !options.knownContracts.includes(scenario.contract)) {
+      continue;
+    }
+    runnable.push(scenario);
+  }
+
+  // One group per scenario, or one per contract when the builds are slow to
+  // start. Either way each of the three runs starts from fresh state and asks
+  // the same things in the same order, which is all calibration relies on.
+  const groups: Scenario[][] = [];
+  if (options.startPer === "contract") {
+    const byContract = new Map<string, Scenario[]>();
+    for (const scenario of runnable) {
+      const group = byContract.get(scenario.contract) ?? [];
+      if (group.length === 0) {
+        byContract.set(scenario.contract, group);
+        groups.push(group);
+      }
+      group.push(scenario);
+    }
+  } else {
+    for (const scenario of runnable) groups.push([scenario]);
+  }
+
+  for (const group of groups) {
+    const contract = (group[0] as Scenario).contract;
+    const what =
+      group.length === 1
+        ? (group[0] as Scenario).name
+        : `${contract} (${group.length} scenarios)`;
+    const started = Date.now();
+
+    note(`${what}: starting ${contract} to calibrate`);
+    const first = await runGroup(options.launch, contract, group, {}, compared);
+    const unrunnable = group.every((scenario) => first.get(scenario) instanceof Error);
+    let second = first;
+    let head = first;
+    const calibrated = { from: started, to: started };
+    if (!unrunnable) {
+      await nextTick();
+      note(`${what}: starting ${contract} again`);
+      second = await runGroup(options.launch, contract, group, {}, compared);
+      calibrated.to = Date.now();
+      note(`${what}: starting the current build`);
+      head = await runGroup(
+        options.launch,
+        "head",
+        group,
+        options.contractHeader ? { [options.contractHeader]: contract } : {},
+        compared,
+      );
+    }
+    note(`${what}: compared in ${((Date.now() - started) / 1000).toFixed(1)}s`);
+
+    for (const scenario of group) {
+      const runs = [first.get(scenario), second.get(scenario), head.get(scenario)];
+      const failure = runs.find((run) => run instanceof Error);
+      if (failure instanceof Error || runs.some((run) => run === undefined)) {
+        outcomes.set(scenario, {
+          found: [
+            {
+              scenario: scenario.name,
+              step: "-",
+              pointer: "/",
+              detail: `the scenario could not be run: ${failure?.message ?? "no answer"}`,
+            },
+          ],
+          volatile: new Set(),
+          clock: 0,
+        });
+        continue;
+      }
+      const [a, b, h] = runs as StepObservation[][];
+      const declared = scenario.unordered ?? [];
+      try {
+        const left = inDeclaredOrder(a as StepObservation[], declared);
+        const right = inDeclaredOrder(b as StepObservation[], declared);
+        const volatile = volatilePaths(left, right);
+        // A value read from the clock at a coarser grain than the second the
+        // two runs straddle comes out the same in both, and then differs in
+        // the current build's run whenever that crosses a minute or a day.
+        // Both runs reading a time inside their own window is what says so.
+        const clock = clockPaths(left, right, calibrated);
+        for (const path of clock) volatile.add(path);
+        outcomes.set(scenario, {
+          found: compare(
+            scenario.name,
+            left,
+            inDeclaredOrder(h as StepObservation[], declared),
+            volatile,
+          ),
+          volatile,
+          clock: clock.size,
+        });
+      } catch (error) {
+        outcomes.set(scenario, {
+          found: [
+            {
+              scenario: scenario.name,
+              step: "-",
+              pointer: "/",
+              detail: `the scenario could not be run: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            },
+          ],
+          volatile: new Set(),
+          clock: 0,
+        });
+      }
+    }
+  }
 
   for (const scenario of scenarios) {
     if (isCurrent(scenario.contract, options.currentLabel)) {
@@ -482,14 +635,15 @@ export async function checkDifferential(
       continue;
     }
 
-    if (options.knownContracts && !options.knownContracts.includes(scenario.contract)) {
+    const outcome = outcomes.get(scenario);
+    if (!outcome) {
       const problem: Difference = {
         scenario: scenario.name,
         step: "-",
         pointer: "/",
         detail:
           `it is written against contract "${scenario.contract}", which is not ` +
-          `one this provider still serves (${options.knownContracts.join(", ")}). ` +
+          `one this provider still serves (${options.knownContracts?.join(", ")}). ` +
           "Nothing was compared.",
       };
       differences.push(problem);
@@ -504,71 +658,17 @@ export async function checkDifferential(
       continue;
     }
 
-    const found: Difference[] = [];
-    let volatile = new Set<string>();
-
-    try {
-      const note = options.onProgress ?? (() => {});
-      const started = Date.now();
-
-      note(`${scenario.name}: starting ${scenario.contract} to calibrate`);
-      const first = await withTarget(options.launch, scenario.contract, (target) =>
-        observe(target, scenario, {}, compared),
-      );
-
-      await nextTick();
-      note(`${scenario.name}: starting ${scenario.contract} again`);
-      const second = await withTarget(options.launch, scenario.contract, (target) =>
-        observe(target, scenario, {}, compared),
-      );
-      const declared = scenario.unordered ?? [];
-      volatile = volatilePaths(
-        inDeclaredOrder(first, declared),
-        inDeclaredOrder(second, declared),
-      );
-
-      note(`${scenario.name}: starting the current build`);
-      const head = await withTarget(options.launch, "head", (target) =>
-        observe(
-          target,
-          scenario,
-          options.contractHeader ? { [options.contractHeader]: scenario.contract } : {},
-          compared,
-        ),
-      );
-      note(
-        `${scenario.name}: compared in ${((Date.now() - started) / 1000).toFixed(1)}s`,
-      );
-
-      found.push(
-        ...compare(
-          scenario.name,
-          inDeclaredOrder(first, declared),
-          inDeclaredOrder(head, declared),
-          volatile,
-        ),
-      );
-    } catch (error) {
-      found.push({
-        scenario: scenario.name,
-        step: "-",
-        pointer: "/",
-        detail: `the scenario could not be run: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      });
-    }
-
+    const { found, volatile, clock } = outcome;
     volatileByScenario.set(scenario.name, [...volatile].sort());
 
     // An acknowledgement does not make a difference disappear. It moves it to
     // a list that carries the provider's reason, so the release can proceed
     // while a reviewer still reads the sentence.
     const marked = found.map((entry) => {
-      const note = scenario.acknowledged.find(
+      const reason = scenario.acknowledged.find(
         (item) => item.step === entry.step && item.pointer === entry.pointer,
       );
-      return note ? { ...entry, acknowledged: note.reason } : entry;
+      return reason ? { ...entry, acknowledged: reason.reason } : entry;
     });
     const open = marked.filter((entry) => entry.acknowledged === undefined);
     const accepted = marked.filter((entry) => entry.acknowledged !== undefined);
@@ -587,6 +687,7 @@ export async function checkDifferential(
           ? `${open.length} observable differences between the old build and the new one`
           : `${scenario.steps.length} requests answered the same by both builds, ` +
             `ignoring ${volatile.size} generated values the old build did not keep stable` +
+            (clock > 0 ? ` (${clock} of them read the clock)` : "") +
             (accepted.length > 0 ? `, with ${accepted.length} acknowledged` : ""),
       ...(open.length > 0 || accepted.length > 0
         ? {
@@ -610,15 +711,109 @@ export async function checkDifferential(
   };
 }
 
-async function withTarget<T>(
+/**
+ * One start of a build, asked each scenario of a group in turn.
+ *
+ * A scenario that fails is recorded as failed and the rest still run; a build
+ * that will not start fails every scenario it was meant to answer.
+ */
+async function runGroup(
   launch: Launcher,
   build: string,
-  use: (target: Target) => Promise<T>,
-): Promise<T> {
-  const target = await launch(build);
+  group: readonly Scenario[],
+  headers: Record<string, string>,
+  compared: readonly string[],
+): Promise<Map<Scenario, StepObservation[] | Error>> {
+  const out = new Map<Scenario, StepObservation[] | Error>();
+  const asError = (error: unknown) =>
+    error instanceof Error ? error : new Error(String(error));
+  let target: Target;
   try {
-    return await use(target);
+    target = await launch(build);
+  } catch (error) {
+    for (const scenario of group) out.set(scenario, asError(error));
+    return out;
+  }
+  try {
+    for (const scenario of group) {
+      try {
+        out.set(scenario, await observe(target, scenario, headers, compared));
+      } catch (error) {
+        out.set(scenario, asError(error));
+      }
+    }
   } finally {
     await target.close();
   }
+  return out;
+}
+
+/** A time, and how coarsely it was written, when a value is one. */
+function instantOf(value: JsonValue): { at: number; grain: number } | undefined {
+  if (typeof value === "number") {
+    // Epoch seconds and milliseconds between 2001 and 5138: a count this
+    // large that is not a time is rare, and both runs must also land inside
+    // their own few seconds for it to be read as one.
+    if (Number.isInteger(value) && value >= 1e9 && value < 1e11) {
+      return { at: value * 1000, grain: 1000 };
+    }
+    if (value >= 1e12 && value < 1e14) return { at: value, grain: 1 };
+    return undefined;
+  }
+  if (typeof value !== "string") return undefined;
+  const match =
+    /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2})(:\d{2}(?:[.,]\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/i.exec(
+      value.trim(),
+    );
+  if (!match) return undefined;
+  const [, date, minutes, seconds, zone] = match;
+  const at = Date.parse(
+    `${date}T${minutes ?? "00:00"}${(seconds ?? ":00").replace(",", ".")}${zone ?? "Z"}`,
+  );
+  if (Number.isNaN(at)) return undefined;
+  // A time written without a zone is in whatever zone the server keeps, so
+  // it is allowed to be anywhere within the fourteen hours either way that
+  // zones span.
+  const unzoned = zone === undefined ? 14 * 3_600_000 : 0;
+  const grain =
+    minutes === undefined ? 86_400_000 : seconds === undefined ? 60_000 : 1000;
+  return { at: at - unzoned, grain: grain + 2 * unzoned };
+}
+
+/**
+ * Paths where both calibration runs answered with a time inside the window
+ * they ran in: values the old build read from the clock, whether or not the
+ * two runs happened to read the same minute or the same day.
+ *
+ * Found rather than listed, like every other volatile value, and found from
+ * the old build alone. A caller-sent date that happens to be today is excused
+ * too, and still compared by kind, which is the price of not keeping a list.
+ */
+export function clockPaths(
+  a: readonly StepObservation[],
+  b: readonly StepObservation[],
+  window: { from: number; to: number },
+): Set<string> {
+  const slack = 2000;
+  const reads = (value: JsonValue): boolean => {
+    const instant = instantOf(value);
+    return (
+      instant !== undefined &&
+      instant.at <= window.to + slack &&
+      instant.at + instant.grain >= window.from - slack
+    );
+  };
+  const out = new Set<string>();
+  a.forEach((left, index) => {
+    const right = b[index];
+    if (!right) return;
+    const rightPaths = flatten(right.body);
+    for (const [pointer, value] of flatten(left.body)) {
+      const other = rightPaths.get(pointer);
+      if (other !== undefined && reads(value) && reads(other)) {
+        out.add(`${left.id}${pointer}`);
+      }
+    }
+  });
+  return out;
 }

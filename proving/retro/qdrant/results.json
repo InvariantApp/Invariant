@@ -1,0 +1,92 @@
+{
+  "flow": "history import v1.18.0, drafts answered, check --full against the running 1.18",
+  "drafted": 27,
+  "keptAsDrafted": 8,
+  "notKept": [
+    "chg_binary_quantization_config_restated",
+    "chg_bool_index_params_restated",
+    "chg_collection_params_diff_restated",
+    "chg_datatype_datatype_vocabulary",
+    "chg_datetime_index_params_restated",
+    "chg_float_index_params_restated",
+    "chg_geo_index_params_restated",
+    "chg_hnsw_config_diff_restated",
+    "chg_hnsw_config_restated",
+    "chg_integer_index_params_restated",
+    "chg_keyword_index_params_restated",
+    "chg_match_restated",
+    "chg_product_quantization_config_restated",
+    "chg_retired_post_collections_collection_name_points_search",
+    "chg_scalar_quantization_config_restated",
+    "chg_turbo_quant_quantization_config_restated",
+    "chg_uuid_index_params_restated",
+    "chg_vector_data_info_restated",
+    "chg_vector_storage_datatype_vector_storage_datatype_vocabulary"
+  ],
+  "writtenByHand": [
+    "chg_batch_vector_forms",
+    "chg_disabled_stemmer",
+    "chg_request_minimums",
+    "chg_telemetry_data_quota_added",
+    "chg_turbo4_datatype",
+    "chg_search_became_query",
+    "chg_search_named_vectors",
+    "chg_search_points_under_result"
+  ],
+  "closure": {
+    "result": "fail",
+    "unexplained": [
+      "response-property-type-changed at POST /collections/{collection_name}/points/query: the `result/points` response's property `type` changed from `object` to `array<object>` for status `200`",
+      "response-required-property-removed at POST /collections/{collection_name}/points/query: removed the required property `result/points/points` from the response with the `200` status"
+    ],
+    "issues": [
+      "chg_search_became_query: routes POST /collections/{collection_name}/points/search onto POST /collections/{collection_name}/points/query, which this contract already serves as an operation of its own. Once routed, the adapter cannot tell the two callers apart, so serving two old operations from one new one is not supported."
+    ]
+  },
+  "differential": [
+    {
+      "subject": "v1.18.0: query on 1.18",
+      "result": "fail",
+      "summary": "14 observable differences between the old build and the new one Historical builds: v1.18.0 at http://127.0.0.1:16333, a running environment whose state every run shared. Current build: the current build from image qdrant/qdrant:v1.19.0@sha256:057ee3a8da769fe7310dd3537b4dc7583bf87a95ce8ac43c0af5a46bc580d1fc; the current build behind the proxy, running the program this check compiled. Each build was started once per run and asked every scenario in turn.",
+      "detail": [
+        "query /result/points[]: the old build returned this, the new one does not",
+        "query /result/points/0/id: the old build returned this, the new one does not",
+        "query /result/points/0/version: the old build returned this, the new one does not",
+        "query /result/points/0/score: the old build returned this, the new one does not",
+        "query /result/points/1/id: the old build returned this, the new one does not",
+        "query /result/points/1/version: the old build returned this, the new one does not",
+        "query /result/points/1/score: the old build returned this, the new one does not",
+        "query /result[]: the new build returned this, which the old contract never had",
+        "query /result/0/id: the new build returned this, which the old contract never had",
+        "query /result/0/version: the new build returned this, which the old contract never had",
+        "query /result/0/score: the new build returned this, which the old contract never had",
+        "query /result/1/id: the new build returned this, which the old contract never had",
+        "query /result/1/version: the new build returned this, which the old contract never had",
+        "query /result/1/score: the new build returned this, which the old contract never had"
+      ]
+    },
+    {
+      "subject": "v1.18.0: search on 1.18",
+      "result": "pass",
+      "summary": "6 requests answered the same by both builds, ignoring 6 generated values the old build did not keep stable",
+      "detail": []
+    }
+  ],
+  "problems": [
+    "query on 1.18 / query /result/points[]: the old build returned this, the new one does not",
+    "query on 1.18 / query /result/points/0/id: the old build returned this, the new one does not",
+    "query on 1.18 / query /result/points/0/version: the old build returned this, the new one does not",
+    "query on 1.18 / query /result/points/0/score: the old build returned this, the new one does not",
+    "query on 1.18 / query /result/points/1/id: the old build returned this, the new one does not",
+    "query on 1.18 / query /result/points/1/version: the old build returned this, the new one does not",
+    "query on 1.18 / query /result/points/1/score: the old build returned this, the new one does not",
+    "query on 1.18 / query /result[]: the new build returned this, which the old contract never had",
+    "query on 1.18 / query /result/0/id: the new build returned this, which the old contract never had",
+    "query on 1.18 / query /result/0/version: the new build returned this, which the old contract never had",
+    "query on 1.18 / query /result/0/score: the new build returned this, which the old contract never had",
+    "query on 1.18 / query /result/1/id: the new build returned this, which the old contract never had",
+    "query on 1.18 / query /result/1/version: the new build returned this, which the old contract never had",
+    "query on 1.18 / query /result/1/score: the new build returned this, which the old contract never had"
+  ],
+  "result": "block"
+}

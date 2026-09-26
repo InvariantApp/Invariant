@@ -10,6 +10,8 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { chainProgram } from "@invariant-app/compiler";
+import type { OpenApiDocument } from "@invariant-app/contract";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { BuildConfig, BuildSource } from "./config.ts";
 import { launchBuild } from "./launch.ts";
@@ -18,9 +20,13 @@ const build = (contracts: [string, BuildSource][]): BuildConfig => ({
   command: "node",
   args: ["server.mjs"],
   headEnv: {},
+  headSource: undefined,
+  proxy: false,
   baseEnv: {},
   base: undefined,
   healthPath: "/__health",
+  readyTimeoutMs: 30_000,
+  startPer: "scenario",
   contracts: new Map(contracts),
 });
 
@@ -37,6 +43,11 @@ describe("a build that is already running", () => {
   let url: string;
   beforeAll(async () => {
     running = createServer((request, response) => {
+      if (request.url === "/login") {
+        response.writeHead(302, { location: "app.immich:///oauth-callback" });
+        response.end();
+        return;
+      }
       response.end(request.url === "/__health" ? "ok" : `seen ${request.url}`);
     });
     await new Promise<void>((resolve) => running.listen(0, "127.0.0.1", resolve));
@@ -54,6 +65,17 @@ describe("a build that is already running", () => {
     await target.close();
     // Still answering: closing a target it did not start does nothing.
     expect((await fetch(`${url}/__health`)).ok).toBe(true);
+  });
+
+  it("answers a redirect as the redirect, without following it", async () => {
+    const target = await launchBuild("2026-01-01", {
+      build: build([["2026-01-01", { kind: "url", url }]]),
+      cwd: tmpdir(),
+    });
+    const response = await target.fetch(new Request("http://x/login"));
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("app.immich:///oauth-callback");
+    await target.close();
   });
 
   it("says which one did not answer", async () => {
@@ -174,5 +196,122 @@ describe("a released build started from the current code", () => {
     } finally {
       await head.close();
     }
+  });
+});
+
+describe("the current build behind the proxy", () => {
+  const item = (field: string) => ({
+    openapi: "3.1.0",
+    info: { title: "items", version: "1" },
+    paths: {
+      "/item": {
+        get: {
+          operationId: "getItem",
+          responses: {
+            "200": {
+              description: "the item",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Item" },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    components: {
+      schemas: {
+        Item: {
+          type: "object",
+          required: [field],
+          properties: { [field]: { type: "string" } },
+        },
+      },
+    },
+  });
+
+  let repository: string;
+  beforeAll(() => {
+    repository = mkdtempSync(join(tmpdir(), "invariant-proxied-"));
+    writeFileSync(
+      join(repository, "server.mjs"),
+      `import { createServer } from "node:http";
+createServer((request, response) => {
+  // As NetBox's server does: a body with no length is refused.
+  if (request.method === "POST" && request.headers["content-length"] === undefined) {
+    response.statusCode = 411;
+    response.end();
+    return;
+  }
+  response.setHeader("content-type", "application/json");
+  response.end(JSON.stringify(request.url === "/__health" ? {} : { title: "a kettle" }));
+}).listen(Number(process.env.PORT), "127.0.0.1");
+`,
+    );
+  });
+  afterAll(() => rmSync(repository, { recursive: true, force: true }));
+
+  it("runs the program this check compiled, so an old caller is answered in its own shape", async () => {
+    const { program } = chainProgram(
+      "items",
+      "2026-06-01",
+      "sha256:0",
+      [
+        {
+          label: "2026-06-01",
+          parent: "2026-01-01",
+          from: item("name") as OpenApiDocument,
+          to: item("title") as OpenApiDocument,
+          changes: [
+            {
+              irVersion: 1,
+              id: "chg_name_became_title",
+              summary: "An item's name is now its title.",
+              scopes: [{ schema: "#/components/schemas/Item" }],
+              ops: [{ op: "move", from: "/name", to: "/title" }],
+            },
+          ],
+        },
+      ],
+      { identity: [{ kind: "default", label: "2026-01-01" }] },
+    );
+    const config: BuildConfig = { ...build([]), proxy: true };
+
+    const bare = await launchBuild("head", {
+      build: { ...config, proxy: false },
+      cwd: repository,
+    });
+    try {
+      expect(await (await bare.fetch(new Request("http://x/item"))).json()).toEqual({
+        title: "a kettle",
+      });
+    } finally {
+      await bare.close();
+    }
+
+    const proxied = await launchBuild("head", {
+      build: config,
+      cwd: repository,
+      program,
+    });
+    try {
+      expect(await (await proxied.fetch(new Request("http://x/item"))).json()).toEqual({
+        name: "a kettle",
+      });
+      // Sent with its length, as a caller's request reaches the proxy.
+      const posted = await proxied.fetch(
+        new Request("http://x/item", { method: "POST", body: "{}" }),
+      );
+      expect(posted.status).toBe(200);
+    } finally {
+      await proxied.close();
+    }
+  });
+
+  it("refuses to compare without a program to run", async () => {
+    await expect(
+      launchBuild("head", { build: { ...build([]), proxy: true }, cwd: repository }),
+    ).rejects.toThrow(/compiled no program/);
   });
 });

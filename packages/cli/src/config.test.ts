@@ -6,7 +6,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { ConfigError, loadConfig } from "./config.ts";
+import { ConfigError, type InvariantConfig, loadConfig } from "./config.ts";
 
 let dir: string;
 beforeAll(async () => {
@@ -118,13 +118,80 @@ describe("where a released contract's build comes from", () => {
       withBuild(
         ['    "2026-01-01":', "      url: https://a", "      image: b"].join("\n"),
       ),
-    ).rejects.toThrow(/exactly one of url, image or worktree/);
+    ).rejects.toThrow(/exactly one of url, image, compose or worktree/);
     await expect(
       withBuild(['    "2026-01-01":', "      image: b", "      comand: x"].join("\n")),
     ).rejects.toThrow(/comand is not a setting of an image source/);
     await expect(
       withBuild(['    "2026-01-01":', "      worktree: v1"].join("\n")),
     ).rejects.toThrow(ConfigError);
+  });
+});
+
+describe("the current build", () => {
+  async function withHead(head: string[], rest: string[] = []): Promise<InvariantConfig> {
+    const path = join(dir, "head.yaml");
+    await writeFile(
+      path,
+      [
+        "api: acme",
+        "spec:",
+        "  current: openapi.json",
+        "build:",
+        "  head:",
+        ...head.map((line) => `    ${line}`),
+        ...rest,
+      ].join("\n"),
+    );
+    return loadConfig(path);
+  }
+
+  it("can be an image behind the proxy, with released builds from a Compose file", async () => {
+    const config = await withHead(
+      ["image: ghcr.io/acme/api:head", "port: 3000", "proxy: true"],
+      [
+        "  readyTimeout: 240",
+        "  startPer: contract",
+        "  contracts:",
+        '    "2026-01-01":',
+        "      compose: deploy/compose.yaml",
+        `      env: { TAG: "\${contract}" }`,
+      ],
+    );
+    expect(config.build).toMatchObject({
+      command: "",
+      headSource: { kind: "image", image: "ghcr.io/acme/api:head", port: 3000, env: {} },
+      proxy: true,
+      readyTimeoutMs: 240_000,
+      startPer: "contract",
+    });
+    expect(config.build?.contracts.get("2026-01-01")).toEqual({
+      kind: "compose",
+      file: join(dir, "deploy/compose.yaml"),
+      env: { TAG: `\${contract}` },
+    });
+  });
+
+  it("is a command by default, started each scenario afresh", async () => {
+    const config = await withHead(["command: pnpm start"]);
+    expect(config.build).toMatchObject({
+      command: "pnpm",
+      args: ["start"],
+      headSource: undefined,
+      proxy: false,
+      readyTimeoutMs: 30_000,
+      startPer: "scenario",
+    });
+  });
+
+  it("is exactly one thing", async () => {
+    await expect(withHead(["command: pnpm start", "image: api"])).rejects.toThrow(
+      /build.head must name exactly one of command, url, image or compose/,
+    );
+    await expect(withHead(["proxy: true"])).rejects.toThrow(/exactly one/);
+    await expect(withHead(["image: api"], ["  startPer: build"])).rejects.toThrow(
+      /startPer must be scenario or contract/,
+    );
   });
 });
 

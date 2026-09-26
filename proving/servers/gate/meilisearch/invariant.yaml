@@ -1,0 +1,36 @@
+# Meilisearch 1.53 -> 1.54, configured the way a stranger to Invariant would
+# from the docs alone. The master key is a throwaway for containers this
+# check starts and removes; every request carries it.
+api: meilisearch
+spec:
+  current: specs/v1.54.0.json
+  currentLabel: v1.54.0
+  released:
+    v1.53.2: specs/v1.53.2.json
+
+identity:
+  - kind: default
+    label: v1.53.2
+
+scenarios:
+  headers:
+    authorization: Bearer invariant-gate-throwaway-key
+
+build:
+  head:
+    image: getmeili/meilisearch-enterprise:v1.54.0@sha256:dc420c61577771ed00fbfc418e8da6cf9aa85198e28f5b32e83e882b40574d06
+    port: 7700
+    env:
+      MEILI_MASTER_KEY: invariant-gate-throwaway-key
+      MEILI_NO_ANALYTICS: "true"
+    proxy: true
+  contracts:
+    v1.53.2:
+      image: getmeili/meilisearch-enterprise:v1.53.2@sha256:9ff4496a42a7c1837eba030a09af21ccbcac992542231afdb50253b440ec5a89
+      port: 7700
+      env:
+        MEILI_MASTER_KEY: invariant-gate-throwaway-key
+        MEILI_NO_ANALYTICS: "true"
+  healthPath: /health
+  readyTimeout: 120
+  startPer: contract

@@ -10,6 +10,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createTelemetry, jsonlSink } from "@invariant-app/telemetry";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   health,
@@ -165,5 +166,53 @@ describe("what production reported", () => {
 
   it("returns nothing at all when there is no ledger", async () => {
     expect(await readOutcomes("/nonexistent/outcomes.jsonl")).toEqual([]);
+  });
+});
+
+/**
+ * The other end of E9: what the runtime's file sink writes is what this
+ * reads. Kept here rather than beside the sink, so the telemetry package
+ * never depends on the CLI, which runs the proxy and so depends on it.
+ */
+describe("the telemetry file sink", () => {
+  it("writes outcomes the release's runtime evidence reads", async () => {
+    scratch = await mkdtemp(join(tmpdir(), "invariant-outcomes-"));
+    const path = join(scratch, "outcomes.jsonl");
+    const counted = createTelemetry({
+      sinks: [jsonlSink(path)],
+      now: () => 1_790_002_800_000,
+    });
+    const event = {
+      contract: "2026-01-15",
+      operation: "createPayment",
+      consumer: "acct_1",
+    };
+    counted.onUsage({ ...event, changes: new Map([["chg_money", 1]]) });
+    counted.onOutcome({ ...event, direction: "response", outcome: "adapted" });
+    counted.onOutcome({
+      ...event,
+      direction: "response",
+      outcome: "failed",
+      reason: "no exact value",
+    });
+    await counted.flush();
+    await counted.close();
+    expect(await readOutcomes(path)).toEqual([
+      {
+        contract: "2026-01-15",
+        operation: "createPayment",
+        direction: "response",
+        outcome: "adapted",
+        count: 1,
+      },
+      {
+        contract: "2026-01-15",
+        operation: "createPayment",
+        direction: "response",
+        outcome: "failed",
+        count: 1,
+        reason: "no exact value",
+      },
+    ]);
   });
 });

@@ -28,6 +28,20 @@ inputs:
       adding another on every push.
     required: false
     default: "true"
+  impact:
+    description: >-
+      Ask the service how many callers are still on each old contract, and put
+      the numbers beside what this release cannot serve. Needs
+      invariant-token. A service that cannot be reached is reported, never
+      counted as nobody, and never changes the verdict.
+    required: false
+    default: "false"
+  invariant-token:
+    description: >-
+      A read token from the dashboard, used only with impact. INVARIANT_TOKEN
+      in the step's environment works too.
+    required: false
+    default: ""
   token:
     description: >-
       Used only to write the pull request comment. A pull request from a fork

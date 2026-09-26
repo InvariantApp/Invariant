@@ -145,6 +145,15 @@ scenarios:
     authorization: Bearer sk_test_for_ci
 ```
 
+Traffic you already have asks better questions than a document can: a HAR
+file saved from your browser or proxy, or the Postman collection your team
+tests with. `invariant scenarios import recording.har --label 2026-01-15`
+writes it into `invariant/scenarios`, with each id an earlier answer minted
+captured and carried into the requests after it. Whatever is in that
+directory, imported, generated or written by hand, is yours to edit, and a
+contract with a file there is asked what the file says rather than what its
+document describes.
+
 Values that differ between two runs of the same old build, generated ids and
 timestamps, are compared by type only. A list whose order your API does not
 promise can be declared in a scenario, and is compared as a set, sorted by
@@ -191,6 +200,27 @@ layer that can catch a value map whose pairs are swapped, or a handler whose
 behaviour changed under an unchanged shape.
 
 Locally, the same thing is `invariant check --full`.
+
+When a pull request is blocked by breaking deltas nothing explains, the comment
+carries the Changes `invariant propose` would draft for them, drafted with rules
+only and never sent to a model. Each has an "Add it to this branch" link that
+opens GitHub's editor on the pull request's branch with the file filled in, so
+accepting a draft is one commit, and the file itself is folded underneath to
+read or copy. A draft that needs an answer from you says so: its `CHOOSE_ONE`
+placeholders have to be replaced, and the gate refuses it until they are.
+
+To put the number of callers still on each old contract beside what nothing can
+serve, ask the service for it:
+
+```yaml
+- uses: InvariantApp/Invariant@v0
+  with:
+    impact: "true"
+    invariant-token: ${{ secrets.INVARIANT_TOKEN }}
+```
+
+A service that cannot be reached is said so in the comment, never counted as
+nobody, and never changes the verdict.
 
 On GitLab or Bitbucket, run the CLI in the pipeline and add `--comment`. It
 writes the same report on the merge request, once, and edits it on every push.

@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import { type CheckReport, check } from "./check.ts";
 import { COMMENT_MARKER, renderComment } from "./comment.ts";
 import { loadConfig } from "./config.ts";
+import { githubNewFileUrl } from "./suggest.ts";
 
 const FIXTURE = new URL("../../../fixtures/provider-acme/", import.meta.url).pathname;
 const hasOasdiff = await oasdiffAvailable();
@@ -197,5 +198,97 @@ describe("what callers will notice", () => {
     );
     expect(comment).toContain("1 change they will not notice");
     expect(comment).not.toContain("nothing can serve");
+  });
+});
+
+describe("drafted Changes in the comment", () => {
+  const blocked = {
+    api: "acme",
+    current: { label: "2026-09-20", digest: "sha256:abc" },
+    steps: [
+      {
+        from: "2026-01-15",
+        to: "2026-09-20",
+        changes: [],
+        unexplained: [
+          "response-property-removed at GET /v1/payments/{id}: removed the optional property 'currency' from the response",
+        ],
+        issues: [],
+        stale: [],
+        accounted: 0,
+        additive: 0,
+      },
+    ],
+    program: undefined,
+    warnings: [],
+    evidence: [],
+    problems: [],
+    acknowledged: [],
+    unservable: [],
+    policy: [],
+    result: "block",
+  } as unknown as CheckReport;
+
+  const draft = (id: string, needsAnswer: boolean) => ({
+    id,
+    summary: `${id} explains a removed field`,
+    path: `invariant/changes/${id}.yaml`,
+    file: `/repo/invariant/changes/${id}.yaml`,
+    text: `# Drafted by rules.\nirVersion: 1\nid: ${id}\nops:\n  - op: remove\n    path: /currency\n`,
+    needsAnswer,
+    closeLook: needsAnswer,
+  });
+
+  it("offers each draft as a one-click file and as text to copy", () => {
+    const comment = renderComment(blocked, {
+      suggestions: [draft("chg_currency", false), draft("chg_status", true)],
+      newFileUrl: (path, text) =>
+        `https://github.com/acme/api/new/feature?filename=${encodeURIComponent(path)}&value=${encodeURIComponent(text)}`,
+    });
+    expect(comment).toContain("### 2 drafted Changes to explain them");
+    expect(comment).toContain(
+      "[Add it to this branch](https://github.com/acme/api/new/feature?filename=invariant%2Fchanges%2Fchg_currency.yaml&value=",
+    );
+    expect(comment).toContain(
+      "<summary><code>invariant/changes/chg_status.yaml</code></summary>",
+    );
+    expect(comment).toContain(
+      "```yaml\n# Drafted by rules.\nirVersion: 1\nid: chg_currency",
+    );
+    // A decision is not a draft to accept as it stands.
+    expect(comment).toContain(
+      "**`chg_status`**: chg_status explains a removed field **Needs your answer:**",
+    );
+    // Drafts sit under the deltas they explain, above the proof.
+    expect(comment.indexOf("drafted Changes")).toBeGreaterThan(
+      comment.indexOf("nothing accounts for"),
+    );
+  });
+
+  it("still offers the text where no link can be made", () => {
+    const comment = renderComment(blocked, {
+      suggestions: [draft("chg_currency", false)],
+      newFileUrl: () => undefined,
+    });
+    expect(comment).toContain("### A drafted Change to explain them");
+    expect(comment).not.toContain("Add it to this branch");
+    expect(comment).toContain("```yaml");
+  });
+
+  it("says nothing about drafts when there are none", () => {
+    expect(renderComment(blocked)).not.toContain("drafted Change");
+  });
+});
+
+describe("the new-file link", () => {
+  it("opens GitHub's editor on the head branch, and gives up on a file too long to link", () => {
+    const link = githubNewFileUrl({
+      repository: "contributor/api",
+      branch: "feature/new-thing",
+    });
+    expect(link("invariant/changes/chg_a.yaml", "id: chg_a\n")).toBe(
+      "https://github.com/contributor/api/new/feature/new-thing?filename=invariant%2Fchanges%2Fchg_a.yaml&value=id%3A%20chg_a%0A",
+    );
+    expect(link("invariant/changes/chg_a.yaml", "x".repeat(6500))).toBeUndefined();
   });
 });

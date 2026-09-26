@@ -1,0 +1,34 @@
+# Retroactive onboarding, on Qdrant. The provider adopted Invariant at 1.19,
+# the release that deleted the search endpoints, while 1.18 is still deployed
+# for callers who search. `invariant history import v1.18.0=...` puts 1.18 in
+# front of the chain and drafts the Changes to 1.19; the draft that retired
+# search is replaced by one that routes it to query. The full check then asks
+# the 1.18 deployment, still running, and 1.19 behind the proxy the same
+# things, which is what has to hold before 1.18 can be switched off.
+api: qdrant
+spec:
+  current: specs/v1.19.0.json
+  currentLabel: v1.19.0
+  released:
+    v1.19.0: specs/v1.19.0.json
+
+# Only what 1.18's callers do matters here, and it is written down.
+scenarios:
+  generate: never
+
+identity:
+  - kind: default
+    label: v1.18.0
+
+build:
+  head:
+    image: qdrant/qdrant:v1.19.0@sha256:057ee3a8da769fe7310dd3537b4dc7583bf87a95ce8ac43c0af5a46bc580d1fc
+    port: 6333
+    proxy: true
+  contracts:
+    # The old version's deployment, still serving search.
+    v1.18.0:
+      url: http://127.0.0.1:16333
+  healthPath: /readyz
+  readyTimeout: 120
+  startPer: contract

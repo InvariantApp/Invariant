@@ -137,11 +137,46 @@ specifications, and the report says that is all it proved.
 
 ### `build.head`
 
-The current build.
+The current build: exactly one of `command`, `image`, `compose` or `url`.
+A command is run in this repository; the others are for a service that is
+not started from here, such as one CI has just built into an image.
+
+```yaml
+build:
+  head:
+    image: acme/api:candidate   # tagged by the CI step that built it
+    port: 8080
+    proxy: true
+```
 
 ### `build.head.command`
 
 Starts the server. `PORT` is set to the port it must listen on.
+
+### `build.head.image`
+
+The current build's image, run with Docker.
+
+### `build.head.port`
+
+The port the image listens on. Default 8080.
+
+### `build.head.compose`
+
+A Compose file that starts the current build and what it needs, publishing
+the API on `${PORT}`. See `build.contracts.<label>.compose`.
+
+### `build.head.url`
+
+An environment already running the current build.
+
+### `build.head.proxy`
+
+Stand Invariant's proxy in front of the current build, running the program
+this check compiled. Set it when production runs the proxy (`invariant-sidecar`)
+rather than an in-process binding, which is the case for every API not written
+in Node: without it the current build alone never serves an old contract, and
+the comparison would be of the wrong thing. Default `false`.
 
 ### `build.head.env`
 
@@ -173,23 +208,46 @@ One variable.
 
 Answers 200 once the server is ready. Default `/__health`.
 
+### `build.readyTimeout`
+
+Seconds a build has to answer on `healthPath`. Default 30; a service that
+migrates a database as it starts needs a few minutes.
+
+### `build.startPer`
+
+`scenario` (the default) starts fresh builds for every scenario. `contract`
+starts each build once per run and asks it every scenario of a contract in
+turn, which is what a build that takes a minute to start needs. Each of the
+three runs (the old build twice, then the current one) still begins from
+fresh state and asks the same things in the same order, so the calibration
+still finds exactly what the old build does not keep stable.
+
 ### `build.contracts`
 
 A released contract's own build, by label, when it is not the current code:
-an environment already running, the image that was released, or the commit it
-came from.
+an environment already running, the image that was released, a Compose file
+that starts it with its database, or the commit it came from. Which one was
+used is recorded in the differential evidence.
 
 ```yaml
 build:
   contracts:
     "2026-01-15": { url: https://staging-2026-01.acme.test }
     "2026-03-01": { image: ghcr.io/acme/api:2026-03-01, port: 8080 }
+    "2026-04-01": { compose: deploy/compose.yaml, env: { TAG: "${contract}" } }
     "2026-06-01": { worktree: v2026-06-01, install: npm ci, command: npm start }
 ```
 
+A `url` source is an environment someone else keeps running, so its state is
+shared by every run: the calibration can still tell what varies between two
+answers, but not what a fresh start would have said. It is what retroactive
+onboarding points at: the old version, still deployed, as the oracle for the
+Changes that let its handlers be deleted.
+
 ### `build.contracts.<label>`
 
-One released contract's build: exactly one of `url`, `image` or `worktree`.
+One released contract's build: exactly one of `url`, `image`, `compose` or
+`worktree`.
 
 ### `build.contracts.<label>.url`
 
@@ -202,6 +260,24 @@ The image that was released, run with Docker.
 ### `build.contracts.<label>.port`
 
 The port the image listens on. Default 8080.
+
+### `build.contracts.<label>.compose`
+
+A Compose file, relative to `invariant.yaml`, that starts the build and
+everything it needs. It publishes the API on `${PORT}` (set for it), and reads
+`env` (with `${contract}` filled in) for anything else, such as which image
+tag to run. Every start is its own Compose project, taken down with its
+volumes afterwards, so no run sees another's data.
+
+```yaml
+services:
+  api:
+    image: ghcr.io/acme/api:${TAG}
+    ports: ["127.0.0.1:${PORT}:8080"]
+    depends_on: [db]
+  db:
+    image: postgres:17
+```
 
 ### `build.contracts.<label>.worktree`
 

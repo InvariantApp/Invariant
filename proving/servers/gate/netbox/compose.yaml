@@ -1,0 +1,49 @@
+# NetBox as netbox-docker runs it, cut to what the REST API needs: the
+# application, its database and its two caches. Invariant starts this file as
+# a project of its own for every build and takes it down with its volumes, so
+# the credentials are throwaways that never outlive a check. It publishes the
+# API on ${PORT} and runs the release ${NETBOX_IMAGE} names.
+services:
+  netbox:
+    image: ${NETBOX_IMAGE}
+    depends_on: [postgres, redis, redis-cache]
+    ports:
+      - "127.0.0.1:${PORT}:8080"
+    environment:
+      CORS_ORIGIN_ALLOW_ALL: "True"
+      DB_HOST: postgres
+      DB_NAME: netbox
+      DB_USER: netbox
+      DB_PASSWORD: throwaway
+      MEDIA_ROOT: /opt/netbox/netbox/media
+      METRICS_ENABLED: "false"
+      REDIS_HOST: redis
+      REDIS_PASSWORD: throwaway
+      REDIS_DATABASE: "0"
+      REDIS_SSL: "false"
+      REDIS_CACHE_HOST: redis-cache
+      REDIS_CACHE_PASSWORD: throwaway
+      REDIS_CACHE_DATABASE: "1"
+      REDIS_CACHE_SSL: "false"
+      RELEASE_CHECK_URL: ""
+      SECRET_KEY: throwaway-secret-key-for-a-container-that-lives-one-check
+      SKIP_SUPERUSER: "false"
+      SUPERUSER_NAME: admin
+      SUPERUSER_EMAIL: admin@example.com
+      SUPERUSER_PASSWORD: throwaway
+      SUPERUSER_API_TOKEN: "0000000000000000000000000000000000000000"
+
+  postgres:
+    image: postgres:15.14-alpine@sha256:64583b3cb4f2010277bdd9749456de78e5c36f8956466ba14b0b96922e510950
+    environment:
+      POSTGRES_DB: netbox
+      POSTGRES_USER: netbox
+      POSTGRES_PASSWORD: throwaway
+
+  redis:
+    image: redis:7.4.6-alpine@sha256:3b73847e72874be07e6657b129a94761662b79bc0f679273757d4218573b2a98
+    command: ["redis-server", "--requirepass", "throwaway"]
+
+  redis-cache:
+    image: redis:7.4.6-alpine@sha256:3b73847e72874be07e6657b129a94761662b79bc0f679273757d4218573b2a98
+    command: ["redis-server", "--requirepass", "throwaway"]

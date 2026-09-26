@@ -11,9 +11,10 @@
  * checked. "The model was confident" has no record to live in.
  */
 
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { type ContractStep, predictDocument } from "@invariant-app/compiler";
 import { loadContract, type OpenApiDocument } from "@invariant-app/contract";
+import type { CompiledProgram } from "@invariant-app/ir";
 import {
   CURRENT_CONTRACT_ALIAS,
   checkChainEquivalence,
@@ -26,7 +27,7 @@ import {
   type Scenario,
   scenariosFromDocument,
 } from "@invariant-app/verifier";
-import type { InvariantConfig } from "./config.ts";
+import type { BuildSource, InvariantConfig } from "./config.ts";
 import { launchBuild } from "./launch.ts";
 
 export interface VerifyOptions {
@@ -52,6 +53,11 @@ export interface VerifyOptions {
    * for: a check must run in a repository with no token and no network.
    */
   impact?: boolean;
+  /**
+   * The program this check compiled, for the proxy the full check stands in
+   * front of the current build when `build.head.proxy` is set.
+   */
+  program?: CompiledProgram;
 }
 
 export interface VerifyReport {
@@ -152,7 +158,12 @@ export async function verify(
   }
 
   const build = config.build;
-  const launch = (label: string) => launchBuild(label, { build, cwd: config.root });
+  const launch = (label: string) =>
+    launchBuild(label, {
+      build,
+      cwd: config.root,
+      ...(options.program === undefined ? {} : { program: options.program }),
+    });
 
   // E6. The old build and the new build plus adapter, asked the same things.
   const differential = await checkDifferential(scenarios, {
@@ -166,21 +177,34 @@ export async function verify(
     // Straight to stderr, so it shows up live in a CI log without ending up
     // inside a report that is meant to be pasted into a pull request.
     onProgress: (message) => process.stderr.write(`  ${message}\n`),
+    startPer: build.startPer,
     ...(config.contractHeader ? { contractHeader: config.contractHeader } : {}),
   });
   // Where each historical build came from, so a reader of the evidence knows
   // what was compared: a running environment shares state between the two
   // runs that calibrate volatility, which a fresh build does not.
-  const sources = [...build.contracts].map(([label, source]) =>
+  const described = (label: string, source: BuildSource): string =>
     source.kind === "url"
-      ? `${label} at ${source.url}, a running environment whose state both runs shared`
+      ? `${label} at ${source.url}, a running environment whose state every run shared`
       : source.kind === "image"
         ? `${label} from image ${source.image}`
-        : `${label} from ${source.ref}`,
-  );
+        : source.kind === "compose"
+          ? `${label} from ${relative(config.root, source.file)}`
+          : `${label} from ${source.ref}`;
+  const sources = [...build.contracts].map(([label, source]) => described(label, source));
+  const head = [
+    ...(build.headSource ? [described("the current build", build.headSource)] : []),
+    ...(build.proxy
+      ? ["the current build behind the proxy, running the program this check compiled"]
+      : []),
+  ];
   // And what was asked that nobody wrote, and what could not be asked.
   const notes = [
     ...(sources.length > 0 ? [`Historical builds: ${sources.join("; ")}.`] : []),
+    ...(head.length > 0 ? [`Current build: ${head.join("; ")}.`] : []),
+    ...(build.startPer === "contract"
+      ? ["Each build was started once per run and asked every scenario in turn."]
+      : []),
     ...(generated.length > 0
       ? [
           `${generated.length} scenarios were made from the released documents` +
@@ -191,8 +215,12 @@ export async function verify(
       : []),
   ];
   evidence.push(
-    ...differential.evidence.map((record) =>
-      record.kind === "E6-differential" && notes.length > 0
+    // Said once, on the first record: the same sentences on each of a
+    // hundred generated scenarios bury the one line that differs.
+    ...differential.evidence.map((record, index) =>
+      index ===
+        differential.evidence.findIndex((entry) => entry.kind === "E6-differential") &&
+      notes.length > 0
         ? { ...record, summary: `${record.summary} ${notes.join(" ")}` }
         : record,
     ),
@@ -218,7 +246,11 @@ export async function verify(
       currentDocument,
       currentLabel,
       current,
-      () => launch("head"),
+      // The current build as it is, without the proxy: this asks whether the
+      // code matches its own document, which the adapter has no part in, and
+      // a proxy whose default contract is an old one would translate the
+      // question into that contract's terms.
+      () => launchBuild("head", { build: { ...build, proxy: false }, cwd: config.root }),
     );
     evidence.push(...conformance.evidence);
     for (const failure of conformance.failures) {

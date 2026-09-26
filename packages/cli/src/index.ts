@@ -2,10 +2,21 @@ export * from "./check.ts";
 export * from "./comment.ts";
 export * from "./config.ts";
 export * from "./doctor.ts";
+export * from "./history.ts";
 export * from "./init.ts";
+export { LaunchError, type LaunchOptions, launchBuild } from "./launch.ts";
+export {
+  type ObservedPlace,
+  type ObserveOptions,
+  type ObserveReport,
+  type Observer,
+  observe,
+  renderObservation,
+} from "./observe.ts";
 export * from "./outcomes.ts";
 export * from "./propose.ts";
 export * from "./release.ts";
 export * from "./retire.ts";
+export * from "./suggest.ts";
 export * from "./usage.ts";
 export * from "./verify.ts";

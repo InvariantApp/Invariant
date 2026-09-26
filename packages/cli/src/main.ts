@@ -12,12 +12,18 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { ControlPlaneError } from "@invariant-app/client";
 import { loadContract } from "@invariant-app/contract";
 import type { PhaseResult } from "@invariant-app/sandbox";
-import { scenariosFromDocument, scenarioYaml } from "@invariant-app/verifier";
+import {
+  scenariosFromDocument,
+  scenariosFromHar,
+  scenariosFromPostman,
+  scenarioYaml,
+} from "@invariant-app/verifier";
 import { check, renderReport, reportJson } from "./check.ts";
 import { renderComment } from "./comment.ts";
 import { loadConfig } from "./config.ts";
 import { defaultCacheDir, fileCache } from "./discover.ts";
 import { doctor, renderDoctor } from "./doctor.ts";
+import { importHistory, renderHistory } from "./history.ts";
 import { type InitOptions, init, renderInit } from "./init.ts";
 import { LOCK_FILE, lockFor, renderLock } from "./lock.ts";
 import {
@@ -47,6 +53,7 @@ import {
   ServiceError,
   status,
 } from "./service.ts";
+import { suggestChanges, wantsSuggestions } from "./suggest.ts";
 import { readLedger } from "./usage.ts";
 import { watchChecks } from "./watch.ts";
 import { wellKnownDocument } from "./well-known.ts";
@@ -82,6 +89,15 @@ const USAGE = `invariant <command>
   scenarios generate [--label <c>]
             Write the scenarios check --full would make from each released
             contract's document into invariant/scenarios, to keep and edit.
+  scenarios import <file> --label <c> [--base <url>]
+            Write scenarios from traffic already recorded, a HAR file or a
+            Postman collection, into invariant/scenarios, with each id an
+            answer minted carried into the requests after it.
+  history import <label>=<spec> [<label>=<spec> ...]
+            Put contracts served before adopting Invariant in front of the
+            chain, oldest first, and draft the Changes between them into
+            invariant/released, for check --full to compare with the old
+            versions still running.
   migrate <job.json>
             Move one consumer repository to a release: fetch both SDK
             releases, then read and edit the repository against them with
@@ -141,6 +157,12 @@ Options
   --retire <keyid>  well-known: stop a key signing from now; what it signed
                     stays trusted
   --out <path>      well-known: where to write the document
+  --label <c>       scenarios import: the contract the recorded traffic speaks
+                    (default: the only released contract, when there is one)
+  --base <url>      scenarios import: keep only requests under this URL or
+                    path prefix
+  --var <n=v>       scenarios import: a value for a Postman {{variable}};
+                    repeatable
 
 Environment
   INVARIANT_SIGNING_KEY   release: the ed25519 private key, in PEM form;
@@ -295,15 +317,25 @@ async function main(argv: string[]): Promise<number> {
     const usage = flag(argv, "usage");
     const once = async (): Promise<number> => {
       // Read again each time, so a watch sees an edited invariant.yaml too.
-      const report = await check(await loadConfig(configPath), {
+      const config = await loadConfig(configPath);
+      const report = await check(config, {
         full: argv.includes("--full"),
         ...(outcomes === undefined ? {} : { outcomes }),
         ...(usage === undefined ? {} : { usage }),
         ...(argv.includes("--impact") ? { impact: true } : {}),
       });
+      // Drafts for a comment only, where a reviewer can take them. No link is
+      // built: GitLab ignores prefilled content on its new-file page and
+      // Bitbucket has none, so the fenced file is what they copy.
+      const commented = format === "markdown" || argv.includes("--comment");
+      const suggestions =
+        commented && wantsSuggestions(report)
+          ? await suggestChanges(config).catch(() => [])
+          : [];
+      const comment = () => renderComment(report, { suggestions });
       process.stdout.write(
         format === "markdown"
-          ? renderComment(report)
+          ? comment()
           : format === "json"
             ? reportJson(report)
             : `${renderReport(report)}\n`,
@@ -311,7 +343,7 @@ async function main(argv: string[]): Promise<number> {
       if (argv.includes("--comment")) {
         // Never changes the verdict: a comment that could not be written is
         // said so, and the exit code still decides.
-        const outcome = await upsertReviewComment(renderComment(report));
+        const outcome = await upsertReviewComment(comment());
         process.stderr.write(
           outcome.host === undefined
             ? `no comment written: ${outcome.reason}\n`
@@ -595,6 +627,100 @@ async function main(argv: string[]): Promise<number> {
         process.stdout.write(`left out ${label} ${reason}\n`);
       }
     }
+    return 0;
+  }
+
+  if (command === "scenarios" && argv[1] === "import") {
+    const file = argv[2];
+    if (!file || file.startsWith("--")) {
+      process.stderr.write("scenarios import needs a HAR file or a Postman collection\n");
+      return 1;
+    }
+    const released = [...config.releasedSpecs.keys()];
+    const label =
+      flag(argv, "label") ?? (released.length === 1 ? released[0] : undefined);
+    const known = [
+      ...released,
+      "head",
+      ...(config.currentLabel ? [config.currentLabel] : []),
+    ];
+    if (label === undefined || !known.includes(label)) {
+      // A scenario written against a contract nobody serves compares nothing,
+      // so the label is checked here rather than on the first check --full.
+      process.stderr.write(
+        `${label === undefined ? "Say which contract the recording speaks with --label." : `There is no contract called ${label}.`} ` +
+          `Known: ${known.join(", ")}.\n`,
+      );
+      return 1;
+    }
+    const variables: Record<string, string> = {};
+    for (const pair of flags(argv, "var")) {
+      const at = pair.indexOf("=");
+      if (at <= 0) throw new Error(`--var takes name=value, not ${pair}`);
+      variables[pair.slice(0, at)] = pair.slice(at + 1);
+    }
+    const base = flag(argv, "base");
+    const parsed: unknown = JSON.parse(await readFile(resolve(file), "utf8"));
+    const options = {
+      contract: label,
+      headers: config.scenarios.headers,
+      variables,
+      name: basename(file).replace(/\.[^.]+$/, ""),
+      ...(base === undefined ? {} : { base }),
+    };
+    const isHar =
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "log" in parsed &&
+      typeof parsed.log === "object" &&
+      parsed.log !== null &&
+      "entries" in parsed.log;
+    const made = isHar
+      ? scenariosFromHar(parsed, options)
+      : scenariosFromPostman(parsed, options);
+    const directory = join(config.invariantDir, "scenarios");
+    await mkdir(directory, { recursive: true });
+    for (const scenario of made.scenarios) {
+      const slug = scenario.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      const path = join(directory, `${label}-${slug || "imported"}.yaml`);
+      // A file already there may have been edited, and is the provider's.
+      if (existsSync(path)) {
+        process.stdout.write(
+          `kept ${relative(process.cwd(), path)}, which is already there\n`,
+        );
+        continue;
+      }
+      await writeFile(
+        path,
+        scenarioYaml(
+          scenario,
+          `Made by \`invariant scenarios import\` from ${basename(file)}.\n` +
+            "Yours now: edit the values, add steps, or delete it. A value an\n" +
+            "earlier answer minted is captured and referred to, so a fresh build's\n" +
+            "own ids are the ones sent.",
+        ),
+        "utf8",
+      );
+      process.stdout.write(`wrote ${relative(process.cwd(), path)}\n`);
+    }
+    for (const reason of made.skipped) process.stdout.write(`left out ${reason}\n`);
+    return 0;
+  }
+
+  if (command === "history" && argv[1] === "import") {
+    const entries = argv
+      .slice(2)
+      .filter((arg) => !arg.startsWith("--") && arg !== flag(argv, "config"))
+      .map((arg) => {
+        const at = arg.indexOf("=");
+        if (at < 1) throw new Error(`history import takes <label>=<spec>, not ${arg}`);
+        return { label: arg.slice(0, at), spec: resolve(arg.slice(at + 1)) };
+      });
+    const result = await importHistory(config, entries);
+    process.stdout.write(`${renderHistory(result, config.root)}\n`);
     return 0;
   }
 

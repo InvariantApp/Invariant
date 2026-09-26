@@ -43,3 +43,45 @@ describeDiff("closure", () => {
     expect(breakingEntries(entries).map(describeEntry)).toEqual([]);
   });
 });
+
+describe("a route onto an operation the contract already serves", () => {
+  const operation = (id: string) => ({
+    operationId: id,
+    responses: { "200": { description: "ok" } },
+  });
+  const before = {
+    openapi: "3.1.0",
+    info: { title: "points", version: "1" },
+    paths: {
+      "/points/search": { post: operation("search") },
+      "/points/query": { post: operation("query") },
+    },
+  };
+  const after = {
+    ...before,
+    paths: { "/points/query": { post: operation("query") } },
+  };
+
+  it("is refused, and the operation already there is still what closure compares", () => {
+    const prediction = predictDocument(before, after, [
+      {
+        irVersion: 1,
+        id: "chg_search_became_query",
+        summary: "Search is now query.",
+        ops: [
+          {
+            op: "route",
+            from: { method: "post", path: "/points/search" },
+            to: { method: "post", path: "/points/query" },
+          },
+        ],
+      },
+    ]);
+    expect(prediction.issues.map((issue) => issue.message)).toEqual([
+      expect.stringContaining(
+        "which this contract already serves as an operation of its own",
+      ),
+    ]);
+    expect(prediction.document["paths"]).toEqual(after.paths);
+  });
+});

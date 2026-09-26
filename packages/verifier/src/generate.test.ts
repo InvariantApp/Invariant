@@ -163,3 +163,20 @@ describe("scenarios from a document", () => {
     }
   });
 });
+
+describe("a document served under a path", () => {
+  it("asks under the servers' path, where the service answers", () => {
+    const made = scenariosFromDocument(
+      {
+        ...DOCUMENT,
+        servers: [{ url: "/api" }],
+      } as unknown as OpenApiDocument,
+      "2026-01-15",
+    );
+    const paths = made.scenarios.flatMap((scenario) =>
+      scenario.steps.map((step) => step.path),
+    );
+    expect(paths.length).toBeGreaterThan(0);
+    expect(paths.every((path) => path.startsWith("/api/v1/"))).toBe(true);
+  });
+});

@@ -1,0 +1,28 @@
+# Qdrant 1.18 -> 1.19, configured the way a stranger to Invariant would from
+# the docs alone: the two published documents, the Changes committed for the
+# release, and the released images. Qdrant is written in Rust, so production
+# runs the proxy in front of it, and so does the full check.
+api: qdrant
+spec:
+  current: specs/v1.19.0.json
+  currentLabel: v1.19.0
+  released:
+    v1.18.0: specs/v1.18.0.json
+
+# Nobody names a contract yet: every caller is on the release before this one.
+identity:
+  - kind: default
+    label: v1.18.0
+
+build:
+  head:
+    image: qdrant/qdrant:v1.19.0@sha256:057ee3a8da769fe7310dd3537b4dc7583bf87a95ce8ac43c0af5a46bc580d1fc
+    port: 6333
+    proxy: true
+  contracts:
+    v1.18.0:
+      image: qdrant/qdrant:v1.18.0@sha256:b3063c673f3973877c038eeecc392bad5011f072ee7892b56c9a8e204a3bdea9
+      port: 6333
+  healthPath: /readyz
+  readyTimeout: 120
+  startPer: contract

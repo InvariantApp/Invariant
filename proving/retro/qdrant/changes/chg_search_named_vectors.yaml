@@ -1,0 +1,17 @@
+# Written by hand, with chg_search_became_query: a search could name the
+# vector it searched with inside `vector` ({name, vector}); a query names it
+# in `using`, beside the query. Taking a value out of one branch of a union
+# into a sibling field is not a shape op, so an old caller searching a named
+# vector is acknowledged, not served. A plain vector, the common case, is.
+irVersion: 1
+id: chg_search_named_vectors
+summary: "A search by a named or sparse vector is not served as a query."
+scopes: []
+ops:
+  - op: behavior
+    flag: search_named_vectors
+    covers:
+      - "request-property-any-of-removed at POST /collections/{collection_name}/points/query: removed `#/components/schemas/NamedSparseVector, #/components/schemas/NamedVector` from the `query` request property `anyOf` list"
+      - "request-property-became-nullable at POST /collections/{collection_name}/points/query: the request property `query/anyOf[subschema #1 -> subschema #2]/` became nullable"
+assertions:
+  side_effects_unchanged: true

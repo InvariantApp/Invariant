@@ -134,6 +134,27 @@ server sent none, none where it sent one, a different kind of value, or a
 different value where the old server gave the same one on both of its runs
 is a wrong site, and the report lists each with what the old server said.
 
+### The full check, from a stranger's configuration
+
+`servers/gate/<project>/` holds what a provider would commit to run
+`invariant check --full` on each project's latest pair: an `invariant.yaml`
+written from the docs alone, and a Compose file where the server needs a
+database. `servers/gate.mts` puts beside it what their repository would
+already hold, the two documents and the Changes committed under `changes/`,
+and runs the check exactly as the command does: the old release's image as
+the old build, the new one behind the proxy running the program the check
+compiled, asked the scenarios the old document describes. Retroactive
+onboarding is proven the same way on Qdrant (`retro/qdrant.mts`: history
+imported, drafts answered, the check run against the running 1.18), and
+`invariant observe` in front of Jellyfin 10.11 (`observe/jellyfin.mts`). The
+**Full check on real servers** workflow runs all three.
+
+```console
+node --import tsx proving/servers/gate.mts qdrant   # needs Docker
+node --import tsx proving/retro/qdrant.mts
+node --import tsx proving/observe/jellyfin.mts
+```
+
 ## The soak
 
 `soak/soak.mts` is L11: the sidecar, exactly as a provider runs it, in front
