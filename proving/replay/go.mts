@@ -29,6 +29,7 @@ import {
   requirementsOf,
   type SurfaceObject,
 } from "@invariant-app/migrate-go";
+import { goGithubBreaking } from "./github.mts";
 import { goGithubContract, operationsListing } from "./gogithub.mts";
 import type { ReplayCase } from "./mine.mts";
 import { stripeGoPlan } from "./stripe.mts";
@@ -226,6 +227,22 @@ export async function replayGo(
     }
     if (contract || stripe) result.engine = "contract";
     if (stripe?.breaking) result.breaking = stripe.breaking;
+    // go-github says which description of GitHub's API each release was
+    // generated from, so what the API broke between the two is known.
+    if (family === "github.com/google/go-github") {
+      try {
+        const broken = await goGithubBreaking(
+          await downloadModule(from.path, from.version, options, cache),
+          await downloadModule(to.path, to.version, options, cache),
+        );
+        if (broken) result.breaking = broken;
+      } catch (error) {
+        result.notes.push({
+          root,
+          github: (error instanceof Error ? error.message : String(error)).slice(0, 200),
+        });
+      }
+    }
     const plan = buildGoPlan(
       contract?.changes ?? stripe?.changes ?? [],
       {
