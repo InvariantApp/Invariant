@@ -545,6 +545,9 @@ importers:
 
   packages/migrate-core:
     dependencies:
+      '@invariant-app/decimal':
+        specifier: workspace:*
+        version: link:../decimal
       '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
@@ -584,9 +587,6 @@ importers:
 
   packages/migrate-ts:
     dependencies:
-      '@invariant-app/decimal':
-        specifier: workspace:*
-        version: link:../decimal
       '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir

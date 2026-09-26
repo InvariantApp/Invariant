@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { parsePython } from "./syntax.ts";
-import { rejected, unpackingsIn, usesOfImported, writtenOut } from "./unpacked.ts";
+import {
+  keyToken,
+  onlyUnpacked,
+  rejected,
+  unpackingsIn,
+  usesOfImported,
+  writtenOut,
+} from "./unpacked.ts";
 
 describe("dictionaries unpacked into a call", () => {
   it("reads the keys a name is bound to in its scope, closures included", async () => {
@@ -122,5 +129,32 @@ describe("the uses of an imported name", () => {
     const first = shadowed.rootNode.namedChildren[0];
     expect(first ? usesOfImported(shadowed, "CRD", first) : undefined).toEqual([]);
     shadowed.delete();
+  });
+});
+
+describe("a dictionary kept only to unpack into one call", () => {
+  it("is one used for nothing but building it and unpacking it", async () => {
+    const text = [
+      "def only(name):",
+      '    params = {"nickname": name}',
+      '    params["email"] = "a@example.com"',
+      '    params.setdefault("fax", "")',
+      "    return client.create(**params)",
+      "",
+      "def logged(name):",
+      '    params = {"nickname": name}',
+      "    print(params)",
+      "    return client.create(**params)",
+      "",
+    ].join("\n");
+    const tree = await parsePython(text);
+    const found = unpackingsIn(tree);
+    expect(found.map(onlyUnpacked)).toEqual([true, false]);
+    expect((found[0]?.keys ?? []).map((key) => keyToken(key)?.text)).toEqual([
+      '"nickname"',
+      '"email"',
+      '"fax"',
+    ]);
+    tree.delete();
   });
 });
