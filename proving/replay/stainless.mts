@@ -35,18 +35,31 @@ export const STAINLESS: Record<string, string> = {
   openai: "openai/openai-python",
 };
 
+/**
+ * The npm packages Stainless generates, their repositories, and how each tags
+ * a release: openai-node as `v4.80.0`, the Anthropic SDK as `sdk-v0.40.0`.
+ */
+export const STAINLESS_NPM: Record<string, { repo: string; tag: string }> = {
+  openai: { repo: "openai/openai-node", tag: "v" },
+  "@anthropic-ai/sdk": { repo: "anthropics/anthropic-sdk-typescript", tag: "sdk-v" },
+};
+
 const URLS = join(SPECS, "stainless-specs.json");
 
 /** The specification a release was built from, as its `.stats.yml` names it. */
-async function specUrl(pkg: string, version: string): Promise<string> {
+async function specUrl(
+  pkg: string,
+  version: string,
+  release: { repo: string; tag: string } = { repo: STAINLESS[pkg] as string, tag: "v" },
+): Promise<string> {
   const known: Record<string, string> = existsSync(URLS)
     ? (JSON.parse(readFileSync(URLS, "utf8")) as Record<string, string>)
     : {};
-  const key = `${pkg}@${version}`;
+  const key = `${release.repo}@${version}`;
   const cached = known[key];
   if (cached) return cached;
   const response = await fetch(
-    `https://raw.githubusercontent.com/${STAINLESS[pkg]}/v${version}/.stats.yml`,
+    `https://raw.githubusercontent.com/${release.repo}/${release.tag}${version}/.stats.yml`,
   );
   const url = response.ok
     ? /^openapi_spec_url:\s*(\S+)/m.exec(await response.text())?.[1]
@@ -120,4 +133,32 @@ export async function stainlessPlan(
             join(SPECS, "breaking", `${before.name}-${after.name}.json`),
           ),
   };
+}
+
+/**
+ * What the API broke between two releases of a Stainless npm SDK, for judging
+ * which sites an upgrade forced; the TypeScript engine is not told Changes
+ * from it.
+ */
+export async function stainlessNpmBreaking(
+  pkg: string,
+  from: string,
+  to: string,
+): Promise<string[] | undefined> {
+  const release = STAINLESS_NPM[pkg];
+  if (!release) return undefined;
+  const [oldUrl, newUrl] = [
+    await specUrl(pkg, from, release),
+    await specUrl(pkg, to, release),
+  ];
+  if (oldUrl === newUrl) return [];
+  const [before, after] = await Promise.all([
+    specification(oldUrl),
+    specification(newUrl),
+  ]);
+  return breakingBetween(
+    before.document,
+    after.document,
+    join(SPECS, "breaking", `${before.name}-${after.name}.json`),
+  );
 }
