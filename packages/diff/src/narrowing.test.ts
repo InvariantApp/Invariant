@@ -241,3 +241,128 @@ describe("a request property that moved into every variant of a choice", () => {
     expect(await removed(key(false, false))).not.toEqual([]);
   });
 });
+
+describe("a response that was a choice and is now one of its kinds", () => {
+  // Stripe's cancel_action answered with a reader or a deleted reader, and a
+  // release made it answer with a reader only. The differ read the choice as
+  // an object with no fields, and reported every field of the reader as a
+  // required one added to the response.
+  const answering = (schema: object, nested = false) =>
+    ({
+      openapi: "3.0.3",
+      info: { title: "t", version: "1" },
+      paths: {
+        "/readers/{id}/cancel": {
+          post: {
+            operationId: "cancel",
+            responses: {
+              "200": {
+                description: "ok",
+                content: {
+                  "application/json": {
+                    schema: nested
+                      ? {
+                          type: "object",
+                          required: ["reader"],
+                          properties: { reader: schema },
+                        }
+                      : schema,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          Reader: {
+            type: "object",
+            required: ["id", "label"],
+            properties: { id: { type: "string" }, label: { type: "string" } },
+          },
+          Deleted: {
+            type: "object",
+            required: ["id", "deleted"],
+            properties: { id: { type: "string" }, deleted: { type: "boolean" } },
+          },
+          Other: {
+            type: "object",
+            required: ["serial"],
+            properties: { serial: { type: "string" } },
+          },
+        },
+      },
+    }) as unknown as OpenApiDocument;
+  const reader = { $ref: "#/components/schemas/Reader" };
+  const deleted = { $ref: "#/components/schemas/Deleted" };
+  const other = { $ref: "#/components/schemas/Other" };
+  const required = async (before: object, after: object, nested = false) =>
+    (await diffDocuments(answering(before, nested), answering(after, nested)))
+      .filter((entry) => entry.id === "response-required-property-added")
+      .map((entry) => entry.text);
+
+  it("adds no required property to the response", async () => {
+    expect(await required({ anyOf: [reader, deleted] }, reader)).toEqual([]);
+    expect(await required({ oneOf: [reader, deleted] }, { oneOf: [deleted] })).toEqual(
+      [],
+    );
+    expect(await required({ anyOf: [reader, deleted] }, reader, true)).toEqual([]);
+  });
+
+  it("still does where the kind it answers with now is one it never gave", async () => {
+    expect(await required({ anyOf: [reader, deleted] }, other)).toEqual([
+      "added the required property `serial` to the response with the `200` status",
+    ]);
+  });
+});
+
+describe("a request field whose list of values is open", () => {
+  // Stripe's reason for rejecting an account was any text, and became seven
+  // names the server does not hold callers to.
+  const rejecting = (reason: object) =>
+    ({
+      openapi: "3.0.3",
+      info: { title: "t", version: "1" },
+      paths: {
+        "/accounts/{id}/reject": {
+          post: {
+            operationId: "reject",
+            requestBody: {
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    required: ["reason"],
+                    properties: { reason },
+                  },
+                },
+              },
+            },
+            responses: { "200": { description: "ok" } },
+          },
+        },
+      },
+    }) as unknown as OpenApiDocument;
+  const restricted = async (before: object, after: object) =>
+    (await diffDocuments(rejecting(before), rejecting(after)))
+      .filter((entry) => entry.id === "request-property-became-enum")
+      .map((entry) => entry.text);
+  const text = { type: "string", maxLength: 5000 };
+  const names = { type: "string", enum: ["credit", "fraud_other", "other"] };
+
+  it("is not reported, since what old callers send is still taken", async () => {
+    expect(
+      await restricted(text, { ...names, "x-stripeBypassValidation": true }),
+    ).toEqual([]);
+    expect(
+      await restricted(text, { ...names, "x-stripeEnum": { kind: "open" } }),
+    ).toEqual([]);
+  });
+
+  it("is still reported where the list is closed", async () => {
+    expect(await restricted(text, names)).toEqual([
+      "request property `reason` was restricted to a list of enum values",
+    ]);
+  });
+});

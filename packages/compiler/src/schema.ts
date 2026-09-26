@@ -271,8 +271,19 @@ export function schemaMove(
   const toSegments = parsePointer(to);
   const slot = readSlot(document, root, fromSegments);
   const moved = clone(slot.schema);
+  // A value moved beneath its own place, as Stripe's `billing_cycle_anchor`
+  // became an object holding it as `type`: the object is built from the
+  // value, so the value is always in it, and the object is there exactly
+  // when the value was.
+  const beneath =
+    toSegments.length > fromSegments.length &&
+    fromSegments.every((segment, index) => segment === toSegments[index]);
   deleteSlot(document, root, fromSegments);
-  writeSlot(document, root, toSegments, moved, slot.required);
+  writeSlot(document, root, toSegments, moved, beneath || slot.required);
+  if (beneath && !WILDCARD_KEYWORD[fromSegments.at(-1) as string]) {
+    const { parent, last } = parentFor(document, root, fromSegments, false);
+    setRequired(parent, last, slot.required);
+  }
   pruneEmptyObjects(document, root, fromSegments);
 }
 
@@ -719,6 +730,17 @@ export function schemaConvert(
  * that is a string, null needs a union that allows null, and a field left out
  * needs a field that may be left out.
  */
+/** What an id is held to, which moves with it into a union's text branch. */
+const ID_KEYWORDS: ReadonlySet<string> = new Set([
+  "type",
+  "format",
+  "pattern",
+  "maxLength",
+  "minLength",
+  "enum",
+  "const",
+]);
+
 export function schemaWiden(
   document: OpenApiDocument,
   root: JsonObject,
@@ -742,7 +764,23 @@ export function schemaWiden(
     : Array.isArray(union["oneOf"])
       ? "oneOf"
       : undefined;
-  if (!key) throw new SchemaOpError(`${path} is not a union`);
+  if (!key) {
+    // An id that became expandable, as Stripe made the `mandate` of a card
+    // payment an id or the mandate: what the id was held to moves into the
+    // union's text branch, and the rest, its description and whether it may
+    // be null, stays on the field.
+    if (show !== "id" || union["type"] !== "string") {
+      throw new SchemaOpError(`${path} is not a union`);
+    }
+    const id: JsonObject = {};
+    for (const keyword of Object.keys(union)) {
+      if (!ID_KEYWORDS.has(keyword)) continue;
+      id[keyword] = union[keyword] as JsonValue;
+      delete union[keyword];
+    }
+    union["anyOf"] = [id, branch];
+    return;
+  }
   const branches = union[key] as JsonValue[];
   const written = JSON.stringify(branch);
   if (branches.some((each) => JSON.stringify(each) === written)) {

@@ -17,8 +17,19 @@
  *   c. against the mock on the new commit, through the proxy running the
  *      program `invariant check` compiled for the pair. The Changes are the
  *      proposer's drafts, with every decision they leave open answered by the
- *      auto-provider, each answer labelled synthetic; or, where a pair has
- *      Changes committed under `changes/<from>..<to>/`, those.
+ *      auto-provider, each answer labelled synthetic; and beside them, where
+ *      a pair has any, the Changes a provider wrote for what no draft can
+ *      say, committed under `changes/<from>..<to>/`.
+ *
+ * One thing is written here, and it is the mock's to answer for: a field
+ * whose values the specification lists and marks `x-stripeBypassValidation`
+ * is one Stripe's servers do not hold callers to, and stripe-mock holds them
+ * to it anyway. Stripe's reason for rejecting an account became seven names
+ * so marked, and the mock refused the `fraud` an old SDK sends, which Stripe
+ * takes. The mock is given each specification with those lists taken off the
+ * fields so marked, in every arm, so it answers as the servers the
+ * specification describes; the gate, the proxy and the oracle read it as it
+ * was published.
  *
  * Suite-green is recorded, and is not the measure: the mock's answers are
  * canned and the SDKs are leniently typed, so a suite passes through a great
@@ -404,6 +415,30 @@ async function waitFor(url: string, what: string, timeoutMs: number): Promise<vo
   throw new Error(`${what} did not answer at ${url} within ${timeoutMs / 1000}s`);
 }
 
+/**
+ * The specification as the mock is given it: every list of values marked
+ * `x-stripeBypassValidation` taken off its field, so the mock takes what
+ * Stripe's servers take. Written beside the pinned document.
+ */
+async function forTheMock(spec: string): Promise<string> {
+  const opened = spec.replace(/\.json$/, ".mock.json");
+  if (existsSync(opened)) return opened;
+  const open = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      for (const item of node) open(item);
+      return;
+    }
+    if (node === null || typeof node !== "object") return;
+    const schema = node as Record<string, unknown>;
+    if (schema["x-stripeBypassValidation"] === true) delete schema["enum"];
+    for (const value of Object.values(schema)) open(value);
+  };
+  const document = JSON.parse(await readFile(spec, "utf8")) as unknown;
+  open(document);
+  await writeFile(opened, JSON.stringify(document), "utf8");
+  return opened;
+}
+
 async function startMock(
   binary: string,
   documents: { spec: string; fixtures: string },
@@ -414,7 +449,7 @@ async function startMock(
       "-http-addr",
       `127.0.0.1:${MOCK_PORT}`,
       "-spec",
-      documents.spec,
+      await forTheMock(documents.spec),
       "-fixtures",
       documents.fixtures,
     ],

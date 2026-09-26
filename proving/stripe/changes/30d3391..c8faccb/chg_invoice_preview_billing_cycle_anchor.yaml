@@ -1,0 +1,17 @@
+# Written by hand, as the provider would: what no op can say.
+#
+# An invoice preview's `subscription_details.billing_cycle_anchor` was `now`,
+# `unchanged` or a timestamp, and is now an object whose `type` says which,
+# with the timestamp beside it. Which object an old value becomes depends on
+# what kind of value it is, and no op branches on that, so the provider takes
+# an old caller's value as it was in its own code.
+irVersion: 1
+id: chg_invoice_preview_billing_cycle_anchor
+summary: An invoice preview's billing cycle anchor is an object saying which kind of anchor it is.
+ops:
+  - op: behavior
+    flag: invoice_preview_billing_cycle_anchor_value
+    covers:
+      - "new-required-request-property at POST /v1/invoices/create_preview: added the new required request property `subscription_details/billing_cycle_anchor/type`"
+      - "request-property-any-of-removed at POST /v1/invoices/create_preview: removed `subschema #1, subschema #2` from the `subscription_details/billing_cycle_anchor` request property `anyOf` list"
+      - "request-property-type-changed at POST /v1/invoices/create_preview: the `subscription_details/billing_cycle_anchor` request property `type` changed from `any` to `object`"

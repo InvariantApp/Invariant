@@ -1337,6 +1337,32 @@ function alteredProposals(
   for (const delta of deltas) {
     const sides = delta.altered.length > 0 ? sidesOfDelta(oldContract, delta) : undefined;
     for (const pair of delta.altered) {
+      const holder = heldBeneath(newContract, delta, pair, sides ?? NEITHER);
+      if (holder !== undefined) {
+        proposals.push({
+          change: {
+            irVersion: 1,
+            id: `chg_${slug(delta.schema)}_${slug(pair.old.name)}`,
+            summary: `\`${pair.old.name}\` on ${delta.schema} is now an object holding it as \`${holder}\`.`,
+            scopes: [scopeOf(delta)],
+            ops: [
+              {
+                op: "move",
+                from: pair.old.pointer,
+                to: `${pair.new.pointer}/${holder.replaceAll("~", "~0").replaceAll("/", "~1")}`,
+              },
+            ],
+            provenance: { proposed_by: { judge: "rules", confidence: 1 } },
+          },
+          judge: "rules",
+          confidence: 1,
+          attention: "normal",
+          notes: [
+            `\`${pair.old.name}\` became an object whose one required field, \`${holder}\`, holds what it held`,
+          ],
+        });
+        continue;
+      }
       const narrowed = narrowOps(pair.old, pair.new, sides ?? NEITHER);
       // A list whose items stopped accepting values old callers may send:
       // those values are left out of the list, and the rest is served.
@@ -1356,12 +1382,14 @@ function alteredProposals(
         (sides ?? NEITHER).request &&
         retiredValues(pair, !(sides ?? NEITHER).response) !== undefined;
       const reshaped = valuesDiffer(pair.old, pair.new);
+      const widened = widenOps(pair.old, pair.new, sides ?? NEITHER);
       // A vocabulary that grew is asked about as a fold decision, and the
       // rest of what changed about the field is still drafted below.
       if (
         reshaped &&
         shape.ops.length === 0 &&
         narrowed.ops.length === 0 &&
+        widened.ops.length === 0 &&
         !foldCovers(pair, sides ?? NEITHER) &&
         !onlyUnstated(pair.old, pair.new) &&
         typesWidened(pair.old, pair.new).type === undefined &&
@@ -1395,7 +1423,6 @@ function alteredProposals(
           why: question.why,
         });
       }
-      const widened = widenOps(pair.old, pair.new, sides ?? NEITHER);
       if (widened.unresolved) {
         unresolved.push({
           schema: delta.schema,
@@ -1404,12 +1431,16 @@ function alteredProposals(
           side: "removed",
         });
       }
-      const relaxed = restatedBounds(
-        pair.old,
-        pair.new,
-        sides ?? NEITHER,
-        relaxOps(pair.old, pair.new, sides ?? NEITHER),
-      );
+      // The bounds of an id that became expandable stay on the id, which the
+      // widen writes as the union's text branch.
+      const relaxed = becameExpandable(pair.old, pair.new)
+        ? { ops: [], notes: [] }
+        : restatedBounds(
+            pair.old,
+            pair.new,
+            sides ?? NEITHER,
+            relaxOps(pair.old, pair.new, sides ?? NEITHER),
+          );
       // A vocabulary that opened into a choice of text is written as that
       // choice, which allows nothing the relaxed field does not, and the
       // compiler proves it before it writes it.
@@ -1516,6 +1547,55 @@ const NEITHER = { request: false, response: false };
  * moved, which is all the differ reads as a change where nothing old callers
  * send or are sent was ruled out.
  */
+/**
+ * The one field of the object a value became, where that field holds what the
+ * value held. Stripe's `billing_cycle_anchor` on resuming a subscription was
+ * `now` or `unchanged`, and became an object whose required `type` is `now` or
+ * `unchanged`: an old caller's value is moved beneath its own place, and the
+ * object built there. Where old callers are sent the object, it may hold
+ * nothing else, or taking the value out of it would drop the rest.
+ */
+function heldBeneath(
+  newContract: OpenApiDocument,
+  delta: SchemaDelta,
+  pair: SchemaDelta["altered"][number],
+  sides: { request: boolean; response: boolean },
+): string | undefined {
+  const { old, new: next } = pair;
+  if (old.type === undefined || !SCALARS.has(old.type) || next.type !== "object") {
+    return undefined;
+  }
+  if (old.name.split(".").at(-1) !== next.name.split(".").at(-1)) return undefined;
+  const ref = `#/components/schemas/${delta.newSchema.replaceAll("~", "~0").replaceAll("/", "~1")}`;
+  const root =
+    delta.roots?.new ??
+    (resolveRef(newContract, ref) === undefined ? undefined : { $ref: ref });
+  if (root === undefined) return undefined;
+  let object: JsonValue | undefined;
+  try {
+    const written = statementAt(newContract, root, next.pointer);
+    object = written === undefined ? undefined : resolveSchema(newContract, written);
+  } catch {
+    return undefined;
+  }
+  if (!isJsonObject(object)) return undefined;
+  const properties = object["properties"];
+  const required = object["required"];
+  if (!isJsonObject(properties) || !Array.isArray(required) || required.length !== 1) {
+    return undefined;
+  }
+  const [holder] = required;
+  if (typeof holder !== "string" || properties[holder] === undefined) return undefined;
+  if (sides.response && Object.keys(properties).length !== 1) return undefined;
+  const held = resolveSchema(newContract, properties[holder] as JsonValue);
+  if (!isJsonObject(held) || held["type"] !== old.type) return undefined;
+  const values = held["enum"];
+  if (old.enumValues === undefined) return values === undefined ? holder : undefined;
+  return Array.isArray(values) && old.enumValues.every((value) => values.includes(value))
+    ? holder
+    : undefined;
+}
+
 function sameValues(
   oldContract: OpenApiDocument,
   newContract: OpenApiDocument,
@@ -1787,6 +1867,10 @@ export function narrowOps(
  * be, which for the items of a list means left out of the list. A union that
  * allows none of those has nothing to show, and says so.
  *
+ * A field that was only ever an id and became expandable, as Stripe made the
+ * `mandate` of a card payment an id or the mandate itself, is the same: the id
+ * old callers were sent is the union's text branch, and each object is new.
+ *
  * A union in a request that accepts more breaks nobody, and is left alone.
  */
 export function widenOps(
@@ -1800,19 +1884,25 @@ export function widenOps(
   const gained = (next.variants ?? []).filter(
     (ref) => !known.has(ref.slice(ref.lastIndexOf("/") + 1)),
   );
-  if (!sides.response || old.variants === undefined || gained.length === 0) {
+  const expandable = becameExpandable(old, next);
+  if (
+    !sides.response ||
+    (old.variants === undefined && !expandable) ||
+    gained.length === 0
+  ) {
     return { ops: [], notes: [] };
   }
   // An item of a list is never missing from its place the way a field is,
   // but it can be left out of the list, which is what old callers are shown.
   const item = next.pointer.endsWith("/*");
-  const show = old.idBranch
-    ? "id"
-    : old.nullable
-      ? "null"
-      : !old.required || item
-        ? "absent"
-        : undefined;
+  const show =
+    old.idBranch || expandable
+      ? "id"
+      : old.nullable
+        ? "null"
+        : !old.required || item
+          ? "absent"
+          : undefined;
   const names = gained
     .map((ref) => `\`${ref.slice(ref.lastIndexOf("/") + 1)}\``)
     .join(", ");
@@ -1829,6 +1919,17 @@ export function widenOps(
       `\`${old.name}\` can now hold ${names}, which old callers never heard of; they are shown ${show === "id" ? "its id, as for a field they did not expand" : show === "null" ? "null" : item ? "the item left out of the list" : "the field left out"} instead, a declared loss to acknowledge`,
     ],
   };
+}
+
+/** Whether a field that was plain text became a union of text and named schemas. */
+function becameExpandable(old: FieldShape, next: FieldShape): boolean {
+  return (
+    old.variants === undefined &&
+    old.type === "string" &&
+    old.enumValues === undefined &&
+    next.idBranch === true &&
+    (next.variants?.length ?? 0) > 0
+  );
 }
 
 /** Whether the values a field can hold changed, apart from null and absence. */

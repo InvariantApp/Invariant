@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       rigs:
-        description: Which rigs to run. `servers` runs rig D alone, `corpus` the corpus alone; either records nothing. `judges` records the judges' answers to the labelled corpus and nothing else.
+        description: Which rigs to run. `servers` runs rig D alone, `stripe` rig B alone, `corpus` the corpus alone; each records nothing. `judges` records the judges' answers to the labelled corpus and nothing else.
         type: choice
-        options: [all, servers, corpus, judges]
+        options: [all, servers, stripe, corpus, judges]
         default: all
       servers:
         description: Rig D projects or single pairs to run, comma-separated, as `qdrant` or `qdrant-v1.16.0..v1.17.0`. Empty runs every one.
@@ -21,7 +21,7 @@ on:
 # per branch (and, for rig D, per set of projects), so trying something out
 # never displaces a full run or another trial.
 concurrency:
-  group: ${{ inputs.rigs == 'servers' && format('proving-servers-{0}-{1}', github.ref, inputs.servers) || inputs.rigs == 'corpus' && format('proving-corpus-{0}', github.ref) || inputs.rigs == 'judges' && format('proving-judges-{0}', github.ref) || 'proving' }}
+  group: ${{ inputs.rigs == 'servers' && format('proving-servers-{0}-{1}', github.ref, inputs.servers) || inputs.rigs == 'stripe' && format('proving-stripe-{0}', github.ref) || inputs.rigs == 'corpus' && format('proving-corpus-{0}', github.ref) || inputs.rigs == 'judges' && format('proving-judges-{0}', github.ref) || 'proving' }}
   cancel-in-progress: false
 
 jobs:
@@ -77,7 +77,7 @@ jobs:
 
   corpus:
     name: corpus (shard ${{ matrix.shard }} of 8)
-    if: inputs.rigs != 'servers' && inputs.rigs != 'judges'
+    if: inputs.rigs != 'servers' && inputs.rigs != 'stripe' && inputs.rigs != 'judges'
     strategy:
       fail-fast: false
       matrix:
@@ -123,7 +123,7 @@ jobs:
 
   traffic:
     name: traffic (rig C)
-    if: inputs.rigs != 'servers' && inputs.rigs != 'corpus' && inputs.rigs != 'judges'
+    if: inputs.rigs != 'servers' && inputs.rigs != 'stripe' && inputs.rigs != 'corpus' && inputs.rigs != 'judges'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -162,7 +162,7 @@ jobs:
 
   swagger:
     name: swagger 2.0 (two converters)
-    if: inputs.rigs != 'servers' && inputs.rigs != 'corpus' && inputs.rigs != 'judges'
+    if: inputs.rigs != 'servers' && inputs.rigs != 'stripe' && inputs.rigs != 'corpus' && inputs.rigs != 'judges'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -202,7 +202,7 @@ jobs:
   # project or a pair is one edit to projects.json.
   servers-plan:
     name: servers (rig D, plan)
-    if: inputs.rigs != 'corpus' && inputs.rigs != 'judges'
+    if: inputs.rigs != 'stripe' && inputs.rigs != 'corpus' && inputs.rigs != 'judges'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
@@ -360,7 +360,7 @@ jobs:
 
   fuzz:
     name: fuzz (rig F)
-    if: inputs.rigs != 'servers' && inputs.rigs != 'corpus' && inputs.rigs != 'judges'
+    if: inputs.rigs != 'servers' && inputs.rigs != 'stripe' && inputs.rigs != 'corpus' && inputs.rigs != 'judges'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -423,7 +423,7 @@ jobs:
 
   replay-mine:
     name: replay miner (rig E)
-    if: inputs.rigs != 'servers' && inputs.rigs != 'corpus' && inputs.rigs != 'judges'
+    if: inputs.rigs != 'servers' && inputs.rigs != 'stripe' && inputs.rigs != 'corpus' && inputs.rigs != 'judges'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     # Reads pull request metadata through the API and commits only the index.
@@ -467,7 +467,7 @@ jobs:
     # pool, so run beside forty other jobs it timed this workflow's own queue.
     # A Linux p95 of 13.5 minutes was checks waiting behind the corpus shards.
     needs: [corpus, traffic, swagger, servers, stripe, fuzz, threats]
-    if: ${{ !cancelled() && vars.JOURNEY_ENABLED == 'true' && inputs.rigs != 'servers' && inputs.rigs != 'corpus' && inputs.rigs != 'judges' }}
+    if: ${{ !cancelled() && vars.JOURNEY_ENABLED == 'true' && inputs.rigs != 'servers' && inputs.rigs != 'stripe' && inputs.rigs != 'corpus' && inputs.rigs != 'judges' }}
     strategy:
       fail-fast: false
       max-parallel: 6
@@ -514,7 +514,7 @@ jobs:
     needs: [corpus, traffic, swagger, servers, stripe, fuzz, threats, journey]
     # Every rig's result is gathered even when one of them failed, so the
     # scoreboard says which; nothing is recorded unless all of them passed.
-    if: always() && inputs.rigs != 'servers' && inputs.rigs != 'corpus' && inputs.rigs != 'judges'
+    if: always() && inputs.rigs != 'servers' && inputs.rigs != 'stripe' && inputs.rigs != 'corpus' && inputs.rigs != 'judges'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

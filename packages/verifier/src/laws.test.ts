@@ -308,6 +308,140 @@ describe("the lens laws", () => {
   });
 
   /**
+   * A fold on the values of a list gives old callers a value they know in an
+   * item's place, which cannot be undone. Stripe's endive release added
+   * `blik` to the `payment_method_types` of an invoice's payment settings,
+   * and the fold drafted for it was refused on `["blik"]`: the loss ended at
+   * the list's items, which were never taken out before comparing.
+   */
+  it("hold for a fold on the values of a list", () => {
+    const { old, head } = contracts();
+    for (const [contract, values] of [
+      [old, ["card", "sepa_debit"]],
+      [head, ["card", "sepa_debit", "blik"]],
+    ] as const) {
+      const schemas = (
+        contract["components"] as Record<string, Record<string, Record<string, unknown>>>
+      )["schemas"] as Record<string, Record<string, unknown>>;
+      (schemas["Payment"]?.["properties"] as Record<string, unknown>)["methods"] = {
+        type: "array",
+        items: { type: "string", enum: [...values] },
+      };
+    }
+
+    const report = laws(old, head, [
+      {
+        irVersion: 1,
+        id: "chg_payment_methods_vocabulary",
+        summary: "`methods.*` on Payment can answer with values old callers never saw.",
+        scopes: [{ schema: "#/components/schemas/Payment" }],
+        ops: [
+          {
+            op: "convert",
+            path: "/methods/*",
+            codec: {
+              kind: "enumMap",
+              pairs: [
+                ["card", "card"],
+                ["sepa_debit", "sepa_debit"],
+              ],
+              fold: [["blik", "card"]],
+            },
+          },
+        ],
+        assertions: { loss_acknowledged: true },
+      },
+    ]);
+
+    expect(report.failures).toEqual([]);
+  });
+
+  /**
+   * The places a schema sits inside another are listed only until the walk
+   * would enter a schema it is already inside, and generated values go on
+   * past that. In Stripe's documents a payment method holds a setup attempt,
+   * whose setup intent holds its latest attempt and that attempt's payment
+   * method: a fold on the method's `type` gave old callers another value
+   * there, and the laws refused the release for the loss it had declared.
+   */
+  it("hold for a declared loss past where a schema enters itself", () => {
+    const document = (types: string[]): OpenApiDocument =>
+      ({
+        openapi: "3.1.0",
+        info: { title: "methods", version: "1" },
+        paths: {
+          "/v1/methods/{id}": {
+            get: {
+              operationId: "methods.get",
+              responses: {
+                "200": {
+                  description: "ok",
+                  content: {
+                    "application/json": {
+                      schema: { $ref: "#/components/schemas/Method" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        components: {
+          schemas: {
+            Method: {
+              type: "object",
+              required: ["type"],
+              properties: {
+                type: { type: "string", enum: types },
+                attempt: { $ref: "#/components/schemas/Attempt" },
+              },
+            },
+            Attempt: {
+              type: "object",
+              properties: {
+                intent: {
+                  type: "object",
+                  properties: { latest: { $ref: "#/components/schemas/Attempt" } },
+                },
+                method: { $ref: "#/components/schemas/Method" },
+              },
+            },
+          },
+        },
+      }) as unknown as OpenApiDocument;
+
+    const report = laws(
+      document(["card", "sepa_debit"]),
+      document(["card", "sepa_debit", "sequra"]),
+      [
+        {
+          irVersion: 1,
+          id: "chg_method_type_vocabulary",
+          summary: "`type` on Method can answer with values old callers never saw.",
+          scopes: [{ schema: "#/components/schemas/Method" }],
+          ops: [
+            {
+              op: "convert",
+              path: "/type",
+              codec: {
+                kind: "enumMap",
+                pairs: [
+                  ["card", "card"],
+                  ["sepa_debit", "sepa_debit"],
+                ],
+                fold: [["sequra", "card"]],
+              },
+            },
+          ],
+          assertions: { loss_acknowledged: true },
+        },
+      ],
+    );
+
+    expect(report.failures).toEqual([]);
+  });
+
+  /**
    * A `relax` translates nothing. It declares that a value outside the old
    * bounds passes through as the API produced it, so the old contract refusing
    * that value is the loss it names, not a fault. Qdrant 1.18 lowered
