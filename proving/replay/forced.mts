@@ -36,8 +36,57 @@ const STRUCTURAL = new Set(
     "json",
     "default",
     "subschema",
+    // A type's name, or a word every language spells as a keyword, is written
+    // everywhere and names no element of the API: `None` is not the enum
+    // value `none`.
+    "string",
+    "number",
+    "integer",
+    "boolean",
+    "array",
+    "object",
+    "list",
+    "dict",
+    "none",
+    "null",
+    "true",
+    "false",
   ].map((word) => word.toLowerCase()),
 );
+
+/**
+ * How many schemas may declare a property of one name before the name alone
+ * no longer says which of them a site touches: `type` is a property of 463 of
+ * openai's schemas and `content` of 35, while `function_call` is of 4 and
+ * `amount_refunded` of 2 of Stripe's. Ten is about the ninetieth percentile
+ * of the three.
+ */
+export const MAX_SHARED = 10;
+
+/** How many schemas of a document declare each property name, normalised. */
+export function propertyCounts(document: OpenApiDocument): Map<string, number> {
+  const counts = new Map<string, number>();
+  const walk = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      for (const each of value) walk(each);
+      return;
+    }
+    if (typeof value !== "object" || value === null) return;
+    const properties = (value as { properties?: unknown }).properties;
+    if (
+      typeof properties === "object" &&
+      properties !== null &&
+      !Array.isArray(properties)
+    ) {
+      for (const name of Object.keys(properties)) {
+        counts.set(normalName(name), (counts.get(normalName(name)) ?? 0) + 1);
+      }
+    }
+    for (const each of Object.values(value)) walk(each);
+  };
+  walk(document);
+  return counts;
+}
 
 /** A name as it is compared: without case or underscores. */
 export const normalName = (name: string): string => name.replace(/_/g, "").toLowerCase();
@@ -57,7 +106,11 @@ const naming = (token: string): boolean =>
  * when the operation itself went away, since every other entry on
  * `/v1/messages` would otherwise make `messages` a broken name.
  */
-export function breakingNames(entries: readonly DiffEntry[]): string[] {
+export function breakingNames(
+  entries: readonly DiffEntry[],
+  /** Names too many schemas declare to say which one a site touches. */
+  ambiguous: ReadonlySet<string> = new Set(),
+): string[] {
   const names = new Set<string>();
   for (const entry of breakingEntries(entries)) {
     // An entry that names a schema is about that schema: a variant added to
@@ -75,16 +128,45 @@ export function breakingNames(entries: readonly DiffEntry[]): string[] {
         if (naming(token)) names.add(normalName(token));
     }
   }
-  return [...names].sort();
+  return [...names].filter((name) => !ambiguous.has(name)).sort();
 }
 
-/** The first broken name a site's lines use, or undefined when the site is a choice. */
+/**
+ * The names a line writes where an element of an API can be named: inside a
+ * string (a key, a value, `"amount_refunded"`), read as a member
+ * (`.amount_refunded`, Go's `.AmountRefunded`), as a keyword or an object's
+ * key (`expand=`, `amountRefunded:`), or as a type (`PaymentIntent`). A bare
+ * lowercase name is the consumer's own variable, whatever the API calls its
+ * fields: `result` in `"content": result` is not the property `result`.
+ */
+export function namesWritten(line: string): string[] {
+  const found: string[] = [];
+  for (const match of line.matchAll(/(["'`])((?:\\.|(?!\1)[^\\])*)\1/g)) {
+    found.push(...tokens(match[2] ?? ""));
+  }
+  const bare = line.replace(/(["'`])(?:\\.|(?!\1)[^\\])*\1/g, " ");
+  for (const pattern of [
+    /\.\s*([A-Za-z_]\w*)/g,
+    // An object's key or a struct's field, wherever a key can start.
+    /(?:^|[(,{])\s*([A-Za-z_]\w*)\s*:(?![=:])/g,
+    // A keyword argument: after `(` or `,`, or alone on its line written
+    // without spaces, which an assignment to a local is not.
+    /[(,]\s*([A-Za-z_]\w*)\s*=(?!=)/g,
+    /^\s*([A-Za-z_]\w*)=(?!=)/g,
+    /\b([A-Z][a-z0-9]+[A-Z]\w*)\b/g,
+  ]) {
+    for (const match of bare.matchAll(pattern)) found.push(match[1] as string);
+  }
+  return [...new Set(found)];
+}
+
+/** The first broken name a site's lines write, or undefined when the site is a choice. */
 export function forcedBy(
   lines: readonly string[],
   names: ReadonlySet<string>,
 ): string | undefined {
   for (const line of lines) {
-    for (const token of tokens(line)) {
+    for (const token of namesWritten(line)) {
       if (naming(token) && names.has(normalName(token))) return token;
     }
   }
@@ -105,7 +187,16 @@ export async function breakingBetween(
   try {
     // Only the breaking entries are needed, and the full changelog between
     // releases years apart is too large to hold.
-    const names = breakingNames(await diffDocuments(before, after, { mode: "breaking" }));
+    const counts = [propertyCounts(before), propertyCounts(after)];
+    const ambiguous = new Set(
+      counts.flatMap((each) =>
+        [...each].filter(([, count]) => count > MAX_SHARED).map(([name]) => name),
+      ),
+    );
+    const names = breakingNames(
+      await diffDocuments(before, after, { mode: "breaking" }),
+      ambiguous,
+    );
     await mkdir(dirname(cache), { recursive: true });
     await writeFile(cache, `${JSON.stringify(names)}\n`);
     return names;

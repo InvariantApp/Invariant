@@ -402,6 +402,64 @@
     }
   },
   {
+    "id": "aaronsb/knowledge-graph-system#556",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "3.14.1",
+      "3.14.1"
+    ],
+    "sites": 12,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 11,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "newCode": 1,
+      "contested": 1
+    },
+    "byClass": {
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 1
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 8,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "abtris/hugo-netlify-autoupdater#180",
     "language": "go",
     "package": "github.com/google/go-github",
@@ -761,7 +819,7 @@
     "flagged": 1,
     "missed": 19,
     "extra": 0,
-    "extraFlags": 13,
+    "extraFlags": 15,
     "newCode": 0,
     "inScope": {
       "sites": 0,
@@ -897,6 +955,63 @@
         "differs": 0,
         "flagged": 2,
         "missed": 0,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "AgentFoundryExamples/spec-compiler#52",
+    "language": "python",
+    "package": "openai",
+    "engine": "contract",
+    "versions": [
+      "1.58.1",
+      "2.14.0"
+    ],
+    "sites": 114,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 114,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
+      "contested": 27
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 80,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 7,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 27,
         "new": 0
       }
     }
@@ -1586,6 +1701,48 @@
     }
   },
   {
+    "id": "anotherai-dev/anotherai#436",
+    "language": "python",
+    "package": "openai",
+    "engine": "contract",
+    "versions": [
+      "1.102.0",
+      "2.2.0"
+    ],
+    "sites": 5,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 5,
+    "extra": 0,
+    "extraFlags": 6,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 5,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "ansys/review-bot#120",
     "language": "python",
     "package": "openai",
@@ -1616,6 +1773,49 @@
         "differs": 0,
         "flagged": 6,
         "missed": 7,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "apache/airflow#69068",
+    "language": "python",
+    "package": "openai",
+    "engine": "contract",
+    "versions": [
+      "1.66.0",
+      "2.37.0"
+    ],
+    "sites": 7,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 7,
+    "extra": 0,
+    "extraFlags": 1,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 6
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 6,
         "new": 0
       }
     }
@@ -2443,6 +2643,71 @@
     }
   },
   {
+    "id": "Azure-Samples/azure-search-openai-demo#2752",
+    "language": "python",
+    "package": "openai",
+    "engine": "contract",
+    "versions": [
+      "1.99.8",
+      "2.6.1"
+    ],
+    "sites": 116,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 2,
+    "missed": 112,
+    "extra": 0,
+    "extraFlags": 2,
+    "newCode": 2,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
+      "contested": 5,
+      "newCode": 2
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 102,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 5,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 5,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 2
+      }
+    }
+  },
+  {
     "id": "Azure-Samples/rag-with-azure-ai-search-notebooks#6",
     "language": "python",
     "package": "openai",
@@ -2515,6 +2780,56 @@
         "differs": 0,
         "flagged": 0,
         "missed": 3,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "Azure/gpt-rag-ingestion#83",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.42.0"
+    ],
+    "sites": 70,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 12,
+    "missed": 58,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 25
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 12,
+        "missed": 26,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 25,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 7,
         "new": 0
       }
     }
@@ -2628,6 +2943,129 @@
         "flagged": 0,
         "missed": 0,
         "new": 0
+      }
+    }
+  },
+  {
+    "id": "basecradle/basecradle-harness#411",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.53.0",
+      "3.1.0"
+    ],
+    "sites": 9,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 7,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 2,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 1,
+      "newCode": 2
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 4,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 2
+      }
+    }
+  },
+  {
+    "id": "baserun-ai/baserun-py#75",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.2",
+      "1.1.1"
+    ],
+    "sites": 136,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 78,
+    "missed": 57,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 1,
+    "inScope": {
+      "sites": 1,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 1,
+      "unclassified": 0,
+      "contested": 13,
+      "newCode": 1
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 76,
+        "missed": 36,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 13,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 7,
+        "new": 0
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 1
       }
     }
   },
@@ -5115,6 +5553,56 @@
     }
   },
   {
+    "id": "COXIT-CO/RecruitFlowAI#48",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.9",
+      "1.2.3"
+    ],
+    "sites": 29,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 9,
+    "missed": 20,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 2
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 12,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 1,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 8,
+        "missed": 7,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "Cray-HPE/canu#215",
     "language": "python",
     "package": "kubernetes",
@@ -5146,6 +5634,64 @@
         "flagged": 0,
         "missed": 1,
         "new": 0
+      }
+    }
+  },
+  {
+    "id": "Creed-Space/METTLE#57",
+    "language": "python",
+    "package": "anthropic",
+    "engine": "verify",
+    "versions": [
+      "0.122.0",
+      "1.8.0"
+    ],
+    "sites": 16,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 15,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 2,
+      "newCode": 1
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 7,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 6,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 1
       }
     }
   },
@@ -5325,6 +5871,55 @@
     }
   },
   {
+    "id": "Daita-Corp/daita-agents#36",
+    "language": "python",
+    "package": "openai",
+    "engine": "contract",
+    "versions": [
+      "1.99.9",
+      "2.45.0"
+    ],
+    "sites": 30,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 30,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 20,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 10,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "danger/danger-js#1481",
     "language": "typescript",
     "package": "@octokit/rest",
@@ -5362,6 +5957,41 @@
         "differs": 0,
         "flagged": 0,
         "missed": 3,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "Dataherald/dataherald#270",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.8",
+      "1.3.6"
+    ],
+    "sites": 12,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 12,
+    "extra": 0,
+    "extraFlags": 23,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 12,
         "new": 0
       }
     }
@@ -5433,6 +6063,63 @@
         "flagged": 0,
         "missed": 0,
         "new": 0
+      }
+    }
+  },
+  {
+    "id": "davecthomas/ai-api-unified#22",
+    "language": "python",
+    "package": "openai",
+    "engine": "contract",
+    "versions": [
+      "1.86.0",
+      "2.44.0"
+    ],
+    "sites": 3,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
+      "newCode": 1
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 1
       }
     }
   },
@@ -5926,7 +6613,7 @@
     "flagged": 7,
     "missed": 6,
     "extra": 0,
-    "extraFlags": 0,
+    "extraFlags": 1,
     "newCode": 1,
     "inScope": {
       "sites": 0,
@@ -6285,7 +6972,7 @@
     "id": "eakmanrq/sqlframe#524",
     "language": "python",
     "package": "openai",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "1.30.5",
       "1.30.5"
@@ -6304,7 +6991,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -6328,6 +7022,121 @@
     "missed": 0,
     "extra": 0,
     "error": "plaid-python 7.2.0 publishes no pure-Python wheel; a source distribution is never built"
+  },
+  {
+    "id": "eco2-team/backend#527",
+    "language": "python",
+    "package": "openai",
+    "engine": "contract",
+    "versions": [
+      "1.58.0",
+      "2.9.0"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 6,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
+      "contested": 2
+    },
+    "byClass": {
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "eco2-team/backend#528",
+    "language": "python",
+    "package": "openai",
+    "engine": "contract",
+    "versions": [
+      "1.58.0",
+      "2.9.0"
+    ],
+    "sites": 94,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 91,
+    "extra": 0,
+    "extraFlags": 6,
+    "newCode": 3,
+    "inScope": {
+      "sites": 1,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 1,
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
+      "contested": 32,
+      "newCode": 3
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 10,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 32,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 48,
+        "new": 0
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 3
+      }
+    }
   },
   {
     "id": "Eigenwise/atomic-agents#190",
@@ -6976,24 +7785,24 @@
     "sites": 9,
     "identical": 0,
     "differs": 0,
-    "flagged": 0,
-    "missed": 9,
+    "flagged": 1,
+    "missed": 8,
     "extra": 0,
-    "extraFlags": 6,
+    "extraFlags": 9,
     "newCode": 0,
     "inScope": {
       "sites": 1,
       "identical": 0,
       "differs": 0,
-      "flagged": 0,
-      "missed": 1,
+      "flagged": 1,
+      "missed": 0,
       "unclassified": 0,
       "forced": {
         "sites": 1,
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 1
+        "flagged": 1,
+        "missed": 0
       },
       "contested": 1
     },
@@ -7008,8 +7817,8 @@
       "contract": {
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 1,
+        "flagged": 1,
+        "missed": 0,
         "new": 0
       },
       "contested": {
@@ -7121,6 +7930,71 @@
     }
   },
   {
+    "id": "epam/ai-dial-adapter-openai#105",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.33.0"
+    ],
+    "sites": 156,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 39,
+    "missed": 110,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 7,
+    "inScope": {
+      "sites": 1,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 1,
+      "unclassified": 0,
+      "contested": 67,
+      "newCode": 7
+    },
+    "byClass": {
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 10,
+        "missed": 57,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 29,
+        "missed": 49,
+        "new": 0
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 7
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 3,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "epam/ai-dial-adapter-openai#389",
     "language": "python",
     "package": "openai",
@@ -7189,24 +8063,24 @@
     "sites": 33,
     "identical": 0,
     "differs": 0,
-    "flagged": 7,
-    "missed": 26,
+    "flagged": 8,
+    "missed": 25,
     "extra": 0,
-    "extraFlags": 18,
+    "extraFlags": 20,
     "newCode": 0,
     "inScope": {
       "sites": 1,
       "identical": 0,
       "differs": 0,
-      "flagged": 0,
-      "missed": 1,
+      "flagged": 1,
+      "missed": 0,
       "unclassified": 0,
       "forced": {
         "sites": 1,
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 1
+        "flagged": 1,
+        "missed": 0
       }
     },
     "byClass": {
@@ -7220,9 +8094,110 @@
       "contract": {
         "identical": 0,
         "differs": 0,
-        "flagged": 0,
-        "missed": 1,
+        "flagged": 1,
+        "missed": 0,
         "new": 0
+      }
+    }
+  },
+  {
+    "id": "epam/ai-dial-adapter-vertexai#57",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.8",
+      "1.13.3"
+    ],
+    "sites": 29,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 13,
+    "missed": 16,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 1
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 12,
+        "missed": 16,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 0,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "epam/ai-dial-sdk#106",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.8",
+      "1.34.0"
+    ],
+    "sites": 22,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 21,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 12,
+      "newCode": 1
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 3,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 12,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 6,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 1
       }
     }
   },
@@ -7414,6 +8389,122 @@
         "flagged": 0,
         "missed": 1,
         "new": 0
+      }
+    }
+  },
+  {
+    "id": "filipgrano/shfy#7",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.0",
+      "1.0.0"
+    ],
+    "sites": 43,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 10,
+    "missed": 31,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 2,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 7,
+      "newCode": 2
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 4,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 4,
+        "missed": 24,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 4,
+        "missed": 3,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 2
+      }
+    }
+  },
+  {
+    "id": "fjpulidop/deckdex_mtg#3",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.8",
+      "1.30.0"
+    ],
+    "sites": 24,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 8,
+    "missed": 15,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 12,
+      "newCode": 1
+    },
+    "byClass": {
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 6,
+        "missed": 6,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 8,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 1,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 1
       }
     }
   },
@@ -7627,11 +8718,11 @@
       "missed": 5,
       "unclassified": 0,
       "forced": {
-        "sites": 10,
+        "sites": 7,
         "identical": 0,
         "differs": 0,
-        "flagged": 8,
-        "missed": 2
+        "flagged": 7,
+        "missed": 0
       },
       "contested": 29,
       "newCode": 2
@@ -8022,6 +9113,64 @@
         "flagged": 1,
         "missed": 0,
         "new": 0
+      }
+    }
+  },
+  {
+    "id": "georgia-tech-db/evadb#1368",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.109.1"
+    ],
+    "sites": 24,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 10,
+    "missed": 13,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 3,
+      "newCode": 1
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 9,
+        "missed": 10,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 2,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 1
       }
     }
   },
@@ -9151,6 +10300,41 @@
     }
   },
   {
+    "id": "ginlix-ai/LangAlpha#392",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.45.0",
+      "3.8.0"
+    ],
+    "sites": 3,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 3,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 3,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "Giskard-AI/giskard-oss#2790",
     "language": "python",
     "package": "openai",
@@ -9736,6 +10920,41 @@
     }
   },
   {
+    "id": "google/oss-fuzz-gen#211",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.8",
+      "1.16.2"
+    ],
+    "sites": 3,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 3,
+    "missed": 0,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 3,
+        "missed": 0,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "googleapis/code-suggester#512",
     "language": "typescript",
     "package": "@octokit/rest",
@@ -10188,6 +11407,64 @@
     }
   },
   {
+    "id": "griptape-ai/griptape#422",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.1.2"
+    ],
+    "sites": 121,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 29,
+    "missed": 89,
+    "extra": 0,
+    "extraFlags": 9,
+    "newCode": 3,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 25,
+      "newCode": 3
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 26,
+        "missed": 65,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 3,
+        "missed": 22,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 3
+      }
+    }
+  },
+  {
     "id": "hadijannat/idta-submodel-editor#188",
     "language": "python",
     "package": "anthropic",
@@ -10261,6 +11538,64 @@
         "differs": 0,
         "flagged": 0,
         "missed": 1,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "halilozturkci/redplane#7",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.54.0",
+      "3.13.0"
+    ],
+    "sites": 54,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 50,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 4,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "newCode": 4,
+      "contested": 2
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 30,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 18,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 4
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
         "new": 0
       }
     }
@@ -10884,6 +12219,90 @@
     }
   },
   {
+    "id": "IAAR-Shanghai/UHGEval#24",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.8.0"
+    ],
+    "sites": 5,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 4,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 1,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 3,
+        "missed": 0,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "IAAR-Shanghai/UHGEval#25",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.8.0"
+    ],
+    "sites": 5,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 4,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 1,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 3,
+        "missed": 0,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "iggy/botkube#358",
     "language": "go",
     "package": "github.com/google/go-github",
@@ -11392,6 +12811,41 @@
     }
   },
   {
+    "id": "inweb3/chatWeb3#40",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.31.0"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 1,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 1,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "issue-ops/labeler#117",
     "language": "typescript",
     "package": "@octokit/rest",
@@ -11592,6 +13046,56 @@
         "differs": 0,
         "flagged": 1,
         "missed": 0,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "jackmpcollins/magentic#59",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.8",
+      "1.1.1"
+    ],
+    "sites": 46,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 46,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 11
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 34,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 11,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
         "new": 0
       }
     }
@@ -12907,6 +14411,71 @@
     }
   },
   {
+    "id": "knostic/OpenAnt#206",
+    "language": "python",
+    "package": "openai",
+    "engine": "contract",
+    "versions": [
+      "2.37.0",
+      "2.37.0"
+    ],
+    "sites": 21,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 20,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 1,
+    "inScope": {
+      "sites": 1,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 1,
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
+      "contested": 17,
+      "newCode": 1
+    },
+    "byClass": {
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 17,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
+        "new": 0
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 1
+      }
+    }
+  },
+  {
     "id": "knostic/OpenAnt#354",
     "language": "python",
     "package": "anthropic",
@@ -13517,6 +15086,56 @@
     }
   },
   {
+    "id": "kxkw/chatgpt-telegram-bot#72",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.8",
+      "1.13.3"
+    ],
+    "sites": 16,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 3,
+    "missed": 13,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 5
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 7,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 4,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "kyma-project/test-infra#13902",
     "language": "go",
     "package": "github.com/google/go-github",
@@ -13861,6 +15480,64 @@
     }
   },
   {
+    "id": "langfuse/langfuse-python#169",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.10",
+      "1.3.0"
+    ],
+    "sites": 37,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 20,
+    "missed": 16,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "newCode": 1,
+      "contested": 3
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 19,
+        "missed": 12,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 1
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 3,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 1,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "langgenius/dify-official-plugins#355",
     "language": "python",
     "package": "anthropic",
@@ -13922,6 +15599,57 @@
         "flagged": 2,
         "missed": 2,
         "new": 0
+      }
+    }
+  },
+  {
+    "id": "larjfut/PODrafter#15",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.0",
+      "1.0.0"
+    ],
+    "sites": 12,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 2,
+    "missed": 9,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 2,
+      "newCode": 1
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 7,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 1
       }
     }
   },
@@ -14015,6 +15743,64 @@
         "flagged": 0,
         "missed": 1,
         "new": 0
+      }
+    }
+  },
+  {
+    "id": "libretto-ai/openai-py#12",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.1.2"
+    ],
+    "sites": 67,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 17,
+    "missed": 43,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 7,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 13,
+      "newCode": 7
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 3,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 14,
+        "missed": 29,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 11,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 7
       }
     }
   },
@@ -14345,6 +16131,49 @@
         "differs": 0,
         "flagged": 0,
         "missed": 0,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "linuxarena/control-tower#1729",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.53.0",
+      "3.6.0"
+    ],
+    "sites": 7,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 7,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 2
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 5,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
         "new": 0
       }
     }
@@ -14698,10 +16527,10 @@
       "missed": 2,
       "unclassified": 0,
       "forced": {
-        "sites": 9,
+        "sites": 6,
         "identical": 0,
         "differs": 0,
-        "flagged": 7,
+        "flagged": 4,
         "missed": 2
       }
     },
@@ -15402,6 +17231,56 @@
     }
   },
   {
+    "id": "mcan-k/defect-risk-analyzer#36",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "1.58.1",
+      "3.13.0"
+    ],
+    "sites": 4,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 3,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "newCode": 1
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 1
+      }
+    }
+  },
+  {
     "id": "mdn/yari#9888",
     "language": "typescript",
     "package": "openai",
@@ -15556,6 +17435,106 @@
     }
   },
   {
+    "id": "microsoft/Agent365-python#201",
+    "language": "python",
+    "package": "openai",
+    "engine": "contract",
+    "versions": [
+      "1.109.1",
+      "2.28.0"
+    ],
+    "sites": 34,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 34,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 34,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "microsoft/amplifier-module-provider-anthropic#100",
+    "language": "python",
+    "package": "anthropic",
+    "engine": "contract",
+    "versions": [
+      "0.96.0",
+      "1.0.0"
+    ],
+    "sites": 12,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 2,
+    "missed": 8,
+    "extra": 0,
+    "extraFlags": 61,
+    "newCode": 2,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
+      "newCode": 2,
+      "contested": 3
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 5,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 2
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 3,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "microsoft/deep-language-networks#51",
     "language": "python",
     "package": "openai",
@@ -15603,6 +17582,121 @@
         "flagged": 2,
         "missed": 18,
         "new": 0
+      }
+    }
+  },
+  {
+    "id": "microsoft/OpenAIWorkshop#179",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.8",
+      "1.9.0"
+    ],
+    "sites": 14,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 3,
+    "missed": 11,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 2
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 6,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 1,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 4,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "microsoft/promptflow#1128",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.8",
+      "1.0.0"
+    ],
+    "sites": 97,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 32,
+    "missed": 64,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 1,
+    "inScope": {
+      "sites": 2,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 2,
+      "unclassified": 0,
+      "contested": 14,
+      "newCode": 1
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 24,
+        "missed": 41,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 3,
+        "missed": 11,
+        "new": 0
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 5,
+        "missed": 10,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 1
       }
     }
   },
@@ -15707,6 +17801,63 @@
         "differs": 0,
         "flagged": 0,
         "missed": 2,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "miquido/draive#432",
+    "language": "python",
+    "package": "openai",
+    "engine": "contract",
+    "versions": [
+      "1.109.1",
+      "2.0.0"
+    ],
+    "sites": 10,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 10,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 1,
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
+      "contested": 8
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 8,
+        "new": 0
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
         "new": 0
       }
     }
@@ -15997,6 +18148,63 @@
         "differs": 0,
         "flagged": 3,
         "missed": 0,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "MrGreyfun/Local-Code-Interpreter#57",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.8",
+      "1.40.3"
+    ],
+    "sites": 41,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 4,
+    "missed": 37,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 5,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 5,
+      "unclassified": 0,
+      "contested": 8
+    },
+    "byClass": {
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 8,
+        "new": 0
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 5,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 4,
+        "missed": 23,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
         "new": 0
       }
     }
@@ -16683,11 +18891,11 @@
       "missed": 4,
       "unclassified": 0,
       "forced": {
-        "sites": 1,
+        "sites": 0,
         "identical": 0,
         "differs": 0,
         "flagged": 0,
-        "missed": 1
+        "missed": 0
       },
       "newCode": 5,
       "contested": 8
@@ -16720,6 +18928,49 @@
         "flagged": 0,
         "missed": 4,
         "new": 0
+      }
+    }
+  },
+  {
+    "id": "omnigent-ai/omnigent#2713",
+    "language": "python",
+    "package": "openai",
+    "engine": "contract",
+    "versions": [
+      "2.41.0",
+      "2.41.0"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 0,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
+      "newCode": 1
+    },
+    "byClass": {
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 1
       }
     }
   },
@@ -17130,6 +19381,127 @@
     }
   },
   {
+    "id": "openai/openai-agents-python#1874",
+    "language": "python",
+    "package": "openai",
+    "engine": "contract",
+    "versions": [
+      "1.107.1",
+      "2.2.0"
+    ],
+    "sites": 52,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 7,
+    "missed": 45,
+    "extra": 0,
+    "extraFlags": 10,
+    "newCode": 0,
+    "inScope": {
+      "sites": 1,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 1,
+      "missed": 0,
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
+      "contested": 1
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 5,
+        "missed": 44,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 0,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 0,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "openai/openai-agents-python#4380",
+    "language": "python",
+    "package": "openai",
+    "engine": "contract",
+    "versions": [
+      "2.45.0",
+      "3.0.0"
+    ],
+    "sites": 142,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 18,
+    "missed": 117,
+    "extra": 0,
+    "extraFlags": 2,
+    "newCode": 7,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
+      "newCode": 7
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 17,
+        "missed": 113,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 7
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 4,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "openclaw/slacrawl#44",
     "language": "go",
     "package": "github.com/slack-go/slack",
@@ -17322,6 +19694,56 @@
         "differs": 0,
         "flagged": 0,
         "missed": 0,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "osrapps/osr-console#23",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.3.3"
+    ],
+    "sites": 36,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 10,
+    "missed": 26,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 4
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 8,
+        "missed": 12,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 11,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 3,
         "new": 0
       }
     }
@@ -17726,6 +20148,57 @@
     }
   },
   {
+    "id": "phelps-sg/openai-pygenerator#3",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.3.2"
+    ],
+    "sites": 31,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 13,
+    "missed": 16,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 2,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 1,
+      "newCode": 2
+    },
+    "byClass": {
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 13,
+        "missed": 15,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 2
+      }
+    }
+  },
+  {
     "id": "piercefreeman/gpt-json#43",
     "language": "python",
     "package": "openai",
@@ -17935,6 +20408,48 @@
         "new": 0
       },
       "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 0,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "pitekusu/shittim-chest#326",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.54.0",
+      "3.8.0"
+    ],
+    "sites": 21,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 6,
+    "missed": 15,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 5,
+        "missed": 15,
+        "new": 0
+      },
+      "unrelated": {
         "identical": 0,
         "differs": 0,
         "flagged": 1,
@@ -18832,6 +21347,64 @@
         "differs": 0,
         "flagged": 0,
         "missed": 2,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "qntx/openai-python#45",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.20.0",
+      "3.7.0"
+    ],
+    "sites": 150,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 1,
+    "missed": 117,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 32,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "newCode": 32,
+      "contested": 1
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 114,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 32
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
         "new": 0
       }
     }
@@ -20325,6 +22898,71 @@
     }
   },
   {
+    "id": "rubenbalbastre/reporting-agentic-system#1",
+    "language": "python",
+    "package": "openai",
+    "engine": "contract",
+    "versions": [
+      "1.101.0",
+      "2.30.0"
+    ],
+    "sites": 49,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 37,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 12,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
+      "newCode": 12,
+      "contested": 27
+    },
+    "byClass": {
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 12
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 4,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 27,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 6,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "run-llama/llama_index#18817",
     "language": "python",
     "package": "anthropic",
@@ -20590,6 +23228,41 @@
         "differs": 0,
         "flagged": 2,
         "missed": 21,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "samuelcolvin/aicli#8",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.109.1"
+    ],
+    "sites": 9,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 3,
+    "missed": 6,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 3,
+        "missed": 6,
         "new": 0
       }
     }
@@ -21130,6 +23803,41 @@
     }
   },
   {
+    "id": "seratch/ChatGPT-in-Slack#85",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.30.1"
+    ],
+    "sites": 31,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 13,
+    "missed": 18,
+    "extra": 0,
+    "extraFlags": 1,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 13,
+        "missed": 18,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "sethrylan/issue-digest#63",
     "language": "typescript",
     "package": "openai",
@@ -21160,6 +23868,41 @@
         "differs": 0,
         "flagged": 0,
         "missed": 1,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "ShamikM88/open-cam-framework#79",
+    "language": "python",
+    "package": "anthropic",
+    "engine": "verify",
+    "versions": [
+      "0.18.0",
+      "1.7.0"
+    ],
+    "sites": 3,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 3,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 3,
         "new": 0
       }
     }
@@ -21402,6 +24145,48 @@
     }
   },
   {
+    "id": "Snowflake-Labs/sfguide-frosty-llm-chatbot-on-streamlit-snowflake#20",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.8",
+      "1.2.2"
+    ],
+    "sites": 18,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 8,
+    "missed": 10,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 8,
+        "missed": 7,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 3,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "softprops/action-gh-release#470",
     "language": "typescript",
     "package": "@actions/github",
@@ -21455,7 +24240,7 @@
     "id": "Soju06/codex-lb#1807",
     "language": "python",
     "package": "openai",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "2.53.0",
       "3.0.0"
@@ -21474,7 +24259,14 @@
       "differs": 0,
       "flagged": 0,
       "missed": 0,
-      "unclassified": 0
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      }
     },
     "byClass": {
       "sdk": {
@@ -21489,6 +24281,91 @@
         "differs": 0,
         "flagged": 0,
         "missed": 9,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "SolomonSmith-dev/arda#86",
+    "language": "python",
+    "package": "anthropic",
+    "engine": "contract",
+    "versions": [
+      "0.100.0",
+      "1.1.0"
+    ],
+    "sites": 2,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 1,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
+      "newCode": 1
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 1
+      }
+    }
+  },
+  {
+    "id": "SomeClown/discord-newsbot#9",
+    "language": "python",
+    "package": "anthropic",
+    "engine": "verify",
+    "versions": [
+      "0.125.0",
+      "1.8.0"
+    ],
+    "sites": 6,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 3,
+    "missed": 3,
+    "extra": 0,
+    "extraFlags": 4,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 3,
+        "missed": 3,
         "new": 0
       }
     }
@@ -25521,6 +28398,143 @@
     }
   },
   {
+    "id": "TheR1D/shell_gpt#744",
+    "language": "python",
+    "package": "openai",
+    "engine": "contract",
+    "versions": [
+      "1.34.0",
+      "2.0.0"
+    ],
+    "sites": 39,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 37,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 2,
+    "inScope": {
+      "sites": 3,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 3,
+      "unclassified": 0,
+      "forced": {
+        "sites": 2,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2
+      },
+      "contested": 6,
+      "newCode": 2
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 4,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 24,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 6,
+        "new": 0
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 3,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 2
+      }
+    }
+  },
+  {
+    "id": "TJC-LP/sanzaru#79",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.53.0",
+      "3.14.0"
+    ],
+    "sites": 157,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 1,
+    "missed": 144,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 12,
+    "inScope": {
+      "sites": 6,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 6,
+      "unclassified": 0,
+      "newCode": 12,
+      "contested": 115
+    },
+    "byClass": {
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 12
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 115,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 14,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 9,
+        "new": 0
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 6,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "tldr-pages/tldr-labeler-action#120",
     "language": "typescript",
     "package": "@actions/github",
@@ -25596,7 +28610,7 @@
     "id": "topoteretes/cognee#1406",
     "language": "python",
     "package": "anthropic",
-    "engine": "verify",
+    "engine": "contract",
     "versions": [
       "0.26.1",
       "0.26.1"
@@ -25616,6 +28630,13 @@
       "flagged": 0,
       "missed": 0,
       "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
       "contested": 1
     },
     "byClass": {
@@ -25728,6 +28749,71 @@
     }
   },
   {
+    "id": "traceloop/openllmetry#154",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.1.1"
+    ],
+    "sites": 61,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 27,
+    "missed": 30,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 4,
+    "inScope": {
+      "sites": 2,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 2,
+      "unclassified": 0,
+      "contested": 47,
+      "newCode": 4
+    },
+    "byClass": {
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 23,
+        "missed": 24,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 4
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 4,
+        "missed": 2,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "traefik/traefik#13686",
     "language": "go",
     "package": "github.com/google/go-github",
@@ -25803,6 +28889,99 @@
         "flagged": 0,
         "missed": 1,
         "new": 0
+      }
+    }
+  },
+  {
+    "id": "truera/trulens#548",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.6",
+      "0.28.1"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "truera/trulens#555",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.1.1"
+    ],
+    "sites": 171,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 8,
+    "missed": 161,
+    "extra": 0,
+    "extraFlags": 1,
+    "newCode": 2,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 15,
+      "newCode": 2
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 6,
+        "missed": 87,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 61,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 13,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 2
       }
     }
   },
@@ -26172,10 +29351,10 @@
       "missed": 0,
       "unclassified": 0,
       "forced": {
-        "sites": 1,
+        "sites": 0,
         "identical": 0,
         "differs": 0,
-        "flagged": 1,
+        "flagged": 0,
         "missed": 0
       },
       "contested": 1,
@@ -26292,6 +29471,78 @@
     }
   },
   {
+    "id": "UKGovernmentBEIS/inspect_ai#4985",
+    "language": "python",
+    "package": "anthropic",
+    "engine": "contract",
+    "versions": [
+      "0.124.0",
+      "1.0.0"
+    ],
+    "sites": 60,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 7,
+    "missed": 51,
+    "extra": 0,
+    "extraFlags": 1,
+    "newCode": 2,
+    "inScope": {
+      "sites": 2,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 2,
+      "unclassified": 0,
+      "forced": {
+        "sites": 0,
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0
+      },
+      "contested": 12,
+      "newCode": 2
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 4,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 12,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 7,
+        "missed": 33,
+        "new": 0
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 2,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 2
+      }
+    }
+  },
+  {
     "id": "UKGovernmentBEIS/inspect_evals#2187",
     "language": "python",
     "package": "openai",
@@ -26331,6 +29582,42 @@
         "flagged": 0,
         "missed": 27,
         "new": 2
+      }
+    }
+  },
+  {
+    "id": "ulfe-lmi/slaif-api-gateway#303",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.41.0",
+      "3.9.0"
+    ],
+    "sites": 43,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 43,
+    "extra": 0,
+    "extraFlags": 13,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 43
+    },
+    "byClass": {
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 43,
+        "new": 0
       }
     }
   },
@@ -27495,6 +30782,82 @@
     }
   },
   {
+    "id": "wandb/weave#851",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "sites": 0,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 0,
+    "extra": 0,
+    "error": "openai 0.26.4 publishes no pure-Python wheel; a source distribution is never built"
+  },
+  {
+    "id": "wandb/weave#974",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "sites": 0,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 0,
+    "extra": 0,
+    "error": "openai 0.26.4 publishes no pure-Python wheel; a source distribution is never built"
+  },
+  {
+    "id": "Wannabeasmartguy/GPT-Gradio-Agent#4",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.10",
+      "1.6.1"
+    ],
+    "sites": 44,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 25,
+    "missed": 19,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 4
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 4,
+        "missed": 6,
+        "new": 0
+      },
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 2,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 19,
+        "missed": 11,
+        "new": 0
+      }
+    }
+  },
+  {
     "id": "webhippie/mygithub#265",
     "language": "go",
     "package": "github.com/google/go-github",
@@ -27668,6 +31031,19 @@
         "new": 0
       }
     }
+  },
+  {
+    "id": "wgryc/phasellm#68",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "sites": 0,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 0,
+    "extra": 0,
+    "error": "openai 0.26.0 publishes no pure-Python wheel; a source distribution is never built"
   },
   {
     "id": "withmartian/llm-adapters#89",
@@ -28074,6 +31450,71 @@
     }
   },
   {
+    "id": "wwakabobik/openai_api#18",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.28.1",
+      "1.3.3"
+    ],
+    "sites": 93,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 31,
+    "missed": 57,
+    "extra": 0,
+    "extraFlags": 3,
+    "newCode": 5,
+    "inScope": {
+      "sites": 6,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 1,
+      "missed": 5,
+      "unclassified": 0,
+      "contested": 35,
+      "newCode": 5
+    },
+    "byClass": {
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 11,
+        "missed": 24,
+        "new": 0
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 16,
+        "missed": 18,
+        "new": 0
+      },
+      "contract": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 1,
+        "missed": 5,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 3,
+        "missed": 10,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 5
+      }
+    }
+  },
+  {
     "id": "XiyaoWang0519/agent-call#74",
     "language": "python",
     "package": "openai",
@@ -28104,6 +31545,64 @@
         "differs": 0,
         "flagged": 1,
         "missed": 8,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "yaalyy/LLM-interactive#1",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "1.3.5",
+      "2.43.0"
+    ],
+    "sites": 24,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 21,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 3,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0,
+      "contested": 12,
+      "newCode": 3
+    },
+    "byClass": {
+      "contested": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 12,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 5,
+        "new": 0
+      },
+      "unclassified": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 0,
+        "new": 3
+      },
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 4,
         "new": 0
       }
     }
@@ -28211,6 +31710,48 @@
         "differs": 0,
         "flagged": 0,
         "missed": 1,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "yihong0618/xiaogpt#370",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "0.27.2",
+      "1.2.2"
+    ],
+    "sites": 21,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 19,
+    "missed": 2,
+    "extra": 0,
+    "extraFlags": 1,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "sdk": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 17,
+        "missed": 2,
+        "new": 0
+      },
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 2,
+        "missed": 0,
         "new": 0
       }
     }
@@ -28356,6 +31897,19 @@
     }
   },
   {
+    "id": "ytomar/ensemble_ai#1",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "sites": 0,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 0,
+    "extra": 0,
+    "error": "openai 0.10.2 publishes no pure-Python wheel; a source distribution is never built"
+  },
+  {
     "id": "yungweng/github-things-sync#10",
     "language": "typescript",
     "package": "@octokit/rest",
@@ -28499,6 +32053,41 @@
         "differs": 0,
         "flagged": 0,
         "missed": 2,
+        "new": 0
+      }
+    }
+  },
+  {
+    "id": "zenml-io/kitaru#911",
+    "language": "python",
+    "package": "openai",
+    "engine": "verify",
+    "versions": [
+      "2.53.0",
+      "3.5.0"
+    ],
+    "sites": 1,
+    "identical": 0,
+    "differs": 0,
+    "flagged": 0,
+    "missed": 1,
+    "extra": 0,
+    "extraFlags": 0,
+    "newCode": 0,
+    "inScope": {
+      "sites": 0,
+      "identical": 0,
+      "differs": 0,
+      "flagged": 0,
+      "missed": 0,
+      "unclassified": 0
+    },
+    "byClass": {
+      "unrelated": {
+        "identical": 0,
+        "differs": 0,
+        "flagged": 0,
+        "missed": 1,
         "new": 0
       }
     }

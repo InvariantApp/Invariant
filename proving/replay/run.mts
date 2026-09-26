@@ -907,7 +907,8 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       extraFlags: 0,
       newCode: 0,
     };
-    const scored: { site: Site; outcome: Outcome }[] = [];
+    const scored: { site: Site; outcome: Outcome; forced?: boolean }[] = [];
+    const broken = breaking && new Set(breaking);
     const engineRegions = new Map<string, Region[]>();
     for (const file of new Set([...human.keys(), ...engineText.keys()])) {
       const text = before.get(file) ?? (await textAt(repo, entry.base, file));
@@ -939,10 +940,20 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
             region,
           },
           outcome: result.outcomes[at] as Outcome,
+          ...(broken
+            ? {
+                forced:
+                  forcedBy(
+                    [...lines.slice(region.oldStart, region.oldEnd), ...region.lines],
+                    broken,
+                  ) !== undefined,
+              }
+            : {}),
         });
       });
     }
-    for (const { site, outcome } of scored) await cacheSite(site, undefined, outcome);
+    for (const { site, outcome, forced } of scored)
+      await cacheSite(site, undefined, outcome, forced);
     if (options.classifier) {
       try {
         await classify(
@@ -1001,7 +1012,7 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
       ...base,
       sites,
       ...total,
-      inScope: scopeOf(scored, options.classes, breaking && new Set(breaking)),
+      inScope: scopeOf(scored, options.classes, broken !== undefined),
       byClass: byClassOf(scored, options.classes),
     };
   } catch (error) {
@@ -1045,9 +1056,10 @@ function withLabel(
 
 /** A case's sites that follow from a contract change, by how the engine did on each. */
 export function scopeOf(
-  scored: readonly { site: Site; outcome: Outcome }[],
+  scored: readonly { site: Site; outcome: Outcome; forced?: boolean }[],
   classes: Record<string, ClassRecord>,
-  breaking?: ReadonlySet<string>,
+  /** Whether the case's two contracts were known, so each site was judged forced or not. */
+  judged = false,
 ): ScopedScore {
   const scope: ScopedScore = {
     sites: 0,
@@ -1056,11 +1068,11 @@ export function scopeOf(
     flagged: 0,
     missed: 0,
     unclassified: 0,
-    ...(breaking
+    ...(judged
       ? { forced: { sites: 0, identical: 0, differs: 0, flagged: 0, missed: 0 } }
       : {}),
   };
-  for (const { site, outcome } of scored) {
+  for (const { site, outcome, forced } of scored) {
     // New code is no site of a contract change, whatever it was classed.
     if (outcome === "new") {
       scope.newCode = (scope.newCode ?? 0) + 1;
@@ -1078,12 +1090,7 @@ export function scopeOf(
     if (record.class !== "contract") continue;
     scope.sites += 1;
     scope[outcome] += 1;
-    const { oldStart, oldEnd, lines } = site.region;
-    if (
-      breaking &&
-      scope.forced &&
-      forcedBy([...site.base.slice(oldStart, oldEnd), ...lines], breaking)
-    ) {
+    if (forced && scope.forced) {
       scope.forced.sites += 1;
       scope.forced[outcome] += 1;
     }
@@ -1473,8 +1480,8 @@ async function main(): Promise<void> {
     const wanted = new Set(cases.map((entry) => entry.id));
     for (const [id, names] of cachedCases()) {
       if (!wanted.has(id)) continue;
-      const scored = readCached(names).flatMap(({ site, outcome }) =>
-        outcome ? [{ site, outcome }] : [],
+      const scored = readCached(names).flatMap(({ site, outcome, forced }) =>
+        outcome ? [{ site, outcome, ...(forced === undefined ? {} : { forced }) }] : [],
       );
       const result = results.get(id);
       if (!result || result.error !== undefined) continue;
@@ -1505,7 +1512,16 @@ async function main(): Promise<void> {
         }
         await writeClasses(classes);
       }
-      result.inScope = scopeOf(scored, classes);
+      // Whether the case was judged forced or not was settled by the replay,
+      // which read the differ; rescoring keeps it. Sites cached before the
+      // replay recorded each judgement carry none, and their case keeps the
+      // counts it was replayed with rather than losing them.
+      const before = result.inScope?.forced;
+      const recorded = scored.every((each) => each.forced !== undefined);
+      result.inScope = {
+        ...scopeOf(scored, classes, before !== undefined && recorded),
+        ...(before !== undefined && !recorded ? { forced: before } : {}),
+      };
       result.byClass = byClassOf(scored, classes);
     }
     await save();

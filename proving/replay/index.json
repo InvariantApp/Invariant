@@ -177,6 +177,25 @@
       ]
     },
     {
+      "id": "aaronsb/knowledge-graph-system#556",
+      "repo": "aaronsb/knowledge-graph-system",
+      "pr": 556,
+      "base": "a96a20857af17551bcf77190f28ff365a7795fb4",
+      "head": "bf95a2a6785e1950d6fef776fbffec2a16363caa",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.10.0",
+      "to": "3.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-09-17T17:13:56Z",
+      "files": [
+        "api/app/lib/ai_providers.py",
+        "scripts/development/diagnostics/golden_describe_image.py",
+        "tests/unit/lib/test_describe_image_contract.py",
+        "tests/unit/lib/test_provider_call_with_tools.py"
+      ]
+    },
+    {
       "id": "abtris/hugo-netlify-autoupdater#180",
       "repo": "abtris/hugo-netlify-autoupdater",
       "pr": 180,
@@ -387,6 +406,25 @@
       "mergedAt": "2026-08-24T16:55:32Z",
       "files": [
         "src/glossogen/scenarios/veyru/scripts/repro_opus47_refusal.py"
+      ]
+    },
+    {
+      "id": "AgentFoundryExamples/spec-compiler#52",
+      "repo": "AgentFoundryExamples/spec-compiler",
+      "pr": 52,
+      "base": "b7d3bdd902e63fae396351c97ed66e0c92f6e193",
+      "head": "6bd1e44ea64f34b15918108478c3c81b223950f9",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.58.1",
+      "to": "2.14.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-01-03T00:19:54Z",
+      "files": [
+        "src/spec_compiler/config.py",
+        "src/spec_compiler/services/anthropic_llm_client.py",
+        "src/spec_compiler/services/openai_responses.py",
+        "tests/test_services_llm.py"
       ]
     },
     {
@@ -746,6 +784,26 @@
       ]
     },
     {
+      "id": "anotherai-dev/anotherai#436",
+      "repo": "anotherai-dev/anotherai",
+      "pr": 436,
+      "base": "a61f89b17e9e77ade3be153bed6714cad767c7cf",
+      "head": "7d3d0f2e893c48ffa3f255d2c3baa249dcef1c07",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.93.1",
+      "to": "2.2.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2025-10-07T08:33:59Z",
+      "files": [
+        "backend/core/agents/suggest_model.py",
+        "backend/tests/components/deployments_test.py",
+        "backend/tests/components/run/run_test.py",
+        "backend/tests/integration/openai_sdk_test.py",
+        "examples/agents/classify_animal/classify_animal.py"
+      ]
+    },
+    {
       "id": "ansys/review-bot#120",
       "repo": "ansys/review-bot",
       "pr": 120,
@@ -760,6 +818,24 @@
       "files": [
         "src/review/bot/misc.py",
         "src/review/bot/open_ai_interface.py"
+      ]
+    },
+    {
+      "id": "apache/airflow#69068",
+      "repo": "apache/airflow",
+      "pr": 69068,
+      "base": "754c10633c2211fa15b8514885c95e4390d61537",
+      "head": "e5ace314f3253a7165c5d910130ff0b8bad41b5b",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.66.0",
+      "to": "2.37.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-06-27T01:41:29Z",
+      "files": [
+        "providers/openai/src/airflow/providers/openai/hooks/openai.py",
+        "providers/openai/src/airflow/providers/openai/operators/openai.py",
+        "providers/openai/tests/system/openai/example_openai.py"
       ]
     },
     {
@@ -1146,6 +1222,30 @@
       ]
     },
     {
+      "id": "Azure-Samples/azure-search-openai-demo#2752",
+      "repo": "Azure-Samples/azure-search-openai-demo",
+      "pr": 2752,
+      "base": "b7a2743ffb606dcef2fc141a310760763a418b0f",
+      "head": "ee14c51b3297f6c854ea6e21bef08dea5128af81",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.99.8",
+      "to": "2.6.1",
+      "license": "MIT",
+      "mergedAt": "2025-11-03T18:52:01Z",
+      "files": [
+        "app/backend/app.py",
+        "app/backend/prepdocs.py",
+        "app/backend/prepdocslib/embeddings.py",
+        "app/backend/prepdocslib/integratedvectorizerstrategy.py",
+        "app/backend/prepdocslib/searchmanager.py",
+        "tests/test_app_config.py",
+        "tests/test_prepdocs.py",
+        "tests/test_searchmanager.py",
+        "tests/test_upload.py"
+      ]
+    },
+    {
       "id": "Azure-Samples/rag-with-azure-ai-search-notebooks#6",
       "repo": "Azure-Samples/rag-with-azure-ai-search-notebooks",
       "pr": 6,
@@ -1177,6 +1277,26 @@
       "mergedAt": "2026-07-09T23:32:09Z",
       "files": [
         "azext_edge/tests/edge/support/conftest.py"
+      ]
+    },
+    {
+      "id": "Azure/gpt-rag-ingestion#83",
+      "repo": "Azure/gpt-rag-ingestion",
+      "pr": 83,
+      "base": "b233a0176f5e4944611ad0bc38b546d5afc98575",
+      "head": "5c7a711f3dee1567466a8202e5cfec54459ffb5a",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.28.1",
+      "to": "1.42.0",
+      "license": "MIT",
+      "mergedAt": "2024-08-28T14:21:20Z",
+      "files": [
+        "chunker/chunk_documents_docint.py",
+        "chunker/chunk_documents_raw.py",
+        "chunker/chunk_metadata_helper.py",
+        "embedder/text_embedder.py",
+        "function_app.py"
       ]
     },
     {
@@ -1225,6 +1345,53 @@
       "mergedAt": "2025-12-03T12:32:06Z",
       "files": [
         "lib/payments/stripe.ts"
+      ]
+    },
+    {
+      "id": "basecradle/basecradle-harness#411",
+      "repo": "basecradle/basecradle-harness",
+      "pr": 411,
+      "base": "a10c3a6be61caa516fd9a59305b1abe2191d16ce",
+      "head": "e42bb964eca65cebe4102724fafd93e14ad0faf2",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.43",
+      "to": "3",
+      "license": "MIT",
+      "mergedAt": "2026-08-17T01:22:37Z",
+      "files": [
+        "src/basecradle_harness/_openai.py",
+        "src/basecradle_harness/_version.py",
+        "tests/conftest.py",
+        "tests/test_openai_live.py",
+        "tests/test_provider.py"
+      ]
+    },
+    {
+      "id": "baserun-ai/baserun-py#75",
+      "repo": "baserun-ai/baserun-py",
+      "pr": 75,
+      "base": "870520c12de3483019a207e6393b2f7ee456eae8",
+      "head": "3fbc0fcbde347c57a0322423f8bf222544b8fb97",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.2",
+      "to": "1.1.1",
+      "license": "MIT",
+      "mergedAt": "2023-11-07T21:40:43Z",
+      "files": [
+        "baserun/baserun.py",
+        "baserun/evals/evals.py",
+        "baserun/exporter.py",
+        "baserun/instrumentation/base_instrumentor.py",
+        "baserun/instrumentation/openai.py",
+        "baserun/instrumentation/span_attributes.py",
+        "baserun/templates.py",
+        "baserun/v1/baserun_pb2.py",
+        "tests/conftest.py",
+        "tests/full_matrix_test.py",
+        "tests/openai_test.py",
+        "tests/testing_functions.py"
       ]
     },
     {
@@ -2405,6 +2572,24 @@
       ]
     },
     {
+      "id": "COXIT-CO/RecruitFlowAI#48",
+      "repo": "COXIT-CO/RecruitFlowAI",
+      "pr": 48,
+      "base": "c7d441f5e636601ec242af47e7ba465073e281b3",
+      "head": "49e98f6468666c135eacd1cf6694e3bef80cb470",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.9",
+      "to": "1.2.3",
+      "license": "MIT",
+      "mergedAt": "2023-11-13T18:02:51Z",
+      "files": [
+        "recruit_flow_ai/ai.py",
+        "recruit_flow_ai/tests/ai_test.py",
+        "version.py"
+      ]
+    },
+    {
       "id": "Cray-HPE/canu#215",
       "repo": "Cray-HPE/canu",
       "pr": 215,
@@ -2435,6 +2620,29 @@
       "files": [
         "src/github.ts",
         "src/main.ts"
+      ]
+    },
+    {
+      "id": "Creed-Space/METTLE#57",
+      "repo": "Creed-Space/METTLE",
+      "pr": 57,
+      "base": "fab418d8de62a72a46a6bc8717ad8c8c5a152168",
+      "head": "5cfbaece020b43d949c0ae2ce83e14498f73f749",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.122.0",
+      "to": "1.8.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-09-25T23:59:35Z",
+      "files": [
+        "config.py",
+        "mettle/__init__.py",
+        "mettle/cli.py",
+        "mettle/llm_challenges.py",
+        "tests/test_documentation_consistency.py",
+        "tests/test_llm_challenges.py",
+        "tests/test_mcp_http.py",
+        "tests/test_release_manifest.py"
       ]
     },
     {
@@ -2520,6 +2728,26 @@
       ]
     },
     {
+      "id": "Daita-Corp/daita-agents#36",
+      "repo": "Daita-Corp/daita-agents",
+      "pr": 36,
+      "base": "75719b383ac7def8cd20cbaef138e1c57cd66c58",
+      "head": "9c3809081fed23659867b39fde97fb6b33a6273d",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.99.9",
+      "to": "2.45.0",
+      "license": "MIT",
+      "mergedAt": "2026-09-01T12:27:16Z",
+      "files": [
+        "src/daita/agent.py",
+        "tests/test_architecture.py",
+        "tests/test_learning_candidate_surface_release.py",
+        "tests/test_local_file_workspace_phase0.py",
+        "tests/test_packaging.py"
+      ]
+    },
+    {
       "id": "danger/danger-js#1481",
       "repo": "danger/danger-js",
       "pr": 1481,
@@ -2535,6 +2763,24 @@
         "source/api/fetch.ts",
         "source/platforms/github/GitHubUtils.ts",
         "source/runner/runners/utils/_tests/_transpiler.test.ts"
+      ]
+    },
+    {
+      "id": "Dataherald/dataherald#270",
+      "repo": "Dataherald/dataherald",
+      "pr": 270,
+      "base": "acee6ab565fd3d0c0b0900c1b41c169ec107e24c",
+      "head": "2905bdd5a5d16821ca2148ba2d3a7dc454c479bd",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.8",
+      "to": "1.3.6",
+      "license": "Apache-2.0",
+      "mergedAt": "2023-11-30T16:08:01Z",
+      "files": [
+        "dataherald/api/fastapi.py",
+        "dataherald/sql_generator/dataherald_finetuning_agent.py",
+        "dataherald/sql_generator/dataherald_sqlagent.py"
       ]
     },
     {
@@ -2579,6 +2825,24 @@
         "pkg/dtgithub/github_repo_projects_store.go",
         "pkg/dtgithub/github_repo_projects_store_test.go",
         "pkg/dtgithub/github_storage.go"
+      ]
+    },
+    {
+      "id": "davecthomas/ai-api-unified#22",
+      "repo": "davecthomas/ai-api-unified",
+      "pr": 22,
+      "base": "242b982718392a91eb315ef2e63327496da70837",
+      "head": "dc17ed045fdd19e9a3f8348f183e6a174c5e1af7",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.86.0",
+      "to": "2.44.0",
+      "license": "MIT",
+      "mergedAt": "2026-07-06T21:03:20Z",
+      "files": [
+        "src/ai_api_unified/__version__.py",
+        "src/ai_api_unified/embeddings/ai_openai_embeddings.py",
+        "tests/test_embeddings_capabilities.py"
       ]
     },
     {
@@ -2995,6 +3259,58 @@
         "plaid2qif/plaid2qif.py",
         "plaid2qif/transaction_writer.py",
         "plaid2qif/util.py"
+      ]
+    },
+    {
+      "id": "eco2-team/backend#527",
+      "repo": "eco2-team/backend",
+      "pr": 527,
+      "base": "49662ae91f01bfc44934a3b7d1beb0fc7b044048",
+      "head": "e82f62f79dafe303d0909ed5ce094ef87d8ca286",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.58.0",
+      "to": "2.9.0",
+      "license": "MIT",
+      "mergedAt": "2026-01-24T03:51:50Z",
+      "files": [
+        "apps/chat_worker/infrastructure/llm/clients/openai_client.py"
+      ]
+    },
+    {
+      "id": "eco2-team/backend#528",
+      "repo": "eco2-team/backend",
+      "pr": 528,
+      "base": "df0dae15393b1dd0a899e84205e167e901761c7b",
+      "head": "84a5251031839e17efeaee70ec47d2c19640e703",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.58.0",
+      "to": "2.9.0",
+      "license": "MIT",
+      "mergedAt": "2026-01-24T05:38:31Z",
+      "files": [
+        "apps/chat_worker/infrastructure/events/redis_progress_notifier.py",
+        "apps/chat_worker/infrastructure/llm/clients/langchain_adapter.py",
+        "apps/chat_worker/infrastructure/llm/clients/openai_client.py",
+        "apps/chat_worker/infrastructure/orchestration/langgraph/checkpointer.py",
+        "apps/chat_worker/infrastructure/orchestration/langgraph/nodes/bulk_waste_agent_node.py",
+        "apps/chat_worker/infrastructure/orchestration/langgraph/nodes/collection_point_agent_node.py",
+        "apps/chat_worker/infrastructure/orchestration/langgraph/nodes/intent_node.py",
+        "apps/chat_worker/infrastructure/orchestration/langgraph/nodes/location_agent_node.py",
+        "apps/chat_worker/infrastructure/orchestration/langgraph/nodes/recyclable_price_agent_node.py",
+        "apps/chat_worker/infrastructure/orchestration/langgraph/nodes/weather_agent_node.py",
+        "apps/chat_worker/infrastructure/orchestration/langgraph/nodes/web_search_node.py",
+        "apps/chat_worker/infrastructure/orchestration/langgraph/summarization.py",
+        "apps/chat_worker/infrastructure/orchestration/langgraph/sync/__init__.py",
+        "apps/chat_worker/infrastructure/orchestration/langgraph/sync/checkpoint_sync_service.py",
+        "apps/chat_worker/infrastructure/orchestration/langgraph/sync/plain_redis_saver.py",
+        "apps/chat_worker/infrastructure/orchestration/langgraph/sync/read_through_checkpointer.py",
+        "apps/chat_worker/infrastructure/orchestration/langgraph/sync/syncable_redis_saver.py",
+        "apps/chat_worker/setup/dependencies.py",
+        "apps/chat_worker/tests/unit/infrastructure/orchestration/langgraph/nodes/test_web_search_node.py",
+        "apps/chat_worker/tests/unit/infrastructure/orchestration/langgraph/test_read_through_checkpointer.py",
+        "apps/chat_worker/tests/unit/infrastructure/orchestration/langgraph/test_summarization.py"
       ]
     },
     {
@@ -3457,6 +3773,40 @@
       ]
     },
     {
+      "id": "epam/ai-dial-adapter-openai#105",
+      "repo": "epam/ai-dial-adapter-openai",
+      "pr": 105,
+      "base": "2f7e97813810fa4f2d58cb0d77c060d1c3084097",
+      "head": "e61e20c9dcf9bdecbe2177d318d19d46c1178e55",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.28.1",
+      "to": "1.33.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2024-06-17T13:16:11Z",
+      "files": [
+        "aidial_adapter_openai/app.py",
+        "aidial_adapter_openai/constant.py",
+        "aidial_adapter_openai/dalle3.py",
+        "aidial_adapter_openai/databricks.py",
+        "aidial_adapter_openai/gpt.py",
+        "aidial_adapter_openai/gpt4_multi_modal/chat_completion.py",
+        "aidial_adapter_openai/mistral.py",
+        "aidial_adapter_openai/openai_override.py",
+        "aidial_adapter_openai/utils/auth.py",
+        "aidial_adapter_openai/utils/exceptions.py",
+        "aidial_adapter_openai/utils/parsers.py",
+        "aidial_adapter_openai/utils/reflection.py",
+        "aidial_adapter_openai/utils/sse_stream.py",
+        "aidial_adapter_openai/utils/streaming.py",
+        "tests/__init__.py",
+        "tests/conftest.py",
+        "tests/test_errors.py",
+        "tests/test_streaming.py",
+        "tests/utils/stream.py"
+      ]
+    },
+    {
       "id": "epam/ai-dial-adapter-openai#389",
       "repo": "epam/ai-dial-adapter-openai",
       "pr": 389,
@@ -3496,6 +3846,44 @@
         "aidial_adapter_vertexai/chat/claude/finish_reason.py",
         "aidial_adapter_vertexai/chat/claude/output.py",
         "aidial_adapter_vertexai/chat/claude/params.py"
+      ]
+    },
+    {
+      "id": "epam/ai-dial-adapter-vertexai#57",
+      "repo": "epam/ai-dial-adapter-vertexai",
+      "pr": 57,
+      "base": "c8dc29389d53a0e2223a2416fbe0e677487ad432",
+      "head": "d91a187e763482cc9078781ffd41381337525556",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0",
+      "to": "1.13.3",
+      "license": "Apache-2.0",
+      "mergedAt": "2024-03-05T10:28:43Z",
+      "files": [
+        "tests/integration_tests/test_chat_completion.py",
+        "tests/integration_tests/test_chat_completion_validation.py",
+        "tests/integration_tests/test_embeddings.py",
+        "tests/unit_tests/test_models.py",
+        "tests/utils/callback.py",
+        "tests/utils/llm.py"
+      ]
+    },
+    {
+      "id": "epam/ai-dial-sdk#106",
+      "repo": "epam/ai-dial-sdk",
+      "pr": 106,
+      "base": "c45437b2b2fd793d72d733445f5508df244d0034",
+      "head": "9c5cd6d9309a873a0a396474d476791ba4e203e3",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.8",
+      "to": "1.34",
+      "license": "Apache-2.0",
+      "mergedAt": "2024-06-25T11:18:20Z",
+      "files": [
+        "examples/langchain_rag/app.py",
+        "examples/langchain_rag/utils.py"
       ]
     },
     {
@@ -3583,6 +3971,42 @@
         "src/slack/SlackClient.ts",
         "src/slack/__tests__/SlackClient.test.ts",
         "src/slack/utils/isCodedPlatformError.ts"
+      ]
+    },
+    {
+      "id": "filipgrano/shfy#7",
+      "repo": "filipgrano/shfy",
+      "pr": 7,
+      "base": "85bbecc36731a20fc69f8987e71854f4622b1493",
+      "head": "6df978ce593b52a523d0180d9003584f16867a75",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.0",
+      "to": "1.0.0",
+      "license": "BSD-3-Clause",
+      "mergedAt": "2024-06-22T20:57:10Z",
+      "files": [
+        "setup.py",
+        "shfy/shfy.py",
+        "shfy/shfy_completion.py",
+        "tests/test_shfy.py"
+      ]
+    },
+    {
+      "id": "fjpulidop/deckdex_mtg#3",
+      "repo": "fjpulidop/deckdex_mtg",
+      "pr": 3,
+      "base": "0691151ee4f666c2f8cb0b5227c0dd8bdd8a72bf",
+      "head": "a73d120497aef5075e7a440559329e74cc79051f",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.8",
+      "to": "1.30.0",
+      "license": "MIT",
+      "mergedAt": "2026-02-07T17:35:39Z",
+      "files": [
+        "deckdex/card_fetcher.py",
+        "tests/test_card_fetcher.py"
       ]
     },
     {
@@ -3893,6 +4317,26 @@
       "mergedAt": "2024-03-13T16:27:31Z",
       "files": [
         "operator/gefyra/resources/serviceaccounts.py"
+      ]
+    },
+    {
+      "id": "georgia-tech-db/evadb#1368",
+      "repo": "georgia-tech-db/evadb",
+      "pr": 1368,
+      "base": "0c25a4429d23ddbe65d3a5aaf474d3838a03dd6a",
+      "head": "2ce9275e432c5ce05c01c914da571295f128a182",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.28",
+      "to": "1.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2023-11-17T22:46:02Z",
+      "files": [
+        "evadb/functions/chatgpt.py",
+        "evadb/functions/dalle.py",
+        "setup.py",
+        "test/integration_tests/long/functions/test_chatgpt.py",
+        "test/unit_tests/test_dalle.py"
       ]
     },
     {
@@ -4504,6 +4948,22 @@
       ]
     },
     {
+      "id": "ginlix-ai/LangAlpha#392",
+      "repo": "ginlix-ai/LangAlpha",
+      "pr": 392,
+      "base": "3e9f6b70298a2244dad727491d4941c4576738d8",
+      "head": "cad76405be348648821243a36efe856afd39d738",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.45.0",
+      "to": "3.8.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-09-04T20:53:20Z",
+      "files": [
+        "tests/unit/llms/test_model_pricing_inheritance.py"
+      ]
+    },
+    {
       "id": "Giskard-AI/giskard-oss#2790",
       "repo": "Giskard-AI/giskard-oss",
       "pr": 2790,
@@ -4791,6 +5251,22 @@
       ]
     },
     {
+      "id": "google/oss-fuzz-gen#211",
+      "repo": "google/oss-fuzz-gen",
+      "pr": 211,
+      "base": "481f921aa0fd65c758bf309ed7b8bf28889cac9b",
+      "head": "11a62df252902ed0ab145834537157e8e559bbc7",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.8",
+      "to": "1.16.2",
+      "license": "Apache-2.0",
+      "mergedAt": "2024-04-10T20:14:23Z",
+      "files": [
+        "llm_toolkit/models.py"
+      ]
+    },
+    {
       "id": "googleapis/code-suggester#512",
       "repo": "googleapis/code-suggester",
       "pr": 512,
@@ -5008,6 +5484,38 @@
       ]
     },
     {
+      "id": "griptape-ai/griptape#422",
+      "repo": "griptape-ai/griptape",
+      "pr": 422,
+      "base": "b6165253514e874116df50d085e78a91e7fbfeac",
+      "head": "5d448e84a859a4c3cefa6c433a265b0b34263c86",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.28.1",
+      "to": "1.1.2",
+      "license": "Apache-2.0",
+      "mergedAt": "2023-11-10T17:13:40Z",
+      "files": [
+        "griptape/drivers/embedding/azure_openai_embedding_driver.py",
+        "griptape/drivers/embedding/openai_embedding_driver.py",
+        "griptape/drivers/prompt/azure_openai_chat_prompt_driver.py",
+        "griptape/drivers/prompt/azure_openai_completion_prompt_driver.py",
+        "griptape/drivers/prompt/base_prompt_driver.py",
+        "griptape/drivers/prompt/openai_chat_prompt_driver.py",
+        "griptape/drivers/prompt/openai_completion_prompt_driver.py",
+        "griptape/tokenizers/base_tokenizer.py",
+        "griptape/tokenizers/openai_tokenizer.py",
+        "griptape/utils/prompt_stack.py",
+        "tests/unit/drivers/embedding/test_azure_openai_embedding_driver.py",
+        "tests/unit/drivers/embedding/test_openai_embedding_driver.py",
+        "tests/unit/drivers/prompt/test_azure_openai_chat_prompt_driver.py",
+        "tests/unit/drivers/prompt/test_azure_openai_completion_prompt_driver.py",
+        "tests/unit/drivers/prompt/test_openai_chat_prompt_driver.py",
+        "tests/unit/drivers/prompt/test_openai_completion_prompt_driver.py",
+        "tests/utils/structure_runner.py"
+      ]
+    },
+    {
       "id": "hadijannat/idta-submodel-editor#188",
       "repo": "hadijannat/idta-submodel-editor",
       "pr": 188,
@@ -5039,6 +5547,28 @@
       "mergedAt": "2026-02-11T19:19:50Z",
       "files": [
         "src/main.js"
+      ]
+    },
+    {
+      "id": "halilozturkci/redplane#7",
+      "repo": "halilozturkci/redplane",
+      "pr": 7,
+      "base": "b87c90030d44ce0a4bded169e7d9dab1047c6dbf",
+      "head": "58a2726a9c388b8a859158263c32ed44efa67f3f",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.2",
+      "to": "3",
+      "license": "MIT",
+      "mergedAt": "2026-09-13T03:29:36Z",
+      "files": [
+        "src/urt/engine_pins.py",
+        "src/urt/integrations/mcs_pyrit/red_team_scan.py",
+        "src/urt/integrations/mcs_pyrit/targets/__init__.py",
+        "src/urt/integrations/mcs_pyrit/targets/mcs_prompt_target.py",
+        "tests/test_dependency_contracts.py",
+        "tests/test_pyrit_native_scan.py",
+        "tests/test_runtime_imports.py"
       ]
     },
     {
@@ -5325,6 +5855,38 @@
       ]
     },
     {
+      "id": "IAAR-Shanghai/UHGEval#24",
+      "repo": "IAAR-Shanghai/UHGEval",
+      "pr": 24,
+      "base": "9a7d264586f8f6a2beff6c340cb9adf0f4522d31",
+      "head": "6e0aba74b05cf5bc559fbfdddbc6f112e6944458",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.28.1",
+      "to": "1.8.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2024-01-20T06:22:24Z",
+      "files": [
+        "uhgeval/llm/api.py"
+      ]
+    },
+    {
+      "id": "IAAR-Shanghai/UHGEval#25",
+      "repo": "IAAR-Shanghai/UHGEval",
+      "pr": 25,
+      "base": "9a7d264586f8f6a2beff6c340cb9adf0f4522d31",
+      "head": "3362f9a27abadf8f3883a6cdac235d074413b3ab",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.28.1",
+      "to": "1.8.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2024-01-20T06:23:34Z",
+      "files": [
+        "uhgeval/llm/api.py"
+      ]
+    },
+    {
       "id": "iggy/botkube#358",
       "repo": "iggy/botkube",
       "pr": 358,
@@ -5602,6 +6164,22 @@
       ]
     },
     {
+      "id": "inweb3/chatWeb3#40",
+      "repo": "inweb3/chatWeb3",
+      "pr": 40,
+      "base": "69af39a9aa0dcbc4b362d71b5974e5f89dc39430",
+      "head": "567d6b91b5eb42f282b43fe3401bacda0d8f1e84",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.28.1",
+      "to": "1.31.0",
+      "license": "MIT",
+      "mergedAt": "2024-06-05T00:54:16Z",
+      "files": [
+        "chatweb3/agents/agent.py"
+      ]
+    },
+    {
       "id": "issue-ops/labeler#117",
       "repo": "issue-ops/labeler",
       "pr": 117,
@@ -5679,6 +6257,24 @@
       "mergedAt": "2024-06-20T07:01:47Z",
       "files": [
         "src/magentic/chat_model/anthropic_chat_model.py"
+      ]
+    },
+    {
+      "id": "jackmpcollins/magentic#59",
+      "repo": "jackmpcollins/magentic",
+      "pr": 59,
+      "base": "29e2a6721bee0c81b48809cf30634aca7aae2f66",
+      "head": "04b784f066bb7fb0a81beadff514963a0d2a33e6",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.8",
+      "to": "1.1.1",
+      "license": "MIT",
+      "mergedAt": "2023-11-14T05:46:13Z",
+      "files": [
+        "src/magentic/chat_model/litellm_chat_model.py",
+        "src/magentic/chat_model/openai_chat_model.py",
+        "tests/chat_model/test_litellm_chat_model.py"
       ]
     },
     {
@@ -6294,6 +6890,23 @@
       ]
     },
     {
+      "id": "knostic/OpenAnt#206",
+      "repo": "knostic/OpenAnt",
+      "pr": 206,
+      "base": "2ed78f6764068e671a40c9eb949d0f68c2c558a7",
+      "head": "82ed2445cc050fe59e82884325b8c73e8b909eee",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.45.0",
+      "to": "2.2.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-08-02T01:49:50Z",
+      "files": [
+        "libs/openant-core/tests/test_llm_openai_adapter.py",
+        "libs/openant-core/utilities/llm/providers/openai.py"
+      ]
+    },
+    {
       "id": "knostic/OpenAnt#354",
       "repo": "knostic/OpenAnt",
       "pr": 354,
@@ -6592,6 +7205,22 @@
       ]
     },
     {
+      "id": "kxkw/chatgpt-telegram-bot#72",
+      "repo": "kxkw/chatgpt-telegram-bot",
+      "pr": 72,
+      "base": "9e696a321b41476fa707001c7c1c5d3491003c87",
+      "head": "04c3a53ec9f199239334e589d7d0cba16ed8c952",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.8",
+      "to": "1.13.3",
+      "license": "MIT",
+      "mergedAt": "2024-03-02T00:08:08Z",
+      "files": [
+        "main.py"
+      ]
+    },
+    {
       "id": "kyma-project/test-infra#13902",
       "repo": "kyma-project/test-infra",
       "pr": 13902,
@@ -6746,6 +7375,24 @@
       ]
     },
     {
+      "id": "langfuse/langfuse-python#169",
+      "repo": "langfuse/langfuse-python",
+      "pr": 169,
+      "base": "909712d0bcb689cf9846c402f443ca4277b68df4",
+      "head": "e2f9259d8e8640ce2618b660571866c21ac76d81",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.10",
+      "to": "1.3.0",
+      "license": "MIT",
+      "mergedAt": "2023-11-15T22:07:47Z",
+      "files": [
+        "langfuse/openai.py",
+        "langfuse/version.py",
+        "tests/test_openai.py"
+      ]
+    },
+    {
       "id": "langgenius/dify-official-plugins#355",
       "repo": "langgenius/dify-official-plugins",
       "pr": 355,
@@ -6759,6 +7406,23 @@
       "mergedAt": "2025-03-03T02:49:11Z",
       "files": [
         "models/anthropic/models/llm/llm.py"
+      ]
+    },
+    {
+      "id": "larjfut/PODrafter#15",
+      "repo": "larjfut/PODrafter",
+      "pr": 15,
+      "base": "0509b4a807cd3714f28094b29aa51d4a362a2a32",
+      "head": "cc392ffa4d5da0a6027c0dd99f14a6634c5097c7",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.0",
+      "to": "1.0.0",
+      "license": "MIT",
+      "mergedAt": "2025-08-23T19:16:18Z",
+      "files": [
+        "backend/main.py",
+        "backend/tests/test_main.py"
       ]
     },
     {
@@ -6801,6 +7465,43 @@
         "receiver/githubreceiver/trace_event_handling.go",
         "receiver/githubreceiver/trace_event_handling_test.go",
         "receiver/githubreceiver/trace_receiver.go"
+      ]
+    },
+    {
+      "id": "libretto-ai/openai-py#12",
+      "repo": "libretto-ai/openai-py",
+      "pr": 12,
+      "base": "5c19ffa5d51f56935d2b4dc69e4b7c97efb414c2",
+      "head": "9b545de4c8af86710552616de7bc11cc1dc416c2",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0",
+      "to": "1.1.2",
+      "license": "MIT",
+      "mergedAt": "2023-11-16T02:16:36Z",
+      "files": [
+        "examples/apitest.py",
+        "examples/langchaintest.py",
+        "langchain-examples/conversational-qa.py",
+        "langchain-examples/math-qa.py",
+        "langchain-examples/qa-evaluation.py",
+        "langchain-examples/summarize-docs.py",
+        "libretto_openai/__init__.py",
+        "libretto_openai/client.py",
+        "libretto_openai/completions.py",
+        "libretto_openai/completions_impl.py",
+        "libretto_openai/langchain/__init__.py",
+        "libretto_openai/langchain/callbacks.py",
+        "libretto_openai/langchain/patch.py",
+        "libretto_openai/langchain/util.py",
+        "libretto_openai/patch.py",
+        "libretto_openai/session.py",
+        "libretto_openai/types.py",
+        "tests/test_client.py",
+        "tests/test_im_openai.py",
+        "tests/test_langchain_util.py",
+        "tests/test_patch.py",
+        "tests/test_session.py"
       ]
     },
     {
@@ -6956,6 +7657,25 @@
       "files": [
         "pkg/github/github.go",
         "pkg/module/install.go"
+      ]
+    },
+    {
+      "id": "linuxarena/control-tower#1729",
+      "repo": "linuxarena/control-tower",
+      "pr": 1729,
+      "base": "9bf8ee0b05b86bd44afc0f4aab3adbeb3a73367d",
+      "head": "dc7cab28705b99574bb88c91ced8d46d00274272",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.45.0",
+      "to": "3.1.0",
+      "license": "MIT",
+      "mergedAt": "2026-09-02T00:31:09Z",
+      "files": [
+        "src/control_tower/protocols/untrusted_policy/untrusted_model.py",
+        "src/control_tower/sandbox/ec2/fleet/job.py",
+        "src/control_tower/trajectories/convert.py",
+        "src/control_tower/utils/direct_api_generator.py"
       ]
     },
     {
@@ -7407,6 +8127,23 @@
       ]
     },
     {
+      "id": "mcan-k/defect-risk-analyzer#36",
+      "repo": "mcan-k/defect-risk-analyzer",
+      "pr": 36,
+      "base": "22a272c007b9ed2c8e9193e25328ebc40e6f5522",
+      "head": "e358acfd019d27c9d24ce61bee7976b702f7222e",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.58.1",
+      "to": "3.13.0",
+      "license": "MIT",
+      "mergedAt": "2026-09-24T20:53:26Z",
+      "files": [
+        "tests/test_dependency_pins.py",
+        "tests/test_llm_sdk_contract.py"
+      ]
+    },
+    {
       "id": "mdn/yari#9888",
       "repo": "mdn/yari",
       "pr": 9888,
@@ -7480,6 +8217,46 @@
       ]
     },
     {
+      "id": "microsoft/Agent365-python#201",
+      "repo": "microsoft/Agent365-python",
+      "pr": 201,
+      "base": "c9af672f9958508a16a9d42e7c736f1b86e7fae2",
+      "head": "0a7473f263982bdeab36273be4e0dde2e70841e4",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.0.0",
+      "to": "2.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-03-25T16:00:58Z",
+      "files": [
+        "libraries/microsoft-agents-a365-tooling-extensions-agentframework/microsoft_agents_a365/tooling/extensions/agentframework/services/mcp_tool_registration_service.py",
+        "tests/observability/extensions/agentframework/integration/test_agentframework_trace_processor.py",
+        "tests/tooling/extensions/agentframework/services/test_mcp_tool_registration_service.py",
+        "tests/tooling/extensions/agentframework/services/test_send_chat_history.py"
+      ]
+    },
+    {
+      "id": "microsoft/amplifier-module-provider-anthropic#100",
+      "repo": "microsoft/amplifier-module-provider-anthropic",
+      "pr": 100,
+      "base": "9c19a05e4be72d50e7cd666768747c1c5c7735db",
+      "head": "3ba7ae969cef12ce6818459e30e406d2005438e2",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.96.0",
+      "to": "1.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-08-22T14:47:33Z",
+      "files": [
+        "amplifier_module_provider_anthropic/__init__.py",
+        "tests/test_cloudflare_real_sdk.py",
+        "tests/test_model_capabilities.py",
+        "tests/test_opus_47.py",
+        "tests/test_reasoning_effort.py",
+        "tests/test_sdk_contract.py"
+      ]
+    },
+    {
       "id": "microsoft/deep-language-networks#51",
       "repo": "microsoft/deep-language-networks",
       "pr": 51,
@@ -7495,6 +8272,51 @@
         "dln/operator.py",
         "tests/conftest.py",
         "tests/test_dln_operator.py"
+      ]
+    },
+    {
+      "id": "microsoft/OpenAIWorkshop#179",
+      "repo": "microsoft/OpenAIWorkshop",
+      "pr": 179,
+      "base": "efb03abfc2d9301a84d3739ddc42e3e023fc2346",
+      "head": "0e8f0fcce68e866a3187ae8b3e02de0dfdc58174",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.8",
+      "to": "1.9.0",
+      "license": "MIT",
+      "mergedAt": "2024-01-26T16:33:23Z",
+      "files": [
+        "scenarios/data/prepdocs/prepdocs.py"
+      ]
+    },
+    {
+      "id": "microsoft/promptflow#1128",
+      "repo": "microsoft/promptflow",
+      "pr": 1128,
+      "base": "8fc1184e3f26fdc2df39b0238d9b65111efff9b8",
+      "head": "6a4d56634fafe7a8188b03f787449e4a4bdf8a73",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.8",
+      "to": "1.0.0",
+      "license": "MIT",
+      "mergedAt": "2023-11-28T02:24:07Z",
+      "files": [
+        "src/promptflow-tools/promptflow/tools/aoai.py",
+        "src/promptflow-tools/promptflow/tools/common.py",
+        "src/promptflow-tools/promptflow/tools/embedding.py",
+        "src/promptflow-tools/promptflow/tools/exception.py",
+        "src/promptflow-tools/promptflow/tools/openai.py",
+        "src/promptflow-tools/promptflow/tools/openai_gpt4v.py",
+        "src/promptflow-tools/tests/conftest.py",
+        "src/promptflow-tools/tests/test_aoai.py",
+        "src/promptflow-tools/tests/test_handle_openai_error.py",
+        "src/promptflow-tools/tests/test_openai.py",
+        "src/promptflow/setup.py",
+        "src/promptflow/tests/executor/e2etests/test_langchain.py",
+        "src/promptflow/tests/executor/e2etests/test_telemetry.py",
+        "src/promptflow/tests/executor/e2etests/test_traces.py"
       ]
     },
     {
@@ -7544,6 +8366,22 @@
       "files": [
         "controlpanel/api/kubernetes.py",
         "tests/api/test_kubernetes.py"
+      ]
+    },
+    {
+      "id": "miquido/draive#432",
+      "repo": "miquido/draive",
+      "pr": 432,
+      "base": "da6ec2e0c970ba054817bad186f243f5b6201386",
+      "head": "7aa6283a6e2e0878d585de53dee501f7aa0aafa5",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.104",
+      "to": "2.0",
+      "license": "MIT",
+      "mergedAt": "2025-10-01T08:08:40Z",
+      "files": [
+        "src/draive/openai/responses.py"
       ]
     },
     {
@@ -7685,6 +8523,26 @@
         "internal/provider/github_version_history.go",
         "internal/provider/provider_test.go",
         "internal/testsupport/fakeprovider/content_github.go"
+      ]
+    },
+    {
+      "id": "MrGreyfun/Local-Code-Interpreter#57",
+      "repo": "MrGreyfun/Local-Code-Interpreter",
+      "pr": 57,
+      "base": "3b17fc138cca93cd006d83e6bec5b6e601a1a8cf",
+      "head": "0eac47849fabd3b2f5d8f314a036cb52a47db6b9",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.8",
+      "to": "1.40.3",
+      "license": "Apache-2.0",
+      "mergedAt": "2024-08-20T11:47:35Z",
+      "files": [
+        "src/bot_backend.py",
+        "src/functional.py",
+        "src/response_parser.py",
+        "src/tools.py",
+        "src/web_ui.py"
       ]
     },
     {
@@ -7990,6 +8848,22 @@
       ]
     },
     {
+      "id": "omnigent-ai/omnigent#2713",
+      "repo": "omnigent-ai/omnigent",
+      "pr": 2713,
+      "base": "1e0e422e3ca8708fd0fa02800af82a1db557e6f8",
+      "head": "c81f6d23a30a4e05905bbd2a76be3a66820a410f",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.0",
+      "to": "2.45",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-07-17T03:46:27Z",
+      "files": [
+        "tests/inner/test_openai_agents_sdk_dependency.py"
+      ]
+    },
+    {
       "id": "One-Code-LLC/mergerisk-action#48",
       "repo": "One-Code-LLC/mergerisk-action",
       "pr": 48,
@@ -8230,6 +9104,66 @@
       ]
     },
     {
+      "id": "openai/openai-agents-python#1874",
+      "repo": "openai/openai-agents-python",
+      "pr": 1874,
+      "base": "9078e29c0c4134d1b850dcaf936a4ef8975d6fcb",
+      "head": "c0b979cb8a6bd819c4f12abdb396ca6ed487e96b",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.107.1",
+      "to": "2.2",
+      "license": "MIT",
+      "mergedAt": "2025-10-11T14:24:00Z",
+      "files": [
+        "src/agents/extensions/models/litellm_model.py",
+        "src/agents/models/chatcmpl_converter.py",
+        "src/agents/models/openai_chatcompletions.py",
+        "src/agents/models/openai_responses.py",
+        "tests/fake_model.py",
+        "tests/test_model_payload_iterators.py",
+        "tests/test_openai_chatcompletions.py",
+        "tests/test_openai_chatcompletions_converter.py",
+        "tests/test_openai_responses_converter.py"
+      ]
+    },
+    {
+      "id": "openai/openai-agents-python#4380",
+      "repo": "openai/openai-agents-python",
+      "pr": 4380,
+      "base": "05d6850da5da7ae5efe0e89e85660e5878547ba4",
+      "head": "f8570e30a2a53aef5adfd6fa04f74888c0bb8659",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.2",
+      "to": "3.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-08-13T03:09:43Z",
+      "files": [
+        "integration_tests/openai/test_retry.py",
+        "integration_tests/packaging/test_mcp_compat.py",
+        "src/agents/_httpx_compat.py",
+        "src/agents/mcp/_compat.py",
+        "src/agents/mcp/server.py",
+        "src/agents/models/_retry_runtime.py",
+        "src/agents/models/openai_provider.py",
+        "src/agents/models/openai_responses.py",
+        "src/agents/run_internal/model_retry.py",
+        "src/agents/tracing/processors.py",
+        "src/agents/voice/models/openai_model_provider.py",
+        "tests/models/test_kwargs_functionality.py",
+        "tests/models/test_model_retry.py",
+        "tests/models/test_openai_chatcompletions.py",
+        "tests/models/test_openai_chatcompletions_stream.py",
+        "tests/models/test_openai_responses.py",
+        "tests/models/test_openai_retry_helpers.py",
+        "tests/test_config.py",
+        "tests/test_trace_processor.py",
+        "tests/tracing/test_import_side_effects.py",
+        "tests/voice/test_openai_model_provider.py"
+      ]
+    },
+    {
       "id": "openclaw/slacrawl#44",
       "repo": "openclaw/slacrawl",
       "pr": 44,
@@ -8308,6 +9242,27 @@
       "mergedAt": "2026-07-23T14:31:15Z",
       "files": [
         "pkg/debug/diff.go"
+      ]
+    },
+    {
+      "id": "osrapps/osr-console#23",
+      "repo": "osrapps/osr-console",
+      "pr": 23,
+      "base": "92cc35502f05f5c05fb240505a87e4012cb8b46b",
+      "head": "70ae2aac8609f1afce2e7ad305d73d945aa35036",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.28.1",
+      "to": "1.3.3",
+      "license": "MIT",
+      "mergedAt": "2023-11-21T02:22:47Z",
+      "files": [
+        "osrgame/osrgame/osrgame.py",
+        "osrgame/osrgame/screen.py",
+        "osrlib/osrlib/dungeon.py",
+        "osrlib/osrlib/dungeon_master.py",
+        "tests/test_unit_dungeon.py",
+        "tests/test_unit_dungeon_master.py"
       ]
     },
     {
@@ -8490,6 +9445,24 @@
       ]
     },
     {
+      "id": "phelps-sg/openai-pygenerator#3",
+      "repo": "phelps-sg/openai-pygenerator",
+      "pr": 3,
+      "base": "22588ae4e6fd0fa555b7b8832a3dfa06b92afbbf",
+      "head": "5b24ae27c3c633fbbd9996c8eeb6f5fbc09f7567",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.28.1",
+      "to": "1.3.2",
+      "license": "MIT",
+      "mergedAt": "2023-11-17T10:20:39Z",
+      "files": [
+        "src/openai_pygenerator/example.py",
+        "src/openai_pygenerator/openai_pygenerator.py",
+        "tests/test_gpt.py"
+      ]
+    },
+    {
       "id": "piercefreeman/gpt-json#43",
       "repo": "piercefreeman/gpt-json",
       "pr": 43,
@@ -8598,6 +9571,29 @@
       "files": [
         "lib.js",
         "test/acceptance.test.js"
+      ]
+    },
+    {
+      "id": "pitekusu/shittim-chest#326",
+      "repo": "pitekusu/shittim-chest",
+      "pr": 326,
+      "base": "4dbd02590524bb49b2b4f5fcbcd8e1c41fb57048",
+      "head": "32e86171d8c03e588f68ffe374faf5995bb5930c",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.53.0",
+      "to": "3.8.0",
+      "license": "MIT",
+      "mergedAt": "2026-09-05T07:59:22Z",
+      "files": [
+        "services/records/src/shittim_records/inspector_translation_adapters.py",
+        "services/records/src/shittim_records/memorial_adapters.py",
+        "services/records/tests/test_inspector_translations.py",
+        "services/records/tests/test_memorial_adapters.py",
+        "src/shittim_chest/adapters/openai/service.py",
+        "tests/contract/openai/test_farewell.py",
+        "tests/contract/openai/test_responses_service.py",
+        "tests/contract/openai/test_web_evidence_service.py"
       ]
     },
     {
@@ -9055,6 +10051,64 @@
         "tests/models/test_google.py",
         "tests/test_capabilities.py",
         "tests/test_examples.py"
+      ]
+    },
+    {
+      "id": "qntx/openai-python#45",
+      "repo": "qntx/openai-python",
+      "pr": 45,
+      "base": "e24b572de421cbac8446aa762f14d00bca3859eb",
+      "head": "98982f1dfcd0b54f841ed597103d2d040b5708ea",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.0.0",
+      "to": "3.7.0",
+      "license": "MIT",
+      "mergedAt": "2026-09-02T09:57:17Z",
+      "files": [
+        "examples/chat_evm.py",
+        "examples/chat_evm_mnemonic.py",
+        "examples/chat_evm_policy.py",
+        "examples/chat_multichain_policy.py",
+        "examples/chat_policy.py",
+        "examples/chat_svm.py",
+        "examples/chat_tvm.py",
+        "examples/chat_upto.py",
+        "examples/models.py",
+        "examples/models_mnemonic.py",
+        "examples/streaming_evm.py",
+        "examples/streaming_evm_mnemonic.py",
+        "examples/streaming_evm_policy.py",
+        "examples/streaming_svm.py",
+        "src/qntx/openai/__init__.py",
+        "src/qntx/openai/_chains/__init__.py",
+        "src/qntx/openai/_chains/_evm.py",
+        "src/qntx/openai/_chains/_register.py",
+        "src/qntx/openai/_chains/_svm.py",
+        "src/qntx/openai/_chains/_tvm.py",
+        "src/qntx/openai/_chains/_types.py",
+        "src/qntx/openai/_client.py",
+        "src/qntx/openai/_payments.py",
+        "src/qntx/openai/_policies.py",
+        "src/qntx/openai/_transport.py",
+        "src/x402_openai/__init__.py",
+        "src/x402_openai/_client.py",
+        "src/x402_openai/_transport.py",
+        "src/x402_openai/_wallet.py",
+        "src/x402_openai/wallets/__init__.py",
+        "src/x402_openai/wallets/_base.py",
+        "src/x402_openai/wallets/_evm.py",
+        "src/x402_openai/wallets/_svm.py",
+        "tests/test_chains_evm.py",
+        "tests/test_chains_svm.py",
+        "tests/test_chains_tvm.py",
+        "tests/test_client.py",
+        "tests/test_missing_extra.py",
+        "tests/test_payments.py",
+        "tests/test_policies.py",
+        "tests/test_transport.py",
+        "tests/test_wallet_factory.py",
+        "tests/test_wallets.py"
       ]
     },
     {
@@ -9878,6 +10932,36 @@
       ]
     },
     {
+      "id": "rubenbalbastre/reporting-agentic-system#1",
+      "repo": "rubenbalbastre/reporting-agentic-system",
+      "pr": 1,
+      "base": "c603042ff2ddb7432ae7c9db37fbe48c367b276c",
+      "head": "599d1f462f07b4b69ea6183f1638800a5e4a7830",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.101.0",
+      "to": "2.30.0",
+      "license": "MIT",
+      "mergedAt": "2026-04-09T13:42:45Z",
+      "files": [
+        "backend/app/agent.py",
+        "backend/app/graph.py",
+        "backend/app/main.py",
+        "backend/app/report_agent.py",
+        "backend/tests/test_create_message_integration.py",
+        "backend/tests/test_graph.py",
+        "worker/app/code_executor_agent.py",
+        "worker/app/code_planner_agent.py",
+        "worker/app/common_tools.py",
+        "worker/app/database_agent.py",
+        "worker/app/instructions.py",
+        "worker/app/main.py",
+        "worker/app/schemas.py",
+        "worker/tests/conftest.py",
+        "worker/tests/test_api.py"
+      ]
+    },
+    {
       "id": "run-llama/llama_index#18817",
       "repo": "run-llama/llama_index",
       "pr": 18817,
@@ -9979,6 +11063,22 @@
       "files": [
         "src/saltext/kubernetes/modules/kubernetesmod.py",
         "tests/unit/modules/test_kubernetesmod.py"
+      ]
+    },
+    {
+      "id": "samuelcolvin/aicli#8",
+      "repo": "samuelcolvin/aicli",
+      "pr": 8,
+      "base": "46721be718c27ecf6365f2c968b8d05be7a843fc",
+      "head": "c6b423d747763cae71427d6770dc356cc6d6bd1c",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.28",
+      "to": "1",
+      "license": "MIT",
+      "mergedAt": "2023-12-08T09:15:49Z",
+      "files": [
+        "samuelcolvin_aicli.py"
       ]
     },
     {
@@ -10219,6 +11319,25 @@
       ]
     },
     {
+      "id": "seratch/ChatGPT-in-Slack#85",
+      "repo": "seratch/ChatGPT-in-Slack",
+      "pr": 85,
+      "base": "7b789e0c736b7d3fa8990fd974f100acea5e151d",
+      "head": "168dc6ca088978e0dca56fc188bdd252113dfefc",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.28.1",
+      "to": "1.30.1",
+      "license": "MIT",
+      "mergedAt": "2024-05-17T22:52:17Z",
+      "files": [
+        "app/bolt_listeners.py",
+        "app/i18n.py",
+        "app/openai_ops.py",
+        "main_prod.py"
+      ]
+    },
+    {
       "id": "sethrylan/issue-digest#63",
       "repo": "sethrylan/issue-digest",
       "pr": 63,
@@ -10232,6 +11351,23 @@
       "mergedAt": "2025-08-30T16:41:33Z",
       "files": [
         "src/models.ts"
+      ]
+    },
+    {
+      "id": "ShamikM88/open-cam-framework#79",
+      "repo": "ShamikM88/open-cam-framework",
+      "pr": 79,
+      "base": "a26654fda599c2762f62f7ac90d4359163e415ae",
+      "head": "16ab0b8dba553c31b69dc9f8ca529f34aca6e8d8",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.18.0",
+      "to": "1.7.0",
+      "license": "MIT",
+      "mergedAt": "2026-09-25T21:53:44Z",
+      "files": [
+        "scripts/orchestrator.py",
+        "tests/test_orchestrator.py"
       ]
     },
     {
@@ -10371,6 +11507,25 @@
       ]
     },
     {
+      "id": "Snowflake-Labs/sfguide-frosty-llm-chatbot-on-streamlit-snowflake#20",
+      "repo": "Snowflake-Labs/sfguide-frosty-llm-chatbot-on-streamlit-snowflake",
+      "pr": 20,
+      "base": "d121f0c00da3740791af51e8cd4991f75ae65220",
+      "head": "408adedd25c3725447a61cdeb960e5c23ccc759f",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.8",
+      "to": "1.2.2",
+      "license": "Apache-2.0",
+      "mergedAt": "2023-11-13T22:47:04Z",
+      "files": [
+        "src/frosty_app.py",
+        "src/prompts.py",
+        "src/simple_chatbot.py",
+        "src/validate_credentials.py"
+      ]
+    },
+    {
       "id": "softprops/action-gh-release#470",
       "repo": "softprops/action-gh-release",
       "pr": 470,
@@ -10403,6 +11558,41 @@
         "tests/e2e/test_openai_sdk_compat.py",
         "tests/e2e/test_v1_responses_openai_sdk.py",
         "tests/integration/test_openai_client_compat.py"
+      ]
+    },
+    {
+      "id": "SolomonSmith-dev/arda#86",
+      "repo": "SolomonSmith-dev/arda",
+      "pr": 86,
+      "base": "f9724da4358421336b5204b879ee6112306a4a88",
+      "head": "fbbdc478238ed53352669cff4ec35061fab4067d",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.40",
+      "to": "1",
+      "license": "MIT",
+      "mergedAt": "2026-08-27T05:19:23Z",
+      "files": [
+        "agents/_anthropic_mock.py",
+        "tests/test_mock_sdk_parity.py"
+      ]
+    },
+    {
+      "id": "SomeClown/discord-newsbot#9",
+      "repo": "SomeClown/discord-newsbot",
+      "pr": 9,
+      "base": "240a9d2d0c37315802d764ad8c03aa2d9582b00e",
+      "head": "d6565dd232aca7cb206540fe363710758735d3b5",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.40",
+      "to": "1.8",
+      "license": "MIT",
+      "mergedAt": "2026-09-25T17:23:05Z",
+      "files": [
+        "newsbot/logging_setup.py",
+        "newsbot/pipeline/summarize.py",
+        "tests/test_summarize_retry_accounting.py"
       ]
     },
     {
@@ -12390,6 +13580,66 @@
       ]
     },
     {
+      "id": "TheR1D/shell_gpt#744",
+      "repo": "TheR1D/shell_gpt",
+      "pr": 744,
+      "base": "6bd0bdebe1f321e397099e430e8ecd93beb965b6",
+      "head": "b15d67922c30155c390dd7b59e2d6523f231c2eb",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.34.0",
+      "to": "2.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-01-28T00:52:29Z",
+      "files": [
+        "sgpt/__version__.py",
+        "sgpt/app.py",
+        "sgpt/function.py",
+        "sgpt/handlers/chat_handler.py",
+        "sgpt/handlers/handler.py",
+        "sgpt/llm_functions/common/execute_shell.py",
+        "sgpt/llm_functions/mac/apple_script.py",
+        "sgpt/role.py"
+      ]
+    },
+    {
+      "id": "TJC-LP/sanzaru#79",
+      "repo": "TJC-LP/sanzaru",
+      "pr": 79,
+      "base": "97f8f7ba177a29b8a4cf7c0cf018aba91f4f782a",
+      "head": "1f911f5eb97a8ea4a69813f13c77c107e4e3e4d8",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.53.0",
+      "to": "3.14.0",
+      "license": "MIT",
+      "mergedAt": "2026-09-15T20:49:44Z",
+      "files": [
+        "src/sanzaru/audio/realtime/live_agent.py",
+        "src/sanzaru/audio/realtime/pricing.py",
+        "src/sanzaru/audio/realtime/producer.py",
+        "src/sanzaru/audio/realtime/types.py",
+        "src/sanzaru/cli/image.py",
+        "src/sanzaru/cli/podcast.py",
+        "src/sanzaru/config.py",
+        "src/sanzaru/descriptions.py",
+        "src/sanzaru/image_models.py",
+        "src/sanzaru/server.py",
+        "src/sanzaru/tools/image.py",
+        "src/sanzaru/tools/images_api.py",
+        "src/sanzaru/tools/simulate_podcast.py",
+        "tests/audio/conftest.py",
+        "tests/audio/test_live_agent.py",
+        "tests/audio/test_simulate_podcast.py",
+        "tests/cli/test_image_commands.py",
+        "tests/integration/test_image_tool_signatures.py",
+        "tests/integration/test_image_tools.py",
+        "tests/integration/test_images_api_tools.py",
+        "tests/unit/test_image_models.py",
+        "tests/unit/test_polling.py"
+      ]
+    },
+    {
       "id": "tldr-pages/tldr-labeler-action#120",
       "repo": "tldr-pages/tldr-labeler-action",
       "pr": 120,
@@ -12480,6 +13730,30 @@
       ]
     },
     {
+      "id": "traceloop/openllmetry#154",
+      "repo": "traceloop/openllmetry",
+      "pr": 154,
+      "base": "a698d5b126484f1ca530db8f6cec370539bb616f",
+      "head": "e4899d62c148330b4bfb50ff731a4c07900e12ee",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.28.1",
+      "to": "1.1.1",
+      "license": "Apache-2.0",
+      "mergedAt": "2023-11-07T14:19:00Z",
+      "files": [
+        "packages/opentelemetry-instrumentation-openai/opentelemetry/instrumentation/openai/__init__.py",
+        "packages/sample-app/sample_app/methods_decorated_app.py",
+        "packages/sample-app/sample_app/openai_streaming.py",
+        "packages/traceloop-sdk/tests/disabled_test_langchain_instrumentation.py",
+        "packages/traceloop-sdk/tests/test_openai_instrumentation.py",
+        "packages/traceloop-sdk/tests/test_pinecone_instrumentation.py",
+        "packages/traceloop-sdk/tests/test_privacy_no_prompts.py",
+        "packages/traceloop-sdk/tests/test_workflows.py",
+        "packages/traceloop-sdk/traceloop/sdk/__init__.py"
+      ]
+    },
+    {
       "id": "traefik/traefik#13686",
       "repo": "traefik/traefik",
       "pr": 13686,
@@ -12511,6 +13785,64 @@
         "cucumber.js",
         "test/integration/features/step_definitions/common-steps.js",
         "test/integration/features/step_definitions/github-steps.js"
+      ]
+    },
+    {
+      "id": "truera/trulens#548",
+      "repo": "truera/trulens",
+      "pr": 548,
+      "base": "cbbacac242d76f46d1e0e0ee185a173db6bc4885",
+      "head": "c39fc0a265a367a174863b37e90e7fa8281f35e2",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.6",
+      "to": "0.28.1",
+      "license": "MIT",
+      "mergedAt": "2023-11-08T16:23:28Z",
+      "files": [
+        "trulens_eval/setup.py"
+      ]
+    },
+    {
+      "id": "truera/trulens#555",
+      "repo": "truera/trulens",
+      "pr": 555,
+      "base": "ff40d5afa663df02c01322c8b8b049eff1542fb2",
+      "head": "06f0f38293e16f1c4430577d1b6f07840d0f0fcb",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.28.1",
+      "to": "1.1.1",
+      "license": "MIT",
+      "mergedAt": "2023-11-16T01:49:16Z",
+      "files": [
+        "trulens_eval/examples/quickstart/py_script_quickstarts/text2text_quickstart.py",
+        "trulens_eval/setup.py",
+        "trulens_eval/trulens_eval/app.py",
+        "trulens_eval/trulens_eval/appui.py",
+        "trulens_eval/trulens_eval/database/orm.py",
+        "trulens_eval/trulens_eval/database/sqlalchemy_db.py",
+        "trulens_eval/trulens_eval/feedback/embeddings.py",
+        "trulens_eval/trulens_eval/feedback/provider/endpoint/base.py",
+        "trulens_eval/trulens_eval/feedback/provider/endpoint/hugs.py",
+        "trulens_eval/trulens_eval/feedback/provider/endpoint/openai.py",
+        "trulens_eval/trulens_eval/feedback/provider/openai.py",
+        "trulens_eval/trulens_eval/feedback/v2/feedback.py",
+        "trulens_eval/trulens_eval/instruments.py",
+        "trulens_eval/trulens_eval/keys.py",
+        "trulens_eval/trulens_eval/pages/Evaluations.py",
+        "trulens_eval/trulens_eval/schema.py",
+        "trulens_eval/trulens_eval/tru.py",
+        "trulens_eval/trulens_eval/tru_chain.py",
+        "trulens_eval/trulens_eval/tru_custom_app.py",
+        "trulens_eval/trulens_eval/tru_llama.py",
+        "trulens_eval/trulens_eval/utils/imports.py",
+        "trulens_eval/trulens_eval/utils/json.py",
+        "trulens_eval/trulens_eval/utils/pyschema.py",
+        "trulens_eval/trulens_eval/utils/python.py",
+        "trulens_eval/trulens_eval/utils/serial.py",
+        "trulens_eval/trulens_eval/utils/text.py",
+        "trulens_eval/trulens_eval/utils/threading.py"
       ]
     },
     {
@@ -12736,6 +14068,32 @@
       ]
     },
     {
+      "id": "UKGovernmentBEIS/inspect_ai#4985",
+      "repo": "UKGovernmentBEIS/inspect_ai",
+      "pr": 4985,
+      "base": "c28498d24dede0c904496aad913033ded553067a",
+      "head": "173017eea542793a23adb555c35557664abb32df",
+      "package": "anthropic",
+      "ecosystem": "pypi",
+      "from": "0.124.0",
+      "to": "1.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-08-21T12:33:22Z",
+      "files": [
+        "src/inspect_ai/_cli/ctl/_group.py",
+        "src/inspect_ai/_util/httpx.py",
+        "src/inspect_ai/agent/_bridge/bridge.py",
+        "src/inspect_ai/model/_providers/_anthropic_batch.py",
+        "src/inspect_ai/model/_providers/anthropic.py",
+        "src/inspect_ai/model/_providers/providers.py",
+        "src/inspect_ai/model/_providers/util/hooks.py",
+        "tests/agent/test_agent_bridge.py",
+        "tests/agent/test_bridge_raw_response.py",
+        "tests/model/providers/test_anthropic.py",
+        "tests/model/test_should_retry_classification.py"
+      ]
+    },
+    {
       "id": "UKGovernmentBEIS/inspect_evals#2187",
       "repo": "UKGovernmentBEIS/inspect_evals",
       "pr": 2187,
@@ -12755,6 +14113,29 @@
         "tests/moru/test_moru.py",
         "tests/moru/test_scorer.py",
         "tests/utils/test_load_dataset.py"
+      ]
+    },
+    {
+      "id": "ulfe-lmi/slaif-api-gateway#303",
+      "repo": "ulfe-lmi/slaif-api-gateway",
+      "pr": 303,
+      "base": "1fccaa746df6cd44f1ddf8c2ec5cf6ea9f18b1cb",
+      "head": "61d9c56662dd40b1134d0abeb0298f3dd28a3f6e",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.41.0",
+      "to": "3.9.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-09-17T07:15:34Z",
+      "files": [
+        "tests/e2e/test_openai_python_client_audio.py",
+        "tests/e2e/test_openai_python_client_chat.py",
+        "tests/e2e/test_openai_python_client_embeddings.py",
+        "tests/e2e/test_openai_python_client_realtime.py",
+        "tests/e2e/test_openai_python_client_responses.py",
+        "tests/e2e/test_openai_python_client_streaming.py",
+        "tests/e2e/test_openrouter_python_client_chat.py",
+        "tests/e2e/test_openrouter_python_client_streaming.py"
       ]
     },
     {
@@ -13340,6 +14721,85 @@
       ]
     },
     {
+      "id": "wandb/weave#851",
+      "repo": "wandb/weave",
+      "pr": 851,
+      "base": "bbb967b964e40a5d0c0cf40959410ebc12b08a94",
+      "head": "88ccb86cee7f2267dc62870144cf570914208ed0",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.26.4",
+      "to": "1.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2023-12-08T16:05:10Z",
+      "files": [
+        "weave/__init__.py",
+        "weave/ecosystem/openai/__init__.py",
+        "weave/ecosystem/openai/embedding.py",
+        "weave/ecosystem/openai/gpt3.py",
+        "weave/ecosystem/openai/test_openai.py",
+        "weave/monitoring/__init__.py",
+        "weave/monitoring/openai.py",
+        "weave/monitoring/openai/__init__.py",
+        "weave/monitoring/openai/models.py",
+        "weave/monitoring/openai/openai.py",
+        "weave/monitoring/openai/util.py",
+        "weave/tests/test_monitoring_openai.py",
+        "weave/weaveflow/anyscale.py",
+        "weave/weaveflow/openai.py"
+      ]
+    },
+    {
+      "id": "wandb/weave#974",
+      "repo": "wandb/weave",
+      "pr": 974,
+      "base": "0d53bf90e1482847b8f72c76c6fb9f1fe5788d93",
+      "head": "58155e405313186e1d69ec0718c12ec454966690",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.26.4",
+      "to": "1.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2023-12-18T23:24:43Z",
+      "files": [
+        "weave/__init__.py",
+        "weave/ecosystem/openai/__init__.py",
+        "weave/ecosystem/openai/embedding.py",
+        "weave/ecosystem/openai/gpt3.py",
+        "weave/ecosystem/openai/test_openai.py",
+        "weave/monitoring/__init__.py",
+        "weave/monitoring/monitor.py",
+        "weave/monitoring/openai.py",
+        "weave/monitoring/openai/__init__.py",
+        "weave/monitoring/openai/models.py",
+        "weave/monitoring/openai/openai.py",
+        "weave/monitoring/openai/util.py",
+        "weave/tests/test_monitoring_openai.py",
+        "weave/weaveflow/anyscale.py",
+        "weave/weaveflow/chat_model.py",
+        "weave/weaveflow/openai.py"
+      ]
+    },
+    {
+      "id": "Wannabeasmartguy/GPT-Gradio-Agent#4",
+      "repo": "Wannabeasmartguy/GPT-Gradio-Agent",
+      "pr": 4,
+      "base": "04a429c1edf399c87222c033153fedb4e1913d1f",
+      "head": "858075dd41061aa96a9f535a4bc5defd1169a50a",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.10",
+      "to": "1.6.1",
+      "license": "Apache-2.0",
+      "mergedAt": "2024-01-22T08:42:43Z",
+      "files": [
+        "GPT-Gradio-Agent.py",
+        "pic_gen/pic_gen.py",
+        "vecstore/Agent.py",
+        "vecstore/vecstore.py"
+      ]
+    },
+    {
       "id": "webhippie/mygithub#265",
       "repo": "webhippie/mygithub",
       "pr": 265,
@@ -13422,6 +14882,29 @@
       "files": [
         "pkg/command/list.go",
         "pkg/command/setup.go"
+      ]
+    },
+    {
+      "id": "wgryc/phasellm#68",
+      "repo": "wgryc/phasellm",
+      "pr": 68,
+      "base": "ef1defa0cdc7c8a81c21dfda67ebab2a0f79a526",
+      "head": "14e257c1861c9fd41369fb63b7d11bf6f02f5920",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.26.0",
+      "to": "1.0.0b2",
+      "license": "MIT",
+      "mergedAt": "2023-11-05T23:53:41Z",
+      "files": [
+        "phasellm/configurations.py",
+        "phasellm/llms.py",
+        "phasellm/utils.py",
+        "project_metadata.py",
+        "setup.py",
+        "tests/e2e/agents/test_e2e_agents.py",
+        "tests/e2e/llms/test_e2e_llms.py",
+        "tests/e2e/llms/utils.py"
       ]
     },
     {
@@ -13629,6 +15112,24 @@
       ]
     },
     {
+      "id": "wwakabobik/openai_api#18",
+      "repo": "wwakabobik/openai_api",
+      "pr": 18,
+      "base": "7102cc13e8fb3af92947512df7800f0338cc4ce3",
+      "head": "b725938e0c54cea5c274f2604fe789b20ec44b6a",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.28.1",
+      "to": "1.3.3",
+      "license": "MIT",
+      "mergedAt": "2023-11-21T18:14:54Z",
+      "files": [
+        "src/openai_python_api/chatgpt.py",
+        "src/openai_python_api/dalle.py",
+        "src/openai_python_api/models.py"
+      ]
+    },
+    {
       "id": "XiyaoWang0519/agent-call#74",
       "repo": "XiyaoWang0519/agent-call",
       "pr": 74,
@@ -13643,6 +15144,25 @@
       "files": [
         "app/openai_client.py",
         "tests/test_http_clients.py"
+      ]
+    },
+    {
+      "id": "yaalyy/LLM-interactive#1",
+      "repo": "yaalyy/LLM-interactive",
+      "pr": 1,
+      "base": "091a33ef82fdae72d7365fbc7d0ad06a3d19a1de",
+      "head": "a3bef00e553f961d9b2ec40dc4e0441ed5216900",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "1.3.5",
+      "to": "2.43.0",
+      "license": "MIT",
+      "mergedAt": "2026-06-24T18:30:46Z",
+      "files": [
+        "chat_session.py",
+        "check_api.py",
+        "config.py",
+        "main.py"
       ]
     },
     {
@@ -13681,6 +15201,25 @@
         "paasta_tools/setup_kubernetes_crd.py",
         "paasta_tools/setup_kubernetes_internal_crd.py",
         "tests/test_kubernetes_tools.py"
+      ]
+    },
+    {
+      "id": "yihong0618/xiaogpt#370",
+      "repo": "yihong0618/xiaogpt",
+      "pr": 370,
+      "base": "7929912257c9950b5872908563bfc771ba23c224",
+      "head": "a2ac36658b10fc9dbd7f869c4916f64ed0c3df4a",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.27.2",
+      "to": "1",
+      "license": "MIT",
+      "mergedAt": "2023-11-10T12:46:05Z",
+      "files": [
+        "xiaogpt/bot/chatgptapi_bot.py",
+        "xiaogpt/bot/gpt3_bot.py",
+        "xiaogpt/langchain/examples/email/mail_box.py",
+        "xiaogpt/xiaogpt.py"
       ]
     },
     {
@@ -13761,6 +15300,28 @@
         "pkg/github/handlers_test.go",
         "pkg/github/mocks_test.go",
         "pkg/github/validator.go"
+      ]
+    },
+    {
+      "id": "ytomar/ensemble_ai#1",
+      "repo": "ytomar/ensemble_ai",
+      "pr": 1,
+      "base": "d7b11f98dc2be0371285b8fd473554c6681e1c0f",
+      "head": "8f6d222bab5daf8b93472931697c0eaec4be295b",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "0.10.2",
+      "to": "1.0",
+      "license": "MIT",
+      "mergedAt": "2023-12-14T04:39:22Z",
+      "files": [
+        "code/__init__.py",
+        "code/core.py",
+        "code/utils.py",
+        "connectors/__init__.py",
+        "connectors/yfinance_connector.py",
+        "nlp/__init__.py",
+        "nlp/query_processor.py"
       ]
     },
     {
@@ -13849,6 +15410,22 @@
         "src/index.test.ts",
         "src/testHelpers/githubApiMocks/mockCreateIssue.ts",
         "src/testHelpers/githubApiMocks/mockSearchIssues.ts"
+      ]
+    },
+    {
+      "id": "zenml-io/kitaru#911",
+      "repo": "zenml-io/kitaru",
+      "pr": 911,
+      "base": "c70f82023493c6645bf3a2a0b417454429903f5d",
+      "head": "ddfc1b0180c4fd1fc548a4dd38b3bc70b13c9253",
+      "package": "openai",
+      "ecosystem": "pypi",
+      "from": "2.53.0",
+      "to": "3.5.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-08-31T11:46:10Z",
+      "files": [
+        "plugins/tests/adapters/openai_agents/test_runner.py"
       ]
     },
     {
