@@ -18,6 +18,7 @@ on:
       - "packages/migrate-core/**"
       - "packages/migrate-py/**"
       - "packages/migrate-go/**"
+      - "packages/symbols/**"
       - "engines/go/migrate/**"
       - "proving/replay/**"
       - ".github/workflows/replay.yml"

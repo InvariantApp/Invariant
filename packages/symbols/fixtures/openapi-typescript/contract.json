@@ -1,0 +1,55 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "GitHub v3 REST API", "version": "1.1.4" },
+  "servers": [{ "url": "https://api.github.com" }],
+  "paths": {
+    "/repos/{owner}/{repo}": {
+      "get": {
+        "operationId": "repos/get",
+        "parameters": [
+          { "in": "path", "name": "owner", "required": true, "schema": { "type": "string" } },
+          { "in": "path", "name": "repo", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/minimal-repository" } }
+            },
+            "description": "Response"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "simple-user": {
+        "properties": {
+          "avatar_url": { "format": "uri", "type": "string" },
+          "email": { "nullable": true, "type": "string" },
+          "id": { "format": "int64", "type": "integer" },
+          "login": { "type": "string" },
+          "name": { "nullable": true, "type": "string" },
+          "node_id": { "type": "string" },
+          "site_admin": { "type": "boolean" },
+          "type": { "type": "string" }
+        },
+        "title": "Simple User",
+        "type": "object"
+      },
+      "alert-url": { "format": "uri", "readOnly": true, "type": "string" },
+      "minimal-repository": {
+        "properties": {
+          "full_name": { "type": "string" },
+          "id": { "format": "int64", "type": "integer" },
+          "name": { "type": "string" },
+          "node_id": { "type": "string" },
+          "owner": { "$ref": "#/components/schemas/simple-user" },
+          "private": { "type": "boolean" }
+        },
+        "title": "Minimal Repository",
+        "type": "object"
+      }
+    }
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "Ory APIs", "version": "v1.22.28" },
+  "servers": [
+    {
+      "url": "https://{project_slug}.projects.oryapis.com/",
+      "variables": { "project_slug": { "default": "playground" } }
+    }
+  ],
+  "paths": {
+    "/admin/identities/{id}": {
+      "delete": {
+        "operationId": "deleteIdentity",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "204": { "description": "Empty responses are sent when, for example, resources are deleted." } }
+      },
+      "patch": {
+        "operationId": "patchIdentity",
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "items": { "$ref": "#/components/schemas/jsonPatch" }, "type": "array" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "identity" } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "jsonPatch": {
+        "description": "A JSONPatch document as defined by RFC 6902",
+        "properties": {
+          "from": { "example": "/name", "type": "string" },
+          "op": {
+            "enum": ["add", "remove", "replace", "move", "copy", "test"],
+            "example": "replace",
+            "type": "string"
+          },
+          "path": { "example": "/name", "type": "string" },
+          "value": {}
+        },
+        "required": ["op", "path"],
+        "type": "object"
+      },
+      "uiNodeAnchorAttributes": {
+        "properties": {
+          "href": { "type": "string" },
+          "id": { "type": "string" },
+          "node_type": { "enum": ["a"], "type": "string" },
+          "title": { "$ref": "#/components/schemas/uiText" }
+        },
+        "required": ["href", "title", "id", "node_type"],
+        "title": "AnchorAttributes represents the attributes of an anchor node.",
+        "type": "object"
+      },
+      "uiText": {
+        "properties": {
+          "id": { "format": "int64", "type": "integer" },
+          "text": { "type": "string" },
+          "type": { "type": "string" }
+        },
+        "type": "object"
+      }
+    }
+  }
+}

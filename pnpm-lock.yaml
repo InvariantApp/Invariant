@@ -77,6 +77,9 @@ importers:
       '@invariant-app/sidecar':
         specifier: workspace:*
         version: link:packages/sidecar
+      '@invariant-app/symbols':
+        specifier: workspace:*
+        version: link:packages/symbols
       '@invariant-app/verifier':
         specifier: workspace:*
         version: link:packages/verifier
@@ -695,6 +698,21 @@ importers:
       '@invariant-app/ir':
         specifier: workspace:*
         version: link:../ir
+
+  packages/symbols:
+    dependencies:
+      '@invariant-app/contract':
+        specifier: workspace:*
+        version: link:../contract
+      '@invariant-app/ir':
+        specifier: workspace:*
+        version: link:../ir
+      '@invariant-app/migrate-core':
+        specifier: workspace:*
+        version: link:../migrate-core
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
 
   packages/telemetry:
     dependencies:

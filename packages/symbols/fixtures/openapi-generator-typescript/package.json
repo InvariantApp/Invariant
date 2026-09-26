@@ -1,0 +1,9 @@
+{
+  "name": "@ory/client",
+  "version": "v1.22.28",
+  "description": "OpenAPI client for @ory/client",
+  "author": "Ory Corp",
+  "keywords": ["axios", "typescript", "openapi-client", "openapi-generator", "@ory/client"],
+  "main": "./dist/index.js",
+  "typings": "./dist/index.d.ts"
+}
