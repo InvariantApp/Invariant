@@ -1,0 +1,6 @@
+# The SDK's class, re-exported by the consumer's own module, used here.
+from models import Account
+
+
+def label(account: Account) -> str:
+    return account.display_name

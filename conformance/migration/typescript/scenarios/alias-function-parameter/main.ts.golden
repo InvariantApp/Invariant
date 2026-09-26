@@ -1,0 +1,12 @@
+// The response passed to the consumer's own function, typed as the SDK's.
+import Acme, { type Customer } from "acme";
+
+const client = new Acme("sk_test");
+
+function label(customer: Customer): string {
+  return customer.display_name;
+}
+
+export async function show(id: string): Promise<string> {
+  return label(await client.customers.retrieve(id));
+}

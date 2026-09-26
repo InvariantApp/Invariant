@@ -1,0 +1,12 @@
+# Responses kept in the consumer's own typed collection.
+import acme
+
+BY_ID: dict[str, acme.Customer] = {}
+
+
+def remember(customer: acme.Customer) -> None:
+    BY_ID[customer.id] = customer
+
+
+def name_of(id: str) -> str:
+    return BY_ID[id].display_name

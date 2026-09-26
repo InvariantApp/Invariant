@@ -1,0 +1,11 @@
+// The SDK's type, re-exported by the consumer's own package, used here.
+package scenario
+
+import (
+	"example.com/consumer/reexport-consumer-module/models"
+)
+
+// Label is an account's label.
+func Label(account *models.Account) string {
+	return account.Nickname
+}

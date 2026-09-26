@@ -1,0 +1,22 @@
+// The response passed through an interface{} parameter; every caller passes
+// the SDK's object.
+package scenario
+
+import (
+	"context"
+
+	"example.com/sdk"
+)
+
+func label(value any) string {
+	return value.(*sdk.Customer).Nickname
+}
+
+// Show is a customer's label.
+func Show(ctx context.Context, client *sdk.Client, id string) (string, error) {
+	customer, err := client.Customers.Get(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	return label(customer), nil
+}

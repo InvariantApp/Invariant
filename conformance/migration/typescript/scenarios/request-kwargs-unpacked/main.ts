@@ -1,0 +1,9 @@
+// Request parameters gathered first, then handed to the SDK's call.
+import Acme from "acme";
+
+const client = new Acme("sk_test");
+
+export function signUp(email: string, name: string) {
+  const params = { email, nickname: name };
+  return client.customers.create(params);
+}

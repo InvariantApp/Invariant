@@ -1,0 +1,9 @@
+// A hand-written SDK that spells the field in camelCase.
+import Twine from "acme/camel";
+
+const client = new Twine("AC123", "token");
+
+export async function label(sid: string): Promise<string> {
+  const customer = await client.customers(sid).fetch();
+  return customer.nickName;
+}

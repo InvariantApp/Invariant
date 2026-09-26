@@ -1,0 +1,10 @@
+// The consumer's own type extends the SDK's.
+import type { Customer } from "acme";
+
+export interface Account extends Customer {
+  plan: string;
+}
+
+export function label(account: Account): string {
+  return account.nickname;
+}

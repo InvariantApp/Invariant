@@ -1,0 +1,17 @@
+// A hand-written SDK that names the field its own way, tagging the wire's name.
+package scenario
+
+import (
+	"context"
+
+	"example.com/sdk"
+)
+
+// Label is a person's label.
+func Label(ctx context.Context, client *sdk.Client, id string) (string, error) {
+	person, err := client.People.Get(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	return person.Handle, nil
+}

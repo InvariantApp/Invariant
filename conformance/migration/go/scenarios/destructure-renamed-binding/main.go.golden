@@ -1,0 +1,12 @@
+// The renamed field matched structurally, as a key of a composite literal
+// the address is compared with.
+package scenario
+
+import (
+	"example.com/sdk"
+)
+
+// AtOffice reports whether a customer's address is the office's.
+func AtOffice(customer *sdk.Customer) bool {
+	return *customer.Address == sdk.Address{Line1: "1 Main St", Postcode: "12345", City: "Springfield"}
+}

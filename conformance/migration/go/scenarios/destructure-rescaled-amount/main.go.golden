@@ -1,0 +1,22 @@
+// An amount now in minor units, assigned to a local of the same name that must
+// keep meaning major units.
+package scenario
+
+import (
+	"context"
+
+	"example.com/sdk"
+)
+
+// Owed is what a customer owes.
+func Owed(ctx context.Context, client *sdk.Client, id string) (float64, error) {
+	customer, err := client.Customers.Get(ctx, id)
+	if err != nil {
+		return 0, err
+	}
+	balance, email := sdk.FromMinorUnits(customer.Balance), customer.Email
+	if email == "" {
+		return 0, nil
+	}
+	return balance, nil
+}

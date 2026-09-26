@@ -1,0 +1,12 @@
+// Responses kept in the consumer's own typed collection.
+import type { Customer } from "acme";
+
+const byId = new Map<string, Customer>();
+
+export function remember(customer: Customer): void {
+  byId.set(customer.id, customer);
+}
+
+export function nameOf(id: string): string | undefined {
+  return byId.get(id)?.display_name;
+}

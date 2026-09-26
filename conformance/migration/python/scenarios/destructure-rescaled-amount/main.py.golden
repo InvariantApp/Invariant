@@ -1,0 +1,13 @@
+# An amount now in minor units, unpacked into a local of the same name that
+# must keep meaning major units.
+from decimal import Decimal
+
+import acme
+
+client = acme.Client("sk_test")
+
+
+def owed(id: str) -> Decimal:
+    customer = client.customers.retrieve(id)
+    balance, email = acme.from_minor_units(customer.balance), customer.email
+    return Decimal(0) if email == "" else balance

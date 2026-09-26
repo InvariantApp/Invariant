@@ -1,0 +1,6 @@
+// The SDK's type, re-exported by the consumer's own module, used here.
+import type { Account } from "./models";
+
+export function label(account: Account): string {
+  return account.display_name;
+}

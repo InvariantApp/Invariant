@@ -1,0 +1,9 @@
+# A renamed field of a list item, read in a loop.
+import acme
+
+
+def digits(customer: acme.Customer) -> list[str]:
+    found: list[str] = []
+    for card in customer.cards:
+        found.append(card.last_four)
+    return found
