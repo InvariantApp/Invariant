@@ -45,6 +45,34 @@ repositories to connect. The GitHub App asks for read access to code and write a
 requests on those repositories, and nothing else: no workflows, no administration, nothing
 organisation-wide.
 
+### Consumers not on GitHub
+
+A consumer whose code is somewhere else, or who would rather run the migration themselves, needs
+no account at all. Your published releases are readable by anyone from the service's public,
+cached endpoint, and `invariant migrate` reads them given your domain and your API's id:
+
+```json
+{
+  "language": "typescript",
+  "repo": ".",
+  "release": { "provider": "api.acme.example", "api": "acme-payments" },
+  "sdk": "acme-sdk.json"
+}
+```
+
+```
+npx -p @invariant-app/cli -p @invariant-app/migrate-ts invariant migrate job.json --write
+```
+
+(`@invariant-app/migrate-py` or `@invariant-app/migrate-go` in place of `migrate-ts` for Python
+or Go.)
+
+For that to work you serve [`/.well-known/invariant.json`](well-known.md) on your domain, listing
+the keys you sign releases with. The consumer's CLI reads your keys from there and nowhere else,
+so a release is trusted because you signed it, never because the service handed it over. See
+[the job's `release`](reference/cli.md#a-providers-published-release) for choosing a release and
+applying several steps at once.
+
 ## What happens when you publish
 
 For each connected repository:
@@ -61,6 +89,12 @@ For each connected repository:
 
 Publishing the same release again changes nothing, and a repository connected later is migrated
 the next time you publish.
+
+A repository that is a monorepo still gets one pull request. Each of its packages (npm, pnpm or
+yarn workspaces, each `pyproject.toml`, each Go module in a `go.work` or beside another) is
+migrated on its own, from the release of your SDK that package's manifest and lockfile say it
+uses, and the edits are put together. The migration's result says, package by package, what
+was changed, what was left to a person, and which packages do not use your SDK at all.
 
 Steps 1 and 2 run apart, each in a sandbox of its own. The fetch downloads the SDK releases with
 install scripts off and can reach the package registries and nothing else; it never sees the

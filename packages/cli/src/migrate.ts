@@ -19,6 +19,14 @@
  * code is the same either way and only where it runs differs. What comes
  * back from a sandbox is checked before anything is believed or written:
  * every path must name a file inside the repository.
+ *
+ * A job can name a provider's published release instead of a bundle file:
+ * the Changes then come from the service's public read endpoint and are
+ * trusted only if a key the provider serves from its own domain signed them
+ * (`discover.ts`). And a repository that is a monorepo is migrated one
+ * workspace package at a time, each against the release of the SDK its own
+ * manifest and lockfile say it uses (`workspaces.ts`), into one result for
+ * the whole repository, which is what one pull request carries.
  */
 import { existsSync, realpathSync } from "node:fs";
 import {
@@ -49,6 +57,13 @@ import {
   type PhaseResult,
   WORKSPACE,
 } from "@invariant-app/sandbox";
+import {
+  type DiscoveryOptions,
+  type ReleaseSpec,
+  resolveRelease,
+  type VerifiedStep,
+} from "./discover.ts";
+import { detectWorkspaces, sdkUse, type Workspaces } from "./workspaces.ts";
 
 export type Language = "typescript" | "python" | "go";
 
@@ -81,6 +96,36 @@ export interface MigrationJob {
   module?: string;
   /** Go: the packages to read, as the go command takes them (default ./...). */
   packages?: string[];
+  /**
+   * The workspace package this job migrates, as a directory relative to the
+   * repository: what is read is under it, and a TypeScript project's
+   * tsconfig.json and a Go module's go.mod are looked for in it. Default the
+   * root.
+   */
+  package?: string;
+  /** Directories under the package that are packages of their own, and not read with it. */
+  exclude?: string[];
+}
+
+/** Where a job's Changes came from, when they were read from a provider's published releases. */
+export interface ReleaseSource {
+  provider: string;
+  api: string;
+  steps: VerifiedStep[];
+  /** The provider's document the signing keys were read from. */
+  wellKnown: string;
+  /** The service the bundles were read from, trusted for nothing. */
+  service: string;
+}
+
+/**
+ * A job as its file names it: for a whole repository, which may be several
+ * packages, so the release of the SDK in use is optional and read from each
+ * package's own manifest when it is not given.
+ */
+export interface RepositoryJob extends Omit<MigrationJob, "from"> {
+  from?: string;
+  release?: ReleaseSource;
 }
 
 /** What the fetch downloads. Nothing in it is read from the repository but a go.mod. */
@@ -104,6 +149,23 @@ export interface Fetched {
   skipped: string[];
 }
 
+/** What happened to one workspace package of the repository. */
+export interface PackageReport {
+  /** Its directory, relative to the repository; `.` for the root. */
+  dir: string;
+  name?: string;
+  /** The release of the SDK it was migrated from, and where that was read. */
+  from?: string;
+  fromSource?: string;
+  status: "migrated" | "unchanged" | "skipped" | "failed";
+  /** Why it was skipped or failed. */
+  reason?: string;
+  edits: number;
+  files: string[];
+  manual: number;
+  diagnostics?: { before: number; after: number };
+}
+
 export interface MigrationOutcome {
   language: Language;
   /** New contents of each file the migration changed, by path in the repository. */
@@ -114,6 +176,10 @@ export interface MigrationOutcome {
   /** Type errors before the edits against the old release, and after them against the new. */
   diagnostics: { before: number; after: number };
   notes: string[];
+  /** Per workspace package, what happened: one entry for a repository that is one package. */
+  packages?: PackageReport[];
+  /** The published release the Changes were read from, when they were. */
+  release?: ReleaseSource;
 }
 
 export class MigrateError extends Error {
@@ -167,12 +233,63 @@ function version(value: unknown, what: string): string {
   return value;
 }
 
-/** The Changes a job names: a signed bundle opened with a trusted key, or a list. */
+/** A job's `release`: which provider, which API, and which steps of it. */
+function releaseSpec(value: unknown): ReleaseSpec {
+  if (!isObject(value)) {
+    throw new MigrateError(
+      "release must be { provider, api }, and optionally to, since and service",
+    );
+  }
+  const spec: Record<string, string> = {};
+  for (const name of ["provider", "api", "to", "since", "service"] as const) {
+    const field = value[name];
+    if (field === undefined) continue;
+    if (typeof field !== "string" || field.length === 0) {
+      throw new MigrateError(`release.${name} must be text`);
+    }
+    spec[name] = field;
+  }
+  if (!spec["provider"] || !spec["api"]) {
+    throw new MigrateError(
+      'release names the provider\'s domain and the API, such as { "provider": "api.example.com", "api": "payments" }',
+    );
+  }
+  return spec as unknown as ReleaseSpec;
+}
+
+/**
+ * The Changes a job names: a signed bundle opened with a trusted key, a
+ * provider's published release opened with the keys its own domain lists, or
+ * a list.
+ */
 async function changesOf(
   job: Record<string, unknown>,
   base: string,
-  keys: readonly string[],
-): Promise<Change[]> {
+  options: { keys?: readonly string[]; discovery?: DiscoveryOptions },
+): Promise<{ changes: Change[]; release?: ReleaseSource }> {
+  const keys = options.keys ?? [];
+  const named = ["bundle", "release", "changes"].filter(
+    (name) => job[name] !== undefined,
+  );
+  if (named.length > 1) {
+    throw new MigrateError(
+      `a job takes one of bundle, release and changes, not ${named.join(" and ")}`,
+    );
+  }
+  if (job["release"] !== undefined) {
+    const spec = releaseSpec(job["release"]);
+    const resolved = await resolveRelease(spec, options.discovery ?? {});
+    return {
+      changes: resolved.changes,
+      release: {
+        provider: spec.provider,
+        api: spec.api,
+        steps: resolved.steps,
+        wellKnown: resolved.wellKnown,
+        service: resolved.service,
+      },
+    };
+  }
   if (job["bundle"] !== undefined) {
     if (typeof job["bundle"] !== "string")
       throw new MigrateError("bundle must be a path");
@@ -184,7 +301,7 @@ async function changesOf(
     const envelope = JSON.parse(
       await readFile(resolve(base, job["bundle"]), "utf8"),
     ) as DsseEnvelope;
-    return openBundle(envelope, keys).bundle.changes;
+    return { changes: openBundle(envelope, keys).bundle.changes };
   }
   const changes =
     typeof job["changes"] === "string"
@@ -192,20 +309,21 @@ async function changesOf(
       : job["changes"];
   if (!Array.isArray(changes)) {
     throw new MigrateError(
-      "a job needs a bundle (a signed release) or changes (a list of Changes)",
+      "a job needs a bundle (a signed release), a release (a provider's published one) or changes (a list of Changes)",
     );
   }
-  return changes as Change[];
+  return { changes: changes as Change[] };
 }
 
 /**
  * Reads a job file. Paths in it are relative to it; the bundle, the Changes
- * and the SDK map are read in, so what is returned stands on its own.
+ * and the SDK map are read in, and a published release is fetched and
+ * verified, so what is returned stands on its own.
  */
 export async function readJob(
   path: string,
-  options: { keys?: readonly string[] } = {},
-): Promise<MigrationJob> {
+  options: { keys?: readonly string[]; discovery?: DiscoveryOptions } = {},
+): Promise<RepositoryJob> {
   const raw = JSON.parse(await readFile(path, "utf8")) as unknown;
   if (!isObject(raw)) throw new MigrateError(`${path} is not a JSON object`);
   const base = dirname(resolve(path));
@@ -218,13 +336,17 @@ export async function readJob(
     typeof raw["sdk"] === "string"
       ? (JSON.parse(await readFile(resolve(base, raw["sdk"]), "utf8")) as unknown)
       : raw["sdk"];
-  const job: MigrationJob = {
+  const { changes, release } = await changesOf(raw, base, options);
+  const job: RepositoryJob = {
     language: language as Language,
     repo: resolve(base, raw["repo"]),
-    changes: await changesOf(raw, base, options.keys ?? []),
+    changes,
     sdk: sdk as MigrationJob["sdk"],
-    from: version(raw["from"], "from"),
   };
+  if (raw["from"] !== undefined) job.from = version(raw["from"], "from");
+  if (release) job.release = release;
+  if (raw["package"] !== undefined)
+    job.package = inside(String(raw["package"]), "package");
   if (raw["tsconfig"] !== undefined)
     job.tsconfig = inside(String(raw["tsconfig"]), "tsconfig");
   if (raw["module"] !== undefined) job.module = inside(String(raw["module"]), "module");
@@ -241,7 +363,7 @@ export async function readJob(
   return job;
 }
 
-function checkSdk(job: MigrationJob): void {
+function checkSdk(job: RepositoryJob): void {
   if (!isObject(job.sdk)) throw new MigrateError("sdk must be an SDK map");
   const sdk = job.sdk as Record<string, unknown>;
   if (!isObject(sdk["upgradeTo"])) throw new MigrateError("the SDK map has no upgradeTo");
@@ -267,11 +389,14 @@ function goModulePath(path: unknown, what: string): string {
   return path;
 }
 
+/** A Go job's module directory: the one it names, else its package's. */
+const goModuleOf = (job: MigrationJob) => job.module ?? job.package ?? ".";
+
 /** What a job's fetch downloads. For Go this reads the module's go.mod and go.sum. */
 export async function fetchPlanOf(job: MigrationJob): Promise<FetchPlan> {
   if (job.language === "go") {
     const sdk = job.sdk as GoSdkMap;
-    const moduleDir = join(job.repo, job.module ?? ".");
+    const moduleDir = join(job.repo, goModuleOf(job));
     const read = (name: string) =>
       readFile(join(moduleDir, name), "utf8").catch(() => "");
     const mod = await read("go.mod");
@@ -471,11 +596,16 @@ async function copySource(from: string, to: string): Promise<void> {
   });
 }
 
-/** Files under `root` with one of `extensions`, skipping what is never the consumer's own. */
+/**
+ * Files under `root` with one of `extensions`, skipping what is never the
+ * consumer's own and the directories in `except`, which are other packages.
+ */
 async function filesUnder(
   root: string,
   extensions: readonly string[],
+  except: readonly string[] = [],
 ): Promise<string[]> {
+  const excluded = new Set(except.map((dir) => resolve(dir)));
   const skipped = new Set([
     ".git",
     "node_modules",
@@ -495,7 +625,7 @@ async function filesUnder(
       if (entry.isSymbolicLink()) continue;
       const path = join(dir, entry.name);
       if (entry.isDirectory()) {
-        if (!skipped.has(entry.name)) await walk(path, depth + 1);
+        if (!skipped.has(entry.name) && !excluded.has(path)) await walk(path, depth + 1);
       } else if (extensions.some((extension) => entry.name.endsWith(extension))) {
         found.push(path);
       }
@@ -582,15 +712,27 @@ export async function analyse(
     try {
       const view = join(scratch, "repo");
       await copySource(repo, view);
-      await mkdir(dirname(join(view, "node_modules", sdk.package)), { recursive: true });
-      await symlink(installed, join(view, "node_modules", sdk.package), "dir");
-      const tsconfig = join(view, job.tsconfig ?? "tsconfig.json");
+      // Linked into the package's own node_modules, which is where its
+      // imports look first, so each package of a monorepo reads the release
+      // it uses whatever the others use.
+      const home = join(view, job.package ?? ".");
+      const linked = join(home, "node_modules", sdk.package);
+      await mkdir(dirname(linked), { recursive: true });
+      await symlink(installed, linked, "dir");
+      const tsconfig = join(
+        view,
+        job.tsconfig ?? join(job.package ?? ".", "tsconfig.json"),
+      );
       const project =
         job.sources || !existsSync(tsconfig)
           ? {
               sources: job.sources
                 ? job.sources.map((file) => join(view, file))
-                : await filesUnder(view, [".ts", ".tsx", ".mts", ".cts"]),
+                : await filesUnder(
+                    home,
+                    [".ts", ".tsx", ".mts", ".cts"],
+                    (job.exclude ?? []).map((dir) => join(view, dir)),
+                  ),
             }
           : { tsConfigFilePath: tsconfig };
       const result = await ts.migrate({
@@ -598,7 +740,7 @@ export async function analyse(
         // Both where the release is and where the copy reaches it: which of
         // the two a file is known by depends on whether the compiler host
         // follows the link.
-        generated: [installed, join(view, "node_modules", sdk.package)],
+        generated: [installed, linked],
         ...project,
         plan: buildPlan(job.changes, sdk),
         current: { package: sdk.package, from: current },
@@ -629,7 +771,11 @@ export async function analyse(
       : (
           await Promise.all(
             (
-              await filesUnder(repo, [".py"])
+              await filesUnder(
+                join(repo, job.package ?? "."),
+                [".py"],
+                (job.exclude ?? []).map((dir) => join(repo, dir)),
+              )
             ).map(async (file) =>
               imports.test(await readFile(file, "utf8")) ? [file] : [],
             ),
@@ -658,7 +804,7 @@ export async function analyse(
       buildCache: join(scratch, "build"),
       proxy: "off",
     };
-    const moduleDir = join(repo, job.module ?? ".");
+    const moduleDir = join(repo, goModuleOf(job));
     // The SDK's packages the consumer imports: the surface worth reading.
     const imported = new RegExp(
       `"${sdk.module.path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(/[^"]*)?"`,
@@ -805,16 +951,50 @@ export async function writeOutcome(
 
 /** Runs both steps here, in this process: what `invariant migrate` does by default. */
 export async function migrateInProcess(job: MigrationJob): Promise<MigrationOutcome> {
-  const packages = await mkdtemp(join(tmpdir(), "invariant-migrate-"));
+  const runner = inProcess();
   try {
-    await fetchPackages(await fetchPlanOf(job), packages);
-    return checkOutcome(
-      JSON.parse(JSON.stringify(await analyse(job, packages))),
-      job.language,
-    );
+    return await runner.run(job);
   } finally {
-    await removeFetched(packages);
+    await runner.close();
   }
+}
+
+/**
+ * Runs jobs in this process, fetching each distinct set of releases once:
+ * the packages of a monorepo are mostly on the same release of an SDK, and
+ * downloading it once per package would be the slowest part of the run.
+ */
+export function inProcess(): {
+  run(job: MigrationJob): Promise<MigrationOutcome>;
+  close(): Promise<void>;
+} {
+  const fetches = new Map<string, Promise<string>>();
+  const dirs: string[] = [];
+  return {
+    async run(job) {
+      const plan = await fetchPlanOf(job);
+      const key = JSON.stringify(plan);
+      let fetched = fetches.get(key);
+      if (!fetched) {
+        fetched = (async () => {
+          const dir = await mkdtemp(join(tmpdir(), "invariant-migrate-"));
+          dirs.push(dir);
+          await fetchPackages(plan, dir);
+          return dir;
+        })();
+        fetches.set(key, fetched);
+      }
+      const packages = await fetched;
+      return checkOutcome(
+        JSON.parse(JSON.stringify(await analyse(job, packages))),
+        job.language,
+      );
+    },
+    async close() {
+      await Promise.allSettled([...fetches.values()]);
+      for (const dir of dirs) await removeFetched(dir);
+    },
+  };
 }
 
 /** Removes what a fetch left; Go keeps its module cache read-only, so it is asked first. */
@@ -940,8 +1120,179 @@ export async function runPhase(phase: string, requestPath: string): Promise<void
   throw new MigrateError(`there is no phase called ${phase}`);
 }
 
+/** One package of the repository, planned: the job that migrates it, or why none does. */
+export interface PackagePlan {
+  dir: string;
+  name?: string;
+  job?: MigrationJob;
+  /** Where the release it uses was read. */
+  fromSource?: string;
+  /** Why it is not migrated. */
+  skipped?: string;
+}
+
+/** The SDK a job moves from, as the consumer's manifests name it. */
+function sdkName(job: RepositoryJob | MigrationJob): string {
+  return job.language === "go"
+    ? (job.sdk as GoSdkMap).module.path
+    : (job.sdk as SymbolMap).package;
+}
+
+const under = (dir: string, parent: string) =>
+  parent === "." ? dir !== "." : dir.startsWith(`${parent}/`);
+
+/**
+ * The repository's packages, each with the job that migrates it. A job that
+ * names its package, module, sources or tsconfig is one package, as named.
+ * Otherwise the repository's workspaces decide: npm, pnpm and yarn
+ * workspaces, several pyproject.toml files, a go.work or several go.mod
+ * files. Each package is migrated from the release its own manifest and
+ * lockfile say it uses; the job's `from` is used where they cannot say, and
+ * for a repository that is one package, it is what the consumer said and
+ * wins.
+ */
+export async function planPackages(
+  job: RepositoryJob,
+): Promise<{ workspaces: Workspaces["kind"]; plans: PackagePlan[] }> {
+  const { release: _release, from, ...rest } = job;
+  const scoped = job.package ?? (job.language === "go" ? job.module : undefined);
+  const found: Workspaces =
+    scoped !== undefined || job.sources !== undefined || job.tsconfig !== undefined
+      ? { kind: "single", packages: [{ dir: scoped ?? "." }] }
+      : await detectWorkspaces(job.repo, job.language);
+  const packages = found.packages.length > 0 ? found.packages : [{ dir: "." }];
+  const single = packages.length === 1;
+  const sdk = sdkName(job);
+  const plans: PackagePlan[] = [];
+  for (const pkg of packages) {
+    const plan: PackagePlan = { dir: pkg.dir, ...(pkg.name ? { name: pkg.name } : {}) };
+    const use = await sdkUse(job.repo, pkg.dir, job.language, sdk);
+    let release: string | undefined;
+    if (single && from !== undefined) {
+      release = from;
+      plan.fromSource = "the job";
+    } else if (use.version !== undefined && VERSION.test(use.version)) {
+      release = use.version;
+      if (use.source) plan.fromSource = use.source;
+    } else if (!use.declared && !single) {
+      plan.skipped = use.why ?? `it does not depend on ${sdk}`;
+    } else if (from !== undefined) {
+      release = from;
+      plan.fromSource = "the job";
+    } else if (single) {
+      throw new MigrateError(
+        `${use.why ?? `nothing says which release of ${sdk} it uses`}; name the release the consumer uses today as the job's from`,
+      );
+    } else {
+      plan.skipped = use.why ?? `nothing says which release of ${sdk} it uses`;
+    }
+    if (release !== undefined) {
+      const others = packages
+        .map((other) => other.dir)
+        .filter((dir) => dir !== pkg.dir && under(dir, pkg.dir));
+      plan.job = {
+        ...rest,
+        from: release,
+        ...(pkg.dir === "." ? {} : { package: pkg.dir }),
+        ...(others.length > 0 ? { exclude: others } : {}),
+      };
+    }
+    plans.push(plan);
+  }
+  return { workspaces: found.kind, plans };
+}
+
+/**
+ * Migrates every planned package with `run` and puts the results together
+ * as one change to the repository, which is what one pull request carries.
+ * A package that fails is reported and the rest still run; in a repository
+ * that is one package, its failure is the command's. Two packages that edit
+ * the same file differently leave it unedited, and say so, since neither
+ * edit is right for both.
+ */
+export async function migrateRepository(
+  job: RepositoryJob,
+  plans: readonly PackagePlan[],
+  run: (
+    job: MigrationJob,
+  ) => Promise<{ outcome: MigrationOutcome; phases?: PhaseResult[] }>,
+): Promise<{ outcome: MigrationOutcome; phases: PhaseResult[] }> {
+  const single = plans.length === 1;
+  const phases: PhaseResult[] = [];
+  const reports: PackageReport[] = [];
+  const merged: MigrationOutcome = {
+    language: job.language,
+    files: {},
+    manual: [],
+    edits: 0,
+    diagnostics: { before: 0, after: 0 },
+    notes: [],
+  };
+  const editedBy = new Map<string, string>();
+  const conflicted = new Set<string>();
+  for (const plan of plans) {
+    const report: PackageReport = {
+      dir: plan.dir,
+      ...(plan.name ? { name: plan.name } : {}),
+      ...(plan.job ? { from: plan.job.from } : {}),
+      ...(plan.fromSource ? { fromSource: plan.fromSource } : {}),
+      status: "skipped",
+      edits: 0,
+      files: [],
+      manual: 0,
+    };
+    reports.push(report);
+    if (!plan.job) {
+      if (plan.skipped) report.reason = plan.skipped;
+      continue;
+    }
+    let result: { outcome: MigrationOutcome; phases?: PhaseResult[] };
+    try {
+      result = await run(plan.job);
+    } catch (error) {
+      if (single) throw error;
+      report.status = "failed";
+      report.reason = error instanceof Error ? error.message : String(error);
+      continue;
+    }
+    const { outcome } = result;
+    phases.push(...(result.phases ?? []));
+    const files = Object.keys(outcome.files).sort();
+    Object.assign(report, {
+      status: files.length > 0 || outcome.edits > 0 ? "migrated" : "unchanged",
+      edits: outcome.edits,
+      files,
+      manual: outcome.manual.length,
+      diagnostics: outcome.diagnostics,
+    });
+    for (const [file, text] of Object.entries(outcome.files)) {
+      const earlier = editedBy.get(file);
+      if (earlier === undefined) {
+        editedBy.set(file, plan.dir);
+        merged.files[file] = text;
+      } else if (merged.files[file] !== text && !conflicted.has(file)) {
+        conflicted.add(file);
+        merged.notes.push(
+          `${file}: ${earlier} and ${plan.dir} edit it differently, so it is left as it is`,
+        );
+      }
+    }
+    merged.manual.push(...outcome.manual);
+    merged.edits += outcome.edits;
+    merged.diagnostics.before += outcome.diagnostics.before;
+    merged.diagnostics.after += outcome.diagnostics.after;
+    merged.notes.push(
+      ...outcome.notes.map((note) => (single ? note : `${plan.dir}: ${note}`)),
+    );
+  }
+  for (const file of conflicted) delete merged.files[file];
+  merged.packages = reports;
+  if (job.release) merged.release = job.release;
+  return { outcome: merged, phases };
+}
+
 export function renderOutcome(
-  job: MigrationJob,
+  job: RepositoryJob,
   outcome: MigrationOutcome,
   how: { sandbox?: string; phases?: PhaseResult[]; written?: string[] },
 ): string {
@@ -950,11 +1301,40 @@ export function renderOutcome(
       ? [(job.sdk as GoSdkMap).module.path, (job.sdk as GoSdkMap).upgradeTo.path]
       : [(job.sdk as SymbolMap).package, (job.sdk as SymbolMap).upgradeTo.package];
   const files = Object.keys(outcome.files).sort();
+  const packages = outcome.packages ?? [];
+  const release = packages.length === 1 ? packages[0]?.from : undefined;
   const lines = [
-    `${job.repo} (${job.language}): ${from} ${job.from} -> ${to} ${job.sdk.upgradeTo.version}`,
+    `${job.repo} (${job.language}): ${from}${release ? ` ${release}` : ""} -> ${to} ${job.sdk.upgradeTo.version}`,
+  ];
+  if (outcome.release) {
+    const steps = outcome.release.steps;
+    const signers = [...new Set(steps.map((step) => step.keyid))].join(", ");
+    lines.push(
+      `  release: ${outcome.release.api} ${steps[0]?.from} -> ${steps.at(-1)?.to} (${steps.length} step${steps.length === 1 ? "" : "s"}), from ${outcome.release.service}`,
+      `  signed by: ${signers}, a key ${outcome.release.wellKnown} lists`,
+    );
+  }
+  if (packages.length > 1) {
+    lines.push(`  ${packages.length} packages:`);
+    for (const pkg of packages) {
+      const at = `    ${pkg.dir}${pkg.from ? ` (${pkg.from}, from ${pkg.fromSource ?? "the job"})` : ""}`;
+      if (pkg.status === "skipped" || pkg.status === "failed") {
+        lines.push(`${at}: ${pkg.status}, ${pkg.reason ?? "no reason given"}`);
+      } else if (pkg.status === "unchanged") {
+        lines.push(
+          `${at}: nothing to change${pkg.manual ? `, ${pkg.manual} left to a person` : ""}`,
+        );
+      } else {
+        lines.push(
+          `${at}: ${pkg.edits} edit${pkg.edits === 1 ? "" : "s"} in ${pkg.files.length} file${pkg.files.length === 1 ? "" : "s"}${pkg.manual ? `, ${pkg.manual} left to a person` : ""}`,
+        );
+      }
+    }
+  }
+  lines.push(
     `  ${outcome.edits} edit${outcome.edits === 1 ? "" : "s"} in ${files.length} file${files.length === 1 ? "" : "s"}${files.length ? `: ${files.join(", ")}` : ""}`,
     `  type errors: ${outcome.diagnostics.before} before, ${outcome.diagnostics.after} after, against each release`,
-  ];
+  );
   if (outcome.manual.length > 0) {
     lines.push(`  ${outcome.manual.length} left to a person:`);
     for (const site of outcome.manual) {

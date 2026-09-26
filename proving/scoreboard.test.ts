@@ -103,8 +103,16 @@ const l15 = (inputs: {
 describe("L15", () => {
   it("reports threat-model coverage from the record, and whether its tests passed", () => {
     const line = l15({ threatsResult: "success", fuzz: "success" });
+    // As many rows as the record holds, which its own test holds to DESIGN 11.1.
+    const rows = (
+      JSON.parse(
+        readFileSync(new URL("./threats/manifest.json", import.meta.url), "utf8"),
+      ) as { rows: unknown[] }
+    ).rows.length;
     expect(line?.value).toMatch(
-      /^threat-model tests passing: of the 13 rows of DESIGN 11\.1, \d+ covered here, \d+ covered here for this repository's part/,
+      new RegExp(
+        `^threat-model tests passing: of the ${rows} rows of DESIGN 11\\.1, \\d+ covered here, \\d+ covered here for this repository's part`,
+      ),
     );
     expect(l15({})?.value).toMatch(/^threat-model tests not run here/);
     expect(l15({ threatsResult: "failure" })?.value).toMatch(/failing \(failure\)/);

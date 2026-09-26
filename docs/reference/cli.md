@@ -2,7 +2,7 @@
 
 Every command reads `invariant.yaml` in the current directory, or the file
 `--config <path>` names. Nothing it does needs the network except `propose`
-(unless `--offline`), `publish` and `status`.
+(unless `--offline`), `publish`, `status` and `migrate`.
 
 ## `invariant init`
 
@@ -87,6 +87,29 @@ one named: `invariant publish 2026-09-20`. A release the service already has
 is not sent again, so a retried job is harmless. Needs `INVARIANT_TOKEN` with
 the `publish` scope.
 
+## `invariant well-known`
+
+Prints `/.well-known/invariant.json`, the document you serve from your own domain listing the
+APIs you publish and the Ed25519 keys you sign their releases with, so a consumer can trust a
+published release without trusting the service that serves it. See
+[Publishing your signing keys](../well-known.md) for the format and how to rotate and revoke.
+
+```
+invariant well-known --from invariant.json --key new.pub --retire sha256:41ab... --out invariant.json
+```
+
+It takes the API's id from `invariant.yaml`, and lists the public half of
+`INVARIANT_SIGNING_KEY` when it is set. When `INVARIANT_URL` is set, the document names it as
+where your bundles are published.
+
+| Option | |
+|---|---|
+| `--key <path>` | A public key to list, in PEM form. Repeatable. A key already listed keeps its `added_at`. |
+| `--from <path>` | The document published today. Every key in it is kept as it is, with any revocation. |
+| `--revoke <keyid>` | Withdraw a key: nothing it ever signed is trusted. Repeatable. |
+| `--retire <keyid>` | Stop a key signing from now: what it signed stays trusted. Repeatable. |
+| `--out <path>` | Write the document here rather than to standard output. |
+
 ## `invariant status`
 
 What production is using: each contract, newest first, and who is still on
@@ -164,12 +187,67 @@ The job names everything, with paths relative to the job file:
 | `language` | `typescript`, `python` or `go`. |
 | `repo` | The consumer's repository. It is read, never written unless `--write` is given. |
 | `bundle` | A signed release. Its Changes are used only once `--key` checks its signature. |
-| `changes` | Instead of a bundle: a list of Changes, or the path to one. |
+| `release` | Instead of a bundle: a provider's published release, read with no account and no key. See below. |
+| `changes` | Instead of either: a list of Changes, or the path to one. |
 | `sdk` | The [SDK map](../migrations.md#what-it-needs-from-you), or the path to one. A Go map names `module.path` and `upgradeTo.path` and `version`. |
-| `from` | The release of the SDK the consumer uses today. |
-| `tsconfig` | TypeScript: the project file, relative to the repository (default `tsconfig.json`). |
+| `from` | The release of the SDK the consumer uses today. Optional: by default each package's own manifest and lockfile say. |
+| `package` | One workspace package to migrate, by its directory, instead of every package the repository has. |
+| `tsconfig` | TypeScript: the project file, relative to the repository (default the package's `tsconfig.json`). |
 | `sources` | TypeScript and Python: the files to read, relative to the repository. Python reads every file that imports the SDK by default. |
 | `module`, `packages` | Go: the module's directory (default the root) and the packages to read (default `./...`). |
+
+### A provider's published release
+
+A consumer who is not on GitHub, or who wants to run the migration on their own machine, names
+the provider's domain and the API, and needs no account and no key:
+
+```json
+{
+  "language": "typescript",
+  "repo": ".",
+  "release": { "provider": "api.acme.example", "api": "acme-payments", "since": "2026-01-15" },
+  "sdk": "acme-sdk.json"
+}
+```
+
+| `release` field | |
+|---|---|
+| `provider` | The provider's domain. Its signing keys are read from `https://<provider>/.well-known/invariant.json`, over HTTPS only. |
+| `api` | The API, by the id its releases carry. The provider's document has to list it. |
+| `to` | The contract to migrate to, by label or by `sha256:` digest. Default: the newest published. |
+| `since` | The contract the consumer speaks today. Every published step from it to `to` is applied, in order. Default: the one step to `to`. |
+| `service` | Where the releases are read from. Default: `--service`, else where the provider's document says, else the hosted service. |
+
+The releases come from the service's public read endpoint, which is a cache and is trusted for
+nothing. Each is opened only with a key the provider's own document lists for that API, that
+was added before the release was published and had not stopped signing by then, and that was
+never revoked. A release signed by any other key is refused with the reason, whatever the
+service says about it, and so is one the service lists as one thing and serves as another. Every
+request is HTTPS (plain HTTP only to a service on this machine), follows redirects only on the
+same host, and is held to a size and a time limit. The provider's document and the service's
+listing are kept for a few minutes, and a verified release for a week, in the user's cache
+directory; what comes back from that cache is checked again.
+
+### Monorepos
+
+A repository with workspaces is migrated one package at a time, into one result for the whole
+repository, which is what one pull request carries:
+
+| Language | What makes a package |
+|---|---|
+| TypeScript | Each package npm, pnpm or yarn workspaces name (`workspaces` in `package.json`, or `pnpm-workspace.yaml`), and the root. |
+| Python | Each directory with a `pyproject.toml`, when there is more than one. |
+| Go | Each module a `go.work` uses, or else each directory with a `go.mod`, when there is more than one. |
+
+Each package is migrated from the release of the SDK it uses, read from its own manifest and
+then its lockfile: `package-lock.json`, `pnpm-lock.yaml` or `yarn.lock` (or what is installed);
+an exact pin in `pyproject.toml` or a requirements file, then `uv.lock`, `poetry.lock` or
+`pdm.lock`; the `require` in its `go.mod`. A package that does not use the SDK, or whose release
+nothing says, is skipped and the report says why; the job's `from` is used only where a package
+declares the SDK and nothing says which release. The report lists each package with what
+happened to it, and the result's `packages` says the same as JSON. A file two packages would
+edit differently is left as it is, and a note says so. A package that fails does not stop the
+others, but the command exits non-zero.
 
 A migration is always two steps. The **fetch** downloads both releases of the
 SDK (from npm, from PyPI as wheels, or through the Go module proxy, with the
@@ -196,8 +274,9 @@ volumes; see `@invariant-app/sandbox`.
 | `--runtime <r>` | `docker` or `podman` (default: whichever is running). |
 | `--allow-host <h>` | A host the fetch may reach beyond `registry.npmjs.org`, `pypi.org`, `files.pythonhosted.org`, `proxy.golang.org` and `sum.golang.org`, such as a private registry. Repeatable. |
 | `--key <path>` | The publisher's Ed25519 public key, in PEM form, for the job's bundle. |
+| `--service <url>` | The service a job's `release` is read from, overriding the job and the provider's document. |
 | `--write` | Apply the edits to the repository. |
-| `--out <path>` | Write the result as JSON: each changed file's new contents, each place left to a person, and the type errors before and after. |
+| `--out <path>` | Write the result as JSON: each changed file's new contents, each place left to a person, the type errors before and after, each package's report, and the release the Changes were read from. |
 
 `migrate --phase fetch|analyse <request>` is what runs inside a sandbox; it is
 not meant to be run by hand.
@@ -206,6 +285,6 @@ not meant to be run by hand.
 
 | Variable | Used by | |
 |---|---|---|
-| `INVARIANT_SIGNING_KEY` | `release` | The Ed25519 private key, in PEM form. |
+| `INVARIANT_SIGNING_KEY` | `release`, `well-known` | The Ed25519 private key, in PEM form. `well-known` lists only its public half. |
 | `INVARIANT_TOKEN` | `publish`, `status` | A token issued in the dashboard. |
-| `INVARIANT_URL` | `publish`, `status` | The service, when not the hosted one. |
+| `INVARIANT_URL` | `publish`, `status`, `well-known` | The service, when not the hosted one. |

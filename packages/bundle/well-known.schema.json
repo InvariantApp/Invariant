@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/InvariantApp/Invariant/blob/main/packages/bundle/well-known.schema.json",
+  "title": "/.well-known/invariant.json",
+  "description": "What an API provider serves from its own domain at /.well-known/invariant.json: the APIs it publishes and the public keys it signs their releases with. A reader trusts a published bundle only if a key listed here signed it, whoever served the bundle. Readers ignore properties this version does not define, so a later version can add one; a document written for version 1 has none.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "apis", "keys"],
+  "properties": {
+    "version": {
+      "description": "The version of this document's format.",
+      "const": 1
+    },
+    "apis": {
+      "description": "The APIs this domain publishes, by the id their bundles carry (a bundle's `api`).",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/apiId" }
+    },
+    "keys": {
+      "description": "Every key that has signed releases for these APIs, including those that no longer sign, so what they signed stays verifiable.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/key" }
+    },
+    "bundles": {
+      "description": "Where this provider's bundles are published, when not the hosted service.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url"],
+      "properties": {
+        "url": {
+          "description": "The service's base URL; bundles are read from <url>/public/v1/apis/<api>/bundles.",
+          "type": "string",
+          "pattern": "^https://"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "apiId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+    },
+    "timestamp": {
+      "description": "An RFC 3339 time with a zone, such as 2026-09-01T00:00:00Z.",
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["keyid", "public_key", "added_at"],
+      "properties": {
+        "keyid": {
+          "description": "sha256: and the hex SHA-256 of the key's SPKI DER form: the id a bundle's signature names. It must be the id of public_key.",
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "public_key": {
+          "description": "The Ed25519 public key, PEM encoded (SPKI).",
+          "type": "string",
+          "pattern": "^-----BEGIN PUBLIC KEY-----"
+        },
+        "added_at": {
+          "description": "When the key began signing. A bundle published before it is not the key's.",
+          "$ref": "#/$defs/timestamp"
+        },
+        "not_after": {
+          "description": "When the key stopped signing. What it signed before stays trusted; a bundle published after it is refused.",
+          "$ref": "#/$defs/timestamp"
+        },
+        "revoked": {
+          "description": "The key is withdrawn: nothing it ever signed is trusted, whenever it was published.",
+          "type": "boolean"
+        },
+        "revoked_reason": {
+          "description": "Why the key was revoked, shown to whoever a bundle is refused for.",
+          "type": "string"
+        },
+        "apis": {
+          "description": "The APIs this key signs for, when not every one the document lists.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/apiId" }
+        }
+      }
+    }
+  }
+}
