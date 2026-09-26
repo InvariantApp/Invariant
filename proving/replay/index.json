@@ -2496,6 +2496,49 @@
       ]
     },
     {
+      "id": "ccremer/greposync#76",
+      "repo": "ccremer/greposync",
+      "pr": 76,
+      "base": "3e7f15e66d4bc51cb43f6d020d27c9061152045b",
+      "head": "b9a55638aab3267ae8a0220b2cfd917adefb0047",
+      "package": "github.com/google/go-github",
+      "ecosystem": "go",
+      "from": "",
+      "to": "38",
+      "license": "Apache-2.0",
+      "mergedAt": "2021-08-12T18:34:25Z",
+      "files": [
+        "pkg/githosting/github/labels.go",
+        "pkg/githosting/github/labels_test.go",
+        "pkg/githosting/github/remote.go",
+        "repository/github/pr.go",
+        "repository/github/provider.go"
+      ]
+    },
+    {
+      "id": "ccremer/greposync#83",
+      "repo": "ccremer/greposync",
+      "pr": 83,
+      "base": "f68abc8fdd832d4ba706dfd04de02189c6ab21d6",
+      "head": "da70493d2f7c0b4f044fbb22184ed32d33311ad9",
+      "package": "github.com/google/go-github",
+      "ecosystem": "go",
+      "from": "",
+      "to": "39",
+      "license": "Apache-2.0",
+      "mergedAt": "2021-09-18T21:01:13Z",
+      "files": [
+        "infrastructure/githosting/github/label_converter.go",
+        "infrastructure/githosting/github/labels.go",
+        "infrastructure/githosting/github/labels_test.go",
+        "infrastructure/githosting/github/labelset_converter.go",
+        "infrastructure/githosting/github/labelset_converter_test.go",
+        "infrastructure/githosting/github/pr.go",
+        "infrastructure/githosting/github/pr_converter.go",
+        "infrastructure/githosting/github/remote.go"
+      ]
+    },
+    {
       "id": "Cerlancism/chatgpt-subtitle-translator#7",
       "repo": "Cerlancism/chatgpt-subtitle-translator",
       "pr": 7,
@@ -2544,6 +2587,22 @@
       "to": "53",
       "license": "MIT",
       "mergedAt": "2023-07-02T08:06:57Z",
+      "files": [
+        "main.go"
+      ]
+    },
+    {
+      "id": "chaspy/github-pr-prometheus-exporter#24",
+      "repo": "chaspy/github-pr-prometheus-exporter",
+      "pr": 24,
+      "base": "5d2e1e36a26177569b99c2b356b42d75672ddaaa",
+      "head": "dfc3d9428c93531785866d22bfc23e0bb781d7ca",
+      "package": "github.com/google/go-github",
+      "ecosystem": "go",
+      "from": "",
+      "to": "35",
+      "license": "MIT",
+      "mergedAt": "2021-05-05T05:33:04Z",
       "files": [
         "main.go"
       ]
@@ -5888,6 +5947,24 @@
       ]
     },
     {
+      "id": "giantswarm/apiextensions#788",
+      "repo": "giantswarm/apiextensions",
+      "pr": 788,
+      "base": "ea38f6e57f395a7ac2bfb6519e8e46aec7add1a8",
+      "head": "83caec3c09875dfb670ae1f441e82e3472ab1aef",
+      "package": "github.com/google/go-github",
+      "ecosystem": "go",
+      "from": "",
+      "to": "39",
+      "license": "Apache-2.0",
+      "mergedAt": "2021-09-14T12:21:34Z",
+      "files": [
+        "hack/build-charts.go",
+        "pkg/crd/renderer.go",
+        "pkg/crd/types.go"
+      ]
+    },
+    {
       "id": "giantswarm/app#643",
       "repo": "giantswarm/app",
       "pr": 643,
@@ -6871,6 +6948,42 @@
       ]
     },
     {
+      "id": "go-vela/compiler#221",
+      "repo": "go-vela/compiler",
+      "pr": 221,
+      "base": "72cabbad67b8961f5a5fde0a0e9aaba5ef04f3a4",
+      "head": "e3e96a2e390cab86a9f37be3ed86a072389f5a60",
+      "package": "github.com/google/go-github",
+      "ecosystem": "go",
+      "from": "",
+      "to": "38",
+      "license": "Apache-2.0",
+      "mergedAt": "2021-08-12T15:45:19Z",
+      "files": [
+        "registry/github/github.go",
+        "registry/github/github_test.go",
+        "registry/github/template.go"
+      ]
+    },
+    {
+      "id": "go-vela/compiler#229",
+      "repo": "go-vela/compiler",
+      "pr": 229,
+      "base": "fdad40df1235ad0f2dd6813a626fafa5c1876e69",
+      "head": "d0deede9c6e9209c7d2cc9daecd199be57398e95",
+      "package": "github.com/google/go-github",
+      "ecosystem": "go",
+      "from": "",
+      "to": "39",
+      "license": "Apache-2.0",
+      "mergedAt": "2021-09-23T14:42:10Z",
+      "files": [
+        "registry/github/github.go",
+        "registry/github/github_test.go",
+        "registry/github/template.go"
+      ]
+    },
+    {
       "id": "go-vela/server#1391",
       "repo": "go-vela/server",
       "pr": 1391,
@@ -7086,6 +7199,22 @@
       "mergedAt": "2024-04-16T19:44:20Z",
       "files": [
         "internal/kokoro/discogen/main.go"
+      ]
+    },
+    {
+      "id": "googleapis/google-cloud-go#3867",
+      "repo": "googleapis/google-cloud-go",
+      "pr": 3867,
+      "base": "c3de0b796c65bdb1cc54861b15c3126f2b68c667",
+      "head": "da43f47e39da0a43379954ea880691c3e1cdf453",
+      "package": "github.com/google/go-github",
+      "ecosystem": "go",
+      "from": "",
+      "to": "34",
+      "license": "Apache-2.0",
+      "mergedAt": "2021-03-29T14:48:02Z",
+      "files": [
+        "internal/gapicgen/cmd/genbot/github.go"
       ]
     },
     {
@@ -17092,6 +17221,58 @@
         "prdiff/client.go",
         "prdiff/diff.go",
         "prdiff/diff_internal_test.go"
+      ]
+    },
+    {
+      "id": "suzuki-shunsuke/lambuild#65",
+      "repo": "suzuki-shunsuke/lambuild",
+      "pr": 65,
+      "base": "797f95e8070975dedec60d5c2ddc2736fe82ec91",
+      "head": "fe2f232381a40a74c5070e2d406aa34d2fbcb7c0",
+      "package": "github.com/google/go-github",
+      "ecosystem": "go",
+      "from": "",
+      "to": "36",
+      "license": "MIT",
+      "mergedAt": "2021-06-28T23:07:51Z",
+      "files": [
+        "pkg/domain/event.go",
+        "pkg/domain/expr_funcs.go",
+        "pkg/domain/expr_funcs_test.go",
+        "pkg/domain/pr_info.go",
+        "pkg/domain/pr_info_internal_test.go",
+        "pkg/github/github.go",
+        "pkg/lambda/download_config.go",
+        "pkg/lambda/handler.go",
+        "pkg/mutex/commit.go",
+        "pkg/mutex/commit_files.go",
+        "pkg/mutex/pr.go"
+      ]
+    },
+    {
+      "id": "suzuki-shunsuke/lambuild#74",
+      "repo": "suzuki-shunsuke/lambuild",
+      "pr": 74,
+      "base": "a53ebb078c52bd7b7f941bb39d676643dbda60ca",
+      "head": "1b8941fe0627b0293c14e78df3391f2351be74dd",
+      "package": "github.com/google/go-github",
+      "ecosystem": "go",
+      "from": "",
+      "to": "37",
+      "license": "MIT",
+      "mergedAt": "2021-07-10T13:27:54Z",
+      "files": [
+        "pkg/domain/event.go",
+        "pkg/domain/expr_funcs.go",
+        "pkg/domain/expr_funcs_test.go",
+        "pkg/domain/pr_info.go",
+        "pkg/domain/pr_info_internal_test.go",
+        "pkg/github/github.go",
+        "pkg/lambda/download_config.go",
+        "pkg/lambda/handler.go",
+        "pkg/mutex/commit.go",
+        "pkg/mutex/commit_files.go",
+        "pkg/mutex/pr.go"
       ]
     },
     {
