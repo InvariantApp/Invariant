@@ -243,19 +243,31 @@ describe.skipIf(!runtime)(`oci-rootless on a real runtime${why}`, () => {
   }, 120_000);
 
   it("kills a phase over its memory, and says so", async () => {
-    const error = await sandbox
+    // A line with no end, which tail has to hold whole: the kernel's kill,
+    // with no runtime of the phase's own to give up first.
+    const killed = await sandbox
+      .analyse({
+        workspace,
+        command: ["/bin/sh", "-c", "head -c 512m /dev/zero | tail -n 1 > /dev/null"],
+        limits: { memoryMb: 96 },
+      })
+      .catch((caught: unknown) => caught);
+    expect(killed).toBeInstanceOf(SandboxError);
+    expect((killed as SandboxError).kind).toBe("memory");
+    // Node sizes its heap to the container and may give up first; that is
+    // the same limit, and reads the same.
+    const exhausted = await sandbox
       .analyse({
         workspace,
         command: [
           "node",
           "-e",
-          "const kept = []; for (;;) kept.push(Buffer.alloc(8 * 1024 * 1024, 1));",
+          "const kept = []; for (;;) kept.push(new Array(1e5).fill(1));",
         ],
-        limits: { memoryMb: 96 },
+        limits: { memoryMb: 128 },
       })
       .catch((caught: unknown) => caught);
-    expect(error).toBeInstanceOf(SandboxError);
-    expect((error as SandboxError).kind).toBe("memory");
+    expect((exhausted as SandboxError).kind).toBe("memory");
   }, 120_000);
 
   it("stops a phase at its CPU time, and one at its wall clock", async () => {

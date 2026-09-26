@@ -465,6 +465,7 @@ export function k8sSandbox(options: K8sOptions): Sandbox<KubernetesWorkspace> {
         exitCode,
         timedOut: status.reason === "DeadlineExceeded",
         oomKilled: status.reason === "OOMKilled",
+        output,
       });
       if (outcome !== "ok") {
         throw new SandboxError(

@@ -378,6 +378,7 @@ export function ociSandbox(options: OciOptions): Sandbox<LocalWorkspace> {
         exitCode,
         timedOut,
         ...(state.OOMKilled ? { oomKilled: true } : {}),
+        output: tail.toString(),
       });
       if (outcome !== "ok") {
         throw new SandboxError(

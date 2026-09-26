@@ -80,6 +80,13 @@ describe("the two phases", () => {
     expect(outcomeOf({ exitCode: 152 })).toBe("cpu");
     expect(outcomeOf({ exitCode: null, signal: "SIGXCPU" })).toBe("cpu");
     expect(outcomeOf({ exitCode: 137, timedOut: true })).toBe("timeout");
+    expect(
+      outcomeOf({
+        exitCode: 134,
+        output:
+          "FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory",
+      }),
+    ).toBe("memory");
   });
 
   it("caps CPU time without a shell reading the command", () => {

@@ -329,12 +329,21 @@ export function outcomeOf(status: {
   signal?: string | null;
   oomKilled?: boolean;
   timedOut?: boolean;
+  /** What the phase printed, where the driver has it. */
+  output?: string;
 }): SandboxErrorKind | "ok" {
   if (status.timedOut) return "timeout";
   if (status.oomKilled) return "memory";
   if (status.signal === "SIGXCPU" || status.exitCode === CPU_EXIT) return "cpu";
-  return status.exitCode === 0 ? "ok" : "exit";
+  if (status.exitCode === 0) return "ok";
+  // Node sizes its heap to the memory it is given, and may give up on its
+  // own before the kernel steps in: that is the same limit, reached first.
+  if (status.output && NODE_OUT_OF_MEMORY.test(status.output)) return "memory";
+  return "exit";
 }
+
+const NODE_OUT_OF_MEMORY =
+  /FATAL ERROR: .*(heap out of memory|Allocation failed)|ERR_MEMORY_ALLOCATION_FAILED|Array buffer allocation failed/;
 
 /** A message for each kind of failure, naming the phase and the limit it hit. */
 export function describeFailure(
