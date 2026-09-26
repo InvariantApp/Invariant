@@ -5,7 +5,7 @@ import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } 
 import { createHash } from "node:crypto";
 import { exec, execFile, spawn, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { promisify } from "node:util";
+import { isDeepStrictEqual, promisify } from "node:util";
 import { createServer } from "node:net";
 import { request } from "node:http";
 import { request as request$1 } from "node:https";
@@ -16453,7 +16453,7 @@ function namesIn(document, schema) {
 		}
 		const properties = here["properties"];
 		if (isJsonObject(properties)) for (const [name, child] of Object.entries(properties)) {
-			const place = `${at}/${escapeSegment$3(name)}`;
+			const place = `${at}/${escapeSegment$4(name)}`;
 			names.add(place);
 			visit(child, place, depth + 1, through);
 		}
@@ -16588,7 +16588,7 @@ var Prover = class {
 		const innerProperties = isJsonObject(i["properties"]) ? i["properties"] : {};
 		const outerExtra = o["additionalProperties"];
 		for (const [name, schema] of Object.entries(innerProperties)) {
-			const place = `${at}/${escapeSegment$3(name)}`;
+			const place = `${at}/${escapeSegment$4(name)}`;
 			const declared = outerProperties[name];
 			if (declared !== void 0) {
 				const answer = this.covers(declared, schema, place, depth + 1);
@@ -16609,7 +16609,7 @@ var Prover = class {
 			}
 			for (const [name, schema] of Object.entries(outerProperties)) {
 				if (innerProperties[name] !== void 0) continue;
-				const answer = this.covers(schema, values, `${at}/${escapeSegment$3(name)}`, depth + 1);
+				const answer = this.covers(schema, values, `${at}/${escapeSegment$4(name)}`, depth + 1);
 				if (!answer.covered) return answer;
 			}
 		}
@@ -16950,7 +16950,7 @@ function missed(at, reason) {
 		reason
 	};
 }
-const escapeSegment$3 = (segment) => segment.replaceAll("~", "~0").replaceAll("/", "~1");
+const escapeSegment$4 = (segment) => segment.replaceAll("~", "~0").replaceAll("/", "~1");
 const a = (type) => /^[aeiou]/.test(type) ? `an ${type}` : `a ${type}`;
 //#endregion
 //#region ../contract/src/sites.ts
@@ -17089,7 +17089,7 @@ function leadingTo(document, target) {
 	}
 	return leads;
 }
-const escapeSegment$2 = (segment) => segment.replaceAll("~", "~0").replaceAll("/", "~1");
+const escapeSegment$3 = (segment) => segment.replaceAll("~", "~0").replaceAll("/", "~1");
 /** The values a property of a branch can hold, where it declares a closed set. */
 function closedValues(document, branch, property) {
 	const resolved = resolveSchema(document, branch);
@@ -17202,7 +17202,7 @@ function guardFor(document, union, branches, index, at) {
 		if (values.length === 0) values = closedValues(document, branch, name) ?? [];
 		if (values.length > 0) return {
 			at,
-			key: `/${escapeSegment$2(name)}`,
+			key: `/${escapeSegment$3(name)}`,
 			values
 		};
 	}
@@ -17225,7 +17225,7 @@ function guardFor(document, union, branches, index, at) {
 			return theirs !== void 0 && !theirs.some((value) => mine.includes(value));
 		})) return {
 			at,
-			key: `/${escapeSegment$2(property)}`,
+			key: `/${escapeSegment$3(property)}`,
 			values: mine
 		};
 	}
@@ -17265,7 +17265,7 @@ function guardFor(document, union, branches, index, at) {
 	for (const property of candidates) {
 		const mine = closedValues(document, branch, property);
 		if (!mine) continue;
-		const key = `/${escapeSegment$2(property)}`;
+		const key = `/${escapeSegment$3(property)}`;
 		const sharing = others.filter((other) => {
 			const kind = jsonKindOf(document, other);
 			if (kind !== void 0 && kind !== "object") return false;
@@ -23856,8 +23856,13 @@ function schemaMove(document, root, from, to) {
 	const toSegments = parsePointer(to);
 	const slot = readSlot(document, root, fromSegments);
 	const moved = clone$1(slot.schema);
+	const beneath = toSegments.length > fromSegments.length && fromSegments.every((segment, index) => segment === toSegments[index]);
 	deleteSlot(document, root, fromSegments);
-	writeSlot(document, root, toSegments, moved, slot.required);
+	writeSlot(document, root, toSegments, moved, beneath || slot.required);
+	if (beneath && !WILDCARD_KEYWORD[fromSegments.at(-1)]) {
+		const { parent, last } = parentFor(document, root, fromSegments, false);
+		setRequired(parent, last, slot.required);
+	}
 	pruneEmptyObjects(document, root, fromSegments);
 }
 /** Drops intermediate objects a move emptied out. */
@@ -24153,11 +24158,31 @@ function schemaConvert(document, root, path, codec) {
 * that is a string, null needs a union that allows null, and a field left out
 * needs a field that may be left out.
 */
+/** What an id is held to, which moves with it into a union's text branch. */
+const ID_KEYWORDS = /* @__PURE__ */ new Set([
+	"type",
+	"format",
+	"pattern",
+	"maxLength",
+	"minLength",
+	"enum",
+	"const"
+]);
 function schemaWiden(document, root, path, variant, show, branch = { $ref: variant }) {
 	const slot = readSlot(document, root, parsePointer(path));
 	const union = own(document, WILDCARD_KEYWORD[slot.last] ? slot.parent : slot.parent["properties"], WILDCARD_KEYWORD[slot.last] ?? slot.last);
 	const key = Array.isArray(union["anyOf"]) ? "anyOf" : Array.isArray(union["oneOf"]) ? "oneOf" : void 0;
-	if (!key) throw new SchemaOpError(`${path} is not a union`);
+	if (!key) {
+		if (show !== "id" || union["type"] !== "string") throw new SchemaOpError(`${path} is not a union`);
+		const id = {};
+		for (const keyword of Object.keys(union)) {
+			if (!ID_KEYWORDS.has(keyword)) continue;
+			id[keyword] = union[keyword];
+			delete union[keyword];
+		}
+		union["anyOf"] = [id, branch];
+		return;
+	}
 	const branches = union[key];
 	const written = JSON.stringify(branch);
 	if (branches.some((each) => JSON.stringify(each) === written)) throw new SchemaOpError(`${path} already holds ${variant}`);
@@ -28443,10 +28468,28 @@ function declaredSecurity(document) {
 * no values at all. On a response the same change is real, old callers may
 * be sent names they never heard of, and it is left for a Change to declare.
 *
+* A response that was a choice between schemas and now gives only kinds it
+* could already give is the same. Stripe's terminal reader `cancel_action`
+* answered with a reader or a deleted reader, and then with a reader only:
+* every answer is one old callers were promised, yet the differ reads the
+* choice as an object with no fields, and reports each of the reader's as a
+* required property added to the response. Such an entry is dropped where the
+* object holding the property was, in the old document, a union with a branch
+* equal to each kind the new document gives there.
+*
+* A request field whose values the new document lists, and says in the same
+* place that it does not hold callers to, is the same again. Stripe's reason
+* for rejecting an account was any text and became seven names, marked
+* `x-stripeBypassValidation` and, in `x-stripeEnum`, `open`: the server still
+* takes the `fraud` an old caller sends. Such an entry is dropped where the
+* request field, found in the new document, carries either mark.
+*
 * Wherever the field cannot be found with certainty, the entry is kept: this
 * only removes what it can show is not breaking.
 */
 const ADDED = /^added the new `.*` enum value to the `(.+)` response property for the response status `(.+)`$/;
+const REQUIRED_ADDED = /^added the required property `(.+)` to the response with the `(.+)` status$/;
+const BECAME_ENUM = /^request property `(.+)` was restricted to a list of enum values$/;
 const REMOVED_PROPERTY = /^removed the enum value `.*` of the request property `(.+)`$/;
 const REMOVED_REQUEST_PROPERTY = /^removed the request property `(.+)`$/;
 const REMOVED_PARAMETER = /^removed the enum value `.*` from the `(path|query|header|cookie)` request parameter `(.+)`$/;
@@ -28468,11 +28511,30 @@ function withoutNarrowing(entries, base, revision) {
 			const [, pointer = "", status = ""] = match;
 			return !once(`added ${at} ${status} ${pointer}`, () => listsNoValues(base, responseSchemas(base, entry, status), pointer));
 		}
+		if (entry.id === "response-required-property-added") {
+			const match = REQUIRED_ADDED.exec(entry.text);
+			if (!match) return true;
+			const [, pointer = "", status = ""] = match;
+			const holder = segmentsOf(pointer).slice(0, -1).join("/");
+			return !once(`required ${at} ${status} ${holder}`, () => narrowedChoice({
+				document: base,
+				schemas: responseSchemas(base, entry, status)
+			}, {
+				document: revision,
+				schemas: responseSchemas(revision, entry, status)
+			}, holder));
+		}
 		if (entry.id === "request-property-enum-value-removed") {
 			const match = REMOVED_PROPERTY.exec(entry.text);
 			if (!match) return true;
 			const [, pointer = ""] = match;
-			return !once(`removed ${at} body ${pointer}`, () => listsNoValues(revision, requestSchemas(revision, entry), pointer));
+			return !once(`removed ${at} body ${pointer}`, () => listsNoValues(revision, requestSchemas(revision, entry), pointer) || heldToNoValues(revision, requestSchemas(revision, entry), pointer));
+		}
+		if (entry.id === "request-property-became-enum") {
+			const match = BECAME_ENUM.exec(entry.text);
+			if (!match) return true;
+			const [, pointer = ""] = match;
+			return !once(`open ${at} body ${pointer}`, () => heldToNoValues(revision, requestSchemas(revision, entry), pointer));
 		}
 		if (entry.id === "request-property-removed") {
 			const match = REMOVED_REQUEST_PROPERTY.exec(entry.text);
@@ -28539,6 +28601,49 @@ function inEveryVariant(document, schemas, pointer) {
 				const properties = isJsonObject(resolved) ? resolved["properties"] : void 0;
 				return isJsonObject(properties) && properties[name] !== void 0;
 			});
+		});
+	} catch {
+		return false;
+	}
+}
+/**
+* Whether the object at the pointer was a union in every old schema, and in
+* every new one gives only kinds, resolved, equal to one of its branches.
+*/
+function narrowedChoice(before, after, pointer) {
+	try {
+		if (!before.schemas?.length || !after.schemas?.length) return false;
+		const unionOf = (at) => {
+			if (at === void 0) return void 0;
+			const keyword = ["oneOf", "anyOf"].find((key) => Array.isArray(at[key]));
+			return keyword === void 0 ? void 0 : at[keyword];
+		};
+		const branches = before.schemas.map((schema) => {
+			return unionOf(walk$1(before.document, schema, pointer))?.map((branch) => resolveSchema(before.document, branch));
+		});
+		return after.schemas.every((schema) => {
+			const at = walk$1(after.document, schema, pointer);
+			if (at === void 0) return false;
+			const kinds = (unionOf(at) ?? [at]).map((kind) => resolveSchema(after.document, kind));
+			return branches.every((old) => old !== void 0 && kinds.every((kind) => old.some((branch) => isDeepStrictEqual(branch, kind))));
+		});
+	} catch {
+		return false;
+	}
+}
+/**
+* Whether the field at the pointer, in every schema given, says its list of
+* values is open: Stripe's `x-stripeBypassValidation`, or an `x-stripeEnum`
+* of kind `open`.
+*/
+function heldToNoValues(document, schemas, pointer) {
+	try {
+		if (schemas === void 0 || schemas.length === 0) return false;
+		return schemas.every((schema) => {
+			const field = walk$1(document, schema, pointer);
+			if (field === void 0) return false;
+			const listed = field["x-stripeEnum"];
+			return field["x-stripeBypassValidation"] === true || isJsonObject(listed) && listed["kind"] === "open";
 		});
 	} catch {
 		return false;
@@ -42327,7 +42432,8 @@ function siteFor(forward, backward, blocks) {
 		identity: [{
 			kind: "default",
 			label: LABEL$1
-		}]
+		}],
+		maxBodyBytes: Number.POSITIVE_INFINITY
 	});
 	const site = runtime.siteFor(LABEL$1, METHOD, PATH);
 	if (!site) throw new Error("the verifier built a program with no site in it");
@@ -42878,7 +42984,7 @@ function clean(sent) {
 	return out;
 }
 function lossyAt(pointers) {
-	const distinct = [...new Set(pointers)];
+	const distinct = [...new Set(pointers.map((pointer) => pointer.replace(/(\/\*)+$/, "")))];
 	return {
 		pointers: distinct,
 		whole: distinct.includes("")
@@ -42923,6 +43029,74 @@ function withoutLossy(value, lossy) {
 	lossy.tree ??= lossTree(lossy.pointers);
 	remove(copy, lossy.tree);
 	return copy;
+}
+/** Each schema's declared loss, as the Changes to it declare it. */
+function lossBySchema(changes) {
+	const losses = /* @__PURE__ */ new Map();
+	for (const change of changes) {
+		const declared = derive(change).lossy;
+		if (declared.forward.length === 0 && declared.backward.length === 0) continue;
+		for (const scope of change.scopes ?? []) {
+			if (!isSchemaScope(scope)) continue;
+			const loss = losses.get(scope.schema) ?? {
+				forward: [],
+				backward: []
+			};
+			loss.forward.push(...declared.forward);
+			loss.backward.push(...declared.backward);
+			losses.set(scope.schema, loss);
+		}
+	}
+	return losses;
+}
+const escapeSegment$2 = (key) => key.replaceAll("~", "~0").replaceAll("/", "~1");
+/**
+* Where each schema with a declared loss sits inside one value of `root`,
+* found by walking the value beside its schema, and the loss at each place.
+*
+* The places the compiler lists stop where a schema would enter itself, as
+* they must for a recursive schema to have a finite list. A generated value
+* goes on past them: in Stripe's documents a payment method holds a setup
+* attempt, which holds a setup intent, which holds its latest attempt and
+* that attempt's payment method, whose `type` a fold gave old callers in
+* another value. The loss was declared, and the value is finite, so walking
+* it finds every place. Every branch of a union whose value could be of it
+* is followed, which can excuse a loss where the value is in fact of another
+* branch, never one no Change declared.
+*/
+function placedLoss(document, root, value, losses, direction) {
+	const found = [];
+	const seen = /* @__PURE__ */ new Set();
+	const visit = (schema, at, pointer) => {
+		if (!isJsonObject(schema)) return;
+		const ref = schema["$ref"];
+		if (typeof ref === "string") {
+			const key = `${ref} ${pointer}`;
+			if (seen.has(key)) return;
+			seen.add(key);
+			for (const path of losses.get(ref)?.[direction] ?? []) found.push(`${pointer}${path}`);
+			visit(resolveRef(document, ref), at, pointer);
+			return;
+		}
+		for (const keyword of [
+			"allOf",
+			"anyOf",
+			"oneOf"
+		]) {
+			const branches = schema[keyword];
+			if (!Array.isArray(branches)) continue;
+			for (const branch of branches) visit(branch, at, pointer);
+		}
+		if (Array.isArray(at)) {
+			for (const [index, item] of at.entries()) visit(schema["items"], item, `${pointer}/${index}`);
+			return;
+		}
+		if (at === null || typeof at !== "object") return;
+		const properties = isJsonObject(schema["properties"]) ? schema["properties"] : {};
+		for (const [key, child] of Object.entries(at)) visit(properties[key] ?? schema["additionalProperties"], child, `${pointer}/${escapeSegment$2(key)}`);
+	};
+	visit({ $ref: root }, value, "");
+	return found;
 }
 /**
 * Equality that ignores the order of an object's keys.
@@ -43017,6 +43191,7 @@ function checkLaws(oldContract, predicted, changes, options = {}) {
 	const runs = options.runs ?? 500;
 	const failures = [];
 	const evidence = [];
+	let losses;
 	for (const entry of casesFor(oldContract, predicted, changes)) {
 		const ids = entry.changes.map((change) => change.id);
 		const digest = inputsDigest(entry.changes, entry.scope, runs);
@@ -43029,12 +43204,21 @@ function checkLaws(oldContract, predicted, changes, options = {}) {
 				forward: lossyAt(entry.lossy.forward),
 				backward: lossyAt(entry.lossy.backward)
 			};
+			const sameApartFromLoss = (document, direction, value, returned) => {
+				const listed = lossy[direction];
+				if (sameJson(withoutLossy(returned, listed), withoutLossy(value, listed))) return true;
+				losses ??= lossBySchema(changes);
+				const placed = placedLoss(document, entry.scope, value, losses, direction);
+				if (placed.length === 0) return false;
+				const all = lossyAt([...listed.pointers, ...placed]);
+				return sameJson(withoutLossy(returned, all), withoutLossy(value, all));
+			};
 			const outbound = !travels.request ? [] : run$1(oldContract, entry.scope, runs, options.seed, (value) => {
 				const canonical = lens.forward(value);
 				const violations = undeclared(validateAgainst(predicted, entry.scope, canonical), entry.relaxed);
 				if (violations.length > 0) return `forward produced a value the new contract does not allow (${describe$1(violations)})`;
 				const returned = lens.backward(canonical);
-				if (!sameJson(withoutLossy(returned, lossy.forward), withoutLossy(value, lossy.forward))) return `undoing it did not return the original: ${JSON.stringify(returned)}`;
+				if (!sameApartFromLoss(oldContract, "forward", value, returned)) return `undoing it did not return the original: ${JSON.stringify(returned)}`;
 			});
 			for (const failure of outbound) found.push({
 				...failure,
@@ -43047,7 +43231,7 @@ function checkLaws(oldContract, predicted, changes, options = {}) {
 				const violations = undeclared(validateAgainst(oldContract, entry.scope, old), entry.relaxed);
 				if (violations.length > 0) return `backward produced a value the old contract does not allow (${describe$1(violations)})`;
 				const returned = lens.forward(old);
-				if (!sameJson(withoutLossy(returned, lossy.backward), withoutLossy(value, lossy.backward))) return `re-applying it did not return the original: ${JSON.stringify(returned)}`;
+				if (!sameApartFromLoss(predicted, "backward", value, returned)) return `re-applying it did not return the original: ${JSON.stringify(returned)}`;
 			});
 			for (const failure of inbound) found.push({
 				...failure,
@@ -53225,6 +53409,26 @@ function movedIntoVariants(document, schema, removed) {
 * is matched by where it is used; one that stayed is another schema, and what
 * this operation returns changed.
 */
+/**
+* Whether a response that was a choice between schemas now gives only kinds
+* it could already give. Stripe's `cancel_action` answered with a reader or a
+* deleted reader, and a release made it answer with a reader: every answer is
+* one the old contract allows, and the reader is compared under its own name.
+* Read as one object, the choice has no fields, and every field of the reader
+* was drafted as new and taken out of old callers' answers.
+*/
+function narrowedTo(before, after) {
+	const kinds = (schema) => {
+		if (!isJsonObject(schema)) return void 0;
+		for (const keyword of ["oneOf", "anyOf"]) {
+			const branches = schema[keyword];
+			if (Array.isArray(branches)) return branches;
+		}
+	};
+	const was = kinds(before);
+	if (was === void 0) return false;
+	return (kinds(after) ?? [after]).every((kind) => was.some((branch) => isDeepStrictEqual(branch, kind)));
+}
 function pointedElsewhere(document, before, after, newSchemas) {
 	if (isUnion(document, after)) return false;
 	const was = schemaName(before["$ref"]);
@@ -54131,6 +54335,7 @@ function schemaDeltas(oldContract, newContract, operationRenames = /* @__PURE__ 
 			if (!isJsonObject(schema)) continue;
 			const next = after.get(status);
 			if (next === void 0) continue;
+			if (narrowedTo(schema, next)) continue;
 			if (typeof schema["$ref"] === "string" && !pointedElsewhere(newContract, schema, next, newSchemas)) continue;
 			const compared = compareReading(oldContract, newContract, oldSchemas, newSchemas, bodyFieldsOf(oldContract, schema, itemsWrittenOut(oldContract, schema)), bodyFieldsOf(newContract, next, itemsWrittenOut(oldContract, schema)), {
 				name: `${operation.operationId} ${status} response`,
@@ -57701,6 +57906,31 @@ function alteredProposals(deltas, oldContract, newContract) {
 	for (const delta of deltas) {
 		const sides = delta.altered.length > 0 ? sidesOfDelta(oldContract, delta) : void 0;
 		for (const pair of delta.altered) {
+			const holder = heldBeneath(newContract, delta, pair, sides ?? NEITHER);
+			if (holder !== void 0) {
+				proposals.push({
+					change: {
+						irVersion: 1,
+						id: `chg_${slug(delta.schema)}_${slug(pair.old.name)}`,
+						summary: `\`${pair.old.name}\` on ${delta.schema} is now an object holding it as \`${holder}\`.`,
+						scopes: [scopeOf(delta)],
+						ops: [{
+							op: "move",
+							from: pair.old.pointer,
+							to: `${pair.new.pointer}/${holder.replaceAll("~", "~0").replaceAll("/", "~1")}`
+						}],
+						provenance: { proposed_by: {
+							judge: "rules",
+							confidence: 1
+						} }
+					},
+					judge: "rules",
+					confidence: 1,
+					attention: "normal",
+					notes: [`\`${pair.old.name}\` became an object whose one required field, \`${holder}\`, holds what it held`]
+				});
+				continue;
+			}
 			const narrowed = narrowOps(pair.old, pair.new, sides ?? NEITHER);
 			const listDrop = ((sides ?? NEITHER).request ? droppedFromList(pair) : void 0) ?? droppedFromResponseList(pair, sides ?? NEITHER);
 			const shape = listDrop ? listDrop : narrowed.ops.length > 0 ? {
@@ -57709,7 +57939,8 @@ function alteredProposals(deltas, oldContract, newContract) {
 			} : opsFor(pair.old, pair.new);
 			const retiredAsked = (sides ?? NEITHER).request && retiredValues(pair, !(sides ?? NEITHER).response) !== void 0;
 			const reshaped = valuesDiffer(pair.old, pair.new);
-			if (reshaped && shape.ops.length === 0 && narrowed.ops.length === 0 && !foldCovers(pair, sides ?? NEITHER) && !onlyUnstated(pair.old, pair.new) && typesWidened(pair.old, pair.new).type === void 0 && !retiredAsked && !onlyGrewForRequests(pair, sides ?? NEITHER)) {
+			const widened = widenOps(pair.old, pair.new, sides ?? NEITHER);
+			if (reshaped && shape.ops.length === 0 && narrowed.ops.length === 0 && widened.ops.length === 0 && !foldCovers(pair, sides ?? NEITHER) && !onlyUnstated(pair.old, pair.new) && typesWidened(pair.old, pair.new).type === void 0 && !retiredAsked && !onlyGrewForRequests(pair, sides ?? NEITHER)) {
 				if (restatedField(delta, pair, sides ?? NEITHER)) continue;
 				unresolved.push({
 					schema: delta.schema,
@@ -57732,14 +57963,16 @@ function alteredProposals(deltas, oldContract, newContract) {
 				summary: question.op.toward === "old" ? `\`${pair.old.name}\` on ${delta.schema} may now be missing or null for callers who were always given it.` : `\`${pair.old.name}\` on ${delta.schema} needs a value from callers who could leave it out.`,
 				why: question.why
 			});
-			const widened = widenOps(pair.old, pair.new, sides ?? NEITHER);
 			if (widened.unresolved) unresolved.push({
 				schema: delta.schema,
 				field: pair.old.name,
 				reason: widened.unresolved,
 				side: "removed"
 			});
-			const relaxed = restatedBounds(pair.old, pair.new, sides ?? NEITHER, relaxOps(pair.old, pair.new, sides ?? NEITHER));
+			const relaxed = becameExpandable(pair.old, pair.new) ? {
+				ops: [],
+				notes: []
+			} : restatedBounds(pair.old, pair.new, sides ?? NEITHER, relaxOps(pair.old, pair.new, sides ?? NEITHER));
 			if (relaxed.ops.some((op) => op.op === "relax" && Array.isArray(op.set.type))) {
 				relaxed.ops.push({
 					op: "restate",
@@ -57825,6 +58058,41 @@ const NEITHER = {
 * moved, which is all the differ reads as a change where nothing old callers
 * send or are sent was ruled out.
 */
+/**
+* The one field of the object a value became, where that field holds what the
+* value held. Stripe's `billing_cycle_anchor` on resuming a subscription was
+* `now` or `unchanged`, and became an object whose required `type` is `now` or
+* `unchanged`: an old caller's value is moved beneath its own place, and the
+* object built there. Where old callers are sent the object, it may hold
+* nothing else, or taking the value out of it would drop the rest.
+*/
+function heldBeneath(newContract, delta, pair, sides) {
+	const { old, new: next } = pair;
+	if (old.type === void 0 || !SCALARS.has(old.type) || next.type !== "object") return;
+	if (old.name.split(".").at(-1) !== next.name.split(".").at(-1)) return void 0;
+	const ref = `#/components/schemas/${delta.newSchema.replaceAll("~", "~0").replaceAll("/", "~1")}`;
+	const root = delta.roots?.new ?? (resolveRef(newContract, ref) === void 0 ? void 0 : { $ref: ref });
+	if (root === void 0) return void 0;
+	let object;
+	try {
+		const written = statementAt(newContract, root, next.pointer);
+		object = written === void 0 ? void 0 : resolveSchema(newContract, written);
+	} catch {
+		return;
+	}
+	if (!isJsonObject(object)) return void 0;
+	const properties = object["properties"];
+	const required = object["required"];
+	if (!isJsonObject(properties) || !Array.isArray(required) || required.length !== 1) return;
+	const [holder] = required;
+	if (typeof holder !== "string" || properties[holder] === void 0) return void 0;
+	if (sides.response && Object.keys(properties).length !== 1) return void 0;
+	const held = resolveSchema(newContract, properties[holder]);
+	if (!isJsonObject(held) || held["type"] !== old.type) return void 0;
+	const values = held["enum"];
+	if (old.enumValues === void 0) return values === void 0 ? holder : void 0;
+	return Array.isArray(values) && old.enumValues.every((value) => values.includes(value)) ? holder : void 0;
+}
 function sameValues(oldContract, newContract, delta, pair, sides, only) {
 	if (!sides.request && !sides.response) return false;
 	const root = (document, name) => {
@@ -58013,17 +58281,22 @@ function narrowOps(old, next, sides) {
 * be, which for the items of a list means left out of the list. A union that
 * allows none of those has nothing to show, and says so.
 *
+* A field that was only ever an id and became expandable, as Stripe made the
+* `mandate` of a card payment an id or the mandate itself, is the same: the id
+* old callers were sent is the union's text branch, and each object is new.
+*
 * A union in a request that accepts more breaks nobody, and is left alone.
 */
 function widenOps(old, next, sides) {
 	const known = new Set((old.variants ?? []).map((ref) => ref.slice(ref.lastIndexOf("/") + 1)));
 	const gained = (next.variants ?? []).filter((ref) => !known.has(ref.slice(ref.lastIndexOf("/") + 1)));
-	if (!sides.response || old.variants === void 0 || gained.length === 0) return {
+	const expandable = becameExpandable(old, next);
+	if (!sides.response || old.variants === void 0 && !expandable || gained.length === 0) return {
 		ops: [],
 		notes: []
 	};
 	const item = next.pointer.endsWith("/*");
-	const show = old.idBranch ? "id" : old.nullable ? "null" : !old.required || item ? "absent" : void 0;
+	const show = old.idBranch || expandable ? "id" : old.nullable ? "null" : !old.required || item ? "absent" : void 0;
 	const names = gained.map((ref) => `\`${ref.slice(ref.lastIndexOf("/") + 1)}\``).join(", ");
 	if (show === void 0) return {
 		ops: [],
@@ -58039,6 +58312,10 @@ function widenOps(old, next, sides) {
 		})),
 		notes: [`\`${old.name}\` can now hold ${names}, which old callers never heard of; they are shown ${show === "id" ? "its id, as for a field they did not expand" : show === "null" ? "null" : item ? "the item left out of the list" : "the field left out"} instead, a declared loss to acknowledge`]
 	};
+}
+/** Whether a field that was plain text became a union of text and named schemas. */
+function becameExpandable(old, next) {
+	return old.variants === void 0 && old.type === "string" && old.enumValues === void 0 && next.idBranch === true && (next.variants?.length ?? 0) > 0;
 }
 /** Whether the values a field can hold changed, apart from null and absence. */
 /**
