@@ -52,7 +52,9 @@ describe("brand.ts", () => {
   });
 
   it("is the scope every published package is named under", () => {
-    const names = execFileSync("git", ["ls-files", "packages/*/package.json"], {
+    // Only a package's own manifest: a plain `*` would match through `/`
+    // into the SDK releases kept as fixtures, which are other people's.
+    const names = execFileSync("git", ["ls-files", ":(glob)packages/*/package.json"], {
       cwd: ROOT,
       encoding: "utf8",
     })
