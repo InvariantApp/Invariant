@@ -759,6 +759,14 @@ async function mine(): Promise<void> {
           target.ecosystems.includes(entry.ecosystem) &&
           (!onlyLanguage || languageOf(entry) === onlyLanguage),
       ).length;
+      // A package already at its cap is not searched at all; saying so is
+      // what tells a run that adds nothing from one whose searches failed.
+      if (mine >= perPackage) {
+        process.stdout.write(
+          `${target.package}: ${mine} cases already, at the cap of ${perPackage} (--per-package)\n`,
+        );
+        continue;
+      }
       // Asked for one ecosystem, only repositories in its language are
       // searched: most `Bump stripe from` pull requests are stripe-node
       // bumps, and reading each one's files to find that out took the whole
