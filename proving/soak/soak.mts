@@ -18,7 +18,7 @@
  * caller can read. Every body the proxy sends upstream is judged against the
  * current contract. The proxy's memory and sockets are sampled throughout.
  *
- * Cheap on purpose, so it can run for 24 hours on a laptop or any machine:
+ * Cheap on purpose, so it can run for 14 hours on a laptop or any machine:
  * 50 requests a second, one proxy, one driver. It writes a checkpoint as it
  * goes and `results.json` at the end; `--record` also writes the results the
  * scoreboard reads.

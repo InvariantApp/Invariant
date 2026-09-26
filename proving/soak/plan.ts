@@ -289,7 +289,13 @@ export function percentile(values: readonly number[], p: number): number | undef
 
 /** What L11 asks of a run, stated once for the harness, the scoreboard and the docs. */
 export const BUDGET = {
-  hours: 24,
+  /**
+   * Fourteen hours, the user's call on 2026-09-26: a 14.5-hour run was clean
+   * throughout, and its later hours only repeat the same disturbances on the
+   * same schedule, while the memory trend is judged over one proxy process,
+   * which restarts every four hours.
+   */
+  hours: 14,
   rps: 50,
   /** Of the stated rate, what the run has to have sent. */
   rpsShare: 0.98,
