@@ -180,15 +180,16 @@ describe("scopeOf", () => {
   });
   const forced = site(1, ["refunded = charge.refunds.total"]);
   const chosen = site(2, ["x = client.new_feature()"]);
+  // What makes a site forced is `forced.mts`'s to say; here it is given.
   const contract: ClassRecord = { class: "contract", confidence: 0.9, model: "test" };
   const classes = { [siteKey(forced)]: contract, [siteKey(chosen)]: contract };
   const scored = [
-    { site: forced, outcome: "flagged" as const },
-    { site: chosen, outcome: "missed" as const },
+    { site: forced, outcome: "flagged" as const, forced: true },
+    { site: chosen, outcome: "missed" as const, forced: false },
   ];
 
-  it("counts a contract site as forced only where it names what the upgrade broke", () => {
-    const scope = scopeOf(scored, classes, new Set(["amountrefunded"]));
+  it("counts the contract sites the replay judged forced", () => {
+    const scope = scopeOf(scored, classes, true);
     expect(scope.sites).toBe(2);
     expect(scope.forced).toEqual({
       sites: 1,

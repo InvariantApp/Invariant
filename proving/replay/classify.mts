@@ -94,6 +94,12 @@ export async function cacheSite(
    * once its sites are classed, without replaying anything.
    */
   outcome?: Outcome,
+  /**
+   * Whether the site names an element the upgrade broke (`forced.mts`), where
+   * both contracts were known: kept for the same reason, since what broke is
+   * read from the differ during the replay and not again when rescoring.
+   */
+  forced?: boolean,
 ): Promise<void> {
   const skip = Math.max(0, site.region.oldStart - CONTEXT);
   await mkdir(dir, { recursive: true });
@@ -103,6 +109,7 @@ export async function cacheSite(
       site: { ...site, base: site.base.slice(skip, site.region.oldEnd + CONTEXT) },
       skip,
       ...(outcome ? { outcome } : {}),
+      ...(forced === undefined ? {} : { forced }),
     }),
   );
 }
@@ -111,16 +118,20 @@ export async function cacheSite(
 export function readCached(
   names: readonly string[],
   dir = SITE_CACHE,
-): { site: Site; outcome?: Outcome }[] {
+): { site: Site; outcome?: Outcome; forced?: boolean }[] {
   return names.map((name) => {
-    const { site, skip, outcome } = JSON.parse(readFileSync(join(dir, name), "utf8")) as {
+    const { site, skip, outcome, forced } = JSON.parse(
+      readFileSync(join(dir, name), "utf8"),
+    ) as {
       site: Site;
       skip: number;
       outcome?: Outcome;
+      forced?: boolean;
     };
     return {
       site: { ...site, base: [...Array<string>(skip).fill(""), ...site.base] },
       ...(outcome ? { outcome } : {}),
+      ...(forced === undefined ? {} : { forced }),
     };
   });
 }

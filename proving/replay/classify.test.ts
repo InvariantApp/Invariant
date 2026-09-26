@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -402,5 +402,24 @@ describe("classing a human site", () => {
     const [back] = readCached(cases.get("acme/shop#1") ?? [], dir);
     expect(back?.outcome).toBe("flagged");
     expect(back && siteKey(back.site)).toBe(siteKey(site));
+  });
+});
+
+describe("the site cache", () => {
+  it("keeps whether a site was judged forced, so rescoring need not read the differ again", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "sites-"));
+    const site = {
+      caseId: "c#1",
+      package: "stripe",
+      from: "1",
+      to: "2",
+      file: "a.py",
+      base: ["a = 1", "b = charge.amount_refunded", "c = 3"],
+      region: { oldStart: 1, oldEnd: 2, lines: ["b = charge.refunds"] },
+    };
+    await cacheSite(site, dir, "missed", true);
+    await cacheSite({ ...site, caseId: "c#2" }, dir, "missed");
+    const read = readCached(readdirSync(dir).sort(), dir);
+    expect(read.map((each) => each.forced).sort()).toEqual([true, undefined]);
   });
 });
