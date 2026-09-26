@@ -1,0 +1,16 @@
+// The field handed to the consumer's own helper, typed with the SDK's values,
+// which compares it with a renamed value.
+package scenario
+
+import (
+	"example.com/sdk"
+)
+
+func isLive(status sdk.CustomerStatus) bool {
+	return status == "active"
+}
+
+// Live reports whether a customer is live.
+func Live(customer *sdk.Customer) bool {
+	return isLive(customer.Status)
+}

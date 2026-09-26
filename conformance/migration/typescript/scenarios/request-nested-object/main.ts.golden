@@ -1,0 +1,11 @@
+// A renamed field of a nested object, written inside a request.
+import Acme from "acme";
+
+const client = new Acme("sk_test");
+
+export function signUp(email: string, line1: string, city: string, zip: string) {
+  return client.customers.create({
+    email,
+    address: { line1, line2: null, postcode: zip, city },
+  });
+}

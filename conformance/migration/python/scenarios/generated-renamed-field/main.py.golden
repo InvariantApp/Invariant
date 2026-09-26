@@ -1,0 +1,6 @@
+# The renamed field read through pydantic models generated from the contract.
+from acme.generated.models import Customer
+
+
+def label(customer: Customer) -> str:
+    return customer.display_name

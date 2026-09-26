@@ -1,0 +1,6 @@
+// A renamed enum value in a list the response's field is tested against.
+import type { Customer } from "acme";
+
+export function billable(customer: Customer): boolean {
+  return ["enabled", "past_due"].includes(customer.status);
+}

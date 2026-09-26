@@ -1,0 +1,18 @@
+// Responses kept in the consumer's own typed collection.
+package scenario
+
+import (
+	"example.com/sdk"
+)
+
+var byID = map[string]*sdk.Customer{}
+
+// Remember keeps a customer.
+func Remember(customer *sdk.Customer) {
+	byID[customer.ID] = customer
+}
+
+// NameOf is a remembered customer's name.
+func NameOf(id string) string {
+	return byID[id].DisplayName
+}

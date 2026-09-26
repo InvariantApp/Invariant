@@ -1,0 +1,18 @@
+// A request built with the SDK's parameter type, the renamed field assigned
+// afterwards.
+package scenario
+
+import (
+	"context"
+
+	"example.com/sdk"
+)
+
+// SignUp creates a customer.
+func SignUp(ctx context.Context, client *sdk.Client, email, name string) (*sdk.Customer, error) {
+	params := &sdk.CustomerCreateParams{Email: email}
+	if name != "" {
+		params.DisplayName = name
+	}
+	return client.Customers.Create(ctx, params)
+}

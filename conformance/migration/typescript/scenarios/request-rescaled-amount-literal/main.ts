@@ -1,0 +1,8 @@
+// A request amount now sent in minor units, written as a literal.
+import Acme from "acme";
+
+const client = new Acme("sk_test");
+
+export function signUp(email: string) {
+  return client.customers.create({ email, balance: 12.5 });
+}

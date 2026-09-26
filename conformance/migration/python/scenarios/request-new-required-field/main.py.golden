@@ -1,0 +1,9 @@
+# A request that lacks a field which became required, with the value it
+# always had when left out.
+import acme
+
+client = acme.Client("sk_test")
+
+
+def sign_up(email: str, name: str) -> acme.Customer:
+    return client.customers.create(email=email, nickname=name, tax_exempt="none")

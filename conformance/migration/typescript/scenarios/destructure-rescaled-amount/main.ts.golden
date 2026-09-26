@@ -1,0 +1,11 @@
+// An amount now in minor units, destructured into a local of the same name
+// that must keep meaning major units.
+import Acme, { fromMinorUnits } from "acme";
+
+const client = new Acme("sk_test");
+
+export async function owed(id: string): Promise<number> {
+  const { balance: balanceMinor, email } = await client.customers.retrieve(id);
+  const balance = fromMinorUnits(balanceMinor);
+  return email === "" ? 0 : balance;
+}

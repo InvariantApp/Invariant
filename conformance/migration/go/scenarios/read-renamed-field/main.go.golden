@@ -1,0 +1,17 @@
+// A response object's renamed field, read directly.
+package scenario
+
+import (
+	"context"
+
+	"example.com/sdk"
+)
+
+// NameOf is a customer's name.
+func NameOf(ctx context.Context, client *sdk.Client, id string) (string, error) {
+	customer, err := client.Customers.Get(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	return customer.DisplayName, nil
+}

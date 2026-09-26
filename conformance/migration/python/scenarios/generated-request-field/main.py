@@ -1,0 +1,6 @@
+# A renamed request field written through a generated request model.
+from acme.generated.models import CustomerCreateParams
+
+
+def sign_up_body(email: str, name: str) -> CustomerCreateParams:
+    return CustomerCreateParams(email=email, nickname=name)

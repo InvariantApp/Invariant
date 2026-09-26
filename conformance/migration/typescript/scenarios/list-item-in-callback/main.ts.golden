@@ -1,0 +1,6 @@
+// A renamed field of a list item, read in a callback over the list.
+import type { Customer } from "acme";
+
+export function digits(customer: Customer): string[] {
+  return customer.cards.map((card) => card.last_four);
+}

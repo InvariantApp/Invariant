@@ -1,0 +1,14 @@
+# A request built with the SDK's parameter type, the renamed field
+# assigned afterwards.
+from typing import Optional
+
+import acme
+
+client = acme.Client("sk_test")
+
+
+def sign_up(email: str, name: Optional[str] = None) -> acme.Customer:
+    params: acme.CustomerCreateParams = {"email": email}
+    if name:
+        params["nickname"] = name
+    return client.customers.create(**params)

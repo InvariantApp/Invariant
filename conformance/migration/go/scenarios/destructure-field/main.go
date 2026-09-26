@@ -1,0 +1,18 @@
+// The renamed field assigned to a local of the same name, with another.
+package scenario
+
+import (
+	"context"
+
+	"example.com/sdk"
+)
+
+// Contact is a customer's name and email address.
+func Contact(ctx context.Context, client *sdk.Client, id string) ([]string, error) {
+	customer, err := client.Customers.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	nickname, email := customer.Nickname, customer.Email
+	return []string{nickname, email}, nil
+}

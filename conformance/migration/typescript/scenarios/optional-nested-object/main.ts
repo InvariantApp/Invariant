@@ -1,0 +1,6 @@
+// A renamed field of a nested object, read through an optional chain.
+import type { Customer } from "acme";
+
+export function zipOf(customer?: Customer): string | undefined {
+  return customer?.address.postal_code;
+}

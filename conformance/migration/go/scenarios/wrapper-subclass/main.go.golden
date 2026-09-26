@@ -1,0 +1,17 @@
+// The consumer's own type embeds the SDK's.
+package scenario
+
+import (
+	"example.com/sdk"
+)
+
+// Account is a customer with this service's plan.
+type Account struct {
+	*sdk.Customer
+	Plan string
+}
+
+// Label is the account's label.
+func (a *Account) Label() string {
+	return a.DisplayName
+}

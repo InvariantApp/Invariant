@@ -1,0 +1,14 @@
+// The renamed field read from a response that may be nil.
+package scenario
+
+import (
+	"example.com/sdk"
+)
+
+// Label is a customer's label, if there is a customer.
+func Label(customer *sdk.Customer) string {
+	if customer == nil {
+		return ""
+	}
+	return customer.Nickname
+}

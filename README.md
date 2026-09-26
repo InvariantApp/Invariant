@@ -497,7 +497,8 @@ docs/                 design, the change format, the planning brief
 fixtures/             a sample payments API and three customer apps
 e2e/                  the demo, as a runnable test
 eval/                 240 labelled cases, recorded answers, verdicts
-conformance/          golden test cases for anyone rebuilding the translator
+conformance/          golden test cases for anyone rebuilding the translator, and the
+                      scenarios every migration pack is held to
 packages/ir           the change format
 packages/decimal      exact decimal arithmetic, no dependencies
 packages/contract     reading and fingerprinting API descriptions

@@ -1,0 +1,14 @@
+// The response passed through a parameter nobody typed; every caller passes
+// the SDK's object.
+import Acme from "acme";
+
+const client = new Acme("sk_test");
+
+// biome-ignore lint/suspicious/noExplicitAny: written before the SDK had types
+function label(customer: any): string {
+  return customer.nickname;
+}
+
+export async function show(id: string): Promise<string> {
+  return label(await client.customers.retrieve(id));
+}

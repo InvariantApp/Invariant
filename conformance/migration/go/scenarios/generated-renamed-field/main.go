@@ -1,0 +1,11 @@
+// The renamed field read through structs oapi-codegen generated.
+package scenario
+
+import (
+	"example.com/sdk/gen"
+)
+
+// Label is a customer's label.
+func Label(customer *gen.Customer) string {
+	return customer.Nickname
+}

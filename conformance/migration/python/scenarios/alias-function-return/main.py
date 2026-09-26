@@ -1,0 +1,13 @@
+# The consumer's own function returns the response; the field is read off
+# the call.
+import acme
+
+client = acme.Client("sk_test")
+
+
+def load(id: str) -> acme.Customer:
+    return client.customers.retrieve(id)
+
+
+def name_of(id: str) -> str:
+    return load(id).nickname

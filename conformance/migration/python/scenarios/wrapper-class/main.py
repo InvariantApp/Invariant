@@ -1,0 +1,11 @@
+# The consumer's own class holding the response.
+import acme
+
+
+class Account:
+    def __init__(self, customer: acme.Customer) -> None:
+        self._customer = customer
+
+    @property
+    def name(self) -> str:
+        return self._customer.nickname

@@ -1,0 +1,14 @@
+// The consumer's own class holding the response.
+import type { Customer } from "acme";
+
+export class Account {
+  readonly #customer: Customer;
+
+  constructor(customer: Customer) {
+    this.#customer = customer;
+  }
+
+  get name(): string {
+    return this.#customer.nickname;
+  }
+}
