@@ -194,7 +194,8 @@ export interface RuntimeOptions {
   identity?: readonly IdentityStrategy[];
   /** Largest body the runtime will buffer on a site that needs transforming. */
   maxBodyBytes?: number;
-  limits?: ExecuteLimits;
+  /** Merged over the defaults, so only the limits being changed are given. */
+  limits?: Partial<ExecuteLimits>;
   /**
    * How much numeric precision to carry through a transform. The default is
    * exact for every amount a double can hold, which is every amount the

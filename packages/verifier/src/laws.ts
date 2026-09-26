@@ -45,6 +45,7 @@ import {
   type JsonValue,
   parsePointer,
 } from "@invariant-app/ir";
+import { BodyTooLargeError } from "@invariant-app/runtime";
 import fc from "fast-check";
 import { schemaArbitrary } from "./arbitrary.ts";
 import { type Evidence, inputsDigest } from "./evidence.ts";
@@ -567,6 +568,12 @@ function run(
     try {
       return property(value);
     } catch (error) {
+      // A body past the runtime's limit is refused before anything runs on
+      // it, for old callers and new alike, so no Change is tried on it. A
+      // generated Stripe payment intent, its expandable fields expanded to
+      // the depth limit, runs past the megabyte, and was reported as a
+      // Change that could not be undone.
+      if (error instanceof BodyTooLargeError) return undefined;
       return `the transform refused a value the contract allows: ${
         error instanceof Error ? error.message : String(error)
       }`;

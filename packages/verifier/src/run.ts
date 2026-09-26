@@ -121,11 +121,12 @@ function siteFor(
       },
     },
     identity: [{ kind: "default", label: LABEL }],
-    // How large a body a deployment takes is its own setting, and the laws
-    // are about the transform. A generated Stripe payment intent, every
-    // expandable field expanded to the depth limit, runs past the default
-    // megabyte, and was reported as a Change that could not be undone.
-    maxBodyBytes: Number.POSITIVE_INFINITY,
+    // No clock: how long a body may take is a deployment's setting, and a
+    // law that held or failed by how busy the machine was proved nothing. A
+    // Stripe object near the body limit ran past the default 100 ms on a
+    // loaded runner and was reported as a Change that could not be undone,
+    // then held when it was tried again.
+    limits: { timeBudgetMs: Number.POSITIVE_INFINITY },
   });
 
   const site: DecodedSite | undefined = runtime.siteFor(LABEL, METHOD, PATH);

@@ -1,0 +1,29 @@
+# Written by hand, as the provider would: what no op can say.
+#
+# Cancelling a reader's action answers with the reader, and this release
+# documents it as a reader or a deleted reader. Nothing can stand in for a
+# deleted reader in the reader old callers were promised, and the provider
+# knows cancelling an action never deletes the reader, so it says so here
+# rather than drafting a loss that never happens.
+irVersion: 1
+id: chg_terminal_reader_cancel_action_deleted_reader
+summary: Cancelling a reader's action is documented as answering with a reader or a deleted reader.
+ops:
+  - op: behavior
+    flag: terminal_reader_cancel_action_answers_reader
+    covers:
+      - "response-body-any-of-added at POST /v1/terminal/readers/{reader}/cancel_action: added `#/components/schemas/deleted_terminal.reader, #/components/schemas/terminal.reader` to the response body `anyOf` list for the response status `200`"
+      - "response-body-type-changed at POST /v1/terminal/readers/{reader}/cancel_action: the response's body `type` changed from `object` to `any` for status `200`"
+      - "response-required-property-removed at POST /v1/terminal/readers/{reader}/cancel_action: removed the required property `action` from the response with the `200` status"
+      - "response-required-property-removed at POST /v1/terminal/readers/{reader}/cancel_action: removed the required property `device_sw_version` from the response with the `200` status"
+      - "response-required-property-removed at POST /v1/terminal/readers/{reader}/cancel_action: removed the required property `device_type` from the response with the `200` status"
+      - "response-required-property-removed at POST /v1/terminal/readers/{reader}/cancel_action: removed the required property `id` from the response with the `200` status"
+      - "response-required-property-removed at POST /v1/terminal/readers/{reader}/cancel_action: removed the required property `ip_address` from the response with the `200` status"
+      - "response-required-property-removed at POST /v1/terminal/readers/{reader}/cancel_action: removed the required property `label` from the response with the `200` status"
+      - "response-required-property-removed at POST /v1/terminal/readers/{reader}/cancel_action: removed the required property `last_seen_at` from the response with the `200` status"
+      - "response-required-property-removed at POST /v1/terminal/readers/{reader}/cancel_action: removed the required property `livemode` from the response with the `200` status"
+      - "response-required-property-removed at POST /v1/terminal/readers/{reader}/cancel_action: removed the required property `location` from the response with the `200` status"
+      - "response-required-property-removed at POST /v1/terminal/readers/{reader}/cancel_action: removed the required property `metadata` from the response with the `200` status"
+      - "response-required-property-removed at POST /v1/terminal/readers/{reader}/cancel_action: removed the required property `object` from the response with the `200` status"
+      - "response-required-property-removed at POST /v1/terminal/readers/{reader}/cancel_action: removed the required property `serial_number` from the response with the `200` status"
+      - "response-required-property-removed at POST /v1/terminal/readers/{reader}/cancel_action: removed the required property `status` from the response with the `200` status"
