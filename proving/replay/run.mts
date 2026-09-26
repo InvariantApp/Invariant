@@ -90,6 +90,7 @@ import {
   writeClasses,
 } from "./classify.mts";
 import { forcedBy } from "./forced.mts";
+import { OCTOKIT_SDKS, octokitBreaking } from "./github.mts";
 import { replayGo } from "./go.mts";
 import type { ReplayCase, ReplayIndex } from "./mine.mts";
 import {
@@ -812,6 +813,16 @@ async function replay(entry: ReplayCase, options: ReplayOptions): Promise<Replay
               })
           : undefined;
       breaking = contract?.breaking;
+      // An SDK typed by Octokit is judged against the octokit/openapi releases
+      // the consumer's lockfiles pin on each side.
+      if (breaking === undefined && OCTOKIT_SDKS.has(entry.package)) {
+        const types = "@octokit/openapi-types";
+        const oldTypes = lockedVersion(await lockfilesAt(repo, entry.base, root), types);
+        const newTypes = lockedVersion(await lockfilesAt(repo, entry.head, root), types);
+        if (oldTypes && newTypes) {
+          breaking = await octokitBreaking(oldTypes, newTypes).catch(() => undefined);
+        }
+      }
       const symbols: SymbolMap = {
         package: entry.package,
         upgradeTo: {

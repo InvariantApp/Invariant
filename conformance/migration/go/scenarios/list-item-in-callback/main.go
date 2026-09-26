@@ -1,0 +1,13 @@
+// A renamed field of a list item, read in a closure over the list.
+package scenario
+
+import (
+	"slices"
+
+	"example.com/sdk"
+)
+
+// HasCard reports whether a customer has a card ending in digits.
+func HasCard(customer *sdk.Customer, digits string) bool {
+	return slices.ContainsFunc(customer.Cards, func(card *sdk.Card) bool { return card.Last4 == digits })
+}

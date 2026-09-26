@@ -1,0 +1,9 @@
+# A response object's renamed field, read directly.
+import acme
+
+client = acme.Client("sk_test")
+
+
+def name_of(id: str) -> str:
+    customer = client.customers.retrieve(id)
+    return customer.nickname

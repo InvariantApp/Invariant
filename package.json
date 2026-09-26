@@ -53,6 +53,7 @@
     "@invariant-app/migrate-ts": "workspace:*",
     "@invariant-app/proposer": "workspace:*",
     "@invariant-app/runtime": "workspace:*",
+    "@invariant-app/sandbox": "workspace:*",
     "@invariant-app/sidecar": "workspace:*",
     "@invariant-app/symbols": "workspace:*",
     "@invariant-app/verifier": "workspace:*",

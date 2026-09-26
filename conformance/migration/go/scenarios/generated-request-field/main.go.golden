@@ -1,0 +1,11 @@
+// A renamed request field written through a generated request struct.
+package scenario
+
+import (
+	"example.com/sdk/gen"
+)
+
+// SignUpBody is the body that creates a customer.
+func SignUpBody(email, name string) gen.CustomerCreateParams {
+	return gen.CustomerCreateParams{Email: &email, DisplayName: &name}
+}

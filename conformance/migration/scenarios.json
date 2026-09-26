@@ -1,0 +1,1087 @@
+{
+  "about": "The migration packs' conformance suite: the same semantic situations, each written idiomatically in every language a pack reads, with what a migration must do there. `edit` means an exact rewrite, shown per language as a golden file beside the fixture; `flag` means a site shown to a person at the lines the fixture marks with `<- flag`, and nothing edited; `none` means nothing edited and nothing shown. Where a pack does not yet do what a scenario asks, the gap is recorded under that language with what it does instead, and its test asserts the gap is still there, so closing one means updating this file.",
+  "contract": {
+    "customer": "A response object: id, email (on a base every object about a person shares), nickname, fax, created (epoch seconds), status (active or inactive), balance (major units), phone, address (an address), cards (a list of cards).",
+    "customer_create_params": "The request body that creates a customer: email, nickname, fax, status, balance, phone, address.",
+    "address": "line1, line2, postal_code, city.",
+    "card": "id, brand, last4, fingerprint.",
+    "merchant": "Another response object that also has a nickname, which no Change touches."
+  },
+  "changes": [
+    {
+      "irVersion": 1,
+      "id": "chg_customer_nickname",
+      "summary": "`nickname` is now `display_name`.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/customer"
+        }
+      ],
+      "ops": [
+        {
+          "op": "move",
+          "from": "/nickname",
+          "to": "/display_name"
+        }
+      ]
+    },
+    {
+      "irVersion": 1,
+      "id": "chg_params_nickname",
+      "summary": "`nickname` is now sent as `display_name`.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/customer_create_params"
+        }
+      ],
+      "ops": [
+        {
+          "op": "move",
+          "from": "/nickname",
+          "to": "/display_name"
+        }
+      ]
+    },
+    {
+      "irVersion": 1,
+      "id": "chg_customer_fax",
+      "summary": "`fax` is no longer in `customer`.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/customer"
+        }
+      ],
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/fax",
+          "restore": null
+        }
+      ]
+    },
+    {
+      "irVersion": 1,
+      "id": "chg_params_fax",
+      "summary": "`fax` is no longer accepted.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/customer_create_params"
+        }
+      ],
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/fax"
+        }
+      ]
+    },
+    {
+      "irVersion": 1,
+      "id": "chg_customer_created",
+      "summary": "`created` is now RFC 3339 text rather than epoch seconds.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/customer"
+        }
+      ],
+      "ops": [
+        {
+          "op": "convert",
+          "path": "/created",
+          "codec": {
+            "kind": "dateFormat",
+            "from": "epoch-s",
+            "to": "rfc3339"
+          }
+        }
+      ]
+    },
+    {
+      "irVersion": 1,
+      "id": "chg_customer_balance",
+      "summary": "`balance` is now in minor units.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/customer"
+        }
+      ],
+      "ops": [
+        {
+          "op": "convert",
+          "path": "/balance",
+          "codec": {
+            "kind": "scale10",
+            "exponent": 2,
+            "onInexact": "reject"
+          }
+        }
+      ]
+    },
+    {
+      "irVersion": 1,
+      "id": "chg_params_balance",
+      "summary": "`balance` is now sent in minor units.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/customer_create_params"
+        }
+      ],
+      "ops": [
+        {
+          "op": "convert",
+          "path": "/balance",
+          "codec": {
+            "kind": "scale10",
+            "exponent": 2,
+            "onInexact": "reject"
+          }
+        }
+      ]
+    },
+    {
+      "irVersion": 1,
+      "id": "chg_customer_phone",
+      "summary": "`phone` moved into `contact`.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/customer"
+        }
+      ],
+      "ops": [
+        {
+          "op": "move",
+          "from": "/phone",
+          "to": "/contact/phone"
+        }
+      ]
+    },
+    {
+      "irVersion": 1,
+      "id": "chg_params_phone",
+      "summary": "`phone` is now sent inside `contact`.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/customer_create_params"
+        }
+      ],
+      "ops": [
+        {
+          "op": "move",
+          "from": "/phone",
+          "to": "/contact/phone"
+        }
+      ]
+    },
+    {
+      "irVersion": 1,
+      "id": "chg_customer_email",
+      "summary": "`email` is now `email_address`.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/customer"
+        }
+      ],
+      "ops": [
+        {
+          "op": "move",
+          "from": "/email",
+          "to": "/email_address"
+        }
+      ]
+    },
+    {
+      "irVersion": 1,
+      "id": "chg_params_tax_exempt",
+      "summary": "`tax_exempt` is now required, and was always `none` when left out.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/customer_create_params"
+        }
+      ],
+      "ops": [
+        {
+          "op": "add",
+          "path": "/tax_exempt",
+          "value": "none"
+        }
+      ]
+    },
+    {
+      "irVersion": 1,
+      "id": "chg_customer_preferred_locale",
+      "summary": "`preferred_locale` is new in `customer`.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/customer"
+        }
+      ],
+      "ops": [
+        {
+          "op": "add",
+          "path": "/preferred_locale",
+          "value": null
+        }
+      ]
+    },
+    {
+      "irVersion": 1,
+      "id": "chg_address_postal_code",
+      "summary": "`postal_code` is now `postcode`.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/address"
+        }
+      ],
+      "ops": [
+        {
+          "op": "move",
+          "from": "/postal_code",
+          "to": "/postcode"
+        }
+      ]
+    },
+    {
+      "irVersion": 1,
+      "id": "chg_customer_address_line2",
+      "summary": "`address.line2` is no longer in `customer`.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/customer"
+        }
+      ],
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/address/line2",
+          "restore": null
+        }
+      ]
+    },
+    {
+      "irVersion": 1,
+      "id": "chg_card_last4",
+      "summary": "`last4` is now `last_four`.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/card"
+        }
+      ],
+      "ops": [
+        {
+          "op": "move",
+          "from": "/last4",
+          "to": "/last_four"
+        }
+      ]
+    },
+    {
+      "irVersion": 1,
+      "id": "chg_customer_card_fingerprint",
+      "summary": "`cards.*.fingerprint` is no longer in `customer`.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/customer"
+        }
+      ],
+      "ops": [
+        {
+          "op": "remove",
+          "path": "/cards/*/fingerprint",
+          "restore": null
+        }
+      ]
+    },
+    {
+      "irVersion": 1,
+      "id": "chg_customer_status",
+      "summary": "The status `active` is now `enabled`.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/customer"
+        }
+      ],
+      "ops": [
+        {
+          "op": "convert",
+          "path": "/status",
+          "codec": {
+            "kind": "enumMap",
+            "pairs": [["active", "enabled"]]
+          }
+        }
+      ]
+    },
+    {
+      "irVersion": 1,
+      "id": "chg_params_status",
+      "summary": "The status `active` is now sent as `enabled`.",
+      "scopes": [
+        {
+          "schema": "#/components/schemas/customer_create_params"
+        }
+      ],
+      "ops": [
+        {
+          "op": "convert",
+          "path": "/status",
+          "codec": {
+            "kind": "enumMap",
+            "pairs": [["active", "enabled"]]
+          }
+        }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "read-renamed-field",
+      "group": "direct",
+      "situation": "A response object's renamed field is read directly.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "write-renamed-field",
+      "group": "direct",
+      "situation": "A renamed field is assigned on an SDK object the consumer holds.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "read-removed-field",
+      "group": "direct",
+      "situation": "A response object's removed field is read directly.",
+      "changes": ["chg_customer_fax"],
+      "sdk": "handwritten",
+      "expect": "flag",
+      "place": "the read of the removed field"
+    },
+    {
+      "id": "read-retyped-field",
+      "group": "direct",
+      "situation": "A field whose encoding changed (epoch seconds to RFC 3339 text) is read and used as a number.",
+      "changes": ["chg_customer_created"],
+      "sdk": "handwritten",
+      "expect": "flag",
+      "place": "the read of the retyped field"
+    },
+    {
+      "id": "read-rescaled-amount",
+      "group": "direct",
+      "situation": "An amount that is now in minor units is read, and the SDK exports an exact conversion to use.",
+      "changes": ["chg_customer_balance"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "python": {
+          "observed": "flag",
+          "reason": "A `scale10` re-encoding is shown, not rewritten through the SDK's exact conversion helpers."
+        },
+        "go": {
+          "observed": "flag",
+          "reason": "Every re-encoding is shown (`encoded differently now (scale10)`); the SDK's exact conversion is never written in."
+        }
+      }
+    },
+    {
+      "id": "read-field-moved-into-object",
+      "group": "direct",
+      "situation": "A field that moved into a nested object is read from where it used to be.",
+      "changes": ["chg_customer_phone"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "go": {
+          "observed": "flag",
+          "reason": "A rename is claimed only within the struct that held the field, so one that moved into another struct is shown."
+        }
+      }
+    },
+    {
+      "id": "read-inherited-field",
+      "group": "direct",
+      "situation": "A renamed field the SDK declares on a base type the response type extends (or embeds) is read through the response type.",
+      "changes": ["chg_customer_email"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "typescript": {
+          "observed": "none",
+          "reason": "A field is looked up among the type's own members, so one it inherits from a base interface is never found."
+        },
+        "go": {
+          "observed": "none",
+          "reason": "A field is looked up among the struct's own fields, so one promoted from an embedded struct is never found."
+        }
+      }
+    },
+    {
+      "id": "request-renamed-field",
+      "group": "request",
+      "situation": "A renamed request field is written where the request is built, inline in the SDK's call.",
+      "changes": ["chg_params_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "request-removed-field",
+      "group": "request",
+      "situation": "A request field the API no longer accepts is written where the request is built.",
+      "changes": ["chg_params_fax"],
+      "sdk": "handwritten",
+      "expect": "flag",
+      "place": "the write of the removed field"
+    },
+    {
+      "id": "request-rescaled-amount-literal",
+      "group": "request",
+      "situation": "A request amount that is now sent in minor units is written as a literal, which converts exactly at migration time.",
+      "changes": ["chg_params_balance"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "python": {
+          "observed": "flag",
+          "reason": "A `scale10` re-encoding is shown, not rewritten through the SDK's exact conversion helpers."
+        },
+        "go": {
+          "observed": "flag",
+          "reason": "Every re-encoding is shown (`encoded differently now (scale10)`); the SDK's exact conversion is never written in."
+        }
+      }
+    },
+    {
+      "id": "request-rescaled-amount-expression",
+      "group": "request",
+      "situation": "A request amount that is now sent in minor units is written as a computed value, which the SDK's exact conversion wraps.",
+      "changes": ["chg_params_balance"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "python": {
+          "observed": "flag",
+          "reason": "A `scale10` re-encoding is shown, not rewritten through the SDK's exact conversion helpers."
+        },
+        "go": {
+          "observed": "flag",
+          "reason": "Every re-encoding is shown (`encoded differently now (scale10)`); the SDK's exact conversion is never written in."
+        }
+      }
+    },
+    {
+      "id": "request-field-moved-into-object",
+      "group": "request",
+      "situation": "A request field that is now sent inside a nested object is written where it used to be.",
+      "changes": ["chg_params_phone"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "python": {
+          "observed": "flag",
+          "reason": "A keyword argument whose field moved into a nested object is shown (`the value is now nested at contact.phone`), not rewritten into the nested dictionary."
+        },
+        "go": {
+          "observed": "flag",
+          "reason": "A rename is claimed only within the struct that held the field, so one that moved into another struct is shown."
+        }
+      }
+    },
+    {
+      "id": "request-new-required-field",
+      "group": "request",
+      "situation": "A request field that became required, with the value it always had when left out, is missing from a request the consumer builds.",
+      "changes": ["chg_params_tax_exempt"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "python": {
+          "observed": "none",
+          "reason": "A field that became required is not supplied where a request is built."
+        },
+        "go": {
+          "observed": "none",
+          "reason": "An `add` is not planned, so a field that became required is not supplied in the composite literals that build a request."
+        }
+      }
+    },
+    {
+      "id": "request-built-then-assigned",
+      "group": "request",
+      "situation": "A request is built empty with the SDK's parameter type and the renamed field assigned afterwards.",
+      "changes": ["chg_params_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "request-kwargs-unpacked",
+      "group": "request",
+      "situation": "Request parameters are gathered in a mapping or struct first and then handed to the SDK's call (spread, `**kwargs`, a params value).",
+      "changes": ["chg_params_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "typescript": {
+          "observed": "flag",
+          "reason": "An object literal nothing types is shown by name; it is not followed to the SDK call it is later passed to."
+        },
+        "python": {
+          "observed": "none",
+          "reason": "Keys of a dictionary unpacked into the SDK's call are checked only against an upgraded release, and never renamed from the Change."
+        }
+      }
+    },
+    {
+      "id": "request-nested-object",
+      "group": "request",
+      "situation": "A renamed field of a nested object is written inside a request.",
+      "changes": ["chg_address_postal_code"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "python": {
+          "observed": "none",
+          "reason": "The symbol map holds one type per schema: `address` maps to the response class, and the request's nested dictionary is a separate TypedDict (`AddressParams`) it never reaches."
+        }
+      }
+    },
+    {
+      "id": "request-change-leaves-response",
+      "group": "request",
+      "situation": "A Change scoped to the request body only, while the consumer reads the same-named field of the response.",
+      "changes": ["chg_params_nickname"],
+      "sdk": "handwritten",
+      "expect": "none"
+    },
+    {
+      "id": "response-change-leaves-request",
+      "group": "request",
+      "situation": "A Change scoped to the response object only, while the consumer writes the same-named field of a request.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "none"
+    },
+    {
+      "id": "fake-renamed-field",
+      "group": "fakes",
+      "situation": "A test builds a stand-in for a response with the SDK's type, holding the renamed field.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "typescript": {
+          "observed": "edit+flag",
+          "reason": "The typed stand-in is rewritten, and the tag reader also shows its entry for the renamed field, which the edit already fixed."
+        }
+      }
+    },
+    {
+      "id": "fake-added-field",
+      "group": "fakes",
+      "situation": "A test builds a stand-in for a response with the SDK's type, and the response now has a field the stand-in lacks.",
+      "changes": ["chg_customer_preferred_locale"],
+      "sdk": "handwritten",
+      "expect": "flag",
+      "place": "the stand-in that lacks the new field",
+      "gaps": {
+        "python": {
+          "observed": "none",
+          "reason": "A response field that is new is not looked for in the stand-ins the consumer builds."
+        },
+        "go": {
+          "observed": "none",
+          "reason": "An `add` is not planned, so a stand-in that lacks a new response field is not shown."
+        }
+      }
+    },
+    {
+      "id": "fake-retyped-field",
+      "group": "fakes",
+      "situation": "A test builds a stand-in for a response with the SDK's type, holding a field whose encoding changed.",
+      "changes": ["chg_customer_created"],
+      "sdk": "handwritten",
+      "expect": "flag",
+      "place": "the stand-in's retyped field"
+    },
+    {
+      "id": "fake-untyped-tagged-fixture",
+      "group": "fakes",
+      "situation": "A test holds a response as untyped JSON that names its own schema (`\"object\": \"customer\"`) and still has the renamed field.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "flag",
+      "place": "the fixture's entry for the renamed field"
+    },
+    {
+      "id": "alias-local-variable",
+      "group": "aliasing",
+      "situation": "The response is copied to another local variable and the renamed field read through the copy.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "alias-function-parameter",
+      "group": "aliasing",
+      "situation": "The response is passed to the consumer's own function, typed as the SDK's type, which reads the renamed field.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "alias-function-return",
+      "group": "aliasing",
+      "situation": "The consumer's own function returns the response, and the renamed field is read off the call.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "alias-type-alias",
+      "group": "aliasing",
+      "situation": "The consumer names the SDK's type through a type alias of its own and reads the renamed field through it.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "alias-untyped-parameter",
+      "group": "aliasing",
+      "situation": "The response passes through a parameter that does not carry the SDK's type (unannotated, `any`, `interface{}`), and every caller passes the SDK's object.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "typescript": {
+          "observed": "flag",
+          "reason": "A read from `any` is shown by name; the value is not followed back to the SDK call every caller passes it from."
+        }
+      }
+    },
+    {
+      "id": "alias-collection-element",
+      "group": "aliasing",
+      "situation": "Responses are kept in the consumer's own typed collection, and the renamed field is read from an element.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "import-renamed",
+      "group": "imports",
+      "situation": "The SDK's type or package is imported under another name.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "import-namespace",
+      "group": "imports",
+      "situation": "The SDK is imported whole, and its type named through the namespace (or dot-imported in Go).",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "reexport-consumer-module",
+      "group": "imports",
+      "situation": "The consumer re-exports the SDK's type from a module of its own, and another module reads the renamed field through it.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "destructure-field",
+      "group": "destructuring",
+      "situation": "The renamed field is bound to a local of the same name by the language's destructuring or unpacking form.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "destructure-renamed-binding",
+      "group": "destructuring",
+      "situation": "The renamed field is matched structurally into a local of another name (a renamed destructuring binding, a class pattern, a composite literal compared).",
+      "changes": ["chg_address_postal_code"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "python": {
+          "observed": "none",
+          "reason": "A keyword of a class pattern (`case Address(postal_code=...)`) is not among the references rewritten or shown."
+        }
+      }
+    },
+    {
+      "id": "destructure-removed-field",
+      "group": "destructuring",
+      "situation": "A removed field is bound to a local by destructuring or unpacking.",
+      "changes": ["chg_customer_fax"],
+      "sdk": "handwritten",
+      "expect": "flag",
+      "place": "the binding of the removed field"
+    },
+    {
+      "id": "destructure-rescaled-amount",
+      "group": "destructuring",
+      "situation": "An amount that is now in minor units is bound to a local of the same name by destructuring, and the local must keep meaning major units.",
+      "changes": ["chg_customer_balance"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "typescript": {
+          "observed": "edit",
+          "reason": "The converted amount is bound under the field's own name, redeclaring the local it was destructured into (`const balance = fromMinorUnits(balance)`)."
+        },
+        "python": {
+          "observed": "flag",
+          "reason": "A `scale10` re-encoding is shown, not rewritten through the SDK's exact conversion helpers."
+        },
+        "go": {
+          "observed": "flag",
+          "reason": "Every re-encoding is shown (`encoded differently now (scale10)`); the SDK's exact conversion is never written in."
+        }
+      }
+    },
+    {
+      "id": "copy-with-override",
+      "group": "destructuring",
+      "situation": "A copy of the response is made with the renamed field overridden.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "key-on-typed-sdk-object",
+      "group": "keys",
+      "situation": "The renamed field is read by a string key (or by name through reflection) from a value typed as the SDK's object.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "typescript": {
+          "observed": "flag",
+          "reason": "A string-keyed read of the SDK's object is found through its type but shown (`cannot rewrite a unknown`), not renamed."
+        },
+        "go": {
+          "observed": "none",
+          "reason": "A field named in a string through reflection (`FieldByName`) is no reference the type checker reports."
+        }
+      }
+    },
+    {
+      "id": "key-on-untyped-json",
+      "group": "keys",
+      "situation": "The renamed field is read by key from a webhook payload parsed as untyped JSON, in a file that uses the SDK.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "flag",
+      "place": "the key read of the renamed field",
+      "gaps": {
+        "go": {
+          "observed": "none",
+          "reason": "A key of an untyped `map[string]any` is read only where the literal carries its schema's tag, and this one is decoded at run time."
+        }
+      }
+    },
+    {
+      "id": "key-with-fallback-on-untyped-json",
+      "group": "keys",
+      "situation": "The renamed field is read with a fallback value (`.get(key, default)`, a destructuring default, comma-ok) from untyped JSON, in a file that uses the SDK.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "flag",
+      "place": "the read with a fallback",
+      "gaps": {
+        "typescript": {
+          "observed": "none",
+          "reason": "A destructuring binding from `any` is not among the untyped uses read by name, so the key goes unseen."
+        },
+        "go": {
+          "observed": "none",
+          "reason": "A key of an untyped `map[string]any` is read only where the literal carries its schema's tag, and this one is decoded at run time."
+        }
+      }
+    },
+    {
+      "id": "key-own-mapping",
+      "group": "keys",
+      "situation": "The consumer's own typed mapping has an entry with the renamed field's name, in a file that uses the SDK.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "none",
+      "gaps": {
+        "python": {
+          "observed": "flag",
+          "reason": "A subscript of a `dict[str, ...]` is read as possibly the API's JSON, so the consumer's own mapping is shown."
+        }
+      }
+    },
+    {
+      "id": "optional-renamed-field",
+      "group": "optional",
+      "situation": "The renamed field is read from a response that may be absent, through optional chaining or a nil/None check.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "optional-rescaled-amount",
+      "group": "optional",
+      "situation": "An amount that is now in minor units is read from a response that may be absent, where converting it means deciding what absence becomes.",
+      "changes": ["chg_customer_balance"],
+      "sdk": "handwritten",
+      "expect": "flag",
+      "place": "the optional read of the amount"
+    },
+    {
+      "id": "optional-nested-object",
+      "group": "optional",
+      "situation": "A renamed field of a nested object is read through an optional chain or a nil/None check.",
+      "changes": ["chg_address_postal_code"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "null-check-removed-field",
+      "group": "optional",
+      "situation": "A removed field is checked for null/None/nil before use.",
+      "changes": ["chg_customer_fax"],
+      "sdk": "handwritten",
+      "expect": "flag",
+      "place": "the check of the removed field, and its use"
+    },
+    {
+      "id": "nested-renamed-field",
+      "group": "nested",
+      "situation": "A renamed field of a nested object is read through the response.",
+      "changes": ["chg_address_postal_code"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "nested-removed-field",
+      "group": "nested",
+      "situation": "A field the response's nested object lost (a Change on the response, pointing inside it) is read.",
+      "changes": ["chg_customer_address_line2"],
+      "sdk": "handwritten",
+      "expect": "flag",
+      "place": "the read of the removed nested field"
+    },
+    {
+      "id": "list-item-by-index",
+      "group": "nested",
+      "situation": "A renamed field of a list item is read by index.",
+      "changes": ["chg_card_last4"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "list-item-in-loop",
+      "group": "nested",
+      "situation": "A renamed field of a list item is read in a loop over the list.",
+      "changes": ["chg_card_last4"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "list-item-in-callback",
+      "group": "nested",
+      "situation": "A renamed field of a list item is read in a callback, comprehension or closure over the list.",
+      "changes": ["chg_card_last4"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "list-item-removed-field",
+      "group": "nested",
+      "situation": "A field the response's list items lost (a Change on the response, pointing through `*`) is read from an item.",
+      "changes": ["chg_customer_card_fingerprint"],
+      "sdk": "handwritten",
+      "expect": "flag",
+      "place": "the read of the removed item field"
+    },
+    {
+      "id": "enum-compared",
+      "group": "enums",
+      "situation": "A renamed enum value is compared with the response's field.",
+      "changes": ["chg_customer_status"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "go": {
+          "observed": "flag",
+          "reason": "Every reference to a field whose values were renamed is shown (`encoded differently now (enumMap)`); no literal is rewritten."
+        }
+      }
+    },
+    {
+      "id": "enum-request-value",
+      "group": "enums",
+      "situation": "A renamed enum value is sent in a request.",
+      "changes": ["chg_params_status"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "go": {
+          "observed": "flag",
+          "reason": "Every reference to a field whose values were renamed is shown (`encoded differently now (enumMap)`); no literal is rewritten."
+        }
+      }
+    },
+    {
+      "id": "enum-switch",
+      "group": "enums",
+      "situation": "A renamed enum value is a case of a switch or match over the response's field.",
+      "changes": ["chg_customer_status"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "typescript": {
+          "observed": "none",
+          "reason": "A value is renamed where it is compared with `===` or where its contextual type is exactly the renamed values; a case label's is the whole union, so it is left."
+        },
+        "python": {
+          "observed": "none",
+          "reason": "The cases of a `match` over the field are not renamed; only comparisons, keywords and dictionary values are."
+        },
+        "go": {
+          "observed": "flag",
+          "reason": "Every reference to a field whose values were renamed is shown (`encoded differently now (enumMap)`); no literal is rewritten."
+        }
+      }
+    },
+    {
+      "id": "enum-membership",
+      "group": "enums",
+      "situation": "A renamed enum value is in a list or tuple the response's field is tested for membership in.",
+      "changes": ["chg_customer_status"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "typescript": {
+          "observed": "none",
+          "reason": "A literal in an array the field is tested against has no contextual type naming the vocabulary, so it is left."
+        },
+        "go": {
+          "observed": "flag",
+          "reason": "Every reference to a field whose values were renamed is shown (`encoded differently now (enumMap)`); no literal is rewritten."
+        }
+      }
+    },
+    {
+      "id": "enum-own-helper",
+      "group": "enums",
+      "situation": "The field is handed to the consumer's own helper, whose parameter carries the SDK's value type, and the helper compares it with a renamed value.",
+      "changes": ["chg_customer_status"],
+      "sdk": "handwritten",
+      "expect": "edit",
+      "gaps": {
+        "typescript": {
+          "observed": "none",
+          "reason": "The comparison inside the consumer's helper is typed by the whole union, which also holds values no Change renamed, so it is left."
+        },
+        "python": {
+          "observed": "none",
+          "reason": "A comparison with a parameter typed by the SDK's `Literal` alias is not followed into the helper."
+        },
+        "go": {
+          "observed": "flag",
+          "reason": "Every reference to a field whose values were renamed is shown, here where it is passed to the helper; the helper's literal is not rewritten."
+        }
+      }
+    },
+    {
+      "id": "enum-own-status-field",
+      "group": "enums",
+      "situation": "The consumer's own type has a status field compared with the renamed value's old spelling.",
+      "changes": ["chg_customer_status"],
+      "sdk": "handwritten",
+      "expect": "none"
+    },
+    {
+      "id": "unrelated-own-type",
+      "group": "unrelated",
+      "situation": "The consumer's own type has a field with the renamed field's name, read and written in a file that uses the SDK.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "none"
+    },
+    {
+      "id": "unrelated-sdk-type",
+      "group": "unrelated",
+      "situation": "Another of the SDK's types, which no Change touches, has a field with the renamed field's name.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "none"
+    },
+    {
+      "id": "generated-renamed-field",
+      "group": "styles",
+      "situation": "The renamed field is read through types generated from the contract (openapi-typescript's `components`, pydantic models, oapi-codegen structs).",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "generated",
+      "expect": "edit"
+    },
+    {
+      "id": "generated-removed-field",
+      "group": "styles",
+      "situation": "A removed field is read through types generated from the contract.",
+      "changes": ["chg_customer_fax"],
+      "sdk": "generated",
+      "expect": "flag",
+      "place": "the read of the removed field"
+    },
+    {
+      "id": "generated-request-field",
+      "group": "styles",
+      "situation": "A renamed request field is written through a request type generated from the contract.",
+      "changes": ["chg_params_nickname"],
+      "sdk": "generated",
+      "expect": "edit"
+    },
+    {
+      "id": "own-names-renamed-field",
+      "group": "styles",
+      "situation": "A hand-written SDK spells the field its own way (camelCase, an alias, a Go name) rather than as the wire does, and the consumer reads it.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "own-names",
+      "expect": "edit",
+      "gaps": {
+        "typescript": {
+          "observed": "none",
+          "reason": "A field is found by its wire name only; an SDK that spells it otherwise (`nickName`) is not matched."
+        },
+        "python": {
+          "observed": "none",
+          "reason": "A field is found by its attribute name; a model field that aliases the wire's name (`Field(alias=...)`) is not matched."
+        }
+      }
+    },
+    {
+      "id": "wrapper-function",
+      "group": "styles",
+      "situation": "The consumer wraps the SDK in functions of its own, one of which returns the renamed field.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "wrapper-class",
+      "group": "styles",
+      "situation": "The consumer wraps the SDK in a class of its own that holds the response and reads the renamed field in a method.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    },
+    {
+      "id": "wrapper-subclass",
+      "group": "styles",
+      "situation": "The consumer's own type extends or embeds the SDK's type and reads the renamed field through itself.",
+      "changes": ["chg_customer_nickname"],
+      "sdk": "handwritten",
+      "expect": "edit"
+    }
+  ]
+}

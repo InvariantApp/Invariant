@@ -309,7 +309,15 @@ export function scoreboard(inputs: {
   const l8 = languages.map((language) => {
     const mine = replayed.filter((entry) => entry.language === language);
 
-    if (mine.length === 0) return { language, text: `${language} none`, meets: false };
+    if (mine.length === 0)
+      return {
+        language,
+        text: `${language} none`,
+        enough: false,
+        forced: 0,
+        forcedHandled: 0,
+        differs: 0,
+      };
     const sum = (pick: (entry: ReplayResult) => number) =>
       mine.reduce((total, entry) => total + pick(entry), 0);
     const sites = sum((entry) => entry.sites);
@@ -337,18 +345,33 @@ export function scoreboard(inputs: {
         (entry.inScope?.forced?.identical ?? 0) + (entry.inScope?.forced?.flagged ?? 0),
     );
     const forcedLine = `forced: ${forced} of ${judged} contract sites in judged cases, ${forcedHandled} handled (${percent(forcedHandled, forced)}), ${inScope - judged} in cases not judged; `;
-    const small =
-      forced < L8_MIN_FORCED
-        ? `sample too small: ${forced} of the ${L8_MIN_FORCED} forced sites a rate needs to count; `
-        : "";
     return {
       language,
-      text: `${language} ${mine.length} cases: of ${sites - newCode} human sites, ${inScope} follow from a contract change; ${identical + flagged} handled (${percent(identical + flagged, inScope)}: ${identical} identical, ${flagged} flagged for a person${contested > 0 ? `; ${percent(identical + flagged, inScope + contested)} at worst, were every contested site a contract change nothing handled` : ""}), ${differs} to adjudicate; ${forcedLine}${small}${newCode} new code written, counted apart; ${extraFlags} flags where no human changed anything; ${contested} contested and ${unclassified} not yet classed, counted as neither; over every human site, the SDK's own changes included, ${everywhere} handled (${percent(everywhere, sites - newCode)})`,
-      meets:
-        mine.length >= (L8_MIN_CASES[language] ?? 50) &&
-        forced >= L8_MIN_FORCED &&
-        forcedHandled >= forced * 0.9 &&
-        differs === 0,
+      text: `${language} ${mine.length} cases: of ${sites - newCode} human sites, ${inScope} follow from a contract change; ${identical + flagged} handled (${percent(identical + flagged, inScope)}: ${identical} identical, ${flagged} flagged for a person${contested > 0 ? `; ${percent(identical + flagged, inScope + contested)} at worst, were every contested site a contract change nothing handled` : ""}), ${differs} to adjudicate; ${forcedLine}${newCode} new code written, counted apart; ${extraFlags} flags where no human changed anything; ${contested} contested and ${unclassified} not yet classed, counted as neither; over every human site, the SDK's own changes included, ${everywhere} handled (${percent(everywhere, sites - newCode)})`,
+      enough: mine.length >= (L8_MIN_CASES[language] ?? 50),
+      forced,
+      forcedHandled,
+      differs,
+    };
+  });
+  // Judged by engine: JavaScript is read by the TypeScript compiler, so the
+  // two are pooled, and each engine needs its forced sites before its rate
+  // counts at all.
+  const engines = [
+    { name: "TypeScript and JavaScript", languages: ["typescript", "javascript"] },
+    { name: "Python", languages: ["python"] },
+    { name: "Go", languages: ["go"] },
+  ].map((engine) => {
+    const mine = l8.filter((each) => engine.languages.includes(each.language));
+    const forced = mine.reduce((total, each) => total + each.forced, 0);
+    const handled = mine.reduce((total, each) => total + each.forcedHandled, 0);
+    const differs = mine.reduce((total, each) => total + each.differs, 0);
+    return {
+      text:
+        forced < L8_MIN_FORCED
+          ? `${engine.name}: sample too small, ${forced} of the ${L8_MIN_FORCED} forced sites a rate needs to count (${handled} handled)`
+          : `${engine.name}: ${handled} of ${forced} forced sites handled (${percent(handled, forced)})`,
+      meets: forced >= L8_MIN_FORCED && handled >= forced * 0.9 && differs === 0,
     };
   });
   lines.push({
@@ -359,18 +382,19 @@ export function scoreboard(inputs: {
       "One they replaced or restructured around a changed contract element counts as handled where the engine flagged a line inside the hunk they changed, pointing at that element. " +
       "Lines they added with nothing before them that they replace, a new file or a new helper, are no site: they are counted apart per language as new code written, never as handled or missed, and the calls to them they wrote into existing code remain sites, scored as any other. " +
       "A contract site is forced where a line the humans removed or wrote names an element the pinned differ reports broken between the two releases' contracts; one that names nothing broken is a choice made while the old code still worked, such as adopting a new tool version, and is no migration. " +
-      `The rate is given over every contract site and over the forced ones, and a language counts only once it has at least ${L8_MIN_FORCED} forced sites, since below that one site moves its rate by more than three points; a case whose two contracts are not both known is not judged, and its sites are counted apart.`,
+      `The rate is given over every contract site and over the forced ones, and the rate is judged per engine, TypeScript and JavaScript together since one compiler reads both, each counting only once it has at least ${L8_MIN_FORCED} forced sites, since below that one site moves its rate by more than three points; a case whose two contracts are not both known is not judged, and its sites are counted apart.`,
     status:
       replayed.length === 0
         ? "not measured"
-        : l8.every((each) => each.meets)
+        : l8.every((each) => each.enough) && engines.every((each) => each.meets)
           ? "met"
           : "not met",
     value:
       `${cases.length} cases mined (npm ${count("npm")}, pypi ${count("pypi")}, go ${count("go")}). ` +
       (replayed.length === 0
         ? "Not yet replayed."
-        : `Replayed ${replayed.length}: ${l8.map((each) => each.text).join("; ")}. ` +
+        : `By engine: ${engines.map((each) => each.text).join("; ")}. ` +
+          `Replayed ${replayed.length}: ${l8.map((each) => each.text).join("; ")}. ` +
           `${failed.length} could not be replayed. ` +
           auditLine(inputs.audit, inputs.classes)),
     evidence: "proving/replay/results.json (run.mts), index.json",

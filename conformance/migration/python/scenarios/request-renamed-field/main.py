@@ -1,0 +1,8 @@
+# A renamed request field, written inline in the SDK's call.
+import acme
+
+client = acme.Client("sk_test")
+
+
+def sign_up(email: str, name: str) -> acme.Customer:
+    return client.customers.create(email=email, nickname=name)

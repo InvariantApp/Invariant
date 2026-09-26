@@ -621,6 +621,7 @@ events (internal, Postgres queue): bundle.published -> migrate.integration ; int
 | Secrets | Provider API token and signing key live in provider CI secrets. GitHub App private key and model API keys live only in the control plane secret store. The runtime needs no secrets unless remote flags/usage sink are enabled (then a write-only ingest token). |
 | Consumer source access | Least-privilege App, per-repo install, ephemeral clone, no persistence of source, no source sent to the provider, model calls for assisted repair send only the enclosing function and are disabled per integration on request. |
 | Executing consumer code | Never. Install with scripts disabled, type-check only, tests run in the consumer's CI. |
+| Escape and exfiltration from a migration run | Defence in depth for when "never" fails: two phases behind a `Sandbox` interface. The fetch reaches only the registries, through an egress proxy that tunnels to allowlisted host names on 443, never to a private address, and never sees the repository. The analysis has no network, read-only inputs and one writable output. Both run as non-root with no capabilities, a read-only root and limits on memory, CPU time, wall clock and processes. What comes back is believed only as paths inside the repository. |
 | Supply chain | `packages/runtime` has zero runtime dependencies. Lockfile + provenance-attested npm publishes. Pinned GitHub Actions by SHA. |
 | Runtime compromise blast radius | The runtime holds no credentials to the control plane beyond a write-only ingest token, and no customer data at rest. |
 | Data retention | Counters 90 days rolling. Bundles and contracts indefinite (they are public-contract metadata). Model debug logs 30 days, redacted. |
@@ -674,6 +675,7 @@ Repo: `InvariantApp/Invariant` (private), pnpm workspace monorepo, TypeScript ev
   migrate-core/  # what every language pack shares: migration plan, byte-range edits, sites shown to a person
   migrate-ts/    # SDK symbol map, reference index, codemods per op x role, verify, provenance
   migrate-py/    # Python pack: wheels only, pyright references, tree-sitter roles, codemods, pyright diagnostics delta
+  sandbox/       # Sandbox interface, two phases (fetch through the egress allowlist proxy, analyse with no network); oci-rootless, k8s-job, fly-machine drivers
   github/        # App auth, webhooks, PR creation (Git Data API), draft->ready promotion
   cli/           # `invariant` : init, check, propose, compile, verify, release, link, eval capture
 /apps

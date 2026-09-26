@@ -1,0 +1,18 @@
+// A renamed field assigned on an SDK object the consumer holds.
+package scenario
+
+import (
+	"context"
+
+	"example.com/sdk"
+)
+
+// Rename renames a customer.
+func Rename(ctx context.Context, client *sdk.Client, id, name string) (*sdk.Customer, error) {
+	customer, err := client.Customers.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	customer.DisplayName = name
+	return customer, nil
+}

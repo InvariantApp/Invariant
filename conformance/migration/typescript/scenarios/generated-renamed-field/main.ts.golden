@@ -1,0 +1,8 @@
+// The renamed field read through types openapi-typescript generated.
+import type { components } from "acme/generated";
+
+type Customer = components["schemas"]["customer"];
+
+export function label(customer: Customer): string {
+  return customer.display_name;
+}

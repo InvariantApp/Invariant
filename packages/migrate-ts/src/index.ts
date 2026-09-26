@@ -237,9 +237,15 @@ function addHelperImports(
     if (!source) continue;
 
     const body = source.getFullText();
+    // Only an import that brings in values can take the helpers: a name added
+    // to `import type { Charge }` is a type too, and calling it is an error.
     const declaration = source
       .getImportDeclarations()
-      .find((imported) => imported.getModuleSpecifier().getLiteralValue() === from);
+      .find(
+        (imported) =>
+          imported.getModuleSpecifier().getLiteralValue() === from &&
+          !imported.isTypeOnly(),
+      );
 
     const named = declaration?.getNamedImports() ?? [];
     const existing = new Set(named.map((entry) => entry.getName()));
@@ -269,7 +275,27 @@ function addHelperImports(
     }
 
     const last = named[named.length - 1];
-    if (!last) continue;
+    if (!last) {
+      // `import Acme from "acme"` names nothing in braces yet, so the braces
+      // follow the default import. A namespace import has no braces to take
+      // a name, so the helpers get a statement of their own above it.
+      const byDefault = declaration.getNamespaceImport()
+        ? undefined
+        : declaration.getDefaultImport();
+      const at = byDefault?.getEnd() ?? declaration.getStart();
+      edits.push({
+        file,
+        start: at,
+        end: at,
+        replacement: byDefault
+          ? `, { ${missing.join(", ")} }`
+          : `import { ${missing.join(", ")} } from "${from}";\n`,
+        changeId: "sdk-upgrade",
+        author: "codemod",
+        reason: "imported the SDK's exact conversion helpers",
+      });
+      continue;
+    }
     edits.push({
       file,
       start: last.getEnd(),
@@ -286,7 +312,15 @@ function addHelperImports(
 
 function projectFor(options: MigrateOptions): Project {
   if (options.tsConfigFilePath) {
-    return new Project({ tsConfigFilePath: options.tsConfigFilePath });
+    const project = new Project({ tsConfigFilePath: options.tsConfigFilePath });
+    // A project resolves an installed SDK's declarations from node_modules
+    // without listing them as its own files, and the engine looks for the
+    // contract's declarations among its files: without this, a consumer
+    // with a tsconfig and an SDK installed the usual way got no edits.
+    for (const entry of options.generated) {
+      for (const path of declarationFiles(entry)) project.addSourceFileAtPath(path);
+    }
+    return project;
   }
   const project = new Project({
     compilerOptions: {

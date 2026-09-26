@@ -497,7 +497,8 @@ docs/                 design, the change format, the planning brief
 fixtures/             a sample payments API and three customer apps
 e2e/                  the demo, as a runnable test
 eval/                 240 labelled cases, recorded answers, verdicts
-conformance/          golden test cases for anyone rebuilding the translator
+conformance/          golden test cases for anyone rebuilding the translator, and the
+                      scenarios every migration pack is held to
 packages/ir           the change format
 packages/decimal      exact decimal arithmetic, no dependencies
 packages/contract     reading and fingerprinting API descriptions
@@ -514,6 +515,7 @@ packages/migrate-ts   editing customer code safely
 packages/migrate-py   the same for Python, through pyright
 packages/migrate-go   the same for Go, through a helper on go/types (engines/go/migrate)
 packages/symbols      which SDK type and method implement each schema and operation
+packages/sandbox      where a migration runs: a fetch that reaches only the registries, an analysis with no network
 packages/github       delivering pull requests
 packages/flags        the off switch
 packages/cli          the invariant command, run in the company's own CI

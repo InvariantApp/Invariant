@@ -1,0 +1,13 @@
+// A renamed enum value in a list the response's field is tested against.
+package scenario
+
+import (
+	"slices"
+
+	"example.com/sdk"
+)
+
+// Billable reports whether a customer is billed.
+func Billable(customer *sdk.Customer) bool {
+	return slices.Contains([]sdk.CustomerStatus{"enabled", "past_due"}, customer.Status)
+}

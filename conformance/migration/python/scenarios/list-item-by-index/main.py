@@ -1,0 +1,6 @@
+# A renamed field of a list item, read by index.
+import acme
+
+
+def first_digits(customer: acme.Customer) -> str:
+    return customer.cards[0].last4

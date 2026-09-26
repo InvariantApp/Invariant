@@ -1,0 +1,18 @@
+// The SDK dot-imported, its type named without the package.
+package scenario
+
+import (
+	"context"
+
+	. "example.com/sdk"
+)
+
+// NameOf is a customer's name.
+func NameOf(ctx context.Context, client *Client, id string) (string, error) {
+	var customer *Customer
+	customer, err := client.Customers.Get(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	return customer.Nickname, nil
+}

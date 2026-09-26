@@ -1,0 +1,9 @@
+# A hand-written SDK whose model names the field its own way, aliasing the wire.
+import acme
+
+client = acme.Client("sk_test")
+
+
+def label(id: str) -> str:
+    person = client.people.retrieve(id)
+    return person.nick_name

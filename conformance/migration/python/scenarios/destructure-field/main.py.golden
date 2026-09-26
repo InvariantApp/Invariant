@@ -1,0 +1,10 @@
+# The renamed field unpacked into a local of the same name.
+import acme
+
+client = acme.Client("sk_test")
+
+
+def contact(id: str) -> list[str]:
+    customer = client.customers.retrieve(id)
+    nickname, email = customer.display_name, customer.email
+    return [nickname, email]

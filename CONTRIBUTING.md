@@ -11,6 +11,10 @@ Thank you for helping. A few things keep the project reliable.
 - A change to the program format or the runtime updates the conformance vectors
   (`conformance/vectors.json` is generated; the test that checks it rewrites
   it) and passes in the Go engine too: `cd engines/go && go test ./...`.
+- A change to a migration pack runs that pack's conformance test. A scenario
+  in `conformance/migration/scenarios.json` the pack now meets fails until its
+  recorded gap is removed; one it stops meeting is fixed, never written off as
+  a new gap to make the test pass.
 - Do not edit `CHANGELOG.md` files; Changesets writes them. Add a changeset
   with `pnpm changeset` instead.
 

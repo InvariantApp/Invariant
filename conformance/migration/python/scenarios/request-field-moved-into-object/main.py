@@ -1,0 +1,8 @@
+# A request field now sent inside a nested object.
+import acme
+
+client = acme.Client("sk_test")
+
+
+def sign_up(email: str, mobile: str) -> acme.Customer:
+    return client.customers.create(email=email, phone=mobile)

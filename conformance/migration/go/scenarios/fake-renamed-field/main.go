@@ -1,0 +1,17 @@
+// A test's stand-in for a response, built as the SDK's struct, holding the
+// renamed field.
+package scenario
+
+import (
+	"example.com/sdk"
+)
+
+// FakeCustomer is a customer for tests.
+func FakeCustomer() *sdk.Customer {
+	return &sdk.Customer{
+		CustomerBase: sdk.CustomerBase{ID: "cus_1", Email: "ada@example.com"},
+		Object:       "customer",
+		Nickname:     "Ada",
+		Status:       sdk.CustomerStatusInactive,
+	}
+}

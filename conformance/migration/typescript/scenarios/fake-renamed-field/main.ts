@@ -1,0 +1,17 @@
+// A test's stand-in for a response, typed as the SDK's, holding the
+// renamed field.
+import type { Customer } from "acme";
+
+export const customer: Customer = {
+  id: "cus_1",
+  object: "customer",
+  email: "ada@example.com",
+  nickname: "Ada",
+  fax: null,
+  created: 1700000000,
+  status: "active",
+  balance: 0,
+  phone: "+15555550100",
+  address: { line1: "1 Main St", line2: null, postal_code: "12345", city: "Springfield" },
+  cards: [],
+};

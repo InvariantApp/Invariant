@@ -1,0 +1,45 @@
+{
+  "name": "@invariant-app/sandbox",
+  "version": "0.4.0",
+  "description": "Runs a consumer migration in two isolated phases: a fetch whose only way out is a registry allowlist, and an analysis with no network at all",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/InvariantApp/Invariant.git",
+    "directory": "packages/sandbox"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "sideEffects": false,
+  "bin": {
+    "invariant-egress-proxy": "./src/proxy-main.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "sbom.cdx.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "node ../../scripts/prepack.mjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "bin": {
+      "invariant-egress-proxy": "./dist/proxy-main.js"
+    }
+  }
+}
