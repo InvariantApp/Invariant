@@ -61,3 +61,9 @@ For each connected repository:
 
 Publishing the same release again changes nothing, and a repository connected later is migrated
 the next time you publish.
+
+Steps 1 and 2 run apart, each in a sandbox of its own. The fetch downloads the SDK releases with
+install scripts off and can reach the package registries and nothing else; it never sees the
+repository. The analysis reads the repository against them with no network at all, and can
+write only its result. A consumer can run the same migration themselves with
+[`invariant migrate`](reference/cli.md#invariant-migrate), in their own process or in containers.

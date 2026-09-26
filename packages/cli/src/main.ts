@@ -11,6 +11,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { ControlPlaneError } from "@invariant-app/client";
 import { loadContract } from "@invariant-app/contract";
+import type { PhaseResult } from "@invariant-app/sandbox";
 import { scenariosFromDocument, scenarioYaml } from "@invariant-app/verifier";
 import { check, renderReport, reportJson } from "./check.ts";
 import { renderComment } from "./comment.ts";
@@ -18,6 +19,16 @@ import { loadConfig } from "./config.ts";
 import { doctor, renderDoctor } from "./doctor.ts";
 import { type InitOptions, init, renderInit } from "./init.ts";
 import { LOCK_FILE, lockFor, renderLock } from "./lock.ts";
+import {
+  MigrateError,
+  type MigrationOutcome,
+  migrateInProcess,
+  migrateSandboxed,
+  readJob,
+  renderOutcome,
+  runPhase,
+  writeOutcome,
+} from "./migrate.ts";
 import { observe, renderObservation } from "./observe.ts";
 import { renderProposals, runPropose } from "./propose.ts";
 import { rebuildAt, release, renderRelease, verifyRelease } from "./release.ts";
@@ -61,6 +72,10 @@ const USAGE = `invariant <command>
   scenarios generate [--label <c>]
             Write the scenarios check --full would make from each released
             contract's document into invariant/scenarios, to keep and edit.
+  migrate <job.json>
+            Move one consumer repository to a release: fetch both SDK
+            releases, then read and edit the repository against them with
+            no network. With --sandbox, each step runs in a container.
 
 Options
   --spec <path>     init: the OpenAPI document, when there is more than one
@@ -97,6 +112,15 @@ Options
   --days <n>        retire: how long a contract must be quiet (default 30);
                     status: how far back to count (default 30)
   --write           retire: remove the retired contracts from invariant.yaml
+  --sandbox <d>     migrate: run each step in a sandbox; oci-rootless runs
+                    them in docker or podman (default: in this process)
+  --image <ref>     migrate: the image the sandbox runs (default: Node 24)
+  --runtime <r>     migrate: docker or podman (default: whichever is running)
+  --allow-host <h>  migrate: a host the fetch may reach beyond the public
+                    registries, such as a private one; repeatable
+  --key <path>      migrate: the publisher's public key, for a job's bundle
+  --write           migrate: apply the edits to the repository
+  --out <path>      migrate: where to write the result as JSON
 
 Environment
   INVARIANT_SIGNING_KEY   release: the ed25519 private key, in PEM form
@@ -107,6 +131,74 @@ Environment
 function flag(argv: readonly string[], name: string): string | undefined {
   const index = argv.indexOf(`--${name}`);
   return index === -1 ? undefined : argv[index + 1];
+}
+
+function flags(argv: readonly string[], name: string): string[] {
+  return argv.flatMap((entry, index) =>
+    entry === `--${name}` && argv[index + 1] !== undefined
+      ? [argv[index + 1] as string]
+      : [],
+  );
+}
+
+async function runMigrate(argv: readonly string[]): Promise<number> {
+  // What a sandbox runs inside: one step, over the workspace's fixed layout.
+  const phase = flag(argv, "phase");
+  if (phase !== undefined) {
+    const request = argv[argv.indexOf("--phase") + 2];
+    if (!request) throw new MigrateError("migrate --phase needs the request's path");
+    await runPhase(phase, request);
+    return 0;
+  }
+
+  const path = argv[1];
+  if (!path || path.startsWith("--")) {
+    process.stderr.write("migrate needs the path to a job file\n");
+    return 1;
+  }
+  const keys = await Promise.all(
+    flags(argv, "key").map((key) => readFile(resolve(key), "utf8")),
+  );
+  const job = await readJob(resolve(path), { keys });
+  const sandbox = flag(argv, "sandbox") ?? "in-process";
+  let outcome: MigrationOutcome;
+  let phases: PhaseResult[] | undefined;
+  if (sandbox === "in-process") {
+    outcome = await migrateInProcess(job);
+  } else if (sandbox === "oci-rootless") {
+    const runtime = flag(argv, "runtime");
+    if (runtime !== undefined && runtime !== "docker" && runtime !== "podman") {
+      throw new MigrateError(`--runtime is docker or podman, not ${runtime}`);
+    }
+    const image = flag(argv, "image");
+    const allow = flags(argv, "allow-host");
+    ({ outcome, phases } = await migrateSandboxed(job, {
+      ...(image ? { image } : {}),
+      ...(runtime ? { runtime } : {}),
+      ...(allow.length > 0 ? { allow } : {}),
+      onOutput: (chunk) => process.stderr.write(chunk),
+    }));
+  } else if (sandbox === "k8s-job" || sandbox === "fly-machine") {
+    throw new MigrateError(
+      `${sandbox} runs where the hosted service does, with a workspace on the cluster or a Fly volume; from here, use --sandbox oci-rootless`,
+    );
+  } else {
+    throw new MigrateError(`there is no sandbox called ${sandbox}`);
+  }
+
+  const out = flag(argv, "out");
+  if (out) await writeFile(resolve(out), `${JSON.stringify(outcome, null, 2)}\n`, "utf8");
+  const written = argv.includes("--write")
+    ? await writeOutcome(job.repo, outcome)
+    : undefined;
+  process.stdout.write(
+    renderOutcome(job, outcome, {
+      ...(sandbox === "in-process" ? {} : { sandbox }),
+      ...(phases ? { phases } : {}),
+      ...(written ? { written } : {}),
+    }),
+  );
+  return 0;
 }
 
 async function main(argv: string[]): Promise<number> {
@@ -143,6 +235,9 @@ async function main(argv: string[]): Promise<number> {
     process.stdout.write(`\nFirst check: ${report.result.toUpperCase()}\n`);
     return report.result === "block" ? 1 : 0;
   }
+
+  // A consumer's command: it runs where there is no invariant.yaml.
+  if (command === "migrate") return runMigrate(argv);
 
   const configPath = resolve(flag(argv, "config") ?? "invariant.yaml");
 

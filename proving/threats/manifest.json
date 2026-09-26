@@ -191,6 +191,59 @@
       ]
     },
     {
+      "threat": "Escape and exfiltration from a migration run",
+      "status": "partly covered",
+      "here": "The egress proxy tunnels only to allowlisted registry host names on allowed ports, resolves each name once and refuses one that resolves to a private, loopback or link-local address, refuses addresses written as hosts (including short and hexadecimal IPv4 forms) and plain HTTP; under docker, an analysis container runs as a non-root user with no capabilities, no new privileges, no network interface but loopback and no DNS, a read-only root and read-only inputs, and is killed for memory, CPU time and wall clock, each reported as such; a fetch container reaches the npm registry through the proxy, is refused elsewhere, cannot connect directly or resolve names, and is never shown the repository; the Kubernetes Jobs and NetworkPolicies are held to the schema by kubeconform and deny an analysis all traffic and a fetch all but the proxy; the Fly machines are one-shot, never restarted and destroyed at the wall clock; and invariant migrate believes a sandbox's result only as files inside the repository and never writes through a link.",
+      "tests": [
+        {
+          "file": "packages/sandbox/src/proxy.test.ts",
+          "titles": [
+            "opens a tunnel to a host on the allowlist, and carries bytes both ways",
+            "refuses a host that is not on the allowlist, without resolving or reaching it",
+            "refuses an address written as the host, and a port that is not HTTPS's",
+            "refuses an allowed name that resolves to a private or link-local address",
+            "refuses a plain HTTP request instead of forwarding it"
+          ]
+        },
+        {
+          "file": "packages/sandbox/src/oci.test.ts",
+          "titles": [
+            "runs the analysis as a non-root user with no capabilities, no network and read-only inputs",
+            "kills a phase over its memory, and says so",
+            "stops a phase at its CPU time, and one at its wall clock",
+            "lets the fetch reach a registry through the proxy and nothing else"
+          ]
+        },
+        {
+          "file": "packages/sandbox/src/k8s.test.ts",
+          "titles": [
+            "denies an analysis every connection in and out",
+            "lets a fetch reach the egress proxy's pods on its port, and nothing else",
+            "passes kubeconform -strict"
+          ]
+        },
+        {
+          "file": "packages/sandbox/src/fly.test.ts",
+          "titles": [
+            "is one-shot, never restarted, sized to the phase, and runs only the phase",
+            "kills and destroys a machine still running at the wall clock"
+          ]
+        },
+        {
+          "file": "packages/cli/src/migrate.test.ts",
+          "titles": [
+            "what a sandbox hands back",
+            "fetches through the egress proxy and analyses with no network"
+          ]
+        }
+      ],
+      "elsewhere": "The service's worker staging each run's workspace on a claim or a volume, and running the k8s-job and fly-machine drivers, live in the service's repository.",
+      "gaps": [
+        "the gVisor or Kata RuntimeClass and the NetworkPolicies proven on a real cluster whose network plugin enforces them",
+        "fly-machine egress held by the fetch and analyse apps' network policies, which the Machines API documents by port rather than destination"
+      ]
+    },
+    {
       "threat": "Supply chain",
       "status": "covered",
       "here": "The runtime depends on nothing but exact decimal arithmetic; every workflow installs from the lockfile; every third-party action is pinned to a commit; npm publishes carry provenance from a token the workflow is issued; every npm package carries a CycloneDX bill of materials inside the tarball its provenance covers, the action's bundle is attested with both, and the proxy image with both and signed with cosign, each checked every night from the registries by proving/releases/verify.mts.",

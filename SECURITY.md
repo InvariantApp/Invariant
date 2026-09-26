@@ -24,8 +24,10 @@ someone else's.
 
 Everything in this repository: the runtimes and adapters, the sidecar proxy,
 the compiler and program format, the CLI and GitHub Action, bundle signing and
-verification, and the migration engine. The threat model is in
-[`docs/DESIGN.md`](docs/DESIGN.md), section 11.
+verification, the migration engine, and the sandbox it runs in
+(`packages/sandbox`: the egress proxy and its allowlist, and the isolation each
+driver sets up). The threat model is in [`docs/DESIGN.md`](docs/DESIGN.md),
+section 11.
 
 ## Supported versions
 

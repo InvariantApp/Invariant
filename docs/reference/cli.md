@@ -137,6 +137,71 @@ standard output: for a gateway that validates requests per version.
 Writes the scenarios `check --full` would make from each released contract's
 document (or `--label <c>`'s) into `invariant/scenarios`, to keep and edit.
 
+## `invariant migrate`
+
+Moves one consumer repository to a release, with the same engine the hosted
+service runs, and says what it would change and what it leaves to a person.
+It is a consumer's command: it needs no `invariant.yaml`.
+
+```
+invariant migrate job.json --key publisher.pub --sandbox oci-rootless --out result.json
+```
+
+The job names everything, with paths relative to the job file:
+
+```json
+{
+  "language": "typescript",
+  "repo": "../billing-service",
+  "bundle": "acme-2026-09-20.bundle.json",
+  "sdk": "acme-sdk.json",
+  "from": "2.4.0"
+}
+```
+
+| Field | |
+|---|---|
+| `language` | `typescript`, `python` or `go`. |
+| `repo` | The consumer's repository. It is read, never written unless `--write` is given. |
+| `bundle` | A signed release. Its Changes are used only once `--key` checks its signature. |
+| `changes` | Instead of a bundle: a list of Changes, or the path to one. |
+| `sdk` | The [SDK map](../migrations.md#what-it-needs-from-you), or the path to one. A Go map names `module.path` and `upgradeTo.path` and `version`. |
+| `from` | The release of the SDK the consumer uses today. |
+| `tsconfig` | TypeScript: the project file, relative to the repository (default `tsconfig.json`). |
+| `sources` | TypeScript and Python: the files to read, relative to the repository. Python reads every file that imports the SDK by default. |
+| `module`, `packages` | Go: the module's directory (default the root) and the packages to read (default `./...`). |
+
+A migration is always two steps. The **fetch** downloads both releases of the
+SDK (from npm, from PyPI as wheels, or through the Go module proxy, with the
+modules the consumer and the SDK require), with install scripts off, and reads
+nothing of the repository but a go.mod. The **analysis** then reads the
+repository against those releases with no network at all.
+
+By default both steps run in this process. `--sandbox oci-rootless` runs each
+in a container of its own, through docker or podman: the fetch on a network
+whose only way out is an egress proxy that opens tunnels to the public
+registries and nothing else, the analysis with no network, and both as a
+non-root user with a read-only root filesystem, no capabilities, and limits
+on memory, CPU and time. The containers run this same installation of the
+CLI, mounted read-only, so what runs inside is what would have run outside.
+What comes back is checked before anything is written: every path must be a
+file inside the repository. The `k8s-job` and `fly-machine` sandboxes are for
+the hosted service, which keeps its workspaces on a cluster or on Fly
+volumes; see `@invariant-app/sandbox`.
+
+| Option | |
+|---|---|
+| `--sandbox <d>` | `oci-rootless` to run each step in a container (default: in this process). |
+| `--image <ref>` | The image the containers run: any with Node 22.18 or later, and Go for a Go job (default: Node 24, pinned by digest). |
+| `--runtime <r>` | `docker` or `podman` (default: whichever is running). |
+| `--allow-host <h>` | A host the fetch may reach beyond `registry.npmjs.org`, `pypi.org`, `files.pythonhosted.org`, `proxy.golang.org` and `sum.golang.org`, such as a private registry. Repeatable. |
+| `--key <path>` | The publisher's Ed25519 public key, in PEM form, for the job's bundle. |
+| `--write` | Apply the edits to the repository. |
+| `--out <path>` | Write the result as JSON: each changed file's new contents, each place left to a person, and the type errors before and after. |
+
+`migrate --phase fetch|analyse <request>` is what runs inside a sandbox; it is
+not meant to be run by hand.
+
 ## Environment
 
 | Variable | Used by | |
