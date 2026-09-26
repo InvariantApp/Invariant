@@ -18,7 +18,7 @@ product; the first two are what make it mean something.
 | E. Migration replay | `replay/` | The migration engine's edits against the edits humans actually made when they upgraded an SDK. | Code nobody published. |
 | F. Hostile input | `fuzz/` | The runtime, the proxy and the parsers survive input designed to break them. | Anything not fuzzed. |
 | Long chains | `chains/` | A 50-step chain over a Stripe-sized, generated API stays within stated budgets for program size, compile time, load time and p99 transform (L18), and means what its steps run in turn mean. | The cost of a real provider's history, whose steps reach fewer sites than these. |
-| Soak | `soak/` | The proxy at a stated rate for 24 hours under upstream stalls, resets, slow, cut and oversized bodies, kill-switch flips, program reloads and restarts, with no response failing the contract its caller named, a bounded memory trend and no leaked sockets (L11). | Load beyond one process at a modest rate, which the overhead rig and a provider's own load tests cover. |
+| Soak | `soak/` | The proxy at a stated rate for 14 hours under upstream stalls, resets, slow, cut and oversized bodies, kill-switch flips, program reloads and restarts, with no response failing the contract its caller named, a bounded memory trend and no leaked sockets (L11). | Load beyond one process at a modest rate, which the overhead rig and a provider's own load tests cover. |
 | Proxy overhead | `overhead/` | The proxy adds no more than a stated p99 to an old caller's list response, every item adapted, at a fixed request rate, with the upstream, proxy and client in separate processes (L19). | Overhead on the provider's own hardware, network and body sizes, which a shared CI runner only approximates. |
 | Signed webhooks | `webhooks/` | A real GitHub `issues` payload and a real Stripe charge event, from a release that renamed a field, reach a subscriber on the old contract as that contract describes them, and verify under each provider's own signature scheme when signed after adapting and fail when signed before (M4.6). | Every event type either provider sends; two payloads show the order is right, not that every schema is covered. |
 
@@ -138,7 +138,7 @@ is a wrong site, and the report lists each with what the old server said.
 `soak/soak.mts` is L11: the sidecar, exactly as a provider runs it, in front
 of an upstream serving the fixture provider's current contract, with the
 committed program serving its two released ones, at 50 requests a second for
-24 hours. The upstream stalls, resets, cuts bodies short, dribbles them,
+14 hours (the user's call on 2026-09-26; a 14.5-hour run was clean and later hours repeat the same schedule). The upstream stalls, resets, cuts bodies short, dribbles them,
 answers late and answers with more than the proxy buffers, as each request
 asks; the caller sends slow and oversized bodies of its own. Meanwhile the
 kill switch is flipped, the program is replaced (every fourth time with one
@@ -148,7 +148,7 @@ caller named, and every body the proxy sends upstream against the current
 one; the proxy's memory and sockets are sampled every ten seconds.
 
 ```console
-capped --mem 600 -- node --import tsx proving/soak/soak.mts --record    # 24 hours
+capped --mem 600 -- node --import tsx proving/soak/soak.mts --record    # 14 hours
 node --import tsx proving/soak/soak.mts --minutes 10                   # the same, compressed
 node --import tsx proving/soak/soak.mts --minutes 2 --calm --modes normal,bloated
 ```
