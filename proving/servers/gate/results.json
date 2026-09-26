@@ -1,12 +1,12 @@
 {
-  "source": "Full check on real servers, Actions run 36272844528",
+  "source": "Full check on real servers, Actions run 36276917994",
   "runs": [
     {
       "project": "gitea",
       "from": "v1.24.2",
       "to": "v1.25.4",
       "result": "block",
-      "seconds": 34,
+      "seconds": 43,
       "differential": {
         "pass": 362,
         "fail": 17,
@@ -48,10 +48,10 @@
       "from": "v1.137.3",
       "to": "v1.138.0",
       "result": "block",
-      "seconds": 97,
+      "seconds": 108,
       "differential": {
-        "pass": 165,
-        "fail": 3,
+        "pass": 166,
+        "fail": 2,
         "skipped": 0
       },
       "summaries": [
@@ -63,7 +63,6 @@
       ],
       "unexplained": [],
       "problems": [
-        "GET /oauth/mobile-redirect (generated) / - /: the scenario could not be run: fetch failed",
         "GET /server/version (generated) / call /minor: was 137, now 138",
         "GET /server/version (generated) / call /patch: was 3, now 0",
         "GET /server/version-history (generated) / call /0/version: was \"1.137.3\", now \"1.138.0\""
@@ -74,10 +73,10 @@
       "from": "v1.53.2",
       "to": "v1.54.0",
       "result": "block",
-      "seconds": 13,
+      "seconds": 11,
       "differential": {
-        "pass": 131,
-        "fail": 5,
+        "pass": 133,
+        "fail": 3,
         "skipped": 0
       },
       "summaries": [
@@ -91,13 +90,6 @@
       "problems": [
         "GET /experimental-features (generated) / call /mcpRoute: the new build returned this, which the old contract never had",
         "PATCH /experimental-features (generated) / call /mcpRoute: the new build returned this, which the old contract never had",
-        "GET /stats (generated) / call /usedDatabaseSize: was 196608, now 192512",
-        "GET /tasks (generated) / call /results/1/batchUid: was 50, now 49",
-        "GET /tasks (generated) / call /results/2/batchUid: was 49, now 48",
-        "GET /tasks (generated) / call /results/3/batchUid: was 48, now 47",
-        "GET /tasks (generated) / call /results/4/batchUid: was 47, now 46",
-        "GET /tasks (generated) / call /results/5/batchUid: was 46, now 45",
-        "GET /tasks (generated) / call /results/6/batchUid: was 45, now 44",
         "GET /version (generated) / call /commitSha: was \"ec006cecec6f684b1dcaee093a45ab4c05707127\", now \"1380adaacebad8a019d88549a06bae2dd90de249\"",
         "GET /version (generated) / call /pkgVersion: was \"1.53.2\", now \"1.54.0\""
       ]
@@ -107,7 +99,7 @@
       "from": "v3.5.9",
       "to": "v3.6.9",
       "result": "block",
-      "seconds": 619,
+      "seconds": 506,
       "differential": {
         "pass": 819,
         "fail": 14,
@@ -151,8 +143,8 @@
       "result": "block",
       "seconds": 10,
       "differential": {
-        "pass": 68,
-        "fail": 7,
+        "pass": 69,
+        "fail": 6,
         "skipped": 0
       },
       "summaries": [
@@ -170,20 +162,20 @@
         "DELETE /cluster/peer/{peer_id} (generated) / call /status/error: was \"Bad request: Distributed mode disabled.\", now \"Qdrant is running in standalone mode\"",
         "POST /cluster/recover (generated) / call /: the old build answered 500, the new one answered 405",
         "POST /cluster/recover (generated) / call /status/error: was \"Service internal error: Qdrant is running in standalone mode\", now \"Qdrant is running in standalone mode\"",
-        "POST /collections/{collection_name}/points/count (generated) / call /time: was 5.61e-7, now 5.51e-7",
         "PUT /collections/{collection_name}/shards (generated) / call /: the old build answered 400, the new one answered 405",
         "PUT /collections/{collection_name}/shards (generated) / call /status/error: was \"Bad request: Distributed mode disabled\", now \"Qdrant is running in standalone mode\"",
         "POST /collections/{collection_name}/shards/delete (generated) / call /: the old build answered 400, the new one answered 405",
         "POST /collections/{collection_name}/shards/delete (generated) / call /status/error: was \"Bad request: Distributed mode disabled\", now \"Qdrant is running in standalone mode\"",
         "GET /telemetry (generated) / call /result/app/version: was \"1.18.0\", now \"1.19.0\"",
-        "GET /telemetry (generated) / call /result/requests/rest/responses/POST /collections/{collection_name}/points/discover/batch/404/avg_duration_micros: was 60, now 22",
-        "GET /telemetry (generated) / call /result/requests/rest/responses/POST /cluster/recover/500/count: the old build returned this, the new one does not",
-        "GET /telemetry (generated) / call /result/requests/rest/responses/POST /cluster/recover/500/avg_duration_micros: the old build returned this, the new one does not",
+        "GET /telemetry (generated) / call /result/requests/rest/responses/POST /collections/{collection_name}/points/search/batch/404/avg_duration_micros: was 47, now 25",
+        "GET /telemetry (generated) / call /result/requests/rest/responses/POST /collections/{collection_name}/points/recommend/groups/404/avg_duration_micros: was 53, now 28",
         "GET /telemetry (generated) / call /result/requests/rest/responses/POST /collections/{collection_name}/shards/delete/400/count: the old build returned this, the new one does not",
         "GET /telemetry (generated) / call /result/requests/rest/responses/POST /collections/{collection_name}/shards/delete/400/avg_duration_micros: the old build returned this, the new one does not",
-        "GET /telemetry (generated) / call /result/requests/rest/responses/GET /collections/{collection_name}/exists/200/avg_duration_micros: was 33, now 9",
-        "GET /telemetry (generated) / call /result/requests/rest/responses/GET /collections/200/avg_duration_micros: was 37, now 9",
-        "GET /telemetry (generated) / call /result/requests/rest/responses/PUT /collections/{collection_name}/shards/400/count: the old build returned this, the new one does not"
+        "GET /telemetry (generated) / call /result/requests/rest/responses/POST /cluster/recover/500/count: the old build returned this, the new one does not",
+        "GET /telemetry (generated) / call /result/requests/rest/responses/POST /cluster/recover/500/avg_duration_micros: the old build returned this, the new one does not",
+        "GET /telemetry (generated) / call /result/requests/rest/responses/PUT /collections/{collection_name}/shards/400/count: the old build returned this, the new one does not",
+        "GET /telemetry (generated) / call /result/requests/rest/responses/PUT /collections/{collection_name}/shards/400/avg_duration_micros: the old build returned this, the new one does not",
+        "GET /telemetry (generated) / call /result/requests/rest/responses/DELETE /collections/{collection_name}/index/{field_name}/404/avg_duration_micros: was 47, now 27"
       ]
     }
   ]
