@@ -2421,6 +2421,23 @@
       ]
     },
     {
+      "id": "crazy-max/ghaction-virustotal#189",
+      "repo": "crazy-max/ghaction-virustotal",
+      "pr": 189,
+      "base": "75acb95350c798915adacb834a48fa4402a087d1",
+      "head": "aa0c211cb8002bfc23e8cbb21ba301161a872378",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "5.1.1",
+      "to": "6.0.0",
+      "license": "MIT",
+      "mergedAt": "2024-10-27T23:39:52Z",
+      "files": [
+        "src/github.ts",
+        "src/main.ts"
+      ]
+    },
+    {
       "id": "cryptoquantumwave/khunquant#12",
       "repo": "cryptoquantumwave/khunquant",
       "pr": 12,
@@ -3354,6 +3371,39 @@
       ]
     },
     {
+      "id": "envoyproxy/toolshed#1313",
+      "repo": "envoyproxy/toolshed",
+      "pr": 1313,
+      "base": "befe4d573ec6fc73ac6b22d50ae0349aa6f58afc",
+      "head": "3b554a5773fc701a47adb82685a57d0143ff5f35",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "4.0.0",
+      "to": "6.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2024-03-20T12:52:06Z",
+      "files": [
+        "gh-actions/github/checks/main.ts"
+      ]
+    },
+    {
+      "id": "envoyproxy/toolshed#1327",
+      "repo": "envoyproxy/toolshed",
+      "pr": 1327,
+      "base": "9f98bd61366722c8ab22de32ef6ac887d91336f8",
+      "head": "65fb1857af2141a4c0c358bf9b3c5bf062571bdd",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "4.0.0",
+      "to": "6.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2024-03-20T11:57:53Z",
+      "files": [
+        "gh-actions/retest/__tests__/retest.test.ts",
+        "gh-actions/retest/retest.ts"
+      ]
+    },
+    {
       "id": "epam/ai-dial-adapter-anthropic#13",
       "repo": "epam/ai-dial-adapter-anthropic",
       "pr": 13,
@@ -3691,6 +3741,23 @@
       "mergedAt": "2026-08-03T02:00:23Z",
       "files": [
         "packages/usrcp-github/src/index.ts"
+      ]
+    },
+    {
+      "id": "freckle/grep-action#16",
+      "repo": "freckle/grep-action",
+      "pr": 16,
+      "base": "0a3f18643fcd7823955de8be8c4abe607e8fec78",
+      "head": "a8e7ec1eb38e27eec6c7f94affe0f9893125e162",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "5.1.1",
+      "to": "6.0.0",
+      "license": "MIT",
+      "mergedAt": "2024-01-30T18:06:42Z",
+      "files": [
+        "src/github.ts",
+        "src/reporter.ts"
       ]
     },
     {
@@ -6104,6 +6171,23 @@
         "src/slack.ts",
         "src/types.ts",
         "src/utils.ts"
+      ]
+    },
+    {
+      "id": "kenhowardpdx/auto-merge-action#507",
+      "repo": "kenhowardpdx/auto-merge-action",
+      "pr": 507,
+      "base": "7152b4b5d5734c8730ef39516297db9e4d3e7acd",
+      "head": "50ba901cc534d63ae6bf5d850aa0095c28c0f40c",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "5.1.1",
+      "to": "6.0.0",
+      "license": "MIT",
+      "mergedAt": "2024-02-28T00:28:25Z",
+      "files": [
+        "jest.config.js",
+        "src/main.test.ts"
       ]
     },
     {
@@ -8533,6 +8617,23 @@
       ]
     },
     {
+      "id": "pmd/pmd-github-action#231",
+      "repo": "pmd/pmd-github-action",
+      "pr": 231,
+      "base": "2f4fec3feaff3a32082ae90daa83f16a5727522d",
+      "head": "6c4c7ab728cc6a33237d7b6731f15ab0d48804e9",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "5.1.1",
+      "to": "6.0.0",
+      "license": "MIT",
+      "mergedAt": "2024-03-17T16:18:18Z",
+      "files": [
+        "lib/util.js",
+        "tests/util.test.js"
+      ]
+    },
+    {
       "id": "Pocket/pocket-monorepo#299",
       "repo": "Pocket/pocket-monorepo",
       "pr": 299,
@@ -10048,6 +10149,23 @@
       ]
     },
     {
+      "id": "SAP/cloud-sdk-js#4200",
+      "repo": "SAP/cloud-sdk-js",
+      "pr": 4200,
+      "base": "d4e20f6285cb9f98b158cdb6fdca03ff2c788bbd",
+      "head": "32a94482ee959cc2f679e3df9cda3920bbcc1f58",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "5.1.1",
+      "to": "6.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2023-11-16T04:18:49Z",
+      "files": [
+        ".github/actions/check-pr/index.js",
+        ".github/actions/get-changelog/index.js"
+      ]
+    },
+    {
       "id": "SAP/cloud-sdk-js#6283",
       "repo": "SAP/cloud-sdk-js",
       "pr": 6283,
@@ -10181,6 +10299,26 @@
       "files": [
         "tests/test_adapter_agent.py",
         "tests/test_investigation.py"
+      ]
+    },
+    {
+      "id": "skaut/wordpress-version-checker#1051",
+      "repo": "skaut/wordpress-version-checker",
+      "pr": 1051,
+      "base": "3859dbddf60cd829be165c85df6bc74f9ed91226",
+      "head": "877a26fc1728a84ba53bad0675645007b271ee18",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "5.1.1",
+      "to": "6.0.0",
+      "license": "MIT",
+      "mergedAt": "2024-06-21T12:45:51Z",
+      "files": [
+        "__tests__/issue-management.test.ts",
+        "__tests__/setup.ts",
+        "__tests__/tested-version.test.ts",
+        "__tests__/wpvc-config.test.ts",
+        "jest.config.js"
       ]
     },
     {
@@ -12509,6 +12647,22 @@
       ]
     },
     {
+      "id": "tvcsantos/tool-reporter-action-template#89",
+      "repo": "tvcsantos/tool-reporter-action-template",
+      "pr": 89,
+      "base": "ca14694c5d4f3a298b61e97bf82a08bfd71f1653",
+      "head": "03d3d3a3826f3c35cc1d6205d03ba7c134694fb7",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "5.1.1",
+      "to": "6.0.0",
+      "license": "MIT",
+      "mergedAt": "2024-03-02T17:45:32Z",
+      "files": [
+        "src/github/check.ts"
+      ]
+    },
+    {
       "id": "twk3/rollup-size-compare-action#429",
       "repo": "twk3/rollup-size-compare-action",
       "pr": 429,
@@ -13677,6 +13831,24 @@
       "mergedAt": "2026-02-17T00:51:40Z",
       "files": [
         "jest.config.ts"
+      ]
+    },
+    {
+      "id": "zaproxy/actions-common#176",
+      "repo": "zaproxy/actions-common",
+      "pr": 176,
+      "base": "7ff5e84e24cb8ea0ff99f62720e80022312f648b",
+      "head": "399b72649c4bff2b5524931133be6d0f96a5f5f2",
+      "package": "@actions/github",
+      "ecosystem": "npm",
+      "from": "5.1.1",
+      "to": "6.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2024-03-08T16:35:41Z",
+      "files": [
+        "src/index.test.ts",
+        "src/testHelpers/githubApiMocks/mockCreateIssue.ts",
+        "src/testHelpers/githubApiMocks/mockSearchIssues.ts"
       ]
     },
     {
