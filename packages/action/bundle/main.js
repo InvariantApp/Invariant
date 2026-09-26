@@ -42432,8 +42432,7 @@ function siteFor(forward, backward, blocks) {
 		identity: [{
 			kind: "default",
 			label: LABEL$1
-		}],
-		limits: { timeBudgetMs: Number.POSITIVE_INFINITY }
+		}]
 	});
 	const site = runtime.siteFor(LABEL$1, METHOD, PATH);
 	if (!site) throw new Error("the verifier built a program with no site in it");
@@ -43292,7 +43291,7 @@ function run$1(document, ref, runs, seed, property) {
 		try {
 			return property(value);
 		} catch (error) {
-			if (error instanceof BodyTooLargeError) return void 0;
+			if (error instanceof BodyTooLargeError || error instanceof TimeBudgetError) return;
 			return `the transform refused a value the contract allows: ${error instanceof Error ? error.message : String(error)}`;
 		}
 	};

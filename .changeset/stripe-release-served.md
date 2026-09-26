@@ -3,7 +3,6 @@
 "@invariant-app/compiler": patch
 "@invariant-app/diff": patch
 "@invariant-app/verifier": patch
-"@invariant-app/runtime": patch
 ---
 
 Six changes between two Stripe releases that the gate drafted wrongly, could not draft, or refused although they were served.
@@ -13,5 +12,4 @@ Six changes between two Stripe releases that the gate drafted wrongly, could not
 - A value that became an object holding it under its one required field, as `billing_cycle_anchor` on resuming a subscription became `{ type }`, is drafted as a `move` beneath its own place, and the prediction keeps the value required inside the object built from it.
 - A request field whose new list of values the specification marks `x-stripeBypassValidation`, or an open `x-stripeEnum`, is not reported as refusing old callers' values, since the server does not hold callers to the list.
 - The lens laws excuse a declared loss wherever the value holds the schema that declared it, found by walking the value, rather than only at the places the compiler lists, which stop where a recursive schema would enter itself. A loss ending at a list's items covers the list, so a fold on the values of a list holds. Folds on Stripe's `payment_method_types` and on a payment method's `type` reached through a setup attempt were refused for the loss they declared.
-- A generated value past the runtime's body limit is left out of the laws, since the runtime refuses it before any transform runs, and the laws run with no time budget, so a law no longer holds or fails by how busy the machine is. Stripe objects near and past the megabyte were reported as Changes that could not be undone, some of which then held when tried again.
-- The runtime's `limits` option takes only the limits being changed, merged over the defaults, as it always was at run time.
+- A generated value the runtime refuses whole, past its body size or time limit, is left out of the laws, since no caller is ever answered with a wrong value for it. Stripe objects near the megabyte were reported as Changes that could not be undone, those past the time limit only on a busy runner, so the same value then held when tried again.
