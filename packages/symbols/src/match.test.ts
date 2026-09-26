@@ -43,6 +43,19 @@ async function match(
 }
 
 describe("matchTypes", () => {
+  it("never gives a request's schema a type named for a response, however many fields they share", async () => {
+    const { types } = await match(
+      contract({
+        RealtimeSessionCreateRequest: {
+          type: "object",
+          properties: props("model", "voice", "instructions", "modalities"),
+        },
+      }),
+      [object("SessionCreateResponse", ["model", "voice", "instructions", "modalities"])],
+    );
+    expect(types["RealtimeSessionCreateRequest"]).toBeUndefined();
+  });
+
   it("rules out a type whose pinned field disagrees with the schema's, whatever its name", async () => {
     const { types } = await match(
       contract({

@@ -69,6 +69,11 @@ function eligible(shape: SchemaShape, declaration: Declaration): boolean {
   }
   // A type only requests are built from never reads what only responses carry.
   if (shape.role === "response" && isInput(declaration)) return false;
+  // Nor is what a request is built from a type named for what a response
+  // carries: openai's `RealtimeSessionCreateRequest` shares fields with
+  // `SessionCreateResponse`, and editing one for the other would be wrong.
+  const answer = /Response$/.test(declaration.name);
+  if (answer && (shape.role === "request" || /Request$/.test(shape.name))) return false;
   return !contradicts(shape, declaration);
 }
 
