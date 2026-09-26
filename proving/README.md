@@ -273,23 +273,23 @@ the contract sites, so `--classify` has Jev class each site as `contract`,
 labelled as such, kept in `replay/classes.json` without any code, and a sample
 is audited by hand before a number from them is quoted.
 
-A contract site can still be a choice: the humans adopting a new tool
-version, endpoint or flow while their old code went on working, which no
-migration engine should do on its own. So each contract site is also judged
-forced or not (`replay/forced.mts`), from the differ and the humans' text
-alone, never from what the engine did: it is forced where a line the humans
-removed or wrote names an element the pinned differ reports broken between the
-two releases' specifications, by the release gate's own policy. An entry is
-about the schema it names, or else the last element of the path it quotes
+A contract site can still be a choice: the humans adopting a new tool version,
+endpoint or flow while their old code went on working, which no migration
+engine should do on its own. So each contract site is also judged forced or
+not (`replay/forced.mts`), from the differ and the humans' text alone, never
+from what the engine did: it is forced where a line the humans removed or
+wrote names an element the pinned differ reports broken between the two
+releases' specifications, by the release gate's own policy. An entry is about
+the schema it names, or else the last element of the path it quotes
 (`amount_refunded`, not `data`); names are compared without case or
 underscores, so one check serves every language. L8's 90% is over the forced
-sites, and the rate over every contract site is published beside it. A
-language's rate counts toward the line only once it has at least 30 forced
-sites: below that, one site moves the rate by more than three points, and
-the scoreboard says the sample is too small rather than quoting it as met or
-missed. A case
-whose two specifications are not both known is not judged, and its sites are
-counted apart.
+sites, and the rate over every contract site is published beside it. A rate is
+judged per engine, TypeScript and JavaScript together since the TypeScript
+compiler reads both, and an engine's rate counts toward the line only once it
+has at least 30 forced sites: below that, one site moves the rate by more than
+three points, and the scoreboard says the sample is too small rather than
+quoting it as met or missed. A case whose two specifications are not both
+known is not judged, and its sites are counted apart.
 
 ```console
 node --env-file-if-exists=.env --import tsx proving/replay/run.mts --classify
