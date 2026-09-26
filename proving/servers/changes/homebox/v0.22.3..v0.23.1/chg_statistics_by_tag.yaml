@@ -1,0 +1,16 @@
+# Written by hand, as Homebox's maintainers would: a group's totals by label
+# are its totals by tag, answered the same way.
+irVersion: 1
+id: chg_statistics_by_tag
+summary: A group's totals by label are served from /v1/groups/statistics/tags.
+ops:
+  - op: route
+    from:
+      method: get
+      path: /v1/groups/statistics/labels
+    to:
+      method: get
+      path: /v1/groups/statistics/tags
+assertions:
+  same_concept: true
+  side_effects_unchanged: true

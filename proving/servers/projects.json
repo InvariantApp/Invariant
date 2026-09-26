@@ -4,7 +4,7 @@
     {
       "name": "qdrant",
       "language": "Rust",
-      "notes": "Every consecutive minor release from 1.12, the first whose suite pins its dependencies in a lock file (tests/poetry.lock); 1.10 and 1.11 install theirs unpinned from a shell script. 1.12 -> 1.13, 1.13 -> 1.14 and 1.15 -> 1.16 run on the proposer's drafts, whose decisions are left unanswered: every test those releases break is broken by behavior no op serves (error messages, rescoring with an offset, a lock that answers without a content type, init_from removed, telemetry reporting different keys), so answering them would add arm c's regression check and no served test. Every other pair records its answers under changes/qdrant.",
+      "notes": "Every consecutive minor release from 1.12, the first whose suite pins its dependencies in a lock file (tests/poetry.lock); 1.10 and 1.11 install theirs unpinned from a shell script. 1.12 -> 1.13 and 1.15 -> 1.16 run on the proposer's drafts, whose decisions are left unanswered: 1.12 -> 1.13 breaks no test, and 1.15 -> 1.16 removes two features its suite exercises, init_from and the /locks write lock, which no op can bring back, so answering them would add arm c's regression check and no served test. Every other pair records its answers under changes/qdrant; 1.13 -> 1.14 acknowledges in behavior Changes the I/O totals and the telemetry detail no op can make up, so that arm c runs and every test it breaks is shown to be broken by behavior no document describes.",
       "repo": "qdrant/qdrant",
       "image": "qdrant/qdrant",
       "server": {
@@ -105,6 +105,38 @@
         ["v1.18.0", "v1.19.0"]
       ],
       "behavioral": {
+        "v1.13.0..v1.14.0": [
+          {
+            "test": "openapi.test_query_full::test_random_rescore_with_offset[False]",
+            "says": "assert 0 == 1 + where 0 = len([])",
+            "reason": "1.14 answers a random sample over a prefetch of one point with no points, where 1.13 answered that point. The sample query, the prefetch and the answer are described the same way in both documents."
+          },
+          {
+            "test": "openapi.test_query_full::test_random_rescore_with_offset[True]",
+            "says": "assert 0 == 1 + where 0 = len([])",
+            "reason": "1.14 answers a random sample over a prefetch of one point with no points, where 1.13 answered that point. The sample query, the prefetch and the answer are described the same way in both documents."
+          },
+          {
+            "test": "openapi.test_service::test_telemetry[False]",
+            "says": "KeyError: 'last_responded'",
+            "reason": "1.14 leaves a route's last_responded out of telemetry asked for no detail, where 1.13 sent it. Both documents describe it as an optional property of OperationDurationStatistics."
+          },
+          {
+            "test": "openapi.test_service::test_telemetry[True]",
+            "says": "KeyError: 'last_responded'",
+            "reason": "1.14 leaves a route's last_responded out of telemetry asked for no detail, where 1.13 sent it. Both documents describe it as an optional property of OperationDurationStatistics."
+          },
+          {
+            "test": "openapi.test_strictmode::test_strict_mode_read_rate_limiting",
+            "says": "assert 'Rate limiting exceeded: Read rate limit exceeded, retry later' in 'Rate limiting exceeded: Read rate limit exceeded: Operation requires",
+            "reason": "1.14 says how many tokens the refused read needed and when to retry, where 1.13 said retry later. The refusal is an ErrorResponse whose error is free text in both documents."
+          },
+          {
+            "test": "openapi.test_strictmode::test_strict_mode_write_rate_limiting",
+            "says": "assert 'Rate limiting exceeded: Write rate limit exceeded, retry later' in 'Rate limiting exceeded: Write rate limit exceeded: Operation requires",
+            "reason": "1.14 says how many tokens the refused write needed and when to retry, where 1.13 said retry later. The refusal is an ErrorResponse whose error is free text in both documents."
+          }
+        ],
         "v1.14.0..v1.15.0": [
           {
             "test": "openapi.test_strictmode::test_strict_mode_distance_matrix_limits",
@@ -115,6 +147,85 @@
             "test": "openapi.test_strictmode::test_strict_mode_group_limits",
             "says": "assert 'Forbidden: Limit exceeded 30 > 15 for \"limit\"' in 'Bad request: Limit exceeded 30 > 15 for \"limit\".",
             "reason": "1.15 refuses a limit over strict mode's as a bad request, where 1.14 said forbidden, and adds a hint. Both documents answer these operations with a 4XX ErrorResponse whose error is free text, so neither names the status or the words."
+          }
+        ],
+        "v1.16.0..v1.17.0": [
+          {
+            "test": "openapi.test_service::test_telemetry_detail[False-10]",
+            "says": "+ 'indexed_only_excluded_vectors',",
+            "reason": "1.17 reports a local shard's indexed_only_excluded_vectors in detailed telemetry, where 1.16 left it out. Both documents describe it as the same optional property of LocalShardTelemetry, so neither says when it is sent."
+          },
+          {
+            "test": "openapi.test_service::test_telemetry_detail[True-10]",
+            "says": "+ 'indexed_only_excluded_vectors',",
+            "reason": "1.17 reports a local shard's indexed_only_excluded_vectors in detailed telemetry, where 1.16 left it out. Both documents describe it as the same optional property of LocalShardTelemetry, so neither says when it is sent."
+          }
+        ],
+        "v1.17.0..v1.18.0": [
+          {
+            "test": "openapi.test_service::test_telemetry[False]",
+            "says": "KeyError: 'PUT /collections/{name}/points'",
+            "reason": "1.18 names each route in telemetry's per-route statistics by its path template with the parameter's full name, PUT /collections/{collection_name}/points where 1.17 said PUT /collections/{name}/points. Both documents describe those statistics as a map whose keys are free strings."
+          },
+          {
+            "test": "openapi.test_service::test_telemetry[True]",
+            "says": "KeyError: 'PUT /collections/{name}/points'",
+            "reason": "1.18 names each route in telemetry's per-route statistics by its path template with the parameter's full name, PUT /collections/{collection_name}/points where 1.17 said PUT /collections/{name}/points. Both documents describe those statistics as a map whose keys are free strings."
+          },
+          {
+            "test": "openapi.test_service::test_telemetry_detail[False-0]",
+            "says": "KeyError: 'PUT /collections/{name}/points'",
+            "reason": "1.18 names each route in telemetry's per-route statistics by its path template with the parameter's full name, PUT /collections/{collection_name}/points where 1.17 said PUT /collections/{name}/points. Both documents describe those statistics as a map whose keys are free strings."
+          },
+          {
+            "test": "openapi.test_service::test_telemetry_detail[False-1]",
+            "says": "KeyError: 'PUT /collections/{name}/points'",
+            "reason": "1.18 names each route in telemetry's per-route statistics by its path template with the parameter's full name, PUT /collections/{collection_name}/points where 1.17 said PUT /collections/{name}/points. Both documents describe those statistics as a map whose keys are free strings."
+          },
+          {
+            "test": "openapi.test_service::test_telemetry_detail[False-2]",
+            "says": "KeyError: 'PUT /collections/{name}/points'",
+            "reason": "1.18 names each route in telemetry's per-route statistics by its path template with the parameter's full name, PUT /collections/{collection_name}/points where 1.17 said PUT /collections/{name}/points. Both documents describe those statistics as a map whose keys are free strings."
+          },
+          {
+            "test": "openapi.test_service::test_telemetry_detail[False-3]",
+            "says": "KeyError: 'PUT /collections/{name}/points'",
+            "reason": "1.18 names each route in telemetry's per-route statistics by its path template with the parameter's full name, PUT /collections/{collection_name}/points where 1.17 said PUT /collections/{name}/points. Both documents describe those statistics as a map whose keys are free strings."
+          },
+          {
+            "test": "openapi.test_service::test_telemetry_detail[False-10]",
+            "says": "KeyError: 'PUT /collections/{name}/points'",
+            "reason": "1.18 names each route in telemetry's per-route statistics by its path template with the parameter's full name, PUT /collections/{collection_name}/points where 1.17 said PUT /collections/{name}/points. Both documents describe those statistics as a map whose keys are free strings."
+          },
+          {
+            "test": "openapi.test_service::test_telemetry_detail[True-0]",
+            "says": "KeyError: 'PUT /collections/{name}/points'",
+            "reason": "1.18 names each route in telemetry's per-route statistics by its path template with the parameter's full name, PUT /collections/{collection_name}/points where 1.17 said PUT /collections/{name}/points. Both documents describe those statistics as a map whose keys are free strings."
+          },
+          {
+            "test": "openapi.test_service::test_telemetry_detail[True-1]",
+            "says": "KeyError: 'PUT /collections/{name}/points'",
+            "reason": "1.18 names each route in telemetry's per-route statistics by its path template with the parameter's full name, PUT /collections/{collection_name}/points where 1.17 said PUT /collections/{name}/points. Both documents describe those statistics as a map whose keys are free strings."
+          },
+          {
+            "test": "openapi.test_service::test_telemetry_detail[True-2]",
+            "says": "KeyError: 'PUT /collections/{name}/points'",
+            "reason": "1.18 names each route in telemetry's per-route statistics by its path template with the parameter's full name, PUT /collections/{collection_name}/points where 1.17 said PUT /collections/{name}/points. Both documents describe those statistics as a map whose keys are free strings."
+          },
+          {
+            "test": "openapi.test_service::test_telemetry_detail[True-3]",
+            "says": "KeyError: 'PUT /collections/{name}/points'",
+            "reason": "1.18 names each route in telemetry's per-route statistics by its path template with the parameter's full name, PUT /collections/{collection_name}/points where 1.17 said PUT /collections/{name}/points. Both documents describe those statistics as a map whose keys are free strings."
+          },
+          {
+            "test": "openapi.test_service::test_telemetry_detail[True-10]",
+            "says": "KeyError: 'PUT /collections/{name}/points'",
+            "reason": "1.18 names each route in telemetry's per-route statistics by its path template with the parameter's full name, PUT /collections/{collection_name}/points where 1.17 said PUT /collections/{name}/points. Both documents describe those statistics as a map whose keys are free strings."
+          },
+          {
+            "test": "openapi.test_sparse_vector_persistence::test_sparse_dense_vector_naming_validations",
+            "says": "assert \"Dense and sparse vector names must be unique - duplicate found with ''\" in 'Wrong input: Sparse vector name cannot be empty'",
+            "reason": "Both releases refuse a collection whose sparse vector is named the empty string beside an unnamed dense vector; 1.18 checks the empty name first and says so instead. The refusal is a 4XX ErrorResponse whose error is free text in both documents."
           }
         ],
         "v1.18.0..v1.19.0": [
@@ -452,9 +563,121 @@
         }
       },
       "pairs": [["v1.137.3", "v1.138.0"]]
+    },
+    {
+      "name": "homebox",
+      "language": "Go",
+      "notes": "The suite is the frontend's own API integration tests (frontend/lib/api/__test__), which Homebox's CI runs with vitest against a live server on 127.0.0.1:7745, the address its test config names, so the server answers on that port and the proxy takes it in arm c. They register their own users, so the server needs only registration on, as the release's Taskfile starts it. The document is the release's OpenAPI 3 file beside its Swagger 2 one, which describes the same API. Its lock file is installed with the dependencies' own build scripts left unrun, which the pnpm this rig runs refuses by default and the release's CI, on pnpm 9, ran; the suite needs none of them, as esbuild ships its binary as a package of its own.",
+      "repo": "sysadminsmedia/homebox",
+      "image": "ghcr.io/sysadminsmedia/homebox",
+      "server": {
+        "port": 7745,
+        "suitePort": 7745,
+        "ready": "/api/v1/status",
+        "env": {
+          "HBOX_OPTIONS_ALLOW_REGISTRATION": "true",
+          "UNSAFE_DISABLE_PASSWORD_PROJECTION": "yes_i_am_sure"
+        }
+      },
+      "spec": {
+        "path": "backend/app/api/static/docs/openapi-3.json"
+      },
+      "suite": {
+        "sparse": ["frontend"],
+        "dir": "frontend",
+        "install": [
+          [
+            "pnpm",
+            "install",
+            "--frozen-lockfile",
+            "--ignore-workspace",
+            "--config.strict-dep-builds=false"
+          ]
+        ],
+        "run": [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          "--config",
+          "./test/vitest.config.ts",
+          "--no-file-parallelism",
+          "--reporter=default",
+          "--reporter=junit",
+          "--outputFile.junit={report}"
+        ],
+        "select": ["-t", "{select}"],
+        "env": {}
+      },
+      "releases": {
+        "v0.22.3": {
+          "commit": "473027c1aea3b10de56832188fd4ad583a01f0e3",
+          "digest": "sha256:b6c1362ab0450ca8fc1a347c13614a0b4f5674e1ecfa9a57a8c456612921842b"
+        },
+        "v0.23.1": {
+          "commit": "248862a7785bc9e86797620be334c161317a1d16",
+          "digest": "sha256:facd9b795952602d5c54eacfcd0f3533040e6b556f461e423a2d2445ed8736f9"
+        }
+      },
+      "pairs": [["v0.22.3", "v0.23.1"]]
     }
   ],
   "skipped": [
+    {
+      "name": "airflow",
+      "language": "Python",
+      "reason": "3.1.8 -> 3.2.0 turns a task's retry_exponential_backoff from a flag into a multiplier, 0 for off, and the release's own Python client test fails on it, but the runtime cannot yet read a number as a flag, so a cast from one to the other would be refused. Its only live suite (clients/python/test_python_client.py) is one test, and no other pair's delta reaches it."
+    },
+    {
+      "name": "nautobot",
+      "language": "Python",
+      "reason": "pynautobot's live integration suite never breaks on a documented delta: from 2.0 Nautobot changes its REST API additively between minors, and the two minors that broke existing assertions did it by behavior no document gives (2.3's Prefix display string, 3.2's default interface ordering). 1.x pins the default API version, and 1.x -> 2.0 removes features."
+    },
+    {
+      "name": "influxdb",
+      "language": "Go",
+      "reason": "The OSS document is pinned to the same influxdata/openapi commit from 2.2.0 to 2.9.1, so no later pair has an ERR-level delta, and 2.0 -> 2.2 differ only in documentation. The client suites broke only on behavior: the version header's v prefix, and empty writes accepted."
+    },
+    {
+      "name": "typesense",
+      "language": "C++",
+      "reason": "The only ERR-level deltas are 29 -> 30, which moves synonyms and overrides into sets that must be created and linked first and restructures analytics rules, so the typesense-go integration tests that break cannot be served by any op; the document lives in an untagged repository."
+    },
+    {
+      "name": "weaviate",
+      "language": "Go",
+      "reason": "Its ERR-level deltas are removed features and permissions split one into four (1.28 -> 1.29, 1.37 -> 1.38), and its acceptance suite and clients start their own servers or talk gRPC, so none can be pointed at the proxy unmodified."
+    },
+    {
+      "name": "owncast",
+      "language": "Go",
+      "reason": "0.2.5 -> 0.3.0 moves the favicon upload from a multipart file to a JSON data URL, which its own API tests exercise, but serving it needs a body codec from multipart to JSON that the runtime does not have; every other pair's document has no ERR-level delta or does not load."
+    },
+    {
+      "name": "logto",
+      "language": "TypeScript",
+      "reason": "Management API changes since 1.0 are additive or behavioral, no document is kept per release, and the integration suite needs mock connectors the published images do not ship."
+    },
+    {
+      "name": "supabase-auth",
+      "language": "Go",
+      "reason": "Its hand-kept document's ERR-level deltas are documentation fixes, apart from two wire changes auth-js's tests never call, and the suite needs four differently configured servers."
+    },
+    {
+      "name": "nginx-proxy-manager",
+      "language": "JavaScript",
+      "reason": "Its document's ERR-level deltas are documentation rewrites; the one wire break its Cypress suite hits, certificate meta dropping letsencrypt_agree in 2.13.0, is WARN-level, and the default admin it signs in with was removed by behavior."
+    },
+    {
+      "name": "stirling-pdf",
+      "language": "Java",
+      "reason": "Across 60 releases its behave suite never changed an existing scenario's endpoint, parameter or status because of a documented change; the edits were to error statuses and text no document gives."
+    },
+    {
+      "name": "karakeep",
+      "language": "TypeScript",
+      "reason": "Its ERR-level deltas are enum values added to responses or generator noise, and the e2e suite builds and starts its own server from source, so it cannot be pointed at a released image unmodified."
+    },
     {
       "name": "jellyfin",
       "language": "C#",

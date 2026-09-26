@@ -111,7 +111,8 @@ served by the running server is read from a CI run's dump, which each job
 uploads with the suite's reports, the gate's report and the Changes it
 judged. In CI each release pair is a job of its own, holding no token;
 `gh workflow run proving.yml -f rigs=servers -f servers=netbox` runs rig D
-alone. A pair the release did not break is reported as vacuous; a test that
+alone, for that project, and `-f servers=qdrant-v1.16.0..v1.17.0` runs one
+pair, so a fix is tried on the pair it is for. A pair the release did not break is reported as vacuous; a test that
 passes without the adapter and fails through it fails the run. Projects
 looked at and left out are listed in `projects.json` with the reason.
 

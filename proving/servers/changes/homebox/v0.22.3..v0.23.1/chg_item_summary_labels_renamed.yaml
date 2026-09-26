@@ -1,0 +1,16 @@
+# Written by hand, as Homebox's maintainers would (sysadminsmedia/homebox
+# 0.23.0, labels renamed to tags throughout): `labels` is `tags`, an item's labels,
+# the same values under the new name, which the proposer, run without a
+# judge, could not tell from a field dropped and another added.
+irVersion: 1
+id: chg_item_summary_labels_renamed
+summary: "`labels` is `tags` on repo.ItemSummary."
+scopes:
+  - schema: "#/components/schemas/repo.ItemSummary"
+ops:
+  - op: move
+    from: /labels
+    to: /tags
+assertions:
+  same_concept: true
+  side_effects_unchanged: true

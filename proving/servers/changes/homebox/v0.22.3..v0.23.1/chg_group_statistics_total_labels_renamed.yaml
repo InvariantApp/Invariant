@@ -1,0 +1,16 @@
+# Written by hand, as Homebox's maintainers would (sysadminsmedia/homebox
+# 0.23.0, labels renamed to tags throughout): `totalLabels` is `totalTags`, how many labels a group has,
+# the same values under the new name, which the proposer, run without a
+# judge, could not tell from a field dropped and another added.
+irVersion: 1
+id: chg_group_statistics_total_labels_renamed
+summary: "`totalLabels` is `totalTags` on repo.GroupStatistics."
+scopes:
+  - schema: "#/components/schemas/repo.GroupStatistics"
+ops:
+  - op: move
+    from: /totalLabels
+    to: /totalTags
+assertions:
+  same_concept: true
+  side_effects_unchanged: true
