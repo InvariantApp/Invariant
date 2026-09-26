@@ -1,5 +1,41 @@
 # @invariant-app/migrate-core
 
+## 0.5.0
+
+### Minor Changes
+
+- 44e1f3b: A Python migration now rewrites more of what the Changes determine, where it used to show the site to a person:
+  
+  - An amount now in minor units is converted with the SDK's own exact helpers: a read becomes `acme.from_minor_units(customer.balance)`, a value sent becomes `acme.to_minor_units(credit * 2)`, and a literal is converted on its digits, so `balance=Decimal("12.50")` becomes `balance=1250`. The helpers are named the way the file already names the SDK, through `import acme` or by extending its `from acme import ...`, and only once the checker confirms the SDK exports them. A read from a value that may be None is still shown, since what the absent case becomes is the consumer's choice.
+  - A request field that became required, with the value it always had when left out, is written into each call and dictionary the checker says builds that request.
+  - A request field that moved into a nested object is written as that object, `phone=mobile` becoming `contact={"phone": mobile}`, unless the call already passes it.
+  - The cases of a `match` over a field whose values were renamed are renamed, and so is a class pattern's keyword for a renamed field (`case acme.Address(postcode=zip_code)`), where the checker resolves the pattern's class to the SDK's.
+  - A renamed value is also rewritten where it is compared with the field as text (`str(customer.status) == "active"`), and where it is compared with a parameter the consumer annotated with the SDK's own type for the field's values, as a helper that takes an `acme.CustomerStatus`, when every call to it passes the field the Change covers. A parameter that is also passed something else is shown.
+  - A renamed key of a dictionary built from literals and unpacked into the SDK's call (`create(**params)`) is rewritten, where the checker, reading the unpacking as keywords, says the key is the field, and the dictionary is used for nothing else.
+  - A test's stand-in built with the response's class is shown where the response gained a field it lacks.
+  - A key read from a dictionary the code binds only to literals it writes out, such as its own table of labels, is no longer shown as a possible read of the API's JSON.
+  
+  `@invariant-app/migrate-core` exports `exactMinorUnits`, the exact literal conversion every language pack shares.
+- af96b68: The Python pack reads more of what the type checker cannot see.
+  
+  A value the checker cannot type is followed back through the consumer's own code: an assignment, the argument every call in the project passes to an unannotated parameter, what a function of the consumer's returns, a key read from a value already followed, and `to_dict()`. Where the trail ends at a call into the SDK that says what it returns, a field read from it by name (`sub["cancel_at"]`, `sub.get("cancel_at")`) is certainly that class's: a field renamed in place is rewritten there, and one followed to another class is no longer reported. A field the old release does not declare is still found by name where the value is provably its class; and against an old release that ships no types, where nearly every value is one the checker cannot type, a field is read by name only from such a value.
+  
+  A dictionary of keyword arguments built before the call (`raw_request = {...}`, then `create(**raw_request)`) is checked key by key: the call is checked again with the keys written out as keywords, against both releases, and a key the new release refuses and the old one took is shown where it is written. Where the callee itself no longer type-checks, as `openai.Completion` in openai 1.0, the dictionary is shown whole beside the call. Each use of a name whose import the upgraded SDK no longer satisfies is shown, a call that builds one as the whole call. Across a release that first ships its types, a member one of the SDK's own classes does not declare (`session.stripe_id` in stripe-python 7) now counts as a break; one missing from a string, `None` or a class of the standard library still does not.
+  
+  Requests made with `requests` or `httpx` are read against the same Changes, given the API's operations in the symbol map's new `wire` (servers, and each operation's method, path and response schema): the keys a request sends are that operation's parameters, and the JSON its response parses to is that schema, so a renamed parameter or field is rewritten and a removed one is shown.
+- 415673a: The Python pack finds values a parameter no longer takes, written as literals.
+  
+  An SDK declares a parameter's vocabulary, as openai-python's `model` is `Union[str, ChatModel]`, and a release that drops a value from it means the API retired that value. The checker never says so, since the parameter takes any text too. The pack now reads each parameter's vocabulary from both releases' declarations, the literal aliases it names and the literals written into its annotation, and a string literal the consumer sends as the SDK's own parameter, directly or through a name bound to it, is a site wherever the old release lists it and the new one does not: rewritten where a Change maps the value (`enumMap`), shown otherwise. A function of the consumer's that takes a parameter of the same name is left alone.
+  
+  `buildPlan` gathers these values from every Change into the plan's new `retiredValues`: each old value an `enumMap` renames, with what it is sent as now, and each value a `dropValues` leaves out of a list, whatever the Change is scoped to.
+  
+  A site shown to a person may say where the changed element itself is written, as `at`, where what it shows is wider: the read of a moved field inside the statement around it, the key a plain HTTP request sends, the name of a removed class inside the call that builds one. The Python and Go packs say so.
+
+### Patch Changes
+
+- @invariant-app/decimal@0.5.0
+  - @invariant-app/ir@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

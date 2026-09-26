@@ -1,5 +1,13 @@
 # @invariant-app/flags
 
+## 0.5.0
+
+### Patch Changes
+
+- Updated dependencies [eeeb512]
+  - @invariant-app/runtime@0.5.0
+  - @invariant-app/client@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes
