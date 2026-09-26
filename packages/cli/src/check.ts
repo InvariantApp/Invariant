@@ -336,7 +336,23 @@ export async function check(
     );
   }
 
-  const verified = await verify(config, steps, current.label, current.document, options);
+  // Each step is projected once for every historical contract it lies on the
+  // way from, so the same issue arrives several times.
+  const chained = chainProgram(config.api, current.label, current.digest, steps, {
+    ...(config.identity ? { identity: config.identity } : {}),
+    ...(config.retirement.size > 0 ? { retirement: config.retirement } : {}),
+  });
+  const unservable = [
+    ...new Set(chained.issues.map((issue) => `${issue.changeId}: ${issue.message}`)),
+  ];
+
+  // The program just compiled is the one the full check puts in front of the
+  // current build when the provider runs the proxy, so what is compared is
+  // this release's adapter rather than whichever was compiled last.
+  const verified = await verify(config, steps, current.label, current.document, {
+    ...options,
+    program: chained.program,
+  });
   evidence.push(...verified.evidence);
 
   // A behavior flag deciding who a caller is or what they may do would let a
@@ -367,16 +383,6 @@ export async function check(
       );
     }
   }
-
-  // Each step is projected once for every historical contract it lies on the
-  // way from, so the same issue arrives several times.
-  const chained = chainProgram(config.api, current.label, current.digest, steps, {
-    ...(config.identity ? { identity: config.identity } : {}),
-    ...(config.retirement.size > 0 ? { retirement: config.retirement } : {}),
-  });
-  const unservable = [
-    ...new Set(chained.issues.map((issue) => `${issue.changeId}: ${issue.message}`)),
-  ];
 
   const blocked =
     reports.some(

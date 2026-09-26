@@ -15,7 +15,10 @@ import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { mkdtemp } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
+import type { CompiledProgram } from "@invariant-app/ir";
+import { createRuntime } from "@invariant-app/runtime";
+import { createProxy } from "@invariant-app/sidecar";
 import type { Target } from "@invariant-app/verifier";
 import type { BuildConfig, BuildSource } from "./config.ts";
 
@@ -86,6 +89,11 @@ export interface LaunchOptions {
   cwd: string;
   /** How long to wait for the health path, in milliseconds. */
   timeoutMs?: number;
+  /**
+   * The program this check compiled, which the proxy in front of the current
+   * build runs when `build.head.proxy` asks for one.
+   */
+  program?: CompiledProgram;
 }
 
 /**
@@ -137,8 +145,57 @@ export async function launchBuild(
   label: string,
   options: LaunchOptions,
 ): Promise<Target> {
-  const source = label === "head" ? undefined : options.build.contracts.get(label);
+  if (label === "head" && options.build.proxy && options.program === undefined) {
+    throw new LaunchError(
+      "build.head.proxy asks for the proxy in front of the current build, and this " +
+        "check compiled no program for it to run",
+    );
+  }
+  const target = await launchBare(label, options);
+  if (label !== "head" || !options.build.proxy || options.program === undefined) {
+    return target;
+  }
+  return behindProxy(target, options.program);
+}
+
+/**
+ * The current build as its callers meet it in production: through the proxy,
+ * running the program this check compiled rather than one compiled earlier,
+ * which is what makes the comparison about this release.
+ */
+function behindProxy(
+  target: Target & { base: string },
+  program: CompiledProgram,
+): Target {
+  const proxy = createProxy({
+    runtime: createRuntime({ program }),
+    upstream: target.base,
+  });
+  return { fetch: (request) => proxy(request), close: () => target.close() };
+}
+
+async function launchBare(
+  label: string,
+  options: LaunchOptions,
+): Promise<Target & { base: string }> {
+  const source =
+    label === "head" ? options.build.headSource : options.build.contracts.get(label);
   if (source?.kind === "url") return reach(label, source.url, options);
+  if (source?.kind === "image") await pulled(source.image);
+  if (source?.kind === "compose") {
+    await pulledCompose(source.file, environment(source.env, label, 0));
+  }
+  if (
+    label !== "head" &&
+    source === undefined &&
+    options.build.command === "" &&
+    !options.build.base
+  ) {
+    throw new LaunchError(
+      `${label}: nothing says how to start this contract's build. The current build ` +
+        "is not a command run here, so name its own source under build.contracts.",
+    );
+  }
   // Reserving a port means asking the operating system for a free one and then
   // letting go of it so the child can take it. Between those two moments
   // anything else on the machine may take it instead, and in CI something
@@ -147,15 +204,72 @@ export async function launchBuild(
   let last: unknown;
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
-      return await startOnce(label, options);
+      return await startOnce(label, source, options);
     } catch (error) {
       last = error;
-      if (!(error instanceof LaunchError) || !error.message.includes("EADDRINUSE")) {
+      if (
+        !(error instanceof LaunchError) ||
+        !/EADDRINUSE|address already in use|port is already allocated/.test(error.message)
+      ) {
         throw error;
       }
     }
   }
   throw last;
+}
+
+/**
+ * An image fetched before it is started, once per run.
+ *
+ * Otherwise the first start spends its readiness timeout downloading, and a
+ * large image reports as a build that never became ready.
+ */
+const pulls = new Map<string, Promise<void>>();
+function pulled(image: string): Promise<void> {
+  let pull = pulls.get(image);
+  if (!pull) {
+    pull = (async () => {
+      const present = spawnSync("docker", ["image", "inspect", image], {
+        stdio: "ignore",
+      });
+      if (present.status === 0) return;
+      const fetched = await run(
+        "docker",
+        ["pull", "--quiet", image],
+        process.cwd(),
+        1_800_000,
+      );
+      if (!fetched.ok) {
+        throw new LaunchError(`could not pull ${image}: ${lastLines(fetched.stderr)}`);
+      }
+    })();
+    pulls.set(image, pull);
+  }
+  return pull;
+}
+
+/** Every image a Compose file names, fetched once per run for the same reason. */
+function pulledCompose(file: string, env: Record<string, string>): Promise<void> {
+  const key = `${file}\0${JSON.stringify(env)}`;
+  let pull = pulls.get(key);
+  if (!pull) {
+    pull = (async () => {
+      const fetched = await run(
+        "docker",
+        ["compose", "-f", file, "pull", "--quiet", "--ignore-buildable"],
+        dirname(file),
+        1_800_000,
+        { ...env, PORT: "0" },
+      );
+      if (!fetched.ok) {
+        throw new LaunchError(
+          `could not pull the images ${file} names: ${lastLines(fetched.stderr)}`,
+        );
+      }
+    })();
+    pulls.set(key, pull);
+  }
+  return pull;
 }
 
 /** Fills `${contract}` into each value, beside the port the build is given. */
@@ -188,10 +302,13 @@ async function planFor(
   options: LaunchOptions,
 ): Promise<Plan> {
   const build = options.build;
+  // Named for the contract and the port, which is unique while it runs, so
+  // two builds of the same contract never share a container or a volume.
+  const name =
+    `invariant-${label.replace(/[^a-zA-Z0-9_.-]/g, "-")}-${port}`.toLowerCase();
   if (source?.kind === "image") {
     // Run in the foreground so the process is the container's lifetime, and
     // removed by name afterwards, since killing the client does not stop it.
-    const name = `invariant-${label.replace(/[^a-zA-Z0-9_.-]/g, "-")}-${port}`;
     const env = environment(source.env, label, port);
     delete env["PORT"];
     return {
@@ -210,6 +327,26 @@ async function planFor(
       env: {},
       after: () => {
         spawnSync("docker", ["rm", "-f", name], { stdio: "ignore" });
+      },
+    };
+  }
+  if (source?.kind === "compose") {
+    // Everything the file starts, in the foreground, with state that belongs
+    // to this start alone: its own project, so its own network and volumes,
+    // all thrown away afterwards. The file publishes the API on ${PORT}.
+    const env = environment(source.env, label, port);
+    const project = ["compose", "-p", name, "-f", source.file];
+    return {
+      command: "docker",
+      args: [...project, "up", "--renew-anon-volumes", "--no-color"],
+      cwd: dirname(source.file),
+      env,
+      after: () => {
+        spawnSync(
+          "docker",
+          [...project, "down", "--volumes", "--remove-orphans", "--timeout", "5"],
+          { stdio: "ignore", env: { ...process.env, ...env } },
+        );
       },
     };
   }
@@ -236,9 +373,14 @@ function run(
   args: string[],
   cwd: string,
   timeoutMs: number,
+  env: Record<string, string> = {},
 ): Promise<{ ok: boolean; stderr: string }> {
   return new Promise((resolve) => {
-    const child = spawn(command, args, { cwd, stdio: ["ignore", "ignore", "pipe"] });
+    const child = spawn(command, args, {
+      cwd,
+      env: { ...process.env, ...env },
+      stdio: ["ignore", "ignore", "pipe"],
+    });
     let stderr = "";
     child.stderr.on("data", (chunk: Buffer) => {
       stderr += chunk.toString();
@@ -332,20 +474,19 @@ async function reach(
   label: string,
   url: string,
   options: LaunchOptions,
-): Promise<Target> {
+): Promise<Target & { base: string }> {
   try {
-    await waitForHealth(
-      url,
-      options.build.healthPath,
-      undefined,
-      options.timeoutMs ?? 30_000,
-    );
+    await waitForHealth(url, options.build.healthPath, undefined, timeoutOf(options));
   } catch (error) {
     throw new LaunchError(
       `${label}: ${url} ${error instanceof Error ? error.message : String(error)}`,
     );
   }
-  return { fetch: (request) => forward(url, request), close: async () => {} };
+  return { base: url, fetch: (request) => forward(url, request), close: async () => {} };
+}
+
+function timeoutOf(options: LaunchOptions): number {
+  return options.timeoutMs ?? options.build.readyTimeoutMs ?? 30_000;
 }
 
 async function forward(base: string, request: Request): Promise<Response> {
@@ -357,10 +498,13 @@ async function forward(base: string, request: Request): Promise<Response> {
   } as RequestInit);
 }
 
-async function startOnce(label: string, options: LaunchOptions): Promise<Target> {
+async function startOnce(
+  label: string,
+  source: BuildSource | undefined,
+  options: LaunchOptions,
+): Promise<Target & { base: string }> {
   const port = await freePort();
   const base = `http://127.0.0.1:${port}`;
-  const source = label === "head" ? undefined : options.build.contracts.get(label);
   const plan = await planFor(label, source, port, options);
 
   const child = spawn(plan.command, plan.args, {
@@ -432,12 +576,7 @@ async function startOnce(label: string, options: LaunchOptions): Promise<Target>
   };
 
   try {
-    await waitForHealth(
-      base,
-      options.build.healthPath,
-      child,
-      options.timeoutMs ?? 30_000,
-    );
+    await waitForHealth(base, options.build.healthPath, child, timeoutOf(options));
   } catch (error) {
     await close();
     running.delete(emergencyStop);
@@ -448,5 +587,5 @@ async function startOnce(label: string, options: LaunchOptions): Promise<Target>
     );
   }
 
-  return { fetch: (request) => forward(base, request), close };
+  return { base, fetch: (request) => forward(base, request), close };
 }

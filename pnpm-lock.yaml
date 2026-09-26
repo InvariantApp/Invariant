@@ -390,9 +390,15 @@ importers:
       '@invariant-app/proposer':
         specifier: workspace:*
         version: link:../proposer
+      '@invariant-app/runtime':
+        specifier: workspace:*
+        version: link:../runtime
       '@invariant-app/sandbox':
         specifier: workspace:*
         version: link:../sandbox
+      '@invariant-app/sidecar':
+        specifier: workspace:*
+        version: link:../sidecar
       '@invariant-app/verifier':
         specifier: workspace:*
         version: link:../verifier
@@ -415,9 +421,6 @@ importers:
       '@invariant-app/migrate-ts':
         specifier: workspace:*
         version: link:../migrate-ts
-      '@invariant-app/runtime':
-        specifier: workspace:*
-        version: link:../runtime
 
   packages/client:
     devDependencies:

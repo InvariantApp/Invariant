@@ -123,17 +123,30 @@
       "required": ["head"],
       "properties": {
         "head": {
-          "description": "The current build.",
+          "description": "The current build: a command run in this repository, an image, a Compose file, or an environment already running it. Exactly one of command, image, compose or url.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["command"],
           "properties": {
             "command": {
               "description": "Starts the server.",
               "type": "string",
               "minLength": 1
             },
-            "env": { "$ref": "#/$defs/env" }
+            "image": { "type": "string", "minLength": 1 },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535,
+              "default": 8080
+            },
+            "compose": { "type": "string", "minLength": 1 },
+            "url": { "type": "string", "pattern": "^https?://" },
+            "env": { "$ref": "#/$defs/env" },
+            "proxy": {
+              "description": "Stand Invariant's proxy in front of the current build, running the program the check compiled.",
+              "type": "boolean",
+              "default": false
+            }
           }
         },
         "base": {
@@ -157,8 +170,19 @@
           "type": "string",
           "default": "/__health"
         },
+        "readyTimeout": {
+          "description": "Seconds a build has to answer on healthPath.",
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 30
+        },
+        "startPer": {
+          "description": "scenario starts fresh builds for every scenario; contract starts each build once per run and asks it every scenario of a contract in turn.",
+          "enum": ["scenario", "contract"],
+          "default": "scenario"
+        },
         "contracts": {
-          "description": "A released contract's own build, by label: an environment already running, the image that was released, or the commit it came from.",
+          "description": "A released contract's own build, by label: an environment already running, the image that was released, a Compose file, or the commit it came from.",
           "type": "object",
           "additionalProperties": {
             "oneOf": [
@@ -182,6 +206,15 @@
                     "maximum": 65535,
                     "default": 8080
                   },
+                  "env": { "$ref": "#/$defs/env" }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["compose"],
+                "properties": {
+                  "compose": { "type": "string", "minLength": 1 },
                   "env": { "$ref": "#/$defs/env" }
                 }
               },

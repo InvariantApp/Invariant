@@ -36,10 +36,28 @@ export type GateLevel = "block" | "warn" | "allow";
  * the report says so rather than implying more was proved than was.
  */
 export interface BuildConfig {
+  /**
+   * How the current build is started when it is this repository's own code:
+   * the command, run here. Empty when `head` names an image, a Compose file or
+   * a running environment instead.
+   */
   command: string;
   args: string[];
   /** Environment for the current build. */
   headEnv: Record<string, string>;
+  /**
+   * The current build, when it is not started by a command in this
+   * repository: the image CI just built, a Compose file, or an environment
+   * already running it.
+   */
+  headSource: HeadSource | undefined;
+  /**
+   * Stand Invariant's own proxy in front of the current build, running the
+   * program this check compiled. For a provider who deploys the proxy rather
+   * than an in-process binding, which is every API not written in Node, the
+   * current build alone never serves an old contract: the proxy does.
+   */
+  proxy: boolean;
   /** Environment for a historical build, before `${contract}` is filled in. */
   baseEnv: Record<string, string>;
   /**
@@ -49,6 +67,17 @@ export interface BuildConfig {
   base: { command: string; args: string[] } | undefined;
   /** Path that returns 200 once the server is ready. */
   healthPath: string;
+  /** How long a build has to become ready, in milliseconds. */
+  readyTimeoutMs: number;
+  /**
+   * Whether every scenario gets builds of its own (`scenario`), or each
+   * build is started once per run and asked every scenario of a contract in
+   * turn (`contract`). The second is for builds that take a minute to start:
+   * each of the three runs still begins from fresh state and asks the same
+   * things in the same order, so what differs between the two calibration
+   * runs is still only what the build does not keep stable.
+   */
+  startPer: "scenario" | "contract";
   /**
    * Where a released contract's build comes from, when it is not the current
    * code started with the base environment. Keyed by contract label.
@@ -58,12 +87,14 @@ export interface BuildConfig {
 
 /**
  * One released contract's build, stood up the way the provider can: an
- * environment already running, the image that was released, or the commit it
- * was released from, installed and started beside the repository.
+ * environment already running, the image that was released, a Compose file
+ * that starts it with what it needs, or the commit it was released from,
+ * installed and started beside the repository.
  */
 export type BuildSource =
   | { kind: "url"; url: string }
   | { kind: "image"; image: string; port: number; env: Record<string, string> }
+  | { kind: "compose"; file: string; env: Record<string, string> }
   | {
       kind: "worktree";
       ref: string;
@@ -72,6 +103,9 @@ export type BuildSource =
       args: string[];
       env: Record<string, string>;
     };
+
+/** What the current build can be, when it is not a command run here. */
+export type HeadSource = Exclude<BuildSource, { kind: "worktree" }>;
 
 export interface InvariantConfig {
   /** The configuration file itself, which a release edits. */
@@ -143,19 +177,53 @@ function buildFrom(raw: JsonValue | undefined, path: string): BuildConfig | unde
   if (!isJsonObject(raw)) return undefined;
   const head = raw["head"];
   const base = raw["base"];
-  if (!isJsonObject(head) || typeof head["command"] !== "string") return undefined;
+  if (!isJsonObject(head)) return undefined;
 
-  const { command, args } = words(head["command"]);
+  // The current build is a command run here, as a provider in Node usually
+  // starts it, or any source a released build can be except a commit, since
+  // the current build is the checkout this runs in.
+  let headSource: HeadSource | undefined;
+  let started = { command: "", args: [] as string[] };
+  const named = ["command", "url", "image", "compose"].filter(
+    (kind) => head[kind] !== undefined,
+  );
+  if (named.length !== 1) {
+    throw new ConfigError(
+      `${path}: build.head must name exactly one of command, url, image or compose`,
+    );
+  }
+  if (typeof head["command"] === "string") {
+    started = words(head["command"]);
+  } else {
+    const { proxy: _proxy, ...rest } = head;
+    headSource = sourceFrom(rest, `${path}: build.head`, path, [
+      "url",
+      "image",
+      "compose",
+    ]) as HeadSource;
+  }
+  const timeout = raw["readyTimeout"] ?? 30;
+  if (typeof timeout !== "number" || !(timeout > 0)) {
+    throw new ConfigError(`${path}: build.readyTimeout must be a number of seconds`);
+  }
+  const startPer = raw["startPer"] ?? "scenario";
+  if (startPer !== "scenario" && startPer !== "contract") {
+    throw new ConfigError(`${path}: build.startPer must be scenario or contract`);
+  }
+
   return {
-    command,
-    args,
-    headEnv: env(head["env"]),
+    ...started,
+    headEnv: headSource ? {} : env(head["env"]),
+    headSource,
+    proxy: head["proxy"] === true,
     baseEnv: isJsonObject(base) ? env(base["env"]) : {},
     base:
       isJsonObject(base) && typeof base["command"] === "string"
         ? words(base["command"])
         : undefined,
     healthPath: typeof raw["healthPath"] === "string" ? raw["healthPath"] : "/__health",
+    readyTimeoutMs: timeout * 1000,
+    startPer,
     contracts: sourcesFrom(raw["contracts"], path),
   };
 }
@@ -232,66 +300,81 @@ function sourcesFrom(raw: JsonValue | undefined, path: string): Map<string, Buil
     );
   }
   for (const [label, entry] of Object.entries(raw)) {
-    const where = `${path}: build.contracts.${label}`;
-    if (!isJsonObject(entry)) throw new ConfigError(`${where} must be an object`);
-    const kinds = ["url", "image", "worktree"].filter(
-      (kind) => entry[kind] !== undefined,
+    sources.set(
+      label,
+      sourceFrom(entry, `${path}: build.contracts.${label}`, path, [
+        "url",
+        "image",
+        "compose",
+        "worktree",
+      ]),
     );
-    if (kinds.length !== 1) {
-      throw new ConfigError(`${where} must name exactly one of url, image or worktree`);
-    }
-    const text = (key: string): string => {
-      const value = entry[key];
-      if (typeof value !== "string" || value.trim() === "") {
-        throw new ConfigError(`${where}.${key} must be a non-empty string`);
-      }
-      return value;
-    };
-    const allowed: Record<string, string[]> = {
-      url: ["url"],
-      image: ["image", "port", "env"],
-      worktree: ["worktree", "install", "command", "env"],
-    };
-    const kind = kinds[0] as string;
-    for (const key of Object.keys(entry)) {
-      if (!allowed[kind]?.includes(key)) {
-        throw new ConfigError(
-          `${where}.${key} is not a setting of ${kind === "image" ? "an" : "a"} ${kind} source`,
-        );
-      }
-    }
-    if (kind === "url") {
-      const url = text("url");
-      if (!/^https?:\/\//.test(url))
-        throw new ConfigError(`${where}.url must be http or https`);
-      sources.set(label, { kind: "url", url: url.replace(/\/$/, "") });
-    } else if (kind === "image") {
-      const port = entry["port"] ?? 8080;
-      if (
-        typeof port !== "number" ||
-        !Number.isInteger(port) ||
-        port < 1 ||
-        port > 65535
-      ) {
-        throw new ConfigError(`${where}.port must be the port the image listens on`);
-      }
-      sources.set(label, {
-        kind: "image",
-        image: text("image"),
-        port,
-        env: env(entry["env"]),
-      });
-    } else {
-      sources.set(label, {
-        kind: "worktree",
-        ref: text("worktree"),
-        install: entry["install"] === undefined ? undefined : words(text("install")),
-        ...words(text("command")),
-        env: env(entry["env"]),
-      });
-    }
   }
   return sources;
+}
+
+/** One build's source, of one of the kinds allowed where it is written. */
+function sourceFrom(
+  entry: JsonValue,
+  where: string,
+  path: string,
+  kindsAllowed: readonly string[],
+): BuildSource {
+  if (!isJsonObject(entry)) throw new ConfigError(`${where} must be an object`);
+  const kinds = kindsAllowed.filter((kind) => entry[kind] !== undefined);
+  if (kinds.length !== 1) {
+    throw new ConfigError(
+      `${where} must name exactly one of ${kindsAllowed.slice(0, -1).join(", ")} or ${kindsAllowed.at(-1)}`,
+    );
+  }
+  const text = (key: string): string => {
+    const value = entry[key];
+    if (typeof value !== "string" || value.trim() === "") {
+      throw new ConfigError(`${where}.${key} must be a non-empty string`);
+    }
+    return value;
+  };
+  const allowed: Record<string, string[]> = {
+    url: ["url"],
+    image: ["image", "port", "env"],
+    compose: ["compose", "env"],
+    worktree: ["worktree", "install", "command", "env"],
+  };
+  const kind = kinds[0] as string;
+  for (const key of Object.keys(entry)) {
+    if (!allowed[kind]?.includes(key)) {
+      throw new ConfigError(
+        `${where}.${key} is not a setting of ${kind === "image" ? "an" : "a"} ${kind} source`,
+      );
+    }
+  }
+  if (kind === "url") {
+    const url = text("url");
+    if (!/^https?:\/\//.test(url))
+      throw new ConfigError(`${where}.url must be http or https`);
+    return { kind: "url", url: url.replace(/\/$/, "") };
+  }
+  if (kind === "image") {
+    const port = entry["port"] ?? 8080;
+    if (typeof port !== "number" || !Number.isInteger(port) || port < 1 || port > 65535) {
+      throw new ConfigError(`${where}.port must be the port the image listens on`);
+    }
+    return { kind: "image", image: text("image"), port, env: env(entry["env"]) };
+  }
+  if (kind === "compose") {
+    return {
+      kind: "compose",
+      file: resolve(dirname(resolve(path)), text("compose")),
+      env: env(entry["env"]),
+    };
+  }
+  return {
+    kind: "worktree",
+    ref: text("worktree"),
+    install: entry["install"] === undefined ? undefined : words(text("install")),
+    ...words(text("command")),
+    env: env(entry["env"]),
+  };
 }
 
 /** The first header strategy, which is what the differential check sets. */
