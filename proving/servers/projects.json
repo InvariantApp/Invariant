@@ -4,7 +4,7 @@
     {
       "name": "qdrant",
       "language": "Rust",
-      "notes": "Every consecutive minor release from 1.12, the first whose suite pins its dependencies in a lock file (tests/poetry.lock); 1.10 and 1.11 install theirs unpinned from a shell script. 1.12 -> 1.13, 1.13 -> 1.14 and 1.15 -> 1.16 run on the proposer's drafts, whose decisions are left unanswered: every test those releases break is broken by behavior no op serves (error messages, rescoring with an offset, a lock that answers without a content type, init_from removed, telemetry reporting different keys), so answering them would add arm c's regression check and no served test. Every other pair records its answers under changes/qdrant.",
+      "notes": "Every consecutive minor release from 1.12, the first whose suite pins its dependencies in a lock file (tests/poetry.lock); 1.10 and 1.11 install theirs unpinned from a shell script. 1.12 -> 1.13 and 1.15 -> 1.16 run on the proposer's drafts, whose decisions are left unanswered: 1.12 -> 1.13 breaks no test, and 1.15 -> 1.16 removes two features its suite exercises, init_from and the /locks write lock, which no op can bring back, so answering them would add arm c's regression check and no served test. Every other pair records its answers under changes/qdrant; 1.13 -> 1.14 acknowledges in behavior Changes the I/O totals and the telemetry detail no op can make up, so that arm c runs and every test it breaks is shown to be broken by behavior no document describes.",
       "repo": "qdrant/qdrant",
       "image": "qdrant/qdrant",
       "server": {
@@ -105,6 +105,38 @@
         ["v1.18.0", "v1.19.0"]
       ],
       "behavioral": {
+        "v1.13.0..v1.14.0": [
+          {
+            "test": "openapi.test_query_full::test_random_rescore_with_offset[False]",
+            "says": "assert 0 == 1 + where 0 = len([])",
+            "reason": "1.14 answers a random sample over a prefetch of one point with no points, where 1.13 answered that point. The sample query, the prefetch and the answer are described the same way in both documents."
+          },
+          {
+            "test": "openapi.test_query_full::test_random_rescore_with_offset[True]",
+            "says": "assert 0 == 1 + where 0 = len([])",
+            "reason": "1.14 answers a random sample over a prefetch of one point with no points, where 1.13 answered that point. The sample query, the prefetch and the answer are described the same way in both documents."
+          },
+          {
+            "test": "openapi.test_service::test_telemetry[False]",
+            "says": "KeyError: 'last_responded'",
+            "reason": "1.14 leaves a route's last_responded out of telemetry asked for no detail, where 1.13 sent it. Both documents describe it as an optional property of OperationDurationStatistics."
+          },
+          {
+            "test": "openapi.test_service::test_telemetry[True]",
+            "says": "KeyError: 'last_responded'",
+            "reason": "1.14 leaves a route's last_responded out of telemetry asked for no detail, where 1.13 sent it. Both documents describe it as an optional property of OperationDurationStatistics."
+          },
+          {
+            "test": "openapi.test_strictmode::test_strict_mode_read_rate_limiting",
+            "says": "assert 'Rate limiting exceeded: Read rate limit exceeded, retry later' in 'Rate limiting exceeded: Read rate limit exceeded: Operation requires",
+            "reason": "1.14 says how many tokens the refused read needed and when to retry, where 1.13 said retry later. The refusal is an ErrorResponse whose error is free text in both documents."
+          },
+          {
+            "test": "openapi.test_strictmode::test_strict_mode_write_rate_limiting",
+            "says": "assert 'Rate limiting exceeded: Write rate limit exceeded, retry later' in 'Rate limiting exceeded: Write rate limit exceeded: Operation requires",
+            "reason": "1.14 says how many tokens the refused write needed and when to retry, where 1.13 said retry later. The refusal is an ErrorResponse whose error is free text in both documents."
+          }
+        ],
         "v1.14.0..v1.15.0": [
           {
             "test": "openapi.test_strictmode::test_strict_mode_distance_matrix_limits",
