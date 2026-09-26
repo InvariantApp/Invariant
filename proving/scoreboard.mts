@@ -72,6 +72,19 @@ function read<T>(path: string): T | undefined {
   return existsSync(full) ? (JSON.parse(readFileSync(full, "utf8")) as T) : undefined;
 }
 
+/**
+ * Forced sites a language needs before its L8 rate counts: below it, one site
+ * moves the rate by more than three points, so the rate says little either way.
+ */
+const L8_MIN_FORCED = 30;
+/** The human migrations each language must be replayed on, as L8 states them. */
+const L8_MIN_CASES: Record<string, number> = {
+  typescript: 50,
+  javascript: 25,
+  python: 50,
+  go: 50,
+};
+
 const percent = (part: number, whole: number) =>
   whole === 0 ? "n/a" : `${((part / whole) * 100).toFixed(1)}%`;
 
@@ -292,6 +305,52 @@ export function scoreboard(inputs: {
   const failed = (inputs.replayed ?? []).filter((entry) => entry.error !== undefined);
   const count = (ecosystem: string) =>
     cases.filter((entry) => entry.ecosystem === ecosystem).length;
+  const languages = ["typescript", "javascript", "python", "go"] as const;
+  const l8 = languages.map((language) => {
+    const mine = replayed.filter((entry) => entry.language === language);
+
+    if (mine.length === 0) return { language, text: `${language} none`, meets: false };
+    const sum = (pick: (entry: ReplayResult) => number) =>
+      mine.reduce((total, entry) => total + pick(entry), 0);
+    const sites = sum((entry) => entry.sites);
+    const inScope = sum((entry) => entry.inScope?.sites ?? 0);
+    const identical = sum((entry) => entry.inScope?.identical ?? 0);
+    const flagged = sum((entry) => entry.inScope?.flagged ?? 0);
+    const differs = sum((entry) => entry.inScope?.differs ?? 0);
+    const extraFlags = sum((entry) => entry.extraFlags ?? 0);
+    const unclassified = sum((entry) => entry.inScope?.unclassified ?? entry.sites);
+    // A site the judge could not settle counts as neither, and the
+    // rate is given again as if each were a contract change left
+    // unhandled, so a classifier that grows more unsure cannot make
+    // the headline look better than the worst it could be.
+    const contested = sum((entry) => entry.inScope?.contested ?? 0);
+    // New files and helpers the humans wrote, which are no sites.
+    const newCode = sum((entry) => entry.newCode ?? 0);
+    // Every site, the SDK's own changes included, which L8 does not
+    // count but a person upgrading does.
+    const everywhere = sum((entry) => entry.identical + entry.flagged);
+    // The forced sites, over the cases whose two contracts are known.
+    const judged = sum((entry) => (entry.inScope?.forced ? entry.inScope.sites : 0));
+    const forced = sum((entry) => entry.inScope?.forced?.sites ?? 0);
+    const forcedHandled = sum(
+      (entry) =>
+        (entry.inScope?.forced?.identical ?? 0) + (entry.inScope?.forced?.flagged ?? 0),
+    );
+    const forcedLine = `forced: ${forced} of ${judged} contract sites in judged cases, ${forcedHandled} handled (${percent(forcedHandled, forced)}), ${inScope - judged} in cases not judged; `;
+    const small =
+      forced < L8_MIN_FORCED
+        ? `sample too small: ${forced} of the ${L8_MIN_FORCED} forced sites a rate needs to count; `
+        : "";
+    return {
+      language,
+      text: `${language} ${mine.length} cases: of ${sites - newCode} human sites, ${inScope} follow from a contract change; ${identical + flagged} handled (${percent(identical + flagged, inScope)}: ${identical} identical, ${flagged} flagged for a person${contested > 0 ? `; ${percent(identical + flagged, inScope + contested)} at worst, were every contested site a contract change nothing handled` : ""}), ${differs} to adjudicate; ${forcedLine}${small}${newCode} new code written, counted apart; ${extraFlags} flags where no human changed anything; ${contested} contested and ${unclassified} not yet classed, counted as neither; over every human site, the SDK's own changes included, ${everywhere} handled (${percent(everywhere, sites - newCode)})`,
+      meets:
+        mine.length >= (L8_MIN_CASES[language] ?? 50) &&
+        forced >= L8_MIN_FORCED &&
+        forcedHandled >= forced * 0.9 &&
+        differs === 0,
+    };
+  });
   lines.push({
     id: "L8",
     claim:
@@ -300,53 +359,18 @@ export function scoreboard(inputs: {
       "One they replaced or restructured around a changed contract element counts as handled where the engine flagged a line inside the hunk they changed, pointing at that element. " +
       "Lines they added with nothing before them that they replace, a new file or a new helper, are no site: they are counted apart per language as new code written, never as handled or missed, and the calls to them they wrote into existing code remain sites, scored as any other. " +
       "A contract site is forced where a line the humans removed or wrote names an element the pinned differ reports broken between the two releases' contracts; one that names nothing broken is a choice made while the old code still worked, such as adopting a new tool version, and is no migration. " +
-      "The rate is given over every contract site and over the forced ones; a case whose two contracts are not both known is not judged, and its sites are counted apart.",
-    status: replayed.length === 0 ? "not measured" : "not met",
+      `The rate is given over every contract site and over the forced ones, and a language counts only once it has at least ${L8_MIN_FORCED} forced sites, since below that one site moves its rate by more than three points; a case whose two contracts are not both known is not judged, and its sites are counted apart.`,
+    status:
+      replayed.length === 0
+        ? "not measured"
+        : l8.every((each) => each.meets)
+          ? "met"
+          : "not met",
     value:
       `${cases.length} cases mined (npm ${count("npm")}, pypi ${count("pypi")}, go ${count("go")}). ` +
       (replayed.length === 0
         ? "Not yet replayed."
-        : `Replayed ${replayed.length}: ${(
-            ["typescript", "javascript", "python", "go"] as const
-          )
-            .map((language) => {
-              const mine = replayed.filter((entry) => entry.language === language);
-              if (mine.length === 0) return `${language} none`;
-              const sum = (pick: (entry: ReplayResult) => number) =>
-                mine.reduce((total, entry) => total + pick(entry), 0);
-              const sites = sum((entry) => entry.sites);
-              const inScope = sum((entry) => entry.inScope?.sites ?? 0);
-              const identical = sum((entry) => entry.inScope?.identical ?? 0);
-              const flagged = sum((entry) => entry.inScope?.flagged ?? 0);
-              const differs = sum((entry) => entry.inScope?.differs ?? 0);
-              const extraFlags = sum((entry) => entry.extraFlags ?? 0);
-              const unclassified = sum(
-                (entry) => entry.inScope?.unclassified ?? entry.sites,
-              );
-              // A site the judge could not settle counts as neither, and the
-              // rate is given again as if each were a contract change left
-              // unhandled, so a classifier that grows more unsure cannot make
-              // the headline look better than the worst it could be.
-              const contested = sum((entry) => entry.inScope?.contested ?? 0);
-              // New files and helpers the humans wrote, which are no sites.
-              const newCode = sum((entry) => entry.newCode ?? 0);
-              // Every site, the SDK's own changes included, which L8 does not
-              // count but a person upgrading does.
-              const everywhere = sum((entry) => entry.identical + entry.flagged);
-              // The forced sites, over the cases whose two contracts are known.
-              const judged = sum((entry) =>
-                entry.inScope?.forced ? entry.inScope.sites : 0,
-              );
-              const forced = sum((entry) => entry.inScope?.forced?.sites ?? 0);
-              const forcedHandled = sum(
-                (entry) =>
-                  (entry.inScope?.forced?.identical ?? 0) +
-                  (entry.inScope?.forced?.flagged ?? 0),
-              );
-              const forcedLine = `forced: ${forced} of ${judged} contract sites in judged cases, ${forcedHandled} handled (${percent(forcedHandled, forced)}), ${inScope - judged} in cases not judged; `;
-              return `${language} ${mine.length} cases: of ${sites - newCode} human sites, ${inScope} follow from a contract change; ${identical + flagged} handled (${percent(identical + flagged, inScope)}: ${identical} identical, ${flagged} flagged for a person${contested > 0 ? `; ${percent(identical + flagged, inScope + contested)} at worst, were every contested site a contract change nothing handled` : ""}), ${differs} to adjudicate; ${forcedLine}${newCode} new code written, counted apart; ${extraFlags} flags where no human changed anything; ${contested} contested and ${unclassified} not yet classed, counted as neither; over every human site, the SDK's own changes included, ${everywhere} handled (${percent(everywhere, sites - newCode)})`;
-            })
-            .join("; ")}. ` +
+        : `Replayed ${replayed.length}: ${l8.map((each) => each.text).join("; ")}. ` +
           `${failed.length} could not be replayed. ` +
           auditLine(inputs.audit, inputs.classes)),
     evidence: "proving/replay/results.json (run.mts), index.json",
