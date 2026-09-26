@@ -373,13 +373,7 @@
       "situation": "An amount that is now in minor units is read, and the SDK exports an exact conversion to use.",
       "changes": ["chg_customer_balance"],
       "sdk": "handwritten",
-      "expect": "edit",
-      "gaps": {
-        "go": {
-          "observed": "flag",
-          "reason": "Every re-encoding is shown (`encoded differently now (scale10)`); the SDK's exact conversion is never written in."
-        }
-      }
+      "expect": "edit"
     },
     {
       "id": "read-field-moved-into-object",
@@ -387,13 +381,7 @@
       "situation": "A field that moved into a nested object is read from where it used to be.",
       "changes": ["chg_customer_phone"],
       "sdk": "handwritten",
-      "expect": "edit",
-      "gaps": {
-        "go": {
-          "observed": "flag",
-          "reason": "A rename is claimed only within the struct that held the field, so one that moved into another struct is shown."
-        }
-      }
+      "expect": "edit"
     },
     {
       "id": "read-inherited-field",
@@ -406,10 +394,6 @@
         "typescript": {
           "observed": "none",
           "reason": "A field is looked up among the type's own members, so one it inherits from a base interface is never found."
-        },
-        "go": {
-          "observed": "none",
-          "reason": "A field is looked up among the struct's own fields, so one promoted from an embedded struct is never found."
         }
       }
     },
@@ -436,13 +420,7 @@
       "situation": "A request amount that is now sent in minor units is written as a literal, which converts exactly at migration time.",
       "changes": ["chg_params_balance"],
       "sdk": "handwritten",
-      "expect": "edit",
-      "gaps": {
-        "go": {
-          "observed": "flag",
-          "reason": "Every re-encoding is shown (`encoded differently now (scale10)`); the SDK's exact conversion is never written in."
-        }
-      }
+      "expect": "edit"
     },
     {
       "id": "request-rescaled-amount-expression",
@@ -450,13 +428,7 @@
       "situation": "A request amount that is now sent in minor units is written as a computed value, which the SDK's exact conversion wraps.",
       "changes": ["chg_params_balance"],
       "sdk": "handwritten",
-      "expect": "edit",
-      "gaps": {
-        "go": {
-          "observed": "flag",
-          "reason": "Every re-encoding is shown (`encoded differently now (scale10)`); the SDK's exact conversion is never written in."
-        }
-      }
+      "expect": "edit"
     },
     {
       "id": "request-field-moved-into-object",
@@ -464,13 +436,7 @@
       "situation": "A request field that is now sent inside a nested object is written where it used to be.",
       "changes": ["chg_params_phone"],
       "sdk": "handwritten",
-      "expect": "edit",
-      "gaps": {
-        "go": {
-          "observed": "flag",
-          "reason": "A rename is claimed only within the struct that held the field, so one that moved into another struct is shown."
-        }
-      }
+      "expect": "edit"
     },
     {
       "id": "request-new-required-field",
@@ -478,13 +444,7 @@
       "situation": "A request field that became required, with the value it always had when left out, is missing from a request the consumer builds.",
       "changes": ["chg_params_tax_exempt"],
       "sdk": "handwritten",
-      "expect": "edit",
-      "gaps": {
-        "go": {
-          "observed": "none",
-          "reason": "An `add` is not planned, so a field that became required is not supplied in the composite literals that build a request."
-        }
-      }
+      "expect": "edit"
     },
     {
       "id": "request-built-then-assigned",
@@ -563,13 +523,7 @@
       "changes": ["chg_customer_preferred_locale"],
       "sdk": "handwritten",
       "expect": "flag",
-      "place": "the stand-in that lacks the new field",
-      "gaps": {
-        "go": {
-          "observed": "none",
-          "reason": "An `add` is not planned, so a stand-in that lacks a new response field is not shown."
-        }
-      }
+      "place": "the stand-in that lacks the new field"
     },
     {
       "id": "fake-retyped-field",
@@ -703,10 +657,6 @@
         "typescript": {
           "observed": "edit",
           "reason": "The converted amount is bound under the field's own name, redeclaring the local it was destructured into (`const balance = fromMinorUnits(balance)`)."
-        },
-        "go": {
-          "observed": "flag",
-          "reason": "Every re-encoding is shown (`encoded differently now (scale10)`); the SDK's exact conversion is never written in."
         }
       }
     },
@@ -729,10 +679,6 @@
         "typescript": {
           "observed": "flag",
           "reason": "A string-keyed read of the SDK's object is found through its type but shown (`cannot rewrite a unknown`), not renamed."
-        },
-        "go": {
-          "observed": "none",
-          "reason": "A field named in a string through reflection (`FieldByName`) is no reference the type checker reports."
         }
       }
     },
@@ -743,13 +689,7 @@
       "changes": ["chg_customer_nickname"],
       "sdk": "handwritten",
       "expect": "flag",
-      "place": "the key read of the renamed field",
-      "gaps": {
-        "go": {
-          "observed": "none",
-          "reason": "A key of an untyped `map[string]any` is read only where the literal carries its schema's tag, and this one is decoded at run time."
-        }
-      }
+      "place": "the key read of the renamed field"
     },
     {
       "id": "key-with-fallback-on-untyped-json",
@@ -763,10 +703,6 @@
         "typescript": {
           "observed": "none",
           "reason": "A destructuring binding from `any` is not among the untyped uses read by name, so the key goes unseen."
-        },
-        "go": {
-          "observed": "none",
-          "reason": "A key of an untyped `map[string]any` is read only where the literal carries its schema's tag, and this one is decoded at run time."
         }
       }
     },
@@ -874,13 +810,7 @@
       "situation": "A renamed enum value is compared with the response's field.",
       "changes": ["chg_customer_status"],
       "sdk": "handwritten",
-      "expect": "edit",
-      "gaps": {
-        "go": {
-          "observed": "flag",
-          "reason": "Every reference to a field whose values were renamed is shown (`encoded differently now (enumMap)`); no literal is rewritten."
-        }
-      }
+      "expect": "edit"
     },
     {
       "id": "enum-request-value",
@@ -888,13 +818,7 @@
       "situation": "A renamed enum value is sent in a request.",
       "changes": ["chg_params_status"],
       "sdk": "handwritten",
-      "expect": "edit",
-      "gaps": {
-        "go": {
-          "observed": "flag",
-          "reason": "Every reference to a field whose values were renamed is shown (`encoded differently now (enumMap)`); no literal is rewritten."
-        }
-      }
+      "expect": "edit"
     },
     {
       "id": "enum-switch",
@@ -907,10 +831,6 @@
         "typescript": {
           "observed": "none",
           "reason": "A value is renamed where it is compared with `===` or where its contextual type is exactly the renamed values; a case label's is the whole union, so it is left."
-        },
-        "go": {
-          "observed": "flag",
-          "reason": "Every reference to a field whose values were renamed is shown (`encoded differently now (enumMap)`); no literal is rewritten."
         }
       }
     },
@@ -925,10 +845,6 @@
         "typescript": {
           "observed": "none",
           "reason": "A literal in an array the field is tested against has no contextual type naming the vocabulary, so it is left."
-        },
-        "go": {
-          "observed": "flag",
-          "reason": "Every reference to a field whose values were renamed is shown (`encoded differently now (enumMap)`); no literal is rewritten."
         }
       }
     },
@@ -947,10 +863,6 @@
         "python": {
           "observed": "none",
           "reason": "A comparison with a parameter typed by the SDK's `Literal` alias is not followed into the helper."
-        },
-        "go": {
-          "observed": "flag",
-          "reason": "Every reference to a field whose values were renamed is shown, here where it is passed to the helper; the helper's literal is not rewritten."
         }
       }
     },

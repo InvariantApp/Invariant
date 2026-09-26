@@ -30,6 +30,13 @@ import {
 import { askHelper, type GoOptions, goCommand } from "./helper.ts";
 import type { GoMigrationPlan, GoRole } from "./plan.ts";
 import { type GoSymbol, symbolId } from "./surface.ts";
+import {
+  type GoConstant,
+  type GoKey,
+  type GoLiteral,
+  siteIn,
+  valueEdits,
+} from "./values.ts";
 
 /** One reference to the SDK, as the helper reports it (byte offsets). */
 export interface GoReference extends GoSymbol {
@@ -49,6 +56,12 @@ export interface GoReference extends GoSymbol {
     args: { start: number; end: number; untyped?: string }[];
     typeArgs?: [number, number];
   };
+  /** The value a field is given, in a literal or by a plain assignment. */
+  value?: [number, number];
+  /** A read from a variable the function reading it compares with nil. */
+  nilChecked?: boolean;
+  /** A read whose address is taken. */
+  addressed?: boolean;
 }
 
 export interface GoImport {
@@ -57,6 +70,8 @@ export interface GoImport {
   end: number;
   line: number;
   path: string;
+  /** What the file calls the package; `.` and `_` as written. */
+  name?: string;
 }
 
 export interface GoSpan {
@@ -81,6 +96,9 @@ interface RefsResponse {
   files: string[];
   imports: GoImport[];
   references: GoReference[];
+  constants?: GoConstant[];
+  literals?: GoLiteral[];
+  keys?: GoKey[];
   diagnostics: GoDiagnostic[];
   errors?: string[];
 }
@@ -208,32 +226,25 @@ export async function migrate(options: GoMigrateOptions): Promise<GoMigrationRes
     changeId: string,
     reason: string,
     at?: number,
-  ): ManualSite => {
-    const text = texts.get(file) as string;
-    const before = text.slice(0, start);
-    const line = before.split("\n").length;
-    return {
-      file,
-      line,
-      column: start - before.lastIndexOf("\n"),
-      changeId,
-      reason,
-      snippet: text.slice(start, Math.min(end, start + 120)),
-      offset: start,
-      end,
-      ...(at !== undefined && at !== start ? { at } : {}),
-    };
-  };
+  ): ManualSite =>
+    siteIn(file, texts.get(file) as string, start, end, changeId, reason, at);
   edits.push(...(await inlineCalls(refs.references, plan, textOf, indexOf)));
   for (const reference of refs.references) {
     const rename = renames.get(symbolId(reference));
     if (rename) {
-      await textOf(reference.file);
+      const text = await textOf(reference.file);
+      const start = indexOf(reference.file, reference.start);
       edits.push({
         file: reference.file,
-        start: indexOf(reference.file, reference.start),
+        start,
         end: indexOf(reference.file, reference.end),
-        replacement: rename.to,
+        // A field named in a string is renamed inside the string.
+        replacement:
+          reference.role !== "name"
+            ? rename.to
+            : text[start] === "`"
+              ? `\`${rename.to}\``
+              : JSON.stringify(rename.to),
         changeId: rename.changeId,
         author: "codemod",
         reason: rename.reason,
@@ -254,6 +265,32 @@ export async function migrate(options: GoMigrateOptions): Promise<GoMigrationRes
         ),
       );
     }
+  }
+
+  // What the Changes do to values: renamed values, converted amounts, fields
+  // moved into an object and fields a struct gained.
+  const valued = await valueEdits(refs, plan, textOf, indexOf);
+  edits.push(...valued.edits);
+  manual.push(...valued.manual);
+
+  // Keys of untyped JSON that name a field the Changes touched. Nothing types
+  // them, so nothing says they are the SDK's field: each is shown, never
+  // rewritten, and only in a file that uses the SDK.
+  const byKey = new Map((plan.untyped ?? []).map((each) => [each.json, each]));
+  for (const key of refs.keys ?? []) {
+    const field = byKey.get(key.key);
+    if (!field) continue;
+    await textOf(key.file);
+    manual.push(
+      site(
+        key.file,
+        indexOf(key.file, key.spanStart),
+        indexOf(key.file, key.spanEnd),
+        field.changeId,
+        `nothing types this "${key.key}", so it is shown rather than rewritten; if it is the contract's field, ${field.reason}`,
+        indexOf(key.file, key.start),
+      ),
+    );
   }
 
   // Fixtures nothing types, found by the tag each of the API's objects carries.

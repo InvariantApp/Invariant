@@ -34,6 +34,14 @@ type Reference struct {
 	JSON string `json:"json,omitempty"`
 	// Call is what a call passes, where the role is `call`.
 	Call *CallShape `json:"call,omitempty"`
+	// Value spans the value a field is given, where the role is
+	// `literal-key`, or `write` by a plain assignment.
+	Value *[2]int `json:"value,omitempty"`
+	// NilChecked marks a read from a variable the function reading it
+	// compares with nil.
+	NilChecked bool `json:"nilChecked,omitempty"`
+	// Addressed marks a read whose address is taken, `&customer.Balance`.
+	Addressed bool `json:"addressed,omitempty"`
 }
 
 // CallShape is where a call's parts are, for rewriting one call into another.
@@ -159,6 +167,9 @@ type Import struct {
 	End   int    `json:"end"`
 	Line  int    `json:"line"`
 	Path  string `json:"path"`
+	// Name is what the file calls the package: the name it is imported as,
+	// or the package's own; `.` and `_` as written.
+	Name string `json:"name"`
 }
 
 // RefsResponse is every reference to the targets in the files loaded.
@@ -166,6 +177,11 @@ type RefsResponse struct {
 	Files      []string    `json:"files"`
 	Imports    []Import    `json:"imports"`
 	References []Reference `json:"references"`
+	Constants  []Constant  `json:"constants"`
+	Literals   []Literal   `json:"literals"`
+	// Keys are the string keys read from untyped JSON maps in files that
+	// import the SDK.
+	Keys []Key `json:"keys"`
 	// Diagnostics are what did not compile as the code stands, so a later
 	// check can tell what the migration broke from what was already broken.
 	Diagnostics []Diagnostic `json:"diagnostics"`
@@ -273,6 +289,9 @@ func references(request Request) (RefsResponse, error) {
 		Files:       []string{},
 		Imports:     []Import{},
 		References:  []Reference{},
+		Constants:   []Constant{},
+		Literals:    []Literal{},
+		Keys:        []Key{},
 		Diagnostics: diagnosticsOf(fset, loaded, request.Within),
 	}
 	response.Errors = loadErrors(loaded)
@@ -283,10 +302,18 @@ func references(request Request) (RefsResponse, error) {
 		offset := func(pos token.Pos) int { return fset.Position(pos).Offset }
 		line := func(pos token.Pos) int { return fset.Position(pos).Line }
 
+		importsTarget := false
 		for _, spec := range file.Imports {
 			path, err := strconv.Unquote(spec.Path.Value)
 			if err != nil || !isTarget(path, request.Targets) {
 				continue
+			}
+			importsTarget = true
+			name := ""
+			if spec.Name != nil {
+				name = spec.Name.Name
+			} else if imported, ok := entry.pkg.TypesInfo.Implicits[spec].(*types.PkgName); ok {
+				name = imported.Name()
 			}
 			response.Imports = append(response.Imports, Import{
 				File:  entry.path,
@@ -294,10 +321,19 @@ func references(request Request) (RefsResponse, error) {
 				End:   offset(spec.Path.End()),
 				Line:  line(spec.Path.Pos()),
 				Path:  path,
+				Name:  name,
 			})
 		}
 
 		info := entry.pkg.TypesInfo
+		constants, literals := valuesIn(file, info, entry.path, request.Targets, names, offset, line)
+		response.Constants = append(response.Constants, constants...)
+		response.Literals = append(response.Literals, literals...)
+		reflected, keys := namedIn(file, info, entry.path, request.Targets, names, offset, line)
+		response.References = append(response.References, reflected...)
+		if importsTarget {
+			response.Keys = append(response.Keys, keys...)
+		}
 		inspect := inspector.New([]*ast.File{file})
 		inspect.WithStack([]ast.Node{(*ast.Ident)(nil)}, func(node ast.Node, push bool, stack []ast.Node) bool {
 			if !push {
@@ -329,6 +365,16 @@ func references(request Request) (RefsResponse, error) {
 			}
 			if call, ok := span.(*ast.CallExpr); ok && role == "call" {
 				reference.Call = shapeOf(info, call, offset)
+			}
+			if value := valueOf(span, stack); value != nil {
+				reference.Value = &[2]int{offset(value.Pos()), offset(value.End())}
+			}
+			if selector, ok := span.(*ast.SelectorExpr); ok && role == "read" {
+				reference.NilChecked = nilChecked(info, selector, stack)
+				if len(stack) > 2 {
+					unary, isUnary := stack[len(stack)-3].(*ast.UnaryExpr)
+					reference.Addressed = isUnary && unary.Op == token.AND && unary.X == selector
+				}
 			}
 			response.References = append(response.References, reference)
 			return true
@@ -454,6 +500,27 @@ func roleOf(ident *ast.Ident, object types.Object, stack []ast.Node) (string, as
 		return "read", node
 	}
 	return "value", node
+}
+
+// valueOf is the value a field is given at a reference's span: a literal's
+// value beside its key, or what a plain assignment writes to it.
+func valueOf(span ast.Node, stack []ast.Node) ast.Expr {
+	switch span := span.(type) {
+	case *ast.KeyValueExpr:
+		return span.Value
+	case *ast.AssignStmt:
+		if span.Tok != token.ASSIGN || len(span.Lhs) != len(span.Rhs) {
+			return nil
+		}
+		for index, target := range span.Lhs {
+			for _, node := range stack {
+				if node == target {
+					return span.Rhs[index]
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func isOneOf(node ast.Node, list []ast.Expr) bool {
