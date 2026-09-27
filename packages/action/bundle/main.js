@@ -41395,6 +41395,20 @@ var Deferred = class extends fast_check_default.Arbitrary {
 		return this.#arbitrary.shrink(value, context);
 	}
 };
+/** Whether a branch holds a single value: text, a number or a flag, not an object or a list. */
+function holdsOneValue(document, branch) {
+	const resolved = deref(document, branch);
+	if (!isJsonObject(resolved)) return false;
+	if ([
+		"oneOf",
+		"anyOf",
+		"allOf",
+		"properties",
+		"items"
+	].some((key) => key in resolved)) return false;
+	const primary = typesOf(resolved).find((type) => type !== "null");
+	return primary === "string" || primary === "integer" || primary === "number" || primary === "boolean";
+}
 function freshMade() {
 	return {
 		byDepth: /* @__PURE__ */ new WeakMap(),
@@ -41442,7 +41456,22 @@ function buildFor(document, schema, depth, made) {
 			const { [key]: _, nullable: __, ...parent } = schema;
 			const shared = Object.keys(parent).some((name) => name !== "description");
 			const alternatives = branches.map((branch) => shared ? { allOf: [parent, branch] } : branch);
-			const chosen = fast_check_default.oneof(...alternatives.map((branch, index) => {
+			const shapes = [
+				"type",
+				"properties",
+				"required",
+				"items",
+				"allOf"
+			].some((name) => name in parent);
+			const scalar = depth >= MAX_DEPTH$1 && !shapes ? alternatives.map((branch, index) => ({
+				branch,
+				index
+			})).filter(({ index }) => holdsOneValue(document, branches[index])) : [];
+			const drawn = scalar.length > 0 ? scalar : alternatives.map((branch, index) => ({
+				branch,
+				index
+			}));
+			const chosen = fast_check_default.oneof(...drawn.map(({ branch, index }) => {
 				const value = arbitraryFor(document, branch, depth, made);
 				if (key === "anyOf") return value;
 				const alone = (candidate) => alternatives.every((other, at) => at === index || validateSchema(document, other, candidate).length > 0);
