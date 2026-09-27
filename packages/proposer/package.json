@@ -1,6 +1,6 @@
 {
   "name": "@invariant-app/proposer",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Drafts candidate Changes from a structural diff. Proposals only: nothing here can ship.",
   "license": "Apache-2.0",
   "type": "module",

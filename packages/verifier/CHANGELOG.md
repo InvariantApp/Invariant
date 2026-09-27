@@ -1,5 +1,45 @@
 # @invariant-app/verifier
 
+## 0.5.0
+
+### Minor Changes
+
+- 7a09342: `check --full` stands up builds the way a provider who is not written in Node has them. `build.head` can be an image, a Compose file or a running environment as well as a command, and `build.head.proxy: true` puts Invariant's proxy in front of it, running the program this check just compiled, so the comparison is of this release's adapter rather than whichever was compiled last. A released contract's build can be a Compose file (`build.contracts.<label>.compose`), started as its own project on `${PORT}` and taken down with its volumes after each start. Images are pulled before the readiness clock starts, `build.readyTimeout` gives a slow service minutes rather than 30 seconds, and `build.startPer: contract` starts each build once per run and asks it every scenario of a contract in turn, three starts in all instead of three per scenario. The differential evidence says where the current build came from too.
+  
+  The calibration now finds values the old build read from the clock at a coarser grain than the second its two runs straddle: a minute, a day, a time with no zone. Both runs answering with a time inside their own window marks the path volatile, found rather than listed, and the evidence counts them. The verifier exports `clockPaths`.
+- e50b5cf: Scenarios from traffic a provider already recorded. `invariant scenarios import <file> --label <c>` reads a HAR file or a Postman collection into `invariant/scenarios`: one scenario per HAR page or top-level Postman folder, in the order the requests were sent, with each value an earlier answer minted captured and referred to where a later request sends it again, so a fresh build is sent its own ids. A Postman test script that sets a variable from the response becomes the same capture. Recorded credentials and headers that describe the recording are dropped, `--base` keeps only the API's requests, and a request that cannot be replayed faithfully, a body that is not JSON or a variable only a script could have set, is left out and named. A file already in `invariant/scenarios` is never overwritten. The verifier exports `scenariosFromHar` and `scenariosFromPostman`.
+
+### Patch Changes
+
+- 353f443: `invariant check` fits in memory on Stripe-sized specifications. The lens laws built the generator for a schema in full before drawing a value, one generator for every path through the schemas it reaches, and where nearly every object reaches nearly every other, as Stripe's do through expandable fields, that ran out of a 12 GB heap. A schema's generator is now built the first time a value is drawn from it, and one schema reached along many paths shares one generator per depth. The values drawn, and their shrinks, are the same as before.
+  
+  The lens laws also finish in reasonable time there. Declared losses are parsed once per schema and removed in one walk, the release's shared blocks are compiled once rather than for every schema, and a law that fails tries at most a thousand smaller values before reporting the smallest it found, saying so when a smaller one may exist. A law on one Stripe object had been shrinking a 1.6 MB value for an hour and a half.
+  
+  `schemaLenses` returns the lens of any schema of one release, compiling the release's shared blocks once; `schemaLens` is the same for one schema.
+- 57f9a09: Found by running `check --full` on real servers. Scenarios made from a document are asked under the path its servers declare (Immich serves `/albums` at `/api/albums`, and answers anything else with its web app). The differential reads a media type as one: `text/plain;charset=utf-8` and `text/plain; charset=utf-8` no longer count as a difference. The telemetry package no longer depends on the CLI for a test, which made a build cycle once the CLI runs the proxy.
+- 5621329: Six changes between two Stripe releases that the gate drafted wrongly, could not draft, or refused although they were served.
+  
+  - A response that was a choice between schemas and now gives only kinds it could already give is no change. Stripe's terminal reader `cancel_action` went from a reader or a deleted reader to a reader, and every field of the reader was drafted as new and taken out of old callers' answers; the differ, reading the choice as an object with no fields, reported each as a required property added.
+  - An id that became expandable, as Stripe made the `mandate` of a card payment an id or the mandate, is drafted as a `widen` showing old callers the id, and `widen` now writes a field that was plain text as the union, the id's bounds on its text branch.
+  - A value that became an object holding it under its one required field, as `billing_cycle_anchor` on resuming a subscription became `{ type }`, is drafted as a `move` beneath its own place, and the prediction keeps the value required inside the object built from it.
+  - A request field whose new list of values the specification marks `x-stripeBypassValidation`, or an open `x-stripeEnum`, is not reported as refusing old callers' values, since the server does not hold callers to the list.
+  - The lens laws excuse a declared loss wherever the value holds the schema that declared it, found by walking the value, rather than only at the places the compiler lists, which stop where a recursive schema would enter itself. A loss ending at a list's items covers the list, so a fold on the values of a list holds. Folds on Stripe's `payment_method_types` and on a payment method's `type` reached through a setup attempt were refused for the loss they declared.
+  - A generated value the runtime refuses whole, past its body size or time limit, is left out of the laws, since no caller is ever answered with a wrong value for it. Stripe objects near the megabyte were reported as Changes that could not be undone, those past the time limit only on a busy runner, so the same value then held when tried again.
+  - Past the depth where only what a schema requires is generated, a union that can be a single value is generated as one. Stripe's required expandable fields took the object at every depth, down to the hard limit, which made values of a megabyte and ran the gate out of a 4 GB heap once the laws on them held.
+- Updated dependencies [0672745]
+- Updated dependencies [353f443]
+- Updated dependencies [d8f2413]
+- Updated dependencies [eeeb512]
+- Updated dependencies [2ab33a0]
+- Updated dependencies [5621329]
+- Updated dependencies [268385d]
+  - @invariant-app/diff@0.5.0
+  - @invariant-app/compiler@0.5.0
+  - @invariant-app/runtime@0.5.0
+  - @invariant-app/contract@0.5.0
+  - @invariant-app/decimal@0.5.0
+  - @invariant-app/ir@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes
