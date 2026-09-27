@@ -32,14 +32,20 @@
  * so rather than implying otherwise.
  */
 import { derive, type SchemaLens, schemaLenses } from "@invariant-app/compiler";
-import { type OpenApiDocument, schemaDirections } from "@invariant-app/contract";
+import {
+  type OpenApiDocument,
+  resolveRef,
+  schemaDirections,
+} from "@invariant-app/contract";
 import {
   type Change,
   type Instr,
+  isJsonObject,
   isSchemaScope,
   type JsonValue,
   parsePointer,
 } from "@invariant-app/ir";
+import { BodyTooLargeError, TimeBudgetError } from "@invariant-app/runtime";
 import fc from "fast-check";
 import { schemaArbitrary } from "./arbitrary.ts";
 import { type Evidence, inputsDigest } from "./evidence.ts";
@@ -91,7 +97,13 @@ interface Lossy {
 type LossTree = Map<string, { ends: boolean; beneath: LossTree }>;
 
 function lossyAt(pointers: readonly string[]): Lossy {
-  const distinct = [...new Set(pointers)];
+  // A loss that ends at a list's items is a loss of the list: a fold on the
+  // values in Stripe's `payment_method_types` gives old callers another value
+  // in an item's place, or leaves the item out, and there is no item to take
+  // away and compare the rest without.
+  const distinct = [
+    ...new Set(pointers.map((pointer) => pointer.replace(/(\/\*)+$/, ""))),
+  ];
   return { pointers: distinct, whole: distinct.includes("") };
 }
 
@@ -139,6 +151,90 @@ function withoutLossy(value: unknown, lossy: Lossy): unknown {
   lossy.tree ??= lossTree(lossy.pointers);
   remove(copy, lossy.tree);
   return copy;
+}
+
+type Direction = "forward" | "backward";
+
+/** Each schema's declared loss, as the Changes to it declare it. */
+function lossBySchema(
+  changes: readonly Change[],
+): Map<string, Record<Direction, string[]>> {
+  const losses = new Map<string, Record<Direction, string[]>>();
+  for (const change of changes) {
+    const declared = derive(change).lossy;
+    if (declared.forward.length === 0 && declared.backward.length === 0) continue;
+    for (const scope of change.scopes ?? []) {
+      if (!isSchemaScope(scope)) continue;
+      const loss = losses.get(scope.schema) ?? { forward: [], backward: [] };
+      loss.forward.push(...declared.forward);
+      loss.backward.push(...declared.backward);
+      losses.set(scope.schema, loss);
+    }
+  }
+  return losses;
+}
+
+const escapeSegment = (key: string) => key.replaceAll("~", "~0").replaceAll("/", "~1");
+
+/**
+ * Where each schema with a declared loss sits inside one value of `root`,
+ * found by walking the value beside its schema, and the loss at each place.
+ *
+ * The places the compiler lists stop where a schema would enter itself, as
+ * they must for a recursive schema to have a finite list. A generated value
+ * goes on past them: in Stripe's documents a payment method holds a setup
+ * attempt, which holds a setup intent, which holds its latest attempt and
+ * that attempt's payment method, whose `type` a fold gave old callers in
+ * another value. The loss was declared, and the value is finite, so walking
+ * it finds every place. Every branch of a union whose value could be of it
+ * is followed, which can excuse a loss where the value is in fact of another
+ * branch, never one no Change declared.
+ */
+function placedLoss(
+  document: OpenApiDocument,
+  root: string,
+  value: unknown,
+  losses: ReadonlyMap<string, Record<Direction, string[]>>,
+  direction: Direction,
+): string[] {
+  const found: string[] = [];
+  const seen = new Set<string>();
+  const visit = (schema: JsonValue | undefined, at: unknown, pointer: string): void => {
+    if (!isJsonObject(schema)) return;
+    const ref = schema["$ref"];
+    if (typeof ref === "string") {
+      const key = `${ref} ${pointer}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      for (const path of losses.get(ref)?.[direction] ?? []) {
+        found.push(`${pointer}${path}`);
+      }
+      visit(resolveRef(document, ref), at, pointer);
+      return;
+    }
+    for (const keyword of ["allOf", "anyOf", "oneOf"]) {
+      const branches = schema[keyword];
+      if (!Array.isArray(branches)) continue;
+      for (const branch of branches) visit(branch, at, pointer);
+    }
+    if (Array.isArray(at)) {
+      for (const [index, item] of at.entries()) {
+        visit(schema["items"], item, `${pointer}/${index}`);
+      }
+      return;
+    }
+    if (at === null || typeof at !== "object") return;
+    const properties = isJsonObject(schema["properties"]) ? schema["properties"] : {};
+    for (const [key, child] of Object.entries(at)) {
+      visit(
+        properties[key] ?? schema["additionalProperties"],
+        child,
+        `${pointer}/${escapeSegment(key)}`,
+      );
+    }
+  };
+  visit({ $ref: root }, value, "");
+  return found;
 }
 
 /**
@@ -284,6 +380,7 @@ export function checkLaws(
   const failures: LawFailure[] = [];
   const evidence: Evidence[] = [];
 
+  let losses: Map<string, Record<Direction, string[]>> | undefined;
   for (const entry of casesFor(oldContract, predicted, changes)) {
     const ids = entry.changes.map((change) => change.id);
     const digest = inputsDigest(entry.changes, entry.scope, runs);
@@ -302,6 +399,29 @@ export function checkLaws(
         forward: lossyAt(entry.lossy.forward),
         backward: lossyAt(entry.lossy.backward),
       };
+      // Whether two values differ only where a declared loss sits in them, at
+      // the places listed and at every place the value itself holds the
+      // schema that declared it. Walking the value is only worth it once the
+      // listed places have not been enough.
+      const sameApartFromLoss = (
+        document: OpenApiDocument,
+        direction: Direction,
+        value: unknown,
+        returned: unknown,
+      ): boolean => {
+        const listed = lossy[direction];
+        if (sameJson(withoutLossy(returned, listed), withoutLossy(value, listed))) {
+          return true;
+        }
+        // Every Change's, not only the case's: a Change reached through the
+        // blocks a recursive schema shares runs inside this value too, and is
+        // not always among the places listed for it.
+        losses ??= lossBySchema(changes);
+        const placed = placedLoss(document, entry.scope, value, losses, direction);
+        if (placed.length === 0) return false;
+        const all = lossyAt([...listed.pointers, ...placed]);
+        return sameJson(withoutLossy(returned, all), withoutLossy(value, all));
+      };
 
       // Old shape to canonical and back. The values come from the contract the
       // caller was written against, which is exactly the traffic the adapter
@@ -319,12 +439,7 @@ export function checkLaws(
             }
 
             const returned = lens.backward(canonical);
-            if (
-              !sameJson(
-                withoutLossy(returned, lossy.forward),
-                withoutLossy(value, lossy.forward),
-              )
-            ) {
+            if (!sameApartFromLoss(oldContract, "forward", value, returned)) {
               return `undoing it did not return the original: ${JSON.stringify(returned)}`;
             }
             return undefined;
@@ -354,12 +469,7 @@ export function checkLaws(
             }
 
             const returned = lens.forward(old);
-            if (
-              !sameJson(
-                withoutLossy(returned, lossy.backward),
-                withoutLossy(value, lossy.backward),
-              )
-            ) {
+            if (!sameApartFromLoss(predicted, "backward", value, returned)) {
               return `re-applying it did not return the original: ${JSON.stringify(returned)}`;
             }
             return undefined;
@@ -458,6 +568,15 @@ function run(
     try {
       return property(value);
     } catch (error) {
+      // A body past the runtime's size or time limit is refused whole, for
+      // old callers and new alike, and never answered with a wrong value, so
+      // there is no law to hold on it. Generated Stripe objects, expandable
+      // fields expanded to the depth limit, run past both, and were reported
+      // as Changes that could not be undone; the time limit only on a busy
+      // runner, so the same value then held when it was tried again.
+      if (error instanceof BodyTooLargeError || error instanceof TimeBudgetError) {
+        return undefined;
+      }
       return `the transform refused a value the contract allows: ${
         error instanceof Error ? error.message : String(error)
       }`;

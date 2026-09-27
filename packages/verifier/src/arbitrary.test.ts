@@ -50,6 +50,40 @@ describe("strings with a pattern", () => {
   });
 });
 
+describe("expandable fields past the depth limit", () => {
+  // Stripe's expandable fields are an id or the object, and required. Taking
+  // the object at every depth drew required fields down to the hard limit,
+  // values of a megabyte that filled the gate's heap.
+  it("are ids there, and objects above it", () => {
+    let schema: object = { type: "string" };
+    for (let level = 0; level < 12; level += 1) {
+      schema = {
+        type: "object",
+        required: ["parent"],
+        properties: {
+          parent: {
+            anyOf: [schema, { type: "string", maxLength: 5000 }],
+            "x-expansionResources": { oneOf: [] },
+          },
+        },
+      };
+    }
+    let deepest = 0;
+    for (const value of sample(schema, 50)) {
+      let node: unknown = value;
+      let level = 0;
+      while (typeof node === "object" && node !== null) {
+        node = (node as Record<string, unknown>)["parent"];
+        level += 1;
+      }
+      expect(typeof node).toBe("string");
+      deepest = Math.max(deepest, level);
+    }
+    expect(deepest).toBeGreaterThan(1);
+    expect(deepest).toBeLessThanOrEqual(7);
+  });
+});
+
 describe("deeply nested objects", () => {
   // Adyen's terminal API nests required fields well past the generator's
   // depth limit. Cutting an object to `{}` there dropped them, and the value

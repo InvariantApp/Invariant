@@ -22,15 +22,35 @@
  * no values at all. On a response the same change is real, old callers may
  * be sent names they never heard of, and it is left for a Change to declare.
  *
+ * A response that was a choice between schemas and now gives only kinds it
+ * could already give is the same. Stripe's terminal reader `cancel_action`
+ * answered with a reader or a deleted reader, and then with a reader only:
+ * every answer is one old callers were promised, yet the differ reads the
+ * choice as an object with no fields, and reports each of the reader's as a
+ * required property added to the response. Such an entry is dropped where the
+ * object holding the property was, in the old document, a union with a branch
+ * equal to each kind the new document gives there.
+ *
+ * A request field whose values the new document lists, and says in the same
+ * place that it does not hold callers to, is the same again. Stripe's reason
+ * for rejecting an account was any text and became seven names, marked
+ * `x-stripeBypassValidation` and, in `x-stripeEnum`, `open`: the server still
+ * takes the `fraud` an old caller sends. Such an entry is dropped where the
+ * request field, found in the new document, carries either mark.
+ *
  * Wherever the field cannot be found with certainty, the entry is kept: this
  * only removes what it can show is not breaking.
  */
+import { isDeepStrictEqual } from "node:util";
 import { type OpenApiDocument, resolveSchema } from "@invariant-app/contract";
 import { isJsonObject, type JsonObject, type JsonValue } from "@invariant-app/ir";
 import type { DiffEntry } from "./oasdiff.ts";
 
 const ADDED =
   /^added the new `.*` enum value to the `(.+)` response property for the response status `(.+)`$/;
+const REQUIRED_ADDED =
+  /^added the required property `(.+)` to the response with the `(.+)` status$/;
+const BECAME_ENUM = /^request property `(.+)` was restricted to a list of enum values$/;
 const REMOVED_PROPERTY = /^removed the enum value `.*` of the request property `(.+)`$/;
 const REMOVED_REQUEST_PROPERTY = /^removed the request property `(.+)`$/;
 const REMOVED_PARAMETER =
@@ -60,12 +80,36 @@ export function withoutNarrowing(
         listsNoValues(base, responseSchemas(base, entry, status), pointer),
       );
     }
+    if (entry.id === "response-required-property-added") {
+      const match = REQUIRED_ADDED.exec(entry.text);
+      if (!match) return true;
+      const [, pointer = "", status = ""] = match;
+      const holder = segmentsOf(pointer).slice(0, -1).join("/");
+      return !once(`required ${at} ${status} ${holder}`, () =>
+        narrowedChoice(
+          { document: base, schemas: responseSchemas(base, entry, status) },
+          { document: revision, schemas: responseSchemas(revision, entry, status) },
+          holder,
+        ),
+      );
+    }
     if (entry.id === "request-property-enum-value-removed") {
       const match = REMOVED_PROPERTY.exec(entry.text);
       if (!match) return true;
       const [, pointer = ""] = match;
-      return !once(`removed ${at} body ${pointer}`, () =>
-        listsNoValues(revision, requestSchemas(revision, entry), pointer),
+      return !once(
+        `removed ${at} body ${pointer}`,
+        () =>
+          listsNoValues(revision, requestSchemas(revision, entry), pointer) ||
+          heldToNoValues(revision, requestSchemas(revision, entry), pointer),
+      );
+    }
+    if (entry.id === "request-property-became-enum") {
+      const match = BECAME_ENUM.exec(entry.text);
+      if (!match) return true;
+      const [, pointer = ""] = match;
+      return !once(`open ${at} body ${pointer}`, () =>
+        heldToNoValues(revision, requestSchemas(revision, entry), pointer),
       );
     }
     if (entry.id === "request-property-removed") {
@@ -184,6 +228,69 @@ function inEveryVariant(
           const properties = isJsonObject(resolved) ? resolved["properties"] : undefined;
           return isJsonObject(properties) && properties[name] !== undefined;
         })
+      );
+    });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether the object at the pointer was a union in every old schema, and in
+ * every new one gives only kinds, resolved, equal to one of its branches.
+ */
+function narrowedChoice(
+  before: { document: OpenApiDocument; schemas: JsonValue[] | undefined },
+  after: { document: OpenApiDocument; schemas: JsonValue[] | undefined },
+  pointer: string,
+): boolean {
+  try {
+    if (!before.schemas?.length || !after.schemas?.length) return false;
+    const unionOf = (at: JsonObject | undefined): JsonValue[] | undefined => {
+      if (at === undefined) return undefined;
+      const keyword = ["oneOf", "anyOf"].find((key) => Array.isArray(at[key]));
+      return keyword === undefined ? undefined : (at[keyword] as JsonValue[]);
+    };
+    const branches = before.schemas.map((schema) => {
+      const union = unionOf(walk(before.document, schema, pointer));
+      return union?.map((branch) => resolveSchema(before.document, branch));
+    });
+    return after.schemas.every((schema) => {
+      const at = walk(after.document, schema, pointer);
+      if (at === undefined) return false;
+      const kinds = (unionOf(at) ?? [at]).map((kind) =>
+        resolveSchema(after.document, kind),
+      );
+      return branches.every(
+        (old) =>
+          old !== undefined &&
+          kinds.every((kind) => old.some((branch) => isDeepStrictEqual(branch, kind))),
+      );
+    });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether the field at the pointer, in every schema given, says its list of
+ * values is open: Stripe's `x-stripeBypassValidation`, or an `x-stripeEnum`
+ * of kind `open`.
+ */
+function heldToNoValues(
+  document: OpenApiDocument,
+  schemas: JsonValue[] | undefined,
+  pointer: string,
+): boolean {
+  try {
+    if (schemas === undefined || schemas.length === 0) return false;
+    return schemas.every((schema) => {
+      const field = walk(document, schema, pointer);
+      if (field === undefined) return false;
+      const listed = field["x-stripeEnum"];
+      return (
+        field["x-stripeBypassValidation"] === true ||
+        (isJsonObject(listed) && listed["kind"] === "open")
       );
     });
   } catch {

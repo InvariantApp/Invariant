@@ -297,6 +297,22 @@ interface Made {
   merged: WeakMap<JsonObject, { schema: JsonValue } | undefined>;
 }
 
+/** Whether a branch holds a single value: text, a number or a flag, not an object or a list. */
+function holdsOneValue(document: OpenApiDocument, branch: JsonValue): boolean {
+  const resolved = deref(document, branch);
+  if (!isJsonObject(resolved)) return false;
+  if (["oneOf", "anyOf", "allOf", "properties", "items"].some((key) => key in resolved)) {
+    return false;
+  }
+  const primary = typesOf(resolved).find((type) => type !== "null");
+  return (
+    primary === "string" ||
+    primary === "integer" ||
+    primary === "number" ||
+    primary === "boolean"
+  );
+}
+
 function freshMade(): Made {
   return { byDepth: new WeakMap(), merged: new WeakMap() };
 }
@@ -376,8 +392,30 @@ function buildFor(
       const alternatives = branches.map((branch) =>
         shared ? { allOf: [parent, branch as JsonValue] } : (branch as JsonValue),
       );
+      // Past MAX_DEPTH only what is required is generated, and a union that
+      // can be a single value needs nothing more. Stripe's expandable fields
+      // are an id or the object; taking the object at every depth drew each
+      // one's required fields on down to HARD_DEPTH, values of a megabyte
+      // that filled a 4 GB heap once the laws on them held.
+      // Beside the union, an extension such as Stripe's `x-expansionResources`
+      // shapes nothing, so the branch alone says whether it is one value.
+      const shapes = ["type", "properties", "required", "items", "allOf"].some(
+        (name) => name in parent,
+      );
+      const scalar =
+        depth >= MAX_DEPTH && !shapes
+          ? alternatives
+              .map((branch, index) => ({ branch, index }))
+              .filter(({ index }) =>
+                holdsOneValue(document, branches[index] as JsonValue),
+              )
+          : [];
+      const drawn =
+        scalar.length > 0
+          ? scalar
+          : alternatives.map((branch, index) => ({ branch, index }));
       const chosen = fc.oneof(
-        ...alternatives.map((branch, index) => {
+        ...drawn.map(({ branch, index }) => {
           const value = arbitraryFor(document, branch, depth, made);
           if (key === "anyOf") return value;
           // oneOf means exactly one. Branches overlap in real contracts, as

@@ -464,3 +464,95 @@ describe("a union that gained a kind of object", () => {
     expect(issues.map((issue) => issue.message).join()).toMatch(/cannot be told apart/);
   });
 });
+
+describe("an id that became expandable", () => {
+  // Stripe made the `mandate` of a card payment an id or the mandate itself,
+  // where it had been an id only.
+  const card = (expandable: boolean): OpenApiDocument => {
+    const document = charges(false) as unknown as {
+      components: { schemas: Record<string, { properties: Record<string, unknown> }> };
+    };
+    const charge = document.components.schemas["Charge"];
+    if (!charge) throw new Error("no Charge");
+    charge.properties["customer"] = expandable
+      ? {
+          anyOf: [
+            { type: "string", maxLength: 5000 },
+            { $ref: "#/components/schemas/Customer" },
+          ],
+          description: "The customer.",
+          nullable: true,
+        }
+      : { type: "string", maxLength: 5000, description: "The customer.", nullable: true };
+    return document as unknown as OpenApiDocument;
+  };
+  const expanded = parseChange({
+    irVersion: 1,
+    id: "chg_customer_expandable",
+    summary: "A charge's customer can be expanded.",
+    scopes: [{ schema: "#/components/schemas/Charge" }],
+    ops: [
+      {
+        op: "widen",
+        path: "/customer",
+        variant: "#/components/schemas/Customer",
+        show: "id",
+      },
+    ],
+    assertions: { loss_acknowledged: true },
+  });
+
+  it("is predicted as the new contract has it, the id's bounds on its text branch", () => {
+    const prediction = predictDocument(card(false), card(true), [expanded]);
+    expect(prediction.issues).toEqual([]);
+    const predicted = prediction.document as unknown as {
+      components: { schemas: Record<string, { properties: Record<string, unknown> }> };
+    };
+    expect(predicted.components.schemas["Charge"]?.properties["customer"]).toEqual({
+      anyOf: [
+        { type: "string", maxLength: 5000 },
+        { $ref: "#/components/schemas/Customer" },
+      ],
+      description: "The customer.",
+      nullable: true,
+    });
+  });
+
+  it("shows old callers an expanded object as its id", () => {
+    const { program, issues } = chainProgram("charges", "v2", "sha256:2", [
+      {
+        label: "v2",
+        parent: "v1",
+        from: card(false),
+        to: card(true),
+        changes: [expanded],
+      },
+    ]);
+    expect(issues).toEqual([]);
+    const runtime = createRuntime({
+      program,
+      identity: [{ kind: "default", label: "v1" }],
+    });
+    const site = runtime.siteFor("v1", "get", "/charges");
+    if (!site) throw new Error("no site");
+    const answer = {
+      data: [
+        { id: "ch_1", customer: "cus_1" },
+        { id: "ch_2", customer: { object: "customer", id: "cus_2" } },
+      ],
+    };
+    expect(
+      JSON.parse(
+        runtime.transformResponse(site, 200, JSON.stringify(answer), {
+          contract: "v1",
+          operation: "listCharges",
+        }),
+      ),
+    ).toEqual({
+      data: [
+        { id: "ch_1", customer: "cus_1" },
+        { id: "ch_2", customer: "cus_2" },
+      ],
+    });
+  });
+});

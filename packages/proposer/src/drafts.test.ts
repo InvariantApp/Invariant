@@ -3173,3 +3173,77 @@ describe("a union written in place that gained a kind written in place", () => {
     }
   });
 });
+
+describe("a response that was a choice and is now one of its kinds", () => {
+  // Stripe's cancel_action answered with a reader or a deleted reader, and a
+  // release made it answer with a reader only: every answer is still one the
+  // old contract allows, and none of the reader's fields is new.
+  const schemas = {
+    Reader: object({ id: { type: "string" }, label: { type: "string" } }, [
+      "id",
+      "label",
+    ]),
+    DeletedReader: object({ id: { type: "string" }, deleted: { type: "boolean" } }, [
+      "id",
+      "deleted",
+    ]),
+  };
+  const reader = { $ref: "#/components/schemas/Reader" };
+  const deleted = { $ref: "#/components/schemas/DeletedReader" };
+
+  it("is no change", async () => {
+    const cases: [Schema, Schema][] = [
+      [{ anyOf: [reader, deleted] }, reader],
+      [{ anyOf: [reader, deleted] }, { anyOf: [reader] }],
+      [{ oneOf: [reader, deleted] }, { oneOf: [deleted] }],
+    ];
+    for (const [before, after] of cases) {
+      const outcome = await propose(
+        operation(schemas, { response: before }),
+        operation(schemas, { response: after }),
+        { judge: new RulesJudge() },
+      );
+      expect(outcome.proposals).toEqual([]);
+      expect(outcome.decisions).toEqual([]);
+    }
+  });
+});
+
+describe("an id that became expandable", () => {
+  // Stripe made the `mandate` of a card payment an id or the mandate itself.
+  const schemas = (mandate: Schema) => ({
+    Card: object({ mandate }, ["mandate"]),
+    Mandate: object({ id: { type: "string" } }, ["id"]),
+  });
+  const card = { $ref: "#/components/schemas/Card" };
+
+  it("is widened, and old callers are shown the id", async () => {
+    const outcome = await propose(
+      operation(schemas({ type: "string", maxLength: 5000, nullable: true }), {
+        response: card,
+      }),
+      operation(
+        schemas({
+          anyOf: [
+            { type: "string", maxLength: 5000 },
+            { $ref: "#/components/schemas/Mandate" },
+          ],
+          nullable: true,
+        }),
+        { response: card },
+      ),
+      { judge: new RulesJudge() },
+    );
+    expect(outcome.unresolved).toEqual([]);
+    expect(outcome.proposals.map((proposal) => proposal.change.ops)).toEqual([
+      [
+        {
+          op: "widen",
+          path: "/mandate",
+          variant: "#/components/schemas/Mandate",
+          show: "id",
+        },
+      ],
+    ]);
+  });
+});

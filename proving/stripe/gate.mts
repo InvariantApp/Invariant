@@ -53,33 +53,33 @@ export async function gateFor(
     ].join("\n"),
     "utf8",
   );
-  const recorded = join(RECORDED, `${from.commit.slice(0, 7)}..${to.commit.slice(0, 7)}`);
-  let drafted = 0;
-  let decided = 0;
-  if (existsSync(recorded)) {
-    for (const name of await readdir(recorded)) {
+  const config = await loadConfig(join(root, "invariant.yaml"));
+  const proposed = await runPropose(config, { offline: true });
+  const changes: Change[] = [
+    ...proposed.proposals.map((proposal) => proposal.change),
+    ...proposed.decisions.map(syntheticAnswer),
+  ];
+  const drafted = proposed.proposals.length;
+  const decided = proposed.decisions.length;
+  for (const change of changes) {
+    const acknowledged: Change = missingAcknowledgement(change, derive(change))
+      ? { ...change, assertions: { ...change.assertions, loss_acknowledged: true } }
+      : change;
+    // JSON is YAML, and the loader reads either.
+    await writeFile(
+      join(root, "invariant", "changes", `${change.id}.yaml`),
+      `${JSON.stringify(acknowledged, null, 2)}\n`,
+      "utf8",
+    );
+  }
+  // What no draft can say, the provider writes beside the drafts, as one
+  // would: a Change committed for the pair, which replaces a draft of the
+  // same name.
+  const written = join(RECORDED, `${from.commit.slice(0, 7)}..${to.commit.slice(0, 7)}`);
+  if (existsSync(written)) {
+    for (const name of await readdir(written)) {
       if (!/\.ya?ml$/.test(name)) continue;
-      await copyFile(join(recorded, name), join(root, "invariant", "changes", name));
-    }
-  } else {
-    const config = await loadConfig(join(root, "invariant.yaml"));
-    const proposed = await runPropose(config, { offline: true });
-    const changes: Change[] = [
-      ...proposed.proposals.map((proposal) => proposal.change),
-      ...proposed.decisions.map(syntheticAnswer),
-    ];
-    drafted = proposed.proposals.length;
-    decided = proposed.decisions.length;
-    for (const change of changes) {
-      const acknowledged: Change = missingAcknowledgement(change, derive(change))
-        ? { ...change, assertions: { ...change.assertions, loss_acknowledged: true } }
-        : change;
-      // JSON is YAML, and the loader reads either.
-      await writeFile(
-        join(root, "invariant", "changes", `${change.id}.yaml`),
-        `${JSON.stringify(acknowledged, null, 2)}\n`,
-        "utf8",
-      );
+      await copyFile(join(written, name), join(root, "invariant", "changes", name));
     }
   }
   const report = await check(await loadConfig(join(root, "invariant.yaml")));

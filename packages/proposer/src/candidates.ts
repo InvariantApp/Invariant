@@ -7,6 +7,7 @@
  * a draft naming the wrong one of a handful of real fields, which the closure
  * check and a human reviewer then reject.
  */
+import { isDeepStrictEqual } from "node:util";
 import {
   type OpenApiDocument,
   operationsOf,
@@ -1177,6 +1178,29 @@ function movedIntoVariants(
  * is matched by where it is used; one that stayed is another schema, and what
  * this operation returns changed.
  */
+/**
+ * Whether a response that was a choice between schemas now gives only kinds
+ * it could already give. Stripe's `cancel_action` answered with a reader or a
+ * deleted reader, and a release made it answer with a reader: every answer is
+ * one the old contract allows, and the reader is compared under its own name.
+ * Read as one object, the choice has no fields, and every field of the reader
+ * was drafted as new and taken out of old callers' answers.
+ */
+function narrowedTo(before: JsonObject, after: JsonValue): boolean {
+  const kinds = (schema: JsonValue): JsonValue[] | undefined => {
+    if (!isJsonObject(schema)) return undefined;
+    for (const keyword of ["oneOf", "anyOf"]) {
+      const branches = schema[keyword];
+      if (Array.isArray(branches)) return branches;
+    }
+    return undefined;
+  };
+  const was = kinds(before);
+  if (was === undefined) return false;
+  const now = kinds(after) ?? [after];
+  return now.every((kind) => was.some((branch) => isDeepStrictEqual(branch, kind)));
+}
+
 function pointedElsewhere(
   document: OpenApiDocument,
   before: JsonObject,
@@ -2487,6 +2511,7 @@ export function schemaDeltas(
       if (!isJsonObject(schema)) continue;
       const next = after.get(status);
       if (next === undefined) continue;
+      if (narrowedTo(schema, next)) continue;
       // A response that names a schema is compared under that name, unless
       // this operation now names another one: Plaid pointed three consent
       // operations at `FDXError` while `PlaidError` stayed for everything
