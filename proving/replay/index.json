@@ -3443,6 +3443,24 @@
       ]
     },
     {
+      "id": "create-iq/reviewer-roulette#9",
+      "repo": "create-iq/reviewer-roulette",
+      "pr": 9,
+      "base": "2e6cbb0f7fbda2943ac5ca0064d4c7b7cc693ca5",
+      "head": "e267257c07819917f6320fd438a8457c70873383",
+      "package": "@slack/web-api",
+      "ecosystem": "npm",
+      "from": "7.19.0",
+      "to": "8.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-08-05T11:53:17Z",
+      "files": [
+        "scripts/proxy-check.mjs",
+        "src/roulette.ts",
+        "tsup.config.ts"
+      ]
+    },
+    {
       "id": "Creed-Space/METTLE#57",
       "repo": "Creed-Space/METTLE",
       "pr": 57,
