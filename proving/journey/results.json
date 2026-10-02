@@ -5,49 +5,68 @@
     "linux": {
       "runs": 10,
       "blocked": 10,
-      "p95Seconds": 30.9
+      "p95Seconds": 94.1
     },
     "darwin": {
       "runs": 10,
-      "blocked": 9,
-      "p95Seconds": 26.9
+      "blocked": 10,
+      "p95Seconds": 28.1
     },
     "win32": {
       "runs": 10,
       "blocked": 10,
-      "p95Seconds": 57.9
+      "p95Seconds": 58.2
     }
   },
-  "problems": [
-    "darwin: Error: git push failed:"
-  ],
+  "problems": [],
   "journeys": [
     {
       "os": "darwin",
       "runner": "macOS",
-      "at": "2026-10-01T10:40:35.577Z",
-      "seconds": 8.6,
+      "at": "2026-10-02T10:19:08.370Z",
+      "seconds": 26.2,
       "steps": {
-        "cloned": 0.6,
-        "installed from npm": 4.6,
-        "init passed": 5.6
+        "cloned": 0.7,
+        "installed from npm": 3.6,
+        "init passed": 4.5,
+        "pushed": 7.7,
+        "pull request opened": 9.3,
+        "check started": 20.8,
+        "check concluded": 26.2
       },
-      "ok": false,
-      "problem": "Error: git push failed:\nTo https://github.com/InvariantApp/l9-provider.git\n ! [remote rejected] l9/36846775458-1-1-darwin/head -> l9/36846775458-1-1-darwin/head (failed)\nerror: failed to push some refs to 'https://github.com/InvariantApp/l9-provider.git'\n"
+      "conclusion": "failure",
+      "ok": true
     },
     {
       "os": "darwin",
       "runner": "macOS",
-      "at": "2026-10-01T10:41:48.919Z",
-      "seconds": 26.3,
+      "at": "2026-10-02T10:20:35.572Z",
+      "seconds": 24.7,
       "steps": {
-        "cloned": 0.6,
-        "installed from npm": 4.3,
+        "cloned": 0.7,
+        "installed from npm": 3,
+        "init passed": 3.6,
+        "pushed": 6.6,
+        "pull request opened": 7.9,
+        "check started": 19.2,
+        "check concluded": 24.7
+      },
+      "conclusion": "failure",
+      "ok": true
+    },
+    {
+      "os": "darwin",
+      "runner": "macOS",
+      "at": "2026-10-02T10:19:35.080Z",
+      "seconds": 28.1,
+      "steps": {
+        "cloned": 0.7,
+        "installed from npm": 4.2,
         "init passed": 5.3,
-        "pushed": 8.5,
-        "pull request opened": 9.9,
-        "check started": 21,
-        "check concluded": 26.3
+        "pushed": 9.2,
+        "pull request opened": 11,
+        "check started": 28.1,
+        "check concluded": 28.1
       },
       "conclusion": "failure",
       "ok": true
@@ -55,49 +74,15 @@
     {
       "os": "darwin",
       "runner": "macOS",
-      "at": "2026-10-01T10:40:35.208Z",
-      "seconds": 26.8,
-      "steps": {
-        "cloned": 0.6,
-        "installed from npm": 4.4,
-        "init passed": 5.4,
-        "pushed": 8.4,
-        "pull request opened": 9.9,
-        "check started": 21.4,
-        "check concluded": 26.8
-      },
-      "conclusion": "failure",
-      "ok": true
-    },
-    {
-      "os": "darwin",
-      "runner": "macOS",
-      "at": "2026-10-01T10:40:47.218Z",
-      "seconds": 24.5,
-      "steps": {
-        "cloned": 0.6,
-        "installed from npm": 2.5,
-        "init passed": 3,
-        "pushed": 6.2,
-        "pull request opened": 7.8,
-        "check started": 19.1,
-        "check concluded": 24.5
-      },
-      "conclusion": "failure",
-      "ok": true
-    },
-    {
-      "os": "darwin",
-      "runner": "macOS",
-      "at": "2026-10-01T10:40:57.856Z",
+      "at": "2026-10-02T10:19:33.249Z",
       "seconds": 25.1,
       "steps": {
         "cloned": 0.5,
-        "installed from npm": 2.9,
-        "init passed": 3.8,
-        "pushed": 6.9,
-        "pull request opened": 8.6,
-        "check started": 19.7,
+        "installed from npm": 4.3,
+        "init passed": 4.8,
+        "pushed": 7.5,
+        "pull request opened": 8.8,
+        "check started": 19.8,
         "check concluded": 25.1
       },
       "conclusion": "failure",
@@ -106,219 +91,100 @@
     {
       "os": "darwin",
       "runner": "macOS",
-      "at": "2026-10-01T10:40:57.574Z",
-      "seconds": 25.3,
+      "at": "2026-10-02T10:19:39.654Z",
+      "seconds": 27.1,
       "steps": {
         "cloned": 0.6,
-        "installed from npm": 3.2,
-        "init passed": 3.9,
-        "pushed": 7.2,
-        "pull request opened": 8.4,
-        "check started": 19.8,
-        "check concluded": 25.3
-      },
-      "conclusion": "failure",
-      "ok": true
-    },
-    {
-      "os": "darwin",
-      "runner": "macOS",
-      "at": "2026-10-01T10:41:09.634Z",
-      "seconds": 26.9,
-      "steps": {
-        "cloned": 0.6,
-        "installed from npm": 4.4,
-        "init passed": 5.5,
-        "pushed": 8.7,
-        "pull request opened": 10.3,
-        "check started": 21.4,
-        "check concluded": 26.9
-      },
-      "conclusion": "failure",
-      "ok": true
-    },
-    {
-      "os": "darwin",
-      "runner": "macOS",
-      "at": "2026-10-01T10:41:30.124Z",
-      "seconds": 26.1,
-      "steps": {
-        "cloned": 0.5,
-        "installed from npm": 4.3,
-        "init passed": 5.2,
-        "pushed": 8.3,
-        "pull request opened": 9.5,
-        "check started": 20.7,
-        "check concluded": 26.1
-      },
-      "conclusion": "failure",
-      "ok": true
-    },
-    {
-      "os": "darwin",
-      "runner": "macOS",
-      "at": "2026-10-01T10:41:35.252Z",
-      "seconds": 26.3,
-      "steps": {
-        "cloned": 0.7,
-        "installed from npm": 4.5,
-        "init passed": 5.6,
-        "pushed": 8.6,
-        "pull request opened": 9.9,
-        "check started": 21,
-        "check concluded": 26.3
-      },
-      "conclusion": "failure",
-      "ok": true
-    },
-    {
-      "os": "darwin",
-      "runner": "macOS",
-      "at": "2026-10-01T10:41:43.360Z",
-      "seconds": 26.8,
-      "steps": {
-        "cloned": 0.8,
-        "installed from npm": 5.1,
-        "init passed": 6.1,
+        "installed from npm": 4.8,
+        "init passed": 5.9,
         "pushed": 8.9,
-        "pull request opened": 10.4,
-        "check started": 21.5,
-        "check concluded": 26.8
+        "pull request opened": 10.6,
+        "check started": 16.4,
+        "check concluded": 27.1
       },
       "conclusion": "failure",
       "ok": true
     },
     {
-      "os": "linux",
-      "runner": "Linux",
-      "at": "2026-10-01T10:39:42.970Z",
-      "seconds": 29.2,
-      "steps": {
-        "cloned": 0.3,
-        "installed from npm": 7.7,
-        "init passed": 8.6,
-        "pushed": 11.1,
-        "pull request opened": 12.7,
-        "check started": 23.8,
-        "check concluded": 29.2
-      },
-      "conclusion": "failure",
-      "ok": true
-    },
-    {
-      "os": "linux",
-      "runner": "Linux",
-      "at": "2026-10-01T10:40:22.334Z",
-      "seconds": 26.1,
+      "os": "darwin",
+      "runner": "macOS",
+      "at": "2026-10-02T10:19:50.382Z",
+      "seconds": 21.9,
       "steps": {
         "cloned": 0.6,
         "installed from npm": 4.9,
-        "init passed": 5.4,
-        "pushed": 8.2,
-        "pull request opened": 9.5,
-        "check started": 15.2,
-        "check concluded": 26.1
-      },
-      "conclusion": "failure",
-      "ok": true
-    },
-    {
-      "os": "linux",
-      "runner": "Linux",
-      "at": "2026-10-01T10:39:33.597Z",
-      "seconds": 30.9,
-      "steps": {
-        "cloned": 0.3,
-        "installed from npm": 8,
-        "init passed": 8.7,
-        "pushed": 11.3,
-        "pull request opened": 12.6,
-        "check started": 25.6,
-        "check concluded": 30.9
-      },
-      "conclusion": "failure",
-      "ok": true
-    },
-    {
-      "os": "linux",
-      "runner": "Linux",
-      "at": "2026-10-01T10:39:28.402Z",
-      "seconds": 25.8,
-      "steps": {
-        "cloned": 0.4,
-        "installed from npm": 4.5,
-        "init passed": 5.2,
-        "pushed": 7.9,
-        "pull request opened": 9.3,
-        "check started": 20.4,
-        "check concluded": 25.8
-      },
-      "conclusion": "failure",
-      "ok": true
-    },
-    {
-      "os": "linux",
-      "runner": "Linux",
-      "at": "2026-10-01T10:39:27.148Z",
-      "seconds": 27.2,
-      "steps": {
-        "cloned": 0.4,
-        "installed from npm": 5.2,
-        "init passed": 6.3,
+        "init passed": 6,
         "pushed": 9.2,
-        "pull request opened": 10.5,
-        "check started": 21.8,
-        "check concluded": 27.2
+        "pull request opened": 10.8,
+        "check started": 21.9,
+        "check concluded": 21.9
       },
       "conclusion": "failure",
       "ok": true
     },
     {
-      "os": "linux",
-      "runner": "Linux",
-      "at": "2026-10-01T10:39:29.996Z",
-      "seconds": 25,
+      "os": "darwin",
+      "runner": "macOS",
+      "at": "2026-10-02T10:19:57.979Z",
+      "seconds": 22.1,
       "steps": {
         "cloned": 0.5,
-        "installed from npm": 3.5,
-        "init passed": 4.3,
-        "pushed": 7.1,
-        "pull request opened": 8.3,
-        "check started": 19.5,
-        "check concluded": 25
+        "installed from npm": 4.1,
+        "init passed": 5.7,
+        "pushed": 9.7,
+        "pull request opened": 11.1,
+        "check started": 22.1,
+        "check concluded": 22.1
       },
       "conclusion": "failure",
       "ok": true
     },
     {
-      "os": "linux",
-      "runner": "Linux",
-      "at": "2026-10-01T10:39:42.972Z",
-      "seconds": 29.5,
+      "os": "darwin",
+      "runner": "macOS",
+      "at": "2026-10-02T10:20:23.353Z",
+      "seconds": 21.7,
       "steps": {
-        "cloned": 0.3,
-        "installed from npm": 8.3,
-        "init passed": 9,
-        "pushed": 11.5,
-        "pull request opened": 12.9,
-        "check started": 24.1,
-        "check concluded": 29.5
+        "cloned": 0.5,
+        "installed from npm": 4.6,
+        "init passed": 5.9,
+        "pushed": 8.9,
+        "pull request opened": 10.5,
+        "check started": 21.7,
+        "check concluded": 21.7
       },
       "conclusion": "failure",
       "ok": true
     },
     {
-      "os": "linux",
-      "runner": "Linux",
-      "at": "2026-10-01T10:40:08.943Z",
+      "os": "darwin",
+      "runner": "macOS",
+      "at": "2026-10-02T10:20:27.972Z",
+      "seconds": 25.9,
+      "steps": {
+        "cloned": 0.6,
+        "installed from npm": 3.9,
+        "init passed": 4.8,
+        "pushed": 7.7,
+        "pull request opened": 9.3,
+        "check started": 15.2,
+        "check concluded": 25.9
+      },
+      "conclusion": "failure",
+      "ok": true
+    },
+    {
+      "os": "darwin",
+      "runner": "macOS",
+      "at": "2026-10-02T10:20:32.294Z",
       "seconds": 25.7,
       "steps": {
-        "cloned": 0.4,
-        "installed from npm": 3.7,
-        "init passed": 4.4,
-        "pushed": 7.5,
+        "cloned": 0.7,
+        "installed from npm": 3.5,
+        "init passed": 4.1,
+        "pushed": 7.3,
         "pull request opened": 8.9,
-        "check started": 20.2,
+        "check started": 20.3,
         "check concluded": 25.7
       },
       "conclusion": "failure",
@@ -327,16 +193,16 @@
     {
       "os": "linux",
       "runner": "Linux",
-      "at": "2026-10-01T10:40:08.294Z",
-      "seconds": 23.8,
+      "at": "2026-10-02T10:18:19.917Z",
+      "seconds": 21.7,
       "steps": {
         "cloned": 0.3,
-        "installed from npm": 2.5,
-        "init passed": 3.2,
-        "pushed": 5.8,
-        "pull request opened": 7.3,
-        "check started": 18.4,
-        "check concluded": 23.8
+        "installed from npm": 4.6,
+        "init passed": 5.4,
+        "pushed": 7.7,
+        "pull request opened": 9,
+        "check started": 16.4,
+        "check concluded": 21.7
       },
       "conclusion": "failure",
       "ok": true
@@ -344,16 +210,152 @@
     {
       "os": "linux",
       "runner": "Linux",
-      "at": "2026-10-01T10:40:11.556Z",
-      "seconds": 25,
+      "at": "2026-10-02T10:19:00.051Z",
+      "seconds": 23.5,
+      "steps": {
+        "cloned": 0.3,
+        "installed from npm": 2.8,
+        "init passed": 3.5,
+        "pushed": 5.7,
+        "pull request opened": 7.1,
+        "check started": 18.1,
+        "check concluded": 23.5
+      },
+      "conclusion": "failure",
+      "ok": true
+    },
+    {
+      "os": "linux",
+      "runner": "Linux",
+      "at": "2026-10-02T10:18:17.916Z",
+      "seconds": 25.5,
+      "steps": {
+        "cloned": 0.5,
+        "installed from npm": 3.8,
+        "init passed": 4.5,
+        "pushed": 7.2,
+        "pull request opened": 8.8,
+        "check started": 20.1,
+        "check concluded": 25.5
+      },
+      "conclusion": "failure",
+      "ok": true
+    },
+    {
+      "os": "linux",
+      "runner": "Linux",
+      "at": "2026-10-02T10:18:17.518Z",
+      "seconds": 94.1,
+      "steps": {
+        "cloned": 0.3,
+        "installed from npm": 73.3,
+        "init passed": 73.9,
+        "pushed": 76.1,
+        "pull request opened": 77.7,
+        "check started": 83.3,
+        "check concluded": 94.1
+      },
+      "conclusion": "failure",
+      "ok": true
+    },
+    {
+      "os": "linux",
+      "runner": "Linux",
+      "at": "2026-10-02T10:18:19.199Z",
+      "seconds": 24.9,
+      "steps": {
+        "cloned": 0.4,
+        "installed from npm": 4,
+        "init passed": 4.6,
+        "pushed": 7,
+        "pull request opened": 8.3,
+        "check started": 19.5,
+        "check concluded": 24.9
+      },
+      "conclusion": "failure",
+      "ok": true
+    },
+    {
+      "os": "linux",
+      "runner": "Linux",
+      "at": "2026-10-02T10:18:18.324Z",
+      "seconds": 24.4,
       "steps": {
         "cloned": 0.2,
-        "installed from npm": 4.7,
-        "init passed": 5.5,
-        "pushed": 7.7,
-        "pull request opened": 8.9,
-        "check started": 19.7,
-        "check concluded": 25
+        "installed from npm": 3.5,
+        "init passed": 4.2,
+        "pushed": 6.5,
+        "pull request opened": 8.2,
+        "check started": 19.1,
+        "check concluded": 24.4
+      },
+      "conclusion": "failure",
+      "ok": true
+    },
+    {
+      "os": "linux",
+      "runner": "Linux",
+      "at": "2026-10-02T10:18:16.451Z",
+      "seconds": 25.9,
+      "steps": {
+        "cloned": 0.2,
+        "installed from npm": 5.2,
+        "init passed": 5.9,
+        "pushed": 8.2,
+        "pull request opened": 9.6,
+        "check started": 20.5,
+        "check concluded": 25.9
+      },
+      "conclusion": "failure",
+      "ok": true
+    },
+    {
+      "os": "linux",
+      "runner": "Linux",
+      "at": "2026-10-02T10:18:53.163Z",
+      "seconds": 22.6,
+      "steps": {
+        "cloned": 0.2,
+        "installed from npm": 2.1,
+        "init passed": 2.7,
+        "pushed": 4.8,
+        "pull request opened": 6.1,
+        "check started": 17.3,
+        "check concluded": 22.6
+      },
+      "conclusion": "failure",
+      "ok": true
+    },
+    {
+      "os": "linux",
+      "runner": "Linux",
+      "at": "2026-10-02T10:18:58.345Z",
+      "seconds": 19.3,
+      "steps": {
+        "cloned": 0.8,
+        "installed from npm": 3.4,
+        "init passed": 4,
+        "pushed": 6.5,
+        "pull request opened": 8,
+        "check started": 13.8,
+        "check concluded": 19.3
+      },
+      "conclusion": "failure",
+      "ok": true
+    },
+    {
+      "os": "linux",
+      "runner": "Linux",
+      "at": "2026-10-02T10:18:55.264Z",
+      "seconds": 23.4,
+      "steps": {
+        "cloned": 0.2,
+        "installed from npm": 3.4,
+        "init passed": 4.1,
+        "pushed": 6.1,
+        "pull request opened": 7.2,
+        "check started": 18.1,
+        "check concluded": 23.4
       },
       "conclusion": "failure",
       "ok": true
@@ -361,16 +363,16 @@
     {
       "os": "win32",
       "runner": "Windows",
-      "at": "2026-10-01T10:41:56.319Z",
-      "seconds": 52.8,
+      "at": "2026-10-02T10:20:42.432Z",
+      "seconds": 53.3,
       "steps": {
         "cloned": 1.4,
-        "installed from npm": 30,
-        "init passed": 31.5,
-        "pushed": 35.1,
-        "pull request opened": 36.5,
-        "check started": 47.5,
-        "check concluded": 52.8
+        "installed from npm": 31,
+        "init passed": 32.6,
+        "pushed": 35.9,
+        "pull request opened": 37.3,
+        "check started": 48.1,
+        "check concluded": 53.3
       },
       "conclusion": "failure",
       "ok": true
@@ -378,33 +380,16 @@
     {
       "os": "win32",
       "runner": "Windows",
-      "at": "2026-10-01T10:43:44.898Z",
-      "seconds": 41.1,
-      "steps": {
-        "cloned": 2,
-        "installed from npm": 23.5,
-        "init passed": 24.8,
-        "pushed": 28.3,
-        "pull request opened": 30.1,
-        "check started": 35.7,
-        "check concluded": 41.1
-      },
-      "conclusion": "failure",
-      "ok": true
-    },
-    {
-      "os": "win32",
-      "runner": "Windows",
-      "at": "2026-10-01T10:42:03.490Z",
-      "seconds": 45.2,
+      "at": "2026-10-02T10:22:26.974Z",
+      "seconds": 53.5,
       "steps": {
         "cloned": 1.4,
-        "installed from npm": 26.9,
-        "init passed": 28.6,
-        "pushed": 32.5,
-        "pull request opened": 34,
-        "check started": 45.2,
-        "check concluded": 45.2
+        "installed from npm": 30.6,
+        "init passed": 32.3,
+        "pushed": 35.8,
+        "pull request opened": 37.1,
+        "check started": 42.7,
+        "check concluded": 53.5
       },
       "conclusion": "failure",
       "ok": true
@@ -412,16 +397,84 @@
     {
       "os": "win32",
       "runner": "Windows",
-      "at": "2026-10-01T10:42:23.912Z",
-      "seconds": 49.9,
+      "at": "2026-10-02T10:20:54.490Z",
+      "seconds": 51.3,
+      "steps": {
+        "cloned": 1.3,
+        "installed from npm": 29.2,
+        "init passed": 30.8,
+        "pushed": 34.1,
+        "pull request opened": 35.3,
+        "check started": 40.8,
+        "check concluded": 51.3
+      },
+      "conclusion": "failure",
+      "ok": true
+    },
+    {
+      "os": "win32",
+      "runner": "Windows",
+      "at": "2026-10-02T10:21:11.633Z",
+      "seconds": 42.9,
+      "steps": {
+        "cloned": 1.4,
+        "installed from npm": 26,
+        "init passed": 27.6,
+        "pushed": 30.9,
+        "pull request opened": 32.1,
+        "check started": 37.6,
+        "check concluded": 42.9
+      },
+      "conclusion": "failure",
+      "ok": true
+    },
+    {
+      "os": "win32",
+      "runner": "Windows",
+      "at": "2026-10-02T10:21:18.045Z",
+      "seconds": 45.4,
+      "steps": {
+        "cloned": 1.2,
+        "installed from npm": 22.6,
+        "init passed": 24.3,
+        "pushed": 27.8,
+        "pull request opened": 29.4,
+        "check started": 40.1,
+        "check concluded": 45.4
+      },
+      "conclusion": "failure",
+      "ok": true
+    },
+    {
+      "os": "win32",
+      "runner": "Windows",
+      "at": "2026-10-02T10:21:20.529Z",
+      "seconds": 41.4,
+      "steps": {
+        "cloned": 1.3,
+        "installed from npm": 23.9,
+        "init passed": 25.3,
+        "pushed": 29,
+        "pull request opened": 30.4,
+        "check started": 41.4,
+        "check concluded": 41.4
+      },
+      "conclusion": "failure",
+      "ok": true
+    },
+    {
+      "os": "win32",
+      "runner": "Windows",
+      "at": "2026-10-02T10:21:27.507Z",
+      "seconds": 45.8,
       "steps": {
         "cloned": 1.5,
-        "installed from npm": 26.3,
-        "init passed": 28.2,
-        "pushed": 32,
-        "pull request opened": 33.4,
-        "check started": 44.5,
-        "check concluded": 49.9
+        "installed from npm": 26.8,
+        "init passed": 28.5,
+        "pushed": 33.1,
+        "pull request opened": 34.7,
+        "check started": 40.4,
+        "check concluded": 45.8
       },
       "conclusion": "failure",
       "ok": true
@@ -429,15 +482,15 @@
     {
       "os": "win32",
       "runner": "Windows",
-      "at": "2026-10-01T10:42:31.419Z",
+      "at": "2026-10-02T10:22:03.214Z",
       "seconds": 45.3,
       "steps": {
-        "cloned": 1.4,
-        "installed from npm": 22.5,
-        "init passed": 23.8,
-        "pushed": 27.5,
-        "pull request opened": 28.9,
-        "check started": 39.9,
+        "cloned": 1.5,
+        "installed from npm": 26.8,
+        "init passed": 28.6,
+        "pushed": 32.6,
+        "pull request opened": 34.2,
+        "check started": 45.3,
         "check concluded": 45.3
       },
       "conclusion": "failure",
@@ -446,84 +499,33 @@
     {
       "os": "win32",
       "runner": "Windows",
-      "at": "2026-10-01T10:42:34.020Z",
-      "seconds": 49,
+      "at": "2026-10-02T10:22:18.025Z",
+      "seconds": 58.2,
+      "steps": {
+        "cloned": 2.3,
+        "installed from npm": 34.5,
+        "init passed": 36.5,
+        "pushed": 40.4,
+        "pull request opened": 42.2,
+        "check started": 52.9,
+        "check concluded": 58.2
+      },
+      "conclusion": "failure",
+      "ok": true
+    },
+    {
+      "os": "win32",
+      "runner": "Windows",
+      "at": "2026-10-02T10:22:19.194Z",
+      "seconds": 40.7,
       "steps": {
         "cloned": 1.3,
-        "installed from npm": 31.4,
-        "init passed": 32.8,
-        "pushed": 36.5,
-        "pull request opened": 37.9,
-        "check started": 49,
-        "check concluded": 49
-      },
-      "conclusion": "failure",
-      "ok": true
-    },
-    {
-      "os": "win32",
-      "runner": "Windows",
-      "at": "2026-10-01T10:43:13.595Z",
-      "seconds": 43.2,
-      "steps": {
-        "cloned": 1.3,
-        "installed from npm": 25.6,
-        "init passed": 27.1,
-        "pushed": 31,
-        "pull request opened": 32.3,
-        "check started": 43.2,
-        "check concluded": 43.2
-      },
-      "conclusion": "failure",
-      "ok": true
-    },
-    {
-      "os": "win32",
-      "runner": "Windows",
-      "at": "2026-10-01T10:43:14.174Z",
-      "seconds": 57.9,
-      "steps": {
-        "cloned": 1.6,
-        "installed from npm": 34.9,
-        "init passed": 36,
-        "pushed": 39.9,
-        "pull request opened": 41.3,
-        "check started": 52.4,
-        "check concluded": 57.9
-      },
-      "conclusion": "failure",
-      "ok": true
-    },
-    {
-      "os": "win32",
-      "runner": "Windows",
-      "at": "2026-10-01T10:43:18.827Z",
-      "seconds": 53.9,
-      "steps": {
-        "cloned": 1.5,
-        "installed from npm": 30.6,
-        "init passed": 32.3,
-        "pushed": 35.7,
-        "pull request opened": 37.3,
-        "check started": 48.4,
-        "check concluded": 53.9
-      },
-      "conclusion": "failure",
-      "ok": true
-    },
-    {
-      "os": "win32",
-      "runner": "Windows",
-      "at": "2026-10-01T10:43:38.084Z",
-      "seconds": 46.5,
-      "steps": {
-        "cloned": 1.3,
-        "installed from npm": 24.1,
-        "init passed": 25.5,
-        "pushed": 29.1,
-        "pull request opened": 30.3,
-        "check started": 41.2,
-        "check concluded": 46.5
+        "installed from npm": 23.4,
+        "init passed": 25,
+        "pushed": 28.3,
+        "pull request opened": 29.8,
+        "check started": 40.7,
+        "check concluded": 40.7
       },
       "conclusion": "failure",
       "ok": true
