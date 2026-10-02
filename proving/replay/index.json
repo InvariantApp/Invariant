@@ -13546,6 +13546,23 @@
       ]
     },
     {
+      "id": "publira/publira#3415",
+      "repo": "publira/publira",
+      "pr": 3415,
+      "base": "60f88e6b8cf7bd5ee4e6204c18c47c86f7621670",
+      "head": "23a04b3ef7d7637d22a7d08dfc7b5a0ed8598751",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "",
+      "to": "87",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-10-01T12:46:08Z",
+      "files": [
+        "server/internal/paymentprovider/stripe/stripe.go",
+        "server/internal/paymentprovider/stripe/stripetest/stripetest.go"
+      ]
+    },
+    {
       "id": "publira/publira#972",
       "repo": "publira/publira",
       "pr": 972,
