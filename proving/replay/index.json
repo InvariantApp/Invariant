@@ -10062,6 +10062,23 @@
       ]
     },
     {
+      "id": "lerna/lerna#4517",
+      "repo": "lerna/lerna",
+      "pr": 4517,
+      "base": "430e67618ff31de3b861da1ba3cc6538478679c3",
+      "head": "3e551e20e83085e6fcf92dc410d2950f268bb76c",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "",
+      "to": "22",
+      "license": "MIT",
+      "mergedAt": "2026-10-02T10:22:58Z",
+      "files": [
+        "libs/commands/version/src/index.ts",
+        "libs/commands/version/src/lib/create-release.ts"
+      ]
+    },
+    {
       "id": "liatrio/autogov#130",
       "repo": "liatrio/autogov",
       "pr": 130,
@@ -18816,6 +18833,22 @@
       "mergedAt": "2026-07-28T15:17:59Z",
       "files": [
         "custom_components/kubernetes/coordinator.py"
+      ]
+    },
+    {
+      "id": "tomfunk/fungible#225",
+      "repo": "tomfunk/fungible",
+      "pr": 225,
+      "base": "5cc2c4543895b946ead79d09de93c8719680ae19",
+      "head": "66a223b4129747af88f6027698869761439c5065",
+      "package": "plaid",
+      "ecosystem": "npm",
+      "from": "42.2.0",
+      "to": "47.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-10-02T15:27:16Z",
+      "files": [
+        "core/sync.ts"
       ]
     },
     {
