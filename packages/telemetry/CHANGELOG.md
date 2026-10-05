@@ -1,5 +1,14 @@
 # @invariant-app/telemetry
 
+## 0.5.0
+
+### Patch Changes
+
+- 57f9a09: Found by running `check --full` on real servers. Scenarios made from a document are asked under the path its servers declare (Immich serves `/albums` at `/api/albums`, and answers anything else with its web app). The differential reads a media type as one: `text/plain;charset=utf-8` and `text/plain; charset=utf-8` no longer count as a difference. The telemetry package no longer depends on the CLI for a test, which made a build cycle once the CLI runs the proxy.
+- Updated dependencies [eeeb512]
+  - @invariant-app/runtime@0.5.0
+  - @invariant-app/client@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes
