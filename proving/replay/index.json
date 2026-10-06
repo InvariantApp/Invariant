@@ -215,6 +215,27 @@
       ]
     },
     {
+      "id": "aaravmahajanofficial/Scalable-Ecommerce-Platform#323",
+      "repo": "aaravmahajanofficial/Scalable-Ecommerce-Platform",
+      "pr": 323,
+      "base": "e925de1bd6d2f8c91b31a4858c15a84f40cc4786",
+      "head": "a57d9f549cd7d266c26b68058877346dd9f7870d",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "86.4.2",
+      "to": "87.0.0",
+      "license": "Apache-2.0",
+      "mergedAt": "2026-10-05T15:20:34Z",
+      "files": [
+        "internal/api/handlers/payment_test.go",
+        "internal/health/checks.go",
+        "internal/health/checks_test.go",
+        "internal/services/payment_test.go",
+        "pkg/stripe/client.go",
+        "pkg/stripe/mocks/Client_mock.go"
+      ]
+    },
+    {
       "id": "aaronsb/knowledge-graph-system#556",
       "repo": "aaronsb/knowledge-graph-system",
       "pr": 556,
