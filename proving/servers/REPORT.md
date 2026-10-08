@@ -18,7 +18,7 @@ where they disagree is a Change that passed the gate and changed meaning.
 |---|---|---|---|---|---|---|---|---|---|---|
 | gitea (Go) | v1.24.2 -> v1.25.4 | 7 recorded | warn | 69 | 3 | 3 | 0 | 0 | 2 | served |
 | homebox (Go) | v0.22.3 -> v0.23.1 | 13 recorded | pass | 52 | 7 | 7 | 0 | 0 | 0 | served |
-| immich (TypeScript) | v1.137.3 -> v1.138.0 | 24 recorded | warn | 486 | 4 | 4 | 0 | 0 | 0 | served |
+| immich (TypeScript) | v1.137.3 -> v1.138.0 | 24 recorded | warn | 546 | 4 | 4 | 0 | 0 | 0 | served |
 | meilisearch (Rust) | v1.53.2 -> v1.54.0 | 6 recorded | warn | 1430 | 5 | 5 | 0 | 0 | 0 | served |
 | netbox (Python) | v3.5.9 -> v3.6.9 | 92 recorded | warn | 99 | 31 | 31 | 0 | 0 | 0 | served |
 | qdrant (Rust) | v1.12.0 -> v1.13.0 | 14 drafted | block | 648 | 0 | 0 | 0; arm c: the gate blocks the release, so there is no program to run | 0 | 0 | vacuous |
