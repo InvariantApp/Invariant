@@ -8108,6 +8108,22 @@
       ]
     },
     {
+      "id": "IBM/carbon-components-ember#950",
+      "repo": "IBM/carbon-components-ember",
+      "pr": 950,
+      "base": "64ad2449f00978e3075892e52152e1136c48fd4d",
+      "head": "4199a655e0b64da600093e37d02540b0cd28c452",
+      "package": "@octokit/rest",
+      "ecosystem": "npm",
+      "from": "20.0.0",
+      "to": "22.0.1",
+      "license": "MIT",
+      "mergedAt": "2026-10-08T20:10:40Z",
+      "files": [
+        "carbon-components-ember/eslint.config.mjs"
+      ]
+    },
+    {
       "id": "iggy/botkube#358",
       "repo": "iggy/botkube",
       "pr": 358,
