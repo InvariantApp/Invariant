@@ -19799,6 +19799,22 @@
       ]
     },
     {
+      "id": "urugus/slack-cli#344",
+      "repo": "urugus/slack-cli",
+      "pr": 344,
+      "base": "636d87f9f6fe8860b46e1ee946593af4c85ef3a6",
+      "head": "b891c45c1666ae5297ceaa0826a852f2b0edc8f9",
+      "package": "@slack/web-api",
+      "ecosystem": "npm",
+      "from": "7.17.0",
+      "to": "8.1.1",
+      "license": "MIT",
+      "mergedAt": "2026-10-10T02:37:05Z",
+      "files": [
+        "scripts/runtime-compatibility.cjs"
+      ]
+    },
+    {
       "id": "vatsalsaglani/claudetools#30",
       "repo": "vatsalsaglani/claudetools",
       "pr": 30,
