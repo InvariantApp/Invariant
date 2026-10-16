@@ -1,5 +1,42 @@
 # @invariant-app/migrate-go
 
+## 0.5.0
+
+### Minor Changes
+
+- 19b8562: A Go migration now rewrites more of what the Changes determine, where it used to show every reference to the field:
+  
+  - A value the contract renamed is rewritten where it is one of the SDK's named string type's values (`CustomerStatus`) and every field it meets is one the Change covers: compared with the field, sent in a request, a case of a switch, listed in a `[]CustomerStatus`, compared with the field converted to a plain string (`string(c.Status) == "active"`), or compared inside the consumer's own helper, where every call passes it the field. An SDK that gives a response's field and a request's the same type keeps the other side's values as they are; a value that meets both, or something that cannot be followed to a field, is shown. A literal of plain `string` compared with nothing of the SDK's is left alone.
+  - An amount now in minor units is converted with the SDK's exact helpers, named in the symbol map's new `helpers` and checked against both releases: `sdk.FromMinorUnits(customer.Balance)` where it is read, `sdk.ToMinorUnits(credit * 2)` where it is sent, and a literal on its digits, `Balance: 1250`. A read from a variable the function checks for nil is still shown, since what the absent case becomes is the consumer's choice.
+  - A field that moved into an object of its struct is read through it (`customer.Contact.Phone`) and written into a literal of it (`Contact: &sdk.Contact{Phone: mobile}`).
+  - A request field that became required, with the value it always had, is written into each literal that builds the request, and a literal standing in for a response that gained a field is shown.
+  - A field an embedded struct promotes is found through the struct that embeds it, and a field named through reflection on the SDK's struct (`FieldByName("Nickname")`) is renamed.
+  - A key read from untyped JSON (`map[string]any`) that names a moved, removed or re-encoded field is shown where the map provably holds the SDK's data: returned by a call into the SDK, passed to one, or decoded from bytes one returned.
+
+### Patch Changes
+
+- 8f3e365: A migration can now run in a sandbox, in two phases.
+  
+  `@invariant-app/sandbox` is new. Its `Sandbox` interface runs a fetch phase, which downloads the SDK releases a migration reads with install scripts off and can reach only the package registries (`registry.npmjs.org`, `pypi.org`, `files.pythonhosted.org`, `proxy.golang.org`, `sum.golang.org`, and any host a caller adds) through an egress proxy, and an analyse phase, which reads the repository with no network at all, read-only inputs and one writable output directory. Each phase runs under limits on memory, CPUs, CPU time and the wall clock, and a failure says which: `timeout`, `memory`, `cpu`, `exit`, `driver` or `unavailable`. The egress proxy is an HTTP CONNECT proxy that opens tunnels only to allowlisted host names, on 443 by default, never to a name that resolves to a private, loopback or link-local address, and never for plain HTTP; it also runs on its own as `invariant-egress-proxy`. Three drivers: `oci-rootless` runs each phase in a docker or podman container as a non-root user with a read-only root filesystem, no capabilities and `--network=none` for the analysis, and the fetch on an internal network whose only way out is the proxy; `k8s-job` runs each phase as a Job under a gVisor or Kata RuntimeClass with a NetworkPolicy that denies an analysis all traffic and a fetch everything but the proxy; `fly-machine` runs each phase in a one-shot Fly Machine that is destroyed when it exits and never restarted.
+  
+  `invariant migrate <job.json>` is new: it moves one consumer repository to a release with the same engine the hosted service runs, for TypeScript, Python and Go. By default it runs in this process; `--sandbox oci-rootless` runs each phase in a container, with this same installation of the CLI mounted read-only. The language packs are optional peer dependencies of the CLI, loaded only when a job needs one.
+  
+  The go command the Go pack runs now keeps `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` from the environment, so it reaches the module proxy from behind a proxy, as a sandboxed fetch does; nothing else of the caller's environment is kept.
+  
+  A TypeScript consumer migrated through its tsconfig now gets edits when its SDK is installed the usual way, as declarations under node_modules: the engine now reads the SDK's declarations it is given even where the project resolves them without listing them.
+- 415673a: The Python pack finds values a parameter no longer takes, written as literals.
+  
+  An SDK declares a parameter's vocabulary, as openai-python's `model` is `Union[str, ChatModel]`, and a release that drops a value from it means the API retired that value. The checker never says so, since the parameter takes any text too. The pack now reads each parameter's vocabulary from both releases' declarations, the literal aliases it names and the literals written into its annotation, and a string literal the consumer sends as the SDK's own parameter, directly or through a name bound to it, is a site wherever the old release lists it and the new one does not: rewritten where a Change maps the value (`enumMap`), shown otherwise. A function of the consumer's that takes a parameter of the same name is left alone.
+  
+  `buildPlan` gathers these values from every Change into the plan's new `retiredValues`: each old value an `enumMap` renames, with what it is sent as now, and each value a `dropValues` leaves out of a list, whatever the Change is scoped to.
+  
+  A site shown to a person may say where the changed element itself is written, as `at`, where what it shows is wider: the read of a moved field inside the statement around it, the key a plain HTTP request sends, the name of a removed class inside the call that builds one. The Python and Go packs say so.
+- Updated dependencies [44e1f3b]
+- Updated dependencies [af96b68]
+- Updated dependencies [415673a]
+  - @invariant-app/migrate-core@0.5.0
+  - @invariant-app/ir@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

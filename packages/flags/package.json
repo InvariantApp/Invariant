@@ -1,6 +1,6 @@
 {
   "name": "@invariant-app/flags",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Reads kill-switch flags from a file or the environment, with last-known-good semantics",
   "license": "Apache-2.0",
   "type": "module",

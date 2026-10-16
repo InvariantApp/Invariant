@@ -1,5 +1,42 @@
 # @invariant-app/migrate-ts
 
+## 0.5.0
+
+### Minor Changes
+
+- eeeb512: `invariant compile` writes `invariant.lock` beside the program, naming it by the digest the evolution bundle records. Given that digest as `programDigest`, `createRuntime` refuses at load any other program, so one changed between the build and the server is never served; `programDigest` is exported for checking a program by hand.
+  
+  `invariant check` refuses a release whose behavior flag is used in authentication or authorization code, found by the file's path or the words around the flag. A caller chooses its own contract, so a branch on it there would let a caller choose its own permissions.
+  
+  `migrate` takes an optional `repair`, a model asked for each function a site was left to a person in. It is sent the Change, why the site was left, and that function only; what it returns is kept only as that one function, type-checking as well as before, and is reported in `repairs` as the model's. Without `repair` no model is asked.
+  
+  The oasdiff platform packages carry a CycloneDX bill of materials naming the upstream binary by version, source and hash, as every other package already does.
+- 5fed925: A TypeScript migration now rewrites more of what the Changes determine, where it used to leave the site or only show it:
+  
+  - A field the response type inherits from a base interface, as `email` on a `Customer` that extends `CustomerBase`, is found and rewritten where the value is certainly the response type. A read from a value that is only the base, which other types may share, is shown.
+  - A renamed enum value is rewritten as a `case` of a `switch` over the field, in a list the field is looked for in (`["active", "past_due"].includes(customer.status)`), compared with the field as text (`String(customer.status) === "active"`), and wherever it is compared with a value of the SDK's own vocabulary type (`CustomerStatus`) that comes only from the field the Change covers, as inside the consumer's own helper every call to which passes that field. An SDK that gives a response's field and a request's the same type keeps the other side's values as they are, and a value that cannot be followed to a field, or meets both, is shown.
+  - A renamed field read by a string key from the SDK's object, `customer["nickname"]`, is renamed inside the string.
+  - Request parameters gathered in a `const` object that is only ever passed where the SDK's request type is expected have their renamed key rewritten, and a field read from an untyped parameter every call passes the SDK's object to is rewritten. Where either is not certain, the site is still shown.
+  - A tagged stand-in's entry is no longer shown once the typed rewrite has already fixed it.
+
+### Patch Changes
+
+- 2308653: The exact conversion helpers are imported however the consumer imports the SDK. A file that takes only the SDK's default export (`import Acme from "acme"`) gets them in braces beside it, and one that holds the SDK as a namespace, or names its types only with `import type`, gets an import of its own. Before, the first two were left calling `fromMinorUnits` with nothing imported, and the third had it added to the type-only import, where calling it does not compile.
+- 8f3e365: A migration can now run in a sandbox, in two phases.
+  
+  `@invariant-app/sandbox` is new. Its `Sandbox` interface runs a fetch phase, which downloads the SDK releases a migration reads with install scripts off and can reach only the package registries (`registry.npmjs.org`, `pypi.org`, `files.pythonhosted.org`, `proxy.golang.org`, `sum.golang.org`, and any host a caller adds) through an egress proxy, and an analyse phase, which reads the repository with no network at all, read-only inputs and one writable output directory. Each phase runs under limits on memory, CPUs, CPU time and the wall clock, and a failure says which: `timeout`, `memory`, `cpu`, `exit`, `driver` or `unavailable`. The egress proxy is an HTTP CONNECT proxy that opens tunnels only to allowlisted host names, on 443 by default, never to a name that resolves to a private, loopback or link-local address, and never for plain HTTP; it also runs on its own as `invariant-egress-proxy`. Three drivers: `oci-rootless` runs each phase in a docker or podman container as a non-root user with a read-only root filesystem, no capabilities and `--network=none` for the analysis, and the fetch on an internal network whose only way out is the proxy; `k8s-job` runs each phase as a Job under a gVisor or Kata RuntimeClass with a NetworkPolicy that denies an analysis all traffic and a fetch everything but the proxy; `fly-machine` runs each phase in a one-shot Fly Machine that is destroyed when it exits and never restarted.
+  
+  `invariant migrate <job.json>` is new: it moves one consumer repository to a release with the same engine the hosted service runs, for TypeScript, Python and Go. By default it runs in this process; `--sandbox oci-rootless` runs each phase in a container, with this same installation of the CLI mounted read-only. The language packs are optional peer dependencies of the CLI, loaded only when a job needs one.
+  
+  The go command the Go pack runs now keeps `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` from the environment, so it reaches the module proxy from behind a proxy, as a sandboxed fetch does; nothing else of the caller's environment is kept.
+  
+  A TypeScript consumer migrated through its tsconfig now gets edits when its SDK is installed the usual way, as declarations under node_modules: the engine now reads the SDK's declarations it is given even where the project resolves them without listing them.
+- Updated dependencies [44e1f3b]
+- Updated dependencies [af96b68]
+- Updated dependencies [415673a]
+  - @invariant-app/migrate-core@0.5.0
+  - @invariant-app/ir@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
