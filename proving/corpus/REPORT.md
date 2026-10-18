@@ -13,7 +13,7 @@ or a corpus written for it.
 - 1487 ran every stage (95.8%)
 - 55 stopped after `load`
 - 11 stopped after `budget`
-- median 917 ms per pair
+- median 915 ms per pair
 
 ### What stopped them
 
@@ -23,16 +23,15 @@ or a corpus written for it.
 | 12 | `ContractError: #/components/schemas/objs_channel/properties/latest/items is a list of schemas, where OpenAPI takes one. A list there is JSON Schema's positional tuple, which neither Swagger 2.0 nor OpenAPI 3.0 has. If each value may be one of several shapes, write that as anyOf.` |
 | 10 | `OasdiffError: /home/runner/work/Invariant/Invariant/packages/oasdiff-linux-x64/bin/oasdiff exited with 104.
 Error` |
+| 9 | `Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's budget.` |
 | 7 | `ContractError: `#/components/schemas/custom_attributes` is referenced but not defined, from 4 places including #/components/schemas/conversation_list_item/properties/custom_attributes. The document has to define everything it points at before it can be compared.` |
-| 5 | `Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's budget.` |
-| 4 | `Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's budget.` |
 | 2 | `OasdiffError: /home/runner/work/Invariant/Invariant/packages/oasdiff-linux-x64/bin/oasdiff exited with 102.
 Error` |
 | 2 | `ContractError: `#/components/schemas/Address` is referenced but not defined, from 3 places including #/components/schemas/Individual/properties/residentialAddress. The document has to define everything it points at before it can be compared.` |
 | 2 | `ContractError: `#/components/schemas/BankAccountInfo` is referenced but not defined, from 2 places including #/components/schemas/TransferInstrument/properties/bankAccount. The document has to define everything it points at before it can be compared.` |
 | 1 | `ContractError: /home/runner/work/Invariant/Invariant/.cache/corpus/77e2ebc28fc4e06678e23a79a3193b4719300c1652dc559598c7792de501c49f.json refers to /home/runner/work/Invariant/Invariant/common/schemas/common_user_prefs_schema.json, which cannot be read` |
 | 1 | `The worker was killed, which on this path means it ran out of memory.` |
-| 1 | `Stopped after 180000 ms, in `decide` (7s there). The difference between these two versions is larger than one pair's budget.` |
+| 1 | `Stopped after 180000 ms, in `closure` (49s there). The difference between these two versions is larger than one pair's budget.` |
 
 ## What real API changes look like
 
@@ -146,15 +145,15 @@ says which bound it hit.
 |---|---|---|
 | elastic.co:elasticsearch-openapi | 2026-08-31 d57b93c to 2026-08-31 564993a | Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's bud |
 | elastic.co:elasticsearch-openapi | 2026-08-31 564993a to 2026-09-02 18df28e | Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's bud |
-| elastic.co:elasticsearch-openapi | 2026-09-02 18df28e to 2026-09-02 d8c8cc1 | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
+| elastic.co:elasticsearch-openapi | 2026-09-02 18df28e to 2026-09-02 d8c8cc1 | Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's bud |
 | elastic.co:elasticsearch-openapi | 2026-09-02 d8c8cc1 to 2026-09-03 107d4cb | Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's bud |
-| elastic.co:elasticsearch-openapi | 2026-09-03 107d4cb to 2026-09-04 c698d01 | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
+| elastic.co:elasticsearch-openapi | 2026-09-03 107d4cb to 2026-09-04 c698d01 | Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's bud |
 | elastic.co:elasticsearch-openapi | 2026-09-04 c698d01 to 2026-09-08 20dda3e | Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's bud |
-| elastic.co:elasticsearch-openapi | 2026-09-08 20dda3e to 2026-09-14 921bdef | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
-| elastic.co:elasticsearch-openapi | 2026-09-14 921bdef to 2026-09-17 74ebc3f | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
-| elastic.co:elasticsearch-openapi | 2026-09-17 74ebc3f to 2026-09-18 ad270ce | Stopped after 180000 ms, in `diff` (180s there). The difference between these two versions is larger than one pair's bud |
+| elastic.co:elasticsearch-openapi | 2026-09-08 20dda3e to 2026-09-14 921bdef | Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's bud |
+| elastic.co:elasticsearch-openapi | 2026-09-14 921bdef to 2026-09-17 74ebc3f | Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's bud |
+| elastic.co:elasticsearch-openapi | 2026-09-17 74ebc3f to 2026-09-18 ad270ce | Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's bud |
 | stripe.com:spec3 | 2026-07-01 d5d11f6 to 2026-07-29 af5309c | The worker was killed, which on this path means it ran out of memory. |
-| stripe.com:spec3 | 2026-07-29 af5309c to 2026-08-26 30d3391 | Stopped after 180000 ms, in `decide` (7s there). The difference between these two versions is larger than one pair's bud |
+| stripe.com:spec3 | 2026-07-29 af5309c to 2026-08-26 30d3391 | Stopped after 180000 ms, in `closure` (49s there). The difference between these two versions is larger than one pair's b |
 
 ## Changes waiting on one decision
 
