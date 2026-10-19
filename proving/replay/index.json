@@ -12920,6 +12920,34 @@
       ]
     },
     {
+      "id": "PascaleBeier/hitkeep#405",
+      "repo": "PascaleBeier/hitkeep",
+      "pr": 405,
+      "base": "dbe108692216add7164b1311be911269937d24e7",
+      "head": "d97ac60ca2c36e6e5b720c35bf86bc9121c46944",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "86.4.2",
+      "to": "87.0.0",
+      "license": "MIT",
+      "mergedAt": "2026-10-18T22:08:40Z",
+      "files": [
+        "devtool/catalog.go",
+        "devtool/ci.go",
+        "devtool/devsession.go",
+        "server/cloud/handlers_billing.go",
+        "server/cloud/handlers_billing_events.go",
+        "server/cloud/handlers_billing_retention_test.go",
+        "server/cloud/handlers_billing_sessions.go",
+        "server/cloud/handlers_billing_test.go",
+        "server/cloud/stripe_client.go",
+        "server/cloud/stripe_logging.go",
+        "server/cloud/stripe_webhook_invoice_test.go",
+        "server/request_logging.go",
+        "server/shared/audit.go"
+      ]
+    },
+    {
       "id": "patitalabs/agile-metrics-tools#338",
       "repo": "patitalabs/agile-metrics-tools",
       "pr": 338,
