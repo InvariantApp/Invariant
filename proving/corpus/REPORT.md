@@ -10,10 +10,10 @@ or a corpus written for it.
 ## Did the pipeline survive
 
 - 1553 version pairs
-- 1486 ran every stage (95.7%)
+- 1485 ran every stage (95.6%)
 - 55 stopped after `load`
-- 12 stopped after `budget`
-- median 784 ms per pair
+- 13 stopped after `budget`
+- median 1014 ms per pair
 
 ### What stopped them
 
@@ -30,13 +30,14 @@ Error` |
 | 2 | `ContractError: `#/components/schemas/Address` is referenced but not defined, from 3 places including #/components/schemas/Individual/properties/residentialAddress. The document has to define everything it points at before it can be compared.` |
 | 2 | `ContractError: `#/components/schemas/BankAccountInfo` is referenced but not defined, from 2 places including #/components/schemas/TransferInstrument/properties/bankAccount. The document has to define everything it points at before it can be compared.` |
 | 1 | `ContractError: /home/runner/work/Invariant/Invariant/.cache/corpus/77e2ebc28fc4e06678e23a79a3193b4719300c1652dc559598c7792de501c49f.json refers to /home/runner/work/Invariant/Invariant/common/schemas/common_user_prefs_schema.json, which cannot be read` |
-| 1 | `Stopped after 180000 ms, in `decide` (34s there). The difference between these two versions is larger than one pair's budget.` |
+| 1 | `Stopped after 180000 ms, in `closure` (85s there). The difference between these two versions is larger than one pair's budget.` |
+| 1 | `Stopped after 180000 ms, in `decide` (5s there). The difference between these two versions is larger than one pair's budget.` |
 | 1 | `The worker was killed, which on this path means it ran out of memory.` |
-| 1 | `Stopped after 180000 ms, in `decide` (14s there). The difference between these two versions is larger than one pair's budget.` |
+| 1 | `Stopped after 180000 ms, in `closure` (38s there). The difference between these two versions is larger than one pair's budget.` |
 
 ## What real API changes look like
 
-Of the 1553 pairs, 1009 were purely additive:
+Of the 1553 pairs, 1008 were purely additive:
 the new version broke nothing. That is itself worth knowing, because it is
 the case this system should stay out of the way of.
 
@@ -123,13 +124,13 @@ place, which is what this system is actually for.
 | openai.com | 7 | 7 | 0 | 8 | 8 | 5 |
 | stripe.com | 7 | 5 | 2 | 81828 | 55300 | 42 |
 | meilisearch.com | 4 | 4 | 0 | 5248 | 5157 | 136 |
-| cloudflare.com | 3 | 2 | 1 | 1 | 0 | 1 |
+| cloudflare.com | 3 | 1 | 2 | 1 | 0 | 1 |
 | apicurio.local | 1 | 1 | 0 | 46 | 1 | 42 |
 | chaingateway.io | 1 | 1 | 0 | 21 | 0 | 21 |
 
 ## Pairs that cost more than they were given
 
-12 of 1553 pairs were stopped rather than finished.
+13 of 1553 pairs were stopped rather than finished.
 
 This is a real limit, not a crash. The differ's cost tracks the size of
 the difference rather than the size of the documents: two 13 MB GitHub
@@ -153,9 +154,10 @@ says which bound it hit.
 | elastic.co:elasticsearch-openapi | 2026-09-08 20dda3e to 2026-09-14 921bdef | Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's bud |
 | elastic.co:elasticsearch-openapi | 2026-09-14 921bdef to 2026-09-17 74ebc3f | Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's bud |
 | elastic.co:elasticsearch-openapi | 2026-09-17 74ebc3f to 2026-09-18 ad270ce | Stopped after 180000 ms, in `diff` (179s there). The difference between these two versions is larger than one pair's bud |
-| cloudflare.com:openapi | 2026-09-21 ce5342d to 2026-09-21 a01729c | Stopped after 180000 ms, in `decide` (34s there). The difference between these two versions is larger than one pair's bu |
+| cloudflare.com:openapi | 2026-09-21 8cb1993 to 2026-09-21 0da700f | Stopped after 180000 ms, in `closure` (85s there). The difference between these two versions is larger than one pair's b |
+| cloudflare.com:openapi | 2026-09-21 ce5342d to 2026-09-21 a01729c | Stopped after 180000 ms, in `decide` (5s there). The difference between these two versions is larger than one pair's bud |
 | stripe.com:spec3 | 2026-07-01 d5d11f6 to 2026-07-29 af5309c | The worker was killed, which on this path means it ran out of memory. |
-| stripe.com:spec3 | 2026-07-29 af5309c to 2026-08-26 30d3391 | Stopped after 180000 ms, in `decide` (14s there). The difference between these two versions is larger than one pair's bu |
+| stripe.com:spec3 | 2026-07-29 af5309c to 2026-08-26 30d3391 | Stopped after 180000 ms, in `closure` (38s there). The difference between these two versions is larger than one pair's b |
 
 ## Changes waiting on one decision
 
