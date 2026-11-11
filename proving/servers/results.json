@@ -166,11 +166,11 @@
           "code.gitea.io/sdk/gitea::TestVersion": "passed"
         },
         "messages": {
-          "code.gitea.io/sdk/gitea::TestCreateRepoActionVariable": "=== RUN   TestCreateRepoActionVariable\n2026/11/10 11:15:12 == TestCreateRepoActionVariable ==\n    repo_action_test.go:68: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/repo_action_test.go:68\n        \tError:      \tNot equal: \n        \t            \texpected: 204\n        \t            \tactual  : 201\n        \tTest:       \tTestCreateRepoActionVaria",
-          "code.gitea.io/sdk/gitea::TestOrgActionVariable": "=== RUN   TestOrgActionVariable\n2026/11/10 11:15:07 == TestOrgActionVariable ==\n    org_action_test.go:105: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/org_action_test.go:105\n        \tError:      \tNot equal: \n        \t            \texpected: 204\n        \t            \tactual  : 201\n        \tTest:       \tTestOrgActionVariable\n--- FAIL: TestOrg",
-          "code.gitea.io/sdk/gitea::TestUpdateOrgActionVariable": "=== RUN   TestUpdateOrgActionVariable\n2026/11/10 11:15:07 == TestUpdateOrgActionVariable ==\n    org_action_test.go:57: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/org_action_test.go:57\n        \tError:      \tNot equal: \n        \t            \texpected: 204\n        \t            \tactual  : 201\n        \tTest:       \tTestUpdateOrgActionVariable\n-",
-          "code.gitea.io/sdk/gitea::TestCommitStatus": "=== RUN   TestCommitStatus\n2026/11/10 11:15:32 == TestCommitStatus ==\n    status_test.go:64: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/status_test.go:64\n        \tError:      \tNot equal: \n        \t            \texpected: \"warning\"\n        \t            \tactual  : \"success\"\n        \t            \t\n        \t            \tDiff:\n        \t         ",
-          "code.gitea.io/sdk/gitea::TestFileCreateUpdateGet": "=== RUN   TestFileCreateUpdateGet\n2026/11/10 11:15:17 == TestFileCRUD ==\n    repo_file_test.go:63: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/repo_file_test.go:63\n        \tError:      \tNot equal: \n        \t            \texpected: \"The target couldn't be found.\"\n        \t            \tactual  : \"not found\"\n        \t            \t\n        \t    "
+          "code.gitea.io/sdk/gitea::TestCreateRepoActionVariable": "=== RUN   TestCreateRepoActionVariable\n2026/11/11 11:05:11 == TestCreateRepoActionVariable ==\n    repo_action_test.go:68: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/repo_action_test.go:68\n        \tError:      \tNot equal: \n        \t            \texpected: 204\n        \t            \tactual  : 201\n        \tTest:       \tTestCreateRepoActionVaria",
+          "code.gitea.io/sdk/gitea::TestOrgActionVariable": "=== RUN   TestOrgActionVariable\n2026/11/11 11:05:05 == TestOrgActionVariable ==\n    org_action_test.go:105: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/org_action_test.go:105\n        \tError:      \tNot equal: \n        \t            \texpected: 204\n        \t            \tactual  : 201\n        \tTest:       \tTestOrgActionVariable\n--- FAIL: TestOrg",
+          "code.gitea.io/sdk/gitea::TestUpdateOrgActionVariable": "=== RUN   TestUpdateOrgActionVariable\n2026/11/11 11:05:05 == TestUpdateOrgActionVariable ==\n    org_action_test.go:57: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/org_action_test.go:57\n        \tError:      \tNot equal: \n        \t            \texpected: 204\n        \t            \tactual  : 201\n        \tTest:       \tTestUpdateOrgActionVariable\n-",
+          "code.gitea.io/sdk/gitea::TestCommitStatus": "=== RUN   TestCommitStatus\n2026/11/11 11:05:32 == TestCommitStatus ==\n    status_test.go:64: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/status_test.go:64\n        \tError:      \tNot equal: \n        \t            \texpected: \"warning\"\n        \t            \tactual  : \"success\"\n        \t            \t\n        \t            \tDiff:\n        \t         ",
+          "code.gitea.io/sdk/gitea::TestFileCreateUpdateGet": "=== RUN   TestFileCreateUpdateGet\n2026/11/11 11:05:16 == TestFileCRUD ==\n    repo_file_test.go:63: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/repo_file_test.go:63\n        \tError:      \tNot equal: \n        \t            \texpected: \"The target couldn't be found.\"\n        \t            \tactual  : \"not found\"\n        \t            \t\n        \t    "
         }
       },
       "c": {
@@ -249,8 +249,8 @@
           "code.gitea.io/sdk/gitea::TestVersion": "passed"
         },
         "messages": {
-          "code.gitea.io/sdk/gitea::TestCommitStatus": "=== RUN   TestCommitStatus\n2026/11/10 11:17:25 == TestCommitStatus ==\n    status_test.go:64: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/status_test.go:64\n        \tError:      \tNot equal: \n        \t            \texpected: \"warning\"\n        \t            \tactual  : \"success\"\n        \t            \t\n        \t            \tDiff:\n        \t         ",
-          "code.gitea.io/sdk/gitea::TestFileCreateUpdateGet": "=== RUN   TestFileCreateUpdateGet\n2026/11/10 11:17:08 == TestFileCRUD ==\n    repo_file_test.go:63: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/repo_file_test.go:63\n        \tError:      \tNot equal: \n        \t            \texpected: \"The target couldn't be found.\"\n        \t            \tactual  : \"not found\"\n        \t            \t\n        \t    "
+          "code.gitea.io/sdk/gitea::TestCommitStatus": "=== RUN   TestCommitStatus\n2026/11/11 11:07:22 == TestCommitStatus ==\n    status_test.go:64: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/status_test.go:64\n        \tError:      \tNot equal: \n        \t            \texpected: \"warning\"\n        \t            \tactual  : \"success\"\n        \t            \t\n        \t            \tDiff:\n        \t         ",
+          "code.gitea.io/sdk/gitea::TestFileCreateUpdateGet": "=== RUN   TestFileCreateUpdateGet\n2026/11/11 11:07:07 == TestFileCRUD ==\n    repo_file_test.go:63: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/repo_file_test.go:63\n        \tError:      \tNot equal: \n        \t            \texpected: \"The target couldn't be found.\"\n        \t            \tactual  : \"not found\"\n        \t            \t\n        \t    "
         }
       }
     },
@@ -1825,7 +1825,7 @@
           "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should not set an asset offline if its file exists, is in an import path, and not covered by an exclusion pattern": "passed",
           "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should not set an offline asset to online if its file exists, is in an import path, but is covered by an exclusion pattern": "passed",
           "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should not set an offline asset to online if its file exists, is not covered by an exclusion pattern, but is outside of all import paths": "passed",
-          "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should process metadata and thumbnails for external asset": "failed",
+          "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should process metadata and thumbnails for external asset": "passed",
           "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should reimport a modified file": "passed",
           "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should remove assets covered by a new exclusion pattern": "passed",
           "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should require authentication": "passed",
@@ -2216,9 +2216,6 @@
           "src/api/specs/user.e2e-spec.ts::/users &gt; PUT /users/me/preferences &gt; should update download archive size": "passed",
           "src/api/specs/user.e2e-spec.ts::/users &gt; PUT /users/me/preferences &gt; should update download include embedded videos": "passed",
           "src/api/specs/user.e2e-spec.ts::/users &gt; PUT /users/me/preferences &gt; should update memories enabled": "passed"
-        },
-        "messages": {
-          "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should process metadata and thumbnails for external asset": "expected null not to be null // Object.is equality"
         }
       }
     },
@@ -2235,9 +2232,7 @@
       "src/api/specs/shared-link.e2e-spec.ts::/shared-links &gt; DELETE /shared-links/:id &gt; should delete a shared link",
       "src/api/specs/user.e2e-spec.ts::/users &gt; DELETE /users/me/license &gt; should delete the user license"
     ],
-    "regressions": [
-      "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should process metadata and thumbnails for external asset"
-    ],
+    "regressions": [],
     "closure": {
       "adapted": 10,
       "compared": 10,
@@ -12311,10 +12306,10 @@
           "openapi.test_vector_config::test_retrieve_vector_specific_quantization[True-True]": "passed"
         },
         "messages": {
-          "openapi.test_service::test_telemetry_detail[False-10]": "AssertionError: assert {'id', 'key',...icate_states'} == {'id', 'key',...icate_states'}\n  Extra items in the left set:\n  'partial_snapshot'\n  Full diff:\n  - {'local', 'remote', 'key', 'replicate_states', 'id'}\n  + {'key', 'partial_snapshot', 'local', 'remote', 'replicate_states', 'id'}",
-          "openapi.test_service::test_telemetry_detail[False-3]": "AssertionError: assert {'id', 'key',...icate_states'} == {'id', 'key',...icate_states'}\n  Extra items in the left set:\n  'partial_snapshot'\n  Full diff:\n  - {'local', 'remote', 'key', 'replicate_states', 'id'}\n  + {'key', 'partial_snapshot', 'local', 'remote', 'replicate_states', 'id'}",
-          "openapi.test_service::test_telemetry_detail[True-10]": "AssertionError: assert {'id', 'key',...icate_states'} == {'id', 'key',...icate_states'}\n  Extra items in the left set:\n  'partial_snapshot'\n  Full diff:\n  - {'local', 'remote', 'key', 'replicate_states', 'id'}\n  + {'key', 'partial_snapshot', 'local', 'remote', 'replicate_states', 'id'}",
-          "openapi.test_service::test_telemetry_detail[True-3]": "AssertionError: assert {'id', 'key',...icate_states'} == {'id', 'key',...icate_states'}\n  Extra items in the left set:\n  'partial_snapshot'\n  Full diff:\n  - {'local', 'remote', 'key', 'replicate_states', 'id'}\n  + {'key', 'partial_snapshot', 'local', 'remote', 'replicate_states', 'id'}",
+          "openapi.test_service::test_telemetry_detail[False-10]": "AssertionError: assert {'id', 'key',...icate_states'} == {'id', 'key',...icate_states'}\n  Extra items in the left set:\n  'partial_snapshot'\n  Full diff:\n  - {'remote', 'key', 'replicate_states', 'id', 'local'}\n  + {'key', 'replicate_states', 'remote', 'id', 'partial_snapshot', 'local'}",
+          "openapi.test_service::test_telemetry_detail[False-3]": "AssertionError: assert {'id', 'key',...icate_states'} == {'id', 'key',...icate_states'}\n  Extra items in the left set:\n  'partial_snapshot'\n  Full diff:\n  - {'remote', 'key', 'replicate_states', 'id', 'local'}\n  + {'key', 'replicate_states', 'remote', 'id', 'partial_snapshot', 'local'}",
+          "openapi.test_service::test_telemetry_detail[True-10]": "AssertionError: assert {'id', 'key',...icate_states'} == {'id', 'key',...icate_states'}\n  Extra items in the left set:\n  'partial_snapshot'\n  Full diff:\n  - {'remote', 'key', 'replicate_states', 'id', 'local'}\n  + {'key', 'replicate_states', 'remote', 'id', 'partial_snapshot', 'local'}",
+          "openapi.test_service::test_telemetry_detail[True-3]": "AssertionError: assert {'id', 'key',...icate_states'} == {'id', 'key',...icate_states'}\n  Extra items in the left set:\n  'partial_snapshot'\n  Full diff:\n  - {'remote', 'key', 'replicate_states', 'id', 'local'}\n  + {'key', 'replicate_states', 'remote', 'id', 'partial_snapshot', 'local'}",
           "openapi.test_strictmode::test_strict_mode_distance_matrix_limits": "assert 'Forbidden: Limit exceeded 20 > 15 for \"limit\"' in 'Bad request: Limit exceeded 20 > 15 for \"limit\". Help: Reduce the \"limit\" parameter to or below 15.'",
           "openapi.test_strictmode::test_strict_mode_group_limits": "assert 'Forbidden: Limit exceeded 30 > 15 for \"limit\"' in 'Bad request: Limit exceeded 30 > 15 for \"limit\". Help: Reduce the \"limit\" parameter to or below 15.'"
         }
@@ -16942,8 +16937,8 @@
         "messages": {
           "openapi.test_service::test_telemetry_detail[False-3]": "AssertionError: assert {'async_score...e_bytes', ...} == {'async_score...e_bytes', ...}\n  \n  Extra items in the left set:\n  'update_queue'\n  \n  Full diff:\n    {\n        'async_scorer',\n        'num_points',\n        'num_vectors',\n        'num_vectors_by_name',\n        'optimizations',\n        'payloads_size_bytes',\n        'status',\n        'total_optimized_points',\n  +     'update_queue',\n       ",
           "openapi.test_service::test_telemetry_detail[True-3]": "AssertionError: assert {'async_score...e_bytes', ...} == {'async_score...e_bytes', ...}\n  \n  Extra items in the left set:\n  'update_queue'\n  \n  Full diff:\n    {\n        'async_scorer',\n        'num_points',\n        'num_vectors',\n        'num_vectors_by_name',\n        'optimizations',\n        'payloads_size_bytes',\n        'status',\n        'total_optimized_points',\n  +     'update_queue',\n       ",
-          "openapi.test_service::test_telemetry_detail[False-10]": "AssertionError: assert {'async_score...zations', ...} == {'async_score...e_bytes', ...}\n  \n  Extra items in the left set:\n  'indexed_only_excluded_vectors'\n  'update_queue'\n  \n  Full diff:\n    {\n        'async_scorer',\n  +     'indexed_only_excluded_vectors',\n        'num_points',\n        'num_vectors',\n        'num_vectors_by_name',\n        'optimizations',\n        'payloads_size_bytes',\n        ",
-          "openapi.test_service::test_telemetry_detail[True-10]": "AssertionError: assert {'async_score...zations', ...} == {'async_score...e_bytes', ...}\n  \n  Extra items in the left set:\n  'indexed_only_excluded_vectors'\n  'update_queue'\n  \n  Full diff:\n    {\n        'async_scorer',\n  +     'indexed_only_excluded_vectors',\n        'num_points',\n        'num_vectors',\n        'num_vectors_by_name',\n        'optimizations',\n        'payloads_size_bytes',\n        "
+          "openapi.test_service::test_telemetry_detail[False-10]": "AssertionError: assert {'async_score...zations', ...} == {'async_score...e_bytes', ...}\n  \n  Extra items in the left set:\n  'update_queue'\n  'indexed_only_excluded_vectors'\n  \n  Full diff:\n    {\n        'async_scorer',\n  +     'indexed_only_excluded_vectors',\n        'num_points',\n        'num_vectors',\n        'num_vectors_by_name',\n        'optimizations',\n        'payloads_size_bytes',\n        ",
+          "openapi.test_service::test_telemetry_detail[True-10]": "AssertionError: assert {'async_score...zations', ...} == {'async_score...e_bytes', ...}\n  \n  Extra items in the left set:\n  'update_queue'\n  'indexed_only_excluded_vectors'\n  \n  Full diff:\n    {\n        'async_scorer',\n  +     'indexed_only_excluded_vectors',\n        'num_points',\n        'num_vectors',\n        'num_vectors_by_name',\n        'optimizations',\n        'payloads_size_bytes',\n        "
         }
       },
       "c": {
