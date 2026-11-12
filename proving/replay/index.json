@@ -16165,6 +16165,23 @@
       ]
     },
     {
+      "id": "steading-ai/thicket#173",
+      "repo": "steading-ai/thicket",
+      "pr": 173,
+      "base": "fbf3df7bdc5568c19ec69637d0487bbdaa478dda",
+      "head": "370e0dfcbe52cc26176811a0205fde95b956e681",
+      "package": "@slack/web-api",
+      "ecosystem": "npm",
+      "from": "",
+      "to": "8",
+      "license": "ISC",
+      "mergedAt": "2026-11-10T14:05:29Z",
+      "files": [
+        "apps/slack/src/egress.test.ts",
+        "apps/slack/src/main.ts"
+      ]
+    },
+    {
       "id": "stevenschling13/PhenoSage#107",
       "repo": "stevenschling13/PhenoSage",
       "pr": 107,
