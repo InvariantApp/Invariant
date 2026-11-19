@@ -16245,6 +16245,41 @@
       ]
     },
     {
+      "id": "stripe-samples/identity#1023",
+      "repo": "stripe-samples/identity",
+      "pr": 1023,
+      "base": "ce7b9debea6ce9068b3c1f249579d7ec2b143600",
+      "head": "6d290f0bd4a6afcb373e7d027b59618767c213b5",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "84.2.0",
+      "to": "87.1.0",
+      "license": "MIT",
+      "mergedAt": "2026-11-18T20:54:48Z",
+      "files": [
+        "modal/server/go/server.go",
+        "redirect/server/go/server.go"
+      ]
+    },
+    {
+      "id": "stripe-samples/issuing#412",
+      "repo": "stripe-samples/issuing",
+      "pr": 412,
+      "base": "5274e23dfc8769f4481d14292db01105fcb9d537",
+      "head": "3560ea2804b98da315b8dca350e80e96cfcb27dc",
+      "package": "github.com/stripe/stripe-go",
+      "ecosystem": "go",
+      "from": "84.2.0",
+      "to": "87.1.0",
+      "license": "MIT",
+      "mergedAt": "2026-11-18T20:04:33Z",
+      "files": [
+        "approve-authorization/server/go/server.go",
+        "create-cardholders-and-cards/server/go/server.go",
+        "issuing-elements/server/go/server.go"
+      ]
+    },
+    {
       "id": "stripe/stripe-commercetools-connect-app#445",
       "repo": "stripe/stripe-commercetools-connect-app",
       "pr": 445,
