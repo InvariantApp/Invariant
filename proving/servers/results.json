@@ -166,11 +166,11 @@
           "code.gitea.io/sdk/gitea::TestVersion": "passed"
         },
         "messages": {
-          "code.gitea.io/sdk/gitea::TestCreateRepoActionVariable": "=== RUN   TestCreateRepoActionVariable\n2026/11/21 11:03:20 == TestCreateRepoActionVariable ==\n    repo_action_test.go:68: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/repo_action_test.go:68\n        \tError:      \tNot equal: \n        \t            \texpected: 204\n        \t            \tactual  : 201\n        \tTest:       \tTestCreateRepoActionVaria",
-          "code.gitea.io/sdk/gitea::TestOrgActionVariable": "=== RUN   TestOrgActionVariable\n2026/11/21 11:03:16 == TestOrgActionVariable ==\n    org_action_test.go:105: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/org_action_test.go:105\n        \tError:      \tNot equal: \n        \t            \texpected: 204\n        \t            \tactual  : 201\n        \tTest:       \tTestOrgActionVariable\n--- FAIL: TestOrg",
-          "code.gitea.io/sdk/gitea::TestUpdateOrgActionVariable": "=== RUN   TestUpdateOrgActionVariable\n2026/11/21 11:03:16 == TestUpdateOrgActionVariable ==\n    org_action_test.go:57: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/org_action_test.go:57\n        \tError:      \tNot equal: \n        \t            \texpected: 204\n        \t            \tactual  : 201\n        \tTest:       \tTestUpdateOrgActionVariable\n-",
-          "code.gitea.io/sdk/gitea::TestCommitStatus": "=== RUN   TestCommitStatus\n2026/11/21 11:03:38 == TestCommitStatus ==\n    status_test.go:64: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/status_test.go:64\n        \tError:      \tNot equal: \n        \t            \texpected: \"warning\"\n        \t            \tactual  : \"success\"\n        \t            \t\n        \t            \tDiff:\n        \t         ",
-          "code.gitea.io/sdk/gitea::TestFileCreateUpdateGet": "=== RUN   TestFileCreateUpdateGet\n2026/11/21 11:03:25 == TestFileCRUD ==\n    repo_file_test.go:63: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/repo_file_test.go:63\n        \tError:      \tNot equal: \n        \t            \texpected: \"The target couldn't be found.\"\n        \t            \tactual  : \"not found\"\n        \t            \t\n        \t    "
+          "code.gitea.io/sdk/gitea::TestCreateRepoActionVariable": "=== RUN   TestCreateRepoActionVariable\n2026/11/22 11:28:32 == TestCreateRepoActionVariable ==\n    repo_action_test.go:68: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/repo_action_test.go:68\n        \tError:      \tNot equal: \n        \t            \texpected: 204\n        \t            \tactual  : 201\n        \tTest:       \tTestCreateRepoActionVaria",
+          "code.gitea.io/sdk/gitea::TestOrgActionVariable": "=== RUN   TestOrgActionVariable\n2026/11/22 11:28:27 == TestOrgActionVariable ==\n    org_action_test.go:105: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/org_action_test.go:105\n        \tError:      \tNot equal: \n        \t            \texpected: 204\n        \t            \tactual  : 201\n        \tTest:       \tTestOrgActionVariable\n--- FAIL: TestOrg",
+          "code.gitea.io/sdk/gitea::TestUpdateOrgActionVariable": "=== RUN   TestUpdateOrgActionVariable\n2026/11/22 11:28:26 == TestUpdateOrgActionVariable ==\n    org_action_test.go:57: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/org_action_test.go:57\n        \tError:      \tNot equal: \n        \t            \texpected: 204\n        \t            \tactual  : 201\n        \tTest:       \tTestUpdateOrgActionVariable\n-",
+          "code.gitea.io/sdk/gitea::TestCommitStatus": "=== RUN   TestCommitStatus\n2026/11/22 11:28:54 == TestCommitStatus ==\n    status_test.go:64: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/status_test.go:64\n        \tError:      \tNot equal: \n        \t            \texpected: \"warning\"\n        \t            \tactual  : \"success\"\n        \t            \t\n        \t            \tDiff:\n        \t         ",
+          "code.gitea.io/sdk/gitea::TestFileCreateUpdateGet": "=== RUN   TestFileCreateUpdateGet\n2026/11/22 11:28:38 == TestFileCRUD ==\n    repo_file_test.go:63: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/repo_file_test.go:63\n        \tError:      \tNot equal: \n        \t            \texpected: \"The target couldn't be found.\"\n        \t            \tactual  : \"not found\"\n        \t            \t\n        \t    "
         }
       },
       "c": {
@@ -249,8 +249,8 @@
           "code.gitea.io/sdk/gitea::TestVersion": "passed"
         },
         "messages": {
-          "code.gitea.io/sdk/gitea::TestCommitStatus": "=== RUN   TestCommitStatus\n2026/11/21 11:05:11 == TestCommitStatus ==\n    status_test.go:64: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/status_test.go:64\n        \tError:      \tNot equal: \n        \t            \texpected: \"warning\"\n        \t            \tactual  : \"success\"\n        \t            \t\n        \t            \tDiff:\n        \t         ",
-          "code.gitea.io/sdk/gitea::TestFileCreateUpdateGet": "=== RUN   TestFileCreateUpdateGet\n2026/11/21 11:04:58 == TestFileCRUD ==\n    repo_file_test.go:63: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/repo_file_test.go:63\n        \tError:      \tNot equal: \n        \t            \texpected: \"The target couldn't be found.\"\n        \t            \tactual  : \"not found\"\n        \t            \t\n        \t    "
+          "code.gitea.io/sdk/gitea::TestCommitStatus": "=== RUN   TestCommitStatus\n2026/11/22 11:30:46 == TestCommitStatus ==\n    status_test.go:64: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/status_test.go:64\n        \tError:      \tNot equal: \n        \t            \texpected: \"warning\"\n        \t            \tactual  : \"success\"\n        \t            \t\n        \t            \tDiff:\n        \t         ",
+          "code.gitea.io/sdk/gitea::TestFileCreateUpdateGet": "=== RUN   TestFileCreateUpdateGet\n2026/11/22 11:30:29 == TestFileCRUD ==\n    repo_file_test.go:63: \n        \tError Trace:\t/home/runner/work/Invariant/Invariant/.cache/servers/gitea/v1.24.2/suite/gitea/repo_file_test.go:63\n        \tError:      \tNot equal: \n        \t            \texpected: \"The target couldn't be found.\"\n        \t            \tactual  : \"not found\"\n        \t            \t\n        \t    "
         }
       }
     },
@@ -419,8 +419,6 @@
           "lib/api/__test__/user/labels.test.ts::locations lifecycle (create, update, delete) &gt; user should be able to create a label": "expected 404 to be 201 // Object.is equality",
           "lib/api/__test__/user/labels.test.ts::locations lifecycle (create, update, delete) &gt; user should be able to delete a label": "expected 404 to be 201 // Object.is equality",
           "lib/api/__test__/user/labels.test.ts::locations lifecycle (create, update, delete) &gt; user should be able to update a label": "expected 404 to be 201 // Object.is equality",
-          "lib/api/__test__/user/stats.test.ts::group related statistics tests &gt; Validate Group Statistics": "expected undefined to deeply equal 11",
-          "lib/api/__test__/user/stats.test.ts::group related statistics tests &gt; Validate Labels Statistics": "expected 404 to be 200 // Object.is equality",
           "lib/api/__test__/user/templates.test.ts::templates with location and labels &gt; user should be able to create a template with default labels": "expected 404 to be 201 // Object.is equality"
         }
       },
@@ -448,8 +446,8 @@
           "lib/api/__test__/user/locations.test.ts::locations lifecycle (create, update, delete) &gt; user should be able to delete a location": "passed",
           "lib/api/__test__/user/locations.test.ts::locations lifecycle (create, update, delete) &gt; user should be able to update a location": "passed",
           "lib/api/__test__/user/notifier.test.ts::basic notifier workflows &gt; user should be able to create, update, and delete a notifier": "passed",
-          "lib/api/__test__/user/stats.test.ts::group related statistics tests &gt; Validate Group Statistics": "passed",
-          "lib/api/__test__/user/stats.test.ts::group related statistics tests &gt; Validate Labels Statistics": "passed",
+          "lib/api/__test__/user/stats.test.ts::group related statistics tests &gt; Validate Group Statistics": "failed",
+          "lib/api/__test__/user/stats.test.ts::group related statistics tests &gt; Validate Labels Statistics": "failed",
           "lib/api/__test__/user/stats.test.ts::group related statistics tests &gt; Validate Locations Statistics": "passed",
           "lib/api/__test__/user/stats.test.ts::group related statistics tests &gt; Validate Purchase Over Time": "passed",
           "lib/api/__test__/user/templates.test.ts::templates lifecycle (create, update, delete) &gt; user should be able to create a template": "passed",
@@ -478,17 +476,19 @@
           "lib/passwords/index.test.ts::scorePassword tests &gt; should return 0 for strings less than 6": "passed",
           "lib/passwords/index.test.ts::scorePassword tests &gt; should return max number for long string with all variations": "passed",
           "lib/passwords/index.test.ts::scorePassword tests &gt; should return positive number for long string": "passed"
-        }
+        },
+        "volatile": [
+          "lib/api/__test__/user/stats.test.ts::group related statistics tests &gt; Validate Group Statistics",
+          "lib/api/__test__/user/stats.test.ts::group related statistics tests &gt; Validate Labels Statistics"
+        ]
       }
     },
-    "valid": 52,
+    "valid": 50,
     "broken": [
       "lib/api/__test__/user/items.test.ts::user should be able to create an item and add an attachment &gt; user should be able to create and delete fields on an item",
       "lib/api/__test__/user/labels.test.ts::locations lifecycle (create, update, delete) &gt; user should be able to create a label",
       "lib/api/__test__/user/labels.test.ts::locations lifecycle (create, update, delete) &gt; user should be able to delete a label",
       "lib/api/__test__/user/labels.test.ts::locations lifecycle (create, update, delete) &gt; user should be able to update a label",
-      "lib/api/__test__/user/stats.test.ts::group related statistics tests &gt; Validate Group Statistics",
-      "lib/api/__test__/user/stats.test.ts::group related statistics tests &gt; Validate Labels Statistics",
       "lib/api/__test__/user/templates.test.ts::templates with location and labels &gt; user should be able to create a template with default labels"
     ],
     "served": [
@@ -496,11 +496,13 @@
       "lib/api/__test__/user/labels.test.ts::locations lifecycle (create, update, delete) &gt; user should be able to create a label",
       "lib/api/__test__/user/labels.test.ts::locations lifecycle (create, update, delete) &gt; user should be able to delete a label",
       "lib/api/__test__/user/labels.test.ts::locations lifecycle (create, update, delete) &gt; user should be able to update a label",
-      "lib/api/__test__/user/stats.test.ts::group related statistics tests &gt; Validate Group Statistics",
-      "lib/api/__test__/user/stats.test.ts::group related statistics tests &gt; Validate Labels Statistics",
       "lib/api/__test__/user/templates.test.ts::templates with location and labels &gt; user should be able to create a template with default labels"
     ],
     "regressions": [],
+    "volatile": [
+      "lib/api/__test__/user/stats.test.ts::group related statistics tests &gt; Validate Group Statistics",
+      "lib/api/__test__/user/stats.test.ts::group related statistics tests &gt; Validate Labels Statistics"
+    ],
     "closure": {
       "adapted": 60,
       "compared": 60,
@@ -529,7 +531,12 @@
         "PUT /api/v1/templates/{id} /defaultLabels",
         "PUT /api/v1/templates/{id} /defaultTags"
       ],
-      "wrong": []
+      "wrong": [
+        {
+          "site": "GET /api/v1/groups/statistics /totalLabels",
+          "why": "the adapter sent 10 where the old server sent 11 on every run"
+        }
+      ]
     }
   },
   {
@@ -1825,7 +1832,7 @@
           "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should not set an asset offline if its file exists, is in an import path, and not covered by an exclusion pattern": "passed",
           "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should not set an offline asset to online if its file exists, is in an import path, but is covered by an exclusion pattern": "passed",
           "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should not set an offline asset to online if its file exists, is not covered by an exclusion pattern, but is outside of all import paths": "passed",
-          "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should process metadata and thumbnails for external asset": "passed",
+          "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should process metadata and thumbnails for external asset": "failed",
           "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should reimport a modified file": "passed",
           "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should remove assets covered by a new exclusion pattern": "passed",
           "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should require authentication": "passed",
@@ -2216,10 +2223,13 @@
           "src/api/specs/user.e2e-spec.ts::/users &gt; PUT /users/me/preferences &gt; should update download archive size": "passed",
           "src/api/specs/user.e2e-spec.ts::/users &gt; PUT /users/me/preferences &gt; should update download include embedded videos": "passed",
           "src/api/specs/user.e2e-spec.ts::/users &gt; PUT /users/me/preferences &gt; should update memories enabled": "passed"
-        }
+        },
+        "volatile": [
+          "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should process metadata and thumbnails for external asset"
+        ]
       }
     },
-    "valid": 546,
+    "valid": 545,
     "broken": [
       "src/api/specs/album.e2e-spec.ts::/albums &gt; PUT :id/user/:userId &gt; should allow the album owner to change the role of a shared user",
       "src/api/specs/partner.e2e-spec.ts::/partners &gt; DELETE /partners/:id &gt; should delete partner",
@@ -2233,6 +2243,9 @@
       "src/api/specs/user.e2e-spec.ts::/users &gt; DELETE /users/me/license &gt; should delete the user license"
     ],
     "regressions": [],
+    "volatile": [
+      "src/api/specs/library.e2e-spec.ts::/libraries &gt; POST /libraries/:id/scan &gt; should process metadata and thumbnails for external asset"
+    ],
     "closure": {
       "adapted": 10,
       "compared": 10,
@@ -7338,7 +7351,7 @@
         "chg_document_model_default_new: / reaches the schema through anyOf, and nothing tells its branches apart",
         "v1.12.0 -> v1.13.0: chg_collection_config_wal_config_default_old broke its backward round trip on {\"params\":{},\"hnsw_config\":{\"m\":0,\"ef_construct\":4,\"full_scan_threshold\":0},\"optimizer_config\":{\"deleted_threshold\":0,\"vacuum_min_vector_number\":100,\"default_segment_number\":0,\"flush_interval_sec\":0}} - backward produced a value the old contract does not allow (/wal_config: expected object, found string)",
         "v1.12.0 -> v1.13.0: chg_collection_config_wal_config_default_old, chg_collection_telemetry_shard_clean_tasks_added, chg_replica_state_replica_state_vocabulary, chg_segment_info_payloads_size_bytes_added, chg_segment_info_vectors_size_bytes_added, chg_shard_transfer_method_shard_transfer_method_vocabulary broke its backward round trip on {\"id\":\"\",\"init_time_ms\":0,\"config\":{\"params\":{},\"hnsw_config\":{\"m\":0,\"ef_construct\":4,\"full_scan_threshold\":0},\"optimizer_config\":{\"deleted_threshold\":0,\"vacuum_min_vector_number\":100,\"default_segment_number\":0,\"flush_interval_sec\":0}},\"shards\":[],\"transfers\":[],\"resharding\":[],\"shard_clean_tasks\":{}} - backward produced a value the old contract does not allow (/config/wal_config: expected object, found string)",
-        "v1.12.0 -> v1.13.0: chg_replica_state_replica_state_vocabulary broke its backward round trip on \"Resharding\" - backward produced a value the old contract does not allow (/: \"CHOOSE_ONE\" is not one of \"Active\", \"Dead\", \"Partial\", \"Initializing\", \"Listener\", \"PartialSnapshot\", \"Recovery\")",
+        "v1.12.0 -> v1.13.0: chg_replica_state_replica_state_vocabulary broke its backward round trip on \"ReshardingScaleDown\" - backward produced a value the old contract does not allow (/: \"CHOOSE_ONE\" is not one of \"Active\", \"Dead\", \"Partial\", \"Initializing\", \"Listener\", \"PartialSnapshot\", \"Recovery\")",
         "v1.12.0 -> v1.13.0: chg_shard_transfer_method_shard_transfer_method_vocabulary broke its backward round trip on \"resharding_stream_records\" - backward produced a value the old contract does not allow (/: \"CHOOSE_ONE\" is not one of \"stream_records\", \"snapshot\", \"wal_delta\")",
         "v1.12.0 -> v1.13.0: chg_app_features_telemetry_gpu_added, chg_collection_config_wal_config_default_old, chg_collection_telemetry_shard_clean_tasks_added, chg_replica_state_replica_state_vocabulary, chg_segment_info_payloads_size_bytes_added, chg_segment_info_vectors_size_bytes_added, chg_shard_transfer_method_shard_transfer_method_vocabulary, chg_telemetry_data_cluster_default_old, chg_telemetry_data_requests_default_old broke its backward round trip on {\"id\":\"\",\"app\":{\"name\":\"\",\"version\":\"\",\"startup\":\"2020-01-01T00:00:00.000Z\"},\"collections\":{\"number_of_collections\":0}} - backward produced a value the old contract does not allow (/cluster: expected object, found string; /requests: expected object, found string)"
       ],
@@ -12306,10 +12319,10 @@
           "openapi.test_vector_config::test_retrieve_vector_specific_quantization[True-True]": "passed"
         },
         "messages": {
-          "openapi.test_service::test_telemetry_detail[False-10]": "AssertionError: assert {'id', 'key',...icate_states'} == {'id', 'key',...icate_states'}\n  Extra items in the left set:\n  'partial_snapshot'\n  Full diff:\n  - {'local', 'id', 'key', 'remote', 'replicate_states'}\n  + {'partial_snapshot', 'local', 'key', 'replicate_states', 'id', 'remote'}",
-          "openapi.test_service::test_telemetry_detail[False-3]": "AssertionError: assert {'id', 'key',...icate_states'} == {'id', 'key',...icate_states'}\n  Extra items in the left set:\n  'partial_snapshot'\n  Full diff:\n  - {'local', 'id', 'key', 'remote', 'replicate_states'}\n  + {'partial_snapshot', 'local', 'key', 'replicate_states', 'id', 'remote'}",
-          "openapi.test_service::test_telemetry_detail[True-10]": "AssertionError: assert {'id', 'key',...icate_states'} == {'id', 'key',...icate_states'}\n  Extra items in the left set:\n  'partial_snapshot'\n  Full diff:\n  - {'local', 'id', 'key', 'remote', 'replicate_states'}\n  + {'partial_snapshot', 'local', 'key', 'replicate_states', 'id', 'remote'}",
-          "openapi.test_service::test_telemetry_detail[True-3]": "AssertionError: assert {'id', 'key',...icate_states'} == {'id', 'key',...icate_states'}\n  Extra items in the left set:\n  'partial_snapshot'\n  Full diff:\n  - {'local', 'id', 'key', 'remote', 'replicate_states'}\n  + {'partial_snapshot', 'local', 'key', 'replicate_states', 'id', 'remote'}",
+          "openapi.test_service::test_telemetry_detail[False-10]": "AssertionError: assert {'id', 'key',...icate_states'} == {'id', 'key',...icate_states'}\n  Extra items in the left set:\n  'partial_snapshot'\n  Full diff:\n  - {'remote', 'replicate_states', 'local', 'id', 'key'}\n  + {'partial_snapshot', 'id', 'key', 'replicate_states', 'remote', 'local'}",
+          "openapi.test_service::test_telemetry_detail[False-3]": "AssertionError: assert {'id', 'key',...icate_states'} == {'id', 'key',...icate_states'}\n  Extra items in the left set:\n  'partial_snapshot'\n  Full diff:\n  - {'remote', 'replicate_states', 'local', 'id', 'key'}\n  + {'partial_snapshot', 'id', 'key', 'replicate_states', 'remote', 'local'}",
+          "openapi.test_service::test_telemetry_detail[True-10]": "AssertionError: assert {'id', 'key',...icate_states'} == {'id', 'key',...icate_states'}\n  Extra items in the left set:\n  'partial_snapshot'\n  Full diff:\n  - {'remote', 'replicate_states', 'local', 'id', 'key'}\n  + {'partial_snapshot', 'id', 'key', 'replicate_states', 'remote', 'local'}",
+          "openapi.test_service::test_telemetry_detail[True-3]": "AssertionError: assert {'id', 'key',...icate_states'} == {'id', 'key',...icate_states'}\n  Extra items in the left set:\n  'partial_snapshot'\n  Full diff:\n  - {'remote', 'replicate_states', 'local', 'id', 'key'}\n  + {'partial_snapshot', 'id', 'key', 'replicate_states', 'remote', 'local'}",
           "openapi.test_strictmode::test_strict_mode_distance_matrix_limits": "assert 'Forbidden: Limit exceeded 20 > 15 for \"limit\"' in 'Bad request: Limit exceeded 20 > 15 for \"limit\". Help: Reduce the \"limit\" parameter to or below 15.'",
           "openapi.test_strictmode::test_strict_mode_group_limits": "assert 'Forbidden: Limit exceeded 30 > 15 for \"limit\"' in 'Bad request: Limit exceeded 30 > 15 for \"limit\". Help: Reduce the \"limit\" parameter to or below 15.'"
         }
